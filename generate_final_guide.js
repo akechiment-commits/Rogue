@@ -201,9 +201,15 @@ const GUIDE_DESC_OVERRIDES = {
 };
 
 const POT_RANDOM_BC_NOTE = "フロア生成時に祝福抽選になった壺は祝福フラグを持たず容量+1、呪い抽選になった壺は呪いフラグを持たず容量-1（0未満にはならない）。";
+const CURSE_DESCRIPTION_TYPES = new Set(['potion', 'scroll', 'wand', 'pen', 'spellbook', 'bottle', 'marker']);
 
 function guideDesc(item) {
-  const desc = GUIDE_DESC_OVERRIDES[item.name] ?? item.desc ?? '';
+  let desc = GUIDE_DESC_OVERRIDES[item.name] ?? item.desc ?? '';
+  if (CURSE_DESCRIPTION_TYPES.has(item.type)) {
+    const curseLine = String(item.desc ?? '').split('\n').find((line) => line.trim().startsWith('呪い：'));
+    const hasCurseLine = String(desc).split('\n').some((line) => line.trim().startsWith('呪い：'));
+    if (curseLine && !hasCurseLine) desc = `${desc}\n${curseLine}`;
+  }
   return item.type === 'pot' ? `${desc}\n${POT_RANDOM_BC_NOTE}` : desc;
 }
 

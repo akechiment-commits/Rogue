@@ -407,13 +407,13 @@ export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
   { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
   { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。", tile:17 },
-  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n祝福：投げダメージ2倍。呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
+  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n投げると毒液が飛散する。\n呪い：解毒＋攻撃力回復。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:50, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと45〜55の炎ダメージを受ける。祝福：ダメージ2倍。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：45〜55回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
-  { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。祝福：+6。呪い：-3。",           tile:17 },
-  { name:"幸運の薬",         type:"potion", effect:"luck",     value:20, rarity:"C", weight:4,  sellPrice:500,  desc:"飲むと20ターン、敵を倒した時に追加ドロップ判定が発生する。祝福：40ターン。呪い：20ターン、敵がアイテムを落とさなくなる。\n食べ物にかけると幸運の食べ物になる。呪い：不運の食べ物になる。", tile:17 },
+  { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。\n呪い：攻撃力-3。",           tile:17 },
+  { name:"幸運の薬",         type:"potion", effect:"luck",     value:20, rarity:"C", weight:4,  sellPrice:500,  desc:"飲むと20ターン、敵を倒した時に追加ドロップ判定が発生する。\n呪い：不運（20T）。敵はアイテムを落とさない。食べ物には不運。", tile:17 },
   { name:"万能薬",           type:"potion", effect:"panacea", value:0, rarity:"B", weight:2,  sellPrice:2500, desc:"飲むとMP回復禁止以外の状態異常を全て治す。", tile:17 },
   { name:"牛乳",             type:"potion", effect:"milk",    value:15, rarity:"D", weight:8,  sellPrice:100,  desc:"飲むと満腹度+15。", tile:16 },
   { name:"ドーピングコンソメスープ", type:"potion", effect:"doping", value:50, rarity:"A", weight:1, sellPrice:3000, desc:"飲むと50ターン攻撃力と防御力が2倍になり、その後50ターン半減する。", tile:17 },
@@ -475,12 +475,12 @@ export const ITEMS = [
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
-  { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。祝福：40回復。MP最大時は最大MP+1（祝福+2）。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
+  { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵が特技を常用する。\n呪い：魔法封印。投げると敵も封印。",                 tile:16 },
   { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むと50ターン魔法が封印される。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
-  { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
-  { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：反転してモンスター感知100ターン。\n投げると敵を50ターン暗闇に(祝：永続、呪：暗闇解除)。", tile:16 },
-  { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：反転してフロアの罠を全て看破。\n投げると敵を50ターン逃走させる(祝：永続、呪：逃走解除)。", tile:16 },
-  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：1階上にワープ。\n投げると敵がレベルアップ(祝：2段階、呪：レベルダウン)。", tile:17 },
+  { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱。\n呪い：混乱解除＋必中。投げると敵の混乱解除。", tile:16 },
+  { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：飲むと敵感知100T。投げると敵の暗闇解除。", tile:16 },
+  { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：飲むと罠看破。投げると敵の幻惑解除。", tile:16 },
+  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：飲むと1階上へ。投げると敵がレベルダウン。", tile:17 },
   { name:"金貨",             type:"gold",   value:1,                     desc:"金貨。",                           tile:22 },
   { ...GOLD_NUGGET_T },
   { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"D", weight:8,  sellPrice:250,
@@ -621,7 +621,7 @@ export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, special
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。爆発範囲内の地雷・時限爆弾も誘爆する。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵にぶつけて倒すと薬になる。", tile:16 };
-export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。祝福：所持品1つを祝福。呪い：所持品1つを呪う。\n投げると腐敗・焦げた食料を戻す。敵には効かないが、火ダルマにはダメージ。呪い：敵にダメージ。", tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。\n祝福：所持品1つを祝福。\n投げると腐敗・焦げた食料を戻す。敵には効かないが、火ダルマにはダメージ。\n呪い：所持品1つを呪う。投げると敵にダメージ。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"C", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
 export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"B", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
@@ -4716,7 +4716,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
       const oldName = _dn; /* 名前変更前に取得 */
       item.name = "白紙の魔法書";
       item.spell = null;
-      item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
+      item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。\n呪い：効果なし。";
       ml.push(`魔法書「${oldName}」の文字が消えた！→白紙の魔法書`);
       return "changed";
     } else {
@@ -4733,7 +4733,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
       const oldName = _dn; /* 名前変更前に取得 */
       item.name = "白紙の巻物";
       item.effect = "blank";
-      item.desc = "何も書かれていない。魔法の筆で書き込める。";
+      item.desc = "何も書かれていない。魔法の筆で書き込める。\n呪い：効果なし。";
       ml.push(`巻物「${oldName}」の文字が消えた！→白紙の巻物`);
       return "changed";
     } else {
@@ -4984,7 +4984,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の巻物";
       item.effect = "blank";
-      item.desc = "何も書かれていない。魔法の筆で書き込める。";
+      item.desc = "何も書かれていない。魔法の筆で書き込める。\n呪い：効果なし。";
       ml.push(`巻物「${oldName}」が泉に落ちた...文字が消えた！`);
     } else {
       ml.push("白紙の巻物が泉に落ちた。");
@@ -4995,7 +4995,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の魔法書";
       item.spell = null;
-      item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
+      item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。\n呪い：効果なし。";
       ml.push(`魔法書「${oldName}」が泉に落ちた...文字が消えた！`);
     } else {
       ml.push("白紙の魔法書が泉に落ちた。");
@@ -7147,7 +7147,7 @@ export const SPELLBOOKS=[
   {name:"穴掘りの魔法書",   type:"spellbook",spell:"dig_magic",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むと方向を選び、10マスまで壁を掘る魔法を習得する。MP:8",tile:43},
 {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。Lvで爆発範囲が広がる。MP:7",tile:43},
   {name:"分身の魔法書",     type:"spellbook",spell:"clone_magic",     rarity:"A", weight:1, sellPrice:7000, desc:"読むと敵と戦う分身を呼び出す魔法を習得する。Lvで持続が伸びる。MP:12",tile:43},
-  {name:"外道の書",           type:"spellbook",spell:"gedo_book",       specialBook:"gedo", rarity:"S", weight:0.05, sellPrice:15000, desc:"読むとランダムな魔法を習得する。通常は4回、祝福は8回、呪いは1つの魔法を4回習得する。",tile:43},
+  {name:"外道の書",           type:"spellbook",spell:"gedo_book",       specialBook:"gedo", rarity:"S", weight:0.05, sellPrice:15000, desc:"読むとランダムな魔法を習得する。通常は4種類、祝福は8種類。",tile:43},
 ];
 
 /** 外道の書の習得処理。通常・祝福は同じ本の中で重複しない魔法を選び、呪いは1つだけを4回選ぶ。 */
@@ -7280,7 +7280,7 @@ export function blankScrollOrSpellbook(item, ml = null, nameFn = null) {
     const _dn = resolveItemName(item, nameFn);
     item.name = "白紙の巻物";
     item.effect = "blank";
-    item.desc = "何も書かれていない。魔法の筆で書き込める。";
+    item.desc = "何も書かれていない。魔法の筆で書き込める。\n呪い：効果なし。";
     if (ml) ml.push(`水を浴びて巻物「${_dn}」の文字が消えた！`);
     return true;
   }
@@ -7288,7 +7288,7 @@ export function blankScrollOrSpellbook(item, ml = null, nameFn = null) {
     const _dn = resolveItemName(item, nameFn);
     item.name = "白紙の魔法書";
     item.spell = null;
-    item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
+    item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。\n呪い：効果なし。";
     if (ml) ml.push(`水を浴びて魔法書「${_dn}」の文字が消えた！`);
     return true;
   }
@@ -8155,6 +8155,112 @@ export const RINGS = [
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
   { name: "体幹の指輪",     type:"ring", effect:"core_ring",              rarity:"B", weight:2,  sellPrice:3500, tile:60, desc:"装備中、転倒しなくなる。\n敵による吹き飛ばし・引き寄せ・罠への投げつけなど、強制的な移動を防ぐ。" },
 ];
+
+/* ゲーム内説明は簡潔に保ちつつ、呪いで効果が変わるアイテムに呪い欄を付ける。 */
+const CURSE_DESC_BY_TYPE = {
+  potion: {
+    heal: "HPに同量のダメージ。",
+    heal_big: "HPに同量のダメージ。",
+    superheal: "HPに同量のダメージ。",
+    poison: "解毒＋攻撃力回復。",
+    fire: "HP45〜55回復。",
+    sleep: "敵感知。",
+    slow: "加速。",
+    paralyze: "状態異常防止。",
+    power: "攻撃力-3。",
+    luck: "不運になり敵がアイテムを落とさない。",
+    panacea: "毒・眠り・混乱・鈍足・暗闇・幻惑・封印。",
+    milk: "満腹度-15＋毒。",
+    doping: "攻撃力・防御力半減。",
+    mana: "魔法封印。",
+    seal: "封印解除。",
+    confuse: "混乱解除＋必中。",
+    darkness: "敵感知。",
+    bewitch: "罠を看破。",
+    levelup: "1階上へワープ。",
+    water: "所持品1つを呪う。投げると敵にダメージ。",
+  },
+  scroll: {
+    weapon_up: "＋値-1。",
+    armor_up: "＋値-1。",
+    sleep_scroll: "自分と視界内の敵が眠る。",
+    confusion: "自分と視界内の敵が混乱。",
+    debuff: "自分の攻防半減（50T）。",
+    bind: "自分が金縛り。",
+    identify: "識別済み1つを未識別化。",
+    duplicate: "選んだアイテムが消える。",
+    sell_item: "半額。",
+    transform_item: "低レア度に変化。",
+    forge_item: "弱い能力を付与。",
+    summon: "部屋内の敵を別室へ転移。",
+    expand_inv: "最大所持数-1〜3。",
+    trap_scatter: "罠を全て消す。",
+    pot_extract: "壺を割る。",
+    self_destruct: "爆発せず200T炎・爆発無効。",
+    berserker_scroll: "部屋内の敵が平和主義（20T）。",
+    monster_house: "同部屋の敵を別室へ転移。",
+    bubble_gold: "先に-20000G、10T後に+10000G。",
+  },
+  pen: {
+    vulnerability: "ダメージ半減。",
+    magic_seal: "魔法ダメージ2倍。",
+    decoy: "敵がプレイヤーを追跡。",
+    plain: "効果なし。",
+  },
+  wand: {
+    knockback: "対象を引き寄せる。",
+    lightning: "対象を回復（不死にはダメージ）。",
+    slow: "対象を加速。",
+    transform: "敵を上位変化。自分は最大HP変動。",
+    swap: "対象の前へ飛ぶ。",
+    dig: "1マス先に壁を生成。",
+    leap: "対象をランダム転移。",
+    warp: "1マスだけ転移。",
+    paralyze: "状態異常防止。",
+    bless_wand: "対象を呪う。敵には鈍足。",
+    curse_wand: "対象を祝福。",
+    confuse: "混乱解除＋必中。",
+    soften: "1マス先に壁を生成。",
+    ice_wand: "対象を回復＋移動封じ解除。",
+    vitality_swap: "自分のHP1。",
+    wish: "効果は変わらない。",
+  },
+};
+
+const CURSE_DESC_DEFAULTS = {
+  potion: "効果なし。",
+  scroll: "効果なし。",
+  wand: "効果は変わらない。",
+  pen: "効果なし。",
+  spellbook: "別の魔法を習得。",
+  bottle: "水にすると呪われる。",
+  marker: "書き込んだ巻物を呪う。",
+};
+
+const CURSE_DESCRIPTION_TYPES = new Set(["potion", "scroll", "wand", "pen", "spellbook", "bottle", "marker"]);
+
+function curseDescriptionForItem(item) {
+  if (item?.type === "spellbook" && item.specialBook === "gedo") return "同じ魔法を4回習得。";
+  return CURSE_DESC_BY_TYPE[item?.type]?.[item?.effect || item?.potEffect]
+    || CURSE_DESC_DEFAULTS[item?.type]
+    || "効果なし。";
+}
+
+function ensureCurseDescription(item) {
+  if (!item?.desc || !CURSE_DESCRIPTION_TYPES.has(item.type)) return item;
+  let description = String(item.desc)
+    .replace(/呪い:/g, "呪い：")
+    .replace(/呪：/g, "呪い：");
+  if (!description.includes("呪い：")) description += `\n呪い：${curseDescriptionForItem(item)}`;
+  item.desc = description;
+  return item;
+}
+
+const ITEM_DESCRIPTION_TEMPLATES = [
+  ...ITEMS, ...WANDS, ...SPELLBOOKS,
+  GODSPARKWAND_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER,
+];
+ITEM_DESCRIPTION_TEMPLATES.forEach(ensureCurseDescription);
 
 /** 装備中の武器が魔法系ダメージへ与える倍率。上位能力を常に優先する。 */
 export function getWeaponMagicDamageMultiplier(weapon) {
