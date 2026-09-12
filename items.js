@@ -7088,6 +7088,7 @@ export const SPELLS=[
   {id:"curse_magic",    name:"呪いの魔法",        mpCost:15, effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:15"},
   {id:"haste_magic",    name:"加速の魔法",        mpCost:12, effect:"haste_magic",                needsDir:false, desc:"鈍足を解除し、速度を1段階上げる。基本10ターン。重ね掛けで3倍速になる。MP:12"},
   {id:"trap_detect_magic", name:"罠探知の魔法",   mpCost:10, effect:"trap_detect_magic",          needsDir:false, desc:"フロア内の罠だけを見えるようにする。MP:10"},
+  {id:"leap_magic",       name:"飛びつきの魔法",   mpCost:10, effect:"leap_magic",                 range:10, needsDir:true, desc:"方向を選び、敵や壁の手前へ瞬間移動する。MP:10"},
   {id:"purify_magic",    name:"浄化の魔法",        mpCost:12, effect:"purify_magic",                needsDir:false, desc:"MP回復禁止以外の状態異常とドーピングの副作用を解除する。MP:12"},
   {id:"power_magic",    name:"剛力の魔法",        mpCost:10, effect:"power_magic",                needsDir:false, desc:"50ターン攻撃力が10上がる。Lvごとに持続+5ターン。MP:10"},
   {id:"guard_magic",    name:"守護の魔法",        mpCost:10, effect:"guard_magic",                needsDir:false, desc:"50ターン防御力が10上がる。Lvごとに持続+5ターン。MP:10"},
@@ -7123,6 +7124,7 @@ export const SPELLBOOKS=[
   {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:15",tile:43},
   {name:"加速の魔法書",     type:"spellbook",spell:"haste_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと鈍足を解除し、速度を1段階上げる魔法を習得する。基本10ターン。重ね掛けで3倍速になる。MP:12",tile:43},
   {name:"罠探知の魔法書",   type:"spellbook",spell:"trap_detect_magic",rarity:"C", weight:4,  sellPrice:2500,  desc:"読むとフロア内の罠だけを見えるようにする魔法を習得する。MP:10",tile:43},
+  {name:"飛びつきの魔法書", type:"spellbook",spell:"leap_magic",       rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと方向を選び、敵や壁の手前へ瞬間移動する魔法を習得する。MP:10",tile:43},
   {name:"浄化の魔法書",     type:"spellbook",spell:"purify_magic",     rarity:"B", weight:2,  sellPrice:4500,  desc:"読むとMP回復禁止以外の状態異常とドーピングの副作用を解除する魔法を習得する。MP:12",tile:43},
   {name:"剛力の魔法書",     type:"spellbook",spell:"power_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン攻撃力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"守護の魔法書",     type:"spellbook",spell:"guard_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン防御力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
@@ -7823,6 +7825,22 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
 }
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
   let _lx = p.x, _ly = p.y;
+  const _isLeapMagic = spell.effect === "leap_magic";
+  const _landLeap = (message, hitType) => {
+    const _fromX = p.x, _fromY = p.y;
+    p.x = _lx; p.y = _ly;
+    pushPlayerKnockbackAnim(_fromX, _fromY, p.x, p.y, dx, dy);
+    if ((p.immobileTurns || 0) > 0) {
+      p.immobileTurns = 0;
+      ml.push("移動封じが解けた！");
+    }
+    ml.push(message);
+    return { x: _lx, y: _ly, hitType };
+  };
+  if (_isLeapMagic && hasGravityPentacle(dg, p.x, p.y)) {
+    ml.push("重力の魔方陣の力で飛びつきが無効になった！");
+    return { x: p.x, y: p.y, hitType: "gravity" };
+  }
   let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y;
   for (let d = 1; d <= spell.range; d++) {
     /* プレイヤー魔法弾は風で曲がらない */
@@ -7847,6 +7865,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
         ml.push(_dug > 0 ? `穴掘りの魔法が壁を${_dug}マス掘り進んだ！` : "魔法は壁に消えた。");
         return { x: tx, y: ty, hitType: "wall" };
       }
+      if (_isLeapMagic) return _landLeap("壁の前に飛びついた！", "wall");
       ml.push("魔法弾は壁に消えた。");
       return { x: _lx, y: _ly, hitType: "wall" };
     }
@@ -7856,6 +7875,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     }
     /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
     if (statueAt(dg, tx, ty)) {
+      if (_isLeapMagic) return _landLeap(`${statueAt(dg, tx, ty).name}の前に飛びついた！`, "statue");
       const _breaks = ["fire_bolt", "ice_bolt", "lightning_magic", "poison_bolt"].includes(spell.effect);
       hitStatueWithAction(dg, tx, ty, p, ml, luFn, p?.depth, {
         breaks: _breaks,
@@ -7870,6 +7890,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
         _lx = tx; _ly = ty;
         continue;
       }
+      if (_isLeapMagic) return _landLeap(`${mon.name}の前に飛びついた！`, "monster");
       wakeIfDormant(mon, ml);
       if (monEffectiveMagicImmune(mon)) {
         ml.push(`魔法は${mon.name}に効かない！`);
@@ -7933,9 +7954,14 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     }
     if (tx === p.x && ty === p.y) continue;
     const it = itemAt(dg, tx, ty);
-    if (it) { applySpellEffect(spell.effect, "item", it, _fdx, _fdy, dg, p, ml, luFn, lv); return { x: tx, y: ty, hitType: "item" }; }
+    if (it) {
+      if (_isLeapMagic) return _landLeap(`${resolveItemName(it)}の前に飛びついた！`, "item");
+      applySpellEffect(spell.effect, "item", it, _fdx, _fdy, dg, p, ml, luFn, lv);
+      return { x: tx, y: ty, hitType: "item" };
+    }
     _lx = tx; _ly = ty;
   }
+  if (_isLeapMagic) return _landLeap("虚空の先に飛びついた！", "void");
   ml.push("魔法弾は虚空に消えた。");
   return { x: _lx, y: _ly, hitType: "void" };
 }

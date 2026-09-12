@@ -17,8 +17,8 @@ import { monsterFireLightning } from "../wands.js";
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("9種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic"];
+  it("10種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic", "leap_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
@@ -236,6 +236,20 @@ describe("追加魔法", () => {
     });
     expect(player.poisoned).toBe(false);
     expect(player.poisonedTurns).toBe(0);
+  });
+
+  it("飛びつきの魔法は最初の敵の手前へ移動する", () => {
+    const dungeon = makeEmptyDg({ monsters: [
+      { name: "敵", hp: 20, maxHp: 20, x: 8, y: 5 },
+    ] });
+    const player = makePlayer({ x: 5, y: 5, immobileTurns: 3 });
+    const messages = [];
+
+    const result = castSpellBolt(player, dungeon, { effect: "leap_magic", range: 10 }, 1, 0, messages, noop, 1);
+
+    expect(result.hitType).toBe("monster");
+    expect(player).toMatchObject({ x: 7, y: 5, immobileTurns: 0 });
+    expect(messages).toEqual(expect.arrayContaining(["移動封じが解けた！", "敵の前に飛びついた！"]));
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {
