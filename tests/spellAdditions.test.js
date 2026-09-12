@@ -31,6 +31,8 @@ describe("追加魔法", () => {
     expect(SPELLS.find((spell) => spell.id === "clairvoyance_magic")).toMatchObject({ mpCost: 18 });
     expect(SPELLS.find((spell) => spell.id === "regen_magic")).toMatchObject({ mpCost: 12 });
     expect(SPELLS.find((spell) => spell.id === "time_stop_magic")).toMatchObject({ mpCost: 25 });
+    expect(SPELLS.find((spell) => spell.id === "self_destruct_magic").desc).toBe("自爆してHPが1になり、周囲の敵を即死させる。Lvで爆発範囲が広がる。MP:7");
+    expect(SPELLS.find((spell) => spell.id === "clone_magic").desc).toBe("敵と戦う分身を呼び出す。Lvで持続が伸びる。MP:12");
   });
 
   it("外道の書は通常4種類、祝福8種類、呪いは同じ魔法を4回習得する", () => {

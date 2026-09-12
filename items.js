@@ -7102,8 +7102,8 @@ export const SPELLS=[
   {id:"guard_magic",    name:"守護の魔法",        mpCost:10, effect:"guard_magic",                needsDir:false, desc:"50ターン防御力が10上がる。Lvごとに持続+5ターン。MP:10"},
   {id:"reflect_magic",  name:"反射の魔法",        mpCost:10, effect:"reflect_magic",              needsDir:false, desc:"50ターン魔法反射状態になる。Lvごとに持続+5ターン。MP:10"},
   {id:"dig_magic",      name:"穴掘りの魔法",      mpCost:8,  effect:"dig_magic",       range:10,  needsDir:true,  desc:"方向を選び、10マスまで壁を掘る。MP:8"},
-  {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスの敵を即死させる（ボスは現在HPの1/4ダメージ）。爆発範囲内の地雷・時限爆弾も誘爆する。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
-  {id:"clone_magic",    name:"分身の魔法",        mpCost:12, effect:"clone_magic",               needsDir:false, desc:"分身を1体呼び出す。HPは自分の最大HPの50%、攻撃力・防御力は自分の70%。30ターン持続。分身へ移動すると位置を入れ替える。Lvごとに持続+5ターン。MP:12"},
+  {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲の敵を即死させる。Lvで爆発範囲が広がる。MP:7"},
+  {id:"clone_magic",    name:"分身の魔法",        mpCost:12, effect:"clone_magic",               needsDir:false, desc:"敵と戦う分身を呼び出す。Lvで持続が伸びる。MP:12"},
   {id:"gedo_book",       name:"外道の書",          mpCost:0,  fixedMpCost:true, effect:"gedo_book",             needsDir:false, specialBook:true, desc:"外道の書専用の特殊な魔法書効果。"},
   {id:"debug_summon_mon", name:"[debug]敵召喚",   mpCost:0,  fixedMpCost:true, effect:"debug_summon_mon",  needsDir:false, debug:true, desc:"任意の敵を1体選んで呼び出す。MP:0"},
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
@@ -7145,8 +7145,8 @@ export const SPELLBOOKS=[
   {name:"守護の魔法書",     type:"spellbook",spell:"guard_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン防御力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"反射の魔法書",     type:"spellbook",spell:"reflect_magic",   rarity:"A", weight:1,  sellPrice:8000,  desc:"読むと50ターン魔法反射状態になる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"穴掘りの魔法書",   type:"spellbook",spell:"dig_magic",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むと方向を選び、10マスまで壁を掘る魔法を習得する。MP:8",tile:43},
-{name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。爆発範囲内の地雷・時限爆弾も誘爆する。ボスには現在HPの1/4ダメージ。MP:7",tile:43},
-  {name:"分身の魔法書",     type:"spellbook",spell:"clone_magic",     rarity:"A", weight:1, sellPrice:7000, desc:"読むと操作できない分身を1体呼び出す魔法を習得する。分身はHP・攻撃力・防御力が自分の50%・70%・70%。分身へ移動すると位置を入れ替える。30ターン持続し、Lvごとに持続+5ターン。MP:12",tile:43},
+{name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。Lvで爆発範囲が広がる。MP:7",tile:43},
+  {name:"分身の魔法書",     type:"spellbook",spell:"clone_magic",     rarity:"A", weight:1, sellPrice:7000, desc:"読むと敵と戦う分身を呼び出す魔法を習得する。Lvで持続が伸びる。MP:12",tile:43},
   {name:"外道の書",           type:"spellbook",spell:"gedo_book",       specialBook:"gedo", rarity:"S", weight:0.05, sellPrice:15000, desc:"読むとランダムな魔法を習得する。通常は4回、祝福は8回、呪いは1つの魔法を4回習得する。",tile:43},
 ];
 
