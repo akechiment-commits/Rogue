@@ -1709,6 +1709,12 @@ function livePlayerClone(dg) {
   return dg?.monsters?.find((monster) => monster.isPlayerClone && monster.hp > 0) || null;
 }
 
+function isFleeingMonster(m) {
+  return m?.subtype === "runner" ||
+    (m?.subtype === "goldthief" && m._stolenFromPlayer) ||
+    (m?.fleeingTurns || 0) > 0;
+}
+
 /** 分身がプレイヤー以上に近く、敵から認識できる位置にいるか。 */
 function cloneIsPreferredTarget(m, dg, pl, clone) {
   if (!clone || !pl || clone === m) return false;
@@ -1735,6 +1741,7 @@ function recognizedDecoyForMonster(m, dg, pl) {
       ? decoy
       : null;
   }
+  if (isFleeingMonster(m)) return null;
   const clone = livePlayerClone(dg);
   return cloneIsPreferredTarget(m, dg, pl, clone) ? clone : null;
 }

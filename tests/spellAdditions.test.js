@@ -214,6 +214,19 @@ describe("追加魔法", () => {
     expect({ x: clone.x, y: clone.y }).toEqual({ x: 7, y: 5 });
   });
 
+  it("逃走型の敵は分身を攻撃対象にせず逃げ続ける", () => {
+    const player = makePlayer({ x: 5, y: 5 });
+    const clone = makePlayerClone(player, 7, 5, 30);
+    const runner = { name: "フクマル", hp: 20, maxHp: 20, atk: 0, def: 0, exp: 50, speed: 2, baseKind: "runner", subtype: "runner", x: 6, y: 5, turnAttacks: 0, aware: true };
+    const dungeon = makeEmptyDg({ monsters: [runner, clone], rooms: [] });
+    const messages = [];
+
+    monsterAI(runner, dungeon, player, messages, { attackOnly: true });
+
+    expect(clone.hp).toBe(clone.maxHp);
+    expect(messages.some((message) => message.includes("分身を攻撃"))).toBe(false);
+  });
+
   it("分身は時間切れで消滅し、通常の敵として復活しない", () => {
     const player = makePlayer();
     const clone = makePlayerClone(player, 6, 5, 1);
