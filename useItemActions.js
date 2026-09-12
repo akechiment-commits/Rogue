@@ -2541,6 +2541,18 @@ export function useItemActions({
       setGs({ ...sr.current });
       return;
     }
+    /* 白紙の魔法書は白紙の巻物と同様、読むだけでは消費も習得も行わない。 */
+    if (!it.spell) {
+      ml.push("白紙の魔法書だ。魔法の筆で書き込めるかもしれない。");
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      setSelIdx(null);
+      setShowDesc(null);
+      setShowInv(false);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+      return;
+    }
     /* 未識別チェック（dnameRef は render後に定義されているが closure で参照可能） */
     const _sbIK = getIdentKey(it); // "b:fire_bolt" etc
     const _wasUnknown = !!(_sbIK && !sr.current.ident.has(_sbIK));
