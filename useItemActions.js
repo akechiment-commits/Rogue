@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
@@ -16,7 +16,7 @@ import {
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   LUCK_POTION_TURNS,
-  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
+  resolveItemName, applyBubbleGoldScroll, pickBigboxType, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
@@ -57,6 +57,27 @@ function applyLuckFoodGold(player, foodTier, messages) {
   const gold = rng(goldRange[0], goldRange[1]);
   player.gold += gold;
   messages.push(`幸運だ！${gold}ゴールドを見つけた。`);
+}
+
+function findBigboxSummonPosition(dg, p) {
+  const blocked = (x, y) =>
+    dg.map[y]?.[x] !== T.FLOOR ||
+    dg.monsters?.some((m) => m.x === x && m.y === y) ||
+    dg.items?.some((it) => it.x === x && it.y === y) ||
+    dg.traps?.some((trap) => trap.x === x && trap.y === y) ||
+    dg.springs?.some((spring) => spring.x === x && spring.y === y) ||
+    dg.bigboxes?.some((bb) => bb.x === x && bb.y === y) ||
+    dg.gachaMachines?.some((machine) => machine.x === x && machine.y === y) ||
+    dg.altars?.some((altar) => altar.x === x && altar.y === y) ||
+    dg.dimensionalVaults?.some((vault) => vault.x === x && vault.y === y) ||
+    dg.vents?.some((vent) => vent.x === x && vent.y === y) ||
+    dg.statues?.some((statue) => statue.x === x && statue.y === y) ||
+    dg.pentacles?.some((pentacle) => pentacle.x === x && pentacle.y === y);
+  for (const [dx, dy] of DRO) {
+    const x = p.x + dx, y = p.y + dy;
+    if (!blocked(x, y)) return { x, y };
+  }
+  return null;
 }
 
 export function getHypnosisItemCandidates(inventory = []) {
@@ -1785,6 +1806,26 @@ export function useItemActions({
         refreshFOV(dg, p);
       } else if (it.effect === "bubble_gold") {
         applyBubbleGoldScroll(p, ml, { blessed: !!it.blessed, cursed: !!it.cursed });
+      } else if (it.effect === "bigbox_summon") {
+        const _bbt = pickBigboxType({ blessed: !!it.blessed, cursed: !!it.cursed });
+        const _pos = findBigboxSummonPosition(dg, p);
+        if (!_pos) {
+          ml.push("大箱を置ける場所がない。巻物は消えた。");
+        } else {
+          const _bb = {
+            id: uid(),
+            x: _pos.x,
+            y: _pos.y,
+            tile: TI.BIGBOX,
+            kind: _bbt.kind,
+            name: _bbt.name,
+            capacity: _bbt.cap(),
+            contents: [],
+          };
+          (dg.bigboxes || (dg.bigboxes = [])).push(_bb);
+          const _where = _pos.x === p.x && _pos.y === p.y ? "足元" : "近く";
+          ml.push(`${bbDisplayName(_bb, sr.current)}が${_where}に現れた！${it.blessed ? "【祝】" : it.cursed ? "【呪】" : ""}`);
+        }
       } else if (it.effect === "summon") {
         // 召喚の巻物
         if (it.cursed) {

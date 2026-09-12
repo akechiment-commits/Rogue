@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BB_TYPES, RARITY_WEIGHT, breakBigboxContents, detonateNitroBox } from "../items.js";
+import { BB_TYPES, ITEMS, RARITY_RANK, RARITY_WEIGHT, breakBigboxContents, detonateNitroBox, pickBigboxType } from "../items.js";
 import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -15,6 +15,16 @@ describe("追加大箱", () => {
       expect(box).toEqual(expect.objectContaining({ kind, rarity }));
       expect(box.weight).toBe(RARITY_WEIGHT[rarity]);
     }
+  });
+
+  it("大箱の巻物は祝福・呪いで抽選するレア度帯が変わる", () => {
+    const scroll = ITEMS.find((item) => item.effect === "bigbox_summon");
+    expect(scroll).toEqual(expect.objectContaining({ name: "大箱の巻物", type: "scroll", rarity: "B" }));
+
+    const blessed = pickBigboxType({ blessed: true, randomFn: () => 0 });
+    const cursed = pickBigboxType({ cursed: true, randomFn: () => 0 });
+    expect(RARITY_RANK[blessed.rarity]).toBeGreaterThanOrEqual(RARITY_RANK.C);
+    expect(RARITY_RANK[cursed.rarity]).toBeLessThanOrEqual(RARITY_RANK.D);
   });
 
   it("ニトロ箱を破壊すると半径2マスで爆発する", () => {

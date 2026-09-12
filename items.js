@@ -495,6 +495,8 @@ export const ITEMS = [
     desc:"持ち物の武器か防具を1つ選んでランダムな能力を付与する。\n呪い：役に立たない能力。", tile:18 },
   { name:"召喚の巻物", type:"scroll", effect:"summon",            rarity:"E", weight:12, sellPrice:50,
     desc:"敵を4体召喚する。\n呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
+  { name:"大箱の巻物", type:"scroll", effect:"bigbox_summon",      rarity:"B", weight:2,  sellPrice:1200,
+    desc:"大箱を1個、その場に召喚する。\n祝福：高レアの大箱が出やすい。\n呪い：低レアの大箱が出やすい。", tile:18 },
   { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",   rarity:"B", weight:2,  sellPrice:800,
     desc:"最大所持数が1～3増える。", tile:18 },
   { name:"罠の巻物", type:"scroll", effect:"trap_scatter",        rarity:"E", weight:12, sellPrice:30,
@@ -811,7 +813,7 @@ export const BB_TYPES = [
   { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
   { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
   { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
-  { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
+  { kind: "greed",     name: "換金の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
   { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          rarity: "C", weight: RARITY_WEIGHT.C, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
   { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
 ];
@@ -819,6 +821,21 @@ export const BB_TYPES = [
 /** 大箱を巻物などで換金したときの容量1個あたりの基準額。 */
 export function bigboxSellBaseValue(bb) {
   return isRarityAtLeast(bb, "B") ? 3000 : 500;
+}
+
+/** 大箱の巻物用。祝福・呪いでは半分の確率でレア度帯を絞る。 */
+export function pickBigboxType({ blessed = false, cursed = false, randomFn = Math.random } = {}) {
+  const normalPool = BB_TYPES;
+  let pool = normalPool;
+  if ((blessed || cursed) && randomFn() < 0.5) {
+    const _bound = blessed ? RARITY_RANK.C : RARITY_RANK.D;
+    const _biased = normalPool.filter((bb) => {
+      const _rank = RARITY_RANK[bb.rarity] ?? RARITY_RANK.E;
+      return blessed ? _rank >= _bound : _rank <= _bound;
+    });
+    if (_biased.length > 0) pool = _biased;
+  }
+  return pickLootFromPool(pool, "floor", randomFn);
 }
 
 export const BB_FAKE_NAMES = [
