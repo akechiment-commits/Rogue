@@ -21,6 +21,8 @@ describe("追加魔法", () => {
     const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
+    expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
+    expect(SPELLBOOKS.find((book) => book.spell === "haste_magic")).toMatchObject({ sellPrice: 3500 });
   });
 
   it("剛力・守護・反射はレベルに応じて持続時間が伸びる", () => {
