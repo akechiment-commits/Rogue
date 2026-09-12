@@ -1156,6 +1156,44 @@ describe("doExplosion", () => {
     expect(p.hp).toBeLessThanOrEqual(0);
   });
 
+  it("通常の爆発は地雷・未作動時限爆弾・作動済み時限爆弾をすべて誘爆する", () => {
+    const mine = { id: "chain-mine", name: "地雷", effect: "explode", x: 6, y: 5 };
+    const timeBomb = { id: "chain-time", name: "時限爆弾の罠", effect: "time_bomb", x: 5, y: 6 };
+    const pendingBomb = { x: 4, y: 5, turnsLeft: 2 };
+    const dg = makeEmptyDg({ traps: [mine, timeBomb], pendingBombs: [pendingBomb] });
+    const ml = [];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      doExplosion(5, 5, dg, null, ml, null, "爆発");
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(mine.revealed).toBe(true);
+    expect(dg.traps).not.toContain(timeBomb);
+    expect(dg.pendingBombs).toEqual([]);
+    expect(ml).toContain("地雷が誘爆した！");
+    expect(ml).toContain("時限爆弾の罠が誘爆した！");
+  });
+
+  it("火薬壺の爆発も地雷系を誘爆する", () => {
+    const mine = { id: "gunpowder-mine", name: "地雷", effect: "explode", x: 7, y: 5 };
+    const timeBomb = { id: "gunpowder-time", name: "時限爆弾の罠", effect: "time_bomb", x: 5, y: 7 };
+    const dg = makeEmptyDg({ traps: [mine, timeBomb] });
+    const ml = [];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      doGunpowderExplosion(5, 5, dg, null, ml, () => {});
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(mine.revealed).toBe(true);
+    expect(dg.traps).not.toContain(timeBomb);
+    expect(ml).toContain("地雷が誘爆した！");
+    expect(ml).toContain("時限爆弾の罠が誘爆した！");
+  });
+
   it("炎・爆発不発時は爆発せずメッセージを出す", () => {
     const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [] };
     const p = { x: 5, y: 5, hp: 50, maxHp: 100, fireExplosionNullTurns: 42, inventory: [] };

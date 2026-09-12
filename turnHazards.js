@@ -34,13 +34,15 @@ export function resolveTurnHazards(state, player, messages, {
       bomb.turnsLeft--;
       if (bomb.turnsLeft <= 0) {
         messages.push("時限爆弾の罠が大爆発した！");
-        doTimeBombExplosion(bomb.x, bomb.y, dungeon, player, messages, lu, getItemName);
+        doTimeBombExplosion(bomb.x, bomb.y, dungeon, player, messages, lu, getItemName, { sourcePending: bomb });
       } else {
         messages.push(`時限爆弾の罠：あと${bomb.turnsLeft}ターンで爆発！`);
         remaining.push(bomb);
       }
     }
-    dungeon.pendingBombs = remaining;
+    /* 爆発の連鎖で先に消費された作動済み爆弾を復活させない。 */
+    const _stillPending = new Set(dungeon.pendingBombs || []);
+    dungeon.pendingBombs = remaining.filter((bomb) => _stillPending.has(bomb));
   }
 
   if (!state._pendingSpin || player.hp <= 0) return { spinFired: false };

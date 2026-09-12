@@ -502,7 +502,7 @@ export const ITEMS = [
   { name:"吸い出しの巻物", type:"scroll", effect:"pot_extract",   rarity:"C", weight:4,  sellPrice:600,
     desc:"選んだ壺の中身を足元にばらまく。", tile:18 },
   { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"B", weight:2,  sellPrice:700,
-    desc:"中心から2マス（5×5）に爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ軽減（個別or万能2/3・両方半減）。\n呪い：爆発は起きず200ターンの間、炎と爆発が全て不発になる。", tile:18 },
+    desc:"中心から2マス（5×5）に爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。爆発範囲内の地雷・時限爆弾も誘爆する。炎耐性ありなら自ダメ軽減（個別or万能2/3・両方半減）。\n呪い：爆発は起きず200ターンの間、炎と爆発が全て不発になる。", tile:18 },
   { name:"バーサーカーの巻物", type:"scroll", effect:"berserker_scroll", rarity:"C", weight:4, sellPrice:600,
     desc:"部屋内の敵全員が50ターンのバーサーク状態になり、敵味方区別なく攻撃する。\n呪い：部屋内の敵が20ターンの平和主義状態になる（攻撃不可）。", tile:18 },
   { name:"モンスターの巻物", type:"scroll", effect:"monster_house", rarity:"B", weight:2, sellPrice:900,
@@ -510,11 +510,11 @@ export const ITEMS = [
   { name:"あぶく銭の巻物", type:"scroll", effect:"bubble_gold", rarity:"C", weight:4, sellPrice:500,
     desc:"読むと大金が手に入るが、しばらくすると消える。\n呪い：先に大きく減って、しばらくすると一部戻る。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"B", weight:2,  sellPrice:120,
-    desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
+    desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。爆発範囲内の地雷・時限爆弾も誘爆する。\n99本まで束にできる。", tile:23 },
   { name:"魚雷", type:"arrow", atk:64, specialProjectile:"torpedo", count:3, rarity:"C", weight:4, sellPrice:150,
-    desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", tile:23 },
+    desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。敵に当たると着弾点で爆発し、爆発範囲内の地雷・時限爆弾も誘爆する。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", tile:23 },
   { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", count:3, rarity:"B", weight:2, sellPrice:250,
-    desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", tile:23 },
+    desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。爆発範囲内の地雷・時限爆弾も誘爆する。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", tile:23 },
   { name:"誘導弾", type:"arrow", atk:7, specialProjectile:"homing", count:3, rarity:"B", weight:2, sellPrice:220,
     desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"D", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
@@ -616,9 +616,9 @@ export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierc
 export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"C", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
-export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
-export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与える。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
-export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
+export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。爆発範囲内の地雷・時限爆弾も誘爆する。\n99本まで束にできる。",                            count:1, tile:23 };
+export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与え、爆発範囲内の地雷・時限爆弾も誘爆する。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
+export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。爆発範囲内の地雷・時限爆弾も誘爆する。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵にぶつけて倒すと薬になる。", tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。祝福：所持品1つを祝福。呪い：所持品1つを呪う。\n投げると腐敗・焦げた食料を戻す。敵には効かないが、火ダルマにはダメージ。呪い：敵にダメージ。", tile:16 };
@@ -1796,8 +1796,8 @@ export const TRAPS = [
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。敵が踏むと通常敵は食料に変わり、ボスは現在HPの1/4ダメージを受ける。\n腐った食料は満腹回復が0.4倍に。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, rarity:"C", weight:4,  desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   /* B: レア（危険） */
-  { name:"地雷",           effect:"explode",       tile:25,  rarity:"C", weight:4,  desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。隣の地雷は誘爆する。" },
-  { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73,  rarity:"B", weight:2,  desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
+  { name:"地雷",           effect:"explode",       tile:25,  rarity:"C", weight:4,  desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。爆発範囲内の地雷・時限爆弾は、爆発の種類によらず誘爆する。" },
+  { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73,  rarity:"B", weight:2,  desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。爆発範囲内の地雷・時限爆弾は、爆発の種類によらず誘爆する。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
   { name:"未識別の罠",     effect:"unident_trap",   tile:124, rarity:"B", weight:2,  desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n武器・防具・食料は祝呪がわからなくなる。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, rarity:"B", weight:2,  desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
   { name:"水鉄砲の罠",     effect:"watergun_trap",  tile:132, rarity:"C", weight:4,  desc:"踏むと水鉄砲を浴びる。ずぶ濡れになり、所持品に水の影響が出る。\n巻物・魔法書は白紙化、食料はサイズ1段階縮小、ペンはインク-1。\nアーマーガッパ（耐水）で防げる。" },
@@ -1853,20 +1853,63 @@ function calcPlayerDefForProjectile(p) {
  * 爆発共通処理 (地雷・爆弾矢などから呼ぶ)
  * cx, cy: 爆発の中心。options.radius（既定1）の正方形範囲を処理する。
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
- * mineExplosion: true のとき地雷モード（炎無効でない敵は消滅＋範囲内地雷を連鎖爆発）
+ * mineExplosion: true のとき地雷モード（炎無効でない敵は消滅）。地雷系の連鎖は全爆発で発生する。
  * options.instantMonsterKill: true のとき通常敵を即死させ、ボスには現在HPの1/4ダメージ
  */
-let _mineExplosionDepth = 0;
+let _explosionChainDepth = 0;
+
+/** 爆発範囲内の地雷・時限爆弾を、爆発の種類によらず連鎖させる。 */
+export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = null, options = {}) {
+  if (!dg || _explosionChainDepth > 8) return;
+  const _isRoot = _explosionChainDepth === 0;
+  if (_isRoot) dg._mineDetonatedIds = new Set();
+  _explosionChainDepth++;
+  try {
+    const _radius = Math.max(1, Math.floor(Number.isFinite(radius) ? radius : 1));
+    const _chainMines = (dg.traps || []).filter(t =>
+      t.effect === "explode" &&
+      t !== options.chainExcludeTrap &&
+      !(dg._mineDetonatedIds?.has(t.id)) &&
+      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= _radius
+    );
+    for (const _cm of _chainMines) {
+      runMineExplosion(dg, mineExplosionPending(_cm, nameFn), p, ml, luFn, { chainMsg: `${_cm.name}が誘爆した！` });
+    }
+
+    const _chainTimeBombs = (dg.traps || []).filter(t =>
+      t.effect === "time_bomb" &&
+      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= _radius
+    );
+    if (_chainTimeBombs.length > 0) {
+      dg.traps = dg.traps.filter(t => !_chainTimeBombs.includes(t));
+      for (const _ctb of _chainTimeBombs) {
+        ml.push(`${_ctb.name}が誘爆した！`);
+        doTimeBombExplosion(_ctb.x, _ctb.y, dg, p, ml, luFn, nameFn, { sourceTrap: _ctb });
+      }
+    }
+
+    const _chainPending = (dg.pendingBombs || []).filter(pb =>
+      pb !== options.sourcePending &&
+      Math.max(Math.abs(pb.x - cx), Math.abs(pb.y - cy)) <= _radius
+    );
+    if (_chainPending.length > 0) {
+      dg.pendingBombs = dg.pendingBombs.filter(pb => !_chainPending.includes(pb));
+      for (const _cpb of _chainPending) {
+        ml.push(`時限爆弾の罠が誘爆した！`);
+        doTimeBombExplosion(_cpb.x, _cpb.y, dg, p, ml, luFn, nameFn, { sourcePending: _cpb });
+      }
+    }
+  } finally {
+    _explosionChainDepth--;
+    if (_isRoot) delete dg._mineDetonatedIds;
+  }
+}
+
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
   ensureItemMimicFloorItems(dg);
   if (!options.nonElemental && isFireExplosionNullified(dg, p)) {
     announceFireExplosionNullified(dg, p, ml, srcLabel);
     return;
-  }
-  if (mineExplosion) {
-    if (_mineExplosionDepth > 4) return;
-    if (_mineExplosionDepth === 0) dg._mineDetonatedIds = new Set();
-    _mineExplosionDepth++;
   }
   const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
   const _instantMonsterKill = options.instantMonsterKill === true;
@@ -2060,45 +2103,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
     doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
   }
-  /* 地雷モード：範囲内の他の地雷・時限爆弾を連鎖爆発 */
-  if (mineExplosion) {
-    const _chainMines = (dg.traps || []).filter(t =>
-      t.effect === "explode" &&
-      (t.x !== cx || t.y !== cy) &&
-      !(dg._mineDetonatedIds?.has(t.id)) &&
-      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= _blastRadius
-    );
-    for (const _cm of _chainMines) {
-      runMineExplosion(dg, mineExplosionPending(_cm, nameFn), p, ml, luFn, { chainMsg: `${_cm.name}が誘爆した！` });
-    }
-    /* 範囲内の時限爆弾トラップを即爆発 */
-    const _chainTimeBombs = (dg.traps || []).filter(t =>
-      t.effect === "time_bomb" &&
-      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= _blastRadius
-    );
-    if (_chainTimeBombs.length > 0) {
-      dg.traps = dg.traps.filter(t => !_chainTimeBombs.includes(t));
-      for (const _ctb of _chainTimeBombs) {
-        ml.push(`${_ctb.name}が誘爆した！`);
-        doTimeBombExplosion(_ctb.x, _ctb.y, dg, p, ml, luFn, nameFn);
-      }
-    }
-    /* 範囲内のpendingBombs（作動済み時限爆弾）も即爆発 */
-    if (dg.pendingBombs?.length > 0) {
-      const _chainPending = dg.pendingBombs.filter(pb =>
-        Math.max(Math.abs(pb.x - cx), Math.abs(pb.y - cy)) <= _blastRadius
-      );
-      if (_chainPending.length > 0) {
-        dg.pendingBombs = dg.pendingBombs.filter(pb => !_chainPending.includes(pb));
-        for (const _cpb of _chainPending) {
-          ml.push(`時限爆弾の罠が誘爆した！`);
-          doTimeBombExplosion(_cpb.x, _cpb.y, dg, p, ml, luFn, nameFn);
-        }
-      }
-    }
-    _mineExplosionDepth--;
-    if (_mineExplosionDepth === 0) delete dg._mineDetonatedIds;
-  }
+  /* 爆発の種類によらず、範囲内の地雷・時限爆弾を連鎖爆発 */
+  chainExplosionHazards(cx, cy, _blastRadius, dg, p, ml, luFn, nameFn, options);
 }
 
 /** 火薬壺の爆発処理。中心から半径2マス（5×5=25マス）を対象にする。連鎖爆発あり。 */
@@ -2223,6 +2229,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       dg.items = dg.items.filter(i => !_chainPots.includes(i));
       for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
     }
+    /* 火薬壺も他の爆発と同じく、範囲内の地雷・時限爆弾を誘爆する */
+    chainExplosionHazards(cx, cy, 2, dg, p, ml, luFn);
     /* 爆発範囲内の魔方陣を消滅 */
     if (dg.pentacles?.length > 0) {
       const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 2);
@@ -2242,7 +2250,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
  * 炎無効(火ダルマ)以外の敵は消滅。プレイヤーはHPが1になり炎アイテム損傷。
  * 地雷・火薬壺を連鎖爆発させる。
  */
-export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
+export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, options = {}) {
   if (isFireExplosionNullified(dg, p)) {
     announceFireExplosionNullified(dg, p, ml, "時限爆弾の爆発");
     return;
@@ -2351,15 +2359,6 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
   if (blasted.size > 0) dg.items = dg.items.filter(i => !blasted.has(i));
   breakGachaMachinesInRadius(dg, cx, cy, R, ml, p, nameFn);
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
-  /* 範囲内の地雷を連鎖爆発 */
-  const _chainMines = (dg.traps || []).filter(t =>
-    t.effect === "explode" &&
-    !(dg._mineDetonatedIds?.has(t.id)) &&
-    Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= R
-  );
-  for (const _cm of _chainMines) {
-    runMineExplosion(dg, mineExplosionPending(_cm, nameFn), p, ml, luFn, { chainMsg: `${_cm.name}が誘爆した！` });
-  }
   /* 範囲内の火薬壺を連鎖爆発 */
   const _chainPots = dg.items.filter(it =>
     it.type === "pot" && it.potEffect === "gunpowder" &&
@@ -2369,6 +2368,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
     dg.items = dg.items.filter(i => !_chainPots.includes(i));
     for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
   }
+  /* 他の爆発と同じく、時限爆弾同士を含む地雷系を連鎖爆発 */
+  chainExplosionHazards(cx, cy, R, dg, p, ml, luFn, nameFn, options);
   /* 爆発範囲内の魔方陣を消滅 */
   if (dg.pentacles?.length > 0) {
     const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= R);
@@ -2980,7 +2981,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は爆発で消し飛んだ！`);
-      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true);
+      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true, false, { chainExcludeTrap: trap });
       /* 地雷を直接起動したアイテムは爆発で消費する。
          重力などの内部トリガーと、罠を別の罠へ移す処理では対象外にする。 */
       if (item && item !== trap && !item._ephemeralTrapTrigger && Array.isArray(dg.items)) {
@@ -7089,7 +7090,7 @@ export const SPELLS=[
   {id:"guard_magic",    name:"守護の魔法",        mpCost:10, effect:"guard_magic",                needsDir:false, desc:"50ターン防御力が10上がる。Lvごとに持続+5ターン。MP:10"},
   {id:"reflect_magic",  name:"反射の魔法",        mpCost:10, effect:"reflect_magic",              needsDir:false, desc:"50ターン魔法反射状態になる。Lvごとに持続+5ターン。MP:10"},
   {id:"dig_magic",      name:"穴掘りの魔法",      mpCost:8,  effect:"dig_magic",       range:10,  needsDir:true,  desc:"方向を選び、10マスまで壁を掘る。MP:8"},
-  {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスの敵を即死させる（ボスは現在HPの1/4ダメージ）。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
+  {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスの敵を即死させる（ボスは現在HPの1/4ダメージ）。爆発範囲内の地雷・時限爆弾も誘爆する。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
   {id:"clone_magic",    name:"分身の魔法",        mpCost:12, effect:"clone_magic",               needsDir:false, desc:"分身を1体呼び出す。HPは自分の最大HPの50%、攻撃力・防御力は自分の70%。30ターン持続。Lvごとに持続+5ターン。MP:12"},
   {id:"debug_summon_mon", name:"[debug]敵召喚",   mpCost:0,  fixedMpCost:true, effect:"debug_summon_mon",  needsDir:false, debug:true, desc:"任意の敵を1体選んで呼び出す。MP:0"},
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
@@ -7121,7 +7122,7 @@ export const SPELLBOOKS=[
   {name:"守護の魔法書",     type:"spellbook",spell:"guard_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン防御力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"反射の魔法書",     type:"spellbook",spell:"reflect_magic",   rarity:"A", weight:1,  sellPrice:8000,  desc:"読むと50ターン魔法反射状態になる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"穴掘りの魔法書",   type:"spellbook",spell:"dig_magic",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むと方向を選び、10マスまで壁を掘る魔法を習得する。MP:8",tile:43},
-  {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。ボスには現在HPの1/4ダメージ。MP:7",tile:43},
+{name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。爆発範囲内の地雷・時限爆弾も誘爆する。ボスには現在HPの1/4ダメージ。MP:7",tile:43},
   {name:"分身の魔法書",     type:"spellbook",spell:"clone_magic",     rarity:"A", weight:1, sellPrice:7000, desc:"読むと操作できない分身を1体呼び出す魔法を習得する。分身はHP・攻撃力・防御力が自分の50%・70%・70%。30ターン持続し、Lvごとに持続+5ターン。MP:12",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
@@ -7914,7 +7915,7 @@ export const RINGS = [
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"D", weight:8, sellPrice:1000, tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
   { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、毎ターンのHP自然回復量が1増える。2つ装備すれば2増える。再生付き装備とも重複する。" },
-  { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"A", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
+  { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"A", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。爆発範囲内の地雷・時限爆弾も誘爆する。" },
   { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
   { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },
   { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },

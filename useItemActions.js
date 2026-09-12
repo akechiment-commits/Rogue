@@ -7,7 +7,7 @@ import {
   EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap, makeRandomPotion,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
-  castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
+  castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
@@ -1601,6 +1601,8 @@ export function useItemActions({
             dg.items = dg.items.filter(i => !_sdChainPots.includes(i));
             for (const _scp of _sdChainPots) doGunpowderExplosion(_scp.x, _scp.y, dg, p, ml, lu);
           }
+          /* 自爆の巻物も通常の爆発として地雷・時限爆弾を誘爆する。 */
+          chainExplosionHazards(p.x, p.y, _sdR, dg, p, ml, lu, dnameRef);
           // 魔方陣消滅
           if (dg.pentacles?.length > 0) {
             const _sdPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - p.x), Math.abs(pc.y - p.y)) <= _sdR);
