@@ -1,19 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { BB_TYPES, breakBigboxContents, detonateNitroBox } from "../items.js";
+import { BB_TYPES, RARITY_WEIGHT, breakBigboxContents, detonateNitroBox } from "../items.js";
 import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("追加大箱", () => {
-  it("追加した4種の大箱を通常枠として登録する", () => {
-    const added = BB_TYPES.filter(({ kind }) => ["reverse", "greed", "nitro", "monster"].includes(kind));
-    expect(added).toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: "reverse", name: "反転の大箱" }),
-      expect.objectContaining({ kind: "greed", name: "強欲の大箱" }),
-      expect.objectContaining({ kind: "nitro", name: "ニトロ箱" }),
-      expect.objectContaining({ kind: "monster", name: "魔物の大箱" }),
-    ]));
-    expect(added).toHaveLength(4);
-    expect(added.every(({ rare }) => !rare)).toBe(true);
+  it("大箱ごとにアイテムと同じレア度と重みを登録する", () => {
+    const expected = {
+      synthesis: "D", change: "C", enhance: "C", satiety: "D", refill: "D", identify: "D",
+      split: "B", bless: "B", curse: "B", scatter: "C", trash: "E", reverse: "C", greed: "C", nitro: "D", monster: "E",
+    };
+    expect(BB_TYPES).toHaveLength(Object.keys(expected).length);
+    for (const [kind, rarity] of Object.entries(expected)) {
+      const box = BB_TYPES.find((bb) => bb.kind === kind);
+      expect(box).toEqual(expect.objectContaining({ kind, rarity }));
+      expect(box.weight).toBe(RARITY_WEIGHT[rarity]);
+    }
   });
 
   it("ニトロ箱を破壊すると半径2マスで爆発する", () => {

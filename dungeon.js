@@ -57,10 +57,9 @@ export function applyGeneratedBlessCurse(item, blessedThreshold, cursedThreshold
 }
 
 function pickBB(exclude = []) {
-  /* レア大箱は20%の確率でのみ候補に含まれる */
-  const base = Math.random() < 0.20 ? BB_TYPES : BB_TYPES.filter(b => !b.rare);
-  const pool = exclude.length ? base.filter(b => !exclude.includes(b.kind)) : base;
-  return pickLootFromPool(pool.length > 0 ? pool : base, "floor");
+  /* アイテムと同じレア度weightで抽選する。初心者ダンジョンでは鑑定の大箱を除外する。 */
+  const pool = exclude.length ? BB_TYPES.filter(b => !exclude.includes(b.kind)) : BB_TYPES;
+  return pickLootFromPool(pool.length > 0 ? pool : BB_TYPES, "floor");
 }
 
 /* ===== BIG ROOM DUNGEON GENERATOR ===== */

@@ -109,7 +109,7 @@ function bbTemplateFromType(bbt) {
     type: "bigbox",
     kind: bbt.kind,
     desc: bbt.desc || "",
-    rare: !!bbt.rare,
+    rarity: bbt.rarity || "",
   };
 }
 

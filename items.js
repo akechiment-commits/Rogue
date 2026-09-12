@@ -799,22 +799,27 @@ export const WANDS = [
 
 /* ===== BIG BOX TYPES ===== */
 export const BB_TYPES = [
-  { kind: "synthesis", name: "合成の大箱", cap: () => 2,          weight: 2, desc: "2つのアイテムを合成する。\n武器/防具同士→能力引継ぎ。杖/ペン同士→チャージ合算。\n杖+装備→異種合成で杖の能力が宿る。\n特定の組み合わせで特殊合成が発生することもある。" },
-  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムがランダムな別のアイテムに変化する。\n何に変わるかは開けるまで不明。宝石・キーアイテムは変化しない。" },
-  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2),  weight: 1, desc: "武器・防具の＋値を1上げる。\n力・守り・命の指輪の＋値も増やせる。壺の容量+1。\n他のアイテムには効果がない。" },
-  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4),  weight: 1, desc: "食料のサイズを1段階大きくする。\n生→最大で超特大、調理済み→最大で爆盛り。\n食料以外には効果がない。" },
-  { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3),  weight: 1, desc: "杖・ペン・魔法の筆の使用回数をランダムに回復する。" },
-  { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5),  weight: 1, desc: "入れたアイテムを識別する。\n薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
-  { kind: "split",     name: "分裂の大箱", cap: () => 1,          weight: 1, rare: true, desc: "【レア】入れたアイテムを複製する。\n＋値・矢の数は半減する。金貨・キーアイテムは分裂しない。" },
-  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを祝福する。\n壺は祝福ではなく容量+1。キーアイテムには効果がない。" },
-  { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを呪う。\n壺は容量-1。食料は腐る。金貨・キーアイテムには効果がない。" },
-  { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  weight: 1, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
-  { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), weight: 1, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
-  { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
-  { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  weight: 1, desc: "入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
-  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          weight: 1, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
-  { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
+  { kind: "synthesis", name: "合成の大箱", cap: () => 2,          rarity: "D", weight: RARITY_WEIGHT.D, desc: "2つのアイテムを合成する。\n武器/防具同士→能力引継ぎ。杖/ペン同士→チャージ合算。\n杖+装備→異種合成で杖の能力が宿る。\n特定の組み合わせで特殊合成が発生することもある。" },
+  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムがランダムな別のアイテムに変化する。\n何に変わるかは開けるまで不明。宝石・キーアイテムは変化しない。" },
+  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "武器・防具の＋値を1上げる。\n力・守り・命の指輪の＋値も増やせる。壺の容量+1。\n他のアイテムには効果がない。" },
+  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4),  rarity: "D", weight: RARITY_WEIGHT.D, desc: "食料のサイズを1段階大きくする。\n生→最大で超特大、調理済み→最大で爆盛り。\n食料以外には効果がない。" },
+  { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3),  rarity: "D", weight: RARITY_WEIGHT.D, desc: "杖・ペン・魔法の筆の使用回数をランダムに回復する。" },
+  { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5),  rarity: "D", weight: RARITY_WEIGHT.D, desc: "入れたアイテムを識別する。\n薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
+  { kind: "split",     name: "分裂の大箱", cap: () => 1,          rarity: "B", weight: RARITY_WEIGHT.B, desc: "入れたアイテムを複製する。\n＋値・矢の数は半減する。金貨・キーアイテムは分裂しない。" },
+  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2),  rarity: "B", weight: RARITY_WEIGHT.B, desc: "入れたアイテムを祝福する。\n壺は祝福ではなく容量+1。キーアイテムには効果がない。" },
+  { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2),  rarity: "B", weight: RARITY_WEIGHT.B, desc: "入れたアイテムを呪う。\n壺は容量-1。食料は腐る。金貨・キーアイテムには効果がない。" },
+  { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
+  { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), rarity: "E", weight: RARITY_WEIGHT.E, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
+  { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
+  { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
+  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          rarity: "D", weight: RARITY_WEIGHT.D, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
+  { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  rarity: "E", weight: RARITY_WEIGHT.E, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
 ];
+
+/** 大箱を巻物などで換金したときの容量1個あたりの基準額。 */
+export function bigboxSellBaseValue(bb) {
+  return isRarityAtLeast(bb, "B") ? 3000 : 500;
+}
 
 export const BB_FAKE_NAMES = [
   "古びた大箱", "黒い大箱", "赤茶けた大箱", "青い大箱", "緑の大箱",

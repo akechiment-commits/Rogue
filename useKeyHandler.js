@@ -6,7 +6,7 @@ import {
   ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, TRAPS, BB_TYPES, RINGS,
   RAW_FOODS, COOKED_FOODS,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
-  itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
+  itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
   extractPotContents, scatterPotContents,
 } from "./items.js";
@@ -815,7 +815,7 @@ export function useKeyHandler({
                 }
               } else if (identifyMode.mode === 'sell_item') {
                 const _remaining = Math.max(1, (_bb.capacity || 1) - (_bb.contents?.length || 0));
-                const _baseG = (_bbT?.rare ? 3000 : 500) * _remaining;
+                const _baseG = bigboxSellBaseValue(_bbT) * _remaining;
                 const _earnedG = identifyMode.blessed ? _baseG * 2 : identifyMode.cursed ? Math.floor(_baseG / 2) : _baseG;
                 sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
                 sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
