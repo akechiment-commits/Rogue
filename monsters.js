@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
@@ -2829,8 +2829,8 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     }
     /* プレイヤー命中 */
     if (_tx === pl.x && _ty === pl.y) {
-      if (hasAbility(pl.armor, "wand_reflect")) {
-        ml.push(`反射の鎧が${wandLabel}の魔法弾を反射した！`);
+      if (hasPlayerMagicReflect(pl)) {
+        ml.push(`${playerMagicReflectLabel(pl)}が${wandLabel}の魔法弾を反射した！`);
         if (reflectColor) pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: reflectColor });
         onPlayerReflect(ml);
       } else if (!inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
@@ -3531,8 +3531,8 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
       return true;
     }
-    if (hasAbility(pl.armor, "wand_reflect")) {
-      ml.push(`${m.name}の防御半減魔法！反射の鎧が弾き返した！`);
+    if (hasPlayerMagicReflect(pl)) {
+      ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
       if (monEffectiveMagicImmune(m)) {
         ml.push(`魔法は${m.name}に効かない！`);
       } else {
@@ -6070,9 +6070,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             ));
           if (!_kpSeal) {
             m.turnAttacks++;
-            if (hasAbility(pl.armor, "wand_reflect")) {
+            if (hasPlayerMagicReflect(pl)) {
               /* 反射の鎧：魔法を跳ね返す */
-              ml.push(`${m.name}の防御半減魔法！反射の鎧が弾き返した！`);
+              ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
               if (monEffectiveMagicImmune(m)) {
                 ml.push(`魔法は${m.name}に効かない！`);
               } else {

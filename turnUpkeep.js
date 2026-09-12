@@ -251,11 +251,30 @@ export function advanceConsumableBuffTimers(player, messages) {
     ["lemonThrowTurns", "レモンの投擲ブーストが切れた！"],
     ["atkDebuffTurns", "攻撃力の半減デバフが解けた！"],
     ["defDebuffTurns", "防御力の半減デバフが解けた！"],
+    ["magicReflectTurns", "魔法反射が切れた！"],
   ];
   for (const [key, message] of timers) {
     if ((player[key] || 0) > 0) {
       player[key]--;
       if (player[key] <= 0) messages.push(message);
+    }
+  }
+  if ((player.magicPowerAtkTurns || 0) > 0) {
+    player.magicPowerAtkTurns--;
+    if (player.magicPowerAtkTurns <= 0) {
+      const _bonus = player.magicPowerAtkBonus || 0;
+      player.atk = Math.max(1, player.atk - _bonus);
+      player.magicPowerAtkBonus = 0;
+      messages.push("剛力の魔法が切れた！攻撃力が戻った！");
+    }
+  }
+  if ((player.magicGuardDefTurns || 0) > 0) {
+    player.magicGuardDefTurns--;
+    if (player.magicGuardDefTurns <= 0) {
+      const _bonus = player.magicGuardDefBonus || 0;
+      player.def = Math.max(0, player.def - _bonus);
+      player.magicGuardDefBonus = 0;
+      messages.push("守護の魔法が切れた！防御力が戻った！");
     }
   }
   /* ドーピングは強化終了後にだけ副作用へ移行する。移行したターンは

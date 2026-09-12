@@ -7,7 +7,7 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
-  hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, applyMonsterSeal, applyPlayerSeal,
+  hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, applyMonsterSeal, applyPlayerSeal,
   multiplyMagicDamage, multiplyCursedMagicDamage,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
@@ -2209,9 +2209,9 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       const _lBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
       if (_lBlessedSanc) { ml.push("祝福された聖域の加護が雷撃を防いだ！"); return; }
       /* 反射の鎧: 雷撃を発射源のモンスターに反射 */
-      const _hasReflect = hasAbility(pl.armor, "wand_reflect");
+      const _hasReflect = hasPlayerMagicReflect(pl);
       if (_hasReflect) {
-        ml.push("反射の鎧が雷撃を跳ね返した！");
+        ml.push(`${playerMagicReflectLabel(pl)}が雷撃を跳ね返した！`);
         const _srcMon = monsterAt(dg, cx, cy);
         if (_srcMon) {
           if (!consumeBarrier(_srcMon, ml)) {

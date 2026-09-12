@@ -672,6 +672,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       poisonAtkLoss: 0,
       sealedTurns: 0,
       attackSealTurns: 0,
+      magicPowerAtkTurns: 0,
+      magicPowerAtkBonus: 0,
+      magicGuardDefTurns: 0,
+      magicGuardDefBonus: 0,
+      magicReflectTurns: 0,
       fireExplosionNullTurns: 0,
       iceCreamFireResTurns: 0,
       invisibleTurns: 0,
@@ -5867,6 +5872,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.fireExplosionNullTurns || 0) > 0 && (
           <span style={{ color: "#6080a0" }}>🧯{p.fireExplosionNullTurns}</span>
+        )}{" "}
+        {(p.magicPowerAtkTurns || 0) > 0 && (
+          <span style={{ color: "#ffb040" }} title="剛力の魔法：攻撃力+10">⚔＋10・{p.magicPowerAtkTurns}</span>
+        )}{" "}
+        {(p.magicGuardDefTurns || 0) > 0 && (
+          <span style={{ color: "#80c0ff" }} title="守護の魔法：防御力+10">🛡＋10・{p.magicGuardDefTurns}</span>
+        )}{" "}
+        {(p.magicReflectTurns || 0) > 0 && (
+          <span style={{ color: "#e080ff" }} title="魔法反射">↩{p.magicReflectTurns}</span>
         )}{" "}
         {(p.defSoftenedTurns || 0) > 0 && (
           <span style={{ color: "#c8a060" }}>🛡↓{p.defSoftenedTurns}</span>

@@ -7020,6 +7020,11 @@ export function getSpellPowerMultiplier(level = 1) {
   return 1 + (_level - 1) * 0.3;
 }
 
+export function getSpellBuffDuration(baseDuration, level = 1) {
+  const _level = Number.isFinite(level) ? Math.max(1, level) : 1;
+  return baseDuration + (_level - 1) * 5;
+}
+
 export const SPELLS=[
   {id:"fire_bolt",      name:"炎の魔法",         mpCost:10, effect:"fire_bolt",       damage:25, range:10, needsDir:true,  desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:10"},
   {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾で敵を凍らせスロー。MP:10"},
@@ -7038,6 +7043,11 @@ export const SPELLS=[
   {id:"identify_magic", name:"識別の魔法",        mpCost:12, effect:"identify_magic",             needsDir:false, desc:"持ち物から1つ選んで識別する。MP:12"},
   {id:"bless_magic",    name:"祝福の魔法",        mpCost:18, effect:"bless_magic",                needsDir:false, desc:"アイテムを1つ選んで祝福する。MP:18"},
   {id:"curse_magic",    name:"呪いの魔法",        mpCost:15, effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:15"},
+  {id:"power_magic",    name:"剛力の魔法",        mpCost:10, effect:"power_magic",                needsDir:false, desc:"50ターン攻撃力が10上がる。Lvごとに持続+5ターン。MP:10"},
+  {id:"guard_magic",    name:"守護の魔法",        mpCost:10, effect:"guard_magic",                needsDir:false, desc:"50ターン防御力が10上がる。Lvごとに持続+5ターン。MP:10"},
+  {id:"reflect_magic",  name:"反射の魔法",        mpCost:10, effect:"reflect_magic",              needsDir:false, desc:"50ターン魔法反射状態になる。Lvごとに持続+5ターン。MP:10"},
+  {id:"dig_magic",      name:"穴掘りの魔法",      mpCost:8,  effect:"dig_magic",       range:10,  needsDir:true,  desc:"方向を選び、10マスまで壁を掘る。MP:8"},
+  {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスを爆発に巻き込む。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
   {id:"debug_summon_mon", name:"[debug]敵召喚",   mpCost:0,  fixedMpCost:true, effect:"debug_summon_mon",  needsDir:false, debug:true, desc:"任意の敵を1体選んで呼び出す。MP:0"},
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
   {id:"debug_get_blessed_item", name:"[debug]祝福アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_blessed_item", needsDir:false, debug:true, desc:"祝福された任意のアイテムを1個選んで入手する。MP:0"},
@@ -7063,7 +7073,12 @@ export const SPELLBOOKS=[
   {name:"変化の魔法書",      type:"spellbook",spell:"transform_magic",  rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと対象を同じ階層の敵に変える魔法を習得する。MP:10",tile:43},
   {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"C", weight:4,  sellPrice:3500,  desc:"読むと持ち物から1つ選んで識別する魔法を習得する。MP:12",tile:43},
   {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"A", weight:1,  sellPrice:10000, desc:"読むとアイテムを1つ選んで祝福する魔法を習得する。MP:18",tile:43},
-  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:15",tile:43},];
+  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:15",tile:43},
+  {name:"剛力の魔法書",     type:"spellbook",spell:"power_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン攻撃力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
+  {name:"守護の魔法書",     type:"spellbook",spell:"guard_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン防御力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
+  {name:"反射の魔法書",     type:"spellbook",spell:"reflect_magic",   rarity:"A", weight:1,  sellPrice:8000,  desc:"読むと50ターン魔法反射状態になる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
+  {name:"穴掘りの魔法書",   type:"spellbook",spell:"dig_magic",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むと方向を選び、10マスまで壁を掘る魔法を習得する。MP:8",tile:43},
+  {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲を爆発に巻き込む魔法を習得する。MP:7",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
@@ -7080,6 +7095,14 @@ export function hasLightningResist(p) {
 /** 防具の耐水（水鉄砲・ずぶ濡れ・所持品の水被害） */
 export function hasWaterProof(p) {
   return hasAbility(p?.armor, "water_proof") || (p?.mayonnaiseWaterProofTurns || 0) > 0;
+}
+
+export function hasPlayerMagicReflect(p) {
+  return hasAbility(p?.armor, "wand_reflect") || (p?.magicReflectTurns || 0) > 0;
+}
+
+export function playerMagicReflectLabel(p) {
+  return hasAbility(p?.armor, "wand_reflect") ? "反射の鎧" : "魔法反射状態";
 }
 
 /** 食料サイズ1段階縮小（水鉄砲など）。最小サイズなら false */
@@ -7457,6 +7480,51 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
   const _enemyMagicDamage = (amount, victim = target) => multiplyMagicDamage(amount, p?.weapon, victim, dg);
   const _targetMagicDamage = (amount, victim = target) => multiplyCursedMagicDamage(amount, victim, dg);
   switch (eff) {
+    case "power_magic": {
+      if (kind === "self") {
+        const _turns = getSpellBuffDuration(50, lv);
+        const _bonus = 10;
+        if ((p.magicPowerAtkBonus || 0) <= 0) {
+          p.atk += _bonus;
+          p.magicPowerAtkBonus = _bonus;
+        }
+        p.magicPowerAtkTurns = (p.magicPowerAtkTurns || 0) + _turns;
+        ml.push(`剛力の魔法で攻撃力が${_bonus}上がった！(${_turns}ターン)`);
+      }
+      break;
+    }
+    case "guard_magic": {
+      if (kind === "self") {
+        const _turns = getSpellBuffDuration(50, lv);
+        const _bonus = 10;
+        if ((p.magicGuardDefBonus || 0) <= 0) {
+          p.def += _bonus;
+          p.magicGuardDefBonus = _bonus;
+        }
+        p.magicGuardDefTurns = (p.magicGuardDefTurns || 0) + _turns;
+        ml.push(`守護の魔法で防御力が${_bonus}上がった！(${_turns}ターン)`);
+      }
+      break;
+    }
+    case "reflect_magic": {
+      if (kind === "self") {
+        const _turns = getSpellBuffDuration(50, lv);
+        p.magicReflectTurns = (p.magicReflectTurns || 0) + _turns;
+        ml.push(`反射の魔法で魔法反射状態になった！(${_turns}ターン)`);
+      }
+      break;
+    }
+    case "self_destruct_magic": {
+      if (kind === "self") {
+        const _radius = lv >= 5 ? 3 : lv >= 3 ? 2 : 1;
+        ml.push(`自爆の魔法！中心から${_radius}マスを爆発に巻き込む！`);
+        doExplosion(p.x, p.y, dg, p, ml, null, "自爆の魔法", null, luFn, false, false, false, false, {
+          radius: _radius,
+          playerHpOne: true,
+        });
+      }
+      break;
+    }
     case "fire_bolt": {
       if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, "炎の魔法"); break; }
       const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
@@ -7645,6 +7713,21 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     _cx = tx; _cy = ty;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
     if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
+      if (spell.effect === "dig_magic") {
+        let _dug = 0, _dx = tx, _dy = ty;
+        while (_dug < 10 && _dx > 0 && _dx < MW - 1 && _dy > 0 && _dy < MH - 1 &&
+               (dg.map[_dy][_dx] === T.WALL || dg.map[_dy][_dx] === T.BWALL)) {
+          const _wi = dg.items.find((item) => item.x === _dx && item.y === _dy && item.wallEmbedded);
+          if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
+          dg.map[_dy][_dx] = T.FLOOR;
+          wallBreakDrop(dg, _dx, _dy);
+          _dug++;
+          _dx += _fdx;
+          _dy += _fdy;
+        }
+        ml.push(_dug > 0 ? `穴掘りの魔法が壁を${_dug}マス掘り進んだ！` : "魔法は壁に消えた。");
+        return { x: tx, y: ty, hitType: "wall" };
+      }
       ml.push("魔法弾は壁に消えた。");
       return { x: _lx, y: _ly, hitType: "wall" };
     }
