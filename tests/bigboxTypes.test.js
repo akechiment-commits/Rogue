@@ -7,7 +7,7 @@ describe("追加大箱", () => {
   it("大箱ごとにアイテムと同じレア度と重みを登録する", () => {
     const expected = {
       synthesis: "D", change: "C", enhance: "C", satiety: "D", refill: "D", identify: "D",
-      split: "B", bless: "B", curse: "B", scatter: "C", trash: "E", reverse: "C", greed: "C", nitro: "D", monster: "E",
+      split: "B", bless: "B", curse: "B", scatter: "C", trash: "C", reverse: "C", greed: "C", nitro: "C", monster: "C",
     };
     expect(BB_TYPES).toHaveLength(Object.keys(expected).length);
     for (const [kind, rarity] of Object.entries(expected)) {

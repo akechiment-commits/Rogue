@@ -809,11 +809,11 @@ export const BB_TYPES = [
   { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2),  rarity: "B", weight: RARITY_WEIGHT.B, desc: "入れたアイテムを祝福する。\n壺は祝福ではなく容量+1。キーアイテムには効果がない。" },
   { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2),  rarity: "B", weight: RARITY_WEIGHT.B, desc: "入れたアイテムを呪う。\n壺は容量-1。食料は腐る。金貨・キーアイテムには効果がない。" },
   { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
-  { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), rarity: "E", weight: RARITY_WEIGHT.E, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
+  { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
   { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
   { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
-  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          rarity: "D", weight: RARITY_WEIGHT.D, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
-  { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  rarity: "E", weight: RARITY_WEIGHT.E, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
+  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          rarity: "C", weight: RARITY_WEIGHT.C, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
+  { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
 ];
 
 /** 大箱を巻物などで換金したときの容量1個あたりの基準額。 */
