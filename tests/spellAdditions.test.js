@@ -28,7 +28,7 @@ describe("追加魔法", () => {
     expect(SPELLS.find((spell) => spell.id === "clairvoyance_magic")).toMatchObject({ mpCost: 18 });
   });
 
-  it("地図の魔法はフロアと罠を開示し、透視の魔法は敵感知を有効にする", () => {
+  it("地図の魔法はフロアだけを開示し、透視の魔法は敵感知を有効にする", () => {
     const dungeon = makeEmptyDg({
       explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
       traps: [{ id: "map-trap", name: "矢の罠", x: 10, y: 10, revealed: false }],
@@ -38,12 +38,12 @@ describe("追加魔法", () => {
 
     applySpellEffect("map_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
     expect(dungeon.explored.every((row) => row.every(Boolean))).toBe(true);
-    expect(dungeon.traps[0].revealed).toBe(true);
+    expect(dungeon.traps[0].revealed).toBe(false);
     expect(dungeon.monsterSenseActive).toBeUndefined();
 
     applySpellEffect("clairvoyance_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
     expect(dungeon.monsterSenseActive).toBe(true);
-    expect(messages).toContain("地図の魔法でフロア全体と罠が明らかになった！");
+    expect(messages).toContain("地図の魔法でフロア全体の地図が明らかになった！");
     expect(messages).toContain("透視の魔法でフロアの敵の位置が見えるようになった！");
   });
 
