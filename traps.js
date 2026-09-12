@@ -188,6 +188,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
         trapId: trap.id,
         cause: `${trap.name}による転倒により`,
         checkFloat: false,
+        luFn,
       });
       break;
     }

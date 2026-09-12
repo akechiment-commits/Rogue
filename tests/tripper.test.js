@@ -67,4 +67,36 @@ describe("足払い鬼 tripper", () => {
     expect(p.hp).toBeLessThan(40);
     expect(ml.some((m) => m.includes("転んでしまった"))).toBe(true);
   });
+
+  it("落ちた壺・薬・空き瓶は低確率で割れる", () => {
+    const orig = Math.random;
+    Math.random = () => 0;
+    try {
+      const potion = { name: "回復薬", type: "potion", effect: "heal", value: 30, id: "tripPotion" };
+      const p = makePlayer({ hp: 50, maxHp: 100, x: 5, y: 5, inventory: [potion] });
+      const dg = makeEmptyDg({ items: [], rooms: [{ x: 1, y: 1, w: 10, h: 10 }] });
+      const ml = [];
+      applyPlayerTrip(p, dg, ml);
+      expect(dg.items).toHaveLength(0);
+      expect(ml.some((m) => m.includes("瓶が割れて中身が飛び散った"))).toBe(true);
+
+      const pot = { name: "回復の壺", type: "pot", potEffect: "heal_pot", capacity: 3, contents: [], id: "tripPot" };
+      const p2 = makePlayer({ hp: 50, maxHp: 100, x: 5, y: 5, inventory: [pot] });
+      const dg2 = makeEmptyDg({ items: [], rooms: [{ x: 1, y: 1, w: 10, h: 10 }] });
+      const ml2 = [];
+      applyPlayerTrip(p2, dg2, ml2);
+      expect(dg2.items).toHaveLength(0);
+      expect(ml2.some((m) => m.includes("回復の壺が割れた"))).toBe(true);
+
+      const bottle = { name: "空き瓶", type: "bottle", id: "tripBottle" };
+      const p3 = makePlayer({ x: 5, y: 5, inventory: [bottle] });
+      const dg3 = makeEmptyDg({ items: [], rooms: [{ x: 1, y: 1, w: 10, h: 10 }] });
+      const ml3 = [];
+      applyPlayerTrip(p3, dg3, ml3);
+      expect(dg3.items).toHaveLength(0);
+      expect(ml3.some((m) => m.includes("空き瓶が割れてしまった"))).toBe(true);
+    } finally {
+      Math.random = orig;
+    }
+  });
 });

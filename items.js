@@ -1863,7 +1863,7 @@ export const TRAPS = [
   { name:"未識別の罠",     effect:"unident_trap",   tile:124, rarity:"B", weight:2,  desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n武器・防具・食料は祝呪がわからなくなる。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, rarity:"B", weight:2,  desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
   { name:"水鉄砲の罠",     effect:"watergun_trap",  tile:132, rarity:"C", weight:4,  desc:"踏むと水鉄砲を浴びる。ずぶ濡れになり、所持品に水の影響が出る。\n巻物・魔法書は白紙化、食料はサイズ1段階縮小、ペンはインク-1。\nアーマーガッパ（耐水）で防げる。" },
-  { name:"転倒の罠",       effect:"trip_trap",      tile:133, rarity:"D", weight:8,  desc:"踏むと転んで小ダメージを受け、所持品が数個ランダムに周囲へ落ちる。\n装備中の武器・防具・指輪とキーアイテムは落ちない。\n落ちた先の罠・泉・水にも作用する。\n体幹の指輪で無効。" },
+  { name:"転倒の罠",       effect:"trip_trap",      tile:133, rarity:"D", weight:8,  desc:"踏むと転んで小ダメージを受け、所持品が数個ランダムに周囲へ落ちる。\n装備中の武器・防具・指輪とキーアイテムは落ちない。\n落ちた先の罠・泉・水にも作用し、壺・薬・空き瓶は低確率で割れる。\n体幹の指輪で無効。" },
   { name:"罠の罠",         effect:"trap_trap",      tile:210, rarity:"B", weight:2,  desc:"踏むと同じフロアに大量の新しい罠ができる。\n罠の罠自体はできない。発動すると必ず壊れる。" },
   { name:"道具魔物化の罠", effect:"item_monster_trap", tile:211, rarity:"B", weight:2, desc:"踏むと同じ部屋の床のアイテムがすべてモンスターに変わる。\n発動すると必ず壊れる。" },
   { name:"加速の罠",       effect:"haste_trap",     tile:212, rarity:"C", weight:4,  desc:"踏むと同じ部屋の敵の速度が1段階上がる。\n敵が踏むと、同じ部屋にいれば自分の速度が上がる。\nアイテムなどで発動すると部屋内の全員が加速する。" },
@@ -3317,6 +3317,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           trapId: trap.id,
           cause: `${trap.name}による転倒により`,
           checkFloat: false,
+          luFn,
         });
       }
       return "restart";
@@ -8420,6 +8421,31 @@ export function resistsForcedMove(p) {
   return hasRingEffect(p, "core_ring");
 }
 
+const TRIP_FRAGILE_BREAK_CHANCE = 0.10;
+
+function breakTripDroppedItem(item, dg, p, ml, luFn = null, nameFn = null) {
+  if (!item || !dg || !ml || !["pot", "potion", "bottle"].includes(item.type)) return false;
+  /* テスト用の不完全な薬・壺や、旧セーブ由来の不正データは通常どおり床に残す。 */
+  if (item.type === "potion" && !item.effect) return false;
+  if (item.type === "pot" && !item.potEffect) return false;
+  if (Math.random() >= TRIP_FRAGILE_BREAK_CHANCE) return false;
+
+  /* 水没・泉・罠などで既に消費された場合は破損処理を重ねない。 */
+  const floorItem = dg.items?.find((it) => it === item || (item.id != null && it.id === item.id));
+  if (!floorItem) return false;
+  const { x, y } = floorItem;
+  removeFloorItem(dg, floorItem);
+  if (floorItem.type === "pot") {
+    scatterPotContents(floorItem, dg, x, y, p, ml, luFn, nameFn);
+  } else if (floorItem.type === "potion") {
+    splashPotion(dg, x, y, floorItem.effect, floorItem.value || 0, p, ml, luFn,
+      !!floorItem.blessed, !!floorItem.cursed, nameFn);
+  } else {
+    ml.push(`${resolveItemName(floorItem, nameFn)}が割れてしまった！`);
+  }
+  return true;
+}
+
 /**
  * プレイヤー転倒処理（転倒の罠・敵の足払い特技で共通）
  * @param {object} opts
@@ -8427,6 +8453,7 @@ export function resistsForcedMove(p) {
  * @param {string|number|null} [opts.trapId] 罠ID（落ちたアイテムの着地判定用）
  * @param {string|null} [opts.cause] deathCause 用文言
  * @param {boolean} [opts.checkFloat] true なら浮遊でも回避（敵特技用）
+ * @param {Function|null} [opts.luFn] 撃破・破壊時の図鑑更新関数
  * @returns {"blocked_core"|"blocked_float"|"tripped"|null}
  */
 export function applyPlayerTrip(p, dg, ml, opts = {}) {
@@ -8436,6 +8463,7 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
     trapId = null,
     cause = "転倒により",
     checkFloat = false,
+    luFn = null,
   } = opts;
 
   if (hasRingEffect(p, "core_ring")) {
@@ -8473,6 +8501,7 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
     p.inventory.splice(idx, 1);
     placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p, p.x, p.y);
     names.push(resolveItemName(it, nameFn));
+    breakTripDroppedItem(it, dg, p, ml, luFn, nameFn);
   }
   if (names.length > 0) ml.push(`${names.join("、")}を落とした！`);
   return "tripped";

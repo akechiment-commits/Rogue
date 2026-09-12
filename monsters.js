@@ -3746,6 +3746,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       applyPlayerTrip(pl, dg, ml, {
         cause: `${m.name}の足払いにより`,
         checkFloat: true,
+        luFn: _luFn,
       });
       return true;
     }
@@ -6064,6 +6065,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           applyPlayerTrip(pl, dg, ml, {
             cause: `${m.name}の足払いにより`,
             checkFloat: true,
+            luFn: _luFn,
           });
           return;
         }
