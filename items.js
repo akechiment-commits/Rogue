@@ -1860,7 +1860,7 @@ let _explosionChainDepth = 0;
 
 /** 爆発範囲内の地雷・時限爆弾を、爆発の種類によらず連鎖させる。 */
 export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = null, options = {}) {
-  if (!dg || _explosionChainDepth > 8) return;
+  if (!dg || (dg.timeStopTurns || 0) > 0 || _explosionChainDepth > 8) return;
   const _isRoot = _explosionChainDepth === 0;
   if (_isRoot) dg._mineDetonatedIds = new Set();
   _explosionChainDepth++;
@@ -2968,6 +2968,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
 
 let _fireTrapDepth = 0;
 export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null, identSet = null) {
+  if ((dg?.timeStopTurns || 0) > 0) return "time_stopped";
   if (_fireTrapDepth > 5) return "stop";
   _fireTrapDepth++;
   try {
@@ -5095,6 +5096,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     }
     const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
     if (trap) {
+      if ((dg.timeStopTurns || 0) > 0) continue;
       /* 罠座標まで飛んでくるアーク（seq = dep+1）を先に登録 */
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       ft.add(trap.id);
@@ -7090,6 +7092,8 @@ export const SPELLS=[
   {id:"trap_detect_magic", name:"罠探知の魔法",   mpCost:10, effect:"trap_detect_magic",          needsDir:false, desc:"フロア内の罠だけを見えるようにする。MP:10"},
   {id:"map_magic",       name:"地図の魔法",       mpCost:20, effect:"map_magic",                  needsDir:false, desc:"フロア全体の地図を明らかにする。MP:20"},
   {id:"clairvoyance_magic", name:"透視の魔法",     mpCost:18, effect:"clairvoyance_magic",          needsDir:false, desc:"壁越しでもフロアの敵の位置が見える。MP:18"},
+  {id:"regen_magic",     name:"再生の魔法",       mpCost:12, effect:"regen_magic",                needsDir:false, desc:"30ターン、毎ターンHPが3回復する。Lvごとに持続+5ターン。MP:12"},
+  {id:"time_stop_magic", name:"時間停止の魔法",   mpCost:25, effect:"time_stop_magic",            needsDir:false, desc:"世界全体を2ターン停止させる。Lvでは効果を変えない。MP:25"},
   {id:"earthquake_magic", name:"地震の魔法",       mpCost:18, effect:"earthquake_magic",            needsDir:false, desc:"フロア内の敵全体に地震の魔法ダメージを与える。MP:18"},
   {id:"item_gather_magic", name:"道具寄せの魔法",     mpCost:12, effect:"item_gather_magic",         needsDir:false, desc:"店の商品以外のフロアのアイテムを自分の周りに引き寄せる。MP:12"},
   {id:"leap_magic",       name:"飛びつきの魔法",   mpCost:10, effect:"leap_magic",                 range:10, needsDir:true, desc:"方向を選び、敵や壁の手前へ瞬間移動する。MP:10"},
@@ -7130,6 +7134,8 @@ export const SPELLBOOKS=[
   {name:"罠探知の魔法書",   type:"spellbook",spell:"trap_detect_magic",rarity:"C", weight:4,  sellPrice:2500,  desc:"読むとフロア内の罠だけを見えるようにする魔法を習得する。MP:10",tile:43},
   {name:"地図の魔法書",     type:"spellbook",spell:"map_magic",       rarity:"B", weight:2,  sellPrice:4500,  desc:"読むとフロア全体の地図を明らかにする魔法を習得する。MP:20",tile:43},
   {name:"透視の魔法書",     type:"spellbook",spell:"clairvoyance_magic",rarity:"A", weight:1,  sellPrice:7000,  desc:"読むと壁越しでもフロアの敵の位置が見える魔法を習得する。MP:18",tile:43},
+  {name:"再生の魔法書",     type:"spellbook",spell:"regen_magic",     rarity:"B", weight:2,  sellPrice:4500,  desc:"読むと30ターン、毎ターンHPが3回復する魔法を習得する。Lvごとに持続+5ターン。MP:12",tile:43},
+  {name:"時間停止の魔法書", type:"spellbook",spell:"time_stop_magic", rarity:"A", weight:1,  sellPrice:10000, desc:"読むと世界全体を2ターン停止させる魔法を習得する。Lvでは効果を変えない。MP:25",tile:43},
   {name:"地震の魔法書",     type:"spellbook",spell:"earthquake_magic", rarity:"A", weight:1,  sellPrice:7000,  desc:"読むとフロア内の敵全体に地震の魔法ダメージを与える魔法を習得する。MP:18",tile:43},
   {name:"道具寄せの魔法書", type:"spellbook",spell:"item_gather_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"読むと店の商品以外のフロアのアイテムを自分の周りに引き寄せる魔法を習得する。MP:12",tile:43},
   {name:"飛びつきの魔法書", type:"spellbook",spell:"leap_magic",       rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと方向を選び、敵や壁の手前へ瞬間移動する魔法を習得する。MP:10",tile:43},
@@ -7669,6 +7675,23 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "self") {
         dg.monsterSenseActive = true;
         ml.push("透視の魔法でフロアの敵の位置が見えるようになった！");
+      }
+      break;
+    }
+    case "regen_magic": {
+      if (kind === "self") {
+        const _turns = getSpellBuffDuration(30, lv);
+        p.magicRegenTurns = (p.magicRegenTurns || 0) + _turns;
+        ml.push(`再生の魔法で体が再生し始めた！(${_turns}ターン)`);
+      }
+      break;
+    }
+    case "time_stop_magic": {
+      if (kind === "self") {
+        const _turns = 2;
+        dg.timeStopTurns = (dg.timeStopTurns || 0) + _turns;
+        dg._timeStopJustStarted = true;
+        ml.push(`時間停止の魔法で世界が止まった！(${dg.timeStopTurns}ターン)`);
       }
       break;
     }

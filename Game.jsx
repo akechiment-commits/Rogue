@@ -678,6 +678,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       magicGuardDefTurns: 0,
       magicGuardDefBonus: 0,
       magicReflectTurns: 0,
+      magicRegenTurns: 0,
       fireExplosionNullTurns: 0,
       iceCreamFireResTurns: 0,
       invisibleTurns: 0,
@@ -1237,6 +1238,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     });
   }, []);
   const checkTrap = useCallback((p, dg, ml, onActivated = null) => {
+    if ((dg?.timeStopTurns || 0) > 0) return null;
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
     /* 発見済みの罠は乗るだけ（重力の魔方陣下は例外で作動） */
@@ -1858,7 +1860,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setPitfallBag(_etPfBag);
       const _etStartHp = p.hp;
       const _clock = beginPlayerTurnClock(p, { idleBeat: !!extraOpts.idleBeat });
-      const _worldTick = _clock.worldTicks > 0;
+      const _timeStopActive = (st.dungeon.timeStopTurns || 0) > 0;
+      const _timeStopJustStarted = !!st.dungeon._timeStopJustStarted;
+      const _worldTick = _clock.worldTicks > 0 && !_timeStopActive;
       if (_worldTick) {
         st.floorTurns = (st.floorTurns || 0) + 1;
         const _activatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
@@ -1902,10 +1906,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         });
       }
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
-      triggerMonsterHouseWithTip(st.dungeon, p, ml);
+      if (!_timeStopActive) triggerMonsterHouseWithTip(st.dungeon, p, ml);
       /* 倍速付与でその拍の敵行動を全キャンセル。初回訪問も敵は動かない。 */
       const _freeze = finishPlayerTurnClock(p, st.dungeon.monsters);
-      let _skipMonAct = _freeze || !!st.dungeon._firstVisit;
+      let _skipMonAct = _timeStopActive || _freeze || !!st.dungeon._firstVisit;
       if (st.dungeon._firstVisit) st.dungeon._firstVisit = false;
       if (_skipMonAct) syncActorsToClock(st.dungeon.monsters, p.actionTime || 0);
       /* ===== 4フェーズターン制 ===== */
@@ -1915,7 +1919,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (!_skipMonAct) withEnemyDamageContext(p, () => moveMons(st.dungeon, p, ml, "moveOnly"));
       /* Capture monster position changes for animation + mark movers */
       collectMonsterMoves(_monAnimation, st.dungeon.monsters, _monSnap);
-      transitMonstersThroughPortals(st, p, ml, _monSnap, { randomTeleportDest });
+      if (!_timeStopActive) transitMonstersThroughPortals(st, p, ml, _monSnap, { randomTeleportDest });
       /* 特殊飛び道具：敵の移動後に進め、移動経路との交差も命中扱いにする */
       if (!_skipMonAct || _worldTick) {
         withEnemyDamageContext(p, () => advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap));
@@ -1928,17 +1932,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         delete st._portalWarpedThisTurn;
       }
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
-      const { spinFired: _spinFired } = resolveTurnHazards(st, p, ml, {
-        hasRingEffect,
-        doExplosion,
-        runMineExplosion,
-        doTimeBombExplosion,
-        fireTrapPlayer,
-        getItemName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
-        lu,
-        ident: sr.current?.ident,
-        tickTimedEffects: _worldTick,
-      });
+      const { spinFired: _spinFired } = _timeStopActive
+        ? { spinFired: false }
+        : resolveTurnHazards(st, p, ml, {
+            hasRingEffect,
+            doExplosion,
+            runMineExplosion,
+            doTimeBombExplosion,
+            fireTrapPlayer,
+            getItemName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+            lu,
+            ident: sr.current?.ident,
+            tickTimedEffects: _worldTick,
+          });
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _attackPhase = runMonsterAttackPhase(st.dungeon, p, ml, {
         skipMonsterActions: _skipMonAct,
@@ -1988,7 +1994,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       /* そのターン中の転送・強制移動で後から内部区画へ入った場合も、
        * 入口アイコンを踏んだかどうかに関係なく即時に発動させる。 */
-      const _lateActivatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
+      const _lateActivatedVaults = _timeStopActive
+        ? new Set()
+        : activateDimensionalVaults(st.dungeon, p, ml);
       if (_lateActivatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
       refreshFOV(st.dungeon, p);
       applyVisibilityOverrides(st.dungeon, p, { findRoom, inMagicSealRoom });
@@ -2089,6 +2097,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
           _dg.nextGuardSpawnTurn = p.turns + 10;
         }
+      }
+      if (_timeStopActive) {
+        if (_timeStopJustStarted) {
+          delete st.dungeon._timeStopJustStarted;
+        } else {
+          st.dungeon.timeStopTurns = Math.max(0, (st.dungeon.timeStopTurns || 0) - 1);
+          if (st.dungeon.timeStopTurns <= 0) ml.push("時間停止が終わった。");
+        }
+        syncActorsToClock(st.dungeon.monsters, p.actionTime || 0);
       }
       if (p.hp <= 0) {
         /* HP0になった時点で状態異常をすべて解除する。蘇生の有無に関係なく、
@@ -3086,13 +3103,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             else if (_wasInAnyShop && !_isNowInShop) ml.push("お店をあとにした。");
             acted = true;
             /* 移動で回転板を踏んだ時は敵移動後に発動（理不尽攻撃防止） */
-            const _spinHere = !isPlayerFloating(p, dg) && dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "spin");
+            const _timeStopped = (dg.timeStopTurns || 0) > 0;
+            const _spinHere = !_timeStopped && !isPlayerFloating(p, dg) && dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "spin");
             if (_spinHere) {
               trackTrap(_spinHere);
               _spinHere.revealed = true;
               st._pendingSpin = _spinHere;
               _ad.trapWait = { effect: _spinHere.effect };
-            } else {
+            } else if (!_timeStopped) {
             const tr = checkTrap(p, dg, ml, (trap) => {
               _ad.trapWait = { effect: trap.effect };
             });
@@ -3107,7 +3125,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
             }
             /* ポータルの魔方陣：移動でその上に乗ると即発動 */
-            if (playerPortalWarp(p, st, ml)) st._portalWarpedThisTurn = true;
+            if (!(dg.timeStopTurns > 0) && playerPortalWarp(p, st, ml)) st._portalWarpedThisTurn = true;
             applySoakedFromWaterWalk(p, dg, ml);
             autoPickup(p, st.dungeon, ml);
             /* 看板：踏んだらポップアップ表示（ダッシュ中断・メッセージログには出さない） */
@@ -3380,7 +3398,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       if (acted) {
         /* モンスターハウストリガー */
-        triggerMonsterHouseWithTip(st.dungeon, p, ml);
+        if (!(st.dungeon.timeStopTurns > 0)) triggerMonsterHouseWithTip(st.dungeon, p, ml);
         endTurn(st, p, ml);
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -3712,7 +3730,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           break;
         }
         const _dashRevTrap = (() => { const _t = _dTrapMap.get(_dk(p.x, p.y)); return _t?.revealed ? _t : undefined; })();
-        if (_dashRevTrap) {
+        if (!(dg.timeStopTurns > 0) && _dashRevTrap) {
           /* 既知の罠（または直前の checkTrap で発見・作動した罠）でダッシュ停止。
            * 重力下の既知罠作動も checkTrap 内で済む。ここで fireTrapPlayer すると二重発動になる。 */
           endTurn(st, p, ml);
@@ -3792,7 +3810,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _dashPc = _dPentMap.get(_dk(p.x, p.y));
         if (_dashPc) {
           if (_dashPc.kind === "portal" || _dashPc.kind === "fixed_portal") {
-            if (playerPortalWarp(p, st, ml)) st._portalWarpedThisTurn = true;
+            if (!(dg.timeStopTurns > 0) && playerPortalWarp(p, st, ml)) st._portalWarpedThisTurn = true;
           } else {
             ml.push(`${_dashPc.name || "魔法陣"}の上に乗った。`);
           }
@@ -3821,7 +3839,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _poisBefore    = !!p.poisoned;
         const _invLenBefore  = p.inventory.length;
         const _goldBefore    = p.gold;
-        triggerMonsterHouseWithTip(st.dungeon, p, ml);
+        if (!(st.dungeon.timeStopTurns > 0)) triggerMonsterHouseWithTip(st.dungeon, p, ml);
         endTurn(st, p, ml);
         /* 各ステップの状態をキャンバスに一瞬描画（ダッシュ高速移動演出） */
         gsOverrideRef.current = { ...st };
@@ -5900,6 +5918,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.magicReflectTurns || 0) > 0 && (
           <span style={{ color: "#e080ff" }} title="魔法反射">↩{p.magicReflectTurns}</span>
+        )}{" "}
+        {(gs?.dungeon?.timeStopTurns || 0) > 0 && (
+          <span style={{ color: "#d0d0ff" }} title="時間停止：世界全体が停止中">⏸{gs.dungeon.timeStopTurns}</span>
         )}{" "}
         {_playerClone && (
           <span style={{ color: "#80d8ff" }} title={`分身：残り${_playerClone.cloneTurns || 0}ターン`}>👤{_playerClone.cloneTurns || 0}</span>

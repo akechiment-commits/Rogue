@@ -277,6 +277,14 @@ export function advanceConsumableBuffTimers(player, messages) {
       messages.push("守護の魔法が切れた！防御力が戻った！");
     }
   }
+  if ((player.magicRegenTurns || 0) > 0) {
+    if (!player.poisoned && player.hp > 0) {
+      const _heal = Math.min(3, player.maxHp - player.hp);
+      if (_heal > 0) player.hp += _heal;
+    }
+    player.magicRegenTurns--;
+    if (player.magicRegenTurns <= 0) messages.push("再生の魔法が切れた！");
+  }
   /* ドーピングは強化終了後にだけ副作用へ移行する。移行したターンは
      副作用を消費せず、次のターンから50ターンを数える。 */
   if ((player.dopingTurns || 0) > 0) {

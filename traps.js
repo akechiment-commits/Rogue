@@ -7,6 +7,7 @@ import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
+  if ((dg?.timeStopTurns || 0) > 0) return null;
   /* 偽階段：ランダムな通常罠に化けてから再発動 */
   if (trap?.effect === "fake_stair") {
     const _was = trap.name || "偽の階段";

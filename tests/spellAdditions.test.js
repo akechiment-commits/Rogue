@@ -4,6 +4,7 @@ import {
   SPELLBOOKS,
   applySpellEffect,
   castSpellBolt,
+  fireTrapItem,
   hasPlayerMagicReflect,
   makePlayerClone,
 } from "../items.js";
@@ -13,12 +14,13 @@ import { advanceConsumableBuffTimers } from "../turnUpkeep.js";
 import { advanceMonsterUpkeep } from "../monsterUpkeep.js";
 import { monsterAI } from "../monsters.js";
 import { monsterFireLightning } from "../wands.js";
+import { fireTrapPlayer } from "../traps.js";
 
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("14種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "map_magic", "clairvoyance_magic", "purify_magic", "leap_magic", "earthquake_magic", "item_gather_magic"];
+  it("16種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "map_magic", "clairvoyance_magic", "regen_magic", "time_stop_magic", "purify_magic", "leap_magic", "earthquake_magic", "item_gather_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
@@ -26,6 +28,8 @@ describe("追加魔法", () => {
     expect(SPELLS.find((spell) => spell.id === "trap_detect_magic")).toMatchObject({ mpCost: 10 });
     expect(SPELLS.find((spell) => spell.id === "map_magic")).toMatchObject({ mpCost: 20 });
     expect(SPELLS.find((spell) => spell.id === "clairvoyance_magic")).toMatchObject({ mpCost: 18 });
+    expect(SPELLS.find((spell) => spell.id === "regen_magic")).toMatchObject({ mpCost: 12 });
+    expect(SPELLS.find((spell) => spell.id === "time_stop_magic")).toMatchObject({ mpCost: 25 });
   });
 
   it("地図の魔法はフロアだけを開示し、透視の魔法は敵感知を有効にする", () => {
@@ -45,6 +49,36 @@ describe("追加魔法", () => {
     expect(dungeon.monsterSenseActive).toBe(true);
     expect(messages).toContain("地図の魔法でフロア全体の地図が明らかになった！");
     expect(messages).toContain("透視の魔法でフロアの敵の位置が見えるようになった！");
+  });
+
+  it("再生の魔法は持続中にHPを回復し、時間停止はボスを含む世界を止める", () => {
+    const player = makePlayer({ hp: 90 });
+    const dungeon = makeEmptyDg();
+    const messages = [];
+
+    applySpellEffect("regen_magic", "self", null, 0, 0, dungeon, player, messages, noop, 3);
+    expect(player.magicRegenTurns).toBe(40);
+    advanceConsumableBuffTimers(player, messages);
+    expect(player).toMatchObject({ hp: 93, magicRegenTurns: 39 });
+
+    applySpellEffect("time_stop_magic", "self", null, 0, 0, dungeon, player, messages, noop, 6);
+    expect(dungeon).toMatchObject({ timeStopTurns: 2, _timeStopJustStarted: true });
+  });
+
+  it("時間停止中はプレイヤー用・アイテム用の罠が発動しない", () => {
+    const player = makePlayer({ hp: 100 });
+    const dungeon = makeEmptyDg({
+      timeStopTurns: 2,
+      traps: [{ id: "stop-mine", name: "地雷", effect: "explode", x: 5, y: 5, revealed: false }],
+    });
+    const messages = [];
+
+    expect(fireTrapPlayer(dungeon.traps[0], player, dungeon, messages)).toBeNull();
+    expect(player.hp).toBe(100);
+    expect(dungeon.traps[0].revealed).toBe(false);
+    expect(dungeon._pendingMineExplosion).toBeUndefined();
+    expect(fireTrapItem(dungeon.traps[0], { name: "石", type: "stone" }, dungeon, 5, 5, messages, new Set(), player)).toBe("time_stopped");
+    expect(player.hp).toBe(100);
   });
 
   it("剛力・守護・反射はレベルに応じて持続時間が伸びる", () => {

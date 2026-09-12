@@ -12,6 +12,7 @@ export function resolveTurnHazards(state, player, messages, {
   tickTimedEffects = true,
 }) {
   const dungeon = state.dungeon;
+  if ((dungeon?.timeStopTurns || 0) > 0) return { spinFired: false };
   if (tickTimedEffects && player.hp > 0 && hasRingEffect(player, "explode_ring") && random() < 0.05) {
     messages.push("指輪が爆発した！");
     doExplosion(player.x, player.y, dungeon, player, messages, getItemName, "爆発の指輪", null, null, false, true);
