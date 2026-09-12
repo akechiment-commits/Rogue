@@ -10,7 +10,7 @@ import {
 } from "../items.js";
 import { MH, MW, T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { advanceConsumableBuffTimers } from "../turnUpkeep.js";
+import { advanceConsumableBuffTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
 import { advanceMonsterUpkeep } from "../monsterUpkeep.js";
 import { monsterAI } from "../monsters.js";
 import { monsterFireLightning } from "../wands.js";
@@ -57,12 +57,18 @@ describe("追加魔法", () => {
     const messages = [];
 
     applySpellEffect("regen_magic", "self", null, 0, 0, dungeon, player, messages, noop, 3);
-    expect(player.magicRegenTurns).toBe(40);
+    expect(player).toMatchObject({ magicRegenTurns: 40, magicRegenBonus: 3 });
+    advancePlayerUpkeep(player, messages, {
+      hasAbility: () => false,
+      hasRingEffect: () => false,
+      calcHungerDrainRate: () => 0,
+    });
+    expect(player.hp).toBe(94);
     advanceConsumableBuffTimers(player, messages);
-    expect(player).toMatchObject({ hp: 93, magicRegenTurns: 39 });
+    expect(player).toMatchObject({ hp: 94, magicRegenTurns: 39, magicRegenBonus: 3 });
 
     applySpellEffect("time_stop_magic", "self", null, 0, 0, dungeon, player, messages, noop, 6);
-    expect(dungeon).toMatchObject({ timeStopTurns: 2, _timeStopJustStarted: true });
+    expect(dungeon).toMatchObject({ timeStopTurns: 7, _timeStopJustStarted: true });
   });
 
   it("時間停止中はプレイヤー用・アイテム用の罠が発動しない", () => {

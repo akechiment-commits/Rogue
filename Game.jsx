@@ -679,6 +679,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       magicGuardDefBonus: 0,
       magicReflectTurns: 0,
       magicRegenTurns: 0,
+      magicRegenBonus: 0,
       fireExplosionNullTurns: 0,
       iceCreamFireResTurns: 0,
       invisibleTurns: 0,

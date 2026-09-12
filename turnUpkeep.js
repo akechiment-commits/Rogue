@@ -39,7 +39,8 @@ export function advancePlayerUpkeep(player, messages, {
   } else if (!player.poisoned && player.hp > 0 && player.hp < player.maxHp) {
     const baseRegen = Math.max(1, Math.floor(player.maxHp / 100))
       + (hasAbility(player.armor, "regen") ? 1 : 0)
-      + regenRingCount;
+      + regenRingCount
+      + (player.magicRegenBonus || 0);
     player.hp = Math.min(player.maxHp, player.hp + baseRegen);
   }
 }
@@ -278,12 +279,11 @@ export function advanceConsumableBuffTimers(player, messages) {
     }
   }
   if ((player.magicRegenTurns || 0) > 0) {
-    if (!player.poisoned && player.hp > 0) {
-      const _heal = Math.min(3, player.maxHp - player.hp);
-      if (_heal > 0) player.hp += _heal;
-    }
     player.magicRegenTurns--;
-    if (player.magicRegenTurns <= 0) messages.push("再生の魔法が切れた！");
+    if (player.magicRegenTurns <= 0) {
+      player.magicRegenBonus = 0;
+      messages.push("再生の魔法が切れた！");
+    }
   }
   /* ドーピングは強化終了後にだけ副作用へ移行する。移行したターンは
      副作用を消費せず、次のターンから50ターンを数える。 */
