@@ -4,7 +4,7 @@ import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueL
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
-  EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap, makeRandomPotion,
+  EMPTY_BOTTLE, SPELLS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
@@ -2549,10 +2549,24 @@ export function useItemActions({
     const _bookName = _wasUnknown ? _revFake : dnameRef(it);
     /* 識別 */
     if (_sbIK && _wasUnknown) { sr.current.ident.add(_sbIK); trackItem(it); }
-    if (it.cursed) {
+    if (it.specialBook === "gedo") {
+      const _result = applyGedoBook(p, { blessed: !!it.blessed, cursed: !!it.cursed });
+      p.inventory.splice(idx, 1);
+      if (_result.count === 0) {
+        ml.push(`${_bookName}を読んだが、外道の力で習得できる魔法がなかった。${it.cursed ? "【呪】" : ""}`);
+      } else if (_result.cursed) {
+        const _targetName = _result.target?.name || "魔法";
+        const _levels = _result.entries.map((entry) => `Lv.${entry.level}`).join("→");
+        ml.push(`${_bookName}を読んだ。呪いで「${_targetName}」を${_result.count}回習得した！(${_levels})【呪】`);
+      } else {
+        const _learned = _result.entries.map((entry) => `「${entry.name}」Lv.${entry.level}`).join("、");
+        const _blessedLabel = it.blessed ? "祝福の力で" : "";
+        ml.push(`${_bookName}を読んだ。${_blessedLabel}魔法を${_result.count}種類習得した！(${_learned})${it.blessed ? "【祝】" : ""}`);
+      }
+    } else if (it.cursed) {
       // 呪い：この魔法以外のランダムな魔法を1つ選んで習得 or レベルアップ
       if (!p.spellLevels) p.spellLevels = {};
-      const _otherSpells = SPELLS.filter((s) => s.id !== it.spell && !s.debug);
+      const _otherSpells = SPELLS.filter((s) => s.id !== it.spell && !s.debug && !s.specialBook);
       const _candidates = _otherSpells.filter((s) => {
         if (!p.spells.includes(s.id)) return true;          // 未習得 → 習得できる
         return (p.spellLevels[s.id] || 1) < 6;              // 習得済みでも最大未満ならLvUP
@@ -2638,6 +2652,8 @@ export function useItemActions({
         blank.name = template.name;
         blank.spell = template.spell;
         blank.desc = template.desc;
+        if (template.specialBook) blank.specialBook = template.specialBook;
+        else delete blank.specialBook;
         marker.charges -= _cost;
         ml.push(`${template.name}に変化した！[${marker.name} 残り${marker.charges}回]`);
       } else {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SPELLS,
   SPELLBOOKS,
+  applyGedoBook,
   applySpellEffect,
   castSpellBolt,
   fireTrapItem,
@@ -30,6 +31,27 @@ describe("追加魔法", () => {
     expect(SPELLS.find((spell) => spell.id === "clairvoyance_magic")).toMatchObject({ mpCost: 18 });
     expect(SPELLS.find((spell) => spell.id === "regen_magic")).toMatchObject({ mpCost: 12 });
     expect(SPELLS.find((spell) => spell.id === "time_stop_magic")).toMatchObject({ mpCost: 25 });
+  });
+
+  it("外道の書は通常4種類、祝福8種類、呪いは同じ魔法を4回習得する", () => {
+    const normal = makePlayer({ spells: [], spellLevels: {} });
+    const blessed = makePlayer({ spells: [], spellLevels: {} });
+    const cursed = makePlayer({ spells: [], spellLevels: {} });
+    const alwaysFirst = () => 0;
+
+    const normalResult = applyGedoBook(normal, {}, alwaysFirst);
+    const blessedResult = applyGedoBook(blessed, { blessed: true }, alwaysFirst);
+    const cursedResult = applyGedoBook(cursed, { cursed: true }, alwaysFirst);
+    const gedoBook = SPELLBOOKS.find((book) => book.name === "外道の書");
+
+    expect(gedoBook).toMatchObject({ specialBook: "gedo", rarity: "S", weight: 0.05 });
+    expect(normalResult).toMatchObject({ requested: 4, count: 4 });
+    expect(new Set(normalResult.entries.map((entry) => entry.id)).size).toBe(4);
+    expect(blessedResult).toMatchObject({ requested: 8, count: 8, blessed: true });
+    expect(new Set(blessedResult.entries.map((entry) => entry.id)).size).toBe(8);
+    expect(cursedResult).toMatchObject({ requested: 4, count: 4, cursed: true });
+    expect(new Set(cursedResult.entries.map((entry) => entry.id)).size).toBe(1);
+    expect(cursed.spellLevels[cursedResult.target.id]).toBe(4);
   });
 
   it("地図の魔法はフロアだけを開示し、透視の魔法は敵感知を有効にする", () => {

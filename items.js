@@ -7104,6 +7104,7 @@ export const SPELLS=[
   {id:"dig_magic",      name:"穴掘りの魔法",      mpCost:8,  effect:"dig_magic",       range:10,  needsDir:true,  desc:"方向を選び、10マスまで壁を掘る。MP:8"},
   {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスの敵を即死させる（ボスは現在HPの1/4ダメージ）。爆発範囲内の地雷・時限爆弾も誘爆する。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
   {id:"clone_magic",    name:"分身の魔法",        mpCost:12, effect:"clone_magic",               needsDir:false, desc:"分身を1体呼び出す。HPは自分の最大HPの50%、攻撃力・防御力は自分の70%。30ターン持続。分身へ移動すると位置を入れ替える。Lvごとに持続+5ターン。MP:12"},
+  {id:"gedo_book",       name:"外道の書",          mpCost:0,  fixedMpCost:true, effect:"gedo_book",             needsDir:false, specialBook:true, desc:"外道の書専用の特殊な魔法書効果。"},
   {id:"debug_summon_mon", name:"[debug]敵召喚",   mpCost:0,  fixedMpCost:true, effect:"debug_summon_mon",  needsDir:false, debug:true, desc:"任意の敵を1体選んで呼び出す。MP:0"},
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
   {id:"debug_get_blessed_item", name:"[debug]祝福アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_blessed_item", needsDir:false, debug:true, desc:"祝福された任意のアイテムを1個選んで入手する。MP:0"},
@@ -7145,7 +7146,59 @@ export const SPELLBOOKS=[
   {name:"反射の魔法書",     type:"spellbook",spell:"reflect_magic",   rarity:"A", weight:1,  sellPrice:8000,  desc:"読むと50ターン魔法反射状態になる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"穴掘りの魔法書",   type:"spellbook",spell:"dig_magic",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むと方向を選び、10マスまで壁を掘る魔法を習得する。MP:8",tile:43},
 {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。爆発範囲内の地雷・時限爆弾も誘爆する。ボスには現在HPの1/4ダメージ。MP:7",tile:43},
-  {name:"分身の魔法書",     type:"spellbook",spell:"clone_magic",     rarity:"A", weight:1, sellPrice:7000, desc:"読むと操作できない分身を1体呼び出す魔法を習得する。分身はHP・攻撃力・防御力が自分の50%・70%・70%。分身へ移動すると位置を入れ替える。30ターン持続し、Lvごとに持続+5ターン。MP:12",tile:43},];
+  {name:"分身の魔法書",     type:"spellbook",spell:"clone_magic",     rarity:"A", weight:1, sellPrice:7000, desc:"読むと操作できない分身を1体呼び出す魔法を習得する。分身はHP・攻撃力・防御力が自分の50%・70%・70%。分身へ移動すると位置を入れ替える。30ターン持続し、Lvごとに持続+5ターン。MP:12",tile:43},
+  {name:"外道の書",           type:"spellbook",spell:"gedo_book",       specialBook:"gedo", rarity:"S", weight:0.05, sellPrice:15000, desc:"読むとランダムな魔法を習得する。通常は4回、祝福は8回、呪いは1つの魔法を4回習得する。",tile:43},
+];
+
+/** 外道の書の習得処理。通常・祝福は同じ本の中で重複しない魔法を選び、呪いは1つだけを4回選ぶ。 */
+export function applyGedoBook(player, { blessed = false, cursed = false } = {}, randomFn = Math.random) {
+  if (!player) return { requested: 0, count: 0, entries: [], target: null, blessed, cursed };
+  if (!Array.isArray(player.spells)) player.spells = [];
+  if (!player.spellLevels) player.spellLevels = {};
+
+  const pool = SPELLS.filter((spell) => !spell.debug && !spell.specialBook);
+  const canLearn = (spell) => !player.spells.includes(spell.id)
+    || (player.spellLevels[spell.id] || 1) < 6;
+  const choose = (candidates) => {
+    const raw = Number(randomFn?.());
+    const rate = Number.isFinite(raw) ? Math.max(0, Math.min(0.999999999, raw)) : 0;
+    return candidates[Math.floor(rate * candidates.length)];
+  };
+  const entries = [];
+  const learnOne = (spell) => {
+    if (!spell || !canLearn(spell)) return false;
+    if (player.spells.includes(spell.id)) {
+      const level = Math.min(6, (player.spellLevels[spell.id] || 1) + 1);
+      player.spellLevels[spell.id] = level;
+      entries.push({ id: spell.id, name: spell.name, level, leveledUp: true });
+    } else {
+      player.spells.push(spell.id);
+      player.spellLevels[spell.id] = 1;
+      entries.push({ id: spell.id, name: spell.name, level: 1, leveledUp: false });
+    }
+    return true;
+  };
+
+  if (cursed) {
+    const target = choose(pool.filter(canLearn)) || null;
+    for (let i = 0; i < 4 && target; i += 1) {
+      if (!learnOne(target)) break;
+    }
+    return { requested: 4, count: entries.length, entries, target, blessed, cursed };
+  }
+
+  const requested = blessed ? 8 : 4;
+  let remaining = [...pool];
+  for (let i = 0; i < requested; i += 1) {
+    const candidates = remaining.filter(canLearn);
+    const target = choose(candidates);
+    if (!target) break;
+    remaining = remaining.filter((spell) => spell.id !== target.id);
+    learnOne(target);
+  }
+  return { requested, count: entries.length, entries, target: null, blessed, cursed };
+}
+
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
