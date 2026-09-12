@@ -172,6 +172,48 @@ describe("追加魔法", () => {
     expect(player.hp).toBe(player.maxHp);
   });
 
+  it("敵とプレイヤーが同じ距離なら分身を優先して攻撃する", () => {
+    const player = makePlayer({ x: 5, y: 5 });
+    const clone = makePlayerClone(player, 7, 5, 30);
+    const enemy = { name: "敵", hp: 100, maxHp: 100, atk: 20, def: 0, exp: 10, speed: 1, baseKind: "rat", x: 6, y: 5, turnAttacks: 0 };
+    const dungeon = makeEmptyDg({ monsters: [enemy, clone], rooms: [] });
+    const messages = [];
+
+    monsterAI(enemy, dungeon, player, messages, { attackOnly: true });
+
+    expect(clone.hp).toBeLessThan(clone.maxHp);
+    expect(player.hp).toBe(player.maxHp);
+    expect(messages.some((message) => message.includes("分身を攻撃"))).toBe(true);
+  });
+
+  it("からめ鬼も隣接した分身を攻撃し、プレイヤーを捕獲しない", () => {
+    const player = makePlayer({ x: 5, y: 5 });
+    const clone = makePlayerClone(player, 7, 5, 30);
+    const grabber = { name: "からめ鬼", hp: 100, maxHp: 100, atk: 22, def: 10, exp: 55, speed: 1, baseKind: "grabber", subtype: "grabber", x: 6, y: 5, turnAttacks: 0, aware: true };
+    const dungeon = makeEmptyDg({ monsters: [grabber, clone], rooms: [] });
+    const messages = [];
+
+    monsterAI(grabber, dungeon, player, messages, { attackOnly: true });
+
+    expect(clone.hp).toBeLessThan(clone.maxHp);
+    expect(player.capturedBy).toBeUndefined();
+  });
+
+  it("分身との交戦中は詰まり脱出で敵や分身が移動しない", () => {
+    const player = makePlayer({ x: 5, y: 5 });
+    const clone = makePlayerClone(player, 7, 5, 30);
+    const enemy = { name: "敵", hp: 100, maxHp: 100, atk: 20, def: 0, exp: 10, speed: 1, baseKind: "rat", x: 6, y: 5, turnAttacks: 0, aware: true };
+    const dungeon = makeEmptyDg({ monsters: [enemy, clone], rooms: [] });
+
+    for (let i = 0; i < 12; i++) {
+      monsterAI(enemy, dungeon, player, [], { moveOnly: true });
+      monsterAI(clone, dungeon, player, [], { moveOnly: true });
+    }
+
+    expect({ x: enemy.x, y: enemy.y }).toEqual({ x: 6, y: 5 });
+    expect({ x: clone.x, y: clone.y }).toEqual({ x: 7, y: 5 });
+  });
+
   it("分身は時間切れで消滅し、通常の敵として復活しない", () => {
     const player = makePlayer();
     const clone = makePlayerClone(player, 6, 5, 1);

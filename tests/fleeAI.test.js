@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { fleeFromPlayerStep, getRoomExits, monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
+import { vi } from "vitest";
 
 /** 小さい部屋＋右に廊下1本 */
 function makeRoomWithCorridor() {
@@ -85,5 +86,21 @@ describe("逃走AI fleeFromPlayerStep", () => {
     const step = fleeFromPlayerStep(m, dg, pl, false);
     expect(step).not.toBeNull();
     expect(step.x === 4 && step.y === 3).toBe(false);
+  });
+
+  it("分身がいる場合も逃走先はプレイヤーと分身の両方から遠い方向を選ぶ", () => {
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.WALL));
+    for (let x = 1; x <= 15; x++) map[5][x] = T.FLOOR;
+    const pl = makePlayer({ x: 5, y: 5 });
+    const clone = { isPlayerClone: true, hp: 10, x: 9, y: 5 };
+    const m = { name: "フクマル", x: 7, y: 5, subtype: "runner", hp: 11, maxHp: 11, float: false };
+    const dg = makeEmptyDg({ map, rooms: [], monsters: [m, clone], traps: [], items: [] });
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const step = fleeFromPlayerStep(m, dg, pl, false);
+      expect(step).toEqual({ x: 6, y: 5 });
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 });

@@ -1709,10 +1709,11 @@ function livePlayerClone(dg) {
   return dg?.monsters?.find((monster) => monster.isPlayerClone && monster.hp > 0) || null;
 }
 
-/** 分身がプレイヤーより近く、敵から認識できる位置にいるか。 */
+/** 分身がプレイヤー以上に近く、敵から認識できる位置にいるか。 */
 function cloneIsPreferredTarget(m, dg, pl, clone) {
   if (!clone || !pl || clone === m) return false;
-  if (chebyshevDistance(clone, pl) >= chebyshevDistance(m, pl)) return false;
+  /* ターゲット同士の距離で比較する。分身とプレイヤーが同じ距離なら分身を優先する。 */
+  if (chebyshevDistance(m, clone) > chebyshevDistance(m, pl)) return false;
   if (chebyshevDistance(m, clone) <= 1) return true;
   const cloneRoom = findRoom(dg.rooms || [], clone.x, clone.y);
   const monsterRoom = findRoom(dg.rooms || [], m.x, m.y);
@@ -1736,6 +1737,13 @@ function recognizedDecoyForMonster(m, dg, pl) {
   }
   const clone = livePlayerClone(dg);
   return cloneIsPreferredTarget(m, dg, pl, clone) ? clone : null;
+}
+
+function attackPlayerClone(m, clone, dg, pl, ml, luFn) {
+  const damage = Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 }));
+  clone.hp -= damage;
+  ml.push(`${m.name}が分身を攻撃！${damage}ダメージ！`);
+  if (clone.hp <= 0) killMonster(clone, dg, pl, ml, luFn, true, m);
 }
 
 /** プレイヤーを通らずに囮へ到達できる経路があるか。 */
@@ -1921,14 +1929,23 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
   const map = dg.map;
   const rooms = dg.rooms || [];
   const mons = dg.monsters || [];
-  const plDist2 = (x, y) => (x - pl.x) * (x - pl.x) + (y - pl.y) * (y - pl.y);
+  const clone = livePlayerClone(dg);
+  const threatDist2 = (x, y) => {
+    const _playerDist = (x - pl.x) * (x - pl.x) + (y - pl.y) * (y - pl.y);
+    if (!clone) return _playerDist;
+    const _cloneDist = (x - clone.x) * (x - clone.x) + (y - clone.y) * (y - clone.y);
+    return Math.min(_playerDist, _cloneDist);
+  };
   const recent = new Set((m.posHistory || []).map(p => p.x + p.y * MW));
-  const isPlayerAdjacent = (x, y) => Math.max(Math.abs(x - pl.x), Math.abs(y - pl.y)) <= 1;
+  const isThreatAdjacent = (x, y) =>
+    Math.max(Math.abs(x - pl.x), Math.abs(y - pl.y)) <= 1 ||
+    (clone && Math.max(Math.abs(x - clone.x), Math.abs(y - clone.y)) <= 1);
   const localDirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
 
   const makeFleeFilter = ({ avoidAdjacent, avoidRecent }) => (x, y) => {
     if (x === pl.x && y === pl.y) return false;
-    if (avoidAdjacent && isPlayerAdjacent(x, y)) return false;
+    if (clone && x === clone.x && y === clone.y) return false;
+    if (avoidAdjacent && isThreatAdjacent(x, y)) return false;
     if (avoidRecent && recent.has(x + y * MW)) return false;
     return canEnter(map, x, y, float, dg, waterWalker);
   };
@@ -1941,7 +1958,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     );
     if (!next) return null;
     if (next.x === pl.x && next.y === pl.y) return null;
-    if (mode.avoidAdjacent && isPlayerAdjacent(next.x, next.y)) return null;
+    if (mode.avoidAdjacent && isThreatAdjacent(next.x, next.y)) return null;
     if (mode.avoidRecent && recent.has(next.x + next.y * MW)) return null;
     if (mons.some(o => o !== m && o.x === next.x && o.y === next.y)) return null;
     if (!canEnter(map, next.x, next.y, float, dg, waterWalker)) return null;
@@ -1951,7 +1968,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
   const room = findRoom(rooms, m.x, m.y);
   const plRoom = findRoom(rooms, pl.x, pl.y);
   const exits = room && plRoom === room
-    ? getRoomExits(map, room, dg, float, waterWalker).sort((a, b) => plDist2(b.x, b.y) - plDist2(a.x, a.y))
+    ? getRoomExits(map, room, dg, float, waterWalker).sort((a, b) => threatDist2(b.x, b.y) - threatDist2(a.x, a.y))
     : [];
 
   /* プレイヤーと別部屋の中心・隅・遠方サンプルを候補にする。 */
@@ -1960,17 +1977,17 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     if (plRoom && r === plRoom) continue;
     const cx = r.x + Math.floor(r.w / 2);
     const cy = r.y + Math.floor(r.h / 2);
-    if (canEnter(map, cx, cy, float, dg, waterWalker)) farGoals.push({ x: cx, y: cy, score: plDist2(cx, cy) });
+    if (canEnter(map, cx, cy, float, dg, waterWalker)) farGoals.push({ x: cx, y: cy, score: threatDist2(cx, cy) });
     for (const [cx2, cy2] of [
       [r.x, r.y], [r.x + r.w - 1, r.y],
       [r.x, r.y + r.h - 1], [r.x + r.w - 1, r.y + r.h - 1],
     ]) {
-      if (canEnter(map, cx2, cy2, float, dg, waterWalker)) farGoals.push({ x: cx2, y: cy2, score: plDist2(cx2, cy2) });
+      if (canEnter(map, cx2, cy2, float, dg, waterWalker)) farGoals.push({ x: cx2, y: cy2, score: threatDist2(cx2, cy2) });
     }
   }
   for (let i = 0; i < 30; i++) {
     const x = rng(1, MW - 2), y = rng(1, MH - 2);
-    if (canEnter(map, x, y, float, dg, waterWalker)) farGoals.push({ x, y, score: plDist2(x, y) });
+    if (canEnter(map, x, y, float, dg, waterWalker)) farGoals.push({ x, y, score: threatDist2(x, y) });
   }
   farGoals.sort((a, b) => b.score - a.score);
   const uniqueFarGoals = [];
@@ -1990,11 +2007,12 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
       if (!canEnter(map, nx, ny, float, dg, waterWalker)) continue;
       if (mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
       if (nx === pl.x && ny === pl.y) continue;
-      if (mode.avoidAdjacent && isPlayerAdjacent(nx, ny)) continue;
+      if (clone && nx === clone.x && ny === clone.y) continue;
+      if (mode.avoidAdjacent && isThreatAdjacent(nx, ny)) continue;
       if (mode.avoidRecent && recent.has(nx + ny * MW)) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
           dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
-      local.push({ x: nx, y: ny, score: plDist2(nx, ny) });
+      local.push({ x: nx, y: ny, score: threatDist2(nx, ny) });
     }
     local.sort((a, b) => b.score - a.score);
     return local[0] ? { x: local[0].x, y: local[0].y } : null;
@@ -3861,8 +3879,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m._idleStuck = 0;
       m.posHistory = [];
     }
+    const _cloneCombatTurn = !!m._cloneCombatTurn;
+    delete m._cloneCombatTurn;
+    if (_cloneCombatTurn) {
+      /* 分身との交戦中は、攻撃で動かないことを停滞とはみなさない。 */
+      m._idleStuck = 0;
+      m.posHistory = [];
+    }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
+    if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
@@ -3918,6 +3943,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   _targets.sort((a, b) => chebyshevDistance(m, a) - chebyshevDistance(m, b));
   const _target = _targets[0] || null;
   if (_target && chebyshevDistance(m, _target) <= 1) {
+    m._cloneCombatTurn = true;
     if (_moveOnly) return;
     if (_attackOnly && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
@@ -4822,6 +4848,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* 囮のペン（祝福）: フロア全敵に囮への認識を付与（魔封じで無効） */
   if (!m.aware && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
     m.aware = true;
+  }
+
+  /* 分身が隣接している場合は、特殊AIや詰まり脱出より先に分身を攻撃する。 */
+  if (_cloneDecoy?.isPlayerClone && chebyshevDistance(m, _cloneDecoy) <= 1) {
+    m._cloneCombatTurn = true;
+    if (_moveOnly) return;
+    if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      m.turnAttacks++;
+      attackPlayerClone(m, _cloneDecoy, dg, pl, ml, _luFn);
+    }
+    return;
   }
 
   /* ── itemMimic（アイテムモドキ）：出現時から偽アイテムとして待機 ── */

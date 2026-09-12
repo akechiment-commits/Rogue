@@ -2554,7 +2554,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const attackMon = mon || reachMon;
           if (attackMon) {
             if (attackMon.isPlayerClone) {
-              ml.push("分身には攻撃できない。");
+              /* 分身へ歩き込むと、行商人と同じく互いの位置を入れ替える。 */
+              if (mon === attackMon && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
+                attackMon.x = _oldPx;
+                attackMon.y = _oldPy;
+                p.x = nx;
+                p.y = ny;
+                _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
+                ml.push("分身と場所を入れ替えた。");
+              } else {
+                ml.push("分身には攻撃できない。");
+              }
               acted = true;
             } else if (
               attackMon.type === "shopkeeper" &&
