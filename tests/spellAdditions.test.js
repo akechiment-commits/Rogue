@@ -23,6 +23,7 @@ describe("追加魔法", () => {
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
     expect(SPELLBOOKS.find((book) => book.spell === "haste_magic")).toMatchObject({ sellPrice: 3500 });
+    expect(SPELLS.find((spell) => spell.id === "trap_detect_magic")).toMatchObject({ mpCost: 10 });
   });
 
   it("剛力・守護・反射はレベルに応じて持続時間が伸びる", () => {
