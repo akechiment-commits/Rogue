@@ -17,8 +17,8 @@ import { monsterFireLightning } from "../wands.js";
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("10種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic", "leap_magic"];
+  it("11種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic", "leap_magic", "earthquake_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
@@ -250,6 +250,26 @@ describe("追加魔法", () => {
     expect(result.hitType).toBe("monster");
     expect(player).toMatchObject({ x: 7, y: 5, immobileTurns: 0 });
     expect(messages).toEqual(expect.arrayContaining(["移動封じが解けた！", "敵の前に飛びついた！"]));
+  });
+
+  it("地震の魔法は分身を除くフロア内の敵全体に届く", () => {
+    const near = { name: "近い敵", hp: 100, maxHp: 100, def: 0, x: 8, y: 5 };
+    const far = { name: "遠い敵", hp: 100, maxHp: 100, def: 0, x: 40, y: 25 };
+    const immune = { name: "魔法無効の敵", hp: 50, maxHp: 50, def: 0, magicImmune: true, x: 10, y: 5 };
+    const barrier = { name: "バリアの敵", hp: 50, maxHp: 50, def: 0, barrier: 1, x: 12, y: 5 };
+    const player = makePlayer();
+    const clone = makePlayerClone(player, 6, 5, 30);
+    const dungeon = makeEmptyDg({ monsters: [near, far, immune, barrier, clone] });
+    const messages = [];
+
+    applySpellEffect("earthquake_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
+
+    expect(near.hp).toBeLessThan(100);
+    expect(far.hp).toBeLessThan(100);
+    expect(immune.hp).toBe(50);
+    expect(barrier.hp).toBe(50);
+    expect(clone.hp).toBe(clone.maxHp);
+    expect(messages.some((message) => message.startsWith("地震の魔法が近い敵に命中！"))).toBe(true);
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {

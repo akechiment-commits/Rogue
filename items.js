@@ -7088,6 +7088,7 @@ export const SPELLS=[
   {id:"curse_magic",    name:"呪いの魔法",        mpCost:15, effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:15"},
   {id:"haste_magic",    name:"加速の魔法",        mpCost:12, effect:"haste_magic",                needsDir:false, desc:"鈍足を解除し、速度を1段階上げる。基本10ターン。重ね掛けで3倍速になる。MP:12"},
   {id:"trap_detect_magic", name:"罠探知の魔法",   mpCost:10, effect:"trap_detect_magic",          needsDir:false, desc:"フロア内の罠だけを見えるようにする。MP:10"},
+  {id:"earthquake_magic", name:"地震の魔法",       mpCost:18, effect:"earthquake_magic",            needsDir:false, desc:"フロア内の敵全体に地震の魔法ダメージを与える。MP:18"},
   {id:"leap_magic",       name:"飛びつきの魔法",   mpCost:10, effect:"leap_magic",                 range:10, needsDir:true, desc:"方向を選び、敵や壁の手前へ瞬間移動する。MP:10"},
   {id:"purify_magic",    name:"浄化の魔法",        mpCost:12, effect:"purify_magic",                needsDir:false, desc:"MP回復禁止以外の状態異常とドーピングの副作用を解除する。MP:12"},
   {id:"power_magic",    name:"剛力の魔法",        mpCost:10, effect:"power_magic",                needsDir:false, desc:"50ターン攻撃力が10上がる。Lvごとに持続+5ターン。MP:10"},
@@ -7124,6 +7125,7 @@ export const SPELLBOOKS=[
   {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:15",tile:43},
   {name:"加速の魔法書",     type:"spellbook",spell:"haste_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと鈍足を解除し、速度を1段階上げる魔法を習得する。基本10ターン。重ね掛けで3倍速になる。MP:12",tile:43},
   {name:"罠探知の魔法書",   type:"spellbook",spell:"trap_detect_magic",rarity:"C", weight:4,  sellPrice:2500,  desc:"読むとフロア内の罠だけを見えるようにする魔法を習得する。MP:10",tile:43},
+  {name:"地震の魔法書",     type:"spellbook",spell:"earthquake_magic", rarity:"A", weight:1,  sellPrice:7000,  desc:"読むとフロア内の敵全体に地震の魔法ダメージを与える魔法を習得する。MP:18",tile:43},
   {name:"飛びつきの魔法書", type:"spellbook",spell:"leap_magic",       rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと方向を選び、敵や壁の手前へ瞬間移動する魔法を習得する。MP:10",tile:43},
   {name:"浄化の魔法書",     type:"spellbook",spell:"purify_magic",     rarity:"B", weight:2,  sellPrice:4500,  desc:"読むとMP回復禁止以外の状態異常とドーピングの副作用を解除する魔法を習得する。MP:12",tile:43},
   {name:"剛力の魔法書",     type:"spellbook",spell:"power_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン攻撃力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
@@ -7643,6 +7645,35 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         ml.push(_wasStatus || _hadDopingAftereffect
           ? "浄化の魔法で状態異常とドーピングの副作用が消えた！"
           : "浄化の魔法を唱えたが、解除する状態異常はない。");
+      }
+      break;
+    }
+    case "earthquake_magic": {
+      if (kind === "self") {
+        const _targets = (dg.monsters || []).filter((_monster) => _monster.hp > 0 && !_monster.isPlayerClone);
+        if (_targets.length === 0) {
+          ml.push("地震の魔法が大地を揺らしたが、敵はいない。");
+          break;
+        }
+        for (const _monster of _targets) {
+          if (monEffectiveMagicImmune(_monster)) {
+            ml.push(`魔法は${_monster.name}に効かない！`);
+            continue;
+          }
+          if (consumeBarrier(_monster, ml)) continue;
+          const _baseDamage = Math.round(rng(15, 25) * _lvF);
+          if (monReflectsMagic(_monster)) {
+            const _reflectedDamage = multiplyCursedMagicDamage(_baseDamage, p, dg);
+            p.deathCause = "反射された地震の魔法で";
+            p.hp -= _reflectedDamage;
+            ml.push(`${_monster.name}が地震の魔法を反射した！${_reflectedDamage}ダメージ！`);
+            continue;
+          }
+          const _damage = _enemyMagicDamage(_baseDamage, _monster);
+          _monster.hp -= _damage;
+          ml.push(`地震の魔法が${_monster.name}に命中！${_damage}ダメージ！`);
+          if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, luFn);
+        }
       }
       break;
     }
