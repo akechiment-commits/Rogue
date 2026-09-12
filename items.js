@@ -7088,6 +7088,8 @@ export const SPELLS=[
   {id:"curse_magic",    name:"呪いの魔法",        mpCost:15, effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:15"},
   {id:"haste_magic",    name:"加速の魔法",        mpCost:12, effect:"haste_magic",                needsDir:false, desc:"鈍足を解除し、速度を1段階上げる。基本10ターン。重ね掛けで3倍速になる。MP:12"},
   {id:"trap_detect_magic", name:"罠探知の魔法",   mpCost:10, effect:"trap_detect_magic",          needsDir:false, desc:"フロア内の罠だけを見えるようにする。MP:10"},
+  {id:"map_magic",       name:"地図の魔法",       mpCost:20, effect:"map_magic",                  needsDir:false, desc:"フロア全体と罠を明らかにする。MP:20"},
+  {id:"clairvoyance_magic", name:"透視の魔法",     mpCost:18, effect:"clairvoyance_magic",          needsDir:false, desc:"壁越しでもフロアの敵の位置が見える。MP:18"},
   {id:"earthquake_magic", name:"地震の魔法",       mpCost:18, effect:"earthquake_magic",            needsDir:false, desc:"フロア内の敵全体に地震の魔法ダメージを与える。MP:18"},
   {id:"item_gather_magic", name:"道具寄せの魔法",     mpCost:12, effect:"item_gather_magic",         needsDir:false, desc:"店の商品以外のフロアのアイテムを自分の周りに引き寄せる。MP:12"},
   {id:"leap_magic",       name:"飛びつきの魔法",   mpCost:10, effect:"leap_magic",                 range:10, needsDir:true, desc:"方向を選び、敵や壁の手前へ瞬間移動する。MP:10"},
@@ -7126,6 +7128,8 @@ export const SPELLBOOKS=[
   {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:15",tile:43},
   {name:"加速の魔法書",     type:"spellbook",spell:"haste_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと鈍足を解除し、速度を1段階上げる魔法を習得する。基本10ターン。重ね掛けで3倍速になる。MP:12",tile:43},
   {name:"罠探知の魔法書",   type:"spellbook",spell:"trap_detect_magic",rarity:"C", weight:4,  sellPrice:2500,  desc:"読むとフロア内の罠だけを見えるようにする魔法を習得する。MP:10",tile:43},
+  {name:"地図の魔法書",     type:"spellbook",spell:"map_magic",       rarity:"B", weight:2,  sellPrice:4500,  desc:"読むとフロア全体と罠を明らかにする魔法を習得する。MP:20",tile:43},
+  {name:"透視の魔法書",     type:"spellbook",spell:"clairvoyance_magic",rarity:"A", weight:1,  sellPrice:7000,  desc:"読むと壁越しでもフロアの敵の位置が見える魔法を習得する。MP:18",tile:43},
   {name:"地震の魔法書",     type:"spellbook",spell:"earthquake_magic", rarity:"A", weight:1,  sellPrice:7000,  desc:"読むとフロア内の敵全体に地震の魔法ダメージを与える魔法を習得する。MP:18",tile:43},
   {name:"道具寄せの魔法書", type:"spellbook",spell:"item_gather_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"読むと店の商品以外のフロアのアイテムを自分の周りに引き寄せる魔法を習得する。MP:12",tile:43},
   {name:"飛びつきの魔法書", type:"spellbook",spell:"leap_magic",       rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと方向を選び、敵や壁の手前へ瞬間移動する魔法を習得する。MP:10",tile:43},
@@ -7647,6 +7651,28 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         ml.push(_wasStatus || _hadDopingAftereffect
           ? "浄化の魔法で状態異常とドーピングの副作用が消えた！"
           : "浄化の魔法を唱えたが、解除する状態異常はない。");
+      }
+      break;
+    }
+    case "map_magic": {
+      if (kind === "self") {
+        if (!dg.explored) dg.explored = [];
+        for (let _y = 0; _y < MH; _y++) {
+          if (!dg.explored[_y]) dg.explored[_y] = Array(MW).fill(false);
+          for (let _x = 0; _x < MW; _x++) dg.explored[_y][_x] = true;
+        }
+        for (const _trap of dg.traps || []) {
+          _trap.revealed = true;
+          trackTrap(_trap);
+        }
+        ml.push("地図の魔法でフロア全体と罠が明らかになった！");
+      }
+      break;
+    }
+    case "clairvoyance_magic": {
+      if (kind === "self") {
+        dg.monsterSenseActive = true;
+        ml.push("透視の魔法でフロアの敵の位置が見えるようになった！");
       }
       break;
     }

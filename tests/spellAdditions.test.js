@@ -7,7 +7,7 @@ import {
   hasPlayerMagicReflect,
   makePlayerClone,
 } from "../items.js";
-import { T } from "../utils.js";
+import { MH, MW, T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { advanceConsumableBuffTimers } from "../turnUpkeep.js";
 import { advanceMonsterUpkeep } from "../monsterUpkeep.js";
@@ -17,13 +17,34 @@ import { monsterFireLightning } from "../wands.js";
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("12種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic", "leap_magic", "earthquake_magic", "item_gather_magic"];
+  it("14種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "map_magic", "clairvoyance_magic", "purify_magic", "leap_magic", "earthquake_magic", "item_gather_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
     expect(SPELLBOOKS.find((book) => book.spell === "haste_magic")).toMatchObject({ sellPrice: 3500 });
     expect(SPELLS.find((spell) => spell.id === "trap_detect_magic")).toMatchObject({ mpCost: 10 });
+    expect(SPELLS.find((spell) => spell.id === "map_magic")).toMatchObject({ mpCost: 20 });
+    expect(SPELLS.find((spell) => spell.id === "clairvoyance_magic")).toMatchObject({ mpCost: 18 });
+  });
+
+  it("地図の魔法はフロアと罠を開示し、透視の魔法は敵感知を有効にする", () => {
+    const dungeon = makeEmptyDg({
+      explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
+      traps: [{ id: "map-trap", name: "矢の罠", x: 10, y: 10, revealed: false }],
+    });
+    const player = makePlayer();
+    const messages = [];
+
+    applySpellEffect("map_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
+    expect(dungeon.explored.every((row) => row.every(Boolean))).toBe(true);
+    expect(dungeon.traps[0].revealed).toBe(true);
+    expect(dungeon.monsterSenseActive).toBeUndefined();
+
+    applySpellEffect("clairvoyance_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
+    expect(dungeon.monsterSenseActive).toBe(true);
+    expect(messages).toContain("地図の魔法でフロア全体と罠が明らかになった！");
+    expect(messages).toContain("透視の魔法でフロアの敵の位置が見えるようになった！");
   });
 
   it("剛力・守護・反射はレベルに応じて持続時間が伸びる", () => {
