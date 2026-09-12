@@ -25,6 +25,31 @@ function playerTileForFacing(pf) {
   return TI.PLAYER_DOWN;
 }
 
+function monsterTileForRender(mon, bewitched = false, x = 0, y = 0) {
+  if (bewitched) return [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 7 + y * 13) % 9];
+  if (mon.isPlayerClone) {
+    return playerTileForFacing({ dx: mon.dir?.x || 0, dy: mon.dir?.y || 1 });
+  }
+  return mon.tile;
+}
+
+function drawMonsterTile(ctx, ts, mon, tile, px, py, sz) {
+  if (!mon.isPlayerClone) {
+    drawTile(ctx, ts, tile, px, py, sz);
+    return;
+  }
+  ctx.save();
+  ctx.globalAlpha = 0.68;
+  drawTile(ctx, ts, tile, px, py, sz);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(80, 180, 255, 0.18)";
+  ctx.fillRect(px, py, sz, sz);
+  ctx.strokeStyle = "rgba(120, 220, 255, 0.9)";
+  ctx.lineWidth = Math.max(1, sz * 0.05);
+  ctx.strokeRect(px + 1, py + 1, sz - 2, sz - 2);
+  ctx.restore();
+}
+
 /* 向きモード中にプレイヤー周囲に向き矢印を描画 (post-pass 用) */
 function drawFacingIndicator(ctx, px, py, sz, dx, dy) {
   const arrowMap = {
@@ -989,10 +1014,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           /* Monster — skip if animating */
           const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker ? _m : undefined; })();
           if (mon && !_movingEntities.has("mon_" + mon.id)) {
-            const _monTile = (p.bewitchedTurns || 0) > 0
-              ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 7 + y * 13) % 9]
-              : mon.tile;
-            drawTile(ctx, ts, _monTile, px2, py2, sz);
+            const _monTile = monsterTileForRender(mon, (p.bewitchedTurns || 0) > 0, x, y);
+            drawMonsterTile(ctx, ts, mon, _monTile, px2, py2, sz);
             if (mon.hp < mon.maxHp) {
               const bw = sz - 2, bh = 2, hpR = mon.hp / mon.maxHp;
               ctx.fillStyle = "#300";
@@ -1072,10 +1095,11 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];
         const _toVis = dg.visible[Math.round(mo.toY)]?.[Math.round(mo.toX)];
         if (!_fromVis && !_toVis) continue;
-        const _monTile2 = (p.bewitchedTurns || 0) > 0
-          ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(Math.floor(drawX) * 7 + Math.floor(drawY) * 13) % 9]
+        const _monTile2 = _movingMonRef
+          ? monsterTileForRender(_movingMonRef, (p.bewitchedTurns || 0) > 0, Math.floor(drawX), Math.floor(drawY))
           : mo.tile;
-        drawTile(ctx, ts, _monTile2, dpx, dpy, sz);
+        if (_movingMonRef) drawMonsterTile(ctx, ts, _movingMonRef, _monTile2, dpx, dpy, sz);
+        else drawTile(ctx, ts, _monTile2, dpx, dpy, sz);
         /* HP bar for moving monster */
         if (mo.hp != null && mo.maxHp != null && mo.hp < mo.maxHp) {
           const bw = sz - 2, bh = 2, hpR = mo.hp / mo.maxHp;
@@ -1102,7 +1126,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         ctx.globalAlpha = 0.45;
         ctx.fillStyle = "rgba(200,30,30,0.25)";
         ctx.fillRect(_spx, _spy, sz, sz);
-        drawTile(ctx, ts, _sm.tile, _spx, _spy, sz);
+        drawMonsterTile(ctx, ts, _sm, monsterTileForRender(_sm, false, _sm.x, _sm.y), _spx, _spy, sz);
         ctx.globalAlpha = 1;
       }
     }

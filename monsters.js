@@ -1701,18 +1701,41 @@ export function findRoom(rooms, x, y) {
   );
 }
 
-/** 現在のAI状態でモンスターを引き寄せる、通常／祝福の囮を返す。 */
+function chebyshevDistance(a, b) {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+function livePlayerClone(dg) {
+  return dg?.monsters?.find((monster) => monster.isPlayerClone && monster.hp > 0) || null;
+}
+
+/** 分身がプレイヤーより近く、敵から認識できる位置にいるか。 */
+function cloneIsPreferredTarget(m, dg, pl, clone) {
+  if (!clone || !pl || clone === m) return false;
+  if (chebyshevDistance(clone, pl) >= chebyshevDistance(m, pl)) return false;
+  if (chebyshevDistance(m, clone) <= 1) return true;
+  const cloneRoom = findRoom(dg.rooms || [], clone.x, clone.y);
+  const monsterRoom = findRoom(dg.rooms || [], m.x, m.y);
+  if (cloneRoom && monsterRoom && cloneRoom.x === monsterRoom.x && cloneRoom.y === monsterRoom.y) return true;
+  return chebyshevDistance(m, clone) <= 8 && hasLOS(dg.map, m.x, m.y, clone.x, clone.y);
+}
+
+/** 現在のAI状態でモンスターを引き寄せる、通常／祝福の囮または分身を返す。 */
 function recognizedDecoyForMonster(m, dg, pl) {
   if (!m || !dg || !pl || inMagicSealRoom(m.x, m.y, dg) ||
       pl.x === m.x && pl.y === m.y) return null;
   const decoy = dg.pentacles?.find((pc) => pc.kind === "decoy" && !pc.cursed);
-  if (!decoy || (pl.x === decoy.x && pl.y === decoy.y)) return null;
-  if (decoy.blessed) return decoy;
-  const decoyRoom = findRoom(dg.rooms || [], decoy.x, decoy.y);
-  const monsterRoom = findRoom(dg.rooms || [], m.x, m.y);
-  return decoyRoom && monsterRoom && decoyRoom.x === monsterRoom.x && decoyRoom.y === monsterRoom.y
-    ? decoy
-    : null;
+  if (decoy) {
+    if (pl.x === decoy.x && pl.y === decoy.y) return null;
+    if (decoy.blessed) return decoy;
+    const decoyRoom = findRoom(dg.rooms || [], decoy.x, decoy.y);
+    const monsterRoom = findRoom(dg.rooms || [], m.x, m.y);
+    return decoyRoom && monsterRoom && decoyRoom.x === monsterRoom.x && decoyRoom.y === monsterRoom.y
+      ? decoy
+      : null;
+  }
+  const clone = livePlayerClone(dg);
+  return cloneIsPreferredTarget(m, dg, pl, clone) ? clone : null;
 }
 
 /** プレイヤーを通らずに囮へ到達できる経路があるか。 */
@@ -3879,7 +3902,50 @@ registerMonsterRuntime({
   monsterFireDamageLabel: monFireDmgLabel,
 });
 
+/** 分身のAI。通常敵を優先して攻撃し、敵がいなければプレイヤーから離れすぎないよう追従する。 */
+function playerCloneAI(m, dg, pl, ml, opts = {}) {
+  const _moveOnly = !!opts.moveOnly;
+  const _attackOnly = !!opts.attackOnly;
+  if (!m.isPlayerClone || m.hp <= 0 || (m.sleepTurns || 0) > 0 || m.paralyzed ||
+      (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0) return;
+  m.turnAttacks = m.turnAttacks || 0;
+
+  const _targets = (dg.monsters || []).filter((other) =>
+    other !== m && other.hp > 0 && !other.isPlayerClone &&
+    !(other.subtype === "itemMimic" && other.disguisedAsItem !== false) &&
+    !(other.type === "shopkeeper" && other.state !== "hostile")
+  );
+  _targets.sort((a, b) => chebyshevDistance(m, a) - chebyshevDistance(m, b));
+  const _target = _targets[0] || null;
+  if (_target && chebyshevDistance(m, _target) <= 1) {
+    if (_moveOnly) return;
+    if (_attackOnly && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+    if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+    m.turnAttacks++;
+    const _damage = Math.max(1, calcAtkDefDmg(m.atk, _target.def || 0, { defWeight: 1 }));
+    _target.hp -= _damage;
+    ml.push(`分身が${_target.name}を攻撃！${_damage}ダメージ！`);
+    if (_target.hp <= 0) killMonster(_target, dg, pl, ml, opts.luFn || null, true, m);
+    return;
+  }
+  if (_attackOnly) return;
+
+  const _followTarget = _target || (chebyshevDistance(m, pl) > 2 ? pl : null);
+  if (!_followTarget) return;
+  const _next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, _followTarget.x, _followTarget.y, m,
+    40, dg.pentacles, false, null, false, dg.rooms, dg);
+  if (!_next || (_next.x === pl.x && _next.y === pl.y) ||
+      dg.monsters.some((other) => other !== m && other.x === _next.x && other.y === _next.y)) return;
+  m.dir = { x: _next.x - m.x, y: _next.y - m.y };
+  m.x = _next.x;
+  m.y = _next.y;
+}
+
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
+  if (m.isPlayerClone) {
+    playerCloneAI(m, dg, pl, ml, opts);
+    return;
+  }
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
   let _rangedAttackReady = false;
@@ -4720,8 +4786,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
    */
   const _inPlayerFov = !!(dg.visible?.[m.y]?.[m.x]);
   const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
-  const canSee = !_plInvis && (_sameRoom || _adjPl || _inPlayerFov);
-  if (_plPotHidden) {
+  const _cloneDecoy = recognizedDecoyForMonster(m, dg, pl);
+  const _cloneTargeted = !!_cloneDecoy?.isPlayerClone;
+  const canSee = (!_plInvis && (_sameRoom || _adjPl || _inPlayerFov)) || _cloneTargeted;
+  if (_plPotHidden && !_cloneTargeted) {
     m.aware = false;
     m.lastPx = m.x;
     m.lastPy = m.y;
@@ -4739,8 +4807,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
   if (canSee) {
     m.aware = true;
-    m.lastPx = pl.x;
-    m.lastPy = pl.y;
+    m.lastPx = _cloneTargeted ? _cloneDecoy.x : pl.x;
+    m.lastPy = _cloneTargeted ? _cloneDecoy.y : pl.y;
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
   }
@@ -4958,13 +5026,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    /* ===== 囮のペン（通常・祝福）: 特技含む全行動を囮に誘導 ===== */
+    /* ===== 囮のペン（通常・祝福）・分身: 特技含む全行動を囮に誘導 ===== */
     /* プレイヤーが魔方陣の上にいる場合は通常行動（下の special handlers に委ねる） */
     {
-      const _decoyPc = dg.pentacles?.find(pc => pc.kind === "decoy" && !pc.cursed);
+      const _decoyPc = _cloneDecoy || dg.pentacles?.find(pc => pc.kind === "decoy" && !pc.cursed);
       if (_decoyPc && !(pl.x === _decoyPc.x && pl.y === _decoyPc.y)) {
         const _decoyRoom = findRoom(rooms, _decoyPc.x, _decoyPc.y);
-        const _affByDecoy = _decoyPc.blessed
+        const _affByDecoy = _decoyPc.isPlayerClone
+          ? true /* 分身は認識できる敵からの優先対象 */
+          : _decoyPc.blessed
           ? true /* 祝福: フロア全体 */
           : (_decoyRoom !== null && _monRoom !== null &&
              _decoyRoom.x === _monRoom.x && _decoyRoom.y === _monRoom.y);

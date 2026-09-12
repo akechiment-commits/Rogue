@@ -5,6 +5,18 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
 
   const hasGoal = player.inventory?.some((item) => item.type === "goal");
   for (const monster of [...dungeon.monsters]) {
+    if (monster.isPlayerClone) {
+      const portal = dungeon.pentacles.find((pentacle) =>
+        (pentacle.kind === "portal" || pentacle.kind === "fixed_portal") &&
+        pentacle.x === monster.x && pentacle.y === monster.y
+      );
+      const before = positionSnapshot.get(monster.id);
+      if (portal && (!before || before.x !== monster.x || before.y !== monster.y)) {
+        dungeon.monsters = dungeon.monsters.filter((entry) => entry !== monster);
+        messages.push("分身は階層の境界を越えられず消滅した！");
+      }
+      continue;
+    }
     const fixedPortal = dungeon.pentacles.find((pentacle) =>
       pentacle.kind === "fixed_portal" && pentacle.x === monster.x && pentacle.y === monster.y
     );

@@ -5541,6 +5541,13 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false) {
   const mx = mon.x, my = mon.y;
+  if (mon.isPlayerClone) {
+    if (dg?.monsters?.includes(mon)) {
+      removeMonster(dg, mon);
+      ml.push("分身は倒されて消えた！");
+    }
+    return;
+  }
   /* HP0になったモンスターの状態異常を、復活判定や撃破演出より先に消す。 */
   if (mon.hp <= 0) clearStatusEffectsOnHpZero(mon);
   if (mon.isWanderingMerchant && p && !killerMon) {
@@ -7027,6 +7034,39 @@ export function getSpellBuffDuration(baseDuration, level = 1) {
   return baseDuration + (_level - 1) * 5;
 }
 
+/** プレイヤーのステータスだけを一部コピーした、操作不能の分身を作る。 */
+export function makePlayerClone(p, x, y, cloneTurns = 30) {
+  const _maxHp = Math.max(1, Math.floor((Number(p?.maxHp) || Number(p?.hp) || 1) * 0.5));
+  const _atk = Math.max(1, Math.floor((Number(p?.atk) || 1) * 0.7));
+  const _def = Math.max(0, Math.floor((Number(p?.def) || 0) * 0.7));
+  return {
+    id: uid(),
+    name: "分身",
+    hp: _maxHp,
+    maxHp: _maxHp,
+    atk: _atk,
+    def: _def,
+    exp: 0,
+    speed: 1,
+    baseSpeed: 1,
+    tile: TI.PLAYER,
+    kind: "humanoid",
+    baseKind: "player_clone",
+    subtype: "playerClone",
+    monLevel: 1,
+    x,
+    y,
+    turnAccum: 0,
+    aware: true,
+    dir: { x: 0, y: 1 },
+    lastPx: p?.x ?? x,
+    lastPy: p?.y ?? y,
+    patrolTarget: null,
+    cloneTurns: Math.max(1, Math.floor(Number(cloneTurns) || 30)),
+    isPlayerClone: true,
+  };
+}
+
 export const SPELLS=[
   {id:"fire_bolt",      name:"炎の魔法",         mpCost:10, effect:"fire_bolt",       damage:25, range:10, needsDir:true,  desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:10"},
   {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾で敵を凍らせスロー。MP:10"},
@@ -7050,6 +7090,7 @@ export const SPELLS=[
   {id:"reflect_magic",  name:"反射の魔法",        mpCost:10, effect:"reflect_magic",              needsDir:false, desc:"50ターン魔法反射状態になる。Lvごとに持続+5ターン。MP:10"},
   {id:"dig_magic",      name:"穴掘りの魔法",      mpCost:8,  effect:"dig_magic",       range:10,  needsDir:true,  desc:"方向を選び、10マスまで壁を掘る。MP:8"},
   {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスの敵を即死させる（ボスは現在HPの1/4ダメージ）。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
+  {id:"clone_magic",    name:"分身の魔法",        mpCost:12, effect:"clone_magic",               needsDir:false, desc:"分身を1体呼び出す。HPは自分の最大HPの50%、攻撃力・防御力は自分の70%。30ターン持続。Lvごとに持続+5ターン。MP:12"},
   {id:"debug_summon_mon", name:"[debug]敵召喚",   mpCost:0,  fixedMpCost:true, effect:"debug_summon_mon",  needsDir:false, debug:true, desc:"任意の敵を1体選んで呼び出す。MP:0"},
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
   {id:"debug_get_blessed_item", name:"[debug]祝福アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_blessed_item", needsDir:false, debug:true, desc:"祝福された任意のアイテムを1個選んで入手する。MP:0"},
@@ -7080,7 +7121,8 @@ export const SPELLBOOKS=[
   {name:"守護の魔法書",     type:"spellbook",spell:"guard_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン防御力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"反射の魔法書",     type:"spellbook",spell:"reflect_magic",   rarity:"A", weight:1,  sellPrice:8000,  desc:"読むと50ターン魔法反射状態になる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"穴掘りの魔法書",   type:"spellbook",spell:"dig_magic",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むと方向を選び、10マスまで壁を掘る魔法を習得する。MP:8",tile:43},
-  {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。ボスには現在HPの1/4ダメージ。MP:7",tile:43},];
+  {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。ボスには現在HPの1/4ダメージ。MP:7",tile:43},
+  {name:"分身の魔法書",     type:"spellbook",spell:"clone_magic",     rarity:"A", weight:1, sellPrice:7000, desc:"読むと操作できない分身を1体呼び出す魔法を習得する。分身はHP・攻撃力・防御力が自分の50%・70%・70%。30ターン持続し、Lvごとに持続+5ターン。MP:12",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
@@ -7471,7 +7513,7 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
     ml.push(isFireContext ? `所持していた「${dn(victim)}」は炎に当たったが無事だった。` : `所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }
 }
-export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv = 1) {
+export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv = 1, castMpCost = null) {
   if (kind === "monster") {
     wakeIfDormant(target, ml);
     if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
@@ -7525,6 +7567,41 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           playerHpOne: true,
           instantMonsterKill: true,
         });
+      }
+      break;
+    }
+    case "clone_magic": {
+      if (kind === "self") {
+        const _turns = getSpellBuffDuration(30, lv);
+        const _existing = dg.monsters?.find((m) => m.isPlayerClone && m.hp > 0);
+        if (_existing) {
+          _existing.cloneTurns = (_existing.cloneTurns || 0) + _turns;
+          ml.push(`分身の持続時間が延長された！(残り${_existing.cloneTurns}ターン)`);
+          break;
+        }
+        const _spawnCandidates = (DRO || []).slice(1, 9).map(([ox, oy]) => ({ x: p.x + ox, y: p.y + oy }))
+          .filter(({ x, y }) =>
+            dg.map[y]?.[x] === T.FLOOR &&
+            !(x === p.x && y === p.y) &&
+            !dg.monsters?.some((m) => m.x === x && m.y === y) &&
+            !dg.items?.some((it) => !it.wallEmbedded && it.x === x && it.y === y) &&
+            !dg.traps?.some((trap) => trap.x === x && trap.y === y) &&
+            !dg.springs?.some((spring) => spring.x === x && spring.y === y) &&
+            !dg.bigboxes?.some((box) => box.x === x && box.y === y) &&
+            !dg.pentacles?.some((pc) => pc.x === x && pc.y === y) &&
+            !dg.statues?.some((statue) => statue.x === x && statue.y === y)
+          );
+        if (_spawnCandidates.length === 0) {
+          const _refund = castMpCost == null
+            ? Math.max(1, Math.round(12 * (1 - (Math.max(1, lv) - 1) * 0.15)))
+            : Math.max(0, Number(castMpCost) || 0);
+          p.mp = (p.mp || 0) + _refund;
+          ml.push("分身を出す場所がない！MPは消費しない。");
+          break;
+        }
+        const _spot = _spawnCandidates[0];
+        dg.monsters.push(makePlayerClone(p, _spot.x, _spot.y, _turns));
+        ml.push(`分身が現れた！(${_turns}ターン)`);
       }
       break;
     }

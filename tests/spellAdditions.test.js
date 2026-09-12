@@ -5,18 +5,20 @@ import {
   applySpellEffect,
   castSpellBolt,
   hasPlayerMagicReflect,
+  makePlayerClone,
 } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { advanceConsumableBuffTimers } from "../turnUpkeep.js";
+import { advanceMonsterUpkeep } from "../monsterUpkeep.js";
+import { monsterAI } from "../monsters.js";
 import { monsterFireLightning } from "../wands.js";
-import "../monsters.js";
 
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("5種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic"];
+  it("6種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
   });
@@ -111,5 +113,77 @@ describe("追加魔法", () => {
     expect(near.hp).toBe(0);
     expect(dungeon.monsters).not.toContain(near);
     if (farX > 5 + radius) expect(far.hp).toBe(100);
+  });
+
+  it("分身の魔法は隣接する空き床に1体だけ出し、再使用で時間を延長する", () => {
+    const dungeon = makeEmptyDg();
+    const player = makePlayer({ hp: 80, maxHp: 80, atk: 11, def: 7 });
+
+    applySpellEffect("clone_magic", "self", null, 0, 0, dungeon, player, [], noop, 1);
+    const clone = dungeon.monsters.find((monster) => monster.isPlayerClone);
+
+    expect(clone).toMatchObject({
+      name: "分身",
+      hp: 40,
+      maxHp: 40,
+      atk: 7,
+      def: 4,
+      cloneTurns: 30,
+      isPlayerClone: true,
+    });
+    expect(Math.max(Math.abs(clone.x - player.x), Math.abs(clone.y - player.y))).toBe(1);
+
+    applySpellEffect("clone_magic", "self", null, 0, 0, dungeon, player, [], noop, 3);
+    expect(dungeon.monsters.filter((monster) => monster.isPlayerClone)).toHaveLength(1);
+    expect(clone.cloneTurns).toBe(70);
+  });
+
+  it("分身は敵を攻撃し、撃破してもプレイヤーに経験値を与えない", () => {
+    const target = { name: "敵", hp: 100, maxHp: 100, atk: 5, def: 0, exp: 50, x: 7, y: 5 };
+    const player = makePlayer({ x: 5, y: 5, exp: 0 });
+    const clone = makePlayerClone(player, 6, 5, 30);
+    const dungeon = makeEmptyDg({ monsters: [clone, target] });
+    const messages = [];
+
+    monsterAI(clone, dungeon, player, messages);
+
+    expect(target.hp).toBeLessThan(100);
+    expect(player.exp).toBe(0);
+  });
+
+  it("敵はプレイヤーより近い分身を優先して攻撃する", () => {
+    const player = makePlayer({ x: 10, y: 5 });
+    const clone = makePlayerClone(player, 7, 5, 30);
+    const enemy = { name: "敵", hp: 100, maxHp: 100, atk: 20, def: 0, exp: 10, speed: 1, baseKind: "rat", x: 5, y: 5, turnAttacks: 0 };
+    const dungeon = makeEmptyDg({
+      monsters: [enemy, clone],
+      rooms: [{ x: 1, y: 1, w: 58, h: 28 }],
+    });
+    const messages = [];
+
+    monsterAI(enemy, dungeon, player, messages, { moveOnly: true });
+    expect(enemy.x).toBe(6);
+    expect(enemy.y).toBe(5);
+    monsterAI(enemy, dungeon, player, messages, { attackOnly: true });
+
+    expect(clone.hp).toBeLessThan(clone.maxHp);
+    expect(player.hp).toBe(player.maxHp);
+  });
+
+  it("分身は時間切れで消滅し、通常の敵として復活しない", () => {
+    const player = makePlayer();
+    const clone = makePlayerClone(player, 6, 5, 1);
+    const dungeon = makeEmptyDg({ monsters: [clone] });
+    const messages = [];
+
+    advanceMonsterUpkeep(dungeon, player, messages, {
+      hasCursedExplosionPentacle: () => false,
+      inMagicSealRoom: () => false,
+      inCursedMagicSealRoom: () => false,
+      onMonsterDefeated: () => {},
+    });
+
+    expect(dungeon.monsters).not.toContain(clone);
+    expect(messages).toContain("分身の時間切れで消えた！");
   });
 });

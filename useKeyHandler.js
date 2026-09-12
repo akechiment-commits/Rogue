@@ -1279,7 +1279,7 @@ export function useKeyHandler({
             } else {
             p2.mp -= spell.mpCost;
             ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
-            applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu);
+            applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu, spell.spellLevel || 1, spell.mpCost);
             endTurn(sr.current, p2, ml2);
             setMsgs((prev) => [...prev.slice(-80), ...ml2]);
             sr.current = { ...sr.current }; setGs({ ...sr.current });

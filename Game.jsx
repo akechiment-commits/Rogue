@@ -60,6 +60,7 @@ function markWanderingMerchantHostile(monster, dungeon, player, messages) {
   });
   return true;
 }
+
 setItemMimicDisguiseCatalog([
   ...ITEMS,
   ...WANDS,
@@ -1703,6 +1704,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.x = _dest.portal.x; p.y = _dest.portal.y;
       ml.push(`ポータルから${_dest.portal.name}へ抜けた！`);
     } else {
+      sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
+      _dest.dg.monsters = _dest.dg.monsters.filter((monster) => !monster.isPlayerClone);
       suspendFloor(sr.current.dungeon, p);
       sr.current.floors[p.depth] = sr.current.dungeon;
       delete sr.current.floors[_dest.depth];
@@ -1740,6 +1743,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (_hasUnpaidItems || _wasInUnpaidShop) {
       declareShopTheft(pl, sr.current.dungeon, null, { message: null });
     }
+    sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
     suspendFloor(sr.current.dungeon, pl, { stairs });
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
@@ -1809,6 +1813,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       pl.x = _stTarget.x;
       pl.y = _stTarget.y;
     }
+    d.monsters = d.monsters.filter((monster) => !monster.isPlayerClone);
     if (_saved) resumeFloor(d, pl);
     refreshFOV(d, pl);
     /* 落とし穴・ランダム階層移動は同座標でも、落下してから出現する待機を必ず入れる */
@@ -2548,7 +2553,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
           const attackMon = mon || reachMon;
           if (attackMon) {
-            if (
+            if (attackMon.isPlayerClone) {
+              ml.push("分身には攻撃できない。");
+              acted = true;
+            } else if (
               attackMon.type === "shopkeeper" &&
               attackMon.state !== "hostile"
             ) {
@@ -5681,6 +5689,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     : "";
   /* 表示名ヘルパー (gsを参照) */
   const dname = (it) => itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames);
+  const _playerClone = gs.dungeon?.monsters?.find((monster) => monster.isPlayerClone && monster.hp > 0);
 
   const iLabel = (item) => formatInventoryItem(item, {
     player: gs?.player,
@@ -5881,6 +5890,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.magicReflectTurns || 0) > 0 && (
           <span style={{ color: "#e080ff" }} title="魔法反射">↩{p.magicReflectTurns}</span>
+        )}{" "}
+        {_playerClone && (
+          <span style={{ color: "#80d8ff" }} title={`分身：残り${_playerClone.cloneTurns || 0}ターン`}>👤{_playerClone.cloneTurns || 0}</span>
         )}{" "}
         {(p.defSoftenedTurns || 0) > 0 && (
           <span style={{ color: "#c8a060" }}>🛡↓{p.defSoftenedTurns}</span>

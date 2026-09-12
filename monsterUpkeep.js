@@ -26,6 +26,13 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
   }
 
   for (const monster of dungeon.monsters) {
+    if (monster.isPlayerClone && monster.hp > 0 && (monster.cloneTurns || 0) > 0) {
+      monster.cloneTurns = Math.max(0, monster.cloneTurns - 1);
+      if (monster.cloneTurns <= 0) {
+        monster.hp = 0;
+        messages.push("分身の時間切れで消えた！");
+      }
+    }
     if ((monster.dopingTurns || 0) > 0) {
       monster.dopingTurns--;
       if (monster.dopingTurns <= 0) {
@@ -54,6 +61,11 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
       monster.floatTurns--;
       if (monster.floatTurns <= 0) messages.push(`${monster.name}の浮遊が解けた！`);
     }
+  }
+
+  const _expiredClones = dungeon.monsters.filter((monster) => monster.isPlayerClone && monster.hp <= 0);
+  if (_expiredClones.length > 0) {
+    dungeon.monsters = dungeon.monsters.filter((monster) => !_expiredClones.includes(monster));
   }
 
   if (!dungeon.pentacles?.some((pentacle) => pentacle.kind === "thunder_trap") || hasCursedExplosionPentacle(dungeon)) return;
