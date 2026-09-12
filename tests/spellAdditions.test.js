@@ -17,8 +17,8 @@ import { monsterFireLightning } from "../wands.js";
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("7種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic"];
+  it("8種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
@@ -169,6 +169,20 @@ describe("追加魔法", () => {
 
     applySpellEffect("haste_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
     expect(player).toMatchObject({ hasteSpeed: 3, hasteTurns: 20 });
+  });
+
+  it("罠探知の魔法は罠だけをすべて発見する", () => {
+    const dungeon = makeEmptyDg({ traps: [
+      { name: "地雷", effect: "explode", x: 4, y: 4, revealed: false },
+      { name: "矢の罠", effect: "arrow_trap", x: 8, y: 8, revealed: true },
+    ] });
+    const player = makePlayer();
+    const messages = [];
+
+    applySpellEffect("trap_detect_magic", "self", null, 0, 0, dungeon, player, messages, noop, 6);
+
+    expect(dungeon.traps.every((trap) => trap.revealed)).toBe(true);
+    expect(messages).toContain("罠探知の魔法で罠が1個見えた！");
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {
