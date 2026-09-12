@@ -813,6 +813,7 @@ export const BB_TYPES = [
   { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  weight: 1, rare: true, desc: "【レア】入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
   { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  weight: 1, rare: true, desc: "【レア】入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
   { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          weight: 1, rare: true, desc: "【レア】道具が入ると中身が消滅し、半径2マスに即爆発する。" },
+  { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  weight: 1, rare: true, desc: "【レア】入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
 ];
 
 export const BB_FAKE_NAMES = [
@@ -1465,6 +1466,23 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
   }
   const x = dropX ?? bb.x;
   const y = dropY ?? bb.y;
+  if (bb.kind === "monster") {
+    const contents = [...(bb.contents || [])];
+    bb.contents = [];
+    stageBigbox(bb);
+    dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
+    const depth = Math.max(0, (options.player?.depth ?? 1) - 1);
+    const spawned = contents.length > 0
+      ? spawnMonsters(dg, contents.length, depth, x, y, options.player || null, { aware: true, immediateAct: true })
+      : 0;
+    if (contents.length > 0) {
+      ml.push(`${resolveItemName(bb, nameFn)}が壊れ、中身が${spawned}体の敵に変わった！`);
+      if (spawned < contents.length) ml.push(`${contents.length - spawned}体は出現場所がなく消滅した。`);
+    } else {
+      ml.push(`${resolveItemName(bb, nameFn)}が壊れた！（中は空だった）`);
+    }
+    return;
+  }
   const ft = new Set();
   for (const item of [...(bb.contents || [])]) placeItemAt(dg, x, y, item, ml, ft);
   if (bb.kind === "trash") {

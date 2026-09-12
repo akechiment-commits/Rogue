@@ -3924,6 +3924,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
       return;
     }
+    if (bb.kind === "monster") {
+      breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: sr.current.player, luFn: lu });
+      return;
+    }
     ml.push(`${bbDisplayName(bb, sr.current)}が壊れた！中身がばらまかれた！`);
     breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: sr.current.player, luFn: lu });
   }, [lu]);
