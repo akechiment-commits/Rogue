@@ -17,8 +17,8 @@ import { monsterFireLightning } from "../wands.js";
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("8種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic"];
+  it("9種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
@@ -184,6 +184,58 @@ describe("追加魔法", () => {
 
     expect(dungeon.traps.every((trap) => trap.revealed)).toBe(true);
     expect(messages).toContain("罠探知の魔法で罠が1個見えた！");
+  });
+
+  it("浄化の魔法は有利な効果とMP回復禁止を残して状態異常を解除する", () => {
+    const dungeon = makeEmptyDg();
+    const player = makePlayer({
+      atk: 9,
+      poisoned: true,
+      poisonedTurns: 3,
+      poisonAtkLoss: 2,
+      sleepTurns: 4,
+      paralyzeTurns: 5,
+      slowTurns: 6,
+      confusedTurns: 7,
+      darknessTurns: 8,
+      bewitchedTurns: 9,
+      sealedTurns: 10,
+      oilyTurns: 11,
+      soakedTurns: 12,
+      defSoftenedTurns: 13,
+      capturedBy: "grabber-1",
+      potConfinedTurns: 14,
+      mpSealTurns: 1000,
+      hasteTurns: 10,
+      hasteSpeed: 2,
+      dopingAftereffectTurns: 15,
+      dopingAftereffectPending: true,
+    });
+    const messages = [];
+
+    applySpellEffect("purify_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
+
+    expect(player).toMatchObject({
+      atk: 11,
+      sleepTurns: 0,
+      paralyzeTurns: 0,
+      slowTurns: 0,
+      confusedTurns: 0,
+      darknessTurns: 0,
+      bewitchedTurns: 0,
+      sealedTurns: 0,
+      oilyTurns: 0,
+      soakedTurns: 0,
+      defSoftenedTurns: 0,
+      capturedBy: null,
+      potConfinedTurns: 0,
+      mpSealTurns: 1000,
+      hasteTurns: 10,
+      dopingAftereffectTurns: 0,
+      dopingAftereffectPending: false,
+    });
+    expect(player.poisoned).toBe(false);
+    expect(player.poisonedTurns).toBe(0);
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {
