@@ -27,7 +27,7 @@ import {
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
-  itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
+  itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
 } from "./items.js";
@@ -1354,7 +1354,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _hbbDN = _wbBbNameFn(bb);
               const _newCap = Math.max(0, (bb.capacity || 1) - 1);
               if ((bb.contents?.length || 0) > _newCap) {
-                breakBigboxContents(bb, dg, mlx, _wbItemNameFn);
+                breakBigboxContents(bb, dg, mlx, _wbItemNameFn, null, null, { player: pl, luFn: lu });
                 mlx.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
               } else {
                 bb.capacity = _newCap;
@@ -3920,9 +3920,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     return false;
   }, []);
   const breakBigbox = useCallback((bb, dg, ml) => {
+    if (bb.kind === "nitro") {
+      detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+      return;
+    }
     ml.push(`${bbDisplayName(bb, sr.current)}が壊れた！中身がばらまかれた！`);
-    breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
-  }, []);
+    breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: sr.current.player, luFn: lu });
+  }, [lu]);
   const trySynthesize = useCallback(
     (bb, ml) => {
       const _dn = (item) => itemDisplayName(
@@ -4320,7 +4324,33 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ? `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`
         : `${_idn}を${_bbDN}に入れた。`,
       );
-      if (bb.kind === "synthesis") {
+      if (bb.kind === "nitro") {
+        detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+        return;
+      } else if (bb.kind === "greed") {
+        const _gold = item.type === "gold" ? Math.max(0, item.value || 0) : Math.max(1, itemPrice(item));
+        if (item.type === "goal") {
+          ml.push(`${_idn}には効果がなかった。`);
+        } else {
+          const _gi = bb.contents.indexOf(item);
+          if (_gi >= 0) bb.contents.splice(_gi, 1);
+          sr.current.player.gold = (sr.current.player.gold || 0) + _gold;
+          bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
+          ml.push(`${_idn}が${_gold}Gに変わった！`);
+        }
+      } else if (bb.kind === "reverse") {
+        if (item.type === "goal" || item.type === "gold" || item.type === "gold_nugget" || item.type === "arrow" || item.type === "pot") {
+          ml.push(`${_idn}には効果がなかった。`);
+        } else if (item.blessed || item.cursed) {
+          const _wasBlessed = !!item.blessed;
+          item.blessed = !_wasBlessed;
+          item.cursed = _wasBlessed;
+          item.bcKnown = true;
+          ml.push(`${_idn}の祝福と呪いが反転した！${item.blessed ? "【祝】" : "【呪】"}`);
+        } else {
+          ml.push(`${_idn}には祝福も呪いもなかった。`);
+        }
+      } else if (bb.kind === "synthesis") {
         trySynthesize(bb, ml);
       } else if (bb.kind === "change" && item.type === "goal") {
         ml.push(`${_idn}は変化しなかった！`);
@@ -4760,7 +4790,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);
     },
-    [trySynthesize, breakBigbox],
+    [trySynthesize, breakBigbox, lu],
   );
   /** 願い成功時：泉を必ず干上がらせる */
   const drySpringAlways = useCallback((dg, p, ml) => {

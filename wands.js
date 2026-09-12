@@ -373,7 +373,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         bbx = nx; bby = ny;
       }
       if (bbroke) {
-        breakBigboxContents(target, dg, ml, nameFn, bbx, bby);
+        breakBigboxContents(target, dg, ml, nameFn, bbx, bby, { player: p, luFn });
         if (_bbHitMon) {
           const _bbDmg = rng(20, 40);
           _bbHitMon.hp -= _bbDmg;
@@ -430,7 +430,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     if (eff === "soften") {
       /* 大箱を破壊して中身を散乱 */
-      breakBigboxContents(target, dg, ml, nameFn);
+      breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
       ml.push(`軟化の魔法弾で${resolveItemName(target, nameFn)}が崩れ落ちた！${(target.contents?.length||0) > 0 ? "中身が飛び出した！" : ""}`);
       return;
     }
@@ -455,7 +455,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (_bwCursed) {
         const _newCap = Math.max(0, (target.capacity || 1) - 1);
         if ((target.contents?.length || 0) > _newCap) {
-          breakBigboxContents(target, dg, ml, nameFn);
+          breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！【呪】`);
         } else {
           target.capacity = _newCap;
@@ -477,7 +477,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _loss = _cwBlessed ? 2 : 1;
         const _newCap = Math.max(0, (target.capacity || 1) - _loss);
         if ((target.contents?.length || 0) > _newCap) {
-          breakBigboxContents(target, dg, ml, nameFn);
+          breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
         } else {
           target.capacity = _newCap;
@@ -487,7 +487,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     /* default: break and scatter (dig, lightning, etc.) */
-    breakBigboxContents(target, dg, ml, nameFn);
+    breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
     if (target.contents?.length > 0) {
       ml.push(`${resolveItemName(target, nameFn)}が壊れて中身が飛び出した！`);
     } else {
