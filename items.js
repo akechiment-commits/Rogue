@@ -7089,6 +7089,7 @@ export const SPELLS=[
   {id:"haste_magic",    name:"加速の魔法",        mpCost:12, effect:"haste_magic",                needsDir:false, desc:"鈍足を解除し、速度を1段階上げる。基本10ターン。重ね掛けで3倍速になる。MP:12"},
   {id:"trap_detect_magic", name:"罠探知の魔法",   mpCost:10, effect:"trap_detect_magic",          needsDir:false, desc:"フロア内の罠だけを見えるようにする。MP:10"},
   {id:"earthquake_magic", name:"地震の魔法",       mpCost:18, effect:"earthquake_magic",            needsDir:false, desc:"フロア内の敵全体に地震の魔法ダメージを与える。MP:18"},
+  {id:"item_gather_magic", name:"アイテム吸引の魔法", mpCost:12, effect:"item_gather_magic",         needsDir:false, desc:"店の商品以外の床アイテムをプレイヤーの周囲に集める。MP:12"},
   {id:"leap_magic",       name:"飛びつきの魔法",   mpCost:10, effect:"leap_magic",                 range:10, needsDir:true, desc:"方向を選び、敵や壁の手前へ瞬間移動する。MP:10"},
   {id:"purify_magic",    name:"浄化の魔法",        mpCost:12, effect:"purify_magic",                needsDir:false, desc:"MP回復禁止以外の状態異常とドーピングの副作用を解除する。MP:12"},
   {id:"power_magic",    name:"剛力の魔法",        mpCost:10, effect:"power_magic",                needsDir:false, desc:"50ターン攻撃力が10上がる。Lvごとに持続+5ターン。MP:10"},
@@ -7126,6 +7127,7 @@ export const SPELLBOOKS=[
   {name:"加速の魔法書",     type:"spellbook",spell:"haste_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと鈍足を解除し、速度を1段階上げる魔法を習得する。基本10ターン。重ね掛けで3倍速になる。MP:12",tile:43},
   {name:"罠探知の魔法書",   type:"spellbook",spell:"trap_detect_magic",rarity:"C", weight:4,  sellPrice:2500,  desc:"読むとフロア内の罠だけを見えるようにする魔法を習得する。MP:10",tile:43},
   {name:"地震の魔法書",     type:"spellbook",spell:"earthquake_magic", rarity:"A", weight:1,  sellPrice:7000,  desc:"読むとフロア内の敵全体に地震の魔法ダメージを与える魔法を習得する。MP:18",tile:43},
+  {name:"アイテム吸引の魔法書", type:"spellbook",spell:"item_gather_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"読むと店の商品以外の床アイテムをプレイヤーの周囲に集める魔法を習得する。MP:12",tile:43},
   {name:"飛びつきの魔法書", type:"spellbook",spell:"leap_magic",       rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと方向を選び、敵や壁の手前へ瞬間移動する魔法を習得する。MP:10",tile:43},
   {name:"浄化の魔法書",     type:"spellbook",spell:"purify_magic",     rarity:"B", weight:2,  sellPrice:4500,  desc:"読むとMP回復禁止以外の状態異常とドーピングの副作用を解除する魔法を習得する。MP:12",tile:43},
   {name:"剛力の魔法書",     type:"spellbook",spell:"power_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン攻撃力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
@@ -7674,6 +7676,53 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           ml.push(`地震の魔法が${_monster.name}に命中！${_damage}ダメージ！`);
           if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, luFn);
         }
+      }
+      break;
+    }
+    case "item_gather_magic": {
+      if (kind === "self") {
+        const _gatherItems = (dg.items || []).filter((_item) => !_item.shopPrice && !_item.wallEmbedded);
+        if (_gatherItems.length === 0) {
+          ml.push("アイテム吸引の魔法を唱えたが、吸引するアイテムがない。");
+          break;
+        }
+        const _gatherSet = new Set(_gatherItems);
+        dg.items = (dg.items || []).filter((_item) => !_gatherSet.has(_item));
+        const _cells = DRO.slice(1).map(([ox, oy]) => ({ x: p.x + ox, y: p.y + oy }))
+          .filter(({ x, y }) => x > 0 && x < MW - 1 && y > 0 && y < MH - 1 &&
+            dg.map[y]?.[x] !== T.WALL && dg.map[y]?.[x] !== T.BWALL &&
+            dg.map[y]?.[x] !== T.WATER && dg.map[y]?.[x] !== T.SD && dg.map[y]?.[x] !== T.SU &&
+            !(x === p.x && y === p.y) &&
+            !dg.monsters?.some((_monster) => _monster.x === x && _monster.y === y) &&
+            !dg.items?.some((_item) => _item.x === x && _item.y === y) &&
+            !dg.traps?.some((_trap) => _trap.x === x && _trap.y === y) &&
+            !dg.springs?.some((_spring) => _spring.x === x && _spring.y === y) &&
+            !dg.bigboxes?.some((_box) => _box.x === x && _box.y === y) &&
+            !dg.pentacles?.some((_pentacle) => _pentacle.x === x && _pentacle.y === y) &&
+            !dg.statues?.some((_statue) => _statue.x === x && _statue.y === y) &&
+            !dg.vents?.some((_vent) => _vent.x === x && _vent.y === y) &&
+            !dg.gachaMachines?.some((_gacha) => _gacha.x === x && _gacha.y === y) &&
+            !dg.altars?.some((_altar) => _altar.x === x && _altar.y === y) &&
+            !dg.dimensionalVaults?.some((_vault) => _vault.x === x && _vault.y === y));
+        let _moved = 0;
+        for (const _item of _gatherItems) {
+          const _fromX = _item.x, _fromY = _item.y;
+          const _cell = _cells.shift();
+          if (_cell) {
+            _item.x = _cell.x;
+            _item.y = _cell.y;
+            dg.items.push(_item);
+            pushItemArcAnim(_fromX, _fromY, _item.x, _item.y, _item.tile, 1, _item);
+            _moved++;
+          } else {
+            _item.x = _fromX;
+            _item.y = _fromY;
+            dg.items.push(_item);
+          }
+        }
+        ml.push(_moved > 0
+          ? `アイテム吸引の魔法で${_moved}個のアイテムを周囲に集めた！`
+          : "アイテム吸引の魔法を唱えたが、集められる場所がない。");
       }
       break;
     }

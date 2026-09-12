@@ -17,8 +17,8 @@ import { monsterFireLightning } from "../wands.js";
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("11種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic", "leap_magic", "earthquake_magic"];
+  it("12種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic", "trap_detect_magic", "purify_magic", "leap_magic", "earthquake_magic", "item_gather_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
     expect(SPELLS.find((spell) => spell.id === "haste_magic")).toMatchObject({ mpCost: 12 });
@@ -270,6 +270,23 @@ describe("追加魔法", () => {
     expect(barrier.hp).toBe(50);
     expect(clone.hp).toBe(clone.maxHp);
     expect(messages.some((message) => message.startsWith("地震の魔法が近い敵に命中！"))).toBe(true);
+  });
+
+  it("アイテム吸引の魔法は店の商品以外をプレイヤーの周囲へ集める", () => {
+    const floorItem = { name: "床の薬", type: "potion", x: 30, y: 20 };
+    const shopItem = { name: "店の商品", type: "weapon", shopPrice: 1000, x: 25, y: 20 };
+    const embeddedItem = { name: "壁内の石", type: "arrow", wallEmbedded: true, x: 20, y: 20 };
+    const player = makePlayer({ x: 5, y: 5 });
+    const dungeon = makeEmptyDg({ items: [floorItem, shopItem, embeddedItem] });
+    const messages = [];
+
+    applySpellEffect("item_gather_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
+
+    expect(dungeon.items).toContain(floorItem);
+    expect(Math.max(Math.abs(floorItem.x - player.x), Math.abs(floorItem.y - player.y))).toBeLessThanOrEqual(2);
+    expect(shopItem).toMatchObject({ x: 25, y: 20 });
+    expect(embeddedItem).toMatchObject({ x: 20, y: 20, wallEmbedded: true });
+    expect(messages).toContain("アイテム吸引の魔法で1個のアイテムを周囲に集めた！");
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {
