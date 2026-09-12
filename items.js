@@ -810,10 +810,10 @@ export const BB_TYPES = [
   { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを呪う。\n壺は容量-1。食料は腐る。金貨・キーアイテムには効果がない。" },
   { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  weight: 1, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
   { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), weight: 1, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
-  { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  weight: 1, rare: true, desc: "【レア】入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
-  { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  weight: 1, rare: true, desc: "【レア】入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
-  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          weight: 1, rare: true, desc: "【レア】道具が入ると中身が消滅し、半径2マスに即爆発する。" },
-  { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  weight: 1, rare: true, desc: "【レア】入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
+  { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
+  { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  weight: 1, desc: "入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
+  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          weight: 1, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
+  { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
 ];
 
 export const BB_FAKE_NAMES = [

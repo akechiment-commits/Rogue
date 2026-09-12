@@ -4,13 +4,16 @@ import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("追加大箱", () => {
-  it("反転・強欲・ニトロ箱を登録する", () => {
-    expect(BB_TYPES).toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: "reverse", name: "反転の大箱", rare: true }),
-      expect.objectContaining({ kind: "greed", name: "強欲の大箱", rare: true }),
-      expect.objectContaining({ kind: "nitro", name: "ニトロ箱", rare: true }),
-      expect.objectContaining({ kind: "monster", name: "魔物の大箱", rare: true }),
+  it("追加した4種の大箱を通常枠として登録する", () => {
+    const added = BB_TYPES.filter(({ kind }) => ["reverse", "greed", "nitro", "monster"].includes(kind));
+    expect(added).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "reverse", name: "反転の大箱" }),
+      expect.objectContaining({ kind: "greed", name: "強欲の大箱" }),
+      expect.objectContaining({ kind: "nitro", name: "ニトロ箱" }),
+      expect.objectContaining({ kind: "monster", name: "魔物の大箱" }),
     ]));
+    expect(added).toHaveLength(4);
+    expect(added.every(({ rare }) => !rare)).toBe(true);
   });
 
   it("ニトロ箱を破壊すると半径2マスで爆発する", () => {
