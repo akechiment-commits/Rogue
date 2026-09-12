@@ -257,9 +257,20 @@ describe("追加魔法", () => {
     const far = { name: "遠い敵", hp: 100, maxHp: 100, def: 0, x: 40, y: 25 };
     const immune = { name: "魔法無効の敵", hp: 50, maxHp: 50, def: 0, magicImmune: true, x: 10, y: 5 };
     const barrier = { name: "バリアの敵", hp: 50, maxHp: 50, def: 0, barrier: 1, x: 12, y: 5 };
+    const floating = { name: "浮遊する敵", hp: 50, maxHp: 50, def: 0, float: true, x: 3, y: 8 };
+    const sealedFloating = { name: "封印された浮遊敵", hp: 50, maxHp: 50, def: 0, float: true, sealed: true, x: 14, y: 5 };
+    const gravityFloating = { name: "重力下の浮遊敵", hp: 50, maxHp: 50, def: 0, float: true, x: 24, y: 5 };
     const player = makePlayer();
     const clone = makePlayerClone(player, 6, 5, 30);
-    const dungeon = makeEmptyDg({ monsters: [near, far, immune, barrier, clone] });
+    const dungeon = makeEmptyDg({
+      monsters: [near, far, immune, barrier, floating, sealedFloating, gravityFloating, clone],
+      rooms: [
+        { x: 1, y: 1, w: 10, h: 10 },
+        { x: 12, y: 1, w: 6, h: 10 },
+        { x: 20, y: 1, w: 10, h: 10 },
+      ],
+      pentacles: [{ kind: "gravity", x: 24, y: 5 }],
+    });
     const messages = [];
 
     applySpellEffect("earthquake_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
@@ -268,11 +279,15 @@ describe("追加魔法", () => {
     expect(far.hp).toBeLessThan(100);
     expect(immune.hp).toBe(50);
     expect(barrier.hp).toBe(50);
+    expect(floating.hp).toBe(50);
+    expect(sealedFloating.hp).toBeLessThan(50);
+    expect(gravityFloating.hp).toBeLessThan(50);
     expect(clone.hp).toBe(clone.maxHp);
     expect(messages.some((message) => message.startsWith("地震の魔法が近い敵に命中！"))).toBe(true);
+    expect(messages).toContain("浮遊する敵は浮遊していて地震が効かなかった！");
   });
 
-  it("アイテム吸引の魔法は店の商品以外をプレイヤーの周囲へ集める", () => {
+  it("道具寄せの魔法は店の商品以外をプレイヤーの周囲へ集める", () => {
     const floorItem = { name: "床の薬", type: "potion", x: 30, y: 20 };
     const shopItem = { name: "店の商品", type: "weapon", shopPrice: 1000, x: 25, y: 20 };
     const embeddedItem = { name: "壁内の石", type: "arrow", wallEmbedded: true, x: 20, y: 20 };
@@ -285,8 +300,10 @@ describe("追加魔法", () => {
     expect(dungeon.items).toContain(floorItem);
     expect(Math.max(Math.abs(floorItem.x - player.x), Math.abs(floorItem.y - player.y))).toBeLessThanOrEqual(2);
     expect(shopItem).toMatchObject({ x: 25, y: 20 });
-    expect(embeddedItem).toMatchObject({ x: 20, y: 20, wallEmbedded: true });
-    expect(messages).toContain("アイテム吸引の魔法で1個のアイテムを周囲に集めた！");
+    expect(dungeon.items).toContain(embeddedItem);
+    expect(Math.max(Math.abs(embeddedItem.x - player.x), Math.abs(embeddedItem.y - player.y))).toBeLessThanOrEqual(2);
+    expect(embeddedItem.wallEmbedded).toBeUndefined();
+    expect(messages).toContain("2個のアイテムを引き寄せた！");
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {
