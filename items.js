@@ -810,9 +810,9 @@ export const BB_TYPES = [
   { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを呪う。\n壺は容量-1。食料は腐る。金貨・キーアイテムには効果がない。" },
   { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  weight: 1, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
   { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), weight: 1, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
-  { kind: "reverse",   name: "反転の大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
-  { kind: "greed",     name: "強欲の大箱", cap: () => rng(2, 4),  weight: 1, rare: true, desc: "【レア】入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
-  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          weight: 1, rare: true, desc: "【レア】道具が入るか破壊手段を受けると、半径2マスに即爆発する。" },
+  { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  weight: 1, rare: true, desc: "【レア】入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
+  { kind: "greed",     name: "強欲の大箱", cap: () => rng(3, 6),  weight: 1, rare: true, desc: "【レア】入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
+  { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          weight: 1, rare: true, desc: "【レア】道具が入ると中身が消滅し、半径2マスに即爆発する。" },
 ];
 
 export const BB_FAKE_NAMES = [
@@ -1441,11 +1441,17 @@ export function checkGachaShopTheft(machine, dg, p, ml) {
   return true;
 }
 
-/** ニトロ箱を半径2マスの爆発へ変換する。箱自身は先に除去して再帰爆発を防ぐ。 */
+/** ニトロ箱の中身を消滅させ、半径2マスの爆発へ変換する。箱自身は先に除去して再帰爆発を防ぐ。 */
 export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = null) {
   if (!bb || bb.kind !== "nitro" || !dg) return false;
   const x = center?.x ?? bb.x, y = center?.y ?? bb.y;
-  breakBigboxContents(bb, dg, ml, nameFn, x, y, { skipNitroExplosion: true });
+  const contents = [...(bb.contents || [])];
+  bb.contents = [];
+  stageBigbox(bb);
+  dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
+  for (const item of contents) {
+    ml.push(`${resolveItemName(item, nameFn)}がニトロ箱の爆発で消滅した！`);
+  }
   doGunpowderExplosion(x, y, dg, p, ml, luFn, "ニトロ箱");
   return true;
 }
@@ -1453,7 +1459,7 @@ export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = nu
 /** 大箱が壊れたときの共通処理。ニトロ箱は破壊時に爆発し、ゴミ箱だけは追加で変化抽選品を落とす。 */
 export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dropY = null, options = {}) {
   if (!bb || !dg) return;
-  if (bb.kind === "nitro" && !options.skipNitroExplosion) {
+  if (bb.kind === "nitro") {
     detonateNitroBox(bb, dg, options.player || null, ml, options.luFn || null, nameFn, { x: dropX, y: dropY });
     return;
   }

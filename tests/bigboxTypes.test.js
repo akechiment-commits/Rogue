@@ -29,6 +29,9 @@ describe("追加大箱", () => {
     detonateNitroBox(bb, dg, p, messages, () => {});
 
     expect(dg.bigboxes).not.toContain(bb);
+    expect(dg.items).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "inside" }),
+    ]));
     expect(p.hp).toBeLessThan(100);
     expect(messages.some((message) => message.includes("ニトロ箱が爆発した"))).toBe(true);
   });
