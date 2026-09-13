@@ -17,8 +17,8 @@ const BEGINNER_TRAP_EARLY = [
   "arrow_trap", "sleep", "hunger_trap", "confuse_trap",
   "shadow_stitch", "poison_arrow", "trip_trap", "spin",
 ];
-const BEGINNER_BB_BAN = ["identify", "curse", "reverse", "greed", "nitro", "monster"];
-const BEGINNER_BB_EARLY = ["satiety", "refill", "trash"];
+const BEGINNER_BB_BAN = ["identify", "trash", "curse", "reverse", "greed", "nitro", "monster"];
+const BEGINNER_BB_ALLOW = ["synthesis", "change", "enhance", "satiety", "refill", "scatter", "split", "bless"];
 const BEGINNER_MONSTER_BAN = [
   "thief", "rustbug", "itemMimic", "charger", "itemblaster",
   "stealthrower", "wolf", "wateri", "tattoobird",
@@ -60,16 +60,19 @@ describe("初心者ダンジョンの出現制限", () => {
     expect(late).not.toContain("explode");
   });
 
-  it("大箱は1〜5階が満腹・充填・ゴミ箱、6階から合成など、鑑定系は出さない", () => {
+  it("大箱は階で分けず、合成は1階から。ゴミ箱・ニトロなどマイナスは出さない", () => {
     for (const kind of BEGINNER_BB_BAN) {
       const box = BB_TYPES.find((b) => b.kind === kind);
+      expect(bbAllowedInDungeon(box, "beginner", 1)).toBe(false);
       expect(bbAllowedInDungeon(box, "beginner", 10)).toBe(false);
     }
-    expect(bbPoolForDungeon("beginner", 2).map((b) => b.kind).sort()).toEqual([...BEGINNER_BB_EARLY].sort());
-    const late = bbPoolForDungeon("beginner", 6).map((b) => b.kind);
-    expect(late).toEqual(expect.arrayContaining(["enhance", "change", "synthesis", "bless", "split", "scatter"]));
-    expect(late).not.toContain("identify");
-    expect(late).not.toContain("nitro");
+    const floor1 = bbPoolForDungeon("beginner", 1).map((b) => b.kind).sort();
+    const floor6 = bbPoolForDungeon("beginner", 6).map((b) => b.kind).sort();
+    expect(floor1).toEqual([...BEGINNER_BB_ALLOW].sort());
+    expect(floor6).toEqual(floor1);
+    expect(floor1).toContain("synthesis");
+    expect(floor1).not.toContain("trash");
+    expect(floor1).not.toContain("nitro");
   });
 
   it("アイテムはA/Sと識別を出さず、1〜5階はE/D、6階からC/B", () => {

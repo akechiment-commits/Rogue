@@ -28,21 +28,15 @@ const BEGINNER_TRAP_EARLY = new Set([
   "spin",
 ]);
 
-/** 初心者で出さない大箱 */
+/** 初心者で出さない大箱（ゴミ箱・爆発・呪いなどマイナスと、不要な鑑定） */
 const BEGINNER_BB_BAN = new Set([
   "identify",
+  "trash",
   "curse",
   "reverse",
   "greed",
   "nitro",
   "monster",
-]);
-
-/** 1〜5階の大箱 */
-const BEGINNER_BB_EARLY = new Set([
-  "satiety",
-  "refill",
-  "trash",
 ]);
 
 function rarityRank(rarity) {
@@ -57,12 +51,10 @@ export function trapAllowedInDungeon(trap, dungeonType, floor) {
   return true;
 }
 
-export function bbAllowedInDungeon(box, dungeonType, floor) {
+export function bbAllowedInDungeon(box, dungeonType, _floor) {
   if (!box) return false;
   if (dungeonType !== "beginner") return true;
-  if (BEGINNER_BB_BAN.has(box.kind)) return false;
-  if (floor < 6) return BEGINNER_BB_EARLY.has(box.kind);
-  return true;
+  return !BEGINNER_BB_BAN.has(box.kind);
 }
 
 /**
