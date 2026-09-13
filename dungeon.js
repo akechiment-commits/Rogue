@@ -6,6 +6,7 @@ import {
   GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
 } from './items.js';
 import { scatterFloorGimmicks, makeAltar } from './fixtures.js';
+import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
@@ -23,16 +24,6 @@ export function getMonsterHouseGenerationOptions(dungeonType, opts = {}, randomF
   if ((opts.levelBoost || 0) > 0) return { ...opts };
   const levelBoost = STRONG_MONSTER_HOUSE_DUNGEONS.has(dungeonType) && randomFn() < STRONG_MONSTER_HOUSE_CHANCE ? 1 : 0;
   return { ...opts, levelBoost };
-}
-
-function makeRing(context = "floor") {
-  const t = pickLootFromPool(RINGS, context);
-  const ring = { ...t, id: uid() };
-  applyGeneratedRingPlus(ring);
-  const roll = Math.random();
-  if (roll < 0.10) ring.blessed = true;
-  else if (roll < 0.25) ring.cursed = true;
-  return ring;
 }
 
 /** 生成時の祝福・呪い抽選。壺だけは祝呪フラグではなく容量へ変換する。 */
@@ -56,9 +47,13 @@ export function applyGeneratedBlessCurse(item, blessedThreshold, cursedThreshold
   return item;
 }
 
-function pickBB(exclude = []) {
-  /* アイテムと同じレア度weightで抽選する。初心者ダンジョンでは鑑定の大箱を除外する。 */
-  const pool = exclude.length ? BB_TYPES.filter(b => !exclude.includes(b.kind)) : BB_TYPES;
+function pickTrapFor(depth, dungeonType) {
+  return pickTrap(trapPoolForDungeon(dungeonType, depth + 1));
+}
+
+function pickBB(exclude = [], dungeonType = null, depth = 0) {
+  let pool = bbPoolForDungeon(dungeonType, depth + 1);
+  if (exclude.length) pool = pool.filter((b) => !exclude.includes(b.kind));
   return pickLootFromPool(pool.length > 0 ? pool : BB_TYPES, "floor");
 }
 
@@ -118,7 +113,7 @@ function genBigRoom(depth, dungeonType = null) {
       if (tx === su.x && ty === su.y) continue;
       if (tx === sd.x && ty === sd.y) continue;
       if (trapOcc(tx, ty)) continue;
-      const t = pickTrap();
+      const t = pickTrapFor(depth, dungeonType);
       traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
       break;
     }
@@ -139,7 +134,7 @@ function genBigRoom(depth, dungeonType = null) {
       const bx = rng(rx + 1, rx + rw - 2), by = rng(ry + 1, ry + rh - 2);
       if (map[by][bx] !== T.FLOOR) continue;
       if (occ(bx, by) || traps.some(t => t.x === bx && t.y === by) || springs.some(s => s.x === bx && s.y === by) || bigboxes.some(b => b.x === bx && b.y === by)) continue;
-      const bbt = pickBB();
+      const bbt = pickBB([], dungeonType, depth);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -245,7 +240,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   }
   for (const [tx, ty] of trapSlots) {
     if (allOcc(tx, ty)) continue;
-    const t = pickTrap();
+    const t = pickTrapFor(depth, dungeonType);
     traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
   }
   /* 高確率で大箱・泉を追加 */
@@ -255,7 +250,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
       const by = rng(room.y + 1, room.y + room.h - 2);
       if (map[by]?.[bx] !== T.FLOOR) continue;
       if (allOcc(bx, by)) continue;
-      const bbt = pickBB();
+      const bbt = pickBB([], dungeonType, depth);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -475,17 +470,47 @@ function genHiddenRooms(map, depth) {
 }
 
 /* ── 隠し部屋・浮島用：B/A/Sレアリティ限定アイテム生成 ── */
-function pickRareItem(depth) {
-  const _rPool = ITEMS.filter(i => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S");
+function pickRareItem(depth, dungeonType = null) {
+  /* 初心者の隠し部屋は6階帯の品（C/B）まで。A/Sは出さない。 */
+  const floor = dungeonType === "beginner" ? Math.max(6, depth + 1) : depth + 1;
+  const filterPool = (pool) => lootPoolForDungeon(pool, dungeonType, floor);
+  const _rPool = filterPool(
+    ITEMS.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
+  );
+  const wandPool = filterPool(WANDS);
+  const sbPool = filterPool(SPELLBOOKS);
+  const potPool = filterPool(POTS);
+  const ringPool = filterPool(RINGS);
+  const pickTyped = (pool) => {
+    if (!pool?.length) return { ...genFood(), id: uid() };
+    const t = pickLootFromPool(pool);
+    return t ? { ...t, id: uid() } : { ...genFood(), id: uid() };
+  };
   const gens = [
-    { w: 6, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
-    { w: 5, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w: 5, fn: () => { const t = pickLootFromPool(WANDS); return { ...t, id: uid(), charges: (t.effect === "wish" || t.noChargeBoost || t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(0, 2) }; } },
-    { w: 4, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
-    { w: 3, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
-    { w: 3, fn: () => { const t = pickLootFromPool(SPELLBOOKS); return { ...t, id: uid() }; } },
-    { w: 3, fn: () => makeRing() },
-    { w: 2, fn: () => makePot() },
+    { w: 6, fn: () => pickTyped(_rPool.filter((i) => i.type === "potion")) },
+    { w: 5, fn: () => pickTyped(_rPool.filter((i) => i.type === "scroll")) },
+    { w: 5, fn: () => {
+      const t = pickLootFromPool(wandPool);
+      if (!t) return { ...genFood(), id: uid() };
+      return { ...t, id: uid(), charges: (t.effect === "wish" || t.noChargeBoost || t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(0, 2) };
+    } },
+    { w: 4, fn: () => pickTyped(_rPool.filter((i) => i.type === "weapon")) },
+    { w: 3, fn: () => pickTyped(_rPool.filter((i) => i.type === "armor")) },
+    { w: 3, fn: () => pickTyped(sbPool) },
+    { w: 3, fn: () => {
+      const t = pickLootFromPool(ringPool);
+      if (!t) return { ...genFood(), id: uid() };
+      const ring = { ...t, id: uid() };
+      applyGeneratedRingPlus(ring);
+      return ring;
+    } },
+    { w: 2, fn: () => {
+      const t = pickLootFromPool(potPool);
+      if (!t) return { ...genFood(), id: uid() };
+      const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
+      if (t.potEffect === "imprison") pot.confinedMonsters = [];
+      return pot;
+    } },
     { w: 6, fn: () => ({ name:"金貨", type:"gold", value: rng(200, 500+depth*50), tile:22, id: uid() }) },
   ];
   const _rt = gens.reduce((s, g) => s + g.w, 0);
@@ -513,27 +538,31 @@ function applyRareMods(it, depth) {
 
 /* ── 特殊フロア用：統合アイテムプール生成 ── */
 function buildUniPool(depth, dungeonType) {
-  const iPool = dungeonType === "beginner"
-    ? ITEMS.filter(i => i.type !== "pen" && !(i.type === "scroll" && i.effect === "identify"))
-    : ITEMS.filter(i => i.type !== "pen");
-  const sbPool = dungeonType === "beginner"
-    ? SPELLBOOKS.filter(sb => sb.spell !== "identify_magic")
-    : SPELLBOOKS;
-  const _pens = ITEMS.filter(i => i.type === "pen");
+  const floor = depth + 1;
+  const iPool = lootPoolForDungeon(
+    ITEMS.filter((i) => i.type !== "pen"),
+    dungeonType,
+    floor,
+  );
+  const sbPool = lootPoolForDungeon(SPELLBOOKS, dungeonType, floor);
+  const wandPool = lootPoolForDungeon(WANDS, dungeonType, floor);
+  const potPool = lootPoolForDungeon(POTS, dungeonType, floor);
+  const ringPool = lootPoolForDungeon(RINGS, dungeonType, floor);
+  const _pens = lootPoolForDungeon(ITEMS.filter((i) => i.type === "pen"), dungeonType, floor);
   const gens = [
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
     { w: 10, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
     { w:  8, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickLootFromPool(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
+    { w:  8, fn: () => { const t = pickLootFromPool(wandPool.length ? wandPool : WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
     { w:  6, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
     { w:  5, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
     { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
-    { w:  4, fn: () => { const t = pickLootFromPool(sbPool); return { ...t, id: uid() }; } },
-    { w:  4, fn: () => makePot() },
-    { w:  2, fn: () => makeRing() },
+    { w:  4, fn: () => { const t = pickLootFromPool(sbPool.length ? sbPool : SPELLBOOKS); return { ...t, id: uid() }; } },
+    { w:  4, fn: () => { const t = pickLootFromPool(potPool.length ? potPool : POTS); const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) }; if (t.potEffect === "imprison") pot.confinedMonsters = []; return pot; } },
+    { w:  2, fn: () => { const t = pickLootFromPool(ringPool.length ? ringPool : RINGS); const ring = { ...t, id: uid() }; applyGeneratedRingPlus(ring); return ring; } },
     { w:  2, fn: () => { if (!_pens.length) return { ...genFood(), id: uid() }; const t = pick(_pens); return { ...t, id: uid(), charges: penInitialCharges(t) }; } },
-    { w:  1, fn: () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }) },
+    { w:  1, fn: () => (lootAllowedInDungeon(MAGIC_MARKER, dungeonType, floor) ? { ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) } : { ...genFood(), id: uid() }) },
   ];
   const _ut = gens.reduce((s, g) => s + g.w, 0);
   return () => { let r = Math.random() * _ut; for (const g of gens) { r -= g.w; if (r <= 0) return g.fn(); } return gens[gens.length-1].fn(); };
@@ -553,7 +582,7 @@ function applyStdMods(it, depth) {
   return it;
 }
 
-export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
+export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType = null) {
   const allOcc = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y) ||
@@ -582,7 +611,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       for (let a = 0; a < 40; a++) {
         const [bx, by] = pick(floorTiles);
         if (allOcc(bx, by)) continue;
-        const bbt = pickBB();
+        const bbt = pickBB([], dungeonType, depth);
         bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
         break;
       }
@@ -594,7 +623,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
   for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
     const [ix, iy] = pick(floorTiles);
     if (allOcc(ix, iy)) continue;
-    const it = applyRareMods(pickRareItem(depth), depth);
+    const it = applyRareMods(pickRareItem(depth, dungeonType), depth);
     it.x = ix; it.y = iy;
     items.push(it);
     placed++;
@@ -602,7 +631,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
   /* 収納上手の巻物（30%で追加配置） */
   if (Math.random() < 0.30) {
     const _expSc = ITEMS.find(i => i.effect === "expand_inv");
-    if (_expSc) {
+    const _expFloor = dungeonType === "beginner" ? Math.max(6, depth + 1) : depth + 1;
+    if (_expSc && lootAllowedInDungeon(_expSc, dungeonType, _expFloor)) {
       for (let a = 0; a < 40; a++) {
         const [ix, iy] = pick(floorTiles);
         if (allOcc(ix, iy)) continue;
@@ -616,7 +646,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
     for (let a = 0; a < 40; a++) {
       const [bx, by] = pick(floorTiles);
       if (allOcc(bx, by)) continue;
-      const bbt = pickBB();
+      const bbt = pickBB([], dungeonType, depth);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -1061,9 +1091,9 @@ function genMiddleRoom(depth, dungeonType = null) {
   const rndFloor = () => { for (let a = 0; a < 80; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   const _mdPick = buildUniPool(depth, dungeonType);
   for (let i = 0; i < rng(14, 22); i++) { const p = rndFloor(); if (p) { items.push(Object.assign(applyStdMods(_mdPick(), depth), { x: p[0], y: p[1] })); } }
-  for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrap(), id: uid(), x: p[0], y: p[1], revealed: false }); }
+  for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
-  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   let _mdMHRoom = null;
   if (Math.random() < 0.20) { genMonsterHouseContent(rooms[0], depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType)); _mdMHRoom = rooms[0]; }
   const { visible, explored } = mkVis();
@@ -1101,9 +1131,9 @@ export function genMiniRoom(depth, dungeonType = null) {
   const rndFloor = () => { for (let a = 0; a < 80; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   const _mnPick = buildUniPool(depth, dungeonType);
   for (let i = 0; i < rng(7, 13); i++) { const p = rndFloor(); if (p) { items.push(Object.assign(applyStdMods(_mnPick(), depth), { x: p[0], y: p[1] })); } }
-  for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrap(), id: uid(), x: p[0], y: p[1], revealed: false }); }
+  for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
   if (Math.random() < 0.5) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
-  for (let i = 0; i < rng(1, 2); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  for (let i = 0; i < rng(1, 2); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   let _mnMHRoom = null;
   if (Math.random() < 0.20) { genMonsterHouseContent(rooms[0], depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType)); _mnMHRoom = rooms[0]; }
   const { visible, explored } = mkVis();
@@ -1179,7 +1209,7 @@ function genShoppingMall(depth, dungeonType = null, _retries = 0) {
     for (let a = 0; a < 80; a++) {
       const tx = rng(1, MW - 2), ty = rng(1, MH - 2);
       if (map[ty][tx] !== T.FLOOR || occ(tx, ty) || inAnyRoom(tx, ty) || isNarrowPassage(map, tx, ty)) continue;
-      traps.push({ ...pickTrap(), id: uid(), x: tx, y: ty, revealed: false }); break;
+      traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: tx, y: ty, revealed: false }); break;
     }
   }
   const { visible, explored } = mkVis();
@@ -1382,9 +1412,9 @@ export function genCorridorFloor(depth, dungeonType = null) {
   const rndRoom = ()=>{ for(let a=0;a<120;a++){const[x,y]=pick(roomTileList);if(!occ(x,y)&&notSt(x,y))return[x,y];}return null;};
   for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
   for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(ITEMS),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
-  for(let i=0;i<rng(4,8)+depth;i++){const p=rndRoom();if(p)traps.push({...pickTrap(),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(4,8)+depth;i++){const p=rndRoom();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,3);i++){const p=rndRoom();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
-  for(let i=0;i<rng(1,2);i++){const p=rndRoom();if(p){const bbt=pickBB();bigboxes.push({id:uid(),x:p[0],y:p[1],tile:TI.BIGBOX,kind:bbt.kind,name:bbt.name,capacity:bbt.cap(),contents:[]});}}
+  for(let i=0;i<rng(1,2);i++){const p=rndRoom();if(p){const bbt=pickBB([], dungeonType, depth);bigboxes.push({id:uid(),x:p[0],y:p[1],tile:TI.BIGBOX,kind:bbt.kind,name:bbt.name,capacity:bbt.cap(),contents:[]});}}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters:mons, items, traps, springs, bigboxes, stairUp:su, stairDown:sd, visible, explored, shop:null, hiddenRooms:[], monsterHouseRoom:null, waterItems:[], floorType:"corridorFloor" };
 }
@@ -1417,9 +1447,9 @@ export function genGridRoom(depth, dungeonType = null) {
   for (let i = 0; i < rng(16, 24); i++) { const p = rndFloor(); if (p) { items.push(Object.assign(applyStdMods(_grPick(), depth), { x: p[0], y: p[1] })); } }
   /* 格子の柱に埋まるアイテムは稀にだけ配置する。 */
   if (Math.random() < 0.15) genWallItems(map, depth, items, new Set(), 1);
-  for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrap(), id: uid(), x: p[0], y: p[1], revealed: false }); }
+  for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
-  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   let _grMHRoom = null;
   if (Math.random() < 0.20) { genMonsterHouseContent(rooms[0], depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType)); _grMHRoom = rooms[0]; }
   const { visible, explored } = mkVis();
@@ -1528,7 +1558,7 @@ function genRingCorridorFloor(depth, dungeonType = null) {
 
   for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
   for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(ITEMS),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
-  for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pickTrap(),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "ringCorridorFloor" };
@@ -1616,7 +1646,7 @@ function genCaveFloor(depth, dungeonType = null) {
   for(let i=0;i<rng(6,11)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
   const _cvPick = buildUniPool(depth, dungeonType);
   for(let i=0;i<rng(12,20)+depth;i++){const p=rndCor();if(p){items.push(Object.assign(applyStdMods(_cvPick(),depth),{x:p[0],y:p[1]}));}}
-  for(let i=0;i<rng(5,10)+depth;i++){const p=rndCorWide();if(p)traps.push({...pickTrap(),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(5,10)+depth;i++){const p=rndCorWide();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,3);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "caveFloor" };
@@ -1717,14 +1747,14 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
     for (let a = 0; a < itemCount * 40 && iPlaced < itemCount; a++) {
       const [ix2, iy2] = pick(islandTiles);
       if (isOcc(ix2, iy2)) continue;
-      items.push(Object.assign(applyRareMods(pickRareItem(depth), depth), { x: ix2, y: iy2 })); iPlaced++;
+      items.push(Object.assign(applyRareMods(pickRareItem(depth, dungeonType), depth), { x: ix2, y: iy2 })); iPlaced++;
     }
     /* 大箱（60%） */
     if (Math.random() < 0.6) {
       for (let a = 0; a < 40; a++) {
         const [bx2, by2] = pick(islandTiles);
         if (isOcc(bx2, by2)) continue;
-        const bbt = pickBB();
+        const bbt = pickBB([], dungeonType, depth);
         bigboxes.push({ id: uid(), x: bx2, y: by2, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
         break;
       }
@@ -1869,7 +1899,7 @@ function genBossFloor(depth, dungeonType = null) {
     for (let _a = 0; _a < 100; _a++) {
       const tx = rng(arX + 1, arX + arW - 2), ty = rng(arY + 1, arY + arH - 2);
       if (map[ty][tx] !== T.FLOOR || trapOcc(tx, ty)) continue;
-      traps.push({ ...pickTrap(), id: uid(), x: tx, y: ty, revealed: false }); break;
+      traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: tx, y: ty, revealed: false }); break;
     }
   }
 
@@ -1891,14 +1921,14 @@ function genBossFloor(depth, dungeonType = null) {
     for (let _a = 0; _a < 100; _a++) {
       const bx = rng(arX + 1, arX + arW - 2), by = rng(arY + 1, arY + arH - 2);
       if (map[by][bx] !== T.FLOOR || bbOcc(bx, by)) continue;
-      const bbt = pickBB();
+      const bbt = pickBB([], dungeonType, depth);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); break;
     }
   }
 
   /* 隠し部屋（50%の確率で1部屋） */
   const hiddenRooms = Math.random() < 0.5 ? genHiddenRooms(map, depth) : [];
-  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
+  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType);
 
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
@@ -2763,30 +2793,29 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const traps = [];
   const occ = (x, y) =>
     inShop(x, y) || items.some((i) => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
-  /* 初心者ダンジョンでは識別系アイテムを除外。ペンは_itemCountループから除外（_penChance枠で管理） */
-  const _ITEMS_POOL = dungeonType === "beginner"
-    ? ITEMS.filter(it => it.type !== "pen" && !(it.type === "scroll" && it.effect === "identify"))
-    : ITEMS.filter(it => it.type !== "pen");
-  const _SB_POOL = dungeonType === "beginner"
-    ? SPELLBOOKS.filter(sb => sb.spell !== "identify_magic")
-    : SPELLBOOKS;
+  const lootFloor = depth + 1;
+  const _ITEMS_POOL = lootPoolForDungeon(ITEMS.filter((it) => it.type !== "pen"), dungeonType, lootFloor);
+  const _SB_POOL = lootPoolForDungeon(SPELLBOOKS, dungeonType, lootFloor);
+  const _WAND_POOL = lootPoolForDungeon(WANDS, dungeonType, lootFloor);
+  const _POT_POOL = lootPoolForDungeon(POTS, dungeonType, lootFloor);
+  const _RING_POOL = lootPoolForDungeon(RINGS, dungeonType, lootFloor);
   const _BB_EXCLUDE = dungeonType === "beginner" ? ["identify"] : [];
   /* ── アイテム生成（統合重みプール・完全ランダム個数） ── */
-  const _penPool = ITEMS.filter(i => i.type === "pen");
+  const _penPool = lootPoolForDungeon(ITEMS.filter((i) => i.type === "pen"), dungeonType, lootFloor);
   const _ugGens = [
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
     { w: 10, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
     { w:  8, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickLootFromPool(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
+    { w:  8, fn: () => { const t = pickLootFromPool(_WAND_POOL.length ? _WAND_POOL : WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
     { w:  6, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
     { w:  5, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "armor"));  return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
     { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
-    { w:  4, fn: () => { const t = pickLootFromPool(_SB_POOL); return { ...t, id: uid() }; } },
-    { w:  4, fn: () => makePot() },
-    { w:  2, fn: () => makeRing() },
+    { w:  4, fn: () => { const t = pickLootFromPool(_SB_POOL.length ? _SB_POOL : SPELLBOOKS); return { ...t, id: uid() }; } },
+    { w:  4, fn: () => { const t = pickLootFromPool(_POT_POOL.length ? _POT_POOL : POTS); const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) }; if (t.potEffect === "imprison") pot.confinedMonsters = []; return pot; } },
+    { w:  2, fn: () => { const t = pickLootFromPool(_RING_POOL.length ? _RING_POOL : RINGS); const ring = { ...t, id: uid() }; applyGeneratedRingPlus(ring); return ring; } },
     { w:  2, fn: () => { if (!_penPool.length) return { ...genFood(), id: uid() }; const t = pick(_penPool); return { ...t, id: uid(), charges: penInitialCharges(t) }; } },
-    { w:  1, fn: () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }) },
+    { w:  1, fn: () => (lootAllowedInDungeon(MAGIC_MARKER, dungeonType, lootFloor) ? { ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) } : { ...genFood(), id: uid() }) },
   ];
   const _ugTotal = _ugGens.reduce((s, g) => s + g.w, 0);
   const _pickUG = () => {
@@ -2835,7 +2864,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       !traps.some((t) => t.x === tx && t.y === ty) &&
       !occ(tx, ty)
     ) {
-      const t = pickTrap();
+      const t = pickTrapFor(depth, dungeonType);
       traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
     }
   }
@@ -2877,7 +2906,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       if (springs.some((s) => s.x === bx && s.y === by)) continue;
       if (items.some((i) => i.x === bx && i.y === by)) continue;
       if (occ(bx, by)) continue;
-      const bbt = pickBB(_BB_EXCLUDE);
+      const bbt = pickBB(_BB_EXCLUDE, dungeonType, depth);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -2892,7 +2921,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   }
   /* 隠し部屋を生成してアイテム等を配置 */
   const hiddenRooms = genHiddenRooms(map, depth);
-  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
+  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType);
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
   genWallItems(map, depth, items, suspiciousWalls);
   /* 水地形を生成（一部部屋に水溜まり）— 店の部屋は除外 */

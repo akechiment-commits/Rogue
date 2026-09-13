@@ -765,19 +765,19 @@ export const MONS = [
       { name: "コボルド族長",       hp: 60,  atk: 25, def: 13, exp: 42, dungeonFloors: { advanced: { min: 16, max: 17 } } },
     ],
   },
-  { name: "ゴブリン",     hp: 23,  atk: 16, def: 5,  exp: 20,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16, dungeonFloors: { beginner: { min: 4, max: 7 }, intermediate: { min: 3, max: 10 }, advanced: { min: 5, max: 7 } },
+  { name: "ゴブリン",     hp: 23,  atk: 16, def: 5,  exp: 20,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16, dungeonFloors: { beginner: { min: 5, max: 7 }, intermediate: { min: 3, max: 10 }, advanced: { min: 5, max: 7 } },
     levels: [
       { name: "ゴブリン頭",         hp: 50,  atk: 21, def: 9,  exp: 34, dungeonFloors: { advanced: { min: 12, max: 13 } } },
       { name: "ゴブリン王",         hp: 80,  atk: 28, def: 11, exp: 58, dungeonFloors: { advanced: { min: 18, max: 20 } } },
     ],
   },
-  { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 164, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 6, max: 12 }, advanced: { min: 5, max: 12 } },
+  { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 164, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 9, max: 10 }, intermediate: { min: 6, max: 12 }, advanced: { min: 5, max: 12 } },
     levels: [
       { name: "強インプ",           hp: 42,  atk: 23, def: 7,  exp: 45, dungeonFloors: { advanced: { min: 15, max: 18 } } },
       { name: "覇インプ",           hp: 65,  atk: 30, def: 11, exp: 70, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 4, max: 11 }, advanced: { min: 5, max: 12 } },
+  { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 7, max: 9 }, intermediate: { min: 4, max: 11 }, advanced: { min: 5, max: 12 } },
     levels: [
       { name: "骸骨戦士",             hp: 39,  atk: 26, def: 9,  exp: 40, dungeonFloors: { advanced: { min: 15, max: 18 } } },
       { name: "アンデッドナイ",       hp: 61,  atk: 32, def: 13, exp: 62, dungeonFloors: { advanced: { min: 20, max: 22 } } },
@@ -789,13 +789,13 @@ export const MONS = [
       { name: "コイトフクマル",     hp: 24,  atk: 0,  def: 0,  exp: 120, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "ゾンビ",       hp: 55,  atk: 24, def: 5,  exp: 45,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 9, max: 15 }, advanced: { min: 5, max: 14 } },
+  { name: "ゾンビ",       hp: 38,  atk: 16, def: 5,  exp: 40,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 9, max: 15 }, advanced: { min: 5, max: 14 } },
     levels: [
       { name: "中ゾンビ",           hp: 85,  atk: 34, def: 12, exp: 72,  dungeonFloors: { advanced: { min: 17, max: 21 } } },
       { name: "強ゾンビ",           hp: 130, atk: 42, def: 18, exp: 110, dungeonFloors: { advanced: { min: 22, max: 24 } } },
     ],
   },
-  { name: "ワッカ",       hp: 24,  atk: 17, def: 2,  exp: 28,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, waterWalker: true, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 9, max: 14 }, advanced: { min: 6, max: 14 } },
+  { name: "ワッカ",       hp: 24,  atk: 17, def: 2,  exp: 28,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, waterWalker: true, subtype: "stonethrow", dungeonFloors: { beginner: { min: 9, max: 10 }, intermediate: { min: 9, max: 14 }, advanced: { min: 6, max: 14 } },
     levels: [
       { name: "ぷにぷにワッカ",     hp: 38,  atk: 24, def: 5,  exp: 45 },
       { name: "シン・ワッカ",       hp: 61,  atk: 32, def: 7,  exp: 72 },
@@ -837,7 +837,7 @@ export const MONS = [
       { name: "覇錆虫",             hp: 61,  atk: 25, def: 7,  exp: 100 },
     ],
   },
-  { name: "足払い鬼",     hp: 28,  atk: 15, def: 3,  exp: 42,  speed: 1,   tile: 151, kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 9,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 7, max: 16 } },
+  { name: "足払い鬼",     hp: 20,  atk: 11, def: 2,  exp: 28,  speed: 1,   tile: 151, kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 5,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 10, max: 16 }, advanced: { min: 7, max: 16 } },
     levels: [
       { name: "強足払い鬼",         hp: 46,  atk: 21, def: 6,  exp: 68,  dungeonFloors: { advanced: { min: 18, max: 22 } } },
       { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
@@ -1045,7 +1045,7 @@ export const MONS = [
     ],
   },
   /* ===== 新型モンスター4種 ===== */
-  { name: "からめ鬼",    hp: 55,  atk: 22, def: 10, exp: 55,  speed: 1,   tile: 108, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 6, max: 13 }, advanced: { min: 6, max: 13 } },
+  { name: "からめ鬼",    hp: 34,  atk: 14, def: 6,  exp: 42,  speed: 1,   tile: 108, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 6, max: 13 }, advanced: { min: 6, max: 13 } },
     levels: [
       { name: "がんじがらめ鬼",     hp: 88,  atk: 32, def: 14, exp: 88,  dungeonFloors: { advanced: { min: 16, max: 19 } } },
       { name: "こんがらマッチョ",   hp: 138, atk: 43, def: 19, exp: 138, dungeonFloors: { advanced: { min: 20, max: 22 } } },
@@ -1082,7 +1082,7 @@ export const MONS = [
       { name: "ペルセウスマン",     hp: 95,  atk: 35, def: 18, exp: 188 },
     ],
   },
-  { name: "薬師",         hp: 30,  atk: 16, def: 3,  exp: 48,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 10, maxFloor: 50, subtype: "potionthrow", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 18 }, advanced: { min: 8, max: 18 } },
+  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 11, max: 18 }, advanced: { min: 8, max: 18 } },
     levels: [
       { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
@@ -1155,7 +1155,7 @@ export const MONS = [
     ],
   },
   /* ===== ラクガキ魔：同部屋で自分の足元に魔方陣を描く ===== */
-  { name: "ラクガキ魔",   hp: 22,  atk: 9,  def: 3,  exp: 36,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 10, maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 17 }, advanced: { min: 8, max: 15 } },
+  { name: "ラクガキ魔",   hp: 18,  atk: 7,  def: 2,  exp: 28,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 6,  maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 11, max: 17 }, advanced: { min: 8, max: 15 } },
     desc: "同じ部屋にいると自分の足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
     levels: [
       { name: "ラクガキ妖精",       hp: 42,  atk: 17, def: 7,  exp: 70,  dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 15, max: 22 } } },
