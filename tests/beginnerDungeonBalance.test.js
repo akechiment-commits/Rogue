@@ -75,20 +75,33 @@ describe("初心者ダンジョンの出現制限", () => {
     expect(floor1).not.toContain("nitro");
   });
 
-  it("アイテムはA/Sと識別を出さず、1〜5階はE/D、6階からC/B", () => {
+  it("アイテムは基本道具だけ。複雑な系統は出さず、1〜5階はE/D、6階からC/B", () => {
     const identify = ITEMS.find((i) => i.effect === "identify");
     const heal = ITEMS.find((i) => i.name === "回復薬");
     const bigHeal = ITEMS.find((i) => i.name === "大回復薬");
     const superHeal = ITEMS.find((i) => i.name === "超回復薬");
     const doping = ITEMS.find((i) => i.effect === "doping");
+    const dagger = ITEMS.find((i) => i.name === "短剣");
+    const fireSword = ITEMS.find((i) => i.name === "炎の剣");
+    const plate = ITEMS.find((i) => i.name === "プレートメイル");
+    const bombArrow = ITEMS.find((i) => i.name === "爆弾矢");
+    const sanctuary = ITEMS.find((i) => i.effect === "sanctuary");
     expect(lootAllowedInDungeon(identify, "beginner", 10)).toBe(false);
     expect(lootAllowedInDungeon(heal, "beginner", 1)).toBe(true);
     expect(lootAllowedInDungeon(bigHeal, "beginner", 5)).toBe(false);
     expect(lootAllowedInDungeon(bigHeal, "beginner", 6)).toBe(true);
-    expect(lootAllowedInDungeon(superHeal, "beginner", 6)).toBe(true);
+    expect(lootAllowedInDungeon(superHeal, "beginner", 10)).toBe(false);
     expect(lootAllowedInDungeon(doping, "beginner", 10)).toBe(false);
+    expect(lootAllowedInDungeon(dagger, "beginner", 1)).toBe(true);
+    expect(lootAllowedInDungeon(fireSword, "beginner", 10)).toBe(false);
+    expect(lootAllowedInDungeon(plate, "beginner", 5)).toBe(false);
+    expect(lootAllowedInDungeon(plate, "beginner", 6)).toBe(true);
+    expect(lootAllowedInDungeon(bombArrow, "beginner", 10)).toBe(false);
+    expect(lootAllowedInDungeon(sanctuary, "beginner", 10)).toBe(false);
     const idBook = SPELLBOOKS.find((s) => s.spell === "identify_magic");
     if (idBook) expect(lootAllowedInDungeon(idBook, "beginner", 10)).toBe(false);
+    const fireBook = SPELLBOOKS.find((s) => s.spell === "fire_bolt");
+    if (fireBook) expect(lootAllowedInDungeon(fireBook, "beginner", 10)).toBe(false);
   });
 
   it("他ダンジョンは制限しない", () => {

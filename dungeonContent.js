@@ -43,6 +43,35 @@ function rarityRank(rarity) {
   return { E: 0, D: 1, C: 2, B: 3, A: 4, S: 5 }[rarity] ?? 0;
 }
 
+/** 初心者に出す基本道具だけ。ペン・魔法書・特殊矢・合成装備などは出さない。 */
+const BEGINNER_LOOT_ALLOW = new Set([
+  "potion:heal", "potion:heal_big", "potion:poison", "potion:fire", "potion:sleep",
+  "potion:slow", "potion:paralyze", "potion:milk", "potion:mana", "potion:seal",
+  "potion:confuse", "potion:water",
+  "scroll:teleport", "scroll:recovery", "scroll:sleep_scroll", "scroll:confusion",
+  "scroll:thunder", "scroll:flame", "scroll:bind", "scroll:reveal",
+  "scroll:weapon_up", "scroll:armor_up",
+  "wand:knockback", "wand:lightning", "wand:leap", "wand:confuse", "wand:fire_wand",
+  "wand:ice_wand", "wand:seal", "wand:sleep", "wand:warp",
+  "pot:choco", "pot:honey", "pot:none", "pot:enhance", "pot:weaken",
+  "ring:power_ring", "ring:defense_ring", "ring:life_ring",
+  "weapon:短剣", "weapon:ロングソード", "weapon:バトルアクス",
+  "armor:革の鎧", "armor:鎖帷子", "armor:プレートメイル",
+  "arrow:矢", "arrow:毒矢", "arrow:強矢", "arrow:石",
+  "bottle",
+]);
+
+function beginnerLootId(item) {
+  if (item.type === "weapon" || item.type === "armor" || item.type === "arrow") {
+    return `${item.type}:${item.name}`;
+  }
+  if (item.type === "pot") return `pot:${item.potEffect}`;
+  if (item.type === "spellbook") return `spellbook:${item.spell}`;
+  if (item.type === "bottle") return "bottle";
+  const id = item.effect || item.spell || item.potEffect;
+  return id ? `${item.type}:${id}` : `${item.type}:${item.name}`;
+}
+
 export function trapAllowedInDungeon(trap, dungeonType, floor) {
   if (!trap) return false;
   if (dungeonType !== "beginner") return true;
@@ -58,15 +87,13 @@ export function bbAllowedInDungeon(box, dungeonType, _floor) {
 }
 
 /**
- * 初心者：A/Sは出さない。1〜5階は E/D のみ。6階から C/B。
- * 識別の巻物・鑑定魔法は従来どおり除外。
+ * 初心者：白リストの基本道具のみ。A/Sは出さない。1〜5階は E/D、6階から C/B。
  */
 export function lootAllowedInDungeon(item, dungeonType, floor) {
   if (!item) return false;
   if (dungeonType !== "beginner") return true;
-  if (item.type === "gold" || item.type === "arrow" || item.type === "food") return true;
-  if (item.type === "scroll" && item.effect === "identify") return false;
-  if (item.spell === "identify_magic") return false;
+  if (item.type === "gold" || item.type === "food") return true;
+  if (!BEGINNER_LOOT_ALLOW.has(beginnerLootId(item))) return false;
   const rank = rarityRank(item.rarity);
   if (rank >= 4) return false;
   if (floor < 6 && rank >= 2) return false;
