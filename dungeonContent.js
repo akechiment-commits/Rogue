@@ -43,22 +43,29 @@ function rarityRank(rarity) {
   return { E: 0, D: 1, C: 2, B: 3, A: 4, S: 5 }[rarity] ?? 0;
 }
 
-/** 初心者に出す基本道具だけ。ペン・魔法書・特殊矢・合成装備などは出さない。 */
+/** 初心者に出す基本道具。武器・防具は別扱い（A/S以外の通常装備を許可）。 */
 const BEGINNER_LOOT_ALLOW = new Set([
-  "potion:heal", "potion:heal_big", "potion:poison", "potion:fire", "potion:sleep",
-  "potion:slow", "potion:paralyze", "potion:milk", "potion:mana", "potion:seal",
-  "potion:confuse", "potion:water",
+  "potion:heal", "potion:heal_big", "potion:superheal", "potion:poison", "potion:fire",
+  "potion:sleep", "potion:slow", "potion:paralyze", "potion:milk", "potion:mana",
+  "potion:seal", "potion:confuse", "potion:water", "potion:power", "potion:panacea",
+  "potion:luck",
   "scroll:teleport", "scroll:recovery", "scroll:sleep_scroll", "scroll:confusion",
   "scroll:thunder", "scroll:flame", "scroll:bind", "scroll:reveal",
   "scroll:weapon_up", "scroll:armor_up",
   "wand:knockback", "wand:lightning", "wand:leap", "wand:confuse", "wand:fire_wand",
-  "wand:ice_wand", "wand:seal", "wand:sleep", "wand:warp",
+  "wand:ice_wand", "wand:seal", "wand:sleep", "wand:warp", "wand:dig", "wand:slow",
+  "wand:soften",
   "pot:choco", "pot:honey", "pot:none", "pot:enhance", "pot:weaken",
-  "ring:power_ring", "ring:defense_ring", "ring:life_ring",
-  "weapon:短剣", "weapon:ロングソード", "weapon:バトルアクス",
-  "armor:革の鎧", "armor:鎖帷子", "armor:プレートメイル",
-  "arrow:矢", "arrow:毒矢", "arrow:強矢", "arrow:石",
+  "ring:power_ring", "ring:defense_ring", "ring:life_ring", "ring:core_ring",
+  "ring:antidote_ring",
+  "arrow:矢", "arrow:毒矢", "arrow:強矢", "arrow:貫きの矢", "arrow:石",
   "bottle",
+]);
+
+/** 隠し部屋用。Cでも1階から出す */
+const BEGINNER_LOOT_ANY_FLOOR = new Set([
+  "weapon:つるはし",
+  "wand:dig",
 ]);
 
 function beginnerLootId(item) {
@@ -87,16 +94,19 @@ export function bbAllowedInDungeon(box, dungeonType, _floor) {
 }
 
 /**
- * 初心者：白リストの基本道具のみ。A/Sは出さない。1〜5階は E/D、6階から C/B。
+ * 初心者：白リスト＋通常の武器防具（能力付き含む）。A/Sは出さない。
+ * 1〜5階は E/D、6階から C/B。つるはしと穴掘りの杖は1階から。
  */
 export function lootAllowedInDungeon(item, dungeonType, floor) {
   if (!item) return false;
   if (dungeonType !== "beginner") return true;
   if (item.type === "gold" || item.type === "food") return true;
-  if (!BEGINNER_LOOT_ALLOW.has(beginnerLootId(item))) return false;
+  const id = beginnerLootId(item);
+  const isGear = item.type === "weapon" || item.type === "armor";
+  if (!isGear && !BEGINNER_LOOT_ALLOW.has(id)) return false;
   const rank = rarityRank(item.rarity);
   if (rank >= 4) return false;
-  if (floor < 6 && rank >= 2) return false;
+  if (floor < 6 && rank >= 2 && !BEGINNER_LOOT_ANY_FLOOR.has(id)) return false;
   return true;
 }
 

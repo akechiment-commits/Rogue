@@ -6,7 +6,7 @@ import {
   trapPoolForDungeon,
   bbPoolForDungeon,
 } from "../dungeonContent.js";
-import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS } from "../items.js";
+import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
 
 const BEGINNER_TRAP_BAN = [
@@ -75,7 +75,7 @@ describe("初心者ダンジョンの出現制限", () => {
     expect(floor1).not.toContain("nitro");
   });
 
-  it("アイテムは基本道具だけ。複雑な系統は出さず、1〜5階はE/D、6階からC/B", () => {
+  it("アイテムは基本＋能力装備。つるはしと穴掘りは1階から。複雑な系統は出さない", () => {
     const identify = ITEMS.find((i) => i.effect === "identify");
     const heal = ITEMS.find((i) => i.name === "回復薬");
     const bigHeal = ITEMS.find((i) => i.name === "大回復薬");
@@ -83,19 +83,29 @@ describe("初心者ダンジョンの出現制限", () => {
     const doping = ITEMS.find((i) => i.effect === "doping");
     const dagger = ITEMS.find((i) => i.name === "短剣");
     const fireSword = ITEMS.find((i) => i.name === "炎の剣");
+    const pickaxe = ITEMS.find((i) => i.name === "つるはし");
     const plate = ITEMS.find((i) => i.name === "プレートメイル");
+    const dodgeWear = ITEMS.find((i) => i.name === "みかわしの服");
+    const asa = ITEMS.find((i) => i.name === "アサメ");
     const bombArrow = ITEMS.find((i) => i.name === "爆弾矢");
     const sanctuary = ITEMS.find((i) => i.effect === "sanctuary");
+    const digWand = WANDS.find((i) => i.effect === "dig");
     expect(lootAllowedInDungeon(identify, "beginner", 10)).toBe(false);
     expect(lootAllowedInDungeon(heal, "beginner", 1)).toBe(true);
     expect(lootAllowedInDungeon(bigHeal, "beginner", 5)).toBe(false);
     expect(lootAllowedInDungeon(bigHeal, "beginner", 6)).toBe(true);
-    expect(lootAllowedInDungeon(superHeal, "beginner", 10)).toBe(false);
+    expect(lootAllowedInDungeon(superHeal, "beginner", 5)).toBe(false);
+    expect(lootAllowedInDungeon(superHeal, "beginner", 6)).toBe(true);
     expect(lootAllowedInDungeon(doping, "beginner", 10)).toBe(false);
     expect(lootAllowedInDungeon(dagger, "beginner", 1)).toBe(true);
-    expect(lootAllowedInDungeon(fireSword, "beginner", 10)).toBe(false);
+    expect(lootAllowedInDungeon(fireSword, "beginner", 5)).toBe(false);
+    expect(lootAllowedInDungeon(fireSword, "beginner", 6)).toBe(true);
+    expect(lootAllowedInDungeon(pickaxe, "beginner", 1)).toBe(true);
+    expect(lootAllowedInDungeon(digWand, "beginner", 1)).toBe(true);
     expect(lootAllowedInDungeon(plate, "beginner", 5)).toBe(false);
     expect(lootAllowedInDungeon(plate, "beginner", 6)).toBe(true);
+    expect(lootAllowedInDungeon(dodgeWear, "beginner", 6)).toBe(true);
+    expect(lootAllowedInDungeon(asa, "beginner", 10)).toBe(false);
     expect(lootAllowedInDungeon(bombArrow, "beginner", 10)).toBe(false);
     expect(lootAllowedInDungeon(sanctuary, "beginner", 10)).toBe(false);
     const idBook = SPELLBOOKS.find((s) => s.spell === "identify_magic");
