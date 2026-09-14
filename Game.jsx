@@ -40,6 +40,7 @@ import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
+import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -652,10 +653,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       inventory: [
         makeStarterFoodItem(favoriteFood),
       ],
-      spells: dungeonConfig?.dungeonType === "debug"
-        ? ["debug_summon_mon","debug_get_item","debug_get_blessed_item","debug_get_cursed_item","debug_create_trap","debug_summon_bb","debug_summon_object","bless_magic","curse_magic"]
-        : [],
-      spellLevels: {},
+      spells: initialDungeonSpells(_initDt),
+      spellLevels: initialDungeonSpellLevels(),
       turns: 0,
       sleepTurns: 0,
       sleepInterruptedTurns: 0,
