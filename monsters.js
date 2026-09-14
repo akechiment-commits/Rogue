@@ -8,6 +8,7 @@ import { statusTurns, applyPlayerPoison, isAttackSealed } from "./statusDuration
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
+import { advancedMonsterAllowed } from "./advancedMonsterRules.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
@@ -1378,6 +1379,7 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
     if (excludeWaterOnly && m.waterOnly) return false;
     if (excludeItemMimic && m.baseKind === "itemMimic") return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
+    if (dungeonType === "advanced") return advancedMonsterAllowed(m.baseKind, floor);
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false; // このダンジョンには出現しない
     const minF = df?.min !== undefined ? df.min : m.minFloor;
@@ -1425,6 +1427,7 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
   const eligible = MONS.filter(m => {
     if (m.penaltyOnly) return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
+    if (dungeonType === "advanced") return advancedMonsterAllowed(m.baseKind, floor);
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false;
     const minF = df?.min !== undefined ? df.min : m.minFloor;

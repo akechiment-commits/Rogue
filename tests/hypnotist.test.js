@@ -12,7 +12,7 @@ describe("土下座鈴木右衛門", () => {
       "焼き土下座鈴木右衛門",
     ]);
     expect([1, 2, 3].map((level) => makeMonsterFromBase(base, level, 5, 5).tile)).toEqual([215, 215, 215]);
-    expect(base.dungeonFloors).toEqual({ intermediate: { min: 20, max: 20 }, advanced: { min: 17, max: 27 } });
+    expect(base.dungeonFloors).toEqual({ intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 27 } });
     expect(base.levels.map((level) => level.dungeonFloors)).toEqual([
       { advanced: { min: 28, max: 31 } },
       { advanced: { min: 32, max: 36 } },
