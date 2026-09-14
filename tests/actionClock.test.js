@@ -6,6 +6,8 @@ import {
   dueActionCount,
   finishPlayerTurnClock,
   grantPlayerHaste,
+  hasteDurationLabel,
+  hasteStageLabel,
   maintainPlayerHaste,
   playerHasteStage,
   takeDueActions,
@@ -32,6 +34,13 @@ function playSequence(playerSpeed, enemySpeed, playerActions) {
 }
 
 describe("actionClock", () => {
+  it("倍速の持続表示は速度とターンを分けて書く", () => {
+    const player = { hasteTurns: 9, hasteSpeed: 2 };
+    expect(hasteStageLabel(player)).toBe("2倍速");
+    expect(hasteDurationLabel(player, 9)).toBe("2倍速・9ターン");
+    expect(hasteDurationLabel({ hasteTurns: 12, hasteSpeed: 3 }, 12)).toBe("3倍速・12ターン");
+  });
+
   it("速度ごとの行動コストは12を割った値", () => {
     expect(actionCost(1)).toBe(12);
     expect(actionCost(2)).toBe(6);

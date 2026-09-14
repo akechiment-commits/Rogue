@@ -34,7 +34,7 @@ import { getMarkerInkCost } from "./markerRules.js";
 import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
-import { grantPlayerHaste, hasteDurationLabel } from "./actionClock.js";
+import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
@@ -632,7 +632,7 @@ export function useItemActions({
         if (p.sleepTurns > 0) { p.sleepTurns = 0; ml.push("目が覚めた！"); }
         const _spTurns = 5 + _fTier * 4;
         grantPlayerHaste(p, _spTurns);
-        ml.push(`体が軽くなった！${hasteDurationLabel(p, _spTurns)}で行動できる！`);
+        ml.push(`体が軽くなった！${hasteStageLabel(p)}で${_spTurns}ターン行動できる！`);
       } else if (fe === "def_food") {
         const _defUp = _fTier >= 5 ? 2 : 1;
         p.def += _defUp; ml.push(`体が頑丈になった！防御力+${_defUp}`);

@@ -41,8 +41,13 @@ export function grantPlayerHaste(player, turns) {
   return true;
 }
 
+export function hasteStageLabel(player) {
+  return playerHasteStage(player) >= 3 ? "3倍速" : "2倍速";
+}
+
 export function hasteDurationLabel(player, addedTurns) {
-  return playerHasteStage(player) >= 3 ? "3倍速" : `2倍速${addedTurns}ターン`;
+  const stage = hasteStageLabel(player);
+  return addedTurns > 0 ? `${stage}・${addedTurns}ターン` : stage;
 }
 
 export function maintainPlayerHaste(player, minTurns) {
