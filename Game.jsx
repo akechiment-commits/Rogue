@@ -19,7 +19,7 @@ import {
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit,
-  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, placeItemAt, pickLootFromPool,
+  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, calmShopkeeperIfFullyHealed, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
@@ -4332,15 +4332,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
         return;
       } else if (bb.kind === "greed") {
-        const _gold = item.type === "gold" ? Math.max(0, item.value || 0) : Math.max(1, itemPrice(item));
-        if (item.type === "goal") {
+        const _conv = convertGreedBoxItem(bb, item);
+        if (!_conv?.converted) {
           ml.push(`${_idn}には効果がなかった。`);
         } else {
-          const _gi = bb.contents.indexOf(item);
-          if (_gi >= 0) bb.contents.splice(_gi, 1);
-          sr.current.player.gold = (sr.current.player.gold || 0) + _gold;
-          bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
-          ml.push(`${_idn}が${_gold}Gに変わった！`);
+          ml.push(`${_idn}が${_conv.gold.value}Gの金貨になった！`);
         }
       } else if (bb.kind === "reverse") {
         if (item.type === "goal" || item.type === "gold" || item.type === "gold_nugget" || item.type === "arrow" || item.type === "pot") {

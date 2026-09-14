@@ -813,7 +813,7 @@ export const BB_TYPES = [
   { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
   { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
   { kind: "reverse",   name: "反転の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムの祝福と呪いを反転する。未祝呪は変わらない。" },
-  { kind: "greed",     name: "換金の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを入れた時点で売値相当のゴールドに変える。キーアイテムには効果がない。" },
+  { kind: "greed",     name: "換金の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムが売値相当の金貨になる。壊すと金貨が飛び出す。キーアイテムには効果がない。" },
   { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          rarity: "C", weight: RARITY_WEIGHT.C, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
   { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
 ];
@@ -1477,6 +1477,18 @@ export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = nu
   }
   doGunpowderExplosion(x, y, dg, p, ml, luFn, "ニトロ箱");
   return true;
+}
+
+/** 換金の大箱：中身を売値相当の金貨に変える。所持金は増やさない。キーアイテムは対象外。 */
+export function convertGreedBoxItem(bb, item, uidFn = uid) {
+  if (!bb || !item || item.type === "goal") return null;
+  if (item.type === "gold") return { converted: false, gold: item };
+  const goldValue = Math.max(1, itemPrice(item));
+  const gold = { name: "金貨", type: "gold", value: goldValue, tile: 22, id: uidFn() };
+  const idx = bb.contents?.indexOf(item) ?? -1;
+  if (idx >= 0) bb.contents[idx] = gold;
+  else (bb.contents ||= []).push(gold);
+  return { converted: true, gold };
 }
 
 /** 大箱が壊れたときの共通処理。ニトロ箱は破壊時に爆発し、ゴミ箱だけは追加で変化抽選品を落とす。 */

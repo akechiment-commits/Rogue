@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BB_TYPES, ITEMS, RARITY_RANK, RARITY_WEIGHT, breakBigboxContents, detonateNitroBox, pickBigboxType } from "../items.js";
+import { BB_TYPES, ITEMS, RARITY_RANK, RARITY_WEIGHT, breakBigboxContents, convertGreedBoxItem, detonateNitroBox, pickBigboxType, itemPrice } from "../items.js";
 import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -50,6 +50,35 @@ describe("追加大箱", () => {
     ]));
     expect(p.hp).toBeLessThan(100);
     expect(messages.some((message) => message.includes("ニトロ箱が爆発した"))).toBe(true);
+  });
+
+  it("換金の大箱は入れた品を金貨に変え、壊すと床へ散らす", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5, gold: 100 });
+    const stone = { id: "s1", name: "石", type: "arrow", count: 1, tile: 22 };
+    const bb = {
+      id: "greed-1",
+      kind: "greed",
+      name: "換金の大箱",
+      x: 6,
+      y: 5,
+      capacity: 3,
+      contents: [stone],
+    };
+    dg.bigboxes.push(bb);
+
+    const result = convertGreedBoxItem(bb, stone);
+    expect(result.converted).toBe(true);
+    expect(p.gold).toBe(100);
+    expect(bb.contents).toHaveLength(1);
+    expect(bb.contents[0]).toMatchObject({ type: "gold", value: itemPrice(stone) });
+    expect(bb.capacity).toBe(3);
+
+    const messages = [];
+    breakBigboxContents(bb, dg, messages, null, null, null, { player: p });
+    expect(dg.bigboxes).not.toContain(bb);
+    expect(p.gold).toBe(100);
+    expect(dg.items.some((it) => it.type === "gold" && it.value === itemPrice(stone))).toBe(true);
   });
 
   it("魔物の大箱を壊すと中身の個数だけ敵に変わる", () => {
