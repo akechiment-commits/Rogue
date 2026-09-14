@@ -83,7 +83,7 @@ describe("foodData", () => {
 
     expect(COOKED_FOODS_SWEET).toContain("アップルシュトルーデル");
     expect(COOKED_FOODS_SWEET).toContain("ボフロット");
-    expect(COOKED_FOODS_SWEET).toContain("しろ氷");
+    expect(COOKED_FOODS_SWEET).not.toContain("しろ氷");
     expect(COOKED_FOODS_SWEET).not.toContain("みぞれ");
     expect(COOKED_FOODS_SWEET).toContain("ジャレビ");
   });
@@ -131,9 +131,25 @@ describe("foodData", () => {
     expect(COOKED_FOODS_SWEET).toContain("カレーパン");
   });
 
+  it("アイスクリーム系は通常食料に出さない", () => {
+    const iceCreamFoods = [
+      "アイスクリーム", "ソルベ", "ジェラート", "パルフェ", "アフォガート", "ソフトクリーム",
+      "シャーベット", "かき氷", "しろ氷", "ミルクアイス", "抹茶アイス", "ストロベリーアイス",
+      "バナナスプリット", "ホットファッジサンデー", "アイスクリームサンド", "フルーツパフェ",
+      "モンブランパフェ", "抹茶パフェ", "チョコバナナパフェ", "苺パフェ", "ミックスジェラート",
+      "ルートビアフロート", "ドラ焼きアイス", "たい焼きアイス", "もちアイス", "雪見だいふく",
+      "わらびもちアイス", "カルフィ",
+    ];
+    for (const name of iceCreamFoods) {
+      expect(COOKED_FOODS).not.toContain(name);
+      expect(RAW_FOODS).not.toContain(name);
+    }
+    expect(COOKED_FOODS_SAVORY).toContain("アイスバイン");
+  });
+
   it("重複整理後の目標数に揃い、新規料理の相性も個別設定される", () => {
     expect(RAW_FOODS).toHaveLength(400);
-    expect(COOKED_FOODS).toHaveLength(1100);
+    expect(COOKED_FOODS).toHaveLength(1072);
     expect(FOOD_CAT_MAP.get("バインセオ")).toBe("southeast_asian");
     expect(FOOD_CAT_MAP.get("チョリソー")).toBe("spanish");
     expect(FOOD_CAT_MAP.get("パブロバ")).toBe("western_sweets");
@@ -227,6 +243,6 @@ describe("foodData", () => {
     expect(COOKED_FOODS_SAVORY).toContain("パニプリ");
     expect(COOKED_FOODS_SWEET).toContain("メロンパン");
     expect(COOKED_FOODS_SWEET).toContain("パティビンス");
-    expect(COOKED_FOODS_SWEET).toContain("カルフィ");
+    expect(COOKED_FOODS_SWEET).toContain("ジャレビ");
   });
 });
