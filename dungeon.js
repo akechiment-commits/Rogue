@@ -1700,7 +1700,7 @@ function addWaterPools(map, rooms, su, sd) {
 
 /* ===== FLOATING ISLANDS ===== */
 /* 稀に部屋中央に水で囲まれた浮島を生成（浮遊の指輪なしでは到達不可） */
-function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
+function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd, dungeonType = null) {
   const permSpin = { name: "回転板", effect: "spin", tile: 29, permanent: true };
   for (const r of rooms) {
     if (r.w < 7 || r.h < 7) continue;
@@ -3163,7 +3163,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   /* 浮島を生成 — 後処理の後に配置することで水リングのギャップを防ぐ */
-  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd);
+  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd, dungeonType);
   /* waterOnlyモンスター（わてり等）を水タイルに配置 — 全水面操作の後に行う */
   {
     const _waterTiles = [];

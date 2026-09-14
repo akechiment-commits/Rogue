@@ -73,6 +73,12 @@ describe("genDungeon", () => {
     expect(dg.rooms.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("浮島抽選を含む通常フロアを繰り返し生成できる", () => {
+    expect(() => {
+      for (let i = 0; i < 120; i++) genDungeon(2, "beginner");
+    }).not.toThrow();
+  });
+
   it("通常フロアの変則レイアウト抽選は標準を含む", () => {
     expect(chooseNormalLayout(0.00)).toBe("centralCross");
     expect(chooseNormalLayout(0.02)).toBe("courtyard");
