@@ -5,6 +5,7 @@ import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { makeStatue, makeAltar } from "../fixtures.js";
 import { drainAnims, pushPlayerTeleportAnim } from "../animEvents.js";
+import { lootAllowedInDungeon } from "../dungeonContent.js";
 
 describe("applyWandEffect", () => {
   const dg = makeEmptyDg();
@@ -244,6 +245,18 @@ describe("applyWandEffect", () => {
 
     expect(dg.items).toHaveLength(1);
     expect(dg.items[0].type).toBe("food");
+  });
+
+  it("初心者の変化の杖は出現許可品へだけ変化させる", () => {
+    for (let i = 0; i < 100; i++) {
+      const p = makePlayer({ depth: 1 });
+      const dg = makeEmptyDg({ dungeonType: "beginner" });
+      const target = { name: "変化対象", type: "weapon", x: 6, y: 5, id: `beginner-target-${i}` };
+      dg.items.push(target);
+      applyWandEffect("transform", "item", target, 1, 0, dg, p, [], noop);
+      expect(dg.items).toHaveLength(1);
+      expect(lootAllowedInDungeon(dg.items[0], "beginner", 1)).toBe(true);
+    }
   });
 
   it("変化の魔法は現フロアの敵へ同Lvで変化する", () => {

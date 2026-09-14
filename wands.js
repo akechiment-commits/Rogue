@@ -838,7 +838,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
         const _chgContext = blMult > 1 ? "change_blessed" : blMult < 1 ? "change_cursed" : "change";
-        const nt = makeChangeBoxItem(_chgContext);
+        const nt = makeChangeBoxItem(_chgContext, {
+          dungeonType: dg?.dungeonType ?? p?.dungeonType ?? null,
+          floor: Number.isFinite(p?.depth) ? p.depth : 99,
+        });
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);

@@ -1613,7 +1613,7 @@ export function useItemActions({
           const _sdBlastedBB = (dg.bigboxes || []).filter(b => Math.max(Math.abs(b.x - p.x), Math.abs(b.y - p.y)) <= _sdR);
           for (const _sbb of _sdBlastedBB) {
             ml.push(`${_sbb.name}が爆発で壊れた！`);
-            breakBigboxContents(_sbb, dg, ml);
+            breakBigboxContents(_sbb, dg, ml, null, null, null, { player: p });
           }
           if (_sdBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_sdBlastedBB.includes(b));
           // 連鎖爆発（範囲内の床上火薬壺）

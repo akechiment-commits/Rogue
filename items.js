@@ -20,7 +20,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { lootPoolForDungeon } from "./dungeonContent.js";
+import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
 import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
@@ -1324,8 +1324,26 @@ export function resolveImprisonPotExit(p, dg, ml, luFn, nameFn = null) {
 }
 
 /** @param {'floor'|'change'|'shop'|'drop'} [context='floor'] */
-export function makePot(context = "floor") {
-  const t = pickLootFromPool(POTS, context) || pick(POTS);
+function dungeonLootOptions(options = {}) {
+  return {
+    dungeonType: options?.dungeonType ?? null,
+    floor: Number.isFinite(options?.floor) ? options.floor : 99,
+  };
+}
+
+function dungeonLootPool(pool, options = {}) {
+  const { dungeonType, floor } = dungeonLootOptions(options);
+  /* 変化・ゴミ箱・強欲な壺では、後の階の候補へフォールバックしない。 */
+  if (dungeonType === "beginner" || dungeonType === "intermediate") {
+    return pool.filter((item) => lootAllowedInDungeon(item, dungeonType, floor));
+  }
+  return lootPoolForDungeon(pool, dungeonType, floor);
+}
+
+export function makePot(context = "floor", options = {}) {
+  const pool = dungeonLootPool(POTS, options);
+  const t = pickLootFromPool(pool, context) || pick(pool);
+  if (!t) return null;
   const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
   if (t.potEffect === "imprison") pot.confinedMonsters = [];
   return pot;
@@ -1334,39 +1352,52 @@ export function makePot(context = "floor") {
 /**
  * 変化の大箱・変化の杖で使う通常アイテム抽選。
  * 宝石とキーアイテム、合成・特殊ドロップ専用アイテムは候補に含めない。
+ * options を指定した場合は、現在のダンジョンと階の出現制限も適用する。
  */
-export function makeChangeBoxItem(context = "change") {
+export function makeChangeBoxItem(context = "change", options = {}) {
   const kinds = [
     "potion", "scroll", "pen", "weapon", "armor", "food", "wand",
     "arrow", "pot", "ring", "spellbook", "marker", "bottle", "gold",
   ];
-  const rt = pick(kinds);
+  const kindPool = (kind) => {
+    if (kind === "potion") return [...ITEMS.filter((i) => i.type === "potion"), WATER_BOTTLE];
+    if (kind === "wand") return WANDS;
+    if (kind === "pot") return POTS;
+    if (kind === "ring") return RINGS;
+    if (kind === "spellbook") return SPELLBOOKS;
+    if (kind === "marker") return [MAGIC_MARKER];
+    if (kind === "bottle") return [EMPTY_BOTTLE];
+    if (kind === "arrow") return [...ITEMS.filter((i) => i.type === "arrow"), ARROW_T];
+    if (kind === "gold") return ITEMS.filter((i) => i.type === "gold");
+    return ITEMS.filter((i) => i.type === kind);
+  };
+  const availableKinds = kinds.filter((kind) => kind === "food" || dungeonLootPool(kindPool(kind), options).length > 0);
+  const rt = pick(availableKinds.length > 0 ? availableKinds : kinds);
   if (rt === "food") return { ...genFood(), id: uid() };
   if (rt === "wand") {
-    const wt = pickLootFromPool(WANDS, context) || pick(WANDS);
+    const pool = dungeonLootPool(WANDS, options);
+    const wt = pickLootFromPool(pool, context) || pick(pool);
     return { ...wt, id: uid() };
   }
-  if (rt === "pot") return makePot(context);
+  if (rt === "pot") return makePot(context, options);
   if (rt === "ring") {
-    const ring = { ...(pickLootFromPool(RINGS, context) || pick(RINGS)), id: uid() };
+    const pool = dungeonLootPool(RINGS, options);
+    const ring = { ...(pickLootFromPool(pool, context) || pick(pool)), id: uid() };
     return applyGeneratedRingPlus(ring);
   }
   if (rt === "spellbook") {
-    const sb = pickLootFromPool(SPELLBOOKS, context) || pick(SPELLBOOKS);
+    const pool = dungeonLootPool(SPELLBOOKS, options);
+    const sb = pickLootFromPool(pool, context) || pick(pool);
     return { ...sb, id: uid() };
   }
   if (rt === "marker") return { ...MAGIC_MARKER, id: uid() };
   if (rt === "bottle") return { ...EMPTY_BOTTLE, id: uid() };
   if (rt === "arrow") {
-    const arrowPool = [...ITEMS.filter((i) => i.type === "arrow"), ARROW_T];
+    const arrowPool = dungeonLootPool(kindPool("arrow"), options);
     const at = pickLootFromPool(arrowPool, context) || pick(arrowPool);
     return { ...at, id: uid(), count: rng(3, 15) };
   }
-  const pool = rt === "potion"
-    ? [...ITEMS.filter((i) => i.type === "potion"), WATER_BOTTLE]
-    : rt === "gold"
-      ? ITEMS.filter((i) => i.type === "gold")
-      : ITEMS.filter((i) => i.type === rt);
+  const pool = dungeonLootPool(kindPool(rt), options);
   const tmpl = pickLootFromPool(pool, context) || pick(pool);
   return { ...tmpl, id: uid() };
 }
@@ -1522,7 +1553,10 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
   const ft = new Set();
   for (const item of [...(bb.contents || [])]) placeItemAt(dg, x, y, item, ml, ft);
   if (bb.kind === "trash") {
-    const loot = makeChangeBoxItem();
+    const loot = makeChangeBoxItem("change", {
+      dungeonType: dg?.dungeonType ?? options?.player?.dungeonType ?? null,
+      floor: Number.isFinite(options?.player?.depth) ? options.player.depth : 99,
+    });
     placeItemAt(dg, x, y, loot, ml, ft);
     ml.push(`ゴミ箱から${resolveItemName(loot, nameFn)}が飛び出した！`);
   }
@@ -1580,9 +1614,16 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft); }
     if (_remaining > 0) {
       ml.push(`${_remaining}個のランダムなアイテムが飛び出した！`);
+      const _lootOptions = {
+        dungeonType: dg?.dungeonType ?? p?.dungeonType ?? null,
+        floor: Number.isFinite(p?.depth) ? p.depth : 99,
+      };
+      const _greedPool = dungeonLootPool(ITEMS, _lootOptions);
       for (let i = 0; i < _remaining; i++) {
         /* 変化の大箱と同系統（weight＋一定確率で均等） */
-        const _ri = { ...(pickLootFromPool(ITEMS, "change") || pick(ITEMS)), id: uid() };
+        const _riTemplate = pickLootFromPool(_greedPool, "change") || pick(_greedPool);
+        if (!_riTemplate) continue;
+        const _ri = { ..._riTemplate, id: uid() };
         if (_ri.type === 'gold') _ri.value = rng(20, 80);
         placeItemAt(dg, px, py, _ri, ml, ft);
       }

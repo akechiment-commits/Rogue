@@ -5,6 +5,7 @@ import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
 import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, MAGIC_BANE_T, ITEMS, WEAPON_ABILITIES, getWeaponMagicDamageMultiplier, multiplyMagicDamage, getCursedMagicSealDamageMultiplier, multiplyCursedMagicDamage } from "../items.js";
 import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } from "../items.js";
+import { lootAllowedInDungeon } from "../dungeonContent.js";
 import "../monsters.js";
 
 afterEach(() => setFavoriteFoodBase(""));
@@ -911,6 +912,14 @@ describe("ゴミ箱の破壊報酬", () => {
     expect(cursed.rarity).toBe("E");
   });
 
+  it("初心者の変化候補は出現許可品に絞られる", () => {
+    for (let i = 0; i < 500; i++) {
+      const item = makeChangeBoxItem("change", { dungeonType: "beginner", floor: 1 });
+      expect(lootAllowedInDungeon(item, "beginner", 1)).toBe(true);
+      expect(["pen", "spellbook", "marker"]).not.toContain(item.type);
+    }
+  });
+
   it("ゴミ箱が壊れると中身に加えてランダム品を落とす", () => {
     const dungeon = {
       map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
@@ -926,6 +935,26 @@ describe("ゴミ箱の破壊報酬", () => {
     expect(dungeon.items).toHaveLength(2);
     expect(dungeon.items.some(item => item.id === "inside")).toBe(true);
     expect(messages.some(message => message.includes("ゴミ箱から"))).toBe(true);
+  });
+
+  it("初心者のゴミ箱追加品も出現許可品に絞られる", () => {
+    const dungeon = {
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      dungeonType: "beginner",
+      items: [], monsters: [], traps: [], springs: [], pentacles: [], bigboxes: [],
+    };
+    const inside = { name: "石", type: "arrow", tile: 22, count: 1, id: "beginner-inside" };
+    const bb = { kind: "trash", name: "ゴミ箱", x: 10, y: 10, capacity: 0, contents: [inside] };
+    const player = makePlayer({ depth: 1 });
+    dungeon.bigboxes.push(bb);
+    const messages = [];
+
+    breakBigboxContents(bb, dungeon, messages, null, null, null, { player });
+
+    const extra = dungeon.items.find((item) => item.id !== inside.id);
+    expect(extra).toBeTruthy();
+    expect(lootAllowedInDungeon(extra, "beginner", 1)).toBe(true);
+    expect(["pen", "spellbook", "marker"]).not.toContain(extra.type);
   });
 });
 

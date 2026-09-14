@@ -4346,7 +4346,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } else if (bb.kind === "change" && item.type === "goal") {
         ml.push(`${_idn}は変化しなかった！`);
       } else if (bb.kind === "change") {
-        const nit = makeChangeBoxItem();
+        const nit = makeChangeBoxItem("change", {
+          dungeonType: dg?.dungeonType ?? sr.current?.dungeonType ?? null,
+          floor: sr.current?.player?.depth,
+        });
         const idx = bb.contents.indexOf(item);
         if (idx >= 0) bb.contents[idx] = nit;
         ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
@@ -4766,7 +4769,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
         /* 爆発系は箱ごと破壊、それ以外は容量を1減らす */
         if (_bbExploded) {
-          breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+          breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: p });
           if (bb.contents?.length > 0) ml.push(`${bbDisplayName(bb, sr.current)}が壊れ中身が飛び出した！`);
           else ml.push(`${bbDisplayName(bb, sr.current)}が爆発で壊れた！`);
         } else {
