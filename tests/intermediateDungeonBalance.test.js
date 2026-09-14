@@ -120,6 +120,20 @@ describe("中級ダンジョンの敵", () => {
     expect(f20).not.toContain("berserker");
   });
 
+  it("能力敵は序盤から出し、11階に一度に載せない", () => {
+    const f5 = intermediateMonsterKinds(5);
+    const f6 = intermediateMonsterKinds(6);
+    const f7 = intermediateMonsterKinds(7);
+    const f8 = intermediateMonsterKinds(8);
+    const f15 = intermediateMonsterKinds(15);
+    expect(f5).toContain("tripper");
+    expect(f6).toContain("potionthrower");
+    expect(f7).toContain("rakugakima");
+    expect(f8).toContain("itemMimic");
+    expect(f15).not.toContain("runner");
+    expect(f15).not.toContain("thief");
+  });
+
   it("pickMonsterDef も同じ出現表に従う", () => {
     for (let i = 0; i < 40; i++) {
       expect(INTERMEDIATE_MONSTER_BAN).not.toContain(pickMonsterDef(11, "intermediate").base.baseKind);
