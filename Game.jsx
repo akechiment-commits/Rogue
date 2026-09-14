@@ -709,7 +709,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _dt = dungeonConfig?.dungeonType || "beginner";
     const _allIdentKeys = (_dt === "debug" || _dt === "beginner")
       ? new Set([
-          ...[...ITEMS, ...WANDS].map(getIdentKey).filter(Boolean),
+          ...[...ITEMS, ...WANDS, WATER_BOTTLE].map(getIdentKey).filter(Boolean),
           ...POTS.map(pot => `o:${pot.potEffect}`),
           ...SPELLBOOKS.filter(sb => sb.spell).map(sb => `b:${sb.spell}`),
           ...RINGS.map(r => `r:${r.effect}`),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSoldItemMessage, generateFakeNames, generateBbFakeNames, getIdentKey, ITEMS, WANDS, POTS, SPELLBOOKS, RINGS, BB_TYPES, BB_FAKE_NAMES, UNIDENTIFIED_NAME_POOLS } from "../items.js";
+import { formatSoldItemMessage, generateFakeNames, generateBbFakeNames, getIdentKey, ITEMS, WANDS, POTS, SPELLBOOKS, RINGS, BB_TYPES, BB_FAKE_NAMES, UNIDENTIFIED_NAME_POOLS, WATER_BOTTLE } from "../items.js";
 import { itemDisplayName } from "../render.js";
 
 describe("アイテム表示名の識別保護", () => {
@@ -22,6 +22,14 @@ describe("アイテム表示名の識別保護", () => {
     );
     expect(message).toContain("薬:おいしい薬");
     expect(message).not.toContain("回復薬");
+  });
+
+  it("水は未識別なら透明な薬、識別済みなら水と表示する", () => {
+    const water = { ...WATER_BOTTLE };
+    const names = generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS);
+    expect(itemDisplayName(water, names, new Set(), {})).toBe("透明な薬");
+    expect(itemDisplayName(water, names, new Set(["p:water"]), {})).toBe("水");
+    expect(itemDisplayName({ ...water, fullIdent: true }, names, new Set(), {})).toBe("水");
   });
 
   it("旧セーブ由来の鈍足の指輪も新名称で表示する", () => {
