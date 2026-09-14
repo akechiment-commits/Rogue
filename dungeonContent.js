@@ -3,7 +3,7 @@
  * floor は 1 始まり（depth + 1）。
  * 未設定のダンジョンは制限なし（従来どおりレア度weight）。
  */
-import { TRAPS, BB_TYPES } from "./items.js";
+import { TRAPS, BB_TYPES } from "./dungeonCatalog.js";
 
 /** 初心者で出さない罠（即死級・識別破壊・フロア破壊） */
 const BEGINNER_TRAP_BAN = new Set([
