@@ -17,9 +17,8 @@ const INTERMEDIATE_BB_BAN = ["trash", "nitro", "curse"];
 const INTERMEDIATE_MONSTER_BAN = [
   "berserker", "killplaster", "icedragon", "starlight", "darkness",
   "dodgemole", "synthmonster", "gargoyle", "vampire", "dragon", "golem", "daemon",
-];
-const INTERMEDIATE_MONSTER_EXTRA = [
-  "thief", "rustbug", "itemMimic", "charger", "itemblaster", "stealthrower", "wolf",
+  "troll", "firedemon", "bombgoblin", "walldigger", "serpent", "witchdoc",
+  "disarmer", "monsterthrow", "barriermage", "windmage", "puller", "waterFlower",
 ];
 
 function intermediateMonsterKinds(floor) {
@@ -30,7 +29,14 @@ function intermediateMonsterKinds(floor) {
     if (df === null) return false;
     const minF = df?.min ?? m.minFloor;
     const maxF = df?.max ?? m.maxFloor;
-    return minF <= floor && floor <= maxF;
+    if (minF <= floor && floor <= maxF) return true;
+    return m.levels?.some((lv) => {
+      const lvDf = lv.dungeonFloors?.intermediate;
+      if (lvDf === null) return false;
+      const lvMin = lvDf?.min ?? lv.minFloor;
+      const lvMax = lvDf?.max ?? lv.maxFloor;
+      return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
+    }) ?? false;
   }).map((m) => m.baseKind);
 }
 
@@ -105,13 +111,14 @@ describe("中級ダンジョンの出現制限", () => {
 
 describe("中級ダンジョンの敵", () => {
   it("初級で出さない能力敵を出し、上級専用種は出さない", () => {
-    const f12 = intermediateMonsterKinds(12);
+    expect(intermediateMonsterKinds(11)).toEqual(expect.arrayContaining(["thief", "rustbug", "wolf", "wizard"]));
+    expect(intermediateMonsterKinds(10)).toContain("itemMimic");
+    expect(intermediateMonsterKinds(10)).toContain("charger");
+    expect(intermediateMonsterKinds(12)).toEqual(expect.arrayContaining(["itemblaster", "stealthrower"]));
     const f20 = intermediateMonsterKinds(20);
-    for (const kind of INTERMEDIATE_MONSTER_EXTRA) {
-      expect(f12).toContain(kind);
-    }
     for (let floor = 1; floor <= 20; floor++) {
       const kinds = intermediateMonsterKinds(floor);
+      expect(kinds.length).toBeLessThanOrEqual(9);
       for (const banned of INTERMEDIATE_MONSTER_BAN) {
         expect(kinds).not.toContain(banned);
       }
@@ -120,18 +127,13 @@ describe("中級ダンジョンの敵", () => {
     expect(f20).not.toContain("berserker");
   });
 
-  it("能力敵は序盤から出し、11階に一度に載せない", () => {
-    const f5 = intermediateMonsterKinds(5);
-    const f6 = intermediateMonsterKinds(6);
-    const f7 = intermediateMonsterKinds(7);
-    const f8 = intermediateMonsterKinds(8);
-    const f15 = intermediateMonsterKinds(15);
-    expect(f5).toContain("tripper");
-    expect(f6).toContain("potionthrower");
-    expect(f7).toContain("rakugakima");
-    expect(f8).toContain("itemMimic");
-    expect(f15).not.toContain("runner");
-    expect(f15).not.toContain("thief");
+  it("能力敵は序盤から出し、同じ階の種類は抑える", () => {
+    expect(intermediateMonsterKinds(5)).toContain("tripper");
+    expect(intermediateMonsterKinds(6)).toContain("potionthrower");
+    expect(intermediateMonsterKinds(7)).toContain("rakugakima");
+    expect(intermediateMonsterKinds(8)).toContain("itemMimic");
+    expect(intermediateMonsterKinds(15)).not.toContain("runner");
+    expect(intermediateMonsterKinds(15)).not.toContain("thief");
   });
 
   it("pickMonsterDef も同じ出現表に従う", () => {
