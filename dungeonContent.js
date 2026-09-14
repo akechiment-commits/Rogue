@@ -79,37 +79,66 @@ function beginnerLootId(item) {
   return id ? `${item.type}:${id}` : `${item.type}:${item.name}`;
 }
 
-/** 中級で出さない罠（階層下げ・罠増殖）。地雷・未識別などは11階から。 */
+/** 中級で出さない罠。地雷・時限爆弾・未識別などは上級で初めて出す。 */
 const INTERMEDIATE_TRAP_BAN = new Set([
-  "level_down_trap",
-  "trap_trap",
-]);
-
-const INTERMEDIATE_TRAP_LATE = new Set([
   "explode",
   "time_bomb",
   "unident_trap",
   "multiply_trap",
+  "trap_trap",
   "item_monster_trap",
+  "level_down_trap",
 ]);
 
-/** 中級で出さない大箱（アイテム破壊・爆発）。鑑定・換金・魔物は出す。 */
+/** 中級で出さない大箱。呪い・ゴミ箱・ニトロは上級。 */
 const INTERMEDIATE_BB_BAN = new Set([
   "trash",
   "nitro",
+  "curse",
 ]);
 
-/** 中級で出さない道具（願い・ドーピングなど上級向け）。 */
+/** 中級で出さない道具。上級で初めて見る系統。 */
 const INTERMEDIATE_LOOT_BAN = new Set([
   "potion:doping",
   "potion:levelup",
   "scroll:duplicate",
+  "scroll:expand_inv",
+  "scroll:monster_house",
+  "scroll:bigbox_summon",
   "wand:wish",
+  "wand:bless_wand",
+  "wand:curse_wand",
+  "wand:levelup",
   "pot:wish_pot",
+  "pot:bless_pot",
+  "pot:curse_pot",
+  "pot:imprison",
+  "pot:klein",
+  "pen:sanctuary",
+  "pen:decoy",
+  "pen:revival",
+  "pen:portal",
+  "ring:wakka_ring",
+  "ring:bargain_ring",
+  "ring:explode_ring",
+  "ring:stomach_ring",
+  "ring:clairvoyance_ring",
+  "ring:detect_ring",
   "spellbook:gedo_book",
   "spellbook:time_stop_magic",
   "spellbook:clone_magic",
   "spellbook:earthquake_magic",
+  "spellbook:invisible_magic",
+  "spellbook:wallwalk_magic",
+  "spellbook:clairvoyance_magic",
+  "spellbook:bless_magic",
+  "spellbook:reflect_magic",
+  "weapon:アサメ",
+  "weapon:戦神の斧",
+  "armor:反射の鎧",
+  "arrow:爆弾矢",
+  "arrow:這いずり爆弾",
+  "arrow:誘導弾",
 ]);
 
 export function trapAllowedInDungeon(trap, dungeonType, floor) {
@@ -120,9 +149,7 @@ export function trapAllowedInDungeon(trap, dungeonType, floor) {
     return true;
   }
   if (dungeonType === "intermediate") {
-    if (INTERMEDIATE_TRAP_BAN.has(trap.effect)) return false;
-    if (floor < 11) return !INTERMEDIATE_TRAP_LATE.has(trap.effect);
-    return true;
+    return !INTERMEDIATE_TRAP_BAN.has(trap.effect);
   }
   return true;
 }
@@ -152,7 +179,7 @@ export function lootAllowedInDungeon(item, dungeonType, floor) {
     return true;
   }
   if (dungeonType === "intermediate") {
-    if (item.type === "gold_nugget") return false;
+    if (item.type === "gold_nugget" || item.type === "marker") return false;
     const id = beginnerLootId(item);
     if (INTERMEDIATE_LOOT_BAN.has(id)) return false;
     return rarityRank(item.rarity) < 5;

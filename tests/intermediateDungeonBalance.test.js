@@ -9,11 +9,11 @@ import {
 import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS, MAGIC_MARKER } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
 
-const INTERMEDIATE_TRAP_BAN = ["level_down_trap", "trap_trap"];
-const INTERMEDIATE_TRAP_LATE = [
-  "explode", "time_bomb", "unident_trap", "multiply_trap", "item_monster_trap",
+const INTERMEDIATE_TRAP_BAN = [
+  "explode", "time_bomb", "unident_trap", "multiply_trap",
+  "trap_trap", "item_monster_trap", "level_down_trap",
 ];
-const INTERMEDIATE_BB_BAN = ["trash", "nitro"];
+const INTERMEDIATE_BB_BAN = ["trash", "nitro", "curse"];
 const INTERMEDIATE_MONSTER_BAN = [
   "berserker", "killplaster", "icedragon", "starlight", "darkness",
   "dodgemole", "synthmonster", "gargoyle", "vampire", "dragon", "golem", "daemon",
@@ -35,60 +35,59 @@ function intermediateMonsterKinds(floor) {
 }
 
 describe("中級ダンジョンの出現制限", () => {
-  it("罠は1〜10階が初級後半相当、11階から地雷など。階層下げと罠の罠は出さない", () => {
+  it("地雷・時限爆弾・未識別など上級向け罠は出さない", () => {
     for (const effect of INTERMEDIATE_TRAP_BAN) {
       const trap = TRAPS.find((t) => t.effect === effect);
       expect(trapAllowedInDungeon(trap, "intermediate", 1)).toBe(false);
       expect(trapAllowedInDungeon(trap, "intermediate", 20)).toBe(false);
     }
-    for (const effect of INTERMEDIATE_TRAP_LATE) {
-      const trap = TRAPS.find((t) => t.effect === effect);
-      expect(trapAllowedInDungeon(trap, "intermediate", 10)).toBe(false);
-      expect(trapAllowedInDungeon(trap, "intermediate", 11)).toBe(true);
-    }
     expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "rust"), "intermediate", 1)).toBe(true);
     expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "summon_trap"), "intermediate", 1)).toBe(true);
-    const early = trapPoolForDungeon("intermediate", 5).map((t) => t.effect);
-    expect(early).not.toContain("explode");
-    expect(early).toContain("rust");
-    const late = trapPoolForDungeon("intermediate", 11).map((t) => t.effect);
-    expect(late).toContain("explode");
-    expect(late).not.toContain("level_down_trap");
+    const pool = trapPoolForDungeon("intermediate", 20).map((t) => t.effect);
+    expect(pool).toContain("rust");
+    expect(pool).not.toContain("explode");
+    expect(pool).not.toContain("level_down_trap");
   });
 
-  it("大箱はゴミ箱とニトロ以外を1階から出す", () => {
+  it("大箱は呪い・ゴミ箱・ニトロを出さない", () => {
     for (const kind of INTERMEDIATE_BB_BAN) {
       const box = BB_TYPES.find((b) => b.kind === kind);
       expect(bbAllowedInDungeon(box, "intermediate", 1)).toBe(false);
       expect(bbAllowedInDungeon(box, "intermediate", 20)).toBe(false);
     }
     const floor1 = bbPoolForDungeon("intermediate", 1).map((b) => b.kind);
-    expect(floor1).toEqual(expect.arrayContaining(["synthesis", "identify", "greed", "monster", "curse"]));
+    expect(floor1).toEqual(expect.arrayContaining(["synthesis", "identify", "greed", "monster"]));
     expect(floor1).not.toContain("trash");
     expect(floor1).not.toContain("nitro");
+    expect(floor1).not.toContain("curse");
   });
 
-  it("道具は初級より広く、浅い階でもB/Aは出る。Sと願い・ドーピングなどは出さない", () => {
+  it("中級に出す道具は浅い階でも出る。上級専用は出さない", () => {
     const identify = ITEMS.find((i) => i.effect === "identify");
     const fireBook = SPELLBOOKS.find((s) => s.spell === "fire_bolt");
     const thunderPen = ITEMS.find((i) => i.effect === "thunder_trap" && i.type === "pen");
     const plate = ITEMS.find((i) => i.name === "プレートメイル");
+    const fireSword = ITEMS.find((i) => i.name === "炎の剣");
     const asa = ITEMS.find((i) => i.name === "アサメ");
     const bombArrow = ITEMS.find((i) => i.name === "爆弾矢");
+    const sanctuary = ITEMS.find((i) => i.effect === "sanctuary");
     const doping = ITEMS.find((i) => i.effect === "doping");
     const wish = WANDS.find((w) => w.effect === "wish");
     const timeStop = SPELLBOOKS.find((s) => s.spell === "time_stop_magic");
+    const invisible = SPELLBOOKS.find((s) => s.spell === "invisible_magic");
     expect(lootAllowedInDungeon(identify, "intermediate", 1)).toBe(true);
     expect(lootAllowedInDungeon(fireBook, "intermediate", 1)).toBe(true);
     expect(lootAllowedInDungeon(thunderPen, "intermediate", 1)).toBe(true);
-    expect(lootAllowedInDungeon(MAGIC_MARKER, "intermediate", 1)).toBe(true);
     expect(lootAllowedInDungeon(plate, "intermediate", 1)).toBe(true);
-    expect(lootAllowedInDungeon(bombArrow, "intermediate", 1)).toBe(true);
-    expect(lootAllowedInDungeon(asa, "intermediate", 1)).toBe(true);
-    expect(lootAllowedInDungeon(doping, "intermediate", 1)).toBe(false);
+    expect(lootAllowedInDungeon(fireSword, "intermediate", 1)).toBe(true);
+    expect(lootAllowedInDungeon(MAGIC_MARKER, "intermediate", 1)).toBe(false);
+    expect(lootAllowedInDungeon(asa, "intermediate", 20)).toBe(false);
+    expect(lootAllowedInDungeon(bombArrow, "intermediate", 20)).toBe(false);
+    expect(lootAllowedInDungeon(sanctuary, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(doping, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(wish, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(timeStop, "intermediate", 20)).toBe(false);
+    expect(lootAllowedInDungeon(invisible, "intermediate", 20)).toBe(false);
   });
 });
 
