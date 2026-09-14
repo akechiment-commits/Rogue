@@ -102,7 +102,6 @@ const INTERMEDIATE_LOOT_BAN = new Set([
   "potion:doping",
   "potion:levelup",
   "scroll:duplicate",
-  "scroll:expand_inv",
   "scroll:monster_house",
   "scroll:bigbox_summon",
   "wand:wish",
@@ -137,7 +136,6 @@ const INTERMEDIATE_LOOT_BAN = new Set([
   "weapon:アサメ",
   "weapon:戦神の斧",
   "armor:反射の鎧",
-  "arrow:爆弾矢",
   "arrow:這いずり爆弾",
   "arrow:誘導弾",
 ]);
