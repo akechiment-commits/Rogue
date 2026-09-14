@@ -1,7 +1,7 @@
 # ローグゲーム 仕様書
 
 > このファイルはゲームの仕様・実装の概要メモ。  
-> アイテム詳細は `items.js`、敵詳細は `monsters.js`、罠・大箱の定義は `dungeonCatalog.js` を参照。  
+> アイテム詳細は `items.js`、敵詳細は `monsters.js`、罠・大箱の定義は `dungeonCatalog.js` を参照。
 > 新しいコンテンツを追加するときは `CONTENT_ADD_GUIDE.md` と各カテゴリ別マニュアルを先に参照する。
 > 開発ルールは `CLAUDE.md` を参照。
 
