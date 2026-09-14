@@ -354,6 +354,9 @@ describe("会心能力の合成", () => {
     ];
 
     expect(new Set(abilityDescs)).toEqual(new Set(["会心の一撃が出やすくなる"]));
+    expect(new Set(WEAPON_ABILITIES
+      .filter((ability) => criticalIds.includes(ability.id))
+      .map((ability) => ability.name))).toEqual(new Set(["会心"]));
     expect(new Set(weaponDescs)).toEqual(new Set(["会心の一撃が出やすい武器。"]));
   });
 });

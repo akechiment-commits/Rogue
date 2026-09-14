@@ -633,3 +633,21 @@ export const FOOD_DESCS = {
   satiate_food:  "とても腹持ちが良さそうだ。",
   mp_food:       "魔力が湧いてくる感じがする。",
 };
+
+/* 食料へ付与された薬効果を、ゲーム内説明で表示する日本語名。 */
+export const FOOD_POTION_EFFECT_LABELS = Object.freeze({
+  heal: "回復", superheal: "回復", poison: "猛毒", fire: "調理",
+  sleep: "睡眠", power: "強化", confuse: "混乱", mana: "魔力",
+  slow: "鈍足", darkness: "暗闇", bewitch: "幻惑", paralyze: "金縛り",
+  levelup: "経験", seal: "封魔", luck: "幸運", panacea: "万能", milk: "ミルク",
+  doping: "ドーピング",
+  c_heal: "猛毒", c_superheal: "猛毒", c_poison: "解毒", c_fire: "調理",
+  c_sleep: "覚醒", c_power: "弱化", c_mana: "封印", c_confuse: "必中",
+  c_slow: "加速", c_darkness: "感知", c_bewitch: "看破", c_paralyze: "予防",
+  c_levelup: "退化", c_seal: "解封", c_luck: "不運", c_panacea: "疫病",
+  c_milk: "猛毒", c_doping: "衰弱",
+});
+
+export function foodPotionEffectLabel(effect) {
+  return FOOD_POTION_EFFECT_LABELS[effect] || "特殊効果";
+}

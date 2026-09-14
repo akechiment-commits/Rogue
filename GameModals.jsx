@@ -20,6 +20,7 @@ import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 import { GACHA_COST } from "./gachaRules.js";
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
+import { foodPotionEffectLabel } from "./foodData.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -3618,7 +3619,7 @@ export function InventoryModal({
                         return _ab ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_ab.name}：{_ab.desc}</div> : null;
                       })()}
                       {it.potionEffects?.length > 0 && (
-                        <div style={{ color: "#fc6", marginTop: 3 }}>薬効果: {it.potionEffects.map((e) => ({ heal: "回復", poison: "猛毒", sleep: "睡眠", power: "強化" })[e] || e).join(", ")}</div>
+                        <div style={{ color: "#fc6", marginTop: 3 }}>薬効果：{it.potionEffects.map(foodPotionEffectLabel).join("・")}</div>
                       )}
                       {it.type === "pot" && it.potEffect === "imprison" && (it.confinedMonsters?.length || 0) > 0 && (
                         <div style={{ color: "#ca8", marginTop: 3 }}>閉じ込め: {it.confinedMonsters.map((c) => c.name).join(", ")}</div>
