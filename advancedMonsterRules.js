@@ -2,7 +2,7 @@
 /*
  * 上級は MONS の minFloor/maxFloor をそのまま足し合わせず、
  * 3階単位の短い帯を順番に入れ替える。各基礎種は原則3階に出し、
- * 能力は強いが素のステータスが控えめな敵だけ、後半に再登場させる。
+ * 序盤の単純敵と、能力は強いが素のステータスが控えめな敵は再登場させる。
  */
 const ADVANCED_MONSTER_STARTS = Object.freeze({
   1: ["rat", "bat", "centipede"],
@@ -43,11 +43,14 @@ for (const [startText, kinds] of Object.entries(ADVANCED_MONSTER_STARTS)) {
 }
 
 /*
- * 能力敵の再登場帯。後半の候補にもう一度入れることで、
- * 「能力は厄介だが数値は低め」の敵が上級後半で埋もれないようにする。
+ * 再登場帯。序盤の単純敵は中盤にLv2として戻し、後半の候補には
+ * 「能力は厄介だが数値は低め」の敵をもう一度入れる。
  * 追加分は通常帯と重複するため、後半の種類数は最大13種になる。
  */
 const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
+  10: ["rat", "bat", "centipede"],
+  13: ["kobold", "goblin", "skeleton"],
+  16: ["imp", "zombie", "wolf"],
   18: ["hypnotist"],
   19: ["hypnotist", "giantEel"],
   20: ["hypnotist", "giantEel", "seaDevil"],
@@ -77,6 +80,15 @@ export const ADVANCED_MONSTER_FLOOR_POOLS = Object.freeze(
 
 /* 再登場した能力敵は後半でLv2までにする。Lv3は超上級で解禁する。 */
 const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
+  rat: { min: 10, max: 12 },
+  bat: { min: 10, max: 12 },
+  centipede: { min: 10, max: 12 },
+  kobold: { min: 13, max: 15 },
+  goblin: { min: 13, max: 15 },
+  skeleton: { min: 13, max: 15 },
+  imp: { min: 16, max: 18 },
+  zombie: { min: 16, max: 18 },
+  wolf: { min: 16, max: 18 },
   dangerousPetal: { min: 25, max: 30 },
   dreamEater: { min: 25, max: 30 },
   hypnotist: { min: 25, max: 30 },

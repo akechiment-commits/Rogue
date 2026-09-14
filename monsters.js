@@ -732,19 +732,19 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
 export const MONS = [
   { name: "ネズミ",       hp: 7,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 }, intermediate: { min: 1, max: 3 }, advanced: { min: 1, max: 3 } },
     levels: [
-      { name: "殺人ネズミ",         hp: 35,  atk: 15, def: 4,  exp: 18, dungeonFloors: { advanced: { min: 8, max: 9 } } },
+      { name: "殺人ネズミ",         hp: 32,  atk: 15, def: 4,  exp: 18, dungeonFloors: { advanced: { min: 8, max: 9 } } },
       { name: "ものすごいネズミ",   hp: 52,  atk: 21, def: 7,  exp: 32, dungeonFloors: { advanced: { min: 14, max: 15 } } },
     ],
   },
   { name: "バット",       hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, flightOnly: true, dungeonFloors: { beginner: { min: 1, max: 4 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 4 } },
     levels: [
-      { name: "青バット",               hp: 30,  atk: 14, def: 3,  exp: 16, dungeonFloors: { advanced: { min: 7, max: 9 } } },
+      { name: "青バット",               hp: 30,  atk: 14, def: 3,  exp: 18, dungeonFloors: { advanced: { min: 7, max: 9 } } },
       { name: "ゴルァバット",           hp: 46,  atk: 20, def: 6,  exp: 28, dungeonFloors: { advanced: { min: 13, max: 15 } } },
     ],
   },
   { name: "ムカデ",       hp: 10,  atk: 4,  def: 2,  exp: 5,   speed: 1,   tile: 12,  kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,  dungeonFloors: { beginner: { min: 2, max: 5 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 5 } },
     levels: [
-      { name: "巨大ムカデ",             hp: 26,  atk: 11, def: 10, exp: 22, dungeonFloors: { advanced: { min: 9, max: 11 } } },
+      { name: "巨大ムカデ",             hp: 30,  atk: 13, def: 8,  exp: 24, dungeonFloors: { advanced: { min: 9, max: 11 } } },
       { name: "重装甲ムカデ",           hp: 40,  atk: 17, def: 16, exp: 38, dungeonFloors: { advanced: { min: 15, max: 17 } } },
     ],
   },
@@ -762,25 +762,25 @@ export const MONS = [
   },
   { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13, dungeonFloors: { beginner: { min: 3, max: 6 }, intermediate: { min: 2, max: 5 }, advanced: { min: 4, max: 5 } },
     levels: [
-      { name: "コボルド戦士",       hp: 38,  atk: 17, def: 8,  exp: 24, dungeonFloors: { advanced: { min: 10, max: 11 } } },
+      { name: "コボルド戦士",       hp: 38,  atk: 18, def: 8,  exp: 26, dungeonFloors: { advanced: { min: 10, max: 11 } } },
       { name: "コボルド族長",       hp: 60,  atk: 25, def: 13, exp: 42, dungeonFloors: { advanced: { min: 16, max: 17 } } },
     ],
   },
   { name: "ゴブリン",     hp: 23,  atk: 16, def: 5,  exp: 20,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16, dungeonFloors: { beginner: { min: 5, max: 7 }, intermediate: { min: 3, max: 6 }, advanced: { min: 5, max: 7 } },
     levels: [
-      { name: "ゴブリン頭",         hp: 50,  atk: 21, def: 9,  exp: 34, dungeonFloors: { advanced: { min: 12, max: 13 } } },
+      { name: "ゴブリン頭",         hp: 48,  atk: 21, def: 9,  exp: 38, dungeonFloors: { advanced: { min: 12, max: 13 } } },
       { name: "ゴブリン王",         hp: 80,  atk: 28, def: 11, exp: 58, dungeonFloors: { advanced: { min: 18, max: 20 } } },
     ],
   },
   { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 164, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 9, max: 10 }, intermediate: { min: 6, max: 8 }, advanced: { min: 5, max: 12 } },
     levels: [
-      { name: "強インプ",           hp: 42,  atk: 23, def: 7,  exp: 45, dungeonFloors: { advanced: { min: 15, max: 18 } } },
+      { name: "強インプ",           hp: 44,  atk: 24, def: 7,  exp: 52, dungeonFloors: { advanced: { min: 15, max: 18 } } },
       { name: "覇インプ",           hp: 65,  atk: 30, def: 11, exp: 70, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
   { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 7, max: 9 }, intermediate: { min: 4, max: 6 }, advanced: { min: 5, max: 12 } },
     levels: [
-      { name: "骸骨戦士",             hp: 39,  atk: 26, def: 9,  exp: 40, dungeonFloors: { advanced: { min: 15, max: 18 } } },
+      { name: "骸骨戦士",             hp: 42,  atk: 25, def: 9,  exp: 46, dungeonFloors: { advanced: { min: 15, max: 18 } } },
       { name: "アンデッドナイ",       hp: 61,  atk: 32, def: 13, exp: 62, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
@@ -792,7 +792,7 @@ export const MONS = [
   },
   { name: "ゾンビ",       hp: 38,  atk: 16, def: 5,  exp: 40,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 7, max: 10 }, advanced: { min: 5, max: 14 } },
     levels: [
-      { name: "中ゾンビ",           hp: 85,  atk: 34, def: 12, exp: 72,  dungeonFloors: { advanced: { min: 17, max: 21 } } },
+      { name: "中ゾンビ",           hp: 80,  atk: 32, def: 11, exp: 80,  dungeonFloors: { advanced: { min: 17, max: 21 } } },
       { name: "強ゾンビ",           hp: 130, atk: 42, def: 18, exp: 110, dungeonFloors: { advanced: { min: 22, max: 24 } } },
     ],
   },
@@ -816,7 +816,7 @@ export const MONS = [
   },
   { name: "ウルフ",       hp: 27,  atk: 20, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 7, max: 16 } },
     levels: [
-      { name: "強ウルフ",           hp: 43,  atk: 28, def: 6,  exp: 64,  dungeonFloors: { advanced: { min: 19, max: 22 } } },
+      { name: "強ウルフ",           hp: 45,  atk: 27, def: 6,  exp: 70,  dungeonFloors: { advanced: { min: 19, max: 22 } } },
       { name: "フェンリル",         hp: 68,  atk: 36, def: 10, exp: 100, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },

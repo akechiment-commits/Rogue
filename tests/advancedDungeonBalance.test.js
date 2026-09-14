@@ -50,7 +50,7 @@ describe("上級ダンジョンの出現段階", () => {
 });
 
 describe("上級ダンジョンの敵分布", () => {
-  it("階ごとの候補を絞りつつ、能力敵だけ後半に再登場させる", () => {
+  it("階ごとの候補を絞り、再登場帯を設ける", () => {
     expect(ADVANCED_MONSTER_FLOOR_POOLS[1]).toEqual(["rat", "bat", "centipede"]);
     for (let floor = 1; floor <= 30; floor++) {
       expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
@@ -61,7 +61,25 @@ describe("上級ダンジョンの敵分布", () => {
     ]));
   });
 
-  it("能力敵は中盤から候補に戻り、後半の再登場で高レベル化する", () => {
+  it("序盤の単純敵と能力敵を中盤以降にLv2で再登場させる", () => {
+    for (const [kind, floor, stats] of [
+      ["rat", 10, [32, 15, 4, 18]],
+      ["bat", 10, [30, 14, 3, 18]],
+      ["centipede", 10, [30, 13, 8, 24]],
+      ["kobold", 13, [38, 18, 8, 26]],
+      ["goblin", 13, [48, 21, 9, 38]],
+      ["skeleton", 13, [42, 25, 9, 46]],
+      ["imp", 16, [44, 24, 7, 52]],
+      ["zombie", 16, [80, 32, 11, 80]],
+      ["wolf", 16, [45, 27, 6, 70]],
+    ]) {
+      expect(advancedMonsterAllowed(kind, floor)).toBe(true);
+      const base = MONS.find((monster) => monster.baseKind === kind);
+      expect([base.levels[0].hp, base.levels[0].atk, base.levels[0].def, base.levels[0].exp])
+        .toEqual(stats);
+      expect(advancedMonsterSpawnLevel(base, floor)).toBe(2);
+    }
+
     for (const floor of [18, 19, 20]) {
       expect(advancedMonsterAllowed("hypnotist", floor)).toBe(true);
     }
