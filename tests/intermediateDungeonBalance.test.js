@@ -151,8 +151,23 @@ describe("中級ダンジョンの敵", () => {
     expect(intermediateMonsterKinds(6)).toContain("potionthrower");
     expect(intermediateMonsterKinds(7)).toContain("rakugakima");
     expect(intermediateMonsterKinds(8)).toContain("itemMimic");
+    expect(intermediateMonsterKinds(9)).toContain("thief");
+    expect(intermediateMonsterKinds(10)).toContain("rustbug");
     expect(intermediateMonsterKinds(15)).not.toContain("runner");
     expect(intermediateMonsterKinds(15)).not.toContain("thief");
+  });
+
+  it("15〜16階に集中していた竜系の能力敵を後半へずらす", () => {
+    expect(intermediateMonsterKinds(15)).toHaveLength(7);
+    expect(intermediateMonsterKinds(15)).not.toContain("lizardman");
+    expect(intermediateMonsterKinds(15)).not.toContain("dragonknight");
+    expect(intermediateMonsterKinds(16)).toHaveLength(8);
+    expect(intermediateMonsterKinds(16)).toContain("lizardman");
+    expect(intermediateMonsterKinds(16)).not.toContain("dragonknight");
+    expect(intermediateMonsterKinds(17)).toHaveLength(8);
+    expect(intermediateMonsterKinds(17)).toEqual(expect.arrayContaining(["lizardman", "dragonknight"]));
+    expect(intermediateMonsterKinds(18)).toHaveLength(8);
+    expect(intermediateMonsterKinds(19)).toHaveLength(8);
   });
 
   it("pickMonsterDef も同じ出現表に従う", () => {

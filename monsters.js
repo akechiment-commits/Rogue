@@ -819,7 +819,7 @@ export const MONS = [
       { name: "フェンリル",         hp: 68,  atk: 36, def: 10, exp: 100, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },
-  { name: "コソドロ",     hp: 16,  atk: 7,  def: 0,  exp: 35,  speed: 2,   tile: 170, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 12 }, advanced: { min: 7, max: 16 } },
+  { name: "コソドロ",     hp: 16,  atk: 7,  def: 0,  exp: 35,  speed: 2,   tile: 170, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 9, max: 12 }, advanced: { min: 7, max: 16 } },
     levels: [
       { name: "大盗賊",             hp: 27,  atk: 11, def: 2,  exp: 56  },
       { name: "怪盗",               hp: 43,  atk: 14, def: 3,  exp: 88  },
@@ -831,7 +831,7 @@ export const MONS = [
       { name: "覇レプラコーン",       hp: 52,  atk: 17, def: 5,  exp: 95  },
     ],
   },
-  { name: "錆虫",         hp: 24,  atk: 13, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 12 }, advanced: { min: 8, max: 17 } },
+  { name: "錆虫",         hp: 24,  atk: 13,  def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 12 }, advanced: { min: 8, max: 17 } },
     levels: [
       { name: "強錆虫",             hp: 39,  atk: 18, def: 5,  exp: 64,  dungeonFloors: { advanced: { min: 21, max: 23 } } },
       { name: "覇錆虫",             hp: 61,  atk: 25, def: 7,  exp: 100 },
@@ -1170,14 +1170,14 @@ export const MONS = [
       { name: "ものまね帝王",     hp: 88,  atk: 32, def: 14, exp: 175, dungeonFloors: { advanced: { min: 22, max: 30 } } },
     ],
   },
-  { name: "スネークマン", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 13, maxFloor: 17, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 16 }, advanced: { min: 13, max: 17 } },
+  { name: "スネークマン", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 13, maxFloor: 17, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 18 }, advanced: { min: 13, max: 17 } },
     desc: "水上・水中を移動する。プレイヤーを視界に捉えると25%でロックアーマーを使い、自分か隣接する敵の防御力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
     levels: [
       { name: "リザードマン", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: null, advanced: { min: 20, max: 24 } } },
       { name: "とかげせんし", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
     ],
   },
-  { name: "竜騎士", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 13, maxFloor: 17, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 16 }, advanced: { min: 13, max: 17 } },
+  { name: "竜騎士", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 13, maxFloor: 17, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 17, max: 19 }, advanced: { min: 13, max: 17 } },
     desc: "浮遊する竜騎士。プレイヤーを視界に捉えると25%でダイヤモンドウエポンを使い、自分か隣接する敵の攻撃力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん強くなる。強化解除の巻物や封印で解除される。",
     levels: [
       { name: "竜騎士04", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: null, advanced: { min: 20, max: 24 } } },
