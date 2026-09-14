@@ -813,7 +813,7 @@ export const MONS = [
       { name: "弓の達人",           hp: 74,  atk: 32, def: 12, exp: 85, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },
-  { name: "ウルフ",       hp: 27,  atk: 20, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null, intermediate: { min: 11, max: 12 }, advanced: { min: 7, max: 16 } },
+  { name: "ウルフ",       hp: 27,  atk: 20, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 7, max: 16 } },
     levels: [
       { name: "強ウルフ",           hp: 43,  atk: 28, def: 6,  exp: 64,  dungeonFloors: { advanced: { min: 19, max: 22 } } },
       { name: "フェンリル",         hp: 68,  atk: 36, def: 10, exp: 100, dungeonFloors: { advanced: { min: 24, max: 26 } } },
@@ -843,7 +843,7 @@ export const MONS = [
       { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
     ],
   },
-  { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", randomElementalWands: true, dungeonFloors: { intermediate: { min: 11, max: 12 }, advanced: { min: 9, max: 17 } },
+  { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", randomElementalWands: true, dungeonFloors: { intermediate: { min: 11, max: 13 }, advanced: { min: 9, max: 17 } },
     levels: [
       { name: "強ウィザード",       hp: 39,  atk: 24, def: 7,  exp: 67,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
       { name: "大魔導士",           hp: 61,  atk: 29, def: 12, exp: 105 },
@@ -876,14 +876,14 @@ export const MONS = [
       { name: "アイテムモドキ王", hp: 95,  atk: 39, def: 13, exp: 138, dungeonFloors: { advanced: { min: 26, max: 30 } } },
     ],
   },
-  { name: "拾い投げ",     hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 17 }, advanced: { min: 11, max: 25 } },
+  { name: "拾い投げ",     hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
     desc: "プレイヤーを認識すると、隣接していない間は床のアイテムを拾い、一直線上から投げつける。投げる前に倒せばアイテムを落とす。",
     levels: [
       { name: "強拾い投げ",   hp: 69,  atk: 29, def: 9,  exp: 100, dungeonFloors: { advanced: { min: 26, max: 30 } } },
       { name: "拾い投げ王",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
-  { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 15, max: 16 }, advanced: { min: 10, max: 19 } },
+  { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "強ボムスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
       { name: "覇ボムスライム",     hp: 95,  atk: 29, def: 5,  exp: 138 },
@@ -895,13 +895,13 @@ export const MONS = [
       { name: "頭の中にダイナマイト", hp: 75, atk: 24, def: 4,  exp: 150 },
     ],
   },
-  { name: "水晶スライム", hp: 5,   atk: 18, def: 0,  exp: 50,  speed: 1,   tile: 115, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true, dungeonFloors: { intermediate: { min: 16, max: 17 }, advanced: { min: 10, max: 19 } },
+  { name: "水晶スライム", hp: 5,   atk: 18, def: 0,  exp: 50,  speed: 1,   tile: 115, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true, dungeonFloors: { intermediate: { min: 16, max: 18 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "プラチナスライム",   hp: 8,   atk: 25, def: 0,  exp: 80  },
       { name: "ダマスカスライム",   hp: 11,  atk: 32, def: 0,  exp: 125 },
     ],
   },
-  { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 145, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 15, max: 16 }, advanced: { min: 10, max: 20 } },
+  { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 145, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 20 } },
     levels: [
       { name: "ファントム",         hp: 61,  atk: 25, def: 9,  exp: 72  },
       /* 長居罰の最上位壁抜け：高耐久・高火力・3倍速。壁・他敵を迂回して接近 */
@@ -911,13 +911,13 @@ export const MONS = [
   /* 長居ペナルティ専用：壁抜け・浮遊。等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
   { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
     desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
-  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, subtype: "powercharge", desc: "隣接時に力を溜めることがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 16 }, advanced: { min: 10, max: 19 } },
+  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, subtype: "powercharge", desc: "隣接時に力を溜めることがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "オーク将",           hp: 65,  atk: 31, def: 12, exp: 77,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
       { name: "オーク王",           hp: 101, atk: 40, def: 16, exp: 120, dungeonFloors: { advanced: { min: 25, max: 26 } } },
     ],
   },
-  { name: "ゼラチンキューブ", hp: 81, atk: 22, def: 5, exp: 70,  speed: 0.5, tile: 174, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire", dungeonFloors: { intermediate: { min: 17, max: 18 }, advanced: { min: 12, max: 22 } },
+  { name: "ゼラチンキューブ", hp: 81, atk: 22, def: 5, exp: 70,  speed: 0.5, tile: 174, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire", dungeonFloors: { intermediate: { min: 16, max: 18 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "大ゼラチンキューブ",   hp: 130, atk: 31, def: 9,  exp: 112, dungeonFloors: { advanced: { min: 25, max: 27 } } },
       { name: "暴食ゼラチンキューブ", hp: 203, atk: 40, def: 13, exp: 175, dungeonFloors: { advanced: { min: 28, max: 29 } } },
@@ -929,7 +929,7 @@ export const MONS = [
       { name: "覇岩砕き",           hp: 169, atk: 50, def: 16, exp: 163 },
     ],
   },
-  { name: "罠師",         hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", dungeonFloors: { intermediate: { min: 17, max: 18 }, advanced: { min: 12, max: 22 } },
+  { name: "罠師",         hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "罠の達人",           hp: 54,  atk: 25, def: 7,  exp: 77  },
       { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
@@ -941,7 +941,7 @@ export const MONS = [
       { name: "覇大蛇",             hp: 119, atk: 42, def: 13, exp: 130 },
     ],
   },
-  { name: "ゴールドタイガー", hp: 38,  atk: 20, def: 5,  exp: 55,  speed: 1,   tile: 149, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "trapthrower", dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 14, max: 24 } },
+  { name: "ゴールドタイガー", hp: 38,  atk: 20, def: 5,  exp: 55,  speed: 1,   tile: 149, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "trapthrower", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 24 } },
     levels: [
       { name: "ずっと見てタイガー", hp: 61,  atk: 28, def: 9,  exp: 88  },
       { name: "よく頑張っタイガー", hp: 95,  atk: 36, def: 13, exp: 138 },
@@ -965,7 +965,7 @@ export const MONS = [
       { name: "かいりきベア・イレブン", hp: 108, atk: 40, def: 14, exp: 155 },
     ],
   },
-  { name: "シャーマン",   hp: 41,  atk: 17, def: 5,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",        monLevel: 1, minFloor: 21, maxFloor: 50, subtype: "supporter", dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 14, max: 24 } },
+  { name: "シャーマン",   hp: 41,  atk: 17, def: 5,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",        monLevel: 1, minFloor: 21, maxFloor: 50, subtype: "supporter", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 24 } },
     levels: [
       { name: "強シャーマン",       hp: 65,  atk: 24, def: 9,  exp: 96  },
       { name: "大シャーマン",       hp: 101, atk: 29, def: 13, exp: 150 },
@@ -996,7 +996,7 @@ export const MONS = [
     ],
   },
   { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, float: true, flightOnly: true, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
-    dungeonFloors: { intermediate: { min: 20, max: 20 }, advanced: { min: 17, max: 27 } },
+    dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "飛翔土下座鈴木右衛門", hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
       { name: "焼き土下座鈴木右衛門", hp: 114, atk: 40, def: 15, exp: 210, dungeonFloors: { advanced: { min: 32, max: 36 } } },
@@ -1070,7 +1070,7 @@ export const MONS = [
       { name: "ディグダグダグダ", hp: 210, atk: 58, def: 21, exp: 260, minFloor: 41, maxFloor: 50, dungeonFloors: { advanced: null } },
     ],
   },
-  { name: "ハンマーオーガ", hp: 75, atk: 36, def: 9,  exp: 80,  speed: 1,   tile: 116, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 17, max: 18 }, advanced: { min: 12, max: 23 } },
+  { name: "ハンマーオーガ", hp: 75, atk: 36, def: 9,  exp: 80,  speed: 1,   tile: 116, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 23 } },
     levels: [
       { name: "ボンバーオーガ",     hp: 120, atk: 52, def: 13, exp: 128, dungeonFloors: { advanced: { min: 26, max: 28 } } },
       { name: "オーガキング",       hp: 188, atk: 67, def: 17, exp: 200 },
@@ -1107,7 +1107,7 @@ export const MONS = [
       { name: "ブルードラゴン 天界の七竜", hp: 168, atk: 58, def: 22, exp: 320 },
     ],
   },
-  { name: "わてり",       hp: 40,  atk: 19, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 16 }, advanced: { min: 12, max: 22 } },
+  { name: "わてり",       hp: 40,  atk: 19, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "わてに",             hp: 64,  atk: 29, def: 10, exp: 77  },
       { name: "わてさん",           hp: 100, atk: 38, def: 14, exp: 120 },
@@ -1119,13 +1119,13 @@ export const MONS = [
       { name: "水中巾着",   hp: 112, atk: 43, def: 14, exp: 155 },
     ],
   },
-  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 28 } },
+  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 28 } },
     levels: [
       { name: "大王ウナギ",       hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
       { name: "深海大王ウナギ",   hp: 207, atk: 54, def: 17, exp: 232, dungeonFloors: { advanced: { min: 37, max: 50 } } },
     ],
   },
-  { name: "うみのあくま", hp: 78,  atk: 18, def: 7,  exp: 105, speed: 1,   tile: 222, kind: "beast",    baseKind: "seaDevil",   monLevel: 1, minFloor: 29, maxFloor: 50, maxAttacks: 3, waterOnly: true, subtype: "seaDevil", desc: "水中にのみ出現・移動し、隣接時は1回の行動で3回攻撃する。", dungeonFloors: { beginner: null, intermediate: { min: 20, max: 20 }, advanced: { min: 25, max: 34 } },
+  { name: "うみのあくま", hp: 78,  atk: 18, def: 7,  exp: 105, speed: 1,   tile: 222, kind: "beast",    baseKind: "seaDevil",   monLevel: 1, minFloor: 29, maxFloor: 50, maxAttacks: 3, waterOnly: true, subtype: "seaDevil", desc: "水中にのみ出現・移動し、隣接時は1回の行動で3回攻撃する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 25, max: 34 } },
     levels: [
       { name: "ゲルショッカー", hp: 126, atk: 27, def: 11, exp: 175, dungeonFloors: { advanced: { min: 35, max: 42 } } },
       { name: "アンキケン",     hp: 201, atk: 39, def: 16, exp: 270, dungeonFloors: { advanced: { min: 43, max: 50 } } },

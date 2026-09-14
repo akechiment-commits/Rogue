@@ -41,6 +41,22 @@ function intermediateMonsterKinds(floor) {
   }).map((m) => m.baseKind);
 }
 
+function intermediateMonsterFloors(baseKind) {
+  const monster = MONS.find((m) => m.baseKind === baseKind);
+  const floors = new Set();
+  const add = (entry) => {
+    const df = entry.dungeonFloors?.intermediate;
+    if (df === null) return;
+    const minF = df?.min ?? entry.minFloor;
+    const maxF = df?.max ?? entry.maxFloor;
+    if (minF === undefined || maxF === undefined) return;
+    for (let floor = Math.max(1, minF); floor <= Math.min(20, maxF); floor++) floors.add(floor);
+  };
+  add(monster);
+  for (const level of monster?.levels ?? []) add(level);
+  return [...floors];
+}
+
 describe("中級ダンジョンの出現制限", () => {
   it("地雷・時限爆弾・未識別など上級向け罠は出さない", () => {
     for (const effect of INTERMEDIATE_TRAP_BAN) {
@@ -137,7 +153,7 @@ describe("中級ダンジョンの敵", () => {
     const f20 = intermediateMonsterKinds(20);
     for (let floor = 1; floor <= 20; floor++) {
       const kinds = intermediateMonsterKinds(floor);
-      expect(kinds.length).toBeLessThanOrEqual(9);
+      expect(kinds.length).toBeLessThanOrEqual(14);
       for (const banned of INTERMEDIATE_MONSTER_BAN) {
         expect(kinds).not.toContain(banned);
       }
@@ -158,16 +174,25 @@ describe("中級ダンジョンの敵", () => {
   });
 
   it("15〜16階に集中していた竜系の能力敵を後半へずらす", () => {
-    expect(intermediateMonsterKinds(15)).toHaveLength(7);
+    expect(intermediateMonsterKinds(15)).toHaveLength(8);
     expect(intermediateMonsterKinds(15)).not.toContain("lizardman");
     expect(intermediateMonsterKinds(15)).not.toContain("dragonknight");
-    expect(intermediateMonsterKinds(16)).toHaveLength(8);
+    expect(intermediateMonsterKinds(16)).toHaveLength(9);
     expect(intermediateMonsterKinds(16)).toContain("lizardman");
     expect(intermediateMonsterKinds(16)).not.toContain("dragonknight");
-    expect(intermediateMonsterKinds(17)).toHaveLength(8);
+    expect(intermediateMonsterKinds(17)).toHaveLength(10);
     expect(intermediateMonsterKinds(17)).toEqual(expect.arrayContaining(["lizardman", "dragonknight"]));
-    expect(intermediateMonsterKinds(18)).toHaveLength(8);
-    expect(intermediateMonsterKinds(19)).toHaveLength(8);
+    expect(intermediateMonsterKinds(18)).toHaveLength(14);
+    expect(intermediateMonsterKinds(19)).toHaveLength(12);
+  });
+
+  it("中級の出現対象はすべて最低3階に出る", () => {
+    for (const monster of MONS) {
+      if (monster.penaltyOnly) continue;
+      if (monster.dungeons && !monster.dungeons.includes("intermediate")) continue;
+      const floors = intermediateMonsterFloors(monster.baseKind);
+      if (floors.length > 0) expect(floors.length).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it("pickMonsterDef も同じ出現表に従う", () => {
