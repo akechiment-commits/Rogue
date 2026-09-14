@@ -83,4 +83,20 @@ describe("単部屋フロアの自然発生", () => {
     dungeon.visible[10][22] = true;
     expect(keepMonsterSpawnSightCells(dungeon, cells, player)).toEqual([[18, 10], [22, 10]]);
   });
+
+  it("8マス以上が無い単部屋は一番遠いマスへ湧く", () => {
+    const dungeon = {
+      isBigRoom: true,
+      floorType: "miniRoom",
+      rooms: [{ x: 8, y: 8, w: 5, h: 4 }],
+      visible: visibleGrid(60, 30, true),
+    };
+    const cells = [
+      [9, 9],
+      [8, 8],
+      [12, 11],
+      [8, 11],
+    ];
+    expect(keepMonsterSpawnSightCells(dungeon, cells, player)).toEqual([[8, 8]]);
+  });
 });

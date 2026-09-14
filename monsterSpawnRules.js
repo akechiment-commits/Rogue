@@ -44,8 +44,28 @@ export function isMonsterSpawnCellAllowed(dungeon, x, y) {
   ));
 }
 
+function manhattanDist(x, y, player) {
+  return Math.abs(x - player.x) + Math.abs(y - player.y);
+}
+
 function isFarEnoughForSameRoomSpawn(x, y, player) {
-  return Math.abs(x - player.x) + Math.abs(y - player.y) >= SAME_ROOM_SPAWN_MIN_DIST;
+  return manhattanDist(x, y, player) >= SAME_ROOM_SPAWN_MIN_DIST;
+}
+
+function farthestSpawnCells(cells, player) {
+  let maxDist = -1;
+  const farthest = [];
+  for (const cell of cells) {
+    const dist = manhattanDist(cell[0], cell[1], player);
+    if (dist > maxDist) {
+      maxDist = dist;
+      farthest.length = 0;
+      farthest.push(cell);
+    } else if (dist === maxDist) {
+      farthest.push(cell);
+    }
+  }
+  return farthest;
 }
 
 /**
@@ -66,7 +86,10 @@ export function keepMonsterSpawnSightCells(dungeon, cells, player) {
   if (allowsSameRoomNaturalSpawn(dungeon)) {
     const far = cells.filter(([x, y]) => isFarEnoughForSameRoomSpawn(x, y, player));
     const unseen = far.filter(([x, y]) => !dungeon.visible?.[y]?.[x]);
-    return unseen.length > 0 ? unseen : far;
+    if (unseen.length > 0) return unseen;
+    if (far.length > 0) return far;
+    /* ミニルームなど8マス以上が取れないときは、一番遠いマスへ湧かせる。 */
+    return farthestSpawnCells(cells, player);
   }
   return cells.filter(([x, y]) => !dungeon.visible?.[y]?.[x]);
 }
