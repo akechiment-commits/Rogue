@@ -68,7 +68,7 @@ describe("中級ダンジョンの出現制限", () => {
     expect(floor1).not.toContain("nitro");
   });
 
-  it("道具は初級より広く、Sと願い・ドーピングなどは出さない", () => {
+  it("道具は初級より広く、浅い階でもB/Aは出る。Sと願い・ドーピングなどは出さない", () => {
     const identify = ITEMS.find((i) => i.effect === "identify");
     const fireBook = SPELLBOOKS.find((s) => s.spell === "fire_bolt");
     const thunderPen = ITEMS.find((i) => i.effect === "thunder_trap" && i.type === "pen");
@@ -81,14 +81,11 @@ describe("中級ダンジョンの出現制限", () => {
     expect(lootAllowedInDungeon(identify, "intermediate", 1)).toBe(true);
     expect(lootAllowedInDungeon(fireBook, "intermediate", 1)).toBe(true);
     expect(lootAllowedInDungeon(thunderPen, "intermediate", 1)).toBe(true);
-    expect(lootAllowedInDungeon(MAGIC_MARKER, "intermediate", 10)).toBe(false);
-    expect(lootAllowedInDungeon(MAGIC_MARKER, "intermediate", 11)).toBe(true);
-    expect(lootAllowedInDungeon(plate, "intermediate", 10)).toBe(false);
-    expect(lootAllowedInDungeon(plate, "intermediate", 11)).toBe(true);
-    expect(lootAllowedInDungeon(bombArrow, "intermediate", 10)).toBe(false);
-    expect(lootAllowedInDungeon(bombArrow, "intermediate", 11)).toBe(true);
-    expect(lootAllowedInDungeon(asa, "intermediate", 14)).toBe(false);
-    expect(lootAllowedInDungeon(asa, "intermediate", 15)).toBe(true);
+    expect(lootAllowedInDungeon(MAGIC_MARKER, "intermediate", 1)).toBe(true);
+    expect(lootAllowedInDungeon(plate, "intermediate", 1)).toBe(true);
+    expect(lootAllowedInDungeon(bombArrow, "intermediate", 1)).toBe(true);
+    expect(lootAllowedInDungeon(asa, "intermediate", 1)).toBe(true);
+    expect(lootAllowedInDungeon(doping, "intermediate", 1)).toBe(false);
     expect(lootAllowedInDungeon(doping, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(wish, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(timeStop, "intermediate", 20)).toBe(false);

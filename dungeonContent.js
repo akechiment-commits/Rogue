@@ -137,7 +137,7 @@ export function bbAllowedInDungeon(box, dungeonType, _floor) {
 /**
  * 初心者：白リスト＋通常の武器防具（能力付き含む）。A/Sは出さない。
  * 1〜5階は E/D、6階から C/B。つるはしと穴掘りの杖は1階から。
- * 中級：Sと一部の上級道具は出さない。1〜10階は Cまで、11階から B、15階から A。
+ * 中級：Sと一部の上級道具はそもそも出さない。出るものは階でレア度を分けず weight 抽選。
  */
 export function lootAllowedInDungeon(item, dungeonType, floor) {
   if (!item) return false;
@@ -155,11 +155,7 @@ export function lootAllowedInDungeon(item, dungeonType, floor) {
     if (item.type === "gold_nugget") return false;
     const id = beginnerLootId(item);
     if (INTERMEDIATE_LOOT_BAN.has(id)) return false;
-    const rank = rarityRank(item.rarity);
-    if (rank >= 5) return false;
-    if (rank >= 4 && floor < 15) return false;
-    if (rank >= 3 && floor < 11) return false;
-    return true;
+    return rarityRank(item.rarity) < 5;
   }
   return true;
 }
