@@ -114,6 +114,32 @@ describe("genDungeon", () => {
     expect(layouts.size).toBeGreaterThan(1);
   });
 
+  it("クラーケンの水場は上りから下りへ床で迂回できる", () => {
+    const dry = (tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD;
+    for (let i = 0; i < 18; i++) {
+      const dg = genDungeon(14, "intermediate");
+      expect(dg.floorType).toBe("bossFloor");
+      expect(dg.monsters.some((m) => m.baseKind === "im_boss_kraken")).toBe(true);
+      expect(dg.map.some((row) => row.includes(T.WATER))).toBe(true);
+      const su = dg.stairUp, sd = dg.stairDown;
+      const seen = new Set([`${su.x},${su.y}`]);
+      const q = [{ x: su.x, y: su.y }];
+      let reached = false;
+      while (q.length) {
+        const cur = q.shift();
+        if (cur.x === sd.x && cur.y === sd.y) { reached = true; break; }
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cur.x + dx, ny = cur.y + dy;
+          const key = `${nx},${ny}`;
+          if (seen.has(key) || !dry(dg.map[ny]?.[nx])) continue;
+          seen.add(key);
+          q.push({ x: nx, y: ny });
+        }
+      }
+      expect(reached).toBe(true);
+    }
+  });
+
   it("アイテムモドキを除外した敵抽選では選ばれない", () => {
     for (let i = 0; i < 40; i++) {
       const { base } = pickMonsterDef(10, "intermediate", false, { excludeItemMimic: true });

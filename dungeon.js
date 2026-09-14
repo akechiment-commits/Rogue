@@ -1909,6 +1909,66 @@ function carveBossLayout(map, layout) {
 
 const BOSS_LAYOUTS = ["arena_ns", "arena_ew", "big_open", "L_shape", "two_stage", "T_wide"];
 
+function isBossDryWalk(tile) {
+  return tile === T.FLOOR || tile === T.SU || tile === T.SD;
+}
+
+function bossDryPathExists(map, su, sd) {
+  if (!isBossDryWalk(map[su.y]?.[su.x]) || !isBossDryWalk(map[sd.y]?.[sd.x])) return false;
+  const seen = new Set([`${su.x},${su.y}`]);
+  const q = [{ x: su.x, y: su.y }];
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  while (q.length) {
+    const cur = q.shift();
+    if (cur.x === sd.x && cur.y === sd.y) return true;
+    for (const [dx, dy] of dirs) {
+      const nx = cur.x + dx, ny = cur.y + dy;
+      const key = `${nx},${ny}`;
+      if (seen.has(key) || !isBossDryWalk(map[ny]?.[nx])) continue;
+      seen.add(key);
+      q.push({ x: nx, y: ny });
+    }
+  }
+  return false;
+}
+
+function paintBossWaterRect(map, x, y, w, h, su, sd) {
+  const painted = [];
+  for (let yy = y; yy < y + h; yy++) {
+    for (let xx = x; xx < x + w; xx++) {
+      if ((xx === su.x && yy === su.y) || (xx === sd.x && yy === sd.y)) continue;
+      if (map[yy]?.[xx] !== T.FLOOR) continue;
+      map[yy][xx] = T.WATER;
+      painted.push([xx, yy]);
+    }
+  }
+  if (painted.length && bossDryPathExists(map, su, sd)) return painted.length;
+  for (const [px, py] of painted) map[py][px] = T.FLOOR;
+  return 0;
+}
+
+/** クラーケン用の水場。部屋の外周は床のまま残し、上りから下りへ水を踏まずに迂回できる位置に置く。 */
+function carveKrakenWater(map, main, su, sd) {
+  const margin = 2;
+  const innerX = main.x + margin;
+  const innerY = main.y + margin;
+  const innerW = main.w - margin * 2;
+  const innerH = main.h - margin * 2;
+  if (innerW < 6 || innerH < 4) return;
+  const sizes = [[11, 5], [9, 5], [7, 4], [7, 3], [5, 3]];
+  const shifts = [[0, 0], [0, -2], [0, 2], [-3, 0], [3, 0], [-2, -2], [2, 2]];
+  for (const [wW, wH] of sizes) {
+    if (wW > innerW - 2 || wH > innerH - 2) continue;
+    for (const [sx, sy] of shifts) {
+      let wX = main.cx - Math.floor(wW / 2) + sx;
+      let wY = main.cy - Math.floor(wH / 2) + sy;
+      wX = clamp(wX, innerX, innerX + innerW - wW);
+      wY = clamp(wY, innerY, innerY + innerH - wH);
+      if (paintBossWaterRect(map, wX, wY, wW, wH, su, sd)) return;
+    }
+  }
+}
+
 /* ===== ボスフロア生成 ===== */
 function genBossFloor(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
@@ -1936,14 +1996,9 @@ function genBossFloor(depth, dungeonType = null) {
     }
   }
 
-  /* クラーケン専用：ボス部屋中央に11×5の水地形を生成 */
+  /* クラーケン専用：迂回できる位置に水場を置く */
   if (bt.baseKind === "im_boss_kraken") {
-    const _wW = 11, _wH = 5;
-    const _wX = bossX - Math.floor(_wW / 2);
-    const _wY = bossY - Math.floor(_wH / 2);
-    for (let _wy = _wY; _wy < _wY + _wH; _wy++)
-      for (let _wx = _wX; _wx < _wX + _wW; _wx++)
-        if (map[_wy]?.[_wx] === T.FLOOR) map[_wy][_wx] = T.WATER;
+    carveKrakenWater(map, main, { x: suX, y: suY }, { x: sdX, y: sdY });
   }
 
   const boss = {
