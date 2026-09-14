@@ -477,8 +477,10 @@ function genHiddenRooms(map, depth) {
 
 /* ── 隠し部屋・浮島用：B/A/Sレアリティ限定アイテム生成 ── */
 function pickRareItem(depth, dungeonType = null) {
-  /* 初心者の隠し部屋は6階帯の品（C/B）まで。A/Sは出さない。 */
-  const floor = dungeonType === "beginner" ? Math.max(6, depth + 1) : depth + 1;
+  /* 初心者の隠し部屋は6階帯の品（C/B）まで。中級は11階帯からBも出す。 */
+  const floor = dungeonType === "beginner" ? Math.max(6, depth + 1)
+    : dungeonType === "intermediate" ? Math.max(11, depth + 1)
+    : depth + 1;
   const filterPool = (pool) => lootPoolForDungeon(pool, dungeonType, floor);
   const _rPool = filterPool(
     ITEMS.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
@@ -653,7 +655,9 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
   /* 収納上手の巻物（30%で追加配置） */
   if (Math.random() < 0.30) {
     const _expSc = ITEMS.find(i => i.effect === "expand_inv");
-    const _expFloor = dungeonType === "beginner" ? Math.max(6, depth + 1) : depth + 1;
+    const _expFloor = dungeonType === "beginner" ? Math.max(6, depth + 1)
+      : dungeonType === "intermediate" ? Math.max(11, depth + 1)
+      : depth + 1;
     if (_expSc && lootAllowedInDungeon(_expSc, dungeonType, _expFloor)) {
       for (let a = 0; a < 40; a++) {
         const [ix, iy] = pick(floorTiles);

@@ -146,8 +146,8 @@ describe("初心者ダンジョンの出現制限", () => {
     }
   });
 
-  it("他ダンジョンは制限しない", () => {
-    expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "intermediate", 1)).toBe(true);
+  it("上級・伝説は制限しない", () => {
+    expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "advanced", 1)).toBe(true);
     expect(bbAllowedInDungeon(BB_TYPES.find((b) => b.kind === "nitro"), "advanced", 1)).toBe(true);
     expect(lootAllowedInDungeon(ITEMS.find((i) => i.effect === "doping"), "legend", 1)).toBe(true);
   });

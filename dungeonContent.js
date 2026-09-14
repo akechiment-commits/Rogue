@@ -79,45 +79,99 @@ function beginnerLootId(item) {
   return id ? `${item.type}:${id}` : `${item.type}:${item.name}`;
 }
 
+/** 中級で出さない罠（階層下げ・罠増殖）。地雷・未識別などは11階から。 */
+const INTERMEDIATE_TRAP_BAN = new Set([
+  "level_down_trap",
+  "trap_trap",
+]);
+
+const INTERMEDIATE_TRAP_LATE = new Set([
+  "explode",
+  "time_bomb",
+  "unident_trap",
+  "multiply_trap",
+  "item_monster_trap",
+]);
+
+/** 中級で出さない大箱（アイテム破壊・爆発）。鑑定・換金・魔物は出す。 */
+const INTERMEDIATE_BB_BAN = new Set([
+  "trash",
+  "nitro",
+]);
+
+/** 中級で出さない道具（願い・ドーピングなど上級向け）。 */
+const INTERMEDIATE_LOOT_BAN = new Set([
+  "potion:doping",
+  "potion:levelup",
+  "scroll:duplicate",
+  "wand:wish",
+  "pot:wish_pot",
+  "spellbook:gedo_book",
+  "spellbook:time_stop_magic",
+  "spellbook:clone_magic",
+  "spellbook:earthquake_magic",
+]);
+
 export function trapAllowedInDungeon(trap, dungeonType, floor) {
   if (!trap) return false;
-  if (dungeonType !== "beginner") return true;
-  if (BEGINNER_TRAP_BAN.has(trap.effect)) return false;
-  if (floor < 6) return BEGINNER_TRAP_EARLY.has(trap.effect);
+  if (dungeonType === "beginner") {
+    if (BEGINNER_TRAP_BAN.has(trap.effect)) return false;
+    if (floor < 6) return BEGINNER_TRAP_EARLY.has(trap.effect);
+    return true;
+  }
+  if (dungeonType === "intermediate") {
+    if (INTERMEDIATE_TRAP_BAN.has(trap.effect)) return false;
+    if (floor < 11) return !INTERMEDIATE_TRAP_LATE.has(trap.effect);
+    return true;
+  }
   return true;
 }
 
 export function bbAllowedInDungeon(box, dungeonType, _floor) {
   if (!box) return false;
-  if (dungeonType !== "beginner") return true;
-  return !BEGINNER_BB_BAN.has(box.kind);
+  if (dungeonType === "beginner") return !BEGINNER_BB_BAN.has(box.kind);
+  if (dungeonType === "intermediate") return !INTERMEDIATE_BB_BAN.has(box.kind);
+  return true;
 }
 
 /**
  * 初心者：白リスト＋通常の武器防具（能力付き含む）。A/Sは出さない。
  * 1〜5階は E/D、6階から C/B。つるはしと穴掘りの杖は1階から。
+ * 中級：Sと一部の上級道具は出さない。1〜10階は Cまで、11階から B、15階から A。
  */
 export function lootAllowedInDungeon(item, dungeonType, floor) {
   if (!item) return false;
-  if (dungeonType !== "beginner") return true;
   if (item.type === "gold" || item.type === "food") return true;
-  const id = beginnerLootId(item);
-  const isGear = item.type === "weapon" || item.type === "armor";
-  if (!isGear && !BEGINNER_LOOT_ALLOW.has(id)) return false;
-  const rank = rarityRank(item.rarity);
-  if (rank >= 4) return false;
-  if (floor < 6 && rank >= 2 && !BEGINNER_LOOT_ANY_FLOOR.has(id)) return false;
+  if (dungeonType === "beginner") {
+    const id = beginnerLootId(item);
+    const isGear = item.type === "weapon" || item.type === "armor";
+    if (!isGear && !BEGINNER_LOOT_ALLOW.has(id)) return false;
+    const rank = rarityRank(item.rarity);
+    if (rank >= 4) return false;
+    if (floor < 6 && rank >= 2 && !BEGINNER_LOOT_ANY_FLOOR.has(id)) return false;
+    return true;
+  }
+  if (dungeonType === "intermediate") {
+    if (item.type === "gold_nugget") return false;
+    const id = beginnerLootId(item);
+    if (INTERMEDIATE_LOOT_BAN.has(id)) return false;
+    const rank = rarityRank(item.rarity);
+    if (rank >= 5) return false;
+    if (rank >= 4 && floor < 15) return false;
+    if (rank >= 3 && floor < 11) return false;
+    return true;
+  }
   return true;
 }
 
 export function trapPoolForDungeon(dungeonType, floor, pool = TRAPS) {
   const filtered = pool.filter((t) => trapAllowedInDungeon(t, dungeonType, floor));
-  return filtered.length ? filtered : pool.filter((t) => !BEGINNER_TRAP_BAN.has(t.effect));
+  return filtered.length ? filtered : pool.filter((t) => trapAllowedInDungeon(t, dungeonType, 99));
 }
 
 export function bbPoolForDungeon(dungeonType, floor, pool = BB_TYPES) {
   const filtered = pool.filter((b) => bbAllowedInDungeon(b, dungeonType, floor));
-  return filtered.length ? filtered : pool.filter((b) => !BEGINNER_BB_BAN.has(b.kind));
+  return filtered.length ? filtered : pool.filter((b) => bbAllowedInDungeon(b, dungeonType, 99));
 }
 
 export function lootPoolForDungeon(pool, dungeonType, floor) {
