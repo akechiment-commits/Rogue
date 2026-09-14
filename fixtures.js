@@ -386,8 +386,8 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     statues.push(makeStatue(p[0], p[1]));
   }
 
-  /* 祭壇 0〜1（約5%）。食料を捧げると別の道具を返す。 */
-  const altarN = Math.random() < altarRate ? 1 : 0;
+  /* 祭壇 0〜1（約5%。初心者には出さない） */
+  const altarN = dungeonType === "beginner" ? 0 : Math.random() < altarRate ? 1 : 0;
   for (let i = 0; i < altarN; i++) {
     const p = rndFloor();
     if (!p) break;

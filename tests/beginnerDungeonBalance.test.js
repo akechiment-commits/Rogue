@@ -8,7 +8,8 @@ import {
 } from "../dungeonContent.js";
 import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
-import { genDungeon } from "../dungeon.js";
+import { genDungeon, populateHiddenRoom } from "../dungeon.js";
+import { T, MW, MH } from "../utils.js";
 
 const BEGINNER_TRAP_BAN = [
   "explode", "time_bomb", "unident_trap", "multiply_trap",
@@ -122,11 +123,26 @@ describe("初心者ダンジョンの出現制限", () => {
     }
   });
 
-  it("初心者に石像と風穴を出さない", () => {
+  it("初心者に石像・風穴・祭壇を出さない", () => {
     for (let depth = 0; depth < 10; depth++) {
       const dg = genDungeon(depth, "beginner");
       expect(dg.statues || []).toEqual([]);
       expect(dg.vents || []).toEqual([]);
+      expect(dg.altars || []).toEqual([]);
+    }
+  });
+
+  it("初心者の隠し部屋からもペンと魔法書は出ない", () => {
+    const pen = ITEMS.find((i) => i.type === "pen");
+    expect(lootAllowedInDungeon(pen, "beginner", 10)).toBe(false);
+    const hr = { x: 2, y: 2, w: 6, h: 6 };
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+    for (let dy = 0; dy < hr.h; dy++)
+      for (let dx = 0; dx < hr.w; dx++) map[hr.y + dy][hr.x + dx] = T.FLOOR;
+    for (let i = 0; i < 20; i++) {
+      const items = [];
+      populateHiddenRoom(hr, map, 5, items, [], [], [], "beginner");
+      expect(items.some((it) => it.type === "pen" || it.type === "spellbook" || it.type === "marker")).toBe(false);
     }
   });
 

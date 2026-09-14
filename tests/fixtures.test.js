@@ -52,14 +52,15 @@ describe("偽階段", () => {
     expect(sawOverlap).toBe(false);
   });
 
-  it("初心者ダンジョンには風穴と石像を置かない", () => {
+  it("初心者ダンジョンには風穴と石像と祭壇を置かない", () => {
     const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
     const rooms = [{ x: 1, y: 1, w: 8, h: 8 }];
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
-      const g = scatterFloorGimmicks(map, rooms, 3, { dungeonType: "beginner" });
+      const g = scatterFloorGimmicks(map, rooms, 3, { dungeonType: "beginner", altarRate: 1 });
       expect(g.vents).toEqual([]);
       expect(g.statues).toEqual([]);
+      expect(g.altars).toEqual([]);
     } finally {
       randomSpy.mockRestore();
     }
