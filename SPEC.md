@@ -1,7 +1,7 @@
 # ローグゲーム 仕様書
 
 > このファイルはゲームの仕様・実装の概要メモ。  
-> アイテム詳細は `items.js`、敵詳細は `monsters.js`、罠詳細は `traps.js` を参照。  
+> アイテム詳細は `items.js`、敵詳細は `monsters.js`、罠・大箱の定義は `dungeonCatalog.js` を参照。  
 > 新しいコンテンツを追加するときは `CONTENT_ADD_GUIDE.md` と各カテゴリ別マニュアルを先に参照する。
 > 開発ルールは `CLAUDE.md` を参照。
 
@@ -160,7 +160,7 @@ React + Vite 製のローグライク。
 - **敵**: 近接だけで押し切れる構成にしない。足払い鬼（5〜8）、薬師・ラクガキ魔（6〜9）、からめ鬼・ゾンビ（7〜10）を能力持ちとして出す。コソドロ・錆虫・アイテムモドキ・突進角獣は出さない。ステータスは仮で、浅い階に出すために下げる。
 - **床ギミック**: 石像・風穴・祭壇は出さない。ガチャマシーンは低確率で置く。
 
-実装は `trapAllowedInDungeon` / `bbAllowedInDungeon` / `lootAllowedInDungeon` と、敵の `dungeonFloors.beginner`。中級以上は従来どおり（制限なし）。
+実装は `trapAllowedInDungeon` / `bbAllowedInDungeon` / `lootAllowedInDungeon` と、敵の `dungeonFloors.beginner` / `dungeonFloors.intermediate`。中級は上級専用の道具・罠・大箱を除外するが、許可された道具は階によるレア度制限を受けない。上級・伝説は従来どおり制限なし。
 
 #### 初遭遇ミニ解説
 
@@ -552,6 +552,7 @@ B3Fの部屋間廊下には未発見の矢の罠を固定配置し、直前の�
 | `useGameRenderer.js` | キャンバス描画ループ |
 | `render.js` | `drawTile()`・スタイル1描画定義・`customTileImages` |
 | `dungeon.js` | ダンジョン生成ロジック |
+| `dungeonCatalog.js` | 罠・大箱の定義データ（循環依存を避ける共有カタログ） |
 | `dungeonContent.js` | ダンジョン種別ごとの罠・大箱・アイテム出現制限（初心者は1〜5階と6階〜の2段階） |
 | `items.js` | 全アイテム定義・識別・フェイク名テーブル |
 | `springRules.js` | 泉の混乱ターン数と泉から出る金貨範囲 |
