@@ -51,6 +51,12 @@ function pickTrapFor(depth, dungeonType) {
   return pickTrap(trapPoolForDungeon(dungeonType, depth + 1));
 }
 
+function lootOrFood(pool, extra = {}) {
+  const t = pickLootFromPool(pool);
+  if (!t) return { ...genFood(), id: uid() };
+  return { ...t, id: uid(), ...extra };
+}
+
 function pickBB(exclude = [], dungeonType = null, depth = 0) {
   let pool = bbPoolForDungeon(dungeonType, depth + 1);
   if (exclude.length) pool = pool.filter((b) => !exclude.includes(b.kind));
@@ -551,16 +557,32 @@ function buildUniPool(depth, dungeonType) {
   const _pens = lootPoolForDungeon(ITEMS.filter((i) => i.type === "pen"), dungeonType, floor);
   const gens = [
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
-    { w: 10, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickLootFromPool(wandPool.length ? wandPool : WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
-    { w:  6, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
-    { w:  5, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
+    { w: 10, fn: () => lootOrFood(iPool.filter(i => i.type === "potion")) },
+    { w:  8, fn: () => lootOrFood(iPool.filter(i => i.type === "scroll")) },
+    { w:  8, fn: () => {
+      const t = pickLootFromPool(wandPool);
+      if (!t) return { ...genFood(), id: uid() };
+      return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) };
+    } },
+    { w:  6, fn: () => lootOrFood(iPool.filter(i => i.type === "weapon")) },
+    { w:  5, fn: () => lootOrFood(iPool.filter(i => i.type === "armor")) },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
     { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
-    { w:  4, fn: () => { const t = pickLootFromPool(sbPool.length ? sbPool : SPELLBOOKS); return { ...t, id: uid() }; } },
-    { w:  4, fn: () => { const t = pickLootFromPool(potPool.length ? potPool : POTS); const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) }; if (t.potEffect === "imprison") pot.confinedMonsters = []; return pot; } },
-    { w:  2, fn: () => { const t = pickLootFromPool(ringPool.length ? ringPool : RINGS); const ring = { ...t, id: uid() }; applyGeneratedRingPlus(ring); return ring; } },
+    { w:  4, fn: () => lootOrFood(sbPool) },
+    { w:  4, fn: () => {
+      const t = pickLootFromPool(potPool);
+      if (!t) return { ...genFood(), id: uid() };
+      const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
+      if (t.potEffect === "imprison") pot.confinedMonsters = [];
+      return pot;
+    } },
+    { w:  2, fn: () => {
+      const t = pickLootFromPool(ringPool);
+      if (!t) return { ...genFood(), id: uid() };
+      const ring = { ...t, id: uid() };
+      applyGeneratedRingPlus(ring);
+      return ring;
+    } },
     { w:  2, fn: () => { if (!_pens.length) return { ...genFood(), id: uid() }; const t = pick(_pens); return { ...t, id: uid(), charges: penInitialCharges(t) }; } },
     { w:  1, fn: () => (lootAllowedInDungeon(MAGIC_MARKER, dungeonType, floor) ? { ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) } : { ...genFood(), id: uid() }) },
   ];
@@ -914,7 +936,7 @@ function applyNormalLayoutVariant(map, rooms, pairs, layout) {
 }
 
 /* 部屋をショップにセットアップし、shopDataを返す */
-function setupShopRoom(room, map, depth, items, mons) {
+function setupShopRoom(room, map, depth, items, mons, dungeonType = null) {
   const shopId = uid();
   let entrance = null;
   for (let xi = room.x - 1; xi <= room.x + room.w && !entrance; xi++) {
@@ -966,6 +988,8 @@ function setupShopRoom(room, map, depth, items, mons) {
   const _rareGemCands = gemCands.filter(g => g.rarity !== "E" && g.rarity !== "D");
   /* 食料候補：ランダムに5〜8種生成して候補に加える */
   const _foodCands = Array.from({ length: rng(5, 8) }, () => genFood());
+  const shopFloor = depth + 1;
+  const shopOk = (it) => it && (it.type === "gem" || it.type === "food" || lootAllowedInDungeon(it, dungeonType, shopFloor));
   /* 専門店の抽選（30%） */
   const _wandsCands = (pool) => pool.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand" || w.effect === "wish" || w.noChargeBoost) ? 1 : Math.max(1, w.charges + rng(-1, 1)) }));
   const _specialtyOptions = [
@@ -982,12 +1006,13 @@ function setupShopRoom(room, map, depth, items, mons) {
     { type: "gem",       name: "宝石店",   cands: () => GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 })), luxury: () => [] },
   ];
   let specialtyType = null, specialtyName = null, cands, luxuryPool;
-  if (Math.random() < 0.30) {
-    const _sp = pick(_specialtyOptions);
+  const viableSpecialties = _specialtyOptions.filter((opt) => opt.cands().some(shopOk));
+  if (viableSpecialties.length && Math.random() < 0.30) {
+    const _sp = pick(viableSpecialties);
     specialtyType = _sp.type;
     specialtyName = _sp.name;
-    cands = _sp.cands();
-    luxuryPool = _sp.luxury();
+    cands = _sp.cands().filter(shopOk);
+    luxuryPool = _sp.luxury().filter(shopOk);
   } else {
     cands = [
       ...ITEMS.filter(i => i.type !== 'gold'),
@@ -997,14 +1022,14 @@ function setupShopRoom(room, map, depth, items, mons) {
       ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
       ..._foodCands,
       ..._standardGemCands, ..._standardGemCands, ..._rareGemCands,
-    ];
+    ].filter(shopOk);
     luxuryPool = [
       ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'B' || i.rarity === 'A' || i.rarity === 'S')),
       ..._wandsCands(WANDS.filter(w => w.rarity === 'B' || w.rarity === 'A' || w.rarity === 'S')),
       ...POTS.filter(p => p.rarity === 'B' || p.rarity === 'A' || p.rarity === 'S'),
       ...RINGS.filter(r => r.rarity === 'B' || r.rarity === 'A' || r.rarity === 'S'),
       ...SPELLBOOKS.filter(sb => sb.rarity === 'B' || sb.rarity === 'A' || sb.rarity === 'S'),
-    ];
+    ].filter(shopOk);
   }
   const makeShopItem = (base, x, y) => {
     const sit = { ...base, id: uid(), x, y };
@@ -1047,7 +1072,7 @@ function setupShopRoom(room, map, depth, items, mons) {
   /* 残りスロットに通常商品を配置（グリッド内のみ） */
   const _lootContext = specialtyType === "gem" ? "shop_gem" : "shop";
   for (const slot of gridSlots) {
-    items.push(makeShopItem(pickLootFromPool(cands, _lootContext) || pick(cands), slot.x, slot.y));
+    items.push(makeShopItem(pickLootFromPool(cands, _lootContext) || pick(cands) || genFood(), slot.x, slot.y));
   }
   const sk = {
     id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 100, exp: 0,
@@ -1192,7 +1217,7 @@ function genShoppingMall(depth, dungeonType = null, _retries = 0) {
   /* 各部屋をショップにセットアップ */
   const allShops = [];
   for (const room of validRooms) {
-    allShops.push(setupShopRoom(room, map, depth, items, mons));
+    allShops.push(setupShopRoom(room, map, depth, items, mons, dungeonType));
   }
   const shopData = allShops[0] || null;
   /* 廊下にモンスター・罠を少量配置（商品を置かないためアイテムモドキは除外） */
@@ -2283,18 +2308,17 @@ function shapeDimensionalVaultRoom(dg, room, occupied, randomFn = Math.random) {
   };
 }
 
-function makeMerchantStock(depth) {
+function makeMerchantStock(depth, dungeonType = null) {
   const pool = [
     ...ITEMS.filter((item) => item.type !== "gold" && item.type !== "goal"),
     ...WANDS,
     ...POTS,
     ...RINGS,
     ...SPELLBOOKS,
-  ];
+  ].filter((item) => lootAllowedInDungeon(item, dungeonType, depth + 1));
   const stock = [];
   for (let i = 0; i < rng(6, 9); i++) {
-    const template = pickLootFromPool(pool, "shop") || pick(pool);
-    if (!template) continue;
+    const template = pickLootFromPool(pool, "shop") || pick(pool) || genFood();
     const item = { ...template, id: uid() };
     if (item.type === "food") {
       /* 食料は各商品を個別生成し、同名でも別の品として扱う。 */
@@ -2473,7 +2497,7 @@ export function placeWanderingMerchant(dg, depth, randomFn = Math.random) {
   if (!allCells.length) return null;
   const cell = pick(allCells, randomFn);
   const merchantId = uid();
-  const shop = { id: uid(), merchantId, merchant: true, stock: makeMerchantStock(depth) };
+  const shop = { id: uid(), merchantId, merchant: true, stock: makeMerchantStock(depth, dg.dungeonType) };
   const merchant = {
     id: merchantId,
     name: "行商人",
@@ -2804,16 +2828,32 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const _penPool = lootPoolForDungeon(ITEMS.filter((i) => i.type === "pen"), dungeonType, lootFloor);
   const _ugGens = [
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
-    { w: 10, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickLootFromPool(_WAND_POOL.length ? _WAND_POOL : WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
-    { w:  6, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
-    { w:  5, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "armor"));  return { ...t, id: uid() }; } },
+    { w: 10, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "potion")) },
+    { w:  8, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "scroll")) },
+    { w:  8, fn: () => {
+      const t = pickLootFromPool(_WAND_POOL);
+      if (!t) return { ...genFood(), id: uid() };
+      return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) };
+    } },
+    { w:  6, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "weapon")) },
+    { w:  5, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "armor")) },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
     { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
-    { w:  4, fn: () => { const t = pickLootFromPool(_SB_POOL.length ? _SB_POOL : SPELLBOOKS); return { ...t, id: uid() }; } },
-    { w:  4, fn: () => { const t = pickLootFromPool(_POT_POOL.length ? _POT_POOL : POTS); const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) }; if (t.potEffect === "imprison") pot.confinedMonsters = []; return pot; } },
-    { w:  2, fn: () => { const t = pickLootFromPool(_RING_POOL.length ? _RING_POOL : RINGS); const ring = { ...t, id: uid() }; applyGeneratedRingPlus(ring); return ring; } },
+    { w:  4, fn: () => lootOrFood(_SB_POOL) },
+    { w:  4, fn: () => {
+      const t = pickLootFromPool(_POT_POOL);
+      if (!t) return { ...genFood(), id: uid() };
+      const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
+      if (t.potEffect === "imprison") pot.confinedMonsters = [];
+      return pot;
+    } },
+    { w:  2, fn: () => {
+      const t = pickLootFromPool(_RING_POOL);
+      if (!t) return { ...genFood(), id: uid() };
+      const ring = { ...t, id: uid() };
+      applyGeneratedRingPlus(ring);
+      return ring;
+    } },
     { w:  2, fn: () => { if (!_penPool.length) return { ...genFood(), id: uid() }; const t = pick(_penPool); return { ...t, id: uid(), charges: penInitialCharges(t) }; } },
     { w:  1, fn: () => (lootAllowedInDungeon(MAGIC_MARKER, dungeonType, lootFloor) ? { ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) } : { ...genFood(), id: uid() }) },
   ];
@@ -2916,7 +2956,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   let shopData = null;
   if (shopRoomIdx >= 0) {
     const sr2 = rooms[shopRoomIdx];
-    shopData = setupShopRoom(sr2, map, depth, items, mons);
+    shopData = setupShopRoom(sr2, map, depth, items, mons, dungeonType);
     shopData.roomIdx = shopRoomIdx;
   }
   /* 隠し部屋を生成してアイテム等を配置 */

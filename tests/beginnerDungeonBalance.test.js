@@ -8,6 +8,7 @@ import {
 } from "../dungeonContent.js";
 import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
+import { genDungeon } from "../dungeon.js";
 
 const BEGINNER_TRAP_BAN = [
   "explode", "time_bomb", "unident_trap", "multiply_trap",
@@ -112,6 +113,13 @@ describe("初心者ダンジョンの出現制限", () => {
     if (idBook) expect(lootAllowedInDungeon(idBook, "beginner", 10)).toBe(false);
     const fireBook = SPELLBOOKS.find((s) => s.spell === "fire_bolt");
     if (fireBook) expect(lootAllowedInDungeon(fireBook, "beginner", 10)).toBe(false);
+  });
+
+  it("初心者の床と店に魔法書が出ない", () => {
+    for (let depth = 0; depth < 10; depth++) {
+      const dg = genDungeon(depth, "beginner");
+      expect(dg.items.some((it) => it.type === "spellbook")).toBe(false);
+    }
   });
 
   it("他ダンジョンは制限しない", () => {
