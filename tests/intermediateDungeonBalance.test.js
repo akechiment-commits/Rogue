@@ -70,7 +70,11 @@ describe("中級ダンジョンの出現制限", () => {
     const fireSword = ITEMS.find((i) => i.name === "炎の剣");
     const asa = ITEMS.find((i) => i.name === "アサメ");
     const bombArrow = ITEMS.find((i) => i.name === "爆弾矢");
-    const sanctuary = ITEMS.find((i) => i.effect === "sanctuary");
+    const sanctuary = ITEMS.find((i) => i.effect === "sanctuary" && i.type === "pen");
+    const decoy = ITEMS.find((i) => i.effect === "decoy" && i.type === "pen");
+    const explosionPen = ITEMS.find((i) => i.effect === "explosion" && i.type === "pen");
+    const trapPen = ITEMS.find((i) => i.effect === "trap_gen" && i.type === "pen");
+    const vulnPen = ITEMS.find((i) => i.effect === "vulnerability" && i.type === "pen");
     const doping = ITEMS.find((i) => i.effect === "doping");
     const wish = WANDS.find((w) => w.effect === "wish");
     const timeStop = SPELLBOOKS.find((s) => s.spell === "time_stop_magic");
@@ -83,7 +87,11 @@ describe("中級ダンジョンの出現制限", () => {
     expect(lootAllowedInDungeon(MAGIC_MARKER, "intermediate", 1)).toBe(false);
     expect(lootAllowedInDungeon(asa, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(bombArrow, "intermediate", 20)).toBe(false);
-    expect(lootAllowedInDungeon(sanctuary, "intermediate", 20)).toBe(false);
+    expect(lootAllowedInDungeon(sanctuary, "intermediate", 1)).toBe(true);
+    expect(lootAllowedInDungeon(decoy, "intermediate", 1)).toBe(true);
+    expect(lootAllowedInDungeon(explosionPen, "intermediate", 20)).toBe(false);
+    expect(lootAllowedInDungeon(trapPen, "intermediate", 20)).toBe(false);
+    expect(lootAllowedInDungeon(vulnPen, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(doping, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(wish, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(timeStop, "intermediate", 20)).toBe(false);
