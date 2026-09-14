@@ -76,7 +76,7 @@ describe("上級ダンジョンの敵分布", () => {
       expect(advancedMonsterAllowed(kind, 28)).toBe(true);
     }
 
-    for (const [kind, expectedLv2, expectedLv3] of [
+    for (const [kind, expectedLv2, expectedLate] of [
       ["dangerousPetal", 25, 28],
       ["dreamEater", 25, 28],
       ["hypnotist", 25, 28],
@@ -85,7 +85,14 @@ describe("上級ダンジョンの敵分布", () => {
     ]) {
       const base = MONS.find((monster) => monster.baseKind === kind);
       expect(advancedMonsterSpawnLevel(base, expectedLv2)).toBe(2);
-      expect(advancedMonsterSpawnLevel(base, expectedLv3)).toBe(3);
+      expect(advancedMonsterSpawnLevel(base, expectedLate)).toBe(2);
+    }
+
+    for (let floor = 1; floor <= 30; floor++) {
+      for (const kind of ADVANCED_MONSTER_FLOOR_POOLS[floor]) {
+        const base = MONS.find((monster) => monster.baseKind === kind);
+        expect(advancedMonsterSpawnLevel(base, floor)).toBeLessThanOrEqual(2);
+      }
     }
   });
 

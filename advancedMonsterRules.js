@@ -75,13 +75,13 @@ export const ADVANCED_MONSTER_FLOOR_POOLS = Object.freeze(
   _ADVANCED_MONSTER_FLOOR_POOLS.map((kinds) => Object.freeze([...new Set(kinds)])),
 );
 
-/* 再登場した能力敵は後半でLv2、終盤でLv3にする。 */
-const ADVANCED_MONSTER_LEVEL_RANGES = Object.freeze({
-  dangerousPetal: [{ min: 25, max: 27 }, { min: 28, max: 30 }],
-  dreamEater: [{ min: 25, max: 27 }, { min: 28, max: 30 }],
-  hypnotist: [{ min: 25, max: 27 }, { min: 28, max: 30 }],
-  giantEel: [{ min: 26, max: 27 }, { min: 28, max: 30 }],
-  seaDevil: [{ min: 26, max: 27 }, { min: 28, max: 30 }],
+/* 再登場した能力敵は後半でLv2までにする。Lv3は超上級で解禁する。 */
+const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
+  dangerousPetal: { min: 25, max: 30 },
+  dreamEater: { min: 25, max: 30 },
+  hypnotist: { min: 25, max: 30 },
+  giantEel: { min: 26, max: 30 },
+  seaDevil: { min: 26, max: 30 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {
@@ -94,10 +94,8 @@ export function advancedMonsterAllowed(baseKind, floor) {
 
 export function advancedMonsterSpawnLevel(base, floor) {
   if (!base?.levels?.length) return 1;
-  const overrides = ADVANCED_MONSTER_LEVEL_RANGES[base.baseKind];
-  for (let i = base.levels.length; i >= 1; i--) {
-    const range = overrides?.[i - 1] ?? base.levels[i - 1]?.dungeonFloors?.advanced;
-    if (range && floor >= range.min && floor <= range.max) return i + 1;
-  }
+  const range = ADVANCED_MONSTER_LEVEL2_RANGES[base.baseKind]
+    ?? base.levels[0]?.dungeonFloors?.advanced;
+  if (range && floor >= range.min && floor <= range.max) return 2;
   return 1;
 }
