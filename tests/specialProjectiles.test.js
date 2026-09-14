@@ -9,6 +9,7 @@ import {
   calcProjectileDmg,
 } from "../items.js";
 import "../monsters.js";
+import "../wands.js";
 import { MW, MH, T } from "../utils.js";
 
 function makeDungeon(fill = T.FLOOR) {

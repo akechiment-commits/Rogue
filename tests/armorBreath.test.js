@@ -25,7 +25,7 @@ describe("スネークマン系", () => {
     expect([base.hp, base.atk, base.def, base.exp]).toEqual([43, 20, 5, 62]);
     expect([base.minFloor, base.maxFloor]).toEqual([13, 17]);
     expect(base.levels.map((level) => [level.minFloor, level.maxFloor])).toEqual([[20, 24], [27, 30]]);
-    expect(base.levels[0].dungeonFloors).toEqual({ intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } });
+    expect(base.levels[0].dungeonFloors).toEqual({ intermediate: null, advanced: { min: 20, max: 24 } });
     expect(base.levels[1].dungeonFloors).toEqual({ advanced: { min: 27, max: 30 } });
   });
 
