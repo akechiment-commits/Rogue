@@ -6,7 +6,11 @@ import {
   trapAllowedInDungeon,
   trapPoolForDungeon,
 } from "../dungeonContent.js";
-import { ADVANCED_MONSTER_FLOOR_POOLS, advancedMonsterAllowed } from "../advancedMonsterRules.js";
+import {
+  ADVANCED_MONSTER_FLOOR_POOLS,
+  advancedMonsterAllowed,
+  advancedMonsterSpawnLevel,
+} from "../advancedMonsterRules.js";
 import { BB_TYPES, TRAPS } from "../dungeonCatalog.js";
 import { ITEMS, SPELLBOOKS } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
@@ -46,15 +50,43 @@ describe("上級ダンジョンの出現段階", () => {
 });
 
 describe("上級ダンジョンの敵分布", () => {
-  it("階ごとの候補を3〜9種類程度に抑えて順番に入れ替える", () => {
+  it("階ごとの候補を絞りつつ、能力敵だけ後半に再登場させる", () => {
     expect(ADVANCED_MONSTER_FLOOR_POOLS[1]).toEqual(["rat", "bat", "centipede"]);
     for (let floor = 1; floor <= 30; floor++) {
       expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
-      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(9);
+      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13);
     }
     expect(ADVANCED_MONSTER_FLOOR_POOLS[30]).toEqual(expect.arrayContaining([
       "dragon", "icedragon", "gargoyle", "vampire", "golem", "daemon", "darkness",
     ]));
+  });
+
+  it("能力敵は中盤から候補に戻り、後半の再登場で高レベル化する", () => {
+    for (const floor of [18, 19, 20]) {
+      expect(advancedMonsterAllowed("hypnotist", floor)).toBe(true);
+    }
+    for (const floor of [19, 20, 21]) {
+      expect(advancedMonsterAllowed("giantEel", floor)).toBe(true);
+    }
+    for (const floor of [20, 21, 22]) {
+      expect(advancedMonsterAllowed("seaDevil", floor)).toBe(true);
+    }
+    for (const kind of ["dangerousPetal", "dreamEater", "hypnotist"]) {
+      expect(advancedMonsterAllowed(kind, 25)).toBe(true);
+      expect(advancedMonsterAllowed(kind, 28)).toBe(true);
+    }
+
+    for (const [kind, expectedLv2, expectedLv3] of [
+      ["dangerousPetal", 25, 28],
+      ["dreamEater", 25, 28],
+      ["hypnotist", 25, 28],
+      ["giantEel", 26, 28],
+      ["seaDevil", 26, 28],
+    ]) {
+      const base = MONS.find((monster) => monster.baseKind === kind);
+      expect(advancedMonsterSpawnLevel(base, expectedLv2)).toBe(2);
+      expect(advancedMonsterSpawnLevel(base, expectedLv3)).toBe(3);
+    }
   });
 
   it("上級で通常出現する全72種は最低3階に候補になる", () => {

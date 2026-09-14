@@ -8,7 +8,7 @@ import { statusTurns, applyPlayerPoison, isAttackSealed } from "./statusDuration
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
-import { advancedMonsterAllowed } from "./advancedMonsterRules.js";
+import { advancedMonsterAllowed, advancedMonsterSpawnLevel } from "./advancedMonsterRules.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
@@ -1400,7 +1400,9 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
      高レベルから順にチェックし、最初に条件を満たしたレベルを採用する */
   let spawnLevel = 1;
-  if (base.levels?.length > 0) {
+  if (dungeonType === "advanced") {
+    spawnLevel = advancedMonsterSpawnLevel(base, floor);
+  } else if (base.levels?.length > 0) {
     for (let i = base.levels.length; i >= 1; i--) {
       const lv = base.levels[i - 1];
       const lvDf = dungeonType ? lv.dungeonFloors?.[dungeonType] : undefined;

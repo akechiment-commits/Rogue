@@ -2,7 +2,7 @@
 /*
  * 上級は MONS の minFloor/maxFloor をそのまま足し合わせず、
  * 3階単位の短い帯を順番に入れ替える。各基礎種は原則3階に出し、
- * 終盤だけ最終候補を少し長く残す。
+ * 能力は強いが素のステータスが控えめな敵だけ、後半に再登場させる。
  */
 const ADVANCED_MONSTER_STARTS = Object.freeze({
   1: ["rat", "bat", "centipede"],
@@ -42,6 +42,30 @@ for (const [startText, kinds] of Object.entries(ADVANCED_MONSTER_STARTS)) {
   }
 }
 
+/*
+ * 能力敵の再登場帯。後半の候補にもう一度入れることで、
+ * 「能力は厄介だが数値は低め」の敵が上級後半で埋もれないようにする。
+ * 追加分は通常帯と重複するため、後半の種類数は最大13種になる。
+ */
+const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
+  18: ["hypnotist"],
+  19: ["hypnotist", "giantEel"],
+  20: ["hypnotist", "giantEel", "seaDevil"],
+  21: ["giantEel", "seaDevil"],
+  22: ["seaDevil"],
+  25: ["dangerousPetal", "dreamEater", "hypnotist"],
+  26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel"],
+  27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel"],
+  28: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
+  29: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
+  30: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
+});
+
+for (const [floorText, kinds] of Object.entries(ADVANCED_MONSTER_REINFORCEMENTS)) {
+  const floor = Number(floorText);
+  _ADVANCED_MONSTER_FLOOR_POOLS[floor].push(...kinds);
+}
+
 /* 28〜30階は上級の締めとして、最終系の候補を少し厚く残す。 */
 for (const floor of [28, 29, 30]) {
   _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("gargoyle", "vampire", "dragon", "icedragon");
@@ -51,10 +75,29 @@ export const ADVANCED_MONSTER_FLOOR_POOLS = Object.freeze(
   _ADVANCED_MONSTER_FLOOR_POOLS.map((kinds) => Object.freeze([...new Set(kinds)])),
 );
 
+/* 再登場した能力敵は後半でLv2、終盤でLv3にする。 */
+const ADVANCED_MONSTER_LEVEL_RANGES = Object.freeze({
+  dangerousPetal: [{ min: 25, max: 27 }, { min: 28, max: 30 }],
+  dreamEater: [{ min: 25, max: 27 }, { min: 28, max: 30 }],
+  hypnotist: [{ min: 25, max: 27 }, { min: 28, max: 30 }],
+  giantEel: [{ min: 26, max: 27 }, { min: 28, max: 30 }],
+  seaDevil: [{ min: 26, max: 27 }, { min: 28, max: 30 }],
+});
+
 export function advancedMonsterKindsAtFloor(floor) {
   return ADVANCED_MONSTER_FLOOR_POOLS[floor] ?? [];
 }
 
 export function advancedMonsterAllowed(baseKind, floor) {
   return advancedMonsterKindsAtFloor(floor).includes(baseKind);
+}
+
+export function advancedMonsterSpawnLevel(base, floor) {
+  if (!base?.levels?.length) return 1;
+  const overrides = ADVANCED_MONSTER_LEVEL_RANGES[base.baseKind];
+  for (let i = base.levels.length; i >= 1; i--) {
+    const range = overrides?.[i - 1] ?? base.levels[i - 1]?.dungeonFloors?.advanced;
+    if (range && floor >= range.min && floor <= range.max) return i + 1;
+  }
+  return 1;
 }
