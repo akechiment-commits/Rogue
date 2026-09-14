@@ -52,6 +52,19 @@ describe("偽階段", () => {
     expect(sawOverlap).toBe(false);
   });
 
+  it("初心者ダンジョンには風穴と石像を置かない", () => {
+    const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
+    const rooms = [{ x: 1, y: 1, w: 8, h: 8 }];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const g = scatterFloorGimmicks(map, rooms, 3, { dungeonType: "beginner" });
+      expect(g.vents).toEqual([]);
+      expect(g.statues).toEqual([]);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it("偽階段はB16F相当のdepth=15から生成される", () => {
     const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
     const rooms = [{ x: 1, y: 1, w: 8, h: 8 }];

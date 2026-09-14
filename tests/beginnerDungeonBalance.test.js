@@ -122,6 +122,14 @@ describe("初心者ダンジョンの出現制限", () => {
     }
   });
 
+  it("初心者に石像と風穴を出さない", () => {
+    for (let depth = 0; depth < 10; depth++) {
+      const dg = genDungeon(depth, "beginner");
+      expect(dg.statues || []).toEqual([]);
+      expect(dg.vents || []).toEqual([]);
+    }
+  });
+
   it("他ダンジョンは制限しない", () => {
     expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "intermediate", 1)).toBe(true);
     expect(bbAllowedInDungeon(BB_TYPES.find((b) => b.kind === "nitro"), "advanced", 1)).toBe(true);

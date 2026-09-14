@@ -316,6 +316,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   stairUp = null,
   stairDown = null,
   occ = null,
+  dungeonType = null,
 } = {}) {
   const vents = [];
   const statues = [];
@@ -367,8 +368,8 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     addedTraps.push(makeFakeStairTrap(p[0], p[1], dir));
   }
 
-  /* 風穴 0〜2 */
-  const ventN = Math.random() < 0.30 ? rng(1, 2) : 0;
+  /* 風穴 0〜2（初心者には出さない） */
+  const ventN = dungeonType === "beginner" ? 0 : Math.random() < 0.30 ? rng(1, 2) : 0;
   const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
   for (let i = 0; i < ventN; i++) {
     const p = rndFloor();
@@ -377,8 +378,8 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     vents.push(makeVent(p[0], p[1], dx, dy));
   }
 
-  /* 石像 0〜2（約28%で1〜2体） */
-  const stN = Math.random() < 0.28 ? rng(1, 2) : 0;
+  /* 石像 0〜2（約28%で1〜2体。初心者には出さない） */
+  const stN = dungeonType === "beginner" ? 0 : Math.random() < 0.28 ? rng(1, 2) : 0;
   for (let i = 0; i < stN; i++) {
     const p = rndFloor();
     if (!p) break;

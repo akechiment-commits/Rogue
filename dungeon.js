@@ -2594,6 +2594,7 @@ function attachFloorGimmicks(dg, depth) {
     altarRate: specialFixtureRate("altar", dg),
     stairUp: dg.stairUp,
     stairDown: dg.stairDown,
+    dungeonType: dg.dungeonType,
   });
   if (g.traps?.length) dg.traps.push(...g.traps);
   if (g.vents?.length) dg.vents.push(...g.vents);
