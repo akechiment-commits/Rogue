@@ -1787,35 +1787,137 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
   }
 }
 
+function carveBossRect(map, x, y, w, h, tile = T.FLOOR) {
+  const x0 = clamp(x, 1, MW - 2);
+  const y0 = clamp(y, 1, MH - 2);
+  const x1 = clamp(x + w - 1, 1, MW - 2);
+  const y1 = clamp(y + h - 1, 1, MH - 2);
+  for (let yy = y0; yy <= y1; yy++)
+    for (let xx = x0; xx <= x1; xx++) map[yy][xx] = tile;
+}
+
+function placeBossPillars(map, cells) {
+  for (const [px, py] of cells) {
+    if (map[py]?.[px] === T.FLOOR) map[py][px] = T.BWALL;
+  }
+}
+
+function bossRoom(x, y, w, h) {
+  return { x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) };
+}
+
+/** 1マス廊下なし・ループ通路なしの広い部屋構成。 */
+function carveBossLayout(map, layout) {
+  if (layout === "arena_ew") {
+    carveBossRect(map, 14, 6, 32, 16);
+    carveBossRect(map, 1, 12, 14, 6);
+    carveBossRect(map, 45, 12, 14, 6);
+    placeBossPillars(map, [
+      [18, 9], [19, 9], [18, 10], [19, 10],
+      [40, 9], [41, 9], [40, 10], [41, 10],
+      [18, 17], [19, 17], [18, 18], [19, 18],
+      [40, 17], [41, 17], [40, 18], [41, 18],
+    ]);
+    return {
+      rooms: [bossRoom(14, 6, 32, 16)],
+      main: bossRoom(14, 6, 32, 16),
+      su: { x: 2, y: 14 },
+      sd: { x: 57, y: 14 },
+    };
+  }
+  if (layout === "big_open") {
+    carveBossRect(map, 4, 3, 52, 24);
+    placeBossPillars(map, [
+      [12, 8], [13, 8], [12, 9], [13, 9],
+      [46, 8], [47, 8], [46, 9], [47, 9],
+      [12, 20], [13, 20], [12, 21], [13, 21],
+      [46, 20], [47, 20], [46, 21], [47, 21],
+      [28, 14], [29, 14], [28, 15], [29, 15],
+    ]);
+    return {
+      rooms: [bossRoom(4, 3, 52, 24)],
+      main: bossRoom(4, 3, 52, 24),
+      su: { x: 8, y: 4 },
+      sd: { x: 51, y: 25 },
+    };
+  }
+  if (layout === "L_shape") {
+    carveBossRect(map, 4, 16, 40, 11);
+    carveBossRect(map, 36, 3, 20, 24);
+    placeBossPillars(map, [
+      [8, 19], [9, 19], [8, 20], [9, 20],
+      [48, 8], [49, 8], [48, 9], [49, 9],
+      [48, 20], [49, 20], [48, 21], [49, 21],
+    ]);
+    return {
+      rooms: [bossRoom(4, 16, 40, 11), bossRoom(36, 3, 20, 24)],
+      main: bossRoom(36, 3, 20, 24),
+      su: { x: 6, y: 21 },
+      sd: { x: 50, y: 5 },
+    };
+  }
+  if (layout === "two_stage") {
+    carveBossRect(map, 20, 2, 20, 8);
+    carveBossRect(map, 26, 10, 8, 4);
+    carveBossRect(map, 12, 14, 36, 13);
+    placeBossPillars(map, [
+      [16, 17], [17, 17], [16, 18], [17, 18],
+      [42, 17], [43, 17], [42, 18], [43, 18],
+    ]);
+    return {
+      rooms: [bossRoom(20, 2, 20, 8), bossRoom(12, 14, 36, 13)],
+      main: bossRoom(12, 14, 36, 13),
+      su: { x: 29, y: 3 },
+      sd: { x: 29, y: 25 },
+    };
+  }
+  if (layout === "T_wide") {
+    carveBossRect(map, 24, 1, 12, 8);
+    carveBossRect(map, 8, 9, 44, 17);
+    placeBossPillars(map, [
+      [12, 12], [13, 12], [12, 13], [13, 13],
+      [46, 12], [47, 12], [46, 13], [47, 13],
+      [12, 21], [13, 21], [12, 22], [13, 22],
+      [46, 21], [47, 21], [46, 22], [47, 22],
+    ]);
+    return {
+      rooms: [bossRoom(8, 9, 44, 17)],
+      main: bossRoom(8, 9, 44, 17),
+      su: { x: 29, y: 2 },
+      sd: { x: 29, y: 24 },
+    };
+  }
+  /* arena_ns：従来の中央アリーナ＋南北の広い通路 */
+  carveBossRect(map, 10, 8, 40, 14);
+  carveBossRect(map, 27, 1, 6, 7);
+  carveBossRect(map, 27, 22, 6, 7);
+  placeBossPillars(map, [
+    [13, 10], [14, 10], [13, 11], [14, 11],
+    [45, 10], [46, 10], [45, 11], [46, 11],
+    [13, 18], [14, 18], [13, 19], [14, 19],
+    [45, 18], [46, 18], [45, 19], [46, 19],
+    [22, 13], [22, 14], [22, 15],
+    [37, 13], [37, 14], [37, 15],
+  ]);
+  return {
+    rooms: [bossRoom(10, 8, 40, 14)],
+    main: bossRoom(10, 8, 40, 14),
+    su: { x: 29, y: 1 },
+    sd: { x: 29, y: MH - 2 },
+  };
+}
+
+const BOSS_LAYOUTS = ["arena_ns", "arena_ew", "big_open", "L_shape", "two_stage", "T_wide"];
+
 /* ===== ボスフロア生成 ===== */
 function genBossFloor(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
-
-  /* 中央アリーナ (40×14) */
-  const arX = 10, arY = 8, arW = 40, arH = 14;
-  for (let y = arY; y < arY + arH; y++)
-    for (let x = arX; x < arX + arW; x++)
-      map[y][x] = T.FLOOR;
-
-  /* 北/南コリドー (6マス幅) */
-  for (let y = 1; y < arY; y++)
-    for (let x = 27; x <= 32; x++) map[y][x] = T.FLOOR;
-  for (let y = arY + arH; y < MH - 1; y++)
-    for (let x = 27; x <= 32; x++) map[y][x] = T.FLOOR;
-
-  /* 装飾柱 BWALL 2×2 × 四隅 ＋ 中央左右 */
-  for (const [px, py] of [
-    [13,10],[14,10],[13,11],[14,11],   // NW
-    [45,10],[46,10],[45,11],[46,11],   // NE
-    [13,18],[14,18],[13,19],[14,19],   // SW
-    [45,18],[46,18],[45,19],[46,19],   // SE
-    [22,13],[22,14],[22,15],           // 中央左柱
-    [37,13],[37,14],[37,15],           // 中央右柱
-  ]) { if (map[py]?.[px] === T.FLOOR) map[py][px] = T.BWALL; }
-
-  /* 階段：北端(入口) / 南端(出口) */
-  const suX = 29, suY = 1;
-  const sdX = 29, sdY = MH - 2;
+  const bossLayout = pick(BOSS_LAYOUTS);
+  const carved = carveBossLayout(map, bossLayout);
+  const rooms = carved.rooms;
+  const main = carved.main;
+  const suX = carved.su.x, suY = carved.su.y;
+  const sdX = carved.sd.x, sdY = carved.sd.y;
   map[suY][suX] = T.SU;
   map[sdY][sdX] = T.SD;
 
@@ -1823,8 +1925,16 @@ function genBossFloor(depth, dungeonType = null) {
   const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
   const bt = _bossPool[bossIdx];
-  const bossX = arX + (arW >> 1);
-  const bossY = arY + (arH >> 1);
+  let bossX = main.cx;
+  let bossY = main.cy;
+  if (map[bossY]?.[bossX] !== T.FLOOR) {
+    outerBoss: for (let r = 1; r <= 6; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const bx = main.cx + dx, by = main.cy + dy;
+        if (map[by]?.[bx] === T.FLOOR) { bossX = bx; bossY = by; break outerBoss; }
+      }
+    }
+  }
 
   /* クラーケン専用：ボス部屋中央に11×5の水地形を生成 */
   if (bt.baseKind === "im_boss_kraken") {
@@ -1896,59 +2006,57 @@ function genBossFloor(depth, dungeonType = null) {
     }
   }
 
-  const rooms = [{ x: arX, y: arY, w: arW, h: arH, cx: bossX, cy: bossY }];
-
   /* ── フロアポピュレーション ── */
   const allMons = [boss, ...minionMonsters];
   const isOccMon = (x, y) => allMons.some(mn => mn.x === x && mn.y === y);
   const isStair = (x, y) => (x === suX && y === suY) || (x === sdX && y === sdY);
+  const rndBossFloor = (occ) => {
+    for (let a = 0; a < 120; a++) {
+      const x = rng(1, MW - 2), y = rng(1, MH - 2);
+      if (map[y][x] !== T.FLOOR || occ(x, y)) continue;
+      return [x, y];
+    }
+    return null;
+  };
 
   /* アイテム */
   const items = [];
   const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || items.some(i => i.x === x && i.y === y);
   for (let _ii = 0; _ii < rng(8, 14); _ii++) {
-    for (let _a = 0; _a < 100; _a++) {
-      const ix = rng(arX + 1, arX + arW - 2), iy = rng(arY + 1, arY + arH - 2);
-      if (map[iy][ix] !== T.FLOOR || itemOcc(ix, iy)) continue;
-      const _it = applyInitialItemCharges({ ...pickLootFromPool(ITEMS), id: uid(), x: ix, y: iy });
-      if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
-      else applyGeneratedBlessCurse(_it, 0.10, 0.25);
-      items.push(_it); break;
-    }
+    const p = rndBossFloor(itemOcc);
+    if (!p) break;
+    const _it = applyInitialItemCharges({ ...pickLootFromPool(ITEMS), id: uid(), x: p[0], y: p[1] });
+    if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
+    else applyGeneratedBlessCurse(_it, 0.10, 0.25);
+    items.push(_it);
   }
 
   /* 罠 */
   const traps = [];
   const trapOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || itemOcc(x, y) || traps.some(t => t.x === x && t.y === y);
   for (let _ti = 0; _ti < rng(4, 8) + depth; _ti++) {
-    for (let _a = 0; _a < 100; _a++) {
-      const tx = rng(arX + 1, arX + arW - 2), ty = rng(arY + 1, arY + arH - 2);
-      if (map[ty][tx] !== T.FLOOR || trapOcc(tx, ty)) continue;
-      traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: tx, y: ty, revealed: false }); break;
-    }
+    const p = rndBossFloor(trapOcc);
+    if (!p) break;
+    traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false });
   }
 
   /* 泉 */
   const springs = [];
   const springOcc = (x, y) => trapOcc(x, y) || springs.some(s => s.x === x && s.y === y);
   for (let _si = 0; _si < rng(1, 3); _si++) {
-    for (let _a = 0; _a < 100; _a++) {
-      const sx = rng(arX + 1, arX + arW - 2), sy = rng(arY + 1, arY + arH - 2);
-      if (map[sy][sx] !== T.FLOOR || springOcc(sx, sy)) continue;
-      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] }); break;
-    }
+    const p = rndBossFloor(springOcc);
+    if (!p) break;
+    springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
   }
 
   /* 大箱 */
   const bigboxes = [];
   const bbOcc = (x, y) => springOcc(x, y) || bigboxes.some(b => b.x === x && b.y === y);
   for (let _bi = 0; _bi < rng(2, 4); _bi++) {
-    for (let _a = 0; _a < 100; _a++) {
-      const bx = rng(arX + 1, arX + arW - 2), by = rng(arY + 1, arY + arH - 2);
-      if (map[by][bx] !== T.FLOOR || bbOcc(bx, by)) continue;
-      const bbt = pickBB([], dungeonType, depth);
-      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); break;
-    }
+    const p = rndBossFloor(bbOcc);
+    if (!p) break;
+    const bbt = pickBB([], dungeonType, depth);
+    bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
   }
 
   /* 隠し部屋（50%の確率で1部屋） */
@@ -1969,6 +2077,7 @@ function genBossFloor(depth, dungeonType = null) {
     hiddenRooms, monsterHouseRoom: null,
     floorType: "bossFloor",
     isBossFloor: true,
+    bossLayout,
   };
 }
 

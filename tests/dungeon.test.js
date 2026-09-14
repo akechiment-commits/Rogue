@@ -91,6 +91,29 @@ describe("genDungeon", () => {
     expect(dg.monsters.length).toBeGreaterThan(0);
   });
 
+  it("ボスフロアは複数地形から選ばれ、1マス廊下がない", () => {
+    const walkable = new Set([T.FLOOR, T.WATER, T.SU, T.SD]);
+    const isWall = (tile) => tile === T.WALL || tile === T.BWALL;
+    const layouts = new Set();
+    for (let i = 0; i < 36; i++) {
+      const dg = genDungeon(4, "beginner");
+      expect(dg.floorType).toBe("bossFloor");
+      expect(dg.isBossFloor).toBe(true);
+      expect(["arena_ns", "arena_ew", "big_open", "L_shape", "two_stage", "T_wide"]).toContain(dg.bossLayout);
+      layouts.add(dg.bossLayout);
+      const map = dg.map;
+      for (let y = 1; y < MH - 1; y++) {
+        for (let x = 1; x < MW - 1; x++) {
+          if (!walkable.has(map[y][x])) continue;
+          const nsCorridor = isWall(map[y][x - 1]) && isWall(map[y][x + 1]) && walkable.has(map[y - 1][x]) && walkable.has(map[y + 1][x]);
+          const ewCorridor = isWall(map[y - 1][x]) && isWall(map[y + 1][x]) && walkable.has(map[y][x - 1]) && walkable.has(map[y][x + 1]);
+          expect(nsCorridor || ewCorridor).toBe(false);
+        }
+      }
+    }
+    expect(layouts.size).toBeGreaterThan(1);
+  });
+
   it("アイテムモドキを除外した敵抽選では選ばれない", () => {
     for (let i = 0; i < 40; i++) {
       const { base } = pickMonsterDef(10, "intermediate", false, { excludeItemMimic: true });
