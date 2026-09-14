@@ -8,7 +8,7 @@ import {
 } from "../dungeonContent.js";
 import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
-import { genDungeon, populateHiddenRoom } from "../dungeon.js";
+import { genDungeon, genCorridorFloor, populateHiddenRoom } from "../dungeon.js";
 import { T, MW, MH } from "../utils.js";
 
 const BEGINNER_TRAP_BAN = [
@@ -120,6 +120,27 @@ describe("初心者ダンジョンの出現制限", () => {
     for (let depth = 0; depth < 10; depth++) {
       const dg = genDungeon(depth, "beginner");
       expect(dg.items.some((it) => it.type === "spellbook")).toBe(false);
+    }
+  });
+
+  it("特殊フロアを含む生成経路も道具の出現制限を守る", () => {
+    const isAllowed = (item, floor) => item?.type === "gem" ||
+      (item?.type === "scroll" && item.effect === "blank") ||
+      (item?.type === "spellbook" && !item.spell) ||
+      lootAllowedInDungeon(item, "beginner", Math.max(6, floor));
+    for (const depth of [0, 4, 5, 9, 14]) {
+      for (let i = 0; i < 12; i++) {
+        const dungeon = genDungeon(depth, "beginner");
+        const generated = [
+          ...(dungeon.items || []),
+          ...(dungeon.waterItems || []).map(({ item }) => item),
+        ];
+        expect(generated.every((item) => isAllowed(item, depth + 1))).toBe(true);
+      }
+    }
+    for (let i = 0; i < 12; i++) {
+      const floor = genCorridorFloor(4, "beginner");
+      expect(floor.items.every((item) => isAllowed(item, 5))).toBe(true);
     }
   });
 

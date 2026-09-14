@@ -8,6 +8,7 @@ import {
 } from "../dungeonContent.js";
 import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS, MAGIC_MARKER } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
+import { genDungeon, genCorridorFloor } from "../dungeon.js";
 
 const INTERMEDIATE_TRAP_BAN = [
   "explode", "time_bomb", "unident_trap", "multiply_trap",
@@ -106,6 +107,24 @@ describe("中級ダンジョンの出現制限", () => {
     expect(lootAllowedInDungeon(wish, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(timeStop, "intermediate", 20)).toBe(false);
     expect(lootAllowedInDungeon(invisible, "intermediate", 20)).toBe(false);
+  });
+
+  it("特殊フロアを含む生成経路も道具の出現制限を守る", () => {
+    const isAllowed = (item, floor) => item?.type === "gem" || lootAllowedInDungeon(item, "intermediate", floor);
+    for (const depth of [0, 4, 9, 14, 19]) {
+      for (let i = 0; i < 12; i++) {
+        const dungeon = genDungeon(depth, "intermediate");
+        const generated = [
+          ...(dungeon.items || []),
+          ...(dungeon.waterItems || []).map(({ item }) => item),
+        ];
+        expect(generated.every((item) => isAllowed(item, depth + 1))).toBe(true);
+      }
+    }
+    for (let i = 0; i < 12; i++) {
+      const floor = genCorridorFloor(4, "intermediate");
+      expect(floor.items.every((item) => isAllowed(item, 5))).toBe(true);
+    }
   });
 });
 

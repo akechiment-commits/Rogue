@@ -236,9 +236,10 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   const _half = Math.floor(freeTiles.length / 2);
   const itemSlots = freeTiles.slice(0, Math.min(rng(5, 9), _half));
   const trapSlots = freeTiles.slice(itemSlots.length, itemSlots.length + Math.min(rng(5, 9), freeTiles.length - itemSlots.length));
+  const lootPool = lootPoolForDungeon(ITEMS, dungeonType, depth + 1);
   for (const [ix, iy] of itemSlots) {
     if (allOcc(ix, iy)) continue;
-    const t = pickLootFromPool(ITEMS);
+    const t = pickLootFromPool(lootPool);
     const it = applyInitialItemCharges({ ...t, id: uid(), x: ix, y: iy });
     if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
     applyGeneratedBlessCurse(it, 0.12, 0.28);
@@ -765,7 +766,7 @@ function genProtrusions(map, rooms) {
 }
 
 /* ===== WALL-EMBEDDED ITEM GENERATOR ===== */
-function genWallItems(map, depth, items, suspicious = new Set(), chance = 0.70) {
+function genWallItems(map, depth, items, suspicious = new Set(), chance = 0.70, dungeonType = null) {
   /* 床タイルに2方向以上隣接する壁タイルを候補とする（L字型の出っ張り角など） */
   /* 突起コーナー（suspicious）は重みを高くして選ばれやすくする */
   const wallCands = [];
@@ -798,7 +799,7 @@ function genWallItems(map, depth, items, suspicious = new Set(), chance = 0.70) 
     if (Math.random() < 0.75) {
       it = { name:"金貨", type:"gold", value: rng(80, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
     } else {
-      const t = pickLootFromPool(ITEMS);
+      const t = pickLootFromPool(lootPoolForDungeon(ITEMS, dungeonType, depth + 1));
       it = applyInitialItemCharges({ ...t, id: uid(), x: wx, y: wy, wallEmbedded: true });
       if (it.type === 'gold') it.value = rng(80, 300 + depth * 50);
     }
@@ -1185,7 +1186,7 @@ function genShoppingMall(depth, dungeonType = null, _retries = 0) {
   }
   const validRooms = rooms.filter(Boolean);
   if (validRooms.length < 2) {
-    if (_retries > 10) return genBigRoom(depth);
+    if (_retries > 10) return genBigRoom(depth, dungeonType);
     return genShoppingMall(depth, dungeonType, _retries + 1);
   }
   /* 水平・垂直廊下で隣接セルを接続 */
@@ -1264,7 +1265,7 @@ function genSpinFloor(depth, dungeonType = null, _retries = 0) {
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) });
   }
   if (rooms.length < 2) {
-    if (_retries > 10) return genBigRoom(depth);
+    if (_retries > 10) return genBigRoom(depth, dungeonType);
     return genSpinFloor(depth, dungeonType, _retries + 1);
   }
   /* 階段は最初と最後の部屋 */
@@ -1429,6 +1430,7 @@ export function genCorridorFloor(depth, dungeonType = null) {
   for (let y=0;y<MH;y++) for (let x=0;x<MW;x++) if (map[y][x]===T.FLOOR) corTiles.push([x,y]);
   const roomTileList = corTiles.filter(([x,y]) => roomTiles.has(`${x},${y}`));
   const mons=[],items=[],traps=[],springs=[],bigboxes=[];
+  const lootPool = lootPoolForDungeon(ITEMS, dungeonType, depth + 1);
   const occ = mkOcc(items,mons,traps,springs,bigboxes);
   const notSt = (x,y) => !(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y);
   /* モンスター・アイテムは廊下全体に配置 */
@@ -1436,7 +1438,7 @@ export function genCorridorFloor(depth, dungeonType = null) {
   /* 罠・泉・大箱・階段は小部屋内にのみ配置 */
   const rndRoom = ()=>{ for(let a=0;a<120;a++){const[x,y]=pick(roomTileList);if(!occ(x,y)&&notSt(x,y))return[x,y];}return null;};
   for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(ITEMS),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndRoom();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,3);i++){const p=rndRoom();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   for(let i=0;i<rng(1,2);i++){const p=rndRoom();if(p){const bbt=pickBB([], dungeonType, depth);bigboxes.push({id:uid(),x:p[0],y:p[1],tile:TI.BIGBOX,kind:bbt.kind,name:bbt.name,capacity:bbt.cap(),contents:[]});}}
@@ -1471,7 +1473,7 @@ export function genGridRoom(depth, dungeonType = null) {
   const _grPick = buildUniPool(depth, dungeonType);
   for (let i = 0; i < rng(16, 24); i++) { const p = rndFloor(); if (p) { items.push(Object.assign(applyStdMods(_grPick(), depth), { x: p[0], y: p[1] })); } }
   /* 格子の柱に埋まるアイテムは稀にだけ配置する。 */
-  if (Math.random() < 0.15) genWallItems(map, depth, items, new Set(), 1);
+  if (Math.random() < 0.15) genWallItems(map, depth, items, new Set(), 1, dungeonType);
   for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
@@ -1572,6 +1574,7 @@ function genRingCorridorFloor(depth, dungeonType = null) {
     .filter(([x,y]) => map[y][x] === T.FLOOR);
 
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const lootPool = lootPoolForDungeon(ITEMS, dungeonType, depth + 1);
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndCor   = () => { for(let a=0;a<60;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}return null; };
   /* 罠はポケット空間にのみ配置 */
@@ -1582,7 +1585,7 @@ function genRingCorridorFloor(depth, dungeonType = null) {
   };
 
   for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(ITEMS),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
@@ -1645,7 +1648,7 @@ function genCaveFloor(depth, dungeonType = null) {
     if (mainTiles.length >= 280) break;
   }
 
-  if (!mainTiles || mainTiles.length < 50) return genBigRoom(depth); // フォールバック
+  if (!mainTiles || mainTiles.length < 50) return genBigRoom(depth, dungeonType); // フォールバック
 
   /* 階段配置：左40%にSU、右40%にSD */
   const lt = mainTiles.filter(([x]) => x < MW * 0.4);
@@ -2076,11 +2079,12 @@ function genBossFloor(depth, dungeonType = null) {
 
   /* アイテム */
   const items = [];
+  const lootPool = lootPoolForDungeon(ITEMS, dungeonType, depth + 1);
   const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || items.some(i => i.x === x && i.y === y);
   for (let _ii = 0; _ii < rng(8, 14); _ii++) {
     const p = rndBossFloor(itemOcc);
     if (!p) break;
-    const _it = applyInitialItemCharges({ ...pickLootFromPool(ITEMS), id: uid(), x: p[0], y: p[1] });
+    const _it = applyInitialItemCharges({ ...pickLootFromPool(lootPool), id: uid(), x: p[0], y: p[1] });
     if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
     else applyGeneratedBlessCurse(_it, 0.10, 0.25);
     items.push(_it);
@@ -2572,11 +2576,13 @@ export function createDimensionalVaultAt(dg, room, depth, randomFn = Math.random
    * 抽選するため、同じ景品の固定配置にはしない。 */
   const guaranteedHighPool = ITEMS.filter((item) =>
     ["B", "A", "S"].includes(item.rarity) &&
-    !["food", "gold", "goal"].includes(item.type)
+    !["food", "gold", "goal"].includes(item.type) &&
+    lootAllowedInDungeon(item, dg.dungeonType, depth + 1)
   );
+  const guaranteedHighItem = pickLootFromPool(guaranteedHighPool, "floor", randomFn);
   for (let i = 0; i < itemPositions.length; i++) {
     const template = i === 0
-      ? pickLootFromPool(guaranteedHighPool, "floor", randomFn)
+      ? (guaranteedHighItem || pickVaultItem())
       : pickVaultItem();
     const item = template ? applyStdMods({ ...template }, depth) : null;
     if (!item || item.type === "goal") continue;
@@ -2866,7 +2872,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   if (rooms.length < 2) {
-    if (_retries > 10) return genBigRoom(depth);
+    if (_retries > 10) return genBigRoom(depth, dungeonType);
     return genDungeon(depth, dungeonType, _retries + 1);
   }
   const conn = new Set([0]),
@@ -3128,7 +3134,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const hiddenRooms = genHiddenRooms(map, depth);
   for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType);
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
-  genWallItems(map, depth, items, suspiciousWalls);
+  genWallItems(map, depth, items, suspiciousWalls, 0.70, dungeonType);
   /* 水地形を生成（一部部屋に水溜まり）— 店の部屋は除外 */
   const nonShopRooms = shopRoomIdx >= 0 ? rooms.filter((_, i) => i !== shopRoomIdx) : rooms;
   addWaterPools(map, nonShopRooms, su, sd);
