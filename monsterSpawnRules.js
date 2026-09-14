@@ -8,6 +8,26 @@ export const ROOMLESS_MONSTER_SPAWN_FLOOR_TYPES = new Set([
   "caveFloor",
 ]);
 
+/** プレイヤーと同部屋へ湧かせるときのマンハッタン距離下限（大部屋と同じ）。 */
+export const SAME_ROOM_SPAWN_MIN_DIST = 8;
+
+export function publicRoomCount(dungeon) {
+  const rooms = Array.isArray(dungeon?.rooms) ? dungeon.rooms : [];
+  return rooms.filter((room) => room && !room.hidden).length;
+}
+
+/**
+ * プレイヤーのいる部屋にも自然発生させてよいか。
+ * 大部屋フラグ、または通常部屋が1つ以下（残りは隠し部屋のみ）のフロア。
+ * 部屋全体が見える仕様のため、距離で「十分離れた視界外」を担保する。
+ */
+export function allowsSameRoomNaturalSpawn(dungeon) {
+  if (!dungeon) return false;
+  if (dungeon.isBigRoom) return true;
+  if (ROOMLESS_MONSTER_SPAWN_FLOOR_TYPES.has(dungeon.floorType)) return false;
+  return publicRoomCount(dungeon) <= 1;
+}
+
 /**
  * 自動出現する敵を指定座標へ置いてよいか判定する。
  * 部屋のあるフロアでは部屋内だけ、部屋なしフロアでは全床を許可する。
@@ -22,4 +42,31 @@ export function isMonsterSpawnCellAllowed(dungeon, x, y) {
     x >= room.x && x < room.x + room.w &&
     y >= room.y && y < room.y + room.h
   ));
+}
+
+function isFarEnoughForSameRoomSpawn(x, y, player) {
+  return Math.abs(x - player.x) + Math.abs(y - player.y) >= SAME_ROOM_SPAWN_MIN_DIST;
+}
+
+/**
+ * 視界・距離の追加フィルタ。
+ * 通常フロアは視界内禁止（部屋全体が見えるため実質プレイヤー部屋には湧かない）。
+ * 単部屋／大部屋は8マス以上かつ視界外を優先し、部屋全体が見えているときだけ距離条件に落とす。
+ */
+export function isMonsterSpawnSightAllowed(dungeon, x, y, player) {
+  if (!dungeon || !player) return false;
+  if (allowsSameRoomNaturalSpawn(dungeon)) {
+    return isFarEnoughForSameRoomSpawn(x, y, player);
+  }
+  return !dungeon.visible?.[y]?.[x];
+}
+
+export function keepMonsterSpawnSightCells(dungeon, cells, player) {
+  if (!dungeon || !player || !Array.isArray(cells)) return [];
+  if (allowsSameRoomNaturalSpawn(dungeon)) {
+    const far = cells.filter(([x, y]) => isFarEnoughForSameRoomSpawn(x, y, player));
+    const unseen = far.filter(([x, y]) => !dungeon.visible?.[y]?.[x]);
+    return unseen.length > 0 ? unseen : far;
+  }
+  return cells.filter(([x, y]) => !dungeon.visible?.[y]?.[x]);
 }

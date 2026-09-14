@@ -112,7 +112,7 @@ import { getPlayerStairBlockMessage } from "./stairRules.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns, MP_REVIVAL_SEAL_TURNS } from "./mpRules.js";
 import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip } from "./firstEncounterTips.js";
 import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
-import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
+import { isMonsterSpawnCellAllowed, keepMonsterSpawnSightCells } from "./monsterSpawnRules.js";
 import { FloorMapOverlay } from "./FloorMapOverlay.jsx";
 import { GACHA_COST, rollGachaRarity } from "./gachaRules.js";
 import { activateDimensionalVaults, advanceDimensionalVaults, pickAltarRewardTemplate } from "./specialFixtures.js";
@@ -2014,22 +2014,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           p.hp > 0 &&
           !_dg.noNaturalSpawn
         ) {
-          const _cands = [];
+          const _rawCands = [];
           for (let _sy = 0; _sy < MH; _sy++) {
             for (let _sx = 0; _sx < MW; _sx++) {
               if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
               if (_sx === p.x && _sy === p.y) continue;
               if (monsterAt(_dg, _sx, _sy)) continue;
               if (!isMonsterSpawnCellAllowed(_dg, _sx, _sy)) continue;
-              /* ビッグルームはプレイヤーから8マス以上離れていれば可 */
-              if (_dg.isBigRoom) {
-                if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
-              } else {
-                if (_dg.visible[_sy][_sx]) continue;
-              }
-              _cands.push([_sx, _sy]);
+              _rawCands.push([_sx, _sy]);
             }
           }
+          const _cands = keepMonsterSpawnSightCells(_dg, _rawCands, p);
           if (_cands.length > 0) {
             const [_cx, _cy] = pick(_cands);
             _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy, { dungeonType: _dg.dungeonType ?? null, excludeWaterOnly: true }));
@@ -2048,17 +2043,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
           const _penaltySpec = _penaltySpecs.length > 0 ? pick(_penaltySpecs) : null;
           if (_penaltySpec) {
-            const _ghostCands = [];
+            const _ghostRaw = [];
             for (let _gy = 0; _gy < MH; _gy++) {
               for (let _gx = 0; _gx < MW; _gx++) {
                 if (_dg.map[_gy][_gx] !== T.FLOOR) continue;
                 if (_gx === p.x && _gy === p.y) continue;
                 if (monsterAt(_dg, _gx, _gy)) continue;
                 if (!isMonsterSpawnCellAllowed(_dg, _gx, _gy)) continue;
-                if (_dg.visible[_gy][_gx]) continue;
-                _ghostCands.push([_gx, _gy]);
+                _ghostRaw.push([_gx, _gy]);
               }
             }
+            const _ghostCands = keepMonsterSpawnSightCells(_dg, _ghostRaw, p);
             if (_ghostCands.length > 0) {
               const [_gx, _gy] = pick(_ghostCands);
               const _penaltyMonster = makeMonsterFromBase(_penaltySpec.base, _penaltySpec.level, _gx, _gy, {
@@ -2076,21 +2071,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           p.hp > 0 &&
           p.turns >= (_dg.nextGuardSpawnTurn ?? p.turns)
         ) {
-          const _gcands = [];
+          const _graw = [];
           for (let _sy = 0; _sy < MH; _sy++) {
             for (let _sx = 0; _sx < MW; _sx++) {
               if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
               if (_sx === p.x && _sy === p.y) continue;
               if (monsterAt(_dg, _sx, _sy)) continue;
               if (!isMonsterSpawnCellAllowed(_dg, _sx, _sy)) continue;
-              if (_dg.isBigRoom) {
-                if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
-              } else {
-                if (_dg.visible[_sy][_sx]) continue;
-              }
-              _gcands.push([_sx, _sy]);
+              _graw.push([_sx, _sy]);
             }
           }
+          const _gcands = keepMonsterSpawnSightCells(_dg, _graw, p);
           if (_gcands.length > 0) {
             const [_cx, _cy] = pick(_gcands);
             _dg.monsters.push(makeGuard(_cx, _cy, p.x, p.y));
