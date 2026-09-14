@@ -20,6 +20,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
+import { lootPoolForDungeon } from "./dungeonContent.js";
 import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
@@ -525,8 +526,9 @@ export const ITEMS = [
 ];
 
 /** 空き瓶で敵を倒した際に出現する、レア度重み付きの通常薬を1つ生成する。 */
-export function makeRandomPotion(randomFn = Math.random) {
-  const potion = pickLootFromPool(ITEMS.filter((item) => item.type === "potion"), "drop", randomFn);
+export function makeRandomPotion(randomFn = Math.random, dungeonType = null, floor = 99) {
+  const potionPool = lootPoolForDungeon(ITEMS.filter((item) => item.type === "potion"), dungeonType, floor);
+  const potion = pickLootFromPool(potionPool, "drop", randomFn) || WATER_BOTTLE;
   return { ...potion, id: uid() };
 }
 
@@ -3942,7 +3944,11 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     if (wasInDungeon && !dg.monsters?.includes(mon)) onKilled?.(mon);
     /* 空き瓶は、敵を倒したときだけランダムな薬に変わる。 */
     if (item.type === "bottle") {
-      const _bottleDrop = makeRandomPotion();
+      const _bottleDrop = makeRandomPotion(
+        Math.random,
+        dg?.dungeonType ?? p?.dungeonType ?? null,
+        Number.isFinite(p?.depth) ? p.depth : 99,
+      );
       const _bottleFt = new Set();
       placeItemAt(dg, mon.x, mon.y, _bottleDrop, ml, _bottleFt, 0, p);
       ml.push(`${mon.name}の足元に${resolveItemName(_bottleDrop, nameFn)}が残った！`);
@@ -5263,6 +5269,12 @@ export function monsterDrop(m, dg, ml, p = null) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
     return;
   }
+  const _dropDungeonType = dg?.dungeonType ?? p?.dungeonType ?? null;
+  /* p.depth は1始まり。テストや特殊呼び出しで階が不明な場合は、
+     初心者・中級者の全階共通の禁止対象だけを適用する。 */
+  const _dropFloor = Number.isFinite(p?.depth) ? p.depth : 99;
+  const _dropPool = (pool) => lootPoolForDungeon(pool, _dropDungeonType, _dropFloor);
+  const _pickDrop = (pool) => pickLootFromPool(_dropPool(pool), "drop");
   /* 遺物の番人：ボス特性は維持し、戦利品だけ専用の通常枠に置き換える。 */
   if (m.relicGuardian) {
     const _ft = new Set();
@@ -5272,7 +5284,7 @@ export function monsterDrop(m, dg, ml, p = null) {
       { name: "金貨", type: "gold", value: _gv, tile: 22, id: uid() },
       ml, _ft, 0, p);
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
-    const _t = pickLootFromPool(_pool, "drop");
+    const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
       if (_di.type === "pen") _di.charges = penInitialCharges(_di);
@@ -5375,24 +5387,24 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
   /* 矢・石は、残弾がある個体だけ5%で残り全量をドロップ */
   const _projectileAmmoCount = Number(m.projectileAmmo?.count) || 0;
-  if (_projectileAmmoCount > 0 && m.subtype === "archer" && Math.random() < 0.05) {
+  if (_projectileAmmoCount > 0 && m.subtype === "archer" && Math.random() < 0.05 && _dropPool([m.projectileAmmo]).length > 0) {
     drops.push({ ...m.projectileAmmo, id: uid(), count: _projectileAmmoCount });
   }
-  if (_projectileAmmoCount > 0 && m.subtype === "stonethrow" && Math.random() < 0.05) {
+  if (_projectileAmmoCount > 0 && m.subtype === "stonethrow" && Math.random() < 0.05 && _dropPool([m.projectileAmmo]).length > 0) {
     drops.push({ ...m.projectileAmmo, id: uid(), count: _projectileAmmoCount });
   }
   if (m.subtype === "wanduser" && Math.random() < 0.05) {
-    const _wt = pick(WANDS);
-    drops.push({ ..._wt, id: uid(), charges: Math.max(1, rng(1, _wt.charges)) });
+    const _wt = _pickDrop(WANDS);
+    if (_wt) drops.push({ ..._wt, id: uid(), charges: Math.max(1, rng(1, _wt.charges)) });
   }
   /* ゴブリン系：15%でゴブリンバットをドロップ */
   if (m.baseKind === "goblin" && Math.random() < 0.15) {
-    drops.push({ ...GOBLIN_BAT_T, id: uid() });
+    if (_dropPool([GOBLIN_BAT_T]).length > 0) drops.push({ ...GOBLIN_BAT_T, id: uid() });
   }
   /* ランナー（コロポックル等）：必ずアイテムを1つドロップ */
   if (m.subtype === "runner") {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
-    const _t = pickLootFromPool(_pool, "drop");
+    const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
@@ -5404,7 +5416,7 @@ export function monsterDrop(m, dg, ml, p = null) {
    * 特技なし・分裂敵: 2%、特技持ち: 5% */
   if (Math.random() < monsterRandomDropChance(m)) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
-    const _t = pickLootFromPool(_pool, "drop");
+    const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
@@ -5416,7 +5428,7 @@ export function monsterDrop(m, dg, ml, p = null) {
   if (((p?.luckTurns || 0) > 0 || m.dropExtraItem || (m.dropLuckTurns || 0) > 0) &&
       Math.random() < monsterRandomDropChance(m)) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
-    const _t = pickLootFromPool(_pool, "drop");
+    const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
