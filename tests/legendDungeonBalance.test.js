@@ -1,10 +1,50 @@
 import { describe, expect, it } from "vitest";
 import {
+  bbAllowedInDungeon,
+  bbPoolForDungeon,
+  lootAllowedInDungeon,
+  trapAllowedInDungeon,
+  trapPoolForDungeon,
+} from "../dungeonContent.js";
+import {
   LEGEND_MONSTER_FLOOR_POOLS,
   legendMonsterAllowed,
   legendMonsterSpawnLevel,
 } from "../legendMonsterRules.js";
+import { BB_TYPES, TRAPS } from "../dungeonCatalog.js";
+import { ITEMS, SPELLBOOKS, WANDS } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
+
+const trap = (effect) => TRAPS.find((entry) => entry.effect === effect);
+const box = (kind) => BB_TYPES.find((entry) => entry.kind === kind);
+
+describe("超上級ダンジョンの出現段階", () => {
+  it("最序盤は地雷と時限爆弾を出さず、落石は1階から出す", () => {
+    expect(trapAllowedInDungeon(trap("explode"), "legend", 1)).toBe(false);
+    expect(trapAllowedInDungeon(trap("time_bomb"), "legend", 5)).toBe(false);
+    expect(trapAllowedInDungeon(trap("rockfall"), "legend", 1)).toBe(true);
+    expect(trapPoolForDungeon("legend", 1).map((entry) => entry.effect)).not.toContain("explode");
+    expect(trapAllowedInDungeon(trap("explode"), "legend", 6)).toBe(true);
+    expect(trapAllowedInDungeon(trap("time_bomb"), "legend", 6)).toBe(true);
+  });
+
+  it("大箱は1〜8階でゴミ箱・ニトロ・呪いを出さず、9階から全種類", () => {
+    expect(bbAllowedInDungeon(box("synthesis"), "legend", 1)).toBe(true);
+    expect(bbAllowedInDungeon(box("monster"), "legend", 1)).toBe(true);
+    expect(bbAllowedInDungeon(box("trash"), "legend", 8)).toBe(false);
+    expect(bbAllowedInDungeon(box("nitro"), "legend", 8)).toBe(false);
+    expect(bbAllowedInDungeon(box("curse"), "legend", 8)).toBe(false);
+    expect(bbAllowedInDungeon(box("nitro"), "legend", 9)).toBe(true);
+    expect(bbPoolForDungeon("legend", 9).map((entry) => entry.kind)).toEqual(BB_TYPES.map((entry) => entry.kind));
+  });
+
+  it("道具は超上級の階に関係なく全種類を許可する", () => {
+    expect(lootAllowedInDungeon(ITEMS.find((item) => item.effect === "doping"), "legend", 1)).toBe(true);
+    expect(lootAllowedInDungeon(ITEMS.find((item) => item.type === "gold_nugget"), "legend", 1)).toBe(true);
+    expect(lootAllowedInDungeon(WANDS.find((wand) => wand.effect === "wish"), "legend", 1)).toBe(true);
+    expect(lootAllowedInDungeon(SPELLBOOKS.find((book) => book.spell === "time_stop_magic"), "legend", 50)).toBe(true);
+  });
+});
 
 describe("超上級ダンジョンの敵分布", () => {
   it("階ごとの候補を絞り、再登場帯を設ける", () => {

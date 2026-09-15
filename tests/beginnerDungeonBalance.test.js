@@ -167,11 +167,15 @@ describe("初心者ダンジョンの出現制限", () => {
     }
   });
 
-  it("上級は罠・大箱を階層解禁し、伝説は制限しない", () => {
+  it("上級は罠・大箱を階層解禁し、超上級は地雷と破壊箱だけ遅らせる", () => {
     expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "advanced", 1)).toBe(false);
     expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "advanced", 11)).toBe(true);
     expect(bbAllowedInDungeon(BB_TYPES.find((b) => b.kind === "nitro"), "advanced", 1)).toBe(false);
     expect(bbAllowedInDungeon(BB_TYPES.find((b) => b.kind === "nitro"), "advanced", 15)).toBe(true);
+    expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "legend", 1)).toBe(false);
+    expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "legend", 6)).toBe(true);
+    expect(bbAllowedInDungeon(BB_TYPES.find((b) => b.kind === "nitro"), "legend", 8)).toBe(false);
+    expect(bbAllowedInDungeon(BB_TYPES.find((b) => b.kind === "nitro"), "legend", 9)).toBe(true);
     expect(lootAllowedInDungeon(ITEMS.find((i) => i.effect === "doping"), "legend", 1)).toBe(true);
   });
 });
