@@ -119,7 +119,7 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     expect(onMonsterDefeated).toHaveBeenCalledWith(undead, { noBone: true, killerMon: painter });
   });
 
-  it("所有者がいない魔方陣は発動しない", () => {
+  it("所有者がいない魔方陣も発動し、所有者へのキル帰属だけ行わない", () => {
     const pc = { kind: "heal_aura", name: "回復の魔方陣", painterId: "missing-painter", x: 2, y: 2 };
     const undead = { name: "スケルトン", kind: "undead", x: 2, y: 3, hp: 5, maxHp: 20 };
     const player = { x: 2, y: 2, hp: 10, maxHp: 20 };
@@ -134,10 +134,10 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
       effectDeps({ onMonsterDefeated }),
     );
 
-    expect(player.hp).toBe(10);
-    expect(undead.hp).toBe(5);
-    expect(messages).toEqual([]);
-    expect(onMonsterDefeated).not.toHaveBeenCalled();
+    expect(player.hp).toBe(15);
+    expect(undead.hp).toBe(0);
+    expect(messages).toContain("回復の魔方陣の回復力がスケルトンを傷つけた！5ダメージ！(アンデッド)");
+    expect(onMonsterDefeated).toHaveBeenCalledWith(undead, { noBone: true, noExp: true });
   });
 
   it("祝福された回復の魔方陣は別室のプレイヤーにも10回復する", () => {

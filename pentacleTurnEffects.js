@@ -85,14 +85,18 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
 }) {
   if (pc.kind !== "stone_throw" && pc.kind !== "heal_aura") return;
 
-  /* ラクガキ魔系が描いた魔方陣は、描いた個体が生存している間だけ発動する。 */
+  /* ラクガキ魔系が描いた魔方陣は、所有者が残っている時だけ撃破の帰属を付ける。 */
   const painter = pc.painterId == null
     ? null
     : dungeon.monsters?.find((monster) => monster.id === pc.painterId && (monster.hp ?? 0) > 0) ?? null;
-  if (pc.painterId != null && !painter) return;
+  const painterMissing = pc.painterId != null && !painter;
   const notifyMonsterDefeated = (monster, options = {}) => {
-    if (painter || options.noBone) {
-      onMonsterDefeated(monster, { ...options, ...(painter ? { killerMon: painter } : {}) });
+    if (painter || painterMissing || options.noBone) {
+      onMonsterDefeated(monster, {
+        ...options,
+        ...(painter ? { killerMon: painter } : {}),
+        ...(painterMissing ? { noExp: true } : {}),
+      });
       return;
     }
     onMonsterDefeated(monster);
