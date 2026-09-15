@@ -9,6 +9,7 @@ import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { advancedMonsterAllowed, advancedMonsterSpawnLevel } from "./advancedMonsterRules.js";
+import { legendMonsterAllowed, legendMonsterSpawnLevel } from "./legendMonsterRules.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
@@ -1380,6 +1381,7 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
     if (excludeItemMimic && m.baseKind === "itemMimic") return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     if (dungeonType === "advanced") return advancedMonsterAllowed(m.baseKind, floor);
+    if (dungeonType === "legend") return legendMonsterAllowed(m.baseKind, floor);
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false; // このダンジョンには出現しない
     const minF = df?.min !== undefined ? df.min : m.minFloor;
@@ -1402,6 +1404,8 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
   let spawnLevel = 1;
   if (dungeonType === "advanced") {
     spawnLevel = advancedMonsterSpawnLevel(base, floor);
+  } else if (dungeonType === "legend") {
+    spawnLevel = legendMonsterSpawnLevel(base, floor);
   } else if (base.levels?.length > 0) {
     for (let i = base.levels.length; i >= 1; i--) {
       const lv = base.levels[i - 1];
@@ -1430,6 +1434,7 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
     if (m.penaltyOnly) return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     if (dungeonType === "advanced") return advancedMonsterAllowed(m.baseKind, floor);
+    if (dungeonType === "legend") return legendMonsterAllowed(m.baseKind, floor);
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false;
     const minF = df?.min !== undefined ? df.min : m.minFloor;
