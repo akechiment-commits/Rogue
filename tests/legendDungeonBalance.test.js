@@ -7,6 +7,7 @@ import {
   trapPoolForDungeon,
 } from "../dungeonContent.js";
 import {
+  LEGEND_MONSTER_BANDS,
   LEGEND_MONSTER_FLOOR_POOLS,
   legendMonsterAllowed,
   legendMonsterSpawnLevel,
@@ -47,76 +48,88 @@ describe("超上級ダンジョンの出現段階", () => {
 });
 
 describe("超上級ダンジョンの敵分布", () => {
-  it("階ごとの候補を絞り、再登場帯を設ける", () => {
-    expect(LEGEND_MONSTER_FLOOR_POOLS[1]).toEqual(["rat", "bat", "centipede"]);
+  const skipped = [
+    "rat", "bat", "centipede", "kobold", "goblin", "skeleton", "runner", "slime",
+    "wokka", "archer", "imp", "zombie", "leprechaun", "tattoobird", "wizard",
+    "itemblaster", "stealthrower", "itempusher", "bombslime", "crystalslime",
+    "rockspirit", "gelcube", "walldigger", "knocker", "trapthrower", "shaman",
+    "synthmonster", "barriermage", "windmage", "firedemon", "gargoyle", "starlight",
+    "berserker", "lizardman", "dragonknight", "reflector", "tripper", "seaDevil",
+    "icedragon",
+  ];
+
+  it("階ごとの候補は少なく、雑魚を全部は出さない", () => {
+    expect(LEGEND_MONSTER_FLOOR_POOLS[1]).toEqual(["thief", "rustbug", "rakugakima"]);
     for (let floor = 1; floor <= 50; floor++) {
       expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
-      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(16);
+      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(6);
     }
-    expect(LEGEND_MONSTER_FLOOR_POOLS[50]).toEqual(expect.arrayContaining([
-      "dragon", "icedragon", "gargoyle", "vampire", "golem", "daemon", "darkness",
-    ]));
-  });
-
-  it("序盤の単純敵を中盤にLv2、後半にLv3で再登場させる", () => {
-    for (const [kind, lv2Floor, lv3Floor] of [
-      ["rat", 16, 32],
-      ["bat", 16, 32],
-      ["centipede", 16, 32],
-      ["kobold", 20, 36],
-      ["goblin", 20, 36],
-      ["skeleton", 20, 36],
-      ["imp", 24, 40],
-      ["zombie", 24, 40],
-      ["wolf", 24, 40],
-    ]) {
-      expect(legendMonsterAllowed(kind, lv2Floor)).toBe(true);
-      expect(legendMonsterAllowed(kind, lv3Floor)).toBe(true);
-      const base = MONS.find((monster) => monster.baseKind === kind);
-      expect(legendMonsterSpawnLevel(base, 1)).toBe(1);
-      expect(legendMonsterSpawnLevel(base, lv2Floor)).toBe(2);
-      expect(legendMonsterSpawnLevel(base, lv3Floor)).toBe(3);
+    for (const kind of skipped) {
+      for (let floor = 1; floor <= 50; floor++) {
+        expect(legendMonsterAllowed(kind, floor)).toBe(false);
+      }
     }
   });
 
-  it("能力敵は終盤にLv2とLv3で戻し、Lv3を解禁する", () => {
-    for (const floor of [43, 44, 45, 46]) {
-      expect(legendMonsterAllowed("hypnotist", floor)).toBe(true);
+  it("同じ種族のLv帯は最低6階空け、初登場はLv1", () => {
+    const byKind = new Map();
+    for (const band of LEGEND_MONSTER_BANDS) {
+      for (const kind of band.kinds) {
+        if (!byKind.has(kind)) byKind.set(kind, []);
+        byKind.get(kind).push({ min: band.min, max: band.max, level: band.level });
+      }
     }
-    for (const floor of [45, 46, 47, 48]) {
-      expect(legendMonsterAllowed("giantEel", floor)).toBe(true);
+    for (const [kind, bands] of byKind) {
+      bands.sort((a, b) => a.min - b.min);
+      expect(bands[0].level).toBe(1);
+      for (let i = 1; i < bands.length; i++) {
+        expect(bands[i].min - bands[i - 1].max).toBeGreaterThanOrEqual(6);
+        expect(bands[i].level).toBeGreaterThan(bands[i - 1].level);
+      }
     }
-    for (const floor of [46, 47, 48, 49]) {
-      expect(legendMonsterAllowed("seaDevil", floor)).toBe(true);
-    }
-    for (const kind of ["dangerousPetal", "dreamEater", "hypnotist"]) {
-      expect(legendMonsterAllowed(kind, 42)).toBe(true);
-      expect(legendMonsterAllowed(kind, 50)).toBe(true);
-    }
+  });
 
-    const petal = MONS.find((monster) => monster.baseKind === "dangerousPetal");
-    expect(legendMonsterSpawnLevel(petal, 29)).toBe(1);
-    expect(legendMonsterSpawnLevel(petal, 38)).toBe(2);
-    expect(legendMonsterSpawnLevel(petal, 45)).toBe(3);
-
+  it("ドラゴンとデーモンの初登場はLv1で、終盤だけLv3の種族を限る", () => {
     const dragon = MONS.find((monster) => monster.baseKind === "dragon");
-    expect(legendMonsterSpawnLevel(dragon, 47)).toBe(3);
-    expect(legendMonsterSpawnLevel(dragon, 50)).toBe(3);
+    const daemon = MONS.find((monster) => monster.baseKind === "daemon");
+    const vampire = MONS.find((monster) => monster.baseKind === "vampire");
+    const golem = MONS.find((monster) => monster.baseKind === "golem");
+    expect(legendMonsterSpawnLevel(dragon, 29)).toBe(1);
+    expect(legendMonsterSpawnLevel(dragon, 40)).toBe(2);
+    expect(legendMonsterSpawnLevel(dragon, 48)).toBe(3);
+    expect(legendMonsterSpawnLevel(daemon, 41)).toBe(1);
+    expect(legendMonsterAllowed("daemon", 48)).toBe(false);
+    expect(legendMonsterSpawnLevel(vampire, 33)).toBe(1);
+    expect(legendMonsterSpawnLevel(vampire, 45)).toBe(2);
+    expect(legendMonsterSpawnLevel(golem, 37)).toBe(1);
+    expect(legendMonsterSpawnLevel(golem, 45)).toBe(2);
+    expect(legendMonsterAllowed("icedragon", 37)).toBe(false);
   });
 
-  it("超上級で通常出現する全72種は最低3階に候補になる", () => {
+  it("睡眠コンボと催眠、火竜と氷竜、水中の脅威は同じ階に重ねない", () => {
+    for (let floor = 1; floor <= 50; floor++) {
+      const kinds = LEGEND_MONSTER_FLOOR_POOLS[floor];
+      const hasSleep = kinds.includes("dangerousPetal") || kinds.includes("dreamEater");
+      expect(hasSleep && kinds.includes("hypnotist")).toBe(false);
+      expect(kinds.includes("dragon") && kinds.includes("icedragon")).toBe(false);
+      const water = ["waterFlower", "giantEel", "seaDevil"].filter((kind) => kinds.includes(kind));
+      expect(water.length).toBeLessThanOrEqual(1);
+      expect(kinds.includes("bombgoblin") && kinds.includes("bombslime")).toBe(false);
+      expect(kinds.includes("thief") && kinds.includes("leprechaun")).toBe(false);
+    }
+  });
+
+  it("出る種族は最低3階に候補になる", () => {
     const counts = new Map();
     for (const kinds of LEGEND_MONSTER_FLOOR_POOLS) {
       for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
     }
-    const legendKinds = MONS
-      .filter((monster) => !monster.penaltyOnly && !(monster.dungeons && !monster.dungeons.includes("legend")))
-      .map((monster) => monster.baseKind);
-    expect(new Set(legendKinds).size).toBe(72);
-    for (const kind of legendKinds) expect(counts.get(kind)).toBeGreaterThanOrEqual(3);
+    expect(counts.size).toBeLessThanOrEqual(36);
+    expect(counts.size).toBeGreaterThanOrEqual(24);
+    for (const [kind, count] of counts) expect(count).toBeGreaterThanOrEqual(3);
   });
 
-  it("pickMonsterDefも階別プール以外の敵を返さない", () => {
+  it("pickMonsterDefも階別プールと指定レベル以外を返さない", () => {
     for (let floor = 1; floor <= 50; floor++) {
       for (let i = 0; i < 20; i++) {
         const { base, spawnLevel } = pickMonsterDef(floor - 1, "legend");

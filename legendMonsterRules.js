@@ -1,96 +1,64 @@
 /* ===== 超上級ダンジョンの階別モンスター候補 ===== */
 /*
- * 超上級は50階あるので、上級と同じ種族順を2階おき・4階帯で伸ばす。
- * 序盤は3〜9種、終盤は再登場を含めて最大16種。各基礎種は最低3階出す。
- * 自然出現のLv3はここで解禁する。
+ * 出さないものは出さない。ネズミ・コボルドなどの雑魚や、
+ * 同じ仕事の二番手（風・岩砕き・自爆スライム・光精霊など）は切る。
+ * 各帯は4階。同じ種族のLv違い帯は最低6階空ける。
+ * 初登場は必ずLv1。終盤のドラゴンも例外にしない。
  */
-const LEGEND_MONSTER_BAND = 4;
+export const LEGEND_MONSTER_BANDS = Object.freeze([
+  /* 1〜4 盗む / 錆びる / 魔方陣。数値より能力が本体 */
+  { min: 1, max: 4, level: 1, kinds: ["thief", "rustbug", "rakugakima"] },
+  /* 5〜8 化ける / 薬投げ / 拘束。拘束と薬は揃えるが足払いは出さない */
+  { min: 5, max: 8, level: 1, kinds: ["itemMimic", "potionthrower", "grabber"] },
+  /* 9〜12 突進 / 倍速 / 自爆。爆発はこの帯だけ */
+  { min: 9, max: 12, level: 1, kinds: ["charger", "wolf", "bombgoblin"] },
+  /* 13〜16 防御無視 / 拾い投げ / 罠。ラクガキはLv2で戻す */
+  { min: 13, max: 16, level: 1, kinds: ["orc", "itemThrower", "trapmaster"] },
+  { min: 13, max: 16, level: 2, kinds: ["rakugakima"] },
+  /* 17〜20 睡眠コンボと毒二回。盗賊Lv2。催眠や状態杖とは重ねない */
+  { min: 17, max: 20, level: 1, kinds: ["dangerousPetal", "dreamEater", "serpent"] },
+  { min: 18, max: 21, level: 2, kinds: ["thief"] },
+  /* 21〜24 状態杖 / 装備外し / 引き寄せ。移動強制は引きダコだけ */
+  { min: 21, max: 24, level: 1, kinds: ["witchdoc", "disarmer", "puller"] },
+  /* 25〜28 催眠 / 投擲回避 / 水中花。水は1種。花びらとも催眠とも別帯 */
+  { min: 25, max: 28, level: 1, kinds: ["hypnotist", "dodgemole", "waterFlower"] },
+  /* 29〜32 ドラゴンはLv1で初登場。痛恨と魔法無効は別回答 */
+  { min: 29, max: 32, level: 1, kinds: ["dragon", "troll", "killplaster"] },
+  /* 33〜36 吸血倍速 / 拘束ウナギ。花びらLv2。火竜・氷竜とは別 */
+  { min: 33, max: 36, level: 1, kinds: ["vampire", "giantEel"] },
+  { min: 33, max: 36, level: 2, kinds: ["dangerousPetal", "dreamEater"] },
+  /* 37〜40 ゴーレム / 闇視界。毒蛇Lv2。氷竜は火竜の二番手なので出さない */
+  { min: 37, max: 39, level: 1, kinds: ["golem"] },
+  { min: 37, max: 40, level: 1, kinds: ["darkness"] },
+  { min: 37, max: 40, level: 2, kinds: ["serpent"] },
+  /* 38〜41 催眠Lv2。花びら帯が終わってから */
+  { min: 38, max: 41, level: 2, kinds: ["hypnotist"] },
+  /* 39〜42 ドラゴンLv2。氷竜とは重ねない */
+  { min: 39, max: 42, level: 2, kinds: ["dragon"] },
+  /* 41〜44 デーモンもLv1で初登場。ものまね。三回攻撃は土地のデーモンだけ */
+  { min: 41, max: 44, level: 1, kinds: ["daemon", "mimic"] },
+  { min: 42, max: 45, level: 3, kinds: ["rakugakima"] },
+  /* 45〜47 吸血・ゴーレム・魔法無効のLv2。デーモンはLv1のまま戻さない */
+  { min: 45, max: 47, level: 2, kinds: ["vampire", "golem", "killplaster"] },
+  /* 48〜50 Lv3はドラゴンと催眠。夢喰いとは重ねない。闇はLv2 */
+  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist"] },
+  { min: 48, max: 50, level: 2, kinds: ["darkness"] },
+]);
 
-const LEGEND_MONSTER_STARTS = Object.freeze({
-  1: ["rat", "bat", "centipede"],
-  3: ["kobold", "goblin"],
-  5: ["skeleton", "imp"],
-  7: ["runner", "zombie"],
-  9: ["archer", "wokka", "slime"],
-  11: ["grabber", "tripper"],
-  13: ["potionthrower", "rakugakima"],
-  15: ["itemMimic", "charger"],
-  17: ["tattoobird", "thief"],
-  19: ["wolf", "rustbug", "wizard"],
-  21: ["leprechaun", "itemblaster"],
-  23: ["stealthrower", "itempusher"],
-  25: ["itemThrower", "bombslime", "reflector"],
-  27: ["crystalslime", "rockspirit", "orc"],
-  29: ["dangerousPetal", "dreamEater", "wateri"],
-  31: ["lizardman", "dragonknight", "gelcube"],
-  33: ["trapmaster", "bombgoblin", "knocker"],
-  35: ["magicreflector", "mimic", "walldigger"],
-  37: ["waterFlower", "serpent", "trapthrower"],
-  39: ["witchdoc", "shaman", "disarmer"],
-  41: ["monsterthrow", "synthmonster", "barriermage"],
-  43: ["windmage", "puller", "hypnotist"],
-  45: ["troll", "firedemon", "giantEel"],
-  46: ["killplaster", "icedragon", "seaDevil"],
-  47: ["starlight", "dodgemole", "berserker"],
-  48: ["gargoyle", "vampire", "dragon", "golem", "daemon", "darkness"],
-});
-
-const _LEGEND_MONSTER_FLOOR_POOLS = Array.from({ length: 51 }, () => []);
-for (const [startText, kinds] of Object.entries(LEGEND_MONSTER_STARTS)) {
-  const start = Number(startText);
-  for (let floor = start; floor < start + LEGEND_MONSTER_BAND && floor <= 50; floor++) {
-    _LEGEND_MONSTER_FLOOR_POOLS[floor].push(...kinds);
+const _pools = Array.from({ length: 51 }, () => []);
+const _levels = Array.from({ length: 51 }, () => new Map());
+for (const band of LEGEND_MONSTER_BANDS) {
+  for (let floor = band.min; floor <= band.max; floor++) {
+    for (const kind of band.kinds) {
+      if (!_pools[floor].includes(kind)) _pools[floor].push(kind);
+      _levels[floor].set(kind, band.level);
+    }
   }
 }
 
-/*
- * 再登場帯。序盤の単純敵は中盤にLv2、後半にLv3で戻す。
- * 能力は厄介だが数値は低めの敵も終盤へもう一度入れる。
- */
-const LEGEND_MONSTER_REINFORCEMENTS = Object.freeze({
-  16: ["rat", "bat", "centipede"],
-  20: ["kobold", "goblin", "skeleton"],
-  24: ["imp", "zombie", "wolf"],
-  32: ["rat", "bat", "centipede"],
-  36: ["kobold", "goblin", "skeleton"],
-  40: ["imp", "zombie", "wolf"],
-  38: ["dangerousPetal", "dreamEater"],
-  42: ["dangerousPetal", "dreamEater", "hypnotist"],
-  45: ["dangerousPetal", "dreamEater", "hypnotist"],
-  46: ["dangerousPetal", "dreamEater", "hypnotist"],
-  47: ["dangerousPetal", "dreamEater", "hypnotist"],
-  49: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
-  50: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
-});
-
-for (const [floorText, kinds] of Object.entries(LEGEND_MONSTER_REINFORCEMENTS)) {
-  const floor = Number(floorText);
-  _LEGEND_MONSTER_FLOOR_POOLS[floor].push(...kinds);
-}
-
-/* 50階だけ氷竜が帯から外れるので、締めとして残す。 */
-_LEGEND_MONSTER_FLOOR_POOLS[50].push("icedragon");
-
 export const LEGEND_MONSTER_FLOOR_POOLS = Object.freeze(
-  _LEGEND_MONSTER_FLOOR_POOLS.map((kinds) => Object.freeze([...new Set(kinds)])),
+  _pools.map((kinds) => Object.freeze([...kinds])),
 );
-
-const LEGEND_MONSTER_LEVEL_RANGES = Object.freeze({
-  rat: { lv2: { min: 16, max: 19 }, lv3: { min: 32, max: 35 } },
-  bat: { lv2: { min: 16, max: 19 }, lv3: { min: 32, max: 35 } },
-  centipede: { lv2: { min: 16, max: 19 }, lv3: { min: 32, max: 35 } },
-  kobold: { lv2: { min: 20, max: 23 }, lv3: { min: 36, max: 39 } },
-  goblin: { lv2: { min: 20, max: 23 }, lv3: { min: 36, max: 39 } },
-  skeleton: { lv2: { min: 20, max: 23 }, lv3: { min: 36, max: 39 } },
-  imp: { lv2: { min: 24, max: 27 }, lv3: { min: 40, max: 43 } },
-  zombie: { lv2: { min: 24, max: 27 }, lv3: { min: 40, max: 43 } },
-  wolf: { lv2: { min: 24, max: 27 }, lv3: { min: 40, max: 43 } },
-  dangerousPetal: { lv2: { min: 38, max: 44 }, lv3: { min: 45, max: 50 } },
-  dreamEater: { lv2: { min: 38, max: 44 }, lv3: { min: 45, max: 50 } },
-  hypnotist: { lv2: { min: 43, max: 46 }, lv3: { min: 47, max: 50 } },
-  giantEel: { lv2: { min: 45, max: 47 }, lv3: { min: 48, max: 50 } },
-  seaDevil: { lv2: { min: 46, max: 48 }, lv3: { min: 49, max: 50 } },
-});
 
 export function legendMonsterKindsAtFloor(floor) {
   return LEGEND_MONSTER_FLOOR_POOLS[floor] ?? [];
@@ -101,15 +69,6 @@ export function legendMonsterAllowed(baseKind, floor) {
 }
 
 export function legendMonsterSpawnLevel(base, floor) {
-  if (!base?.levels?.length) return 1;
-  const maxLevel = Math.min(3, base.levels.length + 1);
-  const spec = LEGEND_MONSTER_LEVEL_RANGES[base.baseKind];
-  if (spec) {
-    if (spec.lv3 && floor >= spec.lv3.min && floor <= spec.lv3.max) return Math.min(3, maxLevel);
-    if (spec.lv2 && floor >= spec.lv2.min && floor <= spec.lv2.max) return Math.min(2, maxLevel);
-    return 1;
-  }
-  if (floor >= 40) return maxLevel;
-  if (floor >= 28) return Math.min(2, maxLevel);
-  return 1;
+  if (!base?.baseKind) return 1;
+  return _levels[floor]?.get(base.baseKind) ?? 1;
 }
