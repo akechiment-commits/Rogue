@@ -85,6 +85,19 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
 }) {
   if (pc.kind !== "stone_throw" && pc.kind !== "heal_aura") return;
 
+  /* ラクガキ魔系が描いた魔方陣は、描いた個体が生存している間だけ発動する。 */
+  const painter = pc.painterId == null
+    ? null
+    : dungeon.monsters?.find((monster) => monster.id === pc.painterId && (monster.hp ?? 0) > 0) ?? null;
+  if (pc.painterId != null && !painter) return;
+  const notifyMonsterDefeated = (monster, options = {}) => {
+    if (painter || options.noBone) {
+      onMonsterDefeated(monster, { ...options, ...(painter ? { killerMon: painter } : {}) });
+      return;
+    }
+    onMonsterDefeated(monster);
+  };
+
   const room = findRoom(dungeon.rooms, pc.x, pc.y);
   if (!room || inMagicSealRoom(pc.x, pc.y, dungeon)) return;
 
@@ -123,11 +136,11 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
         const damage = amount * multiplier;
         monster.hp -= damage;
         messages.push(`${pc.name}の呪いで${monster.name}が${damage}ダメージを受けた！`);
-        if (monster.hp <= 0) onMonsterDefeated(monster);
+        if (monster.hp <= 0) notifyMonsterDefeated(monster);
       } else if (monster.kind === "undead") {
         monster.hp -= amount;
         messages.push(`${pc.name}の回復力が${monster.name}を傷つけた！${amount}ダメージ！(アンデッド)`);
-        if (monster.hp <= 0) onMonsterDefeated(monster);
+        if (monster.hp <= 0) notifyMonsterDefeated(monster, { noBone: true });
       } else {
         const heal = Math.min(amount, monster.maxHp - monster.hp);
         if (heal > 0) monster.hp += heal;
@@ -198,7 +211,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
     } else if (targetMonster.kind === "undead") {
       targetMonster.hp -= baseAmount;
       messages.push(`${pc.name}の魔法の石が${targetMonster.name}に当たった！${baseAmount}ダメージ！(アンデッド)`);
-      if (targetMonster.hp <= 0) onMonsterDefeated(targetMonster);
+      if (targetMonster.hp <= 0) notifyMonsterDefeated(targetMonster, { noBone: true });
     } else {
       const heal = Math.min(baseAmount, targetMonster.maxHp - targetMonster.hp);
       if (heal > 0) {
@@ -265,5 +278,5 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
 
   targetMonster.hp -= damage;
   messages.push(`${pc.name}の魔法の石が${targetMonster.name}に当たった！${damage}ダメージ！`);
-  if (targetMonster.hp <= 0) onMonsterDefeated(targetMonster);
+  if (targetMonster.hp <= 0) notifyMonsterDefeated(targetMonster);
 }

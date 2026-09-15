@@ -162,6 +162,7 @@ describe("ものまね師", () => {
       expect(ml.some((m) => String(m).includes("ものまね"))).toBe(true);
       expect(ml.some((m) => String(m).includes("を描いた"))).toBe(true);
       expect(dg.pentacles.length).toBe(1);
+      expect(dg.pentacles[0].painterId).toBe(mimic.id);
       expect(ml.some((m) => String(m).includes("攻撃！"))).toBe(false);
       expect(mimic.turnAttacks).toBe(1);
     } finally {

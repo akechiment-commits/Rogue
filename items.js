@@ -5611,7 +5611,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
 
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
-export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false) {
+export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false) {
   const mx = mon.x, my = mon.y;
   if (mon.isPlayerClone) {
     if (dg?.monsters?.includes(mon)) {
@@ -5676,7 +5676,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   monsterDrop(mon, dg, ml, p);
   /* スケルトン：50%で骨を残し5ターン後に復活（復活抑制下では骨を残さない） */
-  if (mon.baseKind === "skeleton" && Math.random() < 0.5) {
+  if (!noBone && mon.baseKind === "skeleton" && Math.random() < 0.5) {
     if (_reviveBlocked) {
       ml.push(REVIVAL_SUPPRESS_MSG);
       ml.push(`${mon.name}の骨は散らばって消えた。`);

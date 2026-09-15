@@ -1985,8 +1985,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               hasAbility,
               makeMagicStone,
               placeItemAt,
-              onMonsterDefeated: (monster) => {
-                killMonster(monster, _dg2, p, ml, lu);
+              onMonsterDefeated: (monster, { killerMon = null, noBone = false } = {}) => {
+                /* ラクガキ魔の魔方陣による撃破は、所有者のキル扱いにする。 */
+                if (killerMon && (!_dg2.monsters.includes(killerMon) || (killerMon.hp ?? 0) <= 0)) return;
+                killMonster(monster, _dg2, p, ml, lu, false, killerMon, false, noBone);
               },
             });
           }

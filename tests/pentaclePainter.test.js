@@ -5,7 +5,7 @@ import { T } from "../utils.js";
 
 function makePainter(x, y) {
   return {
-    name: "ラクガキ魔", subtype: "pentaclePainter", baseKind: "rakugakima",
+    id: "painter-test", name: "ラクガキ魔", subtype: "pentaclePainter", baseKind: "rakugakima",
     x, y, hp: 22, maxHp: 22, atk: 9, def: 3, exp: 36,
     speed: 1, baseSpeed: 1, aware: true, dormant: false, sealed: false,
     lastPx: x, lastPy: y, turnAccum: 0, monLevel: 1, dir: { x: 0, y: 0 },
@@ -26,6 +26,7 @@ describe("ラクガキ魔の魔方陣描画", () => {
     const ml = [];
     monsterAI(m, dg, pl, ml, {});
     expect(dg.pentacles.length).toBe(1);
+    expect(dg.pentacles[0].painterId).toBe(m.id);
     expect(ml.some(msg => msg.includes("を描いた"))).toBe(true);
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
+import { killMonster } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 
@@ -63,6 +64,23 @@ describe("敵同士の撃破によるレベルアップ", () => {
     expect(dg.monsters).not.toContain(target);
     expect(charger.monLevel).toBe(2);
     expect(charger.name).toBe("激突角獣");
+  });
+
+  it("ラクガキ魔の魔方陣撃破はプレイヤー経験値なしでラクガキ魔を強化し、骨を残さない", () => {
+    const painter = makeMonsterFromBase(MONS.find((m) => m.baseKind === "rakugakima"), 1, 3, 5, { aware: true });
+    const skeleton = makeMonsterFromBase(MONS.find((m) => m.baseKind === "skeleton"), 1, 5, 5);
+    skeleton.hp = 0;
+    const dg = makeBattlefield([painter, skeleton]);
+    const p = makePlayer({ x: 10, y: 5, exp: 0 });
+    const ml = [];
+
+    killMonster(skeleton, dg, p, ml, null, false, painter, false, true);
+
+    expect(p.exp).toBe(0);
+    expect(painter.monLevel).toBe(2);
+    expect(dg.monsters).not.toContain(skeleton);
+    expect(dg.traps.some((trap) => trap.name === "骨")).toBe(false);
+    expect(ml).toContain("スケルトンはラクガキ魔に倒された！");
   });
 
   it("ほっちもぺのLv3名は疑問符付き", () => {

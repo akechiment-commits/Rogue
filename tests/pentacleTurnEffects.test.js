@@ -98,7 +98,46 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     expect(undead.hp).toBe(0);
     expect(immune.hp).toBe(4);
     expect(messages).toContain("回復の魔方陣の回復力がゾンビを傷つけた！5ダメージ！(アンデッド)");
-    expect(onMonsterDefeated).toHaveBeenCalledWith(undead);
+    expect(onMonsterDefeated).toHaveBeenCalledWith(undead, { noBone: true });
+  });
+
+  it("所有者付き魔方陣の撃破を描いたラクガキ魔へ渡す", () => {
+    const painter = { id: "painter-1", name: "ラクガキ魔", hp: 18, maxHp: 18 };
+    const pc = { kind: "heal_aura", name: "回復の魔方陣", painterId: painter.id, x: 2, y: 2 };
+    const undead = { name: "スケルトン", kind: "undead", x: 2, y: 3, hp: 5, maxHp: 20 };
+    const dg = dungeon({ pentacles: [pc], monsters: [painter, undead] });
+    const onMonsterDefeated = vi.fn();
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dg,
+      { x: 5, y: 5, hp: 20, maxHp: 20 },
+      [],
+      effectDeps({ onMonsterDefeated }),
+    );
+
+    expect(onMonsterDefeated).toHaveBeenCalledWith(undead, { noBone: true, killerMon: painter });
+  });
+
+  it("所有者がいない魔方陣は発動しない", () => {
+    const pc = { kind: "heal_aura", name: "回復の魔方陣", painterId: "missing-painter", x: 2, y: 2 };
+    const undead = { name: "スケルトン", kind: "undead", x: 2, y: 3, hp: 5, maxHp: 20 };
+    const player = { x: 2, y: 2, hp: 10, maxHp: 20 };
+    const messages = [];
+    const onMonsterDefeated = vi.fn();
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dungeon({ pentacles: [pc], monsters: [undead] }),
+      player,
+      messages,
+      effectDeps({ onMonsterDefeated }),
+    );
+
+    expect(player.hp).toBe(10);
+    expect(undead.hp).toBe(5);
+    expect(messages).toEqual([]);
+    expect(onMonsterDefeated).not.toHaveBeenCalled();
   });
 
   it("祝福された回復の魔方陣は別室のプレイヤーにも10回復する", () => {
@@ -233,24 +272,26 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     const undead = { name: "ゾンビ", kind: "undead", x: 3, y: 2, hp: 5, maxHp: 20 };
     const dg = dungeon({ pentacles: [pc], monsters: [living, undead] });
     const player = { x: 5, y: 5, hp: 20, maxHp: 20 };
+    const onMonsterDefeated = vi.fn();
 
     resolveStoneAndHealingPentacleEffect(
       pc,
       dg,
       player,
       [],
-      effectDeps({ random: () => 0, pick: (values) => values.find((target) => target.monster === living) }),
+      effectDeps({ random: () => 0, pick: (values) => values.find((target) => target.monster === living), onMonsterDefeated }),
     );
     resolveStoneAndHealingPentacleEffect(
       pc,
       dg,
       player,
       [],
-      effectDeps({ random: () => 0, pick: (values) => values.find((target) => target.monster === undead) }),
+      effectDeps({ random: () => 0, pick: (values) => values.find((target) => target.monster === undead), onMonsterDefeated }),
     );
 
     expect(living.hp).toBe(10);
     expect(undead.hp).toBe(0);
+    expect(onMonsterDefeated).toHaveBeenCalledWith(undead, { noBone: true });
   });
 
   it.each([
