@@ -121,6 +121,22 @@ describe("genDungeon", () => {
     expect(layouts.size).toBeGreaterThan(1);
   });
 
+  it("ボスフロアの道具と大箱は部屋の中だけに出る", () => {
+    const inPlace = (dg, x, y) =>
+      dg.rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) ||
+      (dg.hiddenRooms || []).some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    for (let i = 0; i < 20; i++) {
+      const dg = genDungeon(4, "beginner");
+      expect(dg.floorType).toBe("bossFloor");
+      for (const item of dg.items.filter((it) => !it.wallEmbedded)) {
+        expect(inPlace(dg, item.x, item.y)).toBe(true);
+      }
+      for (const box of dg.bigboxes || []) {
+        expect(inPlace(dg, box.x, box.y)).toBe(true);
+      }
+    }
+  });
+
   it("クラーケンの水場は上りから下りへ床で迂回できる", () => {
     const dry = (tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD;
     for (let i = 0; i < 18; i++) {

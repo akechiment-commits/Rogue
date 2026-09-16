@@ -2323,10 +2323,12 @@ function genBossFloor(depth, dungeonType = null) {
   const allMons = [boss, ...minionMonsters];
   const isOccMon = (x, y) => allMons.some(mn => mn.x === x && mn.y === y);
   const isStair = (x, y) => (x === suX && y === suY) || (x === sdX && y === sdY);
-  const rndBossFloor = (occ) => {
-    for (let a = 0; a < 120; a++) {
+  const inBossRoom = (x, y) => rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  const rndBossFloor = (occ, roomOnly = false) => {
+    for (let a = 0; a < 160; a++) {
       const x = rng(1, MW - 2), y = rng(1, MH - 2);
       if (map[y][x] !== T.FLOOR || occ(x, y)) continue;
+      if (roomOnly && !inBossRoom(x, y)) continue;
       return [x, y];
     }
     return null;
@@ -2337,7 +2339,7 @@ function genBossFloor(depth, dungeonType = null) {
   const lootPool = lootPoolForDungeon(ITEMS, dungeonType, depth + 1);
   const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || items.some(i => i.x === x && i.y === y);
   for (let _ii = 0; _ii < rng(8, 14); _ii++) {
-    const p = rndBossFloor(itemOcc);
+    const p = rndBossFloor(itemOcc, true);
     if (!p) break;
     const _it = applyInitialItemCharges({ ...pickLootFromPool(lootPool), id: uid(), x: p[0], y: p[1] });
     if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
@@ -2367,7 +2369,7 @@ function genBossFloor(depth, dungeonType = null) {
   const bigboxes = [];
   const bbOcc = (x, y) => springOcc(x, y) || bigboxes.some(b => b.x === x && b.y === y);
   for (let _bi = 0; _bi < rng(2, 4); _bi++) {
-    const p = rndBossFloor(bbOcc);
+    const p = rndBossFloor(bbOcc, true);
     if (!p) break;
     const bbt = pickBB([], dungeonType, depth);
     bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
