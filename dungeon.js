@@ -2351,7 +2351,7 @@ function genBossFloor(depth, dungeonType = null) {
   const traps = [];
   const trapOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || itemOcc(x, y) || traps.some(t => t.x === x && t.y === y);
   for (let _ti = 0; _ti < rng(4, 8) + depth; _ti++) {
-    const p = rndBossFloor(trapOcc);
+    const p = rndBossFloor(trapOcc, true);
     if (!p) break;
     traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false });
   }
@@ -2360,7 +2360,7 @@ function genBossFloor(depth, dungeonType = null) {
   const springs = [];
   const springOcc = (x, y) => trapOcc(x, y) || springs.some(s => s.x === x && s.y === y);
   for (let _si = 0; _si < rng(1, 3); _si++) {
-    const p = rndBossFloor(springOcc);
+    const p = rndBossFloor(springOcc, true);
     if (!p) break;
     springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
   }

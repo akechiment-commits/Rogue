@@ -121,7 +121,7 @@ describe("genDungeon", () => {
     expect(layouts.size).toBeGreaterThan(1);
   });
 
-  it("ボスフロアの道具と大箱は部屋の中だけに出る", () => {
+  it("ボスフロアの道具・大箱・罠・泉は部屋の中だけに出る", () => {
     const inPlace = (dg, x, y) =>
       dg.rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) ||
       (dg.hiddenRooms || []).some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
@@ -131,9 +131,9 @@ describe("genDungeon", () => {
       for (const item of dg.items.filter((it) => !it.wallEmbedded)) {
         expect(inPlace(dg, item.x, item.y)).toBe(true);
       }
-      for (const box of dg.bigboxes || []) {
-        expect(inPlace(dg, box.x, box.y)).toBe(true);
-      }
+      for (const box of dg.bigboxes || []) expect(inPlace(dg, box.x, box.y)).toBe(true);
+      for (const trap of dg.traps || []) expect(inPlace(dg, trap.x, trap.y)).toBe(true);
+      for (const spring of dg.springs || []) expect(inPlace(dg, spring.x, spring.y)).toBe(true);
     }
   });
 
