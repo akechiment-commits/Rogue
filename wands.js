@@ -100,6 +100,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     p.x = toX; p.y = toY;
     pushPlayerTeleportAnim(_fromX, _fromY, p.x, p.y);
   };
+  const _defeat = (victim) => killMonster(victim, dg, p, ml, luFn, false, killerMon);
+  const _hitYou = (bolt) => sourceIsPlayer ? `${bolt}が自分に命中！` : `${bolt}が命中！`;
+  const _wandDeath = (label) => sourceIsPlayer
+    ? `${label}の魔法により`
+    : `${killerMon?.name || "モンスター"}の${label}により`;
   if (kind === "trap") trackTrap(target);
   if (kind === "bigbox") trackBigbox(target);
   /* 石像：位置系は壊さず効果発動。穴掘り・軟化は敵なし破壊。それ以外は有害なら破壊 */
@@ -689,7 +694,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.kind === "undead") {
             const _lcdmg = _magicDamage(rng(20, 30));
             target.hp -= _lcdmg; ml.push(`${target.name}はアンデッドのため${_lcdmg}ダメージを受けた！【呪】`);
-            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+            if (target.hp <= 0) _defeat(target);
           } else {
             const _lheal = Math.min(rng(20, 30), target.maxHp - target.hp);
             if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
@@ -719,9 +724,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "player") {
         dmg = _magicDamage(dmg, p);
         dmg = reduceLightningDamage(dmg, p);
-        p.deathCause = "雷の杖の魔法により";
+        p.deathCause = _wandDeath("雷の杖");
         p.hp -= dmg;
-        ml.push(`雷撃が自分に命中！${dmg}ダメージ！${lightningResistDamageLabel(p)}`);
+        ml.push(`${_hitYou("雷撃")}${dmg}ダメージ！${lightningResistDamageLabel(p)}`);
         pushLightningAnim(p.x, p.y);
         applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
@@ -1676,7 +1681,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.kind === "undead") {
             const _fwcd = _magicDamage(rng(20, 30));
             target.hp -= _fwcd; ml.push(`${target.name}はアンデッドのため${_fwcd}ダメージを受けた！【呪】`);
-            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+            if (target.hp <= 0) _defeat(target);
           } else {
             const _fwh = Math.min(rng(20, 30), target.maxHp - target.hp);
             if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
@@ -1706,7 +1711,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         _fwDmg = scaleMonFireDmg(target, _magicDamage(_fwDmg));
         target.hp -= _fwDmg;
         ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}${monFireDmgLabel(target)}`);
-        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        if (target.hp <= 0) _defeat(target);
         break;
       }
       if (kind === "player") {
@@ -1714,9 +1719,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
         _fwDmg = multiplyCursedMagicDamage(_fwDmg, p, dg);
         _fwDmg = reduceFireDamage(_fwDmg, p, { includeRingFire: true });
-        p.deathCause = "炎の杖の魔法により";
+        p.deathCause = _wandDeath("炎の杖");
         p.hp -= _fwDmg;
-        ml.push(`炎の弾が自分に命中！${_fwDmg}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
+        ml.push(`${_hitYou("炎の弾")}${_fwDmg}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
         applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         break;
       }
@@ -1761,7 +1766,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.kind === "undead") {
             const _iwd = _magicDamage(rng(15, 25));
             target.hp -= _iwd; ml.push(`${target.name}はアンデッドのため${_iwd}ダメージを受けた！【呪】`);
-            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+            if (target.hp <= 0) _defeat(target);
           } else {
             const _iwh = Math.min(rng(15, 25), target.maxHp - target.hp);
             if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
@@ -1788,23 +1793,23 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.hp -= _iwDmg;
         target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
         ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
-        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        if (target.hp <= 0) _defeat(target);
         break;
       }
       if (kind === "player") {
         const _iwTurns = statusTurns("immobile", { kind: "player", blessed: _iwBlessed });
         let _iwDmg = multiplyCursedMagicDamage(Math.max(1, Math.round(rng(15,25) * _iwBlessMult)), p, dg);
         _iwDmg = reduceIceDamage(_iwDmg, p);
-        p.deathCause = "氷の杖の魔法により";
+        p.deathCause = _wandDeath("氷の杖");
         p.hp -= _iwDmg;
         if (hasIceResist(p)) {
-          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！${iceResistDamageLabel(p)}・移動封じ無効`);
+          ml.push(`${_hitYou("氷の弾")}${_iwDmg}ダメージ！${iceResistDamageLabel(p)}・移動封じ無効`);
         } else if (isPlayerOnWater(p, dg)) {
-          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！`);
+          ml.push(`${_hitYou("氷の弾")}${_iwDmg}ダメージ！`);
           applyWaterIceFreeze(p, dg, ml, _iwTurns);
         } else {
           p.immobileTurns = (p.immobileTurns||0) + _iwTurns;
-          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！`);
+          ml.push(`${_hitYou("氷の弾")}${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！`);
         }
         break;
       }

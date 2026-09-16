@@ -6,6 +6,7 @@ import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { makeStatue, makeAltar } from "../fixtures.js";
 import { drainAnims, pushPlayerTeleportAnim } from "../animEvents.js";
 import { lootAllowedInDungeon } from "../dungeonContent.js";
+import { MONS, makeMonsterFromBase } from "../monsters.js";
 
 describe("applyWandEffect", () => {
   const dg = makeEmptyDg();
@@ -567,6 +568,43 @@ describe("triggerWandBreakEffect", () => {
     const wand = { type: "wand", effect: "leap", charges: 5 };
     triggerWandBreakEffect(wand, 5, 5, dg, p, ml, noop);
     expect(ml.filter(m => m.includes("何も起こらなかった")).length).toBe(3);
+  });
+});
+
+describe("敵の属性杖", () => {
+  const noop = () => {};
+
+  it("ウィザードの炎杖で敵を倒すとウィザードのキルになり経験値は入らない", () => {
+    const wizard = makeMonsterFromBase(MONS.find((m) => m.baseKind === "wizard"), 1, 3, 5);
+    const target = { id: "t1", name: "標的", hp: 1, maxHp: 10, atk: 1, def: 0, exp: 20, x: 6, y: 5, kind: "beast" };
+    const dg = makeEmptyDg({ monsters: [wizard, target] });
+    const p = makePlayer({ x: 10, y: 5, exp: 0 });
+    const ml = [];
+    applyWandEffect("fire_wand", "monster", target, 1, 0, dg, p, ml, noop, null, 1, null, wizard.atk, wizard, null, false, wizard);
+    expect(dg.monsters).not.toContain(target);
+    expect(p.exp).toBe(0);
+    expect(wizard.monLevel).toBe(2);
+    expect(ml.some((msg) => msg.includes("標的はウィザードに倒された"))).toBe(true);
+  });
+
+  it("ウィザードの炎杖がプレイヤーに当たっても自分に命中とは出ない", () => {
+    const wizard = makeMonsterFromBase(MONS.find((m) => m.baseKind === "wizard"), 1, 3, 5);
+    const dg = makeEmptyDg({ monsters: [wizard] });
+    const p = makePlayer({ x: 6, y: 5, hp: 80, maxHp: 100 });
+    const ml = [];
+    applyWandEffect("fire_wand", "player", p, 1, 0, dg, p, ml, noop, null, 1, null, wizard.atk, wizard, null, false, wizard);
+    const text = ml.join("\n");
+    expect(text).not.toContain("自分に命中");
+    expect(text).toContain("炎の弾が命中");
+    expect(p.deathCause).toContain("ウィザード");
+  });
+
+  it("プレイヤーの杖が跳ね返ったときは自分に命中と出す", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 6, y: 5, hp: 80, maxHp: 100 });
+    const ml = [];
+    applyWandEffect("fire_wand", "player", p, 1, 0, dg, p, ml, noop);
+    expect(ml.join("\n")).toContain("炎の弾が自分に命中");
   });
 });
 

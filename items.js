@@ -5720,9 +5720,9 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     p.capturedBy = null;
     ml.push(mon.subtype === "giantEel" ? "拘束から解放された！" : "捕獲から解放された！");
   }
-  if (killerMon) {
+  if (killerMon && killerMon !== mon && (killerMon.hp ?? 0) > 0) {
     monLevelUp(killerMon, dg, ml);
-  } else if (luFn && p) {
+  } else if (!killerMon && luFn && p) {
     luFn(p, ml);
   }
   _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
