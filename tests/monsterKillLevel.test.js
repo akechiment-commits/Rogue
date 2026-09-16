@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
-import { killMonster } from "../items.js";
+import { killMonster, splashPotion } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 
@@ -81,6 +81,35 @@ describe("敵同士の撃破によるレベルアップ", () => {
     expect(dg.monsters).not.toContain(skeleton);
     expect(dg.traps.some((trap) => trap.name === "骨")).toBe(false);
     expect(ml).toContain("スケルトンはラクガキ魔に倒された！");
+  });
+
+  it("炎の薬の飛沫で自殺した投げ手はレベルアップしない", () => {
+    const thrower = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionthrower"), 2, 5, 5);
+    thrower.hp = 1;
+    const victim = makeEnemyTarget(6, 5);
+    const dg = makeBattlefield([thrower, victim]);
+    const p = makePlayer({ x: 12, y: 5, exp: 0 });
+    const ml = [];
+    splashPotion(dg, 5, 5, "fire", 20, p, ml, null, false, false, null, thrower);
+    expect(dg.monsters).not.toContain(thrower);
+    expect(dg.monsters).not.toContain(victim);
+    expect(p.exp).toBe(0);
+    expect(ml.some((msg) => msg.includes("レベルアップ"))).toBe(false);
+  });
+
+  it("炎の薬の飛沫で他を倒して生き残った投げ手はレベルアップする", () => {
+    const thrower = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionthrower"), 1, 5, 5);
+    thrower.hp = 400;
+    thrower.maxHp = 400;
+    const victim = makeEnemyTarget(6, 5);
+    const dg = makeBattlefield([thrower, victim]);
+    const p = makePlayer({ x: 12, y: 5, exp: 0 });
+    const ml = [];
+    splashPotion(dg, 6, 5, "fire", 20, p, ml, null, false, false, null, thrower);
+    expect(dg.monsters).toContain(thrower);
+    expect(dg.monsters).not.toContain(victim);
+    expect(thrower.monLevel).toBe(2);
+    expect(ml.some((msg) => msg.includes("レベルアップ"))).toBe(true);
   });
 
   it("ほっちもぺのLv3名は疑問符付き", () => {

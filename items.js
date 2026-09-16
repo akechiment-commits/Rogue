@@ -4056,11 +4056,11 @@ function appendCuredAilments(ml, cured) {
   if (cured?.length && ml?.length) ml[ml.length - 1] += ` ${cured.join("・")}も解消！`;
 }
 
-export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null) {
+export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false) {
   if (kind === "monster") wakeIfDormant(target, ml);
   const _beforeMonsterHp = kind === "monster" ? target?.hp : null;
   const _monKill = (mon) => {
-    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
+    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon, false, false, skipKillerLevelUp);
   };
   switch (eff) {
     case "water": {
@@ -4858,6 +4858,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       if (tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL)
         tiles.push({ x:tx, y:ty });
     }
+  const _otherMons = killerMon ? (dg.monsters || []).filter((mon) => mon !== killerMon) : [];
   for (const { x, y } of tiles) {
     /* 炎・毒、または呪われた回復薬のダメージはガチャマシーンを壊す。 */
     const _gachaPotionDamage = (!cursed && (eff === "fire" || eff === "poison")) ||
@@ -4869,7 +4870,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     const mon = monsterAt(dg, x, y);
     if (mon) {
       weakenOrClearParalysis(mon, ml);
-      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon);
+      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon, true);
     }
     if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
     const trap = dg.traps.find(t => t.x === x && t.y === y);
@@ -4906,6 +4907,10 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
         doGunpowderExplosion(x, y, dg, p, ml, luFn, resolveItemName(it, dnFn));
       }
     }
+  }
+  if (killerMon && (killerMon.hp ?? 0) > 0 && dg.monsters?.includes(killerMon)) {
+    const killed = _otherMons.filter((mon) => (mon.hp ?? 0) <= 0 || !dg.monsters.includes(mon)).length;
+    for (let i = 0; i < killed; i++) monLevelUp(killerMon, dg, ml);
   }
 }
 
@@ -5611,7 +5616,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
 
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
-export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false) {
+export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false) {
   const mx = mon.x, my = mon.y;
   if (mon.isPlayerClone) {
     if (dg?.monsters?.includes(mon)) {
@@ -5720,7 +5725,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     p.capturedBy = null;
     ml.push(mon.subtype === "giantEel" ? "拘束から解放された！" : "捕獲から解放された！");
   }
-  if (killerMon && killerMon !== mon && (killerMon.hp ?? 0) > 0) {
+  if (!skipKillerLevelUp && killerMon && killerMon !== mon && (killerMon.hp ?? 0) > 0) {
     monLevelUp(killerMon, dg, ml);
   } else if (!killerMon && luFn && p) {
     luFn(p, ml);
