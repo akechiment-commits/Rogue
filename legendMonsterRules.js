@@ -5,21 +5,21 @@
  * 同じ種族のLv違いは最低4階空ける。初登場は必ずLv1。
  */
 export const LEGEND_MONSTER_BANDS = Object.freeze([
-  /* 1〜12 何も持っていない間は雑魚と、拘束・足払い程度 */
-  { min: 1, max: 4, level: 1, kinds: ["rat", "bat", "centipede"] },
-  { min: 3, max: 6, level: 1, kinds: ["kobold", "goblin"] },
-  { min: 5, max: 8, level: 1, kinds: ["skeleton", "imp"] },
-  { min: 7, max: 10, level: 1, kinds: ["runner", "zombie"] },
-  { min: 9, max: 12, level: 1, kinds: ["archer", "wokka", "slime"] },
-  { min: 11, max: 14, level: 1, kinds: ["grabber", "tripper"] },
+  /* 1〜4 だけ薄く、5階から帯を重ねて6種以上にする */
+  { min: 1, max: 6, level: 1, kinds: ["rat", "bat", "centipede"] },
+  { min: 3, max: 8, level: 1, kinds: ["kobold", "goblin"] },
+  { min: 5, max: 10, level: 1, kinds: ["skeleton", "imp"] },
+  { min: 7, max: 12, level: 1, kinds: ["runner", "zombie"] },
+  { min: 9, max: 14, level: 1, kinds: ["archer", "wokka", "slime"] },
+  { min: 11, max: 16, level: 1, kinds: ["grabber", "tripper"] },
   /* 13〜22 薬と魔方陣、化ける、突進。盗賊・錆は装備が付いてから */
-  { min: 13, max: 16, level: 1, kinds: ["potionthrower", "rakugakima"] },
+  { min: 13, max: 17, level: 1, kinds: ["potionthrower", "rakugakima"] },
   { min: 15, max: 18, level: 1, kinds: ["itemMimic", "charger"] },
   { min: 17, max: 20, level: 1, kinds: ["thief", "tattoobird", "wolf"] },
   { min: 18, max: 21, level: 2, kinds: ["rat", "bat", "centipede"] },
   { min: 19, max: 22, level: 1, kinds: ["rustbug", "wizard"] },
-  { min: 21, max: 23, level: 1, kinds: ["leprechaun", "bombgoblin", "orc", "dangerousPetal", "dreamEater"] },
-  { min: 24, max: 26, level: 1, kinds: ["itemThrower", "trapmaster", "serpent"] },
+  { min: 21, max: 24, level: 1, kinds: ["leprechaun", "bombgoblin", "orc", "dangerousPetal", "dreamEater"] },
+  { min: 23, max: 26, level: 1, kinds: ["itemThrower", "trapmaster", "serpent"] },
   { min: 25, max: 27, level: 1, kinds: ["hypnotist", "dodgemole", "waterFlower"] },
   { min: 26, max: 29, level: 2, kinds: ["kobold", "goblin", "skeleton"] },
   { min: 28, max: 31, level: 2, kinds: ["imp", "zombie", "wolf"] },
