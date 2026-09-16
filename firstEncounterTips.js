@@ -129,7 +129,7 @@ export function getFirstEncounterPickupTipKeys(item, ident, allBcKnown = false) 
   return keys;
 }
 
-const SPECIAL_FLOOR_TYPES = new Set(["bigRoom", "middleRoom", "miniRoom", "shoppingMall", "spinFloor", "corridorFloor", "gridRoom", "treasureRoom", "ringCorridorFloor", "caveFloor"]);
+const SPECIAL_FLOOR_TYPES = new Set(["bigRoom", "middleRoom", "miniRoom", "shoppingMall", "spinFloor", "corridorFloor", "gridRoom", "treasureRoom", "ringCorridorFloor", "caveFloor", "floodedFloor", "twinWingFloor"]);
 
 export function getFirstEncounterStateTipKeys(session, { isDeepWater = false } = {}) {
   const p = session?.player;

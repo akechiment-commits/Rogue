@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
 import { activateDimensionalVaults } from "../specialFixtures.js";
@@ -164,6 +164,69 @@ describe("genDungeon", () => {
   it("B1Fはモンスターハウスを生成しない", () => {
     for (let i = 0; i < 8; i++) {
       expect(genDungeon(0, "beginner").monsterHouseRoom).toBeNull();
+    }
+  });
+
+  it("水浸しフロアは岸で上り下りがつながり、水がある", () => {
+    const dry = (tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD;
+    for (let i = 0; i < 8; i++) {
+      const dg = genFloodedFloor(3, "intermediate");
+      expect(dg.floorType).toBe("floodedFloor");
+      expect(dg.map.some((row) => row.includes(T.WATER))).toBe(true);
+      const su = dg.stairUp, sd = dg.stairDown;
+      expect(dry(dg.map[su.y][su.x])).toBe(true);
+      expect(dry(dg.map[sd.y][sd.x])).toBe(true);
+      const seen = new Set([`${su.x},${su.y}`]);
+      const q = [{ x: su.x, y: su.y }];
+      let reached = false;
+      while (q.length) {
+        const cur = q.shift();
+        if (cur.x === sd.x && cur.y === sd.y) { reached = true; break; }
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cur.x + dx, ny = cur.y + dy;
+          const key = `${nx},${ny}`;
+          if (seen.has(key) || !dry(dg.map[ny]?.[nx])) continue;
+          seen.add(key);
+          q.push({ x: nx, y: ny });
+        }
+      }
+      expect(reached).toBe(true);
+    }
+  });
+
+  it("二翼フロアは中央壁の1本でつながり、道具は右翼に多い", () => {
+    const walk = (tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD;
+    for (let i = 0; i < 8; i++) {
+      const dg = genTwinWingFloor(3, "intermediate");
+      expect(dg.floorType).toBe("twinWingFloor");
+      const midX = Math.floor(MW / 2);
+      const gaps = [];
+      for (let y = 1; y < MH - 1; y++) {
+        if (walk(dg.map[y][midX])) gaps.push(y);
+      }
+      expect(gaps.length).toBeGreaterThanOrEqual(1);
+      expect(gaps.length).toBeLessThanOrEqual(3);
+      const su = dg.stairUp, sd = dg.stairDown;
+      expect(su.x).toBeLessThan(midX);
+      expect(sd.x).toBeGreaterThan(midX);
+      const seen = new Set([`${su.x},${su.y}`]);
+      const q = [{ x: su.x, y: su.y }];
+      let reached = false;
+      while (q.length) {
+        const cur = q.shift();
+        if (cur.x === sd.x && cur.y === sd.y) { reached = true; break; }
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cur.x + dx, ny = cur.y + dy;
+          const key = `${nx},${ny}`;
+          if (seen.has(key) || !walk(dg.map[ny]?.[nx])) continue;
+          seen.add(key);
+          q.push({ x: nx, y: ny });
+        }
+      }
+      expect(reached).toBe(true);
+      const leftItems = dg.items.filter((it) => it.x < midX).length;
+      const rightItems = dg.items.filter((it) => it.x > midX).length;
+      expect(rightItems).toBeGreaterThan(leftItems);
     }
   });
 

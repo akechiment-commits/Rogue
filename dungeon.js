@@ -836,6 +836,17 @@ function mkVis() {
     explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
   };
 }
+function fillRect(map, x, y, w, h, tile) {
+  for (let yy = y; yy < y + h; yy++)
+    for (let xx = x; xx < x + w; xx++)
+      if (yy > 0 && yy < MH - 1 && xx > 0 && xx < MW - 1) map[yy][xx] = tile;
+}
+function carveL(map, x1, y1, x2, y2) {
+  const xA = Math.min(x1, x2), xB = Math.max(x1, x2);
+  const yA = Math.min(y1, y2), yB = Math.max(y1, y2);
+  for (let x = xA; x <= xB; x++) if (map[y1]?.[x] === T.WALL) map[y1][x] = T.FLOOR;
+  for (let y = yA; y <= yB; y++) if (map[y]?.[x2] === T.WALL) map[y][x2] = T.FLOOR;
+}
 function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dungeonType = null, spawnOpts = {}) {
   const _pickOpts = { excludeItemMimic: !!spawnOpts.excludeItemMimic };
   /* waterOnlyモンスターは水タイル・泉以外には出現しない。非水タイルの場合は通常モンスターを選び直す */
@@ -1708,6 +1719,197 @@ function genCaveFloor(depth, dungeonType = null) {
   for(let i=0;i<rng(1,3);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "caveFloor" };
+}
+
+/* ===== 水浸しフロア ===== */
+export function genFloodedFloor(depth, dungeonType = null) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rx = 2, ry = 2, rw = MW - 4, rh = MH - 4;
+  for (let y = ry; y < ry + rh; y++) {
+    for (let x = rx; x < rx + rw; x++) {
+      const shore = y === ry || y === ry + rh - 1 || x === rx || x === rx + rw - 1;
+      map[y][x] = shore ? T.FLOOR : T.WATER;
+    }
+  }
+  for (let i = 0; i < rng(2, 4); i++) {
+    const fromTop = Math.random() < 0.5;
+    const jx = rng(rx + 3, rx + rw - 4);
+    const len = rng(2, 4);
+    for (let n = 1; n <= len; n++) {
+      const jy = fromTop ? ry + n : ry + rh - 1 - n;
+      if (map[jy]?.[jx] === T.WATER) map[jy][jx] = T.FLOOR;
+    }
+  }
+  const islands = [];
+  for (let n = 0; n < rng(4, 6); n++) {
+    const iw = rng(2, 3), ih = rng(2, 3);
+    const ix = rng(rx + 3, rx + rw - iw - 3);
+    const iy = rng(ry + 3, ry + rh - ih - 3);
+    let overlap = false;
+    for (const other of islands) {
+      if (ix < other.x + other.w + 1 && ix + iw + 1 > other.x &&
+          iy < other.y + other.h + 1 && iy + ih + 1 > other.y) overlap = true;
+    }
+    if (overlap) continue;
+    fillRect(map, ix, iy, iw, ih, T.FLOOR);
+    islands.push({ x: ix, y: iy, w: iw, h: ih });
+  }
+  const su = { x: rx, y: rng(ry + 2, ry + rh - 3) };
+  const sd = { x: rx + rw - 1, y: rng(ry + 2, ry + rh - 3) };
+  map[su.y][su.x] = T.SU;
+  map[sd.y][sd.x] = T.SD;
+  const rooms = [{ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) }];
+  const dryTiles = [], waterTiles = [];
+  for (let y = ry; y < ry + rh; y++) {
+    for (let x = rx; x < rx + rw; x++) {
+      if ((x === su.x && y === su.y) || (x === sd.x && y === sd.y)) continue;
+      if (map[y][x] === T.FLOOR) dryTiles.push([x, y]);
+      else if (map[y][x] === T.WATER) waterTiles.push([x, y]);
+    }
+  }
+  const islandTiles = [];
+  for (const island of islands) {
+    for (let y = island.y; y < island.y + island.h; y++)
+      for (let x = island.x; x < island.x + island.w; x++)
+        islandTiles.push([x, y]);
+  }
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
+  const rnd = (pool) => {
+    for (let a = 0; a < 80; a++) {
+      const p = pick(pool);
+      if (p && !occ(p[0], p[1])) return p;
+    }
+    return null;
+  };
+  for (let i = 0; i < rng(4, 7) + Math.floor(depth / 2); i++) {
+    const p = rnd(dryTiles);
+    if (p) mons.push(mkMon(depth, p[0], p[1], 0.12, map, springs, dungeonType));
+  }
+  const waterKinds = MONS.filter((m) => m.waterOnly && !m.penaltyOnly && m.dungeonFloors?.[dungeonType] !== null);
+  for (let i = 0; i < rng(3, 6) + Math.floor(depth / 3); i++) {
+    const p = rnd(waterTiles);
+    if (!p || !waterKinds.length) continue;
+    const base = pick(waterKinds);
+    mons.push(makeMonsterFromBase(base, 1, p[0], p[1], { dormant: Math.random() < 0.12 }));
+  }
+  const lootPick = buildUniPool(depth, dungeonType);
+  const itemTiles = islandTiles.length ? islandTiles : dryTiles;
+  for (let i = 0; i < rng(8, 14); i++) {
+    const p = rnd(Math.random() < 0.7 ? itemTiles : dryTiles);
+    if (p) items.push(Object.assign(applyStdMods(lootPick(), depth), { x: p[0], y: p[1] }));
+  }
+  for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) {
+    const p = rnd(dryTiles);
+    if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false });
+  }
+  for (let i = 0; i < rng(1, 2); i++) {
+    const p = rnd(dryTiles);
+    if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
+  }
+  for (let i = 0; i < rng(1, 3); i++) {
+    const p = rnd(itemTiles);
+    if (!p) continue;
+    const bbt = pickBB([], dungeonType, depth);
+    bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+  }
+  const { visible, explored } = mkVis();
+  return {
+    map, rooms, monsters: mons, items, traps, springs, bigboxes,
+    stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [],
+    monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "floodedFloor",
+  };
+}
+
+/* ===== 二翼フロア ===== */
+export function genTwinWingFloor(depth, dungeonType = null) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const midX = Math.floor(MW / 2);
+  const leftRooms = [
+    { x: 2, y: 2, w: 14, h: 12, cx: 9, cy: 8 },
+    { x: 5, y: 16, w: 16, h: 11, cx: 13, cy: 21 },
+  ];
+  const rightRooms = [
+    { x: midX + 3, y: 3, w: 14, h: 11, cx: midX + 10, cy: 8 },
+    { x: midX + 6, y: 16, w: 18, h: 11, cx: midX + 15, cy: 21 },
+  ];
+  for (const r of [...leftRooms, ...rightRooms]) fillRect(map, r.x, r.y, r.w, r.h, T.FLOOR);
+  carveL(map, leftRooms[0].cx, leftRooms[0].cy, leftRooms[1].cx, leftRooms[1].cy);
+  carveL(map, rightRooms[0].cx, rightRooms[0].cy, rightRooms[1].cx, rightRooms[1].cy);
+  const wingPair = Math.random() < 0.5
+    ? [leftRooms[0], rightRooms[0]]
+    : [leftRooms[1], rightRooms[1]];
+  const gapY = rng(
+    Math.max(wingPair[0].y + 1, wingPair[1].y + 1),
+    Math.min(wingPair[0].y + wingPair[0].h - 2, wingPair[1].y + wingPair[1].h - 2),
+  );
+  for (let x = wingPair[0].x + wingPair[0].w - 1; x <= wingPair[1].x; x++) map[gapY][x] = T.FLOOR;
+  const su = { x: leftRooms[0].x + 1, y: leftRooms[0].cy };
+  const sd = { x: rightRooms[1].x + rightRooms[1].w - 2, y: rightRooms[1].cy };
+  map[su.y][su.x] = T.SU;
+  map[sd.y][sd.x] = T.SD;
+  const rooms = [...leftRooms, ...rightRooms];
+  const leftTiles = [], rightTiles = [];
+  for (const r of leftRooms) {
+    for (let y = r.y; y < r.y + r.h; y++)
+      for (let x = r.x; x < r.x + r.w; x++)
+        if (map[y][x] === T.FLOOR && !(x === su.x && y === su.y)) leftTiles.push([x, y]);
+  }
+  for (const r of rightRooms) {
+    for (let y = r.y; y < r.y + r.h; y++)
+      for (let x = r.x; x < r.x + r.w; x++)
+        if (map[y][x] === T.FLOOR && !(x === sd.x && y === sd.y)) rightTiles.push([x, y]);
+  }
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
+  const rnd = (pool) => {
+    for (let a = 0; a < 80; a++) {
+      const p = pick(pool);
+      if (p && !occ(p[0], p[1])) return p;
+    }
+    return null;
+  };
+  for (let i = 0; i < rng(3, 5); i++) {
+    const p = rnd(leftTiles);
+    if (p) mons.push(mkMon(depth, p[0], p[1], 0.12, map, springs, dungeonType));
+  }
+  for (let i = 0; i < rng(5, 8) + Math.floor(depth / 2); i++) {
+    const p = rnd(rightTiles);
+    if (p) mons.push(mkMon(depth, p[0], p[1], 0.12, map, springs, dungeonType));
+  }
+  const lootPick = buildUniPool(depth, dungeonType);
+  for (let i = 0; i < rng(2, 4); i++) {
+    const p = rnd(leftTiles);
+    if (p) items.push(Object.assign(applyStdMods(lootPick(), depth), { x: p[0], y: p[1] }));
+  }
+  for (let i = 0; i < rng(8, 14); i++) {
+    const p = rnd(rightTiles);
+    if (p) items.push(Object.assign(applyStdMods(lootPick(), depth), { x: p[0], y: p[1] }));
+  }
+  for (let i = 0; i < rng(2, 4); i++) {
+    const p = rnd(leftTiles);
+    if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false });
+  }
+  for (let i = 0; i < rng(4, 8) + Math.floor(depth / 2); i++) {
+    const p = rnd(rightTiles);
+    if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false });
+  }
+  {
+    const p = rnd(leftTiles);
+    if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
+  }
+  for (let i = 0; i < rng(1, 3); i++) {
+    const p = rnd(rightTiles);
+    if (!p) continue;
+    const bbt = pickBB([], dungeonType, depth);
+    bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+  }
+  const { visible, explored } = mkVis();
+  return {
+    map, rooms, monsters: mons, items, traps, springs, bigboxes,
+    stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [],
+    monsterHouseRoom: null, waterItems: [], floorType: "twinWingFloor",
+  };
 }
 
 /* ===== 水地形生成 ===== */
@@ -2819,7 +3021,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
   /* B1F（depth=0）は特殊フロア一切なし（通常フロア確定） */
   if (depth > 0 && Math.random() < 0.25) {
-    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
+    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor, genFloodedFloor, genTwinWingFloor];
     const _sf = pick(specials)(depth, dungeonType);
     _sf.dungeonType = dungeonType;
     attachFloorGimmicks(_sf, depth);
@@ -3547,7 +3749,7 @@ export function genDebugFloorByDepth(nd, dungeonType = "beginner") {
     const d = genShoppingMall(1, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
   }
   if (nd === 3 || nd === 4) {
-    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
+    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor, genFloodedFloor, genTwinWingFloor];
     const d = pick(specials)(nd - 1, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
   }
   if (nd === 5) {
