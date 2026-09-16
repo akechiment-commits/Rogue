@@ -1546,92 +1546,13 @@ export function useItemActions({
           p.fireExplosionNullTurns = Math.max(p.fireExplosionNullTurns || 0, 200);
           ml.push("爆発は起きなかった…呪いの力が体を包んだ！200ターンの間、炎と爆発が全て不発になる！【呪】");
         } else {
-          // 通常/祝福：爆発（通常=半径2マス、祝福=半径3マス）
           const _sdR = it.blessed ? 3 : 2;
           ml.push(it.blessed ? `自爆！中心から3マス（7×7）に大爆発！【祝】` : `自爆！中心から2マス（5×5）に大爆発！`);
-          pushExplosionAnim(p.x, p.y);
-          // プレイヤーへのダメージを先に適用（連鎖爆発のダメージ計算・ログ順を自然にする）
-          const _sdFireProt = hasFireResist(p);
-          p.deathCause = "自爆の巻物により";
-          if (_sdFireProt) {
-            const _sdDmg = reduceFireDamage(Math.max(1, p.hp - 1), p);
-            p.hp -= _sdDmg;
-            ml.push(`爆発が自分を直撃！${_sdDmg}ダメージ！${fireResistDamageLabel(p)}`);
-          } else {
-            p.hp = 1;
-            ml.push(`爆発が自分を直撃！HPが1になった！`);
-          }
-          const _sdKilled = new Set();
-          for (let _ddx = -_sdR; _ddx <= _sdR; _ddx++) {
-            for (let _ddy = -_sdR; _ddy <= _sdR; _ddy++) {
-              const _ax = p.x + _ddx, _ay = p.y + _ddy;
-              if (_ax < 0 || _ax >= MW || _ay < 0 || _ay >= MH) continue;
-              if (dg.map[_ay][_ax] === T.WALL || dg.map[_ay][_ax] === T.BWALL) continue;
-              for (const _m of dg.monsters.filter(mm => mm.x === _ax && mm.y === _ay)) {
-                if (_sdKilled.has(_m) || _m.hp <= 0) continue;
-                if (skipDodgemoleScroll(_m, ml, "爆発")) continue;
-                if (_m.baseKind === "firedemon") { ml.push(`${_m.name}には爆発が効かない！（炎無効）`); continue; }
-                pushExplosionAnim(_ax, _ay);
-                if (_m.isBoss) {
-                  const _sdBd = multiplyMagicDamage(bossInstantDeathDamage(_m), p.weapon, _m, dg);
-                  _m.hp -= _sdBd;
-                  ml.push(`爆発で${_m.name}は${_sdBd}ダメージ！`);
-                  if (_m.hp <= 0) { _sdKilled.add(_m); killMonster(_m, dg, p, ml, lu); }
-                  continue;
-                }
-                _m.hp = 0;
-                _sdKilled.add(_m);
-                killMonster(_m, dg, p, ml, lu);
-              }
-            }
-          }
-          // 床アイテム処理（火薬壺は後で連鎖）
-          const _sdBlasted = new Set();
-          for (const _sdit of dg.items) {
-            if (Math.max(Math.abs(_sdit.x - p.x), Math.abs(_sdit.y - p.y)) > _sdR) continue;
-            if (_sdit.type === "pot" && _sdit.potEffect === "gunpowder") continue;
-            /* 自爆の巻物で店の商品へ影響を与えた場合も、破壊・変質前に請求する。 */
-            if (_sdit.shopPrice) chargeShopItem(_sdit, dg, ml, p);
-            if (_sdit.type === "scroll" || _sdit.type === "spellbook") {
-              _sdBlasted.add(_sdit); ml.push(`巻物「${resolveItemName(_sdit, dnameRef)}」が爆風で燃えてなくなった！`);
-            } else if (_sdit.type === "potion") {
-              _sdBlasted.add(_sdit); ml.push(`薬「${resolveItemName(_sdit, dnameRef)}」が爆風で割れてなくなった！`);
-            } else if (_sdit.type === "food") {
-              if (!_sdit.cooked) { _sdit.value *= 2; cookFoodMeta(_sdit); _sdit.name = "焼いた" + _sdit.name; ml.push(`${_sdit.name}になった！`); }
-              else { burnFoodItem(_sdit, ml); }
-            } else if (_sdit.type === "pot") {
-              _sdBlasted.add(_sdit);
-              if (_sdit.contents?.length > 0) {
-                const _sdft = new Set();
-                for (const ci of _sdit.contents) placeItemAt(dg, _sdit.x, _sdit.y, ci, ml, _sdft);
-                ml.push(`壺「${resolveItemName(_sdit, dnameRef)}」が爆発で割れ、中身が飛び出した！`);
-              } else { ml.push(`壺「${resolveItemName(_sdit, dnameRef)}」が爆発で割れた！`); }
-            }
-          }
-          if (_sdBlasted.size > 0) dg.items = dg.items.filter(i => !_sdBlasted.has(i));
-          // 大箱破壊
-          const _sdBlastedBB = (dg.bigboxes || []).filter(b => Math.max(Math.abs(b.x - p.x), Math.abs(b.y - p.y)) <= _sdR);
-          for (const _sbb of _sdBlastedBB) {
-            ml.push(`${_sbb.name}が爆発で壊れた！`);
-            breakBigboxContents(_sbb, dg, ml, null, null, null, { player: p });
-          }
-          if (_sdBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_sdBlastedBB.includes(b));
-          // 連鎖爆発（範囲内の床上火薬壺）
-          const _sdChainPots = dg.items.filter(_ci => _ci.type === "pot" && _ci.potEffect === "gunpowder" && Math.max(Math.abs(_ci.x - p.x), Math.abs(_ci.y - p.y)) <= _sdR);
-          if (_sdChainPots.length > 0) {
-            dg.items = dg.items.filter(i => !_sdChainPots.includes(i));
-            for (const _scp of _sdChainPots) doGunpowderExplosion(_scp.x, _scp.y, dg, p, ml, lu);
-          }
-          /* 自爆の巻物も通常の爆発として地雷・時限爆弾を誘爆する。 */
-          chainExplosionHazards(p.x, p.y, _sdR, dg, p, ml, lu, dnameRef);
-          // 魔方陣消滅
-          if (dg.pentacles?.length > 0) {
-            const _sdPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - p.x), Math.abs(pc.y - p.y)) <= _sdR);
-            if (_sdPcs.length > 0) {
-              dg.pentacles = dg.pentacles.filter(pc => !_sdPcs.includes(pc));
-              for (const _spc of _sdPcs) ml.push(`爆発で${_spc.name}が消えた！`);
-            }
-          }
+          doExplosion(p.x, p.y, dg, p, ml, dnameRef, "自爆の巻物", null, lu, false, false, false, false, {
+            radius: _sdR,
+            playerHpOne: true,
+            instantMonsterKill: true,
+          });
         }
       } else if (it.effect === "debuff") {
         if (it.cursed) {

@@ -1999,8 +1999,14 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       p.hp = 1;
       ml.push(`${srcLabel}！油まみれのためHPが1残った！`);
     } else if (_playerHpOne) {
-      p.hp = Math.min(_playerHpBefore, 1);
-      ml.push(`${srcLabel}！HPが1になった！`);
+      if (hasFireResist(p)) {
+        const dmg = reduceFireDamage(Math.max(1, _playerHpBefore - 1) * _oilyMult, p);
+        p.hp -= dmg;
+        ml.push(`${srcLabel}！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
+      } else {
+        p.hp = Math.min(_playerHpBefore, 1);
+        ml.push(`${srcLabel}！HPが1になった！`);
+      }
     } else {
       const _fireLbl = _projectileDmg != null ? "" : _fireCtx ? fireResistDamageLabel(p) : _soakedFireLabel(p);
       p.hp -= dmg;
@@ -2086,6 +2092,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
+        if (it.shopPrice) chargeShopItem(it, dg, ml, p);
         if (it.type === "scroll") {
           blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "spellbook") {
@@ -2377,12 +2384,12 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
+          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, true); }
           continue;
         }
         m.hp = 0;
         _killed.add(m);
-        killMonster(m, dg, p, ml, luFn);
+        killMonster(m, dg, p, ml, luFn, true);
       }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
@@ -2542,7 +2549,7 @@ export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
     }
   }
   if (chainMsg) ml.push(chainMsg);
-  doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true);
+  doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true, true);
   if (trap) maybeBreakTrapAfterStep(trap, dg, ml, { p });
 }
 
@@ -3040,7 +3047,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は爆発で消し飛んだ！`);
-      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true, false, { chainExcludeTrap: trap });
+      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true, true, { chainExcludeTrap: trap });
       /* 地雷を直接起動したアイテムは爆発で消費する。
          重力などの内部トリガーと、罠を別の罠へ移す処理では対象外にする。 */
       if (item && item !== trap && !item._ephemeralTrapTrigger && Array.isArray(dg.items)) {

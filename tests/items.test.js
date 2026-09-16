@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, doTimeBombExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook, playerDopingMultiplier } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -1233,6 +1233,41 @@ describe("doExplosion", () => {
     doExplosion(5, 5, dg, p, ml, null, "地雷");
     expect(ml.some(m => m.includes("不発") && m.includes("42"))).toBe(true);
     expect(ml.some(m => m === "爆発！")).toBe(false);
+  });
+
+  it("地雷爆発で倒した敵は経験値なし", () => {
+    const monster = { id: "m1", name: "スライム", hp: 10, maxHp: 10, exp: 20, x: 5, y: 5, kind: "beast" };
+    const dg = makeEmptyDg({ monsters: [monster] });
+    const p = makePlayer({ x: 8, y: 8, exp: 0 });
+    const ml = [];
+    doExplosion(5, 5, dg, p, ml, null, "地雷", null, null, true, false, true, true);
+    expect(dg.monsters).not.toContain(monster);
+    expect(p.exp).toBe(0);
+    expect(ml.some(m => m.includes("消し飛んだ") || m.includes("経験値なし"))).toBe(true);
+  });
+
+  it("時限爆弾で倒した敵は経験値なし", () => {
+    const monster = { id: "m1", name: "スライム", hp: 10, maxHp: 10, exp: 20, x: 5, y: 5, kind: "beast" };
+    const dg = makeEmptyDg({ monsters: [monster] });
+    const p = makePlayer({ x: 8, y: 8, exp: 0 });
+    const ml = [];
+    doTimeBombExplosion(5, 5, dg, p, ml, null);
+    expect(dg.monsters).not.toContain(monster);
+    expect(p.exp).toBe(0);
+    expect(ml.some(m => m.includes("消し飛んだ") || m.includes("経験値なし"))).toBe(true);
+  });
+
+  it("自爆のHP1爆発は炎耐性で軽減される", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100, armor: { ability: "fire_resist" } });
+    const ml = [];
+    doExplosion(5, 5, dg, p, ml, null, "自爆の魔法", null, null, false, false, false, false, {
+      playerHpOne: true,
+      instantMonsterKill: true,
+    });
+    expect(p.hp).toBeGreaterThan(1);
+    expect(p.hp).toBeLessThan(100);
+    expect(ml.some(m => m.includes("耐火"))).toBe(true);
   });
 });
 
