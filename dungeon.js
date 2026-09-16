@@ -1730,10 +1730,9 @@ function carveDryL(map, x1, y1, x2, y2) {
   for (let x = xA; x <= xB; x++) paintDry(map, x, y1);
   for (let y = yA; y <= yB; y++) paintDry(map, x2, y);
 }
-function carveWidePier(map, x1, y1, x2, y2) {
-  carveDryL(map, x1, y1, x2, y2);
-  carveDryL(map, x1 + 1, y1, x2 + 1, y2);
-  carveDryL(map, x1, y1 + 1, x2, y2 + 1);
+function islandHits(a, b, pad = 2) {
+  return a.x < b.x + b.w + pad && a.x + a.w + pad > b.x &&
+    a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
 }
 
 /* ===== 水浸しフロア ===== */
@@ -1741,47 +1740,49 @@ export function genFloodedFloor(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rx = 2, ry = 2, rw = MW - 4, rh = MH - 4;
   fillRect(map, rx, ry, rw, rh, T.WATER);
-  let pathY = rng(ry + 6, ry + rh - 8);
-  const su = { x: rx, y: pathY };
-  for (let x = rx; x < rx + rw; x++) {
-    paintDry(map, x, pathY);
-    paintDry(map, x, pathY + 1);
-    if (x > rx + 3 && x < rx + rw - 4 && Math.random() < 0.42) {
-      pathY = clamp(pathY + pick([-1, -1, 0, 1, 1]), ry + 5, ry + rh - 7);
-    }
-  }
-  const sd = { x: rx + rw - 1, y: pathY };
   const islands = [];
-  for (let n = 0; n < rng(5, 7); n++) {
-    const iw = rng(3, 4), ih = rng(3, 4);
-    const ix = rng(rx + 5, rx + rw - iw - 5);
-    const iy = rng(ry + 3, ry + rh - ih - 3);
-    let overlap = false;
-    for (const other of islands) {
-      if (ix < other.x + other.w + 2 && ix + iw + 2 > other.x &&
-          iy < other.y + other.h + 2 && iy + ih + 2 > other.y) overlap = true;
-    }
-    if (overlap) continue;
+  const addIsland = (ix, iy, iw, ih) => {
+    const next = { x: ix, y: iy, w: iw, h: ih, cx: ix + Math.floor(iw / 2), cy: iy + Math.floor(ih / 2) };
+    if (ix < rx + 1 || iy < ry + 1 || ix + iw > rx + rw - 1 || iy + ih > ry + rh - 1) return null;
+    if (islands.some((other) => islandHits(next, other))) return null;
     fillRect(map, ix, iy, iw, ih, T.FLOOR);
-    islands.push({ x: ix, y: iy, w: iw, h: ih, cx: ix + Math.floor(iw / 2), cy: iy + Math.floor(ih / 2) });
+    islands.push(next);
+    return next;
+  };
+  const startY = rng(ry + 3, ry + 8);
+  const endY = rng(ry + rh - 9, ry + rh - 5);
+  const start = addIsland(rx + 1, startY, rng(3, 5), rng(3, 4));
+  const end = addIsland(rx + rw - 6, endY, rng(3, 5), rng(3, 4));
+  const midLow = addIsland(rx + 16, ry + rh - 8, rng(3, 5), rng(3, 4));
+  const midHigh = addIsland(rx + 32, ry + 3, rng(3, 5), rng(3, 4));
+  for (let n = 0; n < 10 && islands.length < 12; n++) {
+    addIsland(
+      rng(rx + 4, rx + rw - 8),
+      rng(ry + 3, ry + rh - 7),
+      rng(2, 4),
+      rng(2, 4),
+    );
   }
-  const connected = islands.slice(0, Math.max(1, islands.length - 1));
-  for (const island of connected) {
-    let best = null, bestD = 1e9;
-    for (let y = ry; y < ry + rh; y++) {
-      for (let x = rx; x < rx + rw; x++) {
-        if (map[y][x] !== T.FLOOR) continue;
-        if (x >= island.x && x < island.x + island.w && y >= island.y && y < island.y + island.h) continue;
-        const d = Math.abs(x - island.cx) + Math.abs(y - island.cy);
-        if (d < bestD) { bestD = d; best = [x, y]; }
-      }
+  const route = [start, midLow, midHigh, end].filter(Boolean);
+  for (let i = 0; i < route.length - 1; i++) {
+    carveDryL(map, route[i].cx, route[i].cy, route[i + 1].cx, route[i + 1].cy);
+  }
+  const routed = new Set(route);
+  const extras = islands.filter((island) => !routed.has(island));
+  const isolated = extras.slice(0, Math.min(3, extras.length));
+  const branched = extras.slice(isolated.length);
+  for (const island of branched) {
+    let nearest = route[0], bestD = 1e9;
+    for (const other of route) {
+      const d = Math.abs(island.cx - other.cx) + Math.abs(island.cy - other.cy);
+      if (d < bestD) { bestD = d; nearest = other; }
     }
-    if (best) carveWidePier(map, island.cx, island.cy, best[0], best[1]);
+    if (nearest) carveDryL(map, island.cx, island.cy, nearest.cx, nearest.cy);
   }
+  const su = { x: start?.cx ?? rx + 2, y: start?.cy ?? ry + 4 };
+  const sd = { x: end?.cx ?? rx + rw - 3, y: end?.cy ?? ry + rh - 5 };
   map[su.y][su.x] = T.SU;
   map[sd.y][sd.x] = T.SD;
-  paintDry(map, su.x, su.y + 1);
-  paintDry(map, sd.x, sd.y + 1);
   const rooms = [{ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) }];
   const dryTiles = [], waterTiles = [], islandTiles = [];
   for (let y = ry; y < ry + rh; y++) {

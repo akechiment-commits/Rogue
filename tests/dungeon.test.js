@@ -208,8 +208,14 @@ describe("genDungeon", () => {
         }
       }
       expect(reached).toBe(true);
-      const dryCount = dg.map.flat().filter((tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD).length;
-      expect(dryCount).toBeGreaterThan(140);
+      let isolated = 0;
+      for (let y = 0; y < MH; y++) {
+        for (let x = 0; x < MW; x++) {
+          if (!dry(dg.map[y][x])) continue;
+          if (!seen.has(`${x},${y}`)) isolated++;
+        }
+      }
+      expect(isolated).toBeGreaterThan(0);
     }
   });
 
