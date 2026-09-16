@@ -25,18 +25,22 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 28, max: 31, level: 2, kinds: ["imp", "zombie", "wolf"] },
   /* 28〜40 ドラゴンは装備が付いてからLv1で出す */
   { min: 28, max: 31, level: 1, kinds: ["dragon", "troll", "killplaster"] },
-  { min: 32, max: 35, level: 1, kinds: ["vampire", "giantEel", "mimic"] },
+  /* 32〜39 吸血・拘束・氷。盗賊と突進のLv2、花びらLv2。火竜とは別帯 */
+  { min: 32, max: 35, level: 1, kinds: ["vampire", "giantEel", "mimic", "knocker", "walldigger"] },
+  { min: 32, max: 35, level: 2, kinds: ["thief", "charger"] },
   { min: 33, max: 36, level: 2, kinds: ["rakugakima"] },
   { min: 34, max: 37, level: 1, kinds: ["icedragon"] },
-  { min: 35, max: 38, level: 3, kinds: ["rat", "bat", "centipede"] },
-  { min: 36, max: 39, level: 1, kinds: ["golem", "darkness"] },
+  { min: 36, max: 39, level: 1, kinds: ["golem", "darkness", "magicreflector"] },
+  { min: 36, max: 39, level: 2, kinds: ["dangerousPetal", "dreamEater", "grabber", "rustbug", "orc"] },
   { min: 38, max: 41, level: 2, kinds: ["dragon"] },
-  /* 40〜47 デーモンもLv1。竜のLv3まで空ける */
-  { min: 40, max: 43, level: 1, kinds: ["daemon", "puller", "witchdoc"] },
-  { min: 44, max: 47, level: 2, kinds: ["vampire", "golem", "troll"] },
-  /* 48〜50 Lv3は竜と催眠。睡眠とは重ねない */
-  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist"] },
-  { min: 48, max: 50, level: 2, kinds: ["darkness"] },
+  /* 40〜47 デーモンLv1。薬・爆発・水中花のLv2。催眠は花びらが終わってから */
+  { min: 40, max: 43, level: 1, kinds: ["daemon", "puller", "witchdoc", "berserker"] },
+  { min: 40, max: 43, level: 2, kinds: ["potionthrower", "bombgoblin", "waterFlower", "hypnotist"] },
+  { min: 44, max: 47, level: 1, kinds: ["seaDevil", "disarmer", "lizardman"] },
+  { min: 44, max: 47, level: 2, kinds: ["vampire", "golem", "troll", "killplaster", "itemThrower", "trapmaster"] },
+  /* 48〜50 Lv3は竜と催眠。睡眠とは重ねない。他はLv2で厚くする */
+  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "rakugakima"] },
+  { min: 48, max: 50, level: 2, kinds: ["darkness", "daemon", "mimic", "knocker", "dodgemole"] },
 ]);
 
 const _pools = Array.from({ length: 51 }, () => []);

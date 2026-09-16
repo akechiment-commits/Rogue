@@ -64,7 +64,7 @@ describe("超上級ダンジョンの敵分布", () => {
   it("各階の候補数を抑え、同じ種族のLv帯は空ける", () => {
     for (let floor = 1; floor <= 50; floor++) {
       expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
-      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(10);
+      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(12);
     }
     const byKind = new Map();
     for (const band of LEGEND_MONSTER_BANDS) {
@@ -90,7 +90,7 @@ describe("超上級ダンジョンの敵分布", () => {
     expect(legendMonsterSpawnLevel(dragon, 38)).toBe(2);
     expect(legendMonsterSpawnLevel(dragon, 48)).toBe(3);
     expect(legendMonsterSpawnLevel(daemon, 40)).toBe(1);
-    expect(legendMonsterAllowed("daemon", 48)).toBe(false);
+    expect(legendMonsterSpawnLevel(daemon, 48)).toBe(2);
   });
 
   it("睡眠コンボと催眠、火竜と氷竜、水中の脅威は同じ階に重ねない", () => {
