@@ -168,7 +168,7 @@ describe("genDungeon", () => {
   });
 
   it("格子の大部屋とビッグルームは高確率、通常フロアは通常抽選", () => {
-    expect(MONSTER_HOUSE_FLOOR_CHANCE.normal).toBe(0.15);
+    expect(MONSTER_HOUSE_FLOOR_CHANCE.normal).toBe(0.05);
     expect(MONSTER_HOUSE_FLOOR_CHANCE.bigRoom).toBe(0.55);
     expect(MONSTER_HOUSE_FLOOR_CHANCE.gridRoom).toBe(0.55);
     const random = vi.spyOn(Math, "random").mockReturnValue(0);

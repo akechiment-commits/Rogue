@@ -19,7 +19,7 @@ function mkOcc(...lists) {
 const STRONG_MONSTER_HOUSE_DUNGEONS = new Set(["advanced", "legend"]);
 const STRONG_MONSTER_HOUSE_CHANCE = 0.10;
 export const MONSTER_HOUSE_FLOOR_CHANCE = Object.freeze({
-  normal: 0.15,
+  normal: 0.05,
   bigRoom: 0.55,
   gridRoom: 0.55,
   middleRoom: 0.20,
