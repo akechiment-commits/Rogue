@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, generateDebugSpecialFloor, DEBUG_SPECIAL_FLOORS, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
 import { FLOOR_TITLES } from "../GameHelpers.js";
@@ -389,6 +389,17 @@ describe("applyGeneratedBlessCurse", () => {
     const weapon = { type: "weapon" };
     applyGeneratedBlessCurse(weapon, 0.10, 0.25, () => 0.05);
     expect(weapon).toMatchObject({ blessed: true, cursed: false });
+  });
+});
+
+describe("デバッグ特殊フロアへ", () => {
+  it("一覧から指定の特殊フロアを生成できる", () => {
+    expect(DEBUG_SPECIAL_FLOORS.some((entry) => entry.id === "floodedFloor")).toBe(true);
+    const flooded = generateDebugSpecialFloor("floodedFloor", 3, "beginner");
+    expect(flooded.floorType).toBe("floodedFloor");
+    expect(flooded.stairUp).toBeTruthy();
+    const boss = generateDebugSpecialFloor("bossFloor", 4, "beginner");
+    expect(boss.floorType).toBe("bossFloor");
   });
 });
 

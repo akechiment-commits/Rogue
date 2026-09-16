@@ -7191,6 +7191,7 @@ export const SPELLS=[
   {id:"debug_create_trap",name:"[debug]罠生成",   mpCost:0,  fixedMpCost:true, effect:"debug_create_trap", needsDir:false, debug:true, desc:"任意の罠を1つ選んで足元に作る。MP:0"},
   {id:"debug_summon_bb",  name:"[debug]大箱召喚", mpCost:0,  fixedMpCost:true, effect:"debug_summon_bb",   needsDir:false, debug:true, desc:"任意の大箱を1つ選んで呼び出す。MP:0"},
   {id:"debug_summon_object", name:"[debug]オブジェクト召喚", mpCost:0, fixedMpCost:true, effect:"debug_summon_object", needsDir:false, debug:true, desc:"ガチャマシーン・泉・風穴・石像・祭壇・次元宝物庫を1つ選んで呼び出す。MP:0"},
+  {id:"debug_goto_special", name:"[debug]特殊フロアへ", mpCost:0, fixedMpCost:true, effect:"debug_goto_special", needsDir:false, debug:true, desc:"ビッグルームや水浸しなど、確認したい特殊フロアへ今すぐ移る。MP:0"},
 ];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと炎の弾を撃ち、着弾点で爆発させる魔法を習得する。周囲8マスにも爆風ダメージ。MP:10",tile:43},

@@ -5,7 +5,7 @@ import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
-import { prepareLastFloor, createDimensionalVaultAt } from "./dungeon.js";
+import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor } from "./dungeon.js";
 import { makeVent, makeStatue, makeAltar } from "./fixtures.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
@@ -3978,6 +3978,8 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     entries.push({ label: "石像", value: { _debugObject: "statue" } });
     entries.push({ label: "祭壇", value: { _debugObject: "altar" } });
     entries.push({ label: "次元宝物庫", value: { _debugObject: "dimensionalVault" } });
+  } else if (effect === "debug_goto_special") {
+    entries = DEBUG_SPECIAL_FLOORS.map((entry) => ({ label: entry.label, value: entry.id }));
   }
 
   /* --- ページネーション --- */
@@ -3990,6 +3992,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     : isDebugItemGet ? (category ? `アイテムを選択（${_DBG_ITEM_CATS.find(c=>c.key===category)?.label}）` : "カテゴリを選択")
     : effect === "debug_create_trap" ? "罠を選択"
     : effect === "debug_summon_bb" ? "大箱を選択"
+    : effect === "debug_goto_special" ? "特殊フロアを選択"
     : "オブジェクトを選択";
 
   const doSelect = (entry) => {
@@ -4149,6 +4152,23 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         break;
       }
       if (!placed) ml.push("設置する場所がない！");
+    } else if (effect === "debug_goto_special") {
+      const depth = Math.max(0, (p.depth || 1) - 1);
+      const dungeonType = sr.current.dungeonType === "debug" ? "beginner" : (sr.current.dungeonType || "beginner");
+      const next = generateDebugSpecialFloor(entry.value, depth, dungeonType);
+      if (!next) {
+        ml.push("そのフロアは生成できなかった。");
+      } else {
+        const dest = next.stairUp || { x: p.x, y: p.y };
+        p.x = dest.x;
+        p.y = dest.y;
+        next._firstVisit = true;
+        next.nextSpawnTurn = (p.turns || 0) + 30;
+        refreshFOV(next, p);
+        sr.current.dungeon = next;
+        sr.current.floorTurns = 0;
+        ml.push(`${entry.label}へ移動した！`);
+      }
     }
     /* デバッグ魔法：ターンを進めず直接ステート更新（endTurnはモーダルを上書き閉鎖する可能性がある） */
     setMsgs(prev => [...prev.slice(-80), ...ml]);

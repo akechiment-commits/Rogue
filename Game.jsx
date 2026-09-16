@@ -763,7 +763,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       restoreDiscoveries(resumeState.discoveries);
       const _resumePlayer = resumeState.player;
       if (resumeState.dungeonType === "debug") {
-        const _debugItemSpells = ["debug_get_blessed_item", "debug_get_cursed_item"];
+        const _debugItemSpells = ["debug_get_blessed_item", "debug_get_cursed_item", "debug_goto_special"];
         _resumePlayer.spells = [...new Set([...(Array.isArray(_resumePlayer.spells) ? _resumePlayer.spells : []), ..._debugItemSpells])];
       }
       if (playerName) _resumePlayer.playerName = playerName;

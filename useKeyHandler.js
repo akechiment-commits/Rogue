@@ -11,7 +11,7 @@ import {
   extractPotContents, scatterPotContents,
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
-import { prepareLastFloor } from "./dungeon.js";
+import { prepareLastFloor, DEBUG_SPECIAL_FLOORS } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
@@ -1337,6 +1337,8 @@ export function useKeyHandler({
         } else if (_dsEff === "debug_summon_object") {
           /* オブジェクト召喚はガチャ・泉・風穴・石像・祭壇・次元宝物庫の6項目。 */
           _dsTotalEntries = 6;
+        } else if (_dsEff === "debug_goto_special") {
+          _dsTotalEntries = DEBUG_SPECIAL_FLOORS.length;
         }
         const _dsIsCategory = _dsIsItemGet && !_dsCat;
         const _dsPageSize = _dsIsCategory ? _dsTotalEntries : 10;

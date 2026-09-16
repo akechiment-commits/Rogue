@@ -3767,6 +3767,30 @@ export function genDebugDungeonFloor2() {
   return attachDebugSpecialFixtures(dungeon, 1);
 }
 
+export const DEBUG_SPECIAL_FLOORS = Object.freeze([
+  { id: "bigRoom", label: "ビッグルーム", gen: (depth, type) => genBigRoom(depth, type) },
+  { id: "middleRoom", label: "中部屋", gen: (depth, type) => genMiddleRoom(depth, type) },
+  { id: "miniRoom", label: "ミニ部屋", gen: (depth, type) => genMiniRoom(depth, type) },
+  { id: "shoppingMall", label: "ショッピングモール", gen: (depth, type) => genShoppingMall(depth, type) },
+  { id: "spinFloor", label: "回転板フロア", gen: (depth, type) => genSpinFloor(depth, type) },
+  { id: "corridorFloor", label: "迷路廊下", gen: (depth, type) => genCorridorFloor(depth, type) },
+  { id: "gridRoom", label: "格子の大部屋", gen: (depth, type) => genGridRoom(depth, type) },
+  { id: "ringCorridorFloor", label: "環状回廊", gen: (depth, type) => genRingCorridorFloor(depth, type) },
+  { id: "caveFloor", label: "洞窟フロア", gen: (depth, type) => genCaveFloor(depth, type) },
+  { id: "floodedFloor", label: "水浸しフロア", gen: (depth, type) => genFloodedFloor(depth, type) },
+  { id: "twinWingFloor", label: "二翼フロア", gen: (depth, type) => genTwinWingFloor(depth, type) },
+  { id: "bossFloor", label: "ボスフロア", gen: (depth, type) => genBossFloor(Math.max(4, depth), type) },
+]);
+
+export function generateDebugSpecialFloor(id, depth = 3, dungeonType = "beginner") {
+  const spec = DEBUG_SPECIAL_FLOORS.find((entry) => entry.id === id);
+  if (!spec) return null;
+  const d = spec.gen(Math.max(0, depth), dungeonType);
+  d.dungeonType = dungeonType;
+  if (spec.id !== "bossFloor") attachFloorGimmicks(d, Math.max(0, depth));
+  return d;
+}
+
 /* ===== DEBUG DUNGEON フロア別生成 (2F=店, 3-4F=特殊, 5F=ボス) ===== */
 export function genDebugFloorByDepth(nd, dungeonType = "beginner") {
   /* nd は実際の階数 (2,3,4,5...) */
@@ -3774,8 +3798,8 @@ export function genDebugFloorByDepth(nd, dungeonType = "beginner") {
     const d = genShoppingMall(1, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
   }
   if (nd === 3 || nd === 4) {
-    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor, genFloodedFloor, genTwinWingFloor];
-    const d = pick(specials)(nd - 1, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
+    const specials = DEBUG_SPECIAL_FLOORS.filter((entry) => entry.id !== "bossFloor" && entry.id !== "shoppingMall");
+    const d = pick(specials).gen(nd - 1, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
   }
   if (nd === 5) {
     const d = genBossFloor(4, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);

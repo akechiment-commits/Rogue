@@ -6,6 +6,7 @@ const DEBUG_STARTER_SPELLS = [
   "debug_create_trap",
   "debug_summon_bb",
   "debug_summon_object",
+  "debug_goto_special",
   "bless_magic",
   "curse_magic",
 ];
