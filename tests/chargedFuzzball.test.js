@@ -61,7 +61,7 @@ describe("カラペン系と帯電毛玉", () => {
     const fireMessages = [];
     applyFireInventoryDamage(firePlayer, fireMessages);
     expect(firePlayer.inventory).toHaveLength(0);
-    expect(fireMessages).toContain("爆発の熱で所持していた「帯電毛玉」が炎で消滅した！");
+    expect(fireMessages).toContain("所持していた「帯電毛玉」が炎で消滅した！");
 
     const waterPlayer = { armor: null, inventory: [{ ...CHARGED_FUZZBALL_T, id: "water-fuzz" }] };
     const waterMessages = [];

@@ -107,6 +107,29 @@ describe("水鉄砲・耐水", () => {
     expect(ml.some((m) => m.includes("無事だった"))).toBe(true);
   });
 
+  it("applyWaterGunToInventory は火薬壺を保存の壺にする", () => {
+    const p = {
+      armor: null,
+      inventory: [{ type: "pot", potEffect: "gunpowder", name: "火薬壺", capacity: 3, contents: [{ name: "石" }] }],
+    };
+    const ml = [];
+    expect(applyWaterGunToInventory(p, ml)).toBe(true);
+    expect(p.inventory[0].potEffect).toBe("none");
+    expect(p.inventory[0].name).toBe("保存の壺");
+    expect(p.inventory[0].contents).toHaveLength(1);
+  });
+
+  it("applyWaterGunToInventory は爆弾矢と這いずり爆弾を1つ減らす", () => {
+    const arrows = { type: "arrow", name: "爆弾矢", bombArrow: true, count: 3 };
+    const bombs = { type: "arrow", name: "這いずり爆弾", specialProjectile: "crawling_bomb", count: 1 };
+    const p = { armor: null, inventory: [arrows] };
+    expect(applyWaterGunToInventory(p, [])).toBe(true);
+    expect(p.inventory[0].count).toBe(2);
+    const p2 = { armor: null, inventory: [bombs] };
+    expect(applyWaterGunToInventory(p2, [])).toBe(true);
+    expect(p2.inventory).toHaveLength(0);
+  });
+
   it("applyWaterGunToInventory がペンのインクを減らす", () => {
     const p = {
       armor: null,

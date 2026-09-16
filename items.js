@@ -5584,15 +5584,9 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
   }
 }
 
-/* 炎によるインベントリ損傷（巻物・薬・魔法書・帯電毛玉のどれか1つをランダムに消去） */
-export function applyFireInventoryDamage(p, ml) {
-  if (hasFireResist(p)) return;
-  const burnables = p.inventory.filter(i => i.type === "scroll" || i.type === "potion" || i.type === "spellbook" || i.type === "charged_fuzzball" || (i.type === "food" && i.iceCream));
-  if (burnables.length === 0) return;
-  const victim = burnables[Math.floor(Math.random() * burnables.length)];
-  p.inventory = p.inventory.filter(i => i !== victim);
-  const verb = victim.type === "potion" ? "割れてなくなった" : victim.type === "charged_fuzzball" || victim.iceCream ? "炎で消滅した" : "燃えてなくなった";
-  ml.push(`爆発の熱で所持していた「${resolveItemName(victim)}」が${verb}！`);
+/* 炎によるインベントリ損傷は雷と同じ共通抽選を使う */
+export function applyFireInventoryDamage(p, ml, dg = null) {
+  applyLightningToInventory(p, dg || { items: [], monsters: [], pentacles: [] }, ml, null, null, true);
 }
 
 /** 危険な花びら：倒されたとき、確率で隣接する生物へ睡眠を広げる。 */
@@ -7425,6 +7419,31 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
     if (ml) ml.push(`水を浴びて${_dn}のインクが1減った！(残${victim.charges}回)`);
     return true;
   }
+  if (victim.type === "pot" && victim.potEffect === "gunpowder") {
+    const _savedContents = victim.contents || [];
+    const _preserveTpl = POTS.find((pp) => pp.potEffect === "none");
+    Object.assign(victim, {
+      name: _preserveTpl.name,
+      potEffect: _preserveTpl.potEffect,
+      capacity: Math.max(victim.capacity ?? 0, _savedContents.length),
+      desc: _preserveTpl.desc,
+      tile: _preserveTpl.tile,
+    });
+    victim.contents = _savedContents;
+    if (ml) ml.push(`水を浴びて火薬壺が保存の壺に変化した！中身は保たれている。`);
+    return true;
+  }
+  if (victim.type === "arrow" && (victim.bombArrow || victim.specialProjectile === "crawling_bomb")) {
+    const n = victim.count ?? 1;
+    if (n <= 1) {
+      p.inventory = p.inventory.filter((it) => it !== victim);
+      if (ml) ml.push(`水を浴びて${_dn}が1つ消えた！`);
+    } else {
+      victim.count = n - 1;
+      if (ml) ml.push(`水を浴びて${_dn}が1つ消えた！(残${victim.count})`);
+    }
+    return true;
+  }
   return _safe();
 }
 
@@ -7656,17 +7675,33 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
   const dn = (it) => resolveItemName(it, nameFn);
   const idx = Math.floor(Math.random() * p.inventory.length);
   const victim = p.inventory[idx];
+  const removeVictim = () => { p.inventory = p.inventory.filter((_, i) => i !== idx); };
   if (victim.type === "pot") {
-    p.inventory = p.inventory.filter((_, i) => i !== idx);
+    removeVictim();
     ml.push(isFireContext ? `所持していた「${dn(victim)}」が熱で割れた！` : `所持していた「${dn(victim)}」が雷で割れた！`);
     scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn);
-  } else if (victim.type === "scroll" || victim.type === "potion" || victim.type === "spellbook") {
-    p.inventory = p.inventory.filter((_, i) => i !== idx);
-    const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
-    ml.push(`所持していた「${dn(victim)}」が${verb}！`);
-  } else if (isFireContext && victim.type === "food" && victim.iceCream) {
-    p.inventory = p.inventory.filter((_, i) => i !== idx);
-    ml.push(`所持していた「${dn(victim)}」が炎で溶けて消滅した！`);
+  } else if (victim.type === "potion" || (isFireContext && victim.type === "bottle")) {
+    removeVictim();
+    ml.push(`所持していた「${dn(victim)}」が割れてなくなった！`);
+  } else if (isFireContext && (victim.type === "scroll" || victim.type === "spellbook")) {
+    removeVictim();
+    ml.push(`所持していた「${dn(victim)}」が燃えてなくなった！`);
+  } else if (isFireContext && victim.type === "charged_fuzzball") {
+    removeVictim();
+    ml.push(`所持していた「${dn(victim)}」が炎で消滅した！`);
+  } else if (isFireContext && victim.type === "food") {
+    if (victim.iceCream) {
+      removeVictim();
+      ml.push(`所持していた「${dn(victim)}」が炎で溶けて消滅した！`);
+    } else if (!victim.cooked) {
+      const oldName = dn(victim);
+      victim.value *= 2;
+      cookFoodMeta(victim);
+      if (!victim.name.startsWith("焼いた")) victim.name = "焼いた" + victim.name;
+      ml.push(`所持していた「${oldName}」が焼けて${victim.name}になった！`);
+    } else if (!burnFoodItem(victim, ml)) {
+      ml.push(`所持していた「${dn(victim)}」は炎に当たったが無事だった。`);
+    }
   } else {
     ml.push(isFireContext ? `所持していた「${dn(victim)}」は炎に当たったが無事だった。` : `所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }

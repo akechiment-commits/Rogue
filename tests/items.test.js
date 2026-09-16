@@ -1350,6 +1350,40 @@ describe("applyLightningToInventory", () => {
     expect(p.inventory).toHaveLength(0);
     expect(ml.some(m => m.includes("燃えて"))).toBe(true);
   });
+
+  it("炎は食料を焼き、空き瓶を割り、帯電毛玉を消す", () => {
+    const food = { type: "food", name: "リンゴ", value: 20, cooked: false };
+    const bottle = { type: "bottle", name: "空き瓶" };
+    const fuzz = { type: "charged_fuzzball", name: "帯電毛玉" };
+    const pFood = { inventory: [food], armor: null };
+    applyLightningToInventory(pFood, dg, [], () => {}, null, true);
+    expect(pFood.inventory[0].cooked).toBe(true);
+    expect(pFood.inventory[0].name).toContain("焼いた");
+
+    const pBottle = { inventory: [bottle], armor: null };
+    applyLightningToInventory(pBottle, dg, [], () => {}, null, true);
+    expect(pBottle.inventory).toHaveLength(0);
+
+    const pFuzz = { inventory: [fuzz], armor: null };
+    applyLightningToInventory(pFuzz, dg, [], () => {}, null, true);
+    expect(pFuzz.inventory).toHaveLength(0);
+  });
+
+  it("雷は巻物と魔法書を燃やさない", () => {
+    const scroll = { type: "scroll", name: "テスト巻物", effect: "teleport" };
+    const book = { type: "spellbook", name: "テストの書", spell: "fire_magic" };
+    const p = { inventory: [scroll], armor: null };
+    const ml = [];
+    applyLightningToInventory(p, dg, ml, () => {}, null, false);
+    expect(p.inventory[0].effect).toBe("teleport");
+    expect(ml.some(m => m.includes("無事だった"))).toBe(true);
+
+    const p2 = { inventory: [book], armor: null };
+    const ml2 = [];
+    applyLightningToInventory(p2, dg, ml2, () => {}, null, false);
+    expect(p2.inventory[0].spell).toBe("fire_magic");
+    expect(ml2.some(m => m.includes("無事だった"))).toBe(true);
+  });
 });
 
 describe("imprison pot", () => {
