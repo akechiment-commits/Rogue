@@ -101,15 +101,9 @@ const INTERMEDIATE_BB_BAN = new Set([
 const ADVANCED_TRAP_EARLY_BAN = new Set(["explode", "time_bomb", "rockfall"]);
 const ADVANCED_TRAP_MID_BAN = new Set(["explode", "time_bomb"]);
 
-/** 超上級は落石を1階から出し、地雷・時限爆弾だけ6階まで待たせる。 */
-const LEGEND_TRAP_EARLY_BAN = new Set(["explode", "time_bomb"]);
-
 /** 上級の大箱は3段階で解禁する。 */
 const ADVANCED_BB_EARLY = new Set(["synthesis", "satiety", "refill", "identify"]);
 const ADVANCED_BB_MID = new Set(["change", "enhance", "scatter", "split", "bless"]);
-
-/** 超上級1〜8階は破壊・爆発・呪いの大箱を出さない。 */
-const LEGEND_BB_EARLY_BAN = new Set(["trash", "nitro", "curse"]);
 
 /** 中級で出さない道具。上級で初めて見る系統。 */
 const INTERMEDIATE_LOOT_BAN = new Set([
@@ -164,12 +158,9 @@ export function trapAllowedInDungeon(trap, dungeonType, floor) {
   if (dungeonType === "intermediate") {
     return !INTERMEDIATE_TRAP_BAN.has(trap.effect);
   }
-  if (dungeonType === "advanced") {
+  if (dungeonType === "advanced" || dungeonType === "legend") {
     if (floor < 6) return !ADVANCED_TRAP_EARLY_BAN.has(trap.effect);
     if (floor < 11) return !ADVANCED_TRAP_MID_BAN.has(trap.effect);
-  }
-  if (dungeonType === "legend") {
-    if (floor < 6) return !LEGEND_TRAP_EARLY_BAN.has(trap.effect);
   }
   return true;
 }
@@ -178,12 +169,9 @@ export function bbAllowedInDungeon(box, dungeonType, floor) {
   if (!box) return false;
   if (dungeonType === "beginner") return !BEGINNER_BB_BAN.has(box.kind);
   if (dungeonType === "intermediate") return !INTERMEDIATE_BB_BAN.has(box.kind);
-  if (dungeonType === "advanced") {
+  if (dungeonType === "advanced" || dungeonType === "legend") {
     if (floor < 6) return ADVANCED_BB_EARLY.has(box.kind);
     if (floor < 15) return ADVANCED_BB_EARLY.has(box.kind) || ADVANCED_BB_MID.has(box.kind);
-  }
-  if (dungeonType === "legend") {
-    if (floor < 9) return !LEGEND_BB_EARLY_BAN.has(box.kind);
   }
   return true;
 }
