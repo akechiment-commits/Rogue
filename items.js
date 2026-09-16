@@ -5655,7 +5655,10 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* 実際に撃破が確定した個体だけを、共通の撃破処理で一度だけ記録する。 */
   trackMonster(mon);
-  if (killerMon) {
+  const _suicide = !!(killerMon && killerMon === mon);
+  if (_suicide) {
+    ml.push(`${mon.name}は自滅した！`);
+  } else if (killerMon) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
   } else if (noExp || !p) {
     ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
@@ -5725,7 +5728,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     p.capturedBy = null;
     ml.push(mon.subtype === "giantEel" ? "拘束から解放された！" : "捕獲から解放された！");
   }
-  if (!skipKillerLevelUp && killerMon && killerMon !== mon && (killerMon.hp ?? 0) > 0) {
+  if (!skipKillerLevelUp && !_suicide && killerMon && (killerMon.hp ?? 0) > 0 && dg.monsters?.includes(killerMon)) {
     monLevelUp(killerMon, dg, ml);
   } else if (!killerMon && luFn && p) {
     luFn(p, ml);

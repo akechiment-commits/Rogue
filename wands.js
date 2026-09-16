@@ -2206,7 +2206,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         killerMon.hp -= _wdmg;
         ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
         pushLightningAnim(killerMon.x, killerMon.y);
-        if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
+        if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, killerMon);
       } else if (!killerMon) {
         ml.push("魔法弾は壁に消えた。");
       }
@@ -2259,7 +2259,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           killerMon.hp -= _rdmg;
           ml.push(`跳ね返った雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);
-          if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
+          if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, mon);
         }
       } else {
         applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn, blessed ? 2 : 1, null, 0, killerMon, null, false);

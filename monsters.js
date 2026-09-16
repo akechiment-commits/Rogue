@@ -2288,7 +2288,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       const dmg = calcAtkDefDmg(m.atk + _stBonus, m.def || 0, { defWeight: 1 });
       m.hp -= dmg;
       ml.push(`風に煽られた${stoneName}が${m.name}自身に当たった！${dmg}ダメージ！`);
-      if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, null);
+      if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, m);
       pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
       return;
     }
@@ -2643,7 +2643,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       const _selfDmg = calcMonDmg(m);
       m.hp -= _selfDmg;
       ml.push(`風に煽られた${boltName}が${m.name}自身に当たった！${_selfDmg}ダメージ！`);
-      if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, null);
+      if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, m);
       if (onSelfHit) onSelfHit(m, _tx, _ty, ml);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
       return;

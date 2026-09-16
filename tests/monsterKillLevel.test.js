@@ -83,6 +83,18 @@ describe("敵同士の撃破によるレベルアップ", () => {
     expect(ml).toContain("スケルトンはラクガキ魔に倒された！");
   });
 
+  it("自分を倒した敵は自滅扱いで経験値もレベルアップもない", () => {
+    const thrower = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionthrower"), 2, 5, 5);
+    thrower.hp = 0;
+    const dg = makeBattlefield([thrower]);
+    const p = makePlayer({ x: 12, y: 5, exp: 0 });
+    const ml = [];
+    killMonster(thrower, dg, p, ml, null, false, thrower);
+    expect(p.exp).toBe(0);
+    expect(ml).toContain("ポーションメーカーは自滅した！");
+    expect(ml.some((msg) => msg.includes("レベルアップ"))).toBe(false);
+  });
+
   it("炎の薬の飛沫で自殺した投げ手はレベルアップしない", () => {
     const thrower = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionthrower"), 2, 5, 5);
     thrower.hp = 1;

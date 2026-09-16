@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { applyWandEffect, triggerWandBreakEffect, fireWandBolt, takeRandomSageInventoryItems } from "../wands.js";
+import { applyWandEffect, triggerWandBreakEffect, fireWandBolt, takeRandomSageInventoryItems, monsterFireLightning } from "../wands.js";
 import { applySpellEffect, breakAltar } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -597,6 +597,20 @@ describe("敵の属性杖", () => {
     expect(text).not.toContain("自分に命中");
     expect(text).toContain("炎の弾が命中");
     expect(p.deathCause).toContain("ウィザード");
+  });
+
+  it("雷杖の壁跳ね返りで自滅してもプレイヤー経験値は入らない", () => {
+    const wizard = makeMonsterFromBase(MONS.find((m) => m.baseKind === "wizard"), 1, 3, 5);
+    wizard.hp = 1;
+    const dg = makeEmptyDg({ monsters: [wizard] });
+    dg.map[5][2] = T.WALL;
+    const p = makePlayer({ x: 10, y: 5, exp: 0 });
+    const ml = [];
+    monsterFireLightning(3, 5, dg, p, -1, 0, ml, null, null, wizard.name, null, wizard, false);
+    expect(dg.monsters).not.toContain(wizard);
+    expect(p.exp).toBe(0);
+    expect(ml.some((msg) => msg.includes("自滅"))).toBe(true);
+    expect(ml.some((msg) => msg.includes("レベルアップ"))).toBe(false);
   });
 
   it("プレイヤーの杖が跳ね返ったときは自分に命中と出す", () => {
