@@ -169,7 +169,7 @@ export function bbAllowedInDungeon(box, dungeonType, floor) {
   if (!box) return false;
   if (dungeonType === "beginner") return !BEGINNER_BB_BAN.has(box.kind);
   if (dungeonType === "intermediate") return !INTERMEDIATE_BB_BAN.has(box.kind);
-  if (dungeonType === "advanced" || dungeonType === "legend") {
+  if (dungeonType === "advanced") {
     if (floor < 6) return ADVANCED_BB_EARLY.has(box.kind);
     if (floor < 15) return ADVANCED_BB_EARLY.has(box.kind) || ADVANCED_BB_MID.has(box.kind);
   }

@@ -3079,9 +3079,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
     }
   }
-  /* 泉: 60%→0個, 28%→1個, 9%→2個, 3%→3-4個 */
+  /* 泉: 通常は60%→0個, 28%→1個, 9%→2個, 3%→3-4個。超上級は66%→0, 24%→1, 8%→2, 2%→3-4 */
   const _springRoll = Math.random();
-  const _springCount = _springRoll < 0.03 ? rng(3, 4) : _springRoll < 0.12 ? 2 : _springRoll < 0.40 ? 1 : 0;
+  const _springCount = dungeonType === "legend"
+    ? (_springRoll < 0.02 ? rng(3, 4) : _springRoll < 0.10 ? 2 : _springRoll < 0.34 ? 1 : 0)
+    : (_springRoll < 0.03 ? rng(3, 4) : _springRoll < 0.12 ? 2 : _springRoll < 0.40 ? 1 : 0);
   const springs = [];
   for (let _si = 0; _si < _springCount; _si++) {
     for (let _sa = 0; _sa < 60; _sa++) {
@@ -3101,9 +3103,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
-  /* 大箱: 55%→0個, 30%→1個, 10%→2個, 5%→3-4個 */
+  /* 大箱: 通常は55%→0個, 30%→1個, 10%→2個, 5%→3-4個。超上級は62%→0, 26%→1, 8%→2, 4%→3-4 */
   const _bbRoll = Math.random();
-  const _bbCount = _bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.15 ? 2 : _bbRoll < 0.45 ? 1 : 0;
+  const _bbCount = dungeonType === "legend"
+    ? (_bbRoll < 0.04 ? rng(3, 4) : _bbRoll < 0.12 ? 2 : _bbRoll < 0.38 ? 1 : 0)
+    : (_bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.15 ? 2 : _bbRoll < 0.45 ? 1 : 0);
   const bigboxes = [];
   for (let bi = 0; bi < _bbCount; bi++) {
     const br = pick(rooms);

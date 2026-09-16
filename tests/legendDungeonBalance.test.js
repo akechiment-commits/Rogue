@@ -29,12 +29,11 @@ describe("超上級ダンジョンの出現段階", () => {
     expect(trapAllowedInDungeon(trap("explode"), "legend", 11)).toBe(true);
   });
 
-  it("大箱は上級と同じく序盤は合成・満腹・充填・鑑定だけ", () => {
-    expect(bbPoolForDungeon("legend", 1).map((entry) => entry.kind)).toEqual([
-      "synthesis", "satiety", "refill", "identify",
-    ]);
-    expect(bbAllowedInDungeon(box("nitro"), "legend", 14)).toBe(false);
-    expect(bbAllowedInDungeon(box("nitro"), "legend", 15)).toBe(true);
+  it("大箱は1階から全種類を許可する", () => {
+    expect(bbAllowedInDungeon(box("nitro"), "legend", 1)).toBe(true);
+    expect(bbAllowedInDungeon(box("trash"), "legend", 1)).toBe(true);
+    expect(bbAllowedInDungeon(box("curse"), "legend", 1)).toBe(true);
+    expect(bbPoolForDungeon("legend", 1).map((entry) => entry.kind)).toEqual(BB_TYPES.map((entry) => entry.kind));
   });
 
   it("道具は超上級の階に関係なく全種類を許可する", () => {
