@@ -587,6 +587,76 @@ export function getVisitedFloors(session, currentDepth) {
 }
 
 /**
+ * この冒険で到達した最深階（1-based）。
+ * session.maxReachedFloor があれば visited と併用し、maxFloors でクランプする。
+ * 注意: session.maxDepth は総階層数であり、到達深度ではない。
+ */
+export function getMaxReachedFloor(session, { maxFloors } = {}) {
+  const visited = getVisitedFloors(session);
+  let maxR = visited.length ? Math.max(...visited) : 0;
+  const persisted = Number(session?.maxReachedFloor);
+  if (Number.isFinite(persisted) && persisted > 0) maxR = Math.max(maxR, persisted);
+  if (!(maxR > 0)) maxR = 1;
+  if (maxFloors != null && Number.isFinite(Number(maxFloors))) {
+    maxR = Math.min(maxR, Math.max(1, Number(maxFloors)));
+  }
+  return maxR;
+}
+
+/**
+ * 上級/超上級の再訪時、自然発生・変化・召喚などのプール選択用フロア（1-based）。
+ * beginner/intermediate は常に currentFloor。
+ */
+export function pickSpawnPoolFloor({ dungeonType, currentFloor, maxReachedFloor, maxFloors }) {
+  if (dungeonType !== "advanced" && dungeonType !== "legend") return currentFloor;
+  const hiRaw = maxReachedFloor;
+  const hi = Math.min(
+    Number.isFinite(Number(hiRaw)) ? Number(hiRaw) : currentFloor,
+    Number.isFinite(Number(maxFloors)) ? Number(maxFloors) : (Number.isFinite(Number(hiRaw)) ? Number(hiRaw) : currentFloor),
+  );
+  const lo = Math.max(1, Math.min(currentFloor, hi));
+  if (hi <= lo) return lo;
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+/** dg に載せた maxReachedFloor/maxFloors から実行時プール階を決める（session 無しの杖/罠用）。 */
+export function resolveRuntimeSpawnPoolFloor(dg, currentFloor) {
+  const dungeonType = dg?.dungeonType ?? null;
+  const maxFloorsRaw = dg?.maxFloors ?? dg?.spawnFloor ?? null;
+  const maxFloors = maxFloorsRaw != null ? Number(maxFloorsRaw) : null;
+  /* 宝部屋など maxFloors 超の depth では、最下層の敵プールを基準にする */
+  let floor = Number(currentFloor);
+  if (dg?.isTreasureRoom && dg?.spawnFloor != null) floor = Number(dg.spawnFloor);
+  else if (maxFloors != null && Number.isFinite(maxFloors) && floor > maxFloors) floor = maxFloors;
+  const maxReachedFloor = dg?.maxReachedFloor ?? floor;
+  return pickSpawnPoolFloor({
+    dungeonType,
+    currentFloor: floor,
+    maxReachedFloor,
+    maxFloors: maxFloors != null ? maxFloors : maxReachedFloor,
+  });
+}
+
+/** session の到達階を更新し、現在ダンジョンへメタを同期する。 */
+export function syncSpawnFloorMeta(session, dg = session?.dungeon) {
+  if (!session) return null;
+  const maxFloors = session.maxDepth ?? null;
+  const maxReached = getMaxReachedFloor(session, {
+    maxFloors: maxFloors != null ? maxFloors : undefined,
+  });
+  session.maxReachedFloor = Math.max(
+    Number(session.maxReachedFloor) || 0,
+    maxReached,
+    Number(session.player?.depth) || 0,
+  );
+  if (dg) {
+    dg.maxReachedFloor = session.maxReachedFloor;
+    if (maxFloors != null) dg.maxFloors = maxFloors;
+  }
+  return session.maxReachedFloor;
+}
+
+/**
  * @param {number} rad 廊下レイキャスト半径（マス単位。斜めも同じ2マス扱い）
  * @param {{ roomVision?: boolean }} [opts] roomVision 未指定時は rad>1 で部屋全体表示
  */

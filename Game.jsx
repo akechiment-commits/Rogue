@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -729,7 +729,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _penSpriteMap = Object.fromEntries(_penEffects.map(e => [e, Math.floor(Math.random() * 9) + 1]));
     const _potEffects = [...new Set(ITEMS.filter(i => i.type === 'potion').map(i => i.effect))];
     const _potSpriteMap = Object.fromEntries(_potEffects.map(e => [e, Math.floor(Math.random() * 25) + 1]));
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, identifiedBigboxes: _identifiedBigboxes, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, relicGuardianSpawnCount: 0, floorTurns: 0, penSpriteMap: _penSpriteMap, potionSpriteMap: _potSpriteMap };
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, identifiedBigboxes: _identifiedBigboxes, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, maxReachedFloor: p.depth || startDepth || 1, allBcKnown: _allBcKnown, relicGuardianSpawnCount: 0, floorTurns: 0, penSpriteMap: _penSpriteMap, potionSpriteMap: _potSpriteMap };
+    syncSpawnFloorMeta(s, d);
     sr.current = s;
     setGs(s);
     if (_dt === "tutorial" && startDepth === 1) {
@@ -800,6 +801,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         isDebugRun: resumeState.isDebugRun,
         dungeonType: resumeState.dungeonType,
         maxDepth: resumeState.maxDepth,
+        maxReachedFloor: resumeState.maxReachedFloor ?? null,
         allBcKnown: _resumeAllBcKnown,
         relicGuardianSpawnCount: _resumeGuardianSpawnCount,
         floorTurns: resumeState.floorTurns || 0,
@@ -810,6 +812,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       /* 旧セーブには個体の計上印がないため、再開時の所持品を一度だけ補完する。 */
       rs.player.inventory?.forEach(trackItem);
       refreshFOV(rs.dungeon, rs.player);
+      syncSpawnFloorMeta(rs, rs.dungeon);
       sr.current = rs;
       setGs(rs);
       setMsgs(resumeState.msgs || [{ text: "冒険を再開した。", turn: 0 }]);
@@ -1752,7 +1755,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     let d;
     if (_isLastFloorPitfall) {
       /* 隠し宝部屋を生成 */
-      d = _saved || genTreasureRoom(pl.depth);
+      d = _saved || genTreasureRoom(pl.depth, sr.current.dungeonType || null);
       if (_saved) delete sr.current.floors[nd];
     } else if (_saved) {
       d = _saved;
@@ -1777,6 +1780,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       prepareLastFloor(d, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
+    syncSpawnFloorMeta(sr.current, d);
     /* 最深層に到着時、goalアイテムが所持品にもフロアにもなければ再配置 */
     if (_maxD !== null && nd >= _maxD && d.isLastFloor && sr.current.dungeonType !== "tutorial") {
       const _hasGoalInv = pl.inventory?.some(i => i.type === "goal");
@@ -2028,7 +2032,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const _cands = keepMonsterSpawnSightCells(_dg, _rawCands, p);
           if (_cands.length > 0) {
             const [_cx, _cy] = pick(_cands);
-            _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy, { dungeonType: _dg.dungeonType ?? null, excludeWaterOnly: true }));
+            const _poolFloor = pickSpawnPoolFloor({
+              dungeonType: _dg.dungeonType ?? st.dungeonType ?? null,
+              currentFloor: p.depth,
+              maxReachedFloor: st.maxReachedFloor ?? _dg.maxReachedFloor ?? p.depth,
+              maxFloors: st.maxDepth ?? _dg.maxFloors ?? p.depth,
+            });
+            _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy, {
+              dungeonType: _dg.dungeonType ?? null,
+              excludeWaterOnly: true,
+              poolFloor: _poolFloor,
+            }));
           }
           const _spawnRingCount = (p.rings || []).filter(r => r && r.effect === "spawn_ring").length;
           const _spawnInterval = _spawnRingCount >= 2 ? 5 : _spawnRingCount === 1 ? 15 : 30;

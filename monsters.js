@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
@@ -1373,8 +1373,8 @@ export function makeGuard(x, y, plx, ply) {
  * スポーンレベル (1〜3) を返す共通ロジック。
  * progress = (floor - minFloor) / range で lv2/lv3 の確率が上がる。
  */
-export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false } = {}) {
-  const floor = depth + 1;
+export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false, poolFloor = null } = {}) {
+  const floor = poolFloor != null ? poolFloor : depth + 1;
   const eligible = MONS.filter(m => {
     if (m.penaltyOnly) return false;
     if (excludeWaterOnly && m.waterOnly) return false;
@@ -1427,8 +1427,8 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
  * 変化の杖・魔法用。現在のフロアに出現する種族から、指定Lvの定義を返す。
  * 祝福／呪いのLv補正は元の敵を基準にし、Lv1〜3の範囲で止める。
  */
-export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel = 1, levelOffset = 0) {
-  const floor = depth + 1;
+export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel = 1, levelOffset = 0, { poolFloor = null } = {}) {
+  const floor = poolFloor != null ? poolFloor : depth + 1;
   const targetLevel = Math.max(1, Math.min(3, (sourceLevel || 1) + levelOffset));
   const eligible = MONS.filter(m => {
     if (m.penaltyOnly) return false;
@@ -1536,8 +1536,8 @@ export function hasMonsterProjectileAmmo(mon) {
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
-export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false } = {}) {
-  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly);
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, poolFloor = null } = {}) {
+  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { poolFloor });
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
@@ -1577,7 +1577,8 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
     }
   }
   try {
-    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false);
+    const _poolFloor = resolveRuntimeSpawnPoolFloor(dg, d + 1);
+    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false, { poolFloor: _poolFloor });
     const boosted = Math.min(3, (spawnLevel || 1) + 1);
     const mon = makeMonsterFromBase(base, boosted, mx, my, {
       aware: true,
@@ -1594,15 +1595,16 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
 setStatueSpawnHandler(spawnStatueMonster);
 
 /** count 体のモンスターを centerX,centerY 周辺 → ランダム部屋にスポーンさせる */
-export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = false, immediateAct = false } = {}) {
+export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = false, immediateAct = false, poolFloor = null } = {}) {
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
   let spawned = 0;
+  const _poolFloor = poolFloor != null ? poolFloor : resolveRuntimeSpawnPoolFloor(dg, depth + 1);
   /* 隣接マスに優先配置 */
   for (const [dy, dx] of DIRS8) {
     if (spawned >= count) break;
     const nx = centerX + dx, ny = centerY + dy;
     if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => m.x === nx && m.y === ny) && (!p || nx !== p.x || ny !== p.y)) {
-      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null }));
+      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
       spawned++;
     }
   }
@@ -1614,7 +1616,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
       const sx = rng(room.x + 1, room.x + room.w - 2);
       const sy = rng(room.y + 1, room.y + room.h - 2);
       if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => m.x === sx && m.y === sy) && (!p || sx !== p.x || sy !== p.y)) {
-        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null }));
+        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
         spawned++;
         break;
       }

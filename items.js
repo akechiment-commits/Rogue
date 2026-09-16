@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -1522,8 +1522,9 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
     stageBigbox(bb);
     dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
     const depth = Math.max(0, (options.player?.depth ?? 1) - 1);
+    const _bbPool = resolveRuntimeSpawnPoolFloor(dg, (options.player?.depth ?? depth + 1));
     const spawned = contents.length > 0
-      ? spawnMonsters(dg, contents.length, depth, x, y, options.player || null, { aware: true, immediateAct: true })
+      ? spawnMonsters(dg, contents.length, depth, x, y, options.player || null, { aware: true, immediateAct: true, poolFloor: _bbPool })
       : 0;
     if (contents.length > 0) {
       ml.push(`${resolveItemName(bb, nameFn)}が壊れ、中身が${spawned}体の敵に変わった！`);
@@ -2733,9 +2734,10 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
     return 0;
   }
   const depth = Math.max(0, (typeof p?.depth === "number" ? p.depth - 1 : 0));
+  const poolFloor = resolveRuntimeSpawnPoolFloor(dg, (typeof p?.depth === "number" ? p.depth : depth + 1));
   let n = 0;
   for (const it of items) {
-    const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true });
+    const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true, poolFloor });
     if (!picked?.base) continue;
     let mx = it.x, my = it.y;
     const blocked = (x, y) =>
@@ -3213,7 +3215,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _sumDepth = (p ? p.depth : 1) || 1;
       const _sumCount = rng(2, 4);
-      const _sumSpawned = spawnMonsters(dg, _sumCount, _sumDepth - 1, tx, ty, p, { aware: true, immediateAct: true });
+      const _sumPool = resolveRuntimeSpawnPoolFloor(dg, _sumDepth);
+      const _sumSpawned = spawnMonsters(dg, _sumCount, _sumDepth - 1, tx, ty, p, { aware: true, immediateAct: true, poolFloor: _sumPool });
       ml.push(`${_sumSpawned}体の敵が現れた！`);
       return "restart";
     }
@@ -7997,7 +8000,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     case "transform_magic": {
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
-        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1); const prevName = target.name; const ox = target.x, oy = target.y;
+        const _tfPool = resolveRuntimeSpawnPoolFloor(dg, p.depth);
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, 0, { poolFloor: _tfPool }); const prevName = target.name; const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, randomStatusWands: nt.randomStatusWands, randomElementalWands: nt.randomElementalWands, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;

@@ -3650,7 +3650,7 @@ export function prepareLastFloor(dg, dungeonType) {
 }
 
 /* ===== 隠し宝部屋（最下層の落とし穴で到達） ===== */
-export function genTreasureRoom(depth) {
+export function genTreasureRoom(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rx = Math.floor(MW / 2) - 5, ry = Math.floor(MH / 2) - 3;
   const rw = 11, rh = 7;
@@ -3687,6 +3687,12 @@ export function genTreasureRoom(depth) {
     stairUp: su, stairDown: null, visible: vis, explored: exp,
     shop: null, pentacles: [], waterItems: [], hiddenRooms: [], monsterHouseRoom: null,
     floorType: "treasureRoom", isTreasureRoom: true,
+    noNaturalSpawn: true,
+    /* 自然湧きはしないが、召喚罠・召喚の巻物用に最下層の敵プールを載せる */
+    dungeonType: dungeonType || null,
+    spawnFloor: depth,
+    maxFloors: depth,
+    maxReachedFloor: depth,
   };
 }
 
