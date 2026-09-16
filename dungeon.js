@@ -18,6 +18,29 @@ function mkOcc(...lists) {
 
 const STRONG_MONSTER_HOUSE_DUNGEONS = new Set(["advanced", "legend"]);
 const STRONG_MONSTER_HOUSE_CHANCE = 0.10;
+export const MONSTER_HOUSE_FLOOR_CHANCE = Object.freeze({
+  normal: 0.15,
+  bigRoom: 0.55,
+  gridRoom: 0.55,
+  middleRoom: 0.20,
+  miniRoom: 0.20,
+  spinFloor: 0.25,
+});
+
+function tryGenerateFloorMonsterHouse({
+  rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
+  chance, shopRoomIdx = -1, randomFn = Math.random,
+}) {
+  if (depth <= 0 || randomFn() >= chance || !rooms?.length) return null;
+  const cands = rooms.filter((_, i) => i !== shopRoomIdx);
+  if (!cands.length) return null;
+  const room = pick(cands);
+  genMonsterHouseContent(
+    room, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
+    getMonsterHouseGenerationOptions(dungeonType),
+  );
+  return room;
+}
 
 /** 自動生成・巻物発動のモンスターハウスに上級者向け強化抽選を加える。 */
 export function getMonsterHouseGenerationOptions(dungeonType, opts = {}, randomFn = Math.random) {
@@ -147,12 +170,10 @@ function genBigRoom(depth, dungeonType = null) {
   }
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
-  let _bgMHRoom = null;
-  if (Math.random() < 0.15) {
-    genMonsterHouseContent(rooms[0], depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
-      getMonsterHouseGenerationOptions(dungeonType));
-    _bgMHRoom = rooms[0];
-  }
+  const _bgMHRoom = tryGenerateFloorMonsterHouse({
+    rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
+    chance: MONSTER_HOUSE_FLOOR_CHANCE.bigRoom,
+  });
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd,
     visible: vis, explored: exp, shop: null, pentacles: [], waterItems: [], isBigRoom: true, floorType: "bigRoom", monsterHouseRoom: _bgMHRoom };
 }
@@ -1120,8 +1141,10 @@ function genMiddleRoom(depth, dungeonType = null) {
   for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
-  let _mdMHRoom = null;
-  if (Math.random() < 0.20) { genMonsterHouseContent(rooms[0], depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType)); _mdMHRoom = rooms[0]; }
+  const _mdMHRoom = tryGenerateFloorMonsterHouse({
+    rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
+    chance: MONSTER_HOUSE_FLOOR_CHANCE.middleRoom,
+  });
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: _mdMHRoom, waterItems: [], isBigRoom: true, floorType: "middleRoom" };
 }
@@ -1160,8 +1183,10 @@ export function genMiniRoom(depth, dungeonType = null) {
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
   if (Math.random() < 0.5) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(1, 2); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
-  let _mnMHRoom = null;
-  if (Math.random() < 0.20) { genMonsterHouseContent(rooms[0], depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType)); _mnMHRoom = rooms[0]; }
+  const _mnMHRoom = tryGenerateFloorMonsterHouse({
+    rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
+    chance: MONSTER_HOUSE_FLOOR_CHANCE.miniRoom,
+  });
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: _mnMHRoom, waterItems: [], isBigRoom: true, floorType: "miniRoom" };
 }
@@ -1310,9 +1335,12 @@ function genSpinFloor(depth, dungeonType = null, _retries = 0) {
     }
   }
   let _spMHRoom = null;
-  if (Math.random() < 0.25) {
+  if (depth > 0 && Math.random() < MONSTER_HOUSE_FLOOR_CHANCE.spinFloor) {
     const _spMHCands = rooms.filter((_, i) => i > 0 && i < rooms.length - 1);
-    if (_spMHCands.length > 0) { _spMHRoom = pick(_spMHCands); genMonsterHouseContent(_spMHRoom, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType)); }
+    if (_spMHCands.length > 0) {
+      _spMHRoom = pick(_spMHCands);
+      genMonsterHouseContent(_spMHRoom, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType));
+    }
   }
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: _spMHRoom, waterItems: [], isBigRoom: true, floorType: "spinFloor" };
@@ -1477,8 +1505,10 @@ export function genGridRoom(depth, dungeonType = null) {
   for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
-  let _grMHRoom = null;
-  if (Math.random() < 0.20) { genMonsterHouseContent(rooms[0], depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType, getMonsterHouseGenerationOptions(dungeonType)); _grMHRoom = rooms[0]; }
+  const _grMHRoom = tryGenerateFloorMonsterHouse({
+    rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
+    chance: MONSTER_HOUSE_FLOOR_CHANCE.gridRoom,
+  });
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: _grMHRoom, waterItems: [], isBigRoom: true, floorType: "gridRoom" };
 }
@@ -3197,8 +3227,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null, dormant: false });
     }
   }
-  /* 通常フロアでは固定のモンスターハウスを生成しない。 */
-  let monsterHouseRoom = null;
+  const monsterHouseRoom = tryGenerateFloorMonsterHouse({
+    rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
+    chance: MONSTER_HOUSE_FLOOR_CHANCE.normal,
+    shopRoomIdx,
+  });
   const _floor = {
     map,
     rooms,

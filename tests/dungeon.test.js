@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
 import { activateDimensionalVaults } from "../specialFixtures.js";
@@ -159,6 +159,24 @@ describe("genDungeon", () => {
     expect(getMonsterHouseGenerationOptions("advanced", {}, () => 0).levelBoost).toBe(1);
     expect(getMonsterHouseGenerationOptions("legend", {}, () => 0.1).levelBoost).toBe(0);
     expect(getMonsterHouseGenerationOptions("advanced", { levelBoost: 1 }, () => 0.99).levelBoost).toBe(1);
+  });
+
+  it("B1Fはモンスターハウスを生成しない", () => {
+    for (let i = 0; i < 8; i++) {
+      expect(genDungeon(0, "beginner").monsterHouseRoom).toBeNull();
+    }
+  });
+
+  it("格子の大部屋とビッグルームは高確率、通常フロアは通常抽選", () => {
+    expect(MONSTER_HOUSE_FLOOR_CHANCE.normal).toBe(0.15);
+    expect(MONSTER_HOUSE_FLOOR_CHANCE.bigRoom).toBe(0.55);
+    expect(MONSTER_HOUSE_FLOOR_CHANCE.gridRoom).toBe(0.55);
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      expect(genGridRoom(4, "advanced").monsterHouseRoom).toBeTruthy();
+    } finally {
+      random.mockRestore();
+    }
   });
 });
 
