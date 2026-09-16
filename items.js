@@ -2012,8 +2012,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       p.hp -= dmg;
       ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${_projectileDmg != null ? "" : oilyDamageLabel(dg, p)}`);
     }
-    /* 指輪爆発：炎によるアイテム損傷（耐火なし時） */
-    if (ringExplosion && !_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
+    /* 炎の爆発：耐火なしなら所持品を1つ焼く。爆弾矢・魚雷などの飛び道具爆発は対象外。 */
+    const _inventoryFire = (ringExplosion || mineExplosion || _playerHpOne) && options.projectileAtk == null && options.nonElemental !== true;
+    if (_inventoryFire && !hasFireResist(p)) applyLightningToInventory(p, dg, ml, luFn, null, true);
   }
   const blasted = new Set();
   const _killed = new Set();

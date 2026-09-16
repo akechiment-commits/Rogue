@@ -1257,6 +1257,38 @@ describe("doExplosion", () => {
     expect(ml.some(m => m.includes("消し飛んだ") || m.includes("経験値なし"))).toBe(true);
   });
 
+  it("地雷爆発は耐火なしなら所持品を焼く", () => {
+    const scroll = { id: "s1", type: "scroll", name: "識別の巻物", effect: "identify" };
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100, inventory: [scroll] });
+    const ml = [];
+    doExplosion(5, 5, dg, p, ml, null, "地雷", null, null, true, false, true, true);
+    expect(p.inventory).toEqual([]);
+    expect(ml.some(m => m.includes("所持していた") && m.includes("燃えてなくなった"))).toBe(true);
+  });
+
+  it("地雷爆発は耐火なら所持品を焼かない", () => {
+    const scroll = { id: "s1", type: "scroll", name: "識別の巻物", effect: "identify" };
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100, armor: { ability: "fire_resist" }, inventory: [scroll] });
+    const ml = [];
+    doExplosion(5, 5, dg, p, ml, null, "地雷", null, null, true, false, true, true);
+    expect(p.inventory).toEqual([scroll]);
+  });
+
+  it("自爆のHP1爆発は耐火なしなら所持品を焼く", () => {
+    const potion = { id: "p1", type: "potion", name: "回復薬", effect: "heal" };
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100, inventory: [potion] });
+    const ml = [];
+    doExplosion(5, 5, dg, p, ml, null, "自爆の魔法", null, null, false, false, false, false, {
+      playerHpOne: true,
+      instantMonsterKill: true,
+    });
+    expect(p.inventory).toEqual([]);
+    expect(ml.some(m => m.includes("所持していた") && m.includes("割れてなくなった"))).toBe(true);
+  });
+
   it("自爆のHP1爆発は炎耐性で軽減される", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100, armor: { ability: "fire_resist" } });
