@@ -195,10 +195,8 @@ describe("genDungeon", () => {
       expect(dry(dg.map[sd.y][sd.x])).toBe(true);
       const seen = new Set([`${su.x},${su.y}`]);
       const q = [{ x: su.x, y: su.y }];
-      let reached = false;
       while (q.length) {
         const cur = q.shift();
-        if (cur.x === sd.x && cur.y === sd.y) { reached = true; break; }
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           const nx = cur.x + dx, ny = cur.y + dy;
           const key = `${nx},${ny}`;
@@ -207,7 +205,7 @@ describe("genDungeon", () => {
           q.push({ x: nx, y: ny });
         }
       }
-      expect(reached).toBe(true);
+      expect(seen.has(`${sd.x},${sd.y}`)).toBe(true);
       let isolated = 0;
       for (let y = 0; y < MH; y++) {
         for (let x = 0; x < MW; x++) {
@@ -218,6 +216,44 @@ describe("genDungeon", () => {
       expect(isolated).toBeGreaterThan(0);
       for (const trap of dg.traps || []) {
         expect(isNarrowPassage(dg.map, trap.x, trap.y)).toBe(false);
+      }
+      const rewards = [
+        ...(dg.items || []),
+        ...(dg.bigboxes || []),
+        ...(dg.springs || []),
+        ...(dg.altars || []),
+        ...(dg.gachaMachines || []),
+      ];
+      const isolatedKeys = [];
+      for (let y = 0; y < MH; y++) {
+        for (let x = 0; x < MW; x++) {
+          if (dry(dg.map[y][x]) && !seen.has(`${x},${y}`)) isolatedKeys.push(`${x},${y}`);
+        }
+      }
+      const clusters = [];
+      const used = new Set();
+      for (const key of isolatedKeys) {
+        if (used.has(key)) continue;
+        const [sx, sy] = key.split(",").map(Number);
+        const q = [{ x: sx, y: sy }];
+        used.add(key);
+        const cells = [`${sx},${sy}`];
+        while (q.length) {
+          const cur = q.shift();
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nx = cur.x + dx, ny = cur.y + dy;
+            const nkey = `${nx},${ny}`;
+            if (used.has(nkey) || !isolatedKeys.includes(nkey)) continue;
+            used.add(nkey);
+            cells.push(nkey);
+            q.push({ x: nx, y: ny });
+          }
+        }
+        clusters.push(cells);
+      }
+      for (const cells of clusters) {
+        const hasReward = rewards.some((obj) => cells.includes(`${obj.x},${obj.y}`));
+        expect(hasReward).toBe(true);
       }
     }
   });

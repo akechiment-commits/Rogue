@@ -1777,9 +1777,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
   if (hubRoute.length >= 2) connectChain(hubRoute);
   const routed = new Set([...lowRoute, ...highRoute, ...hubRoute]);
   const extras = islands.filter((island) => !routed.has(island));
-  const isolated = extras.slice(0, Math.min(2, extras.length));
-  const branched = extras.slice(isolated.length);
-  for (const island of branched) {
+  for (const island of extras) {
     const ranked = [...routed].sort((a, b) =>
       (Math.abs(island.cx - a.cx) + Math.abs(island.cy - a.cy)) -
       (Math.abs(island.cx - b.cx) + Math.abs(island.cy - b.cy)),
@@ -1787,6 +1785,44 @@ export function genFloodedFloor(depth, dungeonType = null) {
     if (ranked[0]) carveDryL(map, island.cx, island.cy, ranked[0].cx, ranked[0].cy);
     if (ranked[1] && Math.random() < 0.6) {
       carveDryL(map, island.cx, island.cy, ranked[1].cx, ranked[1].cy);
+    }
+  }
+  const dryCell = (x, y) => {
+    const t = map[y]?.[x];
+    return t === T.FLOOR || t === T.SU || t === T.SD;
+  };
+  const isolated = [];
+  for (let n = 0; n < 24 && isolated.length < 2; n++) {
+    const iw = rng(2, 4), ih = rng(2, 4);
+    const ix = rng(rx + 3, rx + rw - iw - 3);
+    const iy = rng(ry + 3, ry + rh - ih - 3);
+    let clear = true;
+    for (let y = iy - 2; y < iy + ih + 2 && clear; y++) {
+      for (let x = ix - 2; x < ix + iw + 2 && clear; x++) {
+        if (dryCell(x, y)) clear = false;
+      }
+    }
+    if (!clear) continue;
+    const isle = addIsland(ix, iy, iw, ih);
+    if (isle) isolated.push(isle);
+  }
+  if (isolated.length === 0) {
+    outerIso:
+    for (let y = ry + 2; y < ry + rh - 4; y++) {
+      for (let x = rx + 2; x < rx + rw - 4; x++) {
+        let clear = true;
+        for (let yy = y - 2; yy < y + 4 && clear; yy++) {
+          for (let xx = x - 2; xx < x + 4 && clear; xx++) {
+            if (dryCell(xx, yy)) clear = false;
+          }
+        }
+        if (!clear) continue;
+        const isle = addIsland(x, y, 2, 2);
+        if (isle) {
+          isolated.push(isle);
+          break outerIso;
+        }
+      }
     }
   }
   const su = { x: start?.cx ?? rx + 2, y: start?.cy ?? ry + 4 };
@@ -1808,7 +1844,9 @@ export function genFloodedFloor(depth, dungeonType = null) {
         if (map[y][x] === T.FLOOR) islandTiles.push([x, y]);
   }
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
-  const occ = mkOcc(items, mons, traps, springs, bigboxes);
+  const altars = [];
+  const gachaMachines = [];
+  const occ = mkOcc(items, mons, traps, springs, bigboxes, altars, gachaMachines);
   const rnd = (pool) => {
     for (let a = 0; a < 80; a++) {
       const p = pick(pool);
@@ -1816,6 +1854,36 @@ export function genFloodedFloor(depth, dungeonType = null) {
     }
     return null;
   };
+  const lootPick = buildUniPool(depth, dungeonType);
+  for (const island of isolated) {
+    const spots = [];
+    for (let y = island.y; y < island.y + island.h; y++) {
+      for (let x = island.x; x < island.x + island.w; x++) {
+        if (map[y][x] !== T.FLOOR) continue;
+        if ((x === su.x && y === su.y) || (x === sd.x && y === sd.y)) continue;
+        spots.push([x, y]);
+      }
+    }
+    const p = spots.length ? pick(spots) : null;
+    if (!p) continue;
+    const kind = pick(["item", "item", "item", "bigbox", "bigbox", "spring", "altar", "gacha"]);
+    if (kind === "item") {
+      const it = pickRareItem(depth, dungeonType) || lootPick();
+      items.push(Object.assign(applyStdMods({ ...it }, depth), { x: p[0], y: p[1] }));
+    } else if (kind === "bigbox") {
+      const bbt = pickBB([], dungeonType, depth);
+      bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+    } else if (kind === "spring") {
+      springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
+    } else if (kind === "altar") {
+      altars.push(makeAltar(p[0], p[1]));
+    } else {
+      gachaMachines.push({
+        id: uid(), x: p[0], y: p[1], tile: TI.GACHA,
+        type: "gacha", kind: "gacha_machine", name: "ガチャマシーン",
+      });
+    }
+  }
   for (let i = 0; i < rng(4, 7) + Math.floor(depth / 2); i++) {
     const p = rnd(dryTiles);
     if (p) mons.push(mkMon(depth, p[0], p[1], 0.12, map, springs, dungeonType));
@@ -1827,7 +1895,6 @@ export function genFloodedFloor(depth, dungeonType = null) {
     const base = pick(waterKinds);
     mons.push(makeMonsterFromBase(base, 1, p[0], p[1], { dormant: Math.random() < 0.12 }));
   }
-  const lootPick = buildUniPool(depth, dungeonType);
   const itemTiles = islandTiles.length ? islandTiles : dryTiles;
   for (let i = 0; i < rng(8, 14); i++) {
     const p = rnd(Math.random() < 0.75 ? itemTiles : dryTiles);
@@ -1848,11 +1915,61 @@ export function genFloodedFloor(depth, dungeonType = null) {
     const bbt = pickBB([], dungeonType, depth);
     bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
   }
+  const dryWalk = (tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD;
+  const reachable = new Set([`${su.x},${su.y}`]);
+  const rq = [{ x: su.x, y: su.y }];
+  while (rq.length) {
+    const cur = rq.shift();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cur.x + dx, ny = cur.y + dy;
+      const key = `${nx},${ny}`;
+      if (reachable.has(key) || !dryWalk(map[ny]?.[nx])) continue;
+      reachable.add(key);
+      rq.push({ x: nx, y: ny });
+    }
+  }
+  const rewardAt = (x, y) =>
+    items.some((it) => it.x === x && it.y === y) ||
+    bigboxes.some((box) => box.x === x && box.y === y) ||
+    springs.some((sp) => sp.x === x && sp.y === y) ||
+    altars.some((al) => al.x === x && al.y === y) ||
+    gachaMachines.some((g) => g.x === x && g.y === y);
+  const leftover = [];
+  const leftoverUsed = new Set();
+  for (let y = ry; y < ry + rh; y++) {
+    for (let x = rx; x < rx + rw; x++) {
+      if (!dryWalk(map[y][x]) || reachable.has(`${x},${y}`)) continue;
+      leftover.push([x, y]);
+    }
+  }
+  for (const [sx, sy] of leftover) {
+    const key0 = `${sx},${sy}`;
+    if (leftoverUsed.has(key0)) continue;
+    const cells = [];
+    const lq = [[sx, sy]];
+    leftoverUsed.add(key0);
+    while (lq.length) {
+      const [cx, cy] = lq.pop();
+      cells.push([cx, cy]);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx, ny = cy + dy;
+        const nkey = `${nx},${ny}`;
+        if (leftoverUsed.has(nkey) || !leftover.some(([x, y]) => x === nx && y === ny)) continue;
+        leftoverUsed.add(nkey);
+        lq.push([nx, ny]);
+      }
+    }
+    if (cells.some(([x, y]) => rewardAt(x, y))) continue;
+    const p = cells.find(([x, y]) => !occ(x, y)) || cells[0];
+    if (!p) continue;
+    items.push({ name: "金貨", type: "gold", value: rng(80, 220), tile: 22, id: uid(), x: p[0], y: p[1] });
+  }
   const { visible, explored } = mkVis();
   return {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [],
-    monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "floodedFloor",
+    monsterHouseRoom: null, waterItems: [], altars, gachaMachines,
+    isBigRoom: true, floorType: "floodedFloor",
   };
 }
 
