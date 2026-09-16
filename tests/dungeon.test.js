@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, generateDebugSpecialFloor, DEBUG_SPECIAL_FLOORS, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
-import { T, MW, MH } from "../utils.js";
+import { T, MW, MH, isNarrowPassage } from "../utils.js";
 import { FLOOR_TITLES } from "../GameHelpers.js";
 import { activateDimensionalVaults } from "../specialFixtures.js";
 
@@ -216,6 +216,9 @@ describe("genDungeon", () => {
         }
       }
       expect(isolated).toBeGreaterThan(0);
+      for (const trap of dg.traps || []) {
+        expect(isNarrowPassage(dg.map, trap.x, trap.y)).toBe(false);
+      }
     }
   });
 

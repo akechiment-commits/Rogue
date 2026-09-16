@@ -1754,8 +1754,9 @@ export function genFloodedFloor(depth, dungeonType = null) {
   const start = addIsland(rx + 1, startY, rng(3, 5), rng(3, 4));
   const end = addIsland(rx + rw - 6, endY, rng(3, 5), rng(3, 4));
   const midLow = addIsland(rx + 16, ry + rh - 8, rng(3, 5), rng(3, 4));
-  const midHigh = addIsland(rx + 32, ry + 3, rng(3, 5), rng(3, 4));
-  for (let n = 0; n < 10 && islands.length < 12; n++) {
+  const midHigh = addIsland(rx + 34, ry + 3, rng(3, 5), rng(3, 4));
+  const midHub = addIsland(rx + 24, ry + Math.floor(rh / 2) - 2, rng(3, 4), rng(3, 4));
+  for (let n = 0; n < 12 && islands.length < 14; n++) {
     addIsland(
       rng(rx + 4, rx + rw - 8),
       rng(ry + 3, ry + rh - 7),
@@ -1763,21 +1764,30 @@ export function genFloodedFloor(depth, dungeonType = null) {
       rng(2, 4),
     );
   }
-  const route = [start, midLow, midHigh, end].filter(Boolean);
-  for (let i = 0; i < route.length - 1; i++) {
-    carveDryL(map, route[i].cx, route[i].cy, route[i + 1].cx, route[i + 1].cy);
-  }
-  const routed = new Set(route);
+  const connectChain = (chain) => {
+    for (let i = 0; i < chain.length - 1; i++) {
+      carveDryL(map, chain[i].cx, chain[i].cy, chain[i + 1].cx, chain[i + 1].cy);
+    }
+  };
+  const lowRoute = [start, midLow, end].filter(Boolean);
+  const highRoute = [start, midHigh, end].filter(Boolean);
+  const hubRoute = [midLow, midHub, midHigh].filter(Boolean);
+  connectChain(lowRoute);
+  connectChain(highRoute);
+  if (hubRoute.length >= 2) connectChain(hubRoute);
+  const routed = new Set([...lowRoute, ...highRoute, ...hubRoute]);
   const extras = islands.filter((island) => !routed.has(island));
-  const isolated = extras.slice(0, Math.min(3, extras.length));
+  const isolated = extras.slice(0, Math.min(2, extras.length));
   const branched = extras.slice(isolated.length);
   for (const island of branched) {
-    let nearest = route[0], bestD = 1e9;
-    for (const other of route) {
-      const d = Math.abs(island.cx - other.cx) + Math.abs(island.cy - other.cy);
-      if (d < bestD) { bestD = d; nearest = other; }
+    const ranked = [...routed].sort((a, b) =>
+      (Math.abs(island.cx - a.cx) + Math.abs(island.cy - a.cy)) -
+      (Math.abs(island.cx - b.cx) + Math.abs(island.cy - b.cy)),
+    );
+    if (ranked[0]) carveDryL(map, island.cx, island.cy, ranked[0].cx, ranked[0].cy);
+    if (ranked[1] && Math.random() < 0.6) {
+      carveDryL(map, island.cx, island.cy, ranked[1].cx, ranked[1].cy);
     }
-    if (nearest) carveDryL(map, island.cx, island.cy, nearest.cx, nearest.cy);
   }
   const su = { x: start?.cx ?? rx + 2, y: start?.cy ?? ry + 4 };
   const sd = { x: end?.cx ?? rx + rw - 3, y: end?.cy ?? ry + rh - 5 };
@@ -1823,8 +1833,9 @@ export function genFloodedFloor(depth, dungeonType = null) {
     const p = rnd(Math.random() < 0.75 ? itemTiles : dryTiles);
     if (p) items.push(Object.assign(applyStdMods(lootPick(), depth), { x: p[0], y: p[1] }));
   }
+  const trapTiles = dryTiles.filter(([x, y]) => !isNarrowPassage(map, x, y));
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) {
-    const p = rnd(dryTiles);
+    const p = rnd(trapTiles);
     if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false });
   }
   for (let i = 0; i < rng(1, 2); i++) {
