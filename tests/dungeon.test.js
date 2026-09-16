@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
+import { FLOOR_TITLES } from "../GameHelpers.js";
 import { activateDimensionalVaults } from "../specialFixtures.js";
 
 function makeHiddenRoomMap(hr) {
@@ -167,7 +168,7 @@ describe("genDungeon", () => {
     }
   });
 
-  it("水浸しフロアは岸で上り下りがつながり、水がある", () => {
+  it("水浸しフロアは桟橋の床で上り下りがつながり、水がある", () => {
     const dry = (tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD;
     for (let i = 0; i < 8; i++) {
       const dg = genFloodedFloor(3, "intermediate");
@@ -191,7 +192,14 @@ describe("genDungeon", () => {
         }
       }
       expect(reached).toBe(true);
+      const dryCount = dg.map.flat().filter((tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD).length;
+      expect(dryCount).toBeGreaterThan(140);
     }
+  });
+
+  it("水浸しと二翼には開始時のフロア名がある", () => {
+    expect(FLOOR_TITLES.floodedFloor).toContain("水浸し");
+    expect(FLOOR_TITLES.twinWingFloor).toContain("二翼");
   });
 
   it("二翼フロアは中央壁の1本でつながり、道具は右翼に多い", () => {

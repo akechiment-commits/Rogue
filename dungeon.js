@@ -1721,45 +1721,69 @@ function genCaveFloor(depth, dungeonType = null) {
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "caveFloor" };
 }
 
+function paintDry(map, x, y) {
+  if (y > 0 && y < MH - 1 && x > 0 && x < MW - 1 && map[y][x] !== T.WALL) map[y][x] = T.FLOOR;
+}
+function carveDryL(map, x1, y1, x2, y2) {
+  const xA = Math.min(x1, x2), xB = Math.max(x1, x2);
+  const yA = Math.min(y1, y2), yB = Math.max(y1, y2);
+  for (let x = xA; x <= xB; x++) paintDry(map, x, y1);
+  for (let y = yA; y <= yB; y++) paintDry(map, x2, y);
+}
+function carveWidePier(map, x1, y1, x2, y2) {
+  carveDryL(map, x1, y1, x2, y2);
+  carveDryL(map, x1 + 1, y1, x2 + 1, y2);
+  carveDryL(map, x1, y1 + 1, x2, y2 + 1);
+}
+
 /* ===== 水浸しフロア ===== */
 export function genFloodedFloor(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rx = 2, ry = 2, rw = MW - 4, rh = MH - 4;
-  for (let y = ry; y < ry + rh; y++) {
-    for (let x = rx; x < rx + rw; x++) {
-      const shore = y === ry || y === ry + rh - 1 || x === rx || x === rx + rw - 1;
-      map[y][x] = shore ? T.FLOOR : T.WATER;
+  fillRect(map, rx, ry, rw, rh, T.WATER);
+  let pathY = rng(ry + 6, ry + rh - 8);
+  const su = { x: rx, y: pathY };
+  for (let x = rx; x < rx + rw; x++) {
+    paintDry(map, x, pathY);
+    paintDry(map, x, pathY + 1);
+    if (x > rx + 3 && x < rx + rw - 4 && Math.random() < 0.42) {
+      pathY = clamp(pathY + pick([-1, -1, 0, 1, 1]), ry + 5, ry + rh - 7);
     }
   }
-  for (let i = 0; i < rng(2, 4); i++) {
-    const fromTop = Math.random() < 0.5;
-    const jx = rng(rx + 3, rx + rw - 4);
-    const len = rng(2, 4);
-    for (let n = 1; n <= len; n++) {
-      const jy = fromTop ? ry + n : ry + rh - 1 - n;
-      if (map[jy]?.[jx] === T.WATER) map[jy][jx] = T.FLOOR;
-    }
-  }
+  const sd = { x: rx + rw - 1, y: pathY };
   const islands = [];
-  for (let n = 0; n < rng(4, 6); n++) {
-    const iw = rng(2, 3), ih = rng(2, 3);
-    const ix = rng(rx + 3, rx + rw - iw - 3);
+  for (let n = 0; n < rng(5, 7); n++) {
+    const iw = rng(3, 4), ih = rng(3, 4);
+    const ix = rng(rx + 5, rx + rw - iw - 5);
     const iy = rng(ry + 3, ry + rh - ih - 3);
     let overlap = false;
     for (const other of islands) {
-      if (ix < other.x + other.w + 1 && ix + iw + 1 > other.x &&
-          iy < other.y + other.h + 1 && iy + ih + 1 > other.y) overlap = true;
+      if (ix < other.x + other.w + 2 && ix + iw + 2 > other.x &&
+          iy < other.y + other.h + 2 && iy + ih + 2 > other.y) overlap = true;
     }
     if (overlap) continue;
     fillRect(map, ix, iy, iw, ih, T.FLOOR);
-    islands.push({ x: ix, y: iy, w: iw, h: ih });
+    islands.push({ x: ix, y: iy, w: iw, h: ih, cx: ix + Math.floor(iw / 2), cy: iy + Math.floor(ih / 2) });
   }
-  const su = { x: rx, y: rng(ry + 2, ry + rh - 3) };
-  const sd = { x: rx + rw - 1, y: rng(ry + 2, ry + rh - 3) };
+  const connected = islands.slice(0, Math.max(1, islands.length - 1));
+  for (const island of connected) {
+    let best = null, bestD = 1e9;
+    for (let y = ry; y < ry + rh; y++) {
+      for (let x = rx; x < rx + rw; x++) {
+        if (map[y][x] !== T.FLOOR) continue;
+        if (x >= island.x && x < island.x + island.w && y >= island.y && y < island.y + island.h) continue;
+        const d = Math.abs(x - island.cx) + Math.abs(y - island.cy);
+        if (d < bestD) { bestD = d; best = [x, y]; }
+      }
+    }
+    if (best) carveWidePier(map, island.cx, island.cy, best[0], best[1]);
+  }
   map[su.y][su.x] = T.SU;
   map[sd.y][sd.x] = T.SD;
+  paintDry(map, su.x, su.y + 1);
+  paintDry(map, sd.x, sd.y + 1);
   const rooms = [{ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) }];
-  const dryTiles = [], waterTiles = [];
+  const dryTiles = [], waterTiles = [], islandTiles = [];
   for (let y = ry; y < ry + rh; y++) {
     for (let x = rx; x < rx + rw; x++) {
       if ((x === su.x && y === su.y) || (x === sd.x && y === sd.y)) continue;
@@ -1767,11 +1791,10 @@ export function genFloodedFloor(depth, dungeonType = null) {
       else if (map[y][x] === T.WATER) waterTiles.push([x, y]);
     }
   }
-  const islandTiles = [];
   for (const island of islands) {
     for (let y = island.y; y < island.y + island.h; y++)
       for (let x = island.x; x < island.x + island.w; x++)
-        islandTiles.push([x, y]);
+        if (map[y][x] === T.FLOOR) islandTiles.push([x, y]);
   }
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
@@ -1796,7 +1819,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
   const lootPick = buildUniPool(depth, dungeonType);
   const itemTiles = islandTiles.length ? islandTiles : dryTiles;
   for (let i = 0; i < rng(8, 14); i++) {
-    const p = rnd(Math.random() < 0.7 ? itemTiles : dryTiles);
+    const p = rnd(Math.random() < 0.75 ? itemTiles : dryTiles);
     if (p) items.push(Object.assign(applyStdMods(lootPick(), depth), { x: p[0], y: p[1] }));
   }
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) {
