@@ -7391,44 +7391,41 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
     if (ml) ml.push("防具が水を弾いた！所持品は無事だ。(耐水)");
     return false;
   }
-  const vulnerable = p.inventory.filter((it) => {
-    if (it.type === "charged_fuzzball") return true;
-    if (it.type === "food" && it.iceCream) return true;
-    if (it.type === "scroll" && it.effect !== "blank") return true;
-    if (it.type === "spellbook" && it.spell) return true;
-    if (it.type === "food") return true;
-    if (it.type === "pen" && (it.charges ?? 0) > 0) return true;
+  const idx = Math.floor(Math.random() * p.inventory.length);
+  const victim = p.inventory[idx];
+  const _dn = resolveItemName(victim, nameFn);
+  const _safe = () => {
+    if (ml) ml.push(`水を浴びて「${_dn}」は無事だった。`);
     return false;
-  });
-  if (vulnerable.length === 0) {
-    if (ml) ml.push("水を浴びたが所持品に変化はなかった。");
-    return false;
-  }
-  const victim = vulnerable[Math.floor(Math.random() * vulnerable.length)];
-  if (victim.type === "scroll" || victim.type === "spellbook") {
+  };
+  if ((victim.type === "scroll" && victim.effect !== "blank") || (victim.type === "spellbook" && victim.spell)) {
     return blankScrollOrSpellbook(victim, ml, nameFn);
   }
   if (victim.type === "food") {
     if (victim.iceCream) {
       p.inventory = p.inventory.filter((it) => it !== victim);
-      if (ml) ml.push(`水を浴びて${resolveItemName(victim, nameFn)}が溶けて消滅した！`);
+      if (ml) ml.push(`水を浴びて${_dn}が溶けて消滅した！`);
       return true;
     }
-    return shrinkFoodOneStep(victim, ml, nameFn);
+    const _shrinkLog = [];
+    if (shrinkFoodOneStep(victim, _shrinkLog, nameFn)) {
+      if (ml) ml.push(..._shrinkLog);
+      return true;
+    }
+    return _safe();
   }
   if (victim.type === "charged_fuzzball") {
     p.inventory = p.inventory.filter((it) => it !== victim);
-    if (ml) ml.push(`水を浴びて${resolveItemName(victim, nameFn)}が消滅した！`);
+    if (ml) ml.push(`水を浴びて${_dn}が消滅した！`);
     return true;
   }
-  if (victim.type === "pen") {
-    const _dn = resolveItemName(victim, nameFn);
+  if (victim.type === "pen" && (victim.charges ?? 0) > 0) {
     const prev = victim.charges ?? 0;
     victim.charges = Math.max(0, prev - 1);
     if (ml) ml.push(`水を浴びて${_dn}のインクが1減った！(残${victim.charges}回)`);
     return true;
   }
-  return false;
+  return _safe();
 }
 
 /** 油まみれ状態（ターン残り or 油タイル上） */

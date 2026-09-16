@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   TRAPS,
   ARMOR_ABILITIES,
@@ -86,6 +86,25 @@ describe("水鉄砲・耐水", () => {
     const ml = [];
     expect(applyWaterGunToInventory(p, ml)).toBe(true);
     expect(p.inventory[0].effect).toBe("blank");
+  });
+
+  it("applyWaterGunToInventory は影響のない所持品なら無事", () => {
+    const p = {
+      armor: null,
+      inventory: [
+        { type: "weapon", name: "短剣", effect: "none" },
+        { type: "scroll", effect: "teleport", name: "テレポートの巻物" },
+      ],
+    };
+    const ml = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      expect(applyWaterGunToInventory(p, ml)).toBe(false);
+    } finally {
+      random.mockRestore();
+    }
+    expect(p.inventory[1].effect).toBe("teleport");
+    expect(ml.some((m) => m.includes("無事だった"))).toBe(true);
   });
 
   it("applyWaterGunToInventory がペンのインクを減らす", () => {
