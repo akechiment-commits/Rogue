@@ -5,6 +5,7 @@ import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES, potOccupancyCount } from "./items.js";
 import { clampCarryGold, validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+import { useHubGamepad } from "./useHubGamepad.js";
 import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
 import {
   applyFavoriteFoodToSave,
@@ -14,6 +15,7 @@ import {
 } from "./favoriteFood.js";
 import { fetchRanking, fetchRankingStats, RANKING_DUNGEONS } from "./rankingClient.js";
 import { formatElapsed } from "./runScore.js";
+import { scoresForDungeon, scoreHeadline } from "./adventureScores.js";
 import { FIRST_ENCOUNTER_TIPS, getSeenFirstEncounterTips } from "./firstEncounterTips.js";
 import {
   getItemCatalogEntry,
@@ -632,7 +634,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
               ))}
             </div>
             <div style={{ color:"#555", fontSize:11, marginTop:12 }}>
-              ↑↓/テンキー8・2:選択　Z/Enter:決定　X:キャンセル
+              ↑↓/テンキー8・2:選択　Z/Enter:決定　/　パッド: 十字=選択 B=決定 A=戻る LB=タブ　X:キャンセル
             </div>
           </div>
         </div>
@@ -1183,6 +1185,28 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
         ))}
       </div>
 
+      {/* 選択中ダンジョンの最近の記録 */}
+      {(() => {
+        const _recs = scoresForDungeon(dtype).slice(0, 5);
+        return (
+          <div style={{ marginBottom:12, padding:"8px 10px", background:"#0d0d18",
+            border:"1px solid #223", borderRadius:4 }}>
+            <div style={{ color:"#8cf", fontSize:12, marginBottom:6 }}>このダンジョンの最近の記録</div>
+            {_recs.length === 0 ? (
+              <div style={{ color:"#555", fontSize:11 }}>まだ記録なし（死亡・クリア・生還が残ります）</div>
+            ) : _recs.map((r, i) => (
+              <div key={i} style={{ color:"#aaa", fontSize:11, marginBottom:3 }}>
+                <span style={{ color: r.result === "clear" ? "#8f8" : r.result === "escape" ? "#8cf" : "#f88" }}>
+                  {scoreHeadline(r)}
+                </span>
+                {" "}Lv.{r.level} B{r.depth}F {r.turns}T G:{r.gold}
+                <span style={{ color:"#555" }}> {r.date}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* 開始階選択（デバッグ以外） */}
       {!isDebug && !isTutorial && (
         <div style={{ marginBottom:12 }}>
@@ -1248,7 +1272,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
               </button>
             ))}
           </div>
-          <div style={{ color:"#555", fontSize:11 }}>↑↓/テンキー8・2:選択　Z/Enter:決定　X:キャンセル</div>
+          <div style={{ color:"#555", fontSize:11 }}>↑↓/テンキー8・2:選択　Z/Enter:決定　/　パッド: 十字=選択 B=決定 A=戻る LB=タブ　X:キャンセル</div>
         </div>
       ) : (
         <Btn label="▶ 冒険に出発！ [Z]" onClick={handleStart} color="#0f0"
@@ -2104,6 +2128,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "bank" | "shop" | "encyclopedia" | "savedata" | "ranking" */
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
+  useHubGamepad(true);
 
   const needsName = !String(saveData.playerName || "").trim();
   const needsFood = !String(saveData.favoriteFood || "").trim();
@@ -2271,7 +2296,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
       {/* キーボードガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:12, textAlign:"center" }}>
-        ↑↓/テンキー8・2:選択　Z/Enter:決定
+        ↑↓/テンキー8・2:選択　Z/Enter:決定　/　パッド: 十字=選択 B=決定 A=戻る LB=タブ
       </div>
 
       {/* 中断データがある場合：再開ボタン */}

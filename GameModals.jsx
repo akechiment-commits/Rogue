@@ -12,6 +12,7 @@ import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+import { scoresForDungeon, dungeonScoreLabel, scoreHeadline, loadAdventureScores } from "./adventureScores.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
 import { formatPlusSuffix } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
@@ -680,19 +681,50 @@ export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, 
 }
 
 /* ===== Scores Modal ===== */
-export function ScoresModal({ show, setShow, mobile }) {
+export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" }) {
+  const scrollRef = useRef(null);
+  const scores = useMemo(() => scoresForDungeon(dungeonType), [show, dungeonType]);
+  const legacyCount = useMemo(() => loadAdventureScores().filter((x) => x.dungeonType === "_legacy").length, [show]);
+  const dungeonLabel = dungeonScoreLabel(dungeonType);
+
+  useEffect(() => {
+    if (!show) return;
+    const onKey = (e) => {
+      const k = (e.key || "").toLowerCase();
+      if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
+        e.preventDefault();
+        e.stopPropagation();
+        setShow(false);
+        return;
+      }
+      const el = scrollRef.current;
+      if (!el) return;
+      if (k === "arrowup" || e.code === "Numpad8" || e.code === "Numpad4" || k === "arrowleft") {
+        e.preventDefault();
+        el.scrollTop = Math.max(0, el.scrollTop - 96);
+      } else if (k === "arrowdown" || e.code === "Numpad2" || e.code === "Numpad6" || k === "arrowright") {
+        e.preventDefault();
+        el.scrollTop = el.scrollTop + 96;
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [show, setShow]);
+
   if (!show) return null;
   return (
     <div
+      ref={scrollRef}
+      data-scores-modal="1"
       style={{
-        position: "absolute",
+        position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.95)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "flex-start",
-        zIndex: 30,
+        zIndex: 240,
         borderRadius: 6,
         padding: "20px 10px",
         overflowY: "auto",
@@ -703,43 +735,50 @@ export function ScoresModal({ show, setShow, mobile }) {
           color: "#8cf",
           fontSize: mobile ? 16 : 20,
           fontWeight: "bold",
-          marginBottom: 14,
+          marginBottom: 6,
         }}
       >
         ── 冒険の記録 ──
       </div>
-      {(() => {
-        let _sc = [];
-        try { _sc = JSON.parse(localStorage.getItem("roguelike_scores") || "[]"); } catch (_e) {}
-        if (_sc.length === 0) {
-          return <div style={{ color: "#555", fontSize: 14 }}>記録なし</div>;
-        }
-        return _sc.map((_s, _i) => (
-          <div
-            key={_i}
-            style={{
-              width: "100%",
-              maxWidth: 400,
-              background: "#0d0d1a",
-              border: "1px solid #223",
-              borderRadius: 5,
-              padding: "8px 12px",
-              marginBottom: 6,
-              fontSize: mobile ? 11 : 13,
-              color: "#ccc",
-            }}
-          >
-            <span style={{ color: "#f88", fontWeight: "bold" }}>#{_i + 1}</span>
-            {" "}
-            <span style={{ color: "#fa0" }}>{_s.cause}倒れた</span>
-            <br />
-            <span style={{ color: "#aaa" }}>
-              Lv.{_s.level} | B{_s.depth}F | {_s.turns}ターン | G:{_s.gold}
-            </span>
-            <span style={{ color: "#555", marginLeft: 8 }}>{_s.date}</span>
-          </div>
-        ));
-      })()}
+      <div style={{ color: "#aaf", fontSize: mobile ? 12 : 13, marginBottom: 4 }}>{dungeonLabel}</div>
+      <div style={{ color: "#555", fontSize: 11, marginBottom: 10 }}>このダンジョンの記録のみ（死亡・クリア・生還） / 十字でスクロール / A・Bで閉じる</div>
+      {legacyCount > 0 ? (
+        <div style={{ color: "#664", fontSize: 11, marginBottom: 8 }}>ダンジョン不明の旧記録が{legacyCount}件あります（ここには出しません）</div>
+      ) : null}
+      {scores.length === 0 ? (
+        <div style={{ color: "#555", fontSize: 14 }}>記録なし</div>
+      ) : (
+        scores.map((_s, _i) => {
+          const cleared = _s.result === "clear" || _s.cause === "クリア";
+          const escaped = _s.result === "escape" || _s.cause === "生還";
+          return (
+            <div
+              key={`${_s.date}-${_i}-${_s.depth}-${_s.turns}`}
+              style={{
+                width: "100%",
+                maxWidth: 400,
+                background: cleared ? "#0d1a0d" : escaped ? "#0d151a" : "#0d0d1a",
+                border: `1px solid ${cleared ? "#2a4a2a" : escaped ? "#223344" : "#223"}`,
+                borderRadius: 5,
+                padding: "8px 12px",
+                marginBottom: 6,
+                fontSize: mobile ? 11 : 13,
+                color: "#ccc",
+              }}
+            >
+              <span style={{ color: cleared ? "#8f8" : escaped ? "#8cf" : "#f88", fontWeight: "bold" }}>#{_i + 1}</span>
+              {" "}
+              <span style={{ color: cleared ? "#6f6" : escaped ? "#8cf" : "#fa0" }}>{scoreHeadline(_s)}</span>
+              <br />
+              <span style={{ color: "#aaa" }}>
+                Lv.{_s.level} | B{_s.depth}F | {_s.turns}ターン | G:{_s.gold}
+                {_s.score != null ? ` | スコア:${_s.score}` : ""}
+              </span>
+              <span style={{ color: "#555", marginLeft: 8 }}>{_s.date}</span>
+            </div>
+          );
+        })
+      )}
       <button
         onClick={() => setShow(false)}
         style={{
@@ -759,8 +798,6 @@ export function ScoresModal({ show, setShow, mobile }) {
     </div>
   );
 }
-
-/* ===== Nickname Modal ===== */
 export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs }) {
   const [_subMode, _setSubMode] = useState(null); /* null=選択中 / "type" / "list" */
   const [_listPage, _setListPage] = useState(0);
@@ -3727,7 +3764,74 @@ const DESKTOP_VW_OPTIONS = [
 ];
 
 export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, portraitSrc, loadTileset, currentTileset, desktopVW, setDesktopVW, mobile }) {
+  const tilesetKeys = Object.keys(TILESET_LABELS);
+  const actions = useMemo(() => {
+    const list = [];
+    for (const key of tilesetKeys) {
+      list.push({ id: `ts:${key}`, kind: "tileset", key, label: TILESET_LABELS[key] });
+    }
+    if (!mobile) {
+      for (const opt of DESKTOP_VW_OPTIONS) {
+        list.push({ id: `vw:${opt.value}`, kind: "vw", value: opt.value, label: `マス:${opt.label}` });
+      }
+    }
+    list.push({ id: "portrait", kind: "portrait", label: "立ち絵を変更" });
+    if (portraitSrc) list.push({ id: "clearPortrait", kind: "clearPortrait", label: "立ち絵を消去" });
+    list.push({ id: "close", kind: "close", label: "閉じる" });
+    return list;
+  }, [mobile, portraitSrc, tilesetKeys.join("|")]);
+
+  const [sel, setSel] = useState(0);
+  const fileRef = useRef(null);
+  const selRef = useRef(0);
+  selRef.current = sel;
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+
+  useEffect(() => {
+    if (!show) return;
+    setSel(0);
+  }, [show, mobile, !!portraitSrc]);
+
+  useEffect(() => {
+    if (!show) return;
+    const onKey = (e) => {
+      const k = (e.key || "").toLowerCase();
+      const list = actionsRef.current;
+      const n = list.length;
+      if (!n) return;
+      if (k === "arrowup" || k === "arrowleft" || e.code === "Numpad8" || e.code === "Numpad4") {
+        e.preventDefault();
+        setSel((s) => (s - 1 + n) % n);
+        return;
+      }
+      if (k === "arrowdown" || k === "arrowright" || e.code === "Numpad2" || e.code === "Numpad6") {
+        e.preventDefault();
+        setSel((s) => (s + 1) % n);
+        return;
+      }
+      if (k === "escape" || k === "x") {
+        e.preventDefault();
+        setShow(false);
+        return;
+      }
+      if (k === "enter" || k === "z" || k === " ") {
+        e.preventDefault();
+        const a = list[selRef.current];
+        if (!a) return;
+        if (a.kind === "tileset") loadTileset(a.key);
+        else if (a.kind === "vw") setDesktopVW(a.value);
+        else if (a.kind === "portrait") fileRef.current?.click();
+        else if (a.kind === "clearPortrait") clearPortrait();
+        else if (a.kind === "close") setShow(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [show, setShow, loadTileset, setDesktopVW, clearPortrait]);
+
   if (!show) return null;
+  const focused = actions[sel];
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ background: "#111", border: "1px solid #333", borderRadius: 8, width: 320, padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -3736,33 +3840,34 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
           <button onClick={() => setShow(false)}
             style={{ background: "none", border: "1px solid #444", color: "#888", cursor: "pointer", borderRadius: 4, padding: "2px 8px" }}>✕</button>
         </div>
+        <div style={{ color: "#666", fontSize: 11 }}>↑↓で選択 / B・Zで決定 / Aで閉じる</div>
 
-        {/* グラフィックスタイル */}
         <div>
           <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>グラフィックスタイル</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {Object.entries(TILESET_LABELS).map(([key, label]) => {
-              const active = (currentTileset || 'default') === key;
+            {tilesetKeys.map((key) => {
+              const active = (currentTileset || "default") === key;
+              const isFocus = focused?.id === `ts:${key}`;
               return (
                 <button key={key} onClick={() => loadTileset(key)}
-                  style={{ padding: "4px 10px", background: active ? "#1a3a1a" : "#1a1a1a", color: active ? "#4f4" : "#aaa", border: `1px solid ${active ? "#4a7a4a" : "#333"}`, borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: active ? "bold" : "normal" }}>
-                  {active ? `✓ ${label}` : label}
+                  style={{ padding: "4px 10px", background: active ? "#1a3a1a" : isFocus ? "#1a2a3a" : "#1a1a1a", color: active ? "#4f4" : isFocus ? "#8cf" : "#aaa", border: `1px solid ${isFocus ? "#4a7aaa" : active ? "#4a7a4a" : "#333"}`, borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: active || isFocus ? "bold" : "normal" }}>
+                  {active ? `✓ ${TILESET_LABELS[key]}` : TILESET_LABELS[key]}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* PC版マスサイズ（モバイル以外） */}
         {!mobile && (
           <div>
             <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>PC版マスサイズ</div>
             <div style={{ display: "flex", gap: 6 }}>
               {DESKTOP_VW_OPTIONS.map(({ value, label }) => {
                 const active = desktopVW === value;
+                const isFocus = focused?.id === `vw:${value}`;
                 return (
                   <button key={value} onClick={() => setDesktopVW(value)}
-                    style={{ flex: 1, padding: "4px 0", background: active ? "#1a2a3a" : "#1a1a1a", color: active ? "#4cf" : "#aaa", border: `1px solid ${active ? "#2a5a8a" : "#333"}`, borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: active ? "bold" : "normal" }}>
+                    style={{ flex: 1, padding: "4px 0", background: active ? "#1a2a3a" : isFocus ? "#1a2a3a" : "#1a1a1a", color: active ? "#4cf" : isFocus ? "#8cf" : "#aaa", border: `1px solid ${isFocus ? "#4a7aaa" : active ? "#2a5a8a" : "#333"}`, borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: active || isFocus ? "bold" : "normal" }}>
                     {active ? `✓ ${label}` : label}
                   </button>
                 );
@@ -3771,31 +3876,33 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
           </div>
         )}
 
-        {/* 立ち絵変更 */}
         <div>
           <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>立ち絵</div>
           <div style={{ display: "flex", gap: 6 }}>
             <label style={{ flex: 1, cursor: "pointer" }}>
-              <input type="file" accept="image/*" style={{ display: "none" }}
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
                 onChange={(e) => { if (e.target.files[0]) { loadPortrait(e.target.files[0]); } e.target.value = ""; }} />
-              <span style={{ display: "block", textAlign: "center", padding: "4px 0", background: "#1a1a2a", border: "1px solid #333", borderRadius: 4, fontSize: 13, color: "#aaa" }}>
+              <span style={{ display: "block", textAlign: "center", padding: "4px 0", background: focused?.kind === "portrait" ? "#1a2a3a" : "#1a1a2a", border: `1px solid ${focused?.kind === "portrait" ? "#4a7aaa" : "#333"}`, borderRadius: 4, fontSize: 13, color: focused?.kind === "portrait" ? "#8cf" : "#aaa" }}>
                 🖼 画像を変更
               </span>
             </label>
             {portraitSrc && (
               <button onClick={clearPortrait}
-                style={{ padding: "4px 10px", background: "#2a1515", border: "1px solid #4a2020", color: "#f66", borderRadius: 4, fontSize: 13, cursor: "pointer" }}>
+                style={{ padding: "4px 10px", background: focused?.kind === "clearPortrait" ? "#3a2020" : "#2a1515", border: `1px solid ${focused?.kind === "clearPortrait" ? "#a44" : "#4a2020"}`, color: "#f66", borderRadius: 4, fontSize: 13, cursor: "pointer" }}>
                 ✕ 消去
               </button>
             )}
           </div>
         </div>
+
+        <button onClick={() => setShow(false)}
+          style={{ padding: "6px 0", background: focused?.kind === "close" ? "#1a2a3a" : "#151515", border: `1px solid ${focused?.kind === "close" ? "#4a7aaa" : "#333"}`, color: focused?.kind === "close" ? "#8cf" : "#aaa", borderRadius: 4, fontSize: 13, cursor: "pointer" }}>
+          閉じる
+        </button>
       </div>
     </div>
   );
 }
-
-/* ===== Floor Select Modal (cursed teleport: visited floors only) ===== */
 export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, genDungeon, refreshFOV, rng }) {
   if (!mode) return null;
   const _p0 = sr.current?.player;

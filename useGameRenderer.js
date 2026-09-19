@@ -544,7 +544,7 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
  * Core renderer hook.
  * Returns { renderFrame, overlaysRef } so animation loop can trigger redraws.
  */
-export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW) {
+export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW, diagonalLockMode = false) {
   const overlaysRef = useRef([]);
   /* moveOffsets: Map<entityKey, {fromX, fromY, toX, toY, progress}> for smooth movement */
   const moveOffsetsRef = useRef(new Map());
@@ -1197,12 +1197,42 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       const pf = p.facing || { dx: 0, dy: 1 };
       const _ppx = (p.x - sx) * sz, _ppy = (p.y - sy) * sz;
       drawFacingIndicator(ctx, _ppx, _ppy, sz, pf.dx, pf.dy);
+    } else if (diagonalLockMode && p) {
+      /* RB斜め固定中: 斜め4方向に矢印を出し続ける */
+      const _ppx = (p.x - sx) * sz, _ppy = (p.y - sy) * sz;
+      ctx.save();
+      ctx.strokeStyle = "rgba(120,200,255,0.9)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(_ppx + 1, _ppy + 1, sz - 2, sz - 2);
+      ctx.restore();
+      const _diagArrows = {
+        "-1,-1": "↖", "1,-1": "↗", "-1,1": "↙", "1,1": "↘",
+      };
+      for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        const ax = _ppx + dx * sz, ay = _ppy + dy * sz;
+        ctx.save();
+        ctx.fillStyle = "rgba(80,160,255,0.22)";
+        ctx.fillRect(ax, ay, sz, sz);
+        ctx.strokeStyle = "rgba(120,200,255,0.95)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ax + 1, ay + 1, sz - 2, sz - 2);
+        const fs = Math.max(10, Math.floor(sz * 0.82));
+        ctx.font = "bold " + fs + "px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const ch = _diagArrows[dx + "," + dy];
+        ctx.fillStyle = "rgba(0,0,0,0.9)";
+        ctx.fillText(ch, ax + sz / 2 + 1.5, ay + sz / 2 + 1.5);
+        ctx.fillStyle = "rgba(180,230,255,1)";
+        ctx.fillText(ch, ax + sz / 2, ay + sz / 2);
+        ctx.restore();
+      }
     }
 
     /* ===== Animation overlays (effects drawn on top) ===== */
     drawOverlays(ctx, overlaysRef.current, sx, sy, sz);
 
-  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW]);
+  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW, diagonalLockMode]);
 
   /* Auto-render on state change */
   useEffect(() => {

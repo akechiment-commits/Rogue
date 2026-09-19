@@ -19,6 +19,7 @@ import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 import { isDebugItemGetEffect } from "./debugSpellRules.js";
+import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -133,6 +134,19 @@ export function useKeyHandler({
       if (isDuplicateDirectionEvent(e)) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        return;
+      }
+      if (showScores && !showEnding) {
+        e.preventDefault();
+        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
+          setShowScores(false);
+          return;
+        }
+        const _scEl = document.querySelector("[data-scores-modal]");
+        if (_scEl && (k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright" || (e.code && e.code.startsWith("Numpad")))) {
+          const up = k === "arrowup" || k === "arrowleft" || e.code === "Numpad8" || e.code === "Numpad4";
+          _scEl.scrollTop = Math.max(0, _scEl.scrollTop + (up ? -96 : 96));
+        }
         return;
       }
       if (showEnding) {
@@ -1976,7 +1990,14 @@ export function useKeyHandler({
         !putMode
       ) {
         e.preventDefault();
-        setFacingMode((f) => !f);
+        const _p = sr.current?.player;
+        const _dg = sr.current?.dungeon;
+        if (_p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
+          setFacingMode(false);
+          setGs({ ...sr.current });
+        } else {
+          setFacingMode((f) => !f);
+        }
       }
     },
     [

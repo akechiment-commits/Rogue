@@ -74,6 +74,8 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
+import { useGamepad } from './useGamepad.js';
+import { GamepadQuickMenu, GamepadLtHint } from './GamepadQuickMenu.jsx';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
@@ -104,12 +106,14 @@ import {
 import { pl, setActivePlayerName } from "./playerLabel.js";
 import { makeStarterFoodItem } from "./favoriteFood.js";
 import { buildRunResultExtras } from "./runScore.js";
+import { recordAdventureScore } from "./adventureScores.js";
 import { createRunTimer } from "./runTimer.js";
 import { SPRING_CONFUSION_TURNS, springGoldRange } from "./springRules.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
+import { planConvenientDash } from "./convenientDash.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns, MP_REVIVAL_SEAL_TURNS } from "./mpRules.js";
 import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip } from "./firstEncounterTips.js";
 import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
@@ -258,6 +262,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   msgsRef.current = msgs;
   const [gameOverResult, setGameOverResult] = useState(null);
   const [showScores, setShowScores] = useState(false);
+  const [gamepadRbHeld, setGamepadRbHeld] = useState(false);
   const [gameOverSel, setGameOverSel] = useState(0);
   const [gameOverView, setGameOverView] = useState(null);
   const [gameOverPortrait, setGameOverPortrait] = useState(null);
@@ -277,6 +282,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [showSettings, setShowSettings] = useState(false);
   const showSettingsRef = useRef(false);
   showSettingsRef.current = showSettings;
+  const showScoresRef = useRef(false);
+  showScoresRef.current = showScores;
   const [exitHubConfirm, setExitHubConfirm] = useState(false);
   const [exitHubSel, setExitHubSel] = useState(0);
   const exitHubConfirmRef = useRef(false);
@@ -860,7 +867,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, []);
 
   /* Canvas render */
-  const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef, gsOverrideRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW);
+  const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef, gsOverrideRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW, gamepadRbHeld);
+  /* gamepad RB: keep diagonal arrows painted */
+  useEffect(() => {
+    if (!gamepadRbHeld) return;
+    let id = 0;
+    const tick = () => {
+      renderFrameRef.current?.();
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [gamepadRbHeld]);
   const animBusyRef = useRef(false);
   const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
   const pendingActRef = useRef(null); /* アニメーション中に入力されたアクションをバッファ */
@@ -2147,8 +2165,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           runTimerRef.current?.freeze();
           const _runExtras = buildRunResultExtras(p, runTimerRef.current);
           try {
-            const _scores = JSON.parse(localStorage.getItem("roguelike_scores") || "[]");
-            _scores.unshift({
+            recordAdventureScore({
+              dungeonType: sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner",
+              result: "death",
               cause: p.deathCause || "不明",
               gold: p.gold,
               level: p.level,
@@ -2157,9 +2176,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               score: _runExtras.score,
               itemsValue: _runExtras.itemsValue,
               elapsedMs: _runExtras.elapsedMs,
-              date: new Date().toLocaleDateString("ja-JP"),
             });
-            localStorage.setItem("roguelike_scores", JSON.stringify(_scores.slice(0, 20)));
           } catch (_e) {}
           /* 死亡時点の所持品は、最後に確認できる情報として完全識別する。 */
           const identifyOnDeath = (item) => {
@@ -2333,6 +2350,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ..._runExtras,
     };
     setExitHubConfirm(false);
+    try {
+      recordAdventureScore({
+        dungeonType: payload.dungeonType,
+        result: _hasGoal ? "clear" : "escape",
+        cause: payload.cause,
+        gold: p.gold,
+        level: p.level,
+        depth: p.depth,
+        turns: p.turns,
+        score: _runExtras.score,
+        itemsValue: _runExtras.itemsValue,
+        elapsedMs: _runExtras.elapsedMs,
+      });
+    } catch (_e) {}
     if (_hasGoal) {
       setEndingSel(0);
       setEndingView(null);
@@ -2398,6 +2429,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (floorSelectModeRef.current) return;
       if (msgLogModeRef.current) return;
       if (showSettingsRef.current || showTileEditorRef.current) return;
+      if (showScoresRef.current) return;
       if (exitHubConfirmRef.current) return;
       if (mapMode) return;
       if (lookMode) return;
@@ -2430,6 +2462,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setEndingView(null);
           setShowScores(false);
           setEndingPortrait(pickClearPortrait(undefined, p));
+          try {
+            recordAdventureScore({
+              dungeonType: "tutorial",
+              result: "clear",
+              cause: "クリア",
+              gold: p.gold,
+              level: p.level,
+              depth: p.depth,
+              turns: p.turns,
+            });
+          } catch (_e) {}
           setEndingResult({ earnedGold: p.gold, depth: 3, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, isTutorial: true, identifiedEffects: [...(sr.current?.ident || [])] });
           setShowEnding(true);
           return;
@@ -3608,12 +3651,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
   }, [act, lookMode, mapMode, showFirstEncounterTip]);
   const doDash = useCallback(
-    async (dx, dy) => {
+    async (dx, dy, opts = {}) => {
+      const convenient = !!opts.convenient;
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
       if (springMode || wishMode || gachaModeRef.current || altarMode || merchantMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || showScoresRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -3637,8 +3681,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _dRoomSet = new Set();
       for (const r of (dg.rooms || [])) { for (let ry = r.y; ry < r.y + r.h; ry++) for (let rx = r.x; rx < r.x + r.w; rx++) _dRoomSet.add(_dk(rx, ry)); }
       const startInRoom = _dRoomSet.has(_dk(p.x, p.y));
-      const getP = (x, y) =>
-        (dx !== 0
+      const getP = (x, y, moveDx = dx) =>
+        (moveDx !== 0
           ? [
               [0, -1],
               [0, 1],
@@ -3658,7 +3702,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             dg.map[sy][sx] !== T.WALL && dg.map[sy][sx] !== T.BWALL
           );
         }).length;
-      let prevPerps = getP(p.x, p.y);
+      const convenientRoute = convenient
+        ? planConvenientDash(dg, p, dx, dy, { canWalkOnWater: () => canPlayerWalkOnWater(p, dg) })
+        : null;
+      let routeIndex = 0;
+      let stepDx = dx;
+      let stepDy = dy;
+      let prevPerps = getP(p.x, p.y, dx);
 
       const _dItemMap = new Map(); for (const i of dg.items) { if (!_dItemMap.has(_dk(i.x, i.y))) _dItemMap.set(_dk(i.x, i.y), i); }
       const _dTrapMap = new Map(); for (const t of dg.traps) _dTrapMap.set(_dk(t.x, t.y), t);
@@ -3666,8 +3716,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _dBbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _dBbMap.set(_dk(b.x, b.y), b);
       const _dPentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _dPentMap.set(_dk(pc.x, pc.y), pc);
       while (steps < 50) {
-        const nx = p.x + dx,
-          ny = p.y + dy;
+        if (convenientRoute) {
+          if (routeIndex >= convenientRoute.length) break;
+          [stepDx, stepDy] = convenientRoute[routeIndex];
+        }
+        const nx = p.x + stepDx,
+          ny = p.y + stepDy;
         if (
           nx < 0 ||
           nx >= MW ||
@@ -3763,6 +3817,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         {
           const _dashIt = _dItemMap.get(_dk(p.x, p.y));
           if (_dashIt) {
+            if (convenient && _dashIt.type !== "sign") {
+              autoPickup(p, dg, ml);
+              const _still = dg.items.find((i) => i.x === p.x && i.y === p.y);
+              if (!_still) {
+                _dItemMap.delete(_dk(p.x, p.y));
+                const _hpBeforeC = p.hp;
+                endTurn(st, p, ml);
+                if (p.hp < _hpBeforeC) break;
+                /* 便利ダッシュは道具を拾った地点を目的地として止まる。 */
+                break;
+              }
+            }
             if (_dashIt.type !== "sign" && _dashIt.type !== "gold") trackItem(_dashIt);
             const _w = _dashIt.type === "weapon", _a = _dashIt.type === "armor";
             let _lbl = itemDisplayName(_dashIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -3826,8 +3892,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
         const curInRoom = _dRoomSet.has(_dk(p.x, p.y));
         const curPerps = getP(p.x, p.y);
-        const fnx = p.x + dx,
-          fny = p.y + dy;
+        const fnx = p.x + stepDx,
+          fny = p.y + stepDy;
         const blocked =
           fnx < 0 ||
           fnx >= MW ||
@@ -3866,15 +3932,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             _dashActivatedVault) break;
         /* endTurn後にモンスターが移動している可能性があるため再チェック */
         const blockedAfter = blocked || !!monsterAt(dg, fnx, fny);
-        if (startInRoom) {
-          if (!curInRoom || blockedAfter) break;
-        } else {
-          if (curInRoom || (curPerps > prevPerps && curPerps > 0) || blockedAfter) break;
+        routeIndex++;
+        if (!convenientRoute) {
+          if (startInRoom) {
+            if (!curInRoom || blockedAfter) break;
+          } else {
+            if (curInRoom || (curPerps > prevPerps && curPerps > 0) || blockedAfter) break;
+          }
         }
-        prevPerps = curPerps;
+        prevPerps = getP(p.x, p.y, stepDx);
       }
       if (steps > 0) {
-        p.facing = { dx, dy };
+        p.facing = { dx: stepDx, dy: stepDy };
         p._portraitDash = true;
         setDashMode(false);
         if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -5309,6 +5378,48 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     bigboxPutItem, sortInventory, getLookDesc, lu,
     doOfferFood: doOfferFoodProxy, doMerchantBuy: doMerchantBuyProxy, doMerchantSell: doMerchantSellProxy,
     pastIdent, discoveredItems,
+  });
+  const { quickOpen: gamepadQuickOpen, quickSel: gamepadQuickSel, ltHeld: gamepadLtHeld } = useGamepad({
+    enabled: true,
+    aRef,
+    shiftRef,
+    arrowHeldRef,
+    sr,
+    invActRef,
+    act,
+    doDash,
+    dead,
+    showInv,
+    lookMode,
+    mapMode,
+    msgLogMode,
+    spellListMode,
+    exitHubConfirm,
+    showSettings,
+    showScores,
+    throwMode,
+    debugSpellMode,
+    facingMode,
+    modalType: modal.type,
+    showSign,
+    miniTip,
+    showTileEditor,
+    showEnding,
+    setLookMode,
+    setMapMode,
+    setMsgLogMode,
+    setMsgLogScrollTop,
+    msgsRef,
+    setSpellListMode,
+    setSpellMenuSel,
+    setShowSettings,
+    setShowScores,
+    setExitHubConfirm,
+    setFacingMode,
+    setGs,
+    setRbHeldUi: setGamepadRbHeld,
+    getLookDesc,
+    setMsgs,
   });
   const useLabel = (item) => getInventoryUseLabel(item, gs?.player);
   const canUse = canUseInventoryItem;
@@ -6868,7 +6979,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       />
       <GameOverMapView show={showEnding && endingView === "map"} onReopen={() => setEndingView(null)} mobile={mobile} resultLabel="クリア時" returnLabel="クリア画面" />
       <GameOverInventoryModal show={showEnding && endingView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} inventoryRef={gameOverInventoryRef} onReopen={() => setEndingView(null)} resultLabel="クリア時" returnLabel="クリア画面" />
-      <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
+      <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} dungeonType={gameOverResult?.dungeonType || endingResult?.dungeonType || sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner"} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />
       <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); localStorage.setItem('roguelike_desktop_vw', String(v)); }} mobile={mobile} />
@@ -6876,6 +6987,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         onConfirm={performExitToHub}
         onCancel={() => setExitHubConfirm(false)}
         mobile={mobile} />
+      <GamepadQuickMenu open={gamepadQuickOpen} sel={gamepadQuickSel} />
+      <GamepadLtHint show={gamepadLtHeld} />
     </div>
   );
 }
