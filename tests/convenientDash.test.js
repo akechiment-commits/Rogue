@@ -59,7 +59,7 @@ describe("planConvenientDash", () => {
     expect(route).toEqual([[1, -1], [1, -1]]);
   });
 
-  it("上下左右入力でも目的物へ向かう斜めの初手を選ぶ", () => {
+  it("上下左右入力の1歩目はその方向へ進み、その後に目的物への最短経路へ入る", () => {
     const map = mapWithWalls();
     for (let y = 2; y <= 7; y++) for (let x = 2; x <= 7; x++) map[y][x] = T.FLOOR;
     const route = planConvenientDash(
@@ -68,7 +68,20 @@ describe("planConvenientDash", () => {
       0,
       1,
     );
-    expect(route).toEqual([[1, 1], [1, 1]]);
+    expect(route).toEqual([[0, 1], [1, 1], [1, 0]]);
+  });
+
+  it("部屋の出口が近くても祭壇などの床オブジェクトを優先する", () => {
+    const map = mapWithWalls();
+    for (let y = 2; y <= 6; y++) for (let x = 2; x <= 6; x++) map[y][x] = T.FLOOR;
+    map[7][3] = T.FLOOR;
+    const route = planConvenientDash(
+      { map, rooms: [{ x: 2, y: 2, w: 5, h: 5 }], items: [], altars: [{ x: 5, y: 6 }], monsters: [], statues: [] },
+      { x: 3, y: 4 },
+      0,
+      1,
+    );
+    expect(route).toEqual([[0, 1], [1, 1], [1, 0]]);
   });
 
   it("大箱などの床オブジェクトも目的地として選ぶ", () => {

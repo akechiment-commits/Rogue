@@ -111,10 +111,10 @@ function isInInputDirection(start, target, dx, dy) {
 }
 
 function findRoomTarget(dg, room, start, dx, dy, canWalkOnWater) {
-  const targets = [];
+  const objectTargets = [];
   const addObjects = (objects = []) => {
     for (const object of objects) {
-      if (insideRoom(room, object.x, object.y)) targets.push({ x: object.x, y: object.y });
+      if (insideRoom(room, object.x, object.y)) objectTargets.push({ x: object.x, y: object.y });
     }
   };
   addObjects(dg.items);
@@ -126,17 +126,23 @@ function findRoomTarget(dg, room, start, dx, dy, canWalkOnWater) {
   addObjects(dg.pentacles);
   for (const [y, row] of (dg.map || []).entries()) {
     for (const [x, tile] of (row || []).entries()) {
-      if (insideRoom(room, x, y) && (tile === T.SD || tile === T.SU)) targets.push({ x, y });
+      if (insideRoom(room, x, y) && (tile === T.SD || tile === T.SU)) objectTargets.push({ x, y });
     }
   }
-  targets.push(...roomExitCells(dg, room, canWalkOnWater));
-  const unique = new Map(targets.map((target) => [key(target.x, target.y), target]));
-  return [...unique.values()].filter((target) => isInInputDirection(start, target, dx, dy));
+  const uniqueObjects = new Map(objectTargets.map((target) => [key(target.x, target.y), target]));
+  const directionalObjects = [...uniqueObjects.values()].filter((target) => isInInputDirection(start, target, dx, dy));
+  if (directionalObjects.length) return directionalObjects;
+
+  const exits = roomExitCells(dg, room, canWalkOnWater);
+  const uniqueExits = new Map(exits.map((target) => [key(target.x, target.y), target]));
+  return [...uniqueExits.values()].filter((target) => isInInputDirection(start, target, dx, dy));
 }
 
 function buildPathToRoomTarget(dg, start, room, targets, canWalkOnWater, dx, dy) {
   const targetKeys = new Set(targets.map(({ x, y }) => key(x, y)));
-  const queue = [{ x: start.x, y: start.y, path: [] }];
+  const first = { x: start.x + dx, y: start.y + dy };
+  if (!isWalkable(dg, first.x, first.y, canWalkOnWater) || isBlockedByActor(dg, first.x, first.y)) return null;
+  const queue = [{ x: first.x, y: first.y, path: [[dx, dy]] }];
   const seen = new Set([key(start.x, start.y)]);
   while (queue.length) {
     const current = queue.shift();
@@ -145,10 +151,6 @@ function buildPathToRoomTarget(dg, start, room, targets, canWalkOnWater, dx, dy)
       const nx = current.x + ndx, ny = current.y + ndy;
       const nk = key(nx, ny);
       if (seen.has(nk) || !insideRoom(room, nx, ny)) continue;
-      // The first step must honor the requested direction, but may be diagonal.
-      // This is what lets a downward dash immediately take a down-right step
-      // when the target is down-right, instead of stepping straight down first.
-      if (current.path.length === 0 && !isInInputDirection(start, { x: nx, y: ny }, dx, dy)) continue;
       if (!isWalkable(dg, nx, ny, canWalkOnWater) || isBlockedByActor(dg, nx, ny)) continue;
       seen.add(nk);
       queue.push({ x: nx, y: ny, path: [...current.path, [ndx, ndy]] });
