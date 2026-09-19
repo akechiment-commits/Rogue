@@ -637,6 +637,7 @@ export function useGamepad({
         } else if (
           !inFace &&
           !inModal &&
+          !rt &&
           !buttonPressed(gp, BTN.LB) &&
           now - moveFirstAtRef.current >= MOVE_REPEAT_DELAY_MS &&
           now - moveRepeatAtRef.current >= MOVE_REPEAT_MS

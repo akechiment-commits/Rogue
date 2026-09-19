@@ -76,7 +76,14 @@ function isBlockedByActor(dg, x, y) {
 function hasFloorObject(dg, x, y) {
   if ((dg.items || []).some((item) => item.x === x && item.y === y)) return true;
   if ([T.SD, T.SU].includes(dg.map?.[y]?.[x])) return true;
-  return false;
+  return [
+    ...(dg.springs || []),
+    ...(dg.bigboxes || []),
+    ...(dg.gachaMachines || []),
+    ...(dg.altars || []),
+    ...(dg.dimensionalVaults || []),
+    ...(dg.pentacles || []),
+  ].some((object) => object.x === x && object.y === y);
 }
 
 function roomExitCells(dg, room, canWalkOnWater) {
@@ -105,9 +112,18 @@ function isInInputDirection(start, target, dx, dy) {
 
 function findRoomTarget(dg, room, start, dx, dy, canWalkOnWater) {
   const targets = [];
-  for (const item of dg.items || []) {
-    if (insideRoom(room, item.x, item.y)) targets.push({ x: item.x, y: item.y });
-  }
+  const addObjects = (objects = []) => {
+    for (const object of objects) {
+      if (insideRoom(room, object.x, object.y)) targets.push({ x: object.x, y: object.y });
+    }
+  };
+  addObjects(dg.items);
+  addObjects(dg.springs);
+  addObjects(dg.bigboxes);
+  addObjects(dg.gachaMachines);
+  addObjects(dg.altars);
+  addObjects(dg.dimensionalVaults);
+  addObjects(dg.pentacles);
   for (const [y, row] of (dg.map || []).entries()) {
     for (const [x, tile] of (row || []).entries()) {
       if (insideRoom(room, x, y) && (tile === T.SD || tile === T.SU)) targets.push({ x, y });
@@ -118,9 +134,9 @@ function findRoomTarget(dg, room, start, dx, dy, canWalkOnWater) {
   return [...unique.values()].filter((target) => isInInputDirection(start, target, dx, dy));
 }
 
-function buildPathToRoomTarget(dg, start, first, room, targets, canWalkOnWater, dx, dy) {
+function buildPathToRoomTarget(dg, start, room, targets, canWalkOnWater, dx, dy) {
   const targetKeys = new Set(targets.map(({ x, y }) => key(x, y)));
-  const queue = [{ x: first.x, y: first.y, path: [[first.x - start.x, first.y - start.y]] }];
+  const queue = [{ x: start.x, y: start.y, path: [] }];
   const seen = new Set([key(start.x, start.y)]);
   while (queue.length) {
     const current = queue.shift();
@@ -129,6 +145,10 @@ function buildPathToRoomTarget(dg, start, first, room, targets, canWalkOnWater, 
       const nx = current.x + ndx, ny = current.y + ndy;
       const nk = key(nx, ny);
       if (seen.has(nk) || !insideRoom(room, nx, ny)) continue;
+      // The first step must honor the requested direction, but may be diagonal.
+      // This is what lets a downward dash immediately take a down-right step
+      // when the target is down-right, instead of stepping straight down first.
+      if (current.path.length === 0 && !isInInputDirection(start, { x: nx, y: ny }, dx, dy)) continue;
       if (!isWalkable(dg, nx, ny, canWalkOnWater) || isBlockedByActor(dg, nx, ny)) continue;
       seen.add(nk);
       queue.push({ x: nx, y: ny, path: [...current.path, [ndx, ndy]] });
@@ -162,16 +182,20 @@ function buildCorridorPath(dg, start, first, canWalkOnWater, dx, dy, maxSteps) {
  */
 export function planConvenientDash(dg, player, dx, dy, { canWalkOnWater = () => false, maxSteps = 50 } = {}) {
   if (!dg?.map || !player || (dx === 0 && dy === 0)) return [];
-  const first = { x: player.x + dx, y: player.y + dy };
-  if (!isWalkable(dg, first.x, first.y, canWalkOnWater) || isBlockedByActor(dg, first.x, first.y)) return [];
 
   const room = roomAt(dg, player.x, player.y);
   if (room) {
     const targets = findRoomTarget(dg, room, player, dx, dy, canWalkOnWater);
-    const route = buildPathToRoomTarget(dg, player, first, room, targets, canWalkOnWater, dx, dy);
-    return route || [[dx, dy]];
+    const route = buildPathToRoomTarget(dg, player, room, targets, canWalkOnWater, dx, dy);
+    if (route) return route;
+
+    const first = { x: player.x + dx, y: player.y + dy };
+    if (!isWalkable(dg, first.x, first.y, canWalkOnWater) || isBlockedByActor(dg, first.x, first.y)) return [];
+    return [[dx, dy]];
   }
 
+  const first = { x: player.x + dx, y: player.y + dy };
+  if (!isWalkable(dg, first.x, first.y, canWalkOnWater) || isBlockedByActor(dg, first.x, first.y)) return [];
   if (Math.abs(dx) + Math.abs(dy) !== 1) return [[dx, dy]];
   return buildCorridorPath(dg, player, first, canWalkOnWater, dx, dy, maxSteps);
 }

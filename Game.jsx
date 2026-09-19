@@ -3880,6 +3880,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           endTurn(st, p, ml);
           break;
         }
+        const _dashGacha = dg.gachaMachines?.find((machine) => machine.x === p.x && machine.y === p.y);
+        if (_dashGacha) {
+          ml.push("ガチャマシーンがある。");
+          endTurn(st, p, ml);
+          break;
+        }
+        const _dashVault = dg.dimensionalVaults?.find((vault) => vault.x === p.x && vault.y === p.y);
+        if (_dashVault) {
+          ml.push(`${_dashVault.name || "次元宝物庫"}の入口に入った。`);
+          endTurn(st, p, ml);
+          break;
+        }
         const _dashPc = _dPentMap.get(_dk(p.x, p.y));
         if (_dashPc) {
           if (_dashPc.kind === "portal" || _dashPc.kind === "fixed_portal") {
