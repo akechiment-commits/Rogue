@@ -110,6 +110,29 @@ function isInInputDirection(start, target, dx, dy) {
   return dx !== 0 ? vx * dx > 0 : vy * dy > 0;
 }
 
+function orderedDirectionsToward(current, target) {
+  const remainingX = Math.sign(target.x - current.x);
+  const remainingY = Math.sign(target.y - current.y);
+  const distanceAfter = ([dx, dy]) => Math.max(
+    Math.abs(target.x - (current.x + dx)),
+    Math.abs(target.y - (current.y + dy)),
+  );
+  const axisDeviation = ([dx, dy]) =>
+    (remainingX === 0 ? Math.abs(dx) : 0) +
+    (remainingY === 0 ? Math.abs(dy) : 0);
+  const wrongAxis = ([dx, dy]) =>
+    (remainingX !== 0 && dx !== 0 && dx !== remainingX ? 1 : 0) +
+    (remainingY !== 0 && dy !== 0 && dy !== remainingY ? 1 : 0);
+  return DIRECTIONS8.map(([dx, dy]) => [dx, dy]).sort((a, b) => {
+    const aScore = [axisDeviation(a), distanceAfter(a), wrongAxis(a)];
+    const bScore = [axisDeviation(b), distanceAfter(b), wrongAxis(b)];
+    for (let i = 0; i < aScore.length; i++) {
+      if (aScore[i] !== bScore[i]) return aScore[i] - bScore[i];
+    }
+    return 0;
+  });
+}
+
 function findRoomTarget(dg, room, start, dx, dy, canWalkOnWater) {
   const objectTargets = [];
   const addObjects = (objects = []) => {
@@ -138,16 +161,14 @@ function findRoomTarget(dg, room, start, dx, dy, canWalkOnWater) {
   return [...uniqueExits.values()].filter((target) => isInInputDirection(start, target, dx, dy));
 }
 
-function buildPathToRoomTarget(dg, start, room, targets, canWalkOnWater, dx, dy) {
-  const targetKeys = new Set(targets.map(({ x, y }) => key(x, y)));
-  const first = { x: start.x + dx, y: start.y + dy };
+function buildPathToTarget(dg, start, first, room, target, canWalkOnWater) {
   if (!isWalkable(dg, first.x, first.y, canWalkOnWater) || isBlockedByActor(dg, first.x, first.y)) return null;
-  const queue = [{ x: first.x, y: first.y, path: [[dx, dy]] }];
+  const queue = [{ x: first.x, y: first.y, path: [[first.x - start.x, first.y - start.y]] }];
   const seen = new Set([key(start.x, start.y)]);
   while (queue.length) {
     const current = queue.shift();
-    if (targetKeys.has(key(current.x, current.y))) return current.path;
-    for (const [ndx, ndy] of orderedDirections(dx, dy)) {
+    if (samePos(current, target)) return current.path;
+    for (const [ndx, ndy] of orderedDirectionsToward(current, target)) {
       const nx = current.x + ndx, ny = current.y + ndy;
       const nk = key(nx, ny);
       if (seen.has(nk) || !insideRoom(room, nx, ny)) continue;
@@ -157,6 +178,17 @@ function buildPathToRoomTarget(dg, start, room, targets, canWalkOnWater, dx, dy)
     }
   }
   return null;
+}
+
+function buildPathToRoomTarget(dg, start, room, targets, canWalkOnWater, dx, dy) {
+  const first = { x: start.x + dx, y: start.y + dy };
+  if (!isWalkable(dg, first.x, first.y, canWalkOnWater) || isBlockedByActor(dg, first.x, first.y)) return null;
+  let best = null;
+  for (const target of targets) {
+    const route = buildPathToTarget(dg, start, first, room, target, canWalkOnWater);
+    if (route && (!best || route.length < best.length)) best = route;
+  }
+  return best;
 }
 
 function buildCorridorPath(dg, start, first, canWalkOnWater, dx, dy, maxSteps) {

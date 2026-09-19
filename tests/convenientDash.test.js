@@ -84,6 +84,25 @@ describe("planConvenientDash", () => {
     expect(route).toEqual([[0, 1], [1, 1], [1, 0]]);
   });
 
+  it("左にある指輪へ向かうとき、下側のマスへ寄り道しない", () => {
+    const map = mapWithWalls();
+    for (let y = 2; y <= 12; y++) for (let x = 2; x <= 14; x++) map[y][x] = T.FLOOR;
+    const route = planConvenientDash(
+      {
+        map,
+        rooms: [{ x: 2, y: 2, w: 13, h: 11 }],
+        items: [{ x: 7, y: 6, type: "ring" }],
+        traps: [{ x: 12, y: 7, name: "矢の罠" }],
+        monsters: [],
+        statues: [],
+      },
+      { x: 12, y: 5 },
+      0,
+      1,
+    );
+    expect(route).toEqual([[0, 1], [-1, 0], [-1, 0], [-1, 0], [-1, 0], [-1, 0]]);
+  });
+
   it("大箱などの床オブジェクトも目的地として選ぶ", () => {
     const map = mapWithWalls();
     for (let y = 2; y <= 6; y++) for (let x = 2; x <= 6; x++) map[y][x] = T.FLOOR;
