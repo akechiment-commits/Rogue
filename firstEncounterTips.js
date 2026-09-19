@@ -2,7 +2,7 @@ const MAIN_DUNGEON_TYPES = new Set(["beginner", "intermediate", "advanced", "leg
 
 export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   unidentified_item: { title: "正体不明の道具", trigger: "未識別の薬・巻物・杖・指輪・ペン・壺・魔法書を拾う", text: ["未識別の道具は、見た目だけでは効果が分からない。", "使うか鑑定すると正体が分かる。"] },
-  item_potion: { title: "薬", trigger: "初めて薬を拾う", text: ["薬は飲むか投げて使う。", "未識別なら安全な場所で試そう。"] },
+  item_potion: { title: "薬", trigger: "初めて薬を拾う", text: ["薬は飲む・投げるほか、食料にかけて使えるものもある。", "未識別なら安全な場所で試そう。"] },
   item_scroll: { title: "巻物", trigger: "初めて巻物を拾う", text: ["巻物は読むと効果が発動する。", "未識別なら周囲を確認してから読もう。"] },
   item_weapon: { title: "武器", trigger: "初めて武器を拾う", text: ["装備すると攻撃力が上がる。", "＋値・能力・呪いを確認しよう。"] },
   item_armor: { title: "防具", trigger: "初めて防具を拾う", text: ["装備すると防御力が上がる。", "＋値・能力・呪いを確認しよう。"] },
@@ -14,8 +14,8 @@ export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   item_spellbook: { title: "魔法書", trigger: "初めて魔法書を拾う", text: ["読むと書かれた魔法を覚える。", "未識別なら効果を確かめてから読もう。"] },
   item_pot: { title: "壺", trigger: "初めて壺を拾う", text: ["道具を入れて使う壺がある。", "種類と容量を確認しよう。"] },
   item_food: { title: "食料", trigger: "初めて食料を拾う", text: ["食べると満腹度が回復する。", "空腹になる前に食べよう。"] },
-  item_gem: { title: "宝石", trigger: "初めて宝石を拾う", text: ["店で売ると金貨になる。", "売る場所で価値が変わる。"] },
-  item_bottle: { title: "空き瓶", trigger: "初めて空き瓶を拾う", text: ["泉で水をくめる空き瓶。", "飲む・投げるなどに使える。"] },
+  item_gem: { title: "宝石", trigger: "初めて宝石を拾う", text: ["宝石は店で売ると金貨になる。", "買った店から遠い階の店で売るほど高くなる。"] },
+  item_bottle: { title: "空き瓶", trigger: "初めて空き瓶を拾う", text: ["空き瓶は泉で水をくんだり、敵に投げたりできる。", "投げて敵を倒すと、薬に変わる。"] },
   item_gold: { title: "金貨", trigger: "初めて金貨を拾う", text: ["拾った金貨は店で使える。", "持ち帰れば銀行に預けられる。"] },
   blessing_curse: { title: "祝福と呪い", trigger: "道具や魔方陣が祝福・呪いの影響を受ける", text: ["祝福や呪いは道具に影響する。", "未識別のまま使う時は注意しよう。"] },
   trap: { title: "隠れた罠", trigger: "隠れた罠が作動する、罠探しで発見する、または足元から罠を起動する", text: ["罠は普段は見えず、踏むと作動して見える。", "Sキー（モバイルは「罠探し」）で周囲を探せる。"] },
@@ -52,7 +52,7 @@ export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   pentacle: { title: "魔方陣", trigger: "魔方陣の上へ乗る", text: ["魔方陣は種類や祝呪で効果が変わる。", "「見渡す」で性質を確認しよう。"] },
   boss: { title: "ボス", trigger: "初めてボスを視界に入れる", text: ["ボスは強力な固有行動を持つ。", "道具を組み合わせて戦い、豪華な専用報酬を狙おう。"] },
   special_floor: { title: "特殊なフロア", trigger: "通常と異なる構造のフロアへ初めて入る", text: ["通常と違う構造のフロア。", "階段と退路を先に確保しよう。"] },
-  statue: { title: "石像", trigger: "石像を調べる、または石像へ移動しようとする", text: ["石像は歩いても壊れない。", "投擲・矢・杖などで攻撃しよう。"] },
+  statue: { title: "石像", trigger: "石像を調べる、または石像へ移動しようとする", text: ["石像に歩いてぶつかっても、壊れずに止まる。", "投擲・矢・杖などで攻撃しよう。"] },
   vent: { title: "風穴", trigger: "風穴の上へ乗る", text: ["近くでは物理飛び道具が風向きへ曲がる。", "杖や魔法弾には影響しない。"] },
   hidden_room: { title: "隠し部屋・宝物庫", trigger: "隠し部屋または宝物庫を発見する", text: ["隠し部屋には道具があるが、罠や敵もいる。", "罠探しをして退路を確保しよう。"] },
   item_mimic: { title: "アイテムモドキ", trigger: "床の道具に化けた敵が正体を現す", text: ["道具に化けた敵は拾おうとすると襲ってくる。", "離れて攻撃すると安全。"] },
