@@ -35,6 +35,25 @@ describe("planConvenientDash", () => {
     expect(route).toEqual([[1, 0], [1, 0]]);
   });
 
+  it("隠し部屋の中でも目的物までの経路を選ぶ", () => {
+    const map = mapWithWalls();
+    for (let y = 2; y <= 6; y++) for (let x = 2; x <= 6; x++) map[y][x] = T.FLOOR;
+    const route = planConvenientDash(
+      {
+        map,
+        rooms: [],
+        hiddenRooms: [{ x: 2, y: 2, w: 5, h: 5 }],
+        items: [{ x: 5, y: 4 }],
+        monsters: [],
+        statues: [],
+      },
+      { x: 3, y: 4 },
+      1,
+      0,
+    );
+    expect(route).toEqual([[1, 0], [1, 0]]);
+  });
+
   it("部屋に目的物がなければ1マスだけ進む", () => {
     const map = mapWithWalls();
     for (let y = 2; y <= 6; y++) for (let x = 2; x <= 6; x++) map[y][x] = T.FLOOR;

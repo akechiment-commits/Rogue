@@ -20,7 +20,7 @@ function samePos(a, b) {
 }
 
 function roomAt(dg, x, y) {
-  return (dg.rooms || []).find((room) =>
+  return [...(dg.rooms || []), ...(dg.hiddenRooms || [])].find((room) =>
     x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h
   ) || null;
 }
