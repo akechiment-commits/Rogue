@@ -4888,6 +4888,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
       if (eff === "water") applySoakedStatus(p, ml);
     }
+    if (eff === "water") washOilyFromWater(dg, x, y, mon || (p && x === p.x && y === p.y ? p : null), ml);
     const trap = dg.traps.find(t => t.x === x && t.y === y);
     if (trap) {
       if (!trap.permanent) {
@@ -4945,8 +4946,22 @@ function applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn = 
         applyPotionEffect("water", WATER_BOTTLE.value, "player", p, dg, p, ml, luFn, blessed, cursed);
         applySoakedStatus(p, ml);
       }
+      washOilyFromWater(dg, tx, ty, mon || (p && tx === p.x && ty === p.y ? p : null), ml);
     }
   }
+}
+
+function washOilyFromWater(dg, x, y, entity, ml) {
+  let washed = false;
+  if ((entity?.oilyTurns || 0) > 0) {
+    entity.oilyTurns = 0;
+    washed = true;
+  }
+  if (dg.oilyTiles?.some((tile) => tile.x === x && tile.y === y)) {
+    dg.oilyTiles = dg.oilyTiles.filter((tile) => tile.x !== x || tile.y !== y);
+    washed = true;
+  }
+  if (washed) ml.push("水で油が流れた！");
 }
 
 /* 通常の水は薬と同じ3×3の共通飛散処理を行い、食料を元に戻す。
