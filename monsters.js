@@ -4057,6 +4057,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (!_attackOnly) m.berserkerTurns = Math.max(0, m.berserkerTurns - 1);
     if (m.berserkerTurns <= 0) ml.push(`${m.name}のバーサーク状態が解けた！`);
   }
+  /* ずぶ濡れ状態：水の飛沫などで付与され、敵ターンごとに減少 */
+  if ((m.soakedTurns || 0) > 0 && !_attackOnly) {
+    m.soakedTurns = Math.max(0, m.soakedTurns - 1);
+    if (m.soakedTurns <= 0) ml.push(`${m.name}のずぶ濡れが解けた！`);
+  }
   /* 平和主義状態：攻撃できず、ランダムに1歩移動して終了 */
   if ((m.pacifistTurns || 0) > 0) {
     if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - 1);

@@ -1533,6 +1533,23 @@ describe("imprison pot", () => {
 });
 
 describe("water breath ring and soaked", () => {
+  it("水の飛沫は敵味方をずぶ濡れにするが、飲んだ水ではならない", () => {
+    const dg = {
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      monsters: [{ name: "敵", x: 4, y: 3, hp: 20, maxHp: 20 }],
+      items: [], traps: [], pentacles: [], gachaMachines: [], pendingBombs: [],
+    };
+    const p = { x: 3, y: 3, hp: 10, maxHp: 20, soakedTurns: 0, armor: null, inventory: [] };
+    const ml = [];
+    splashPotion(dg, p.x, p.y, "water", 10, p, ml, () => {});
+    expect(p.soakedTurns).toBe(10);
+    expect(dg.monsters[0].soakedTurns).toBe(10);
+
+    const drinking = { hp: 10, maxHp: 20, soakedTurns: 0, armor: null, inventory: [] };
+    applyPotionEffect("water", 10, "player", drinking, dg, drinking, [], () => {});
+    expect(drinking.soakedTurns).toBe(0);
+  });
+
   it("水中呼吸の指輪で水タイルを歩ける", () => {
     const dg = { map: [[T.FLOOR]], pentacles: [] };
     const p = { rings: [{ effect: "water_breath_ring" }] };

@@ -4882,8 +4882,12 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     if (mon) {
       weakenOrClearParalysis(mon, ml);
       applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon, true);
+      if (eff === "water") applySoakedStatusToMonster(mon, ml);
     }
-    if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
+    if (p && x === p.x && y === p.y) {
+      applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
+      if (eff === "water") applySoakedStatus(p, ml);
+    }
     const trap = dg.traps.find(t => t.x === x && t.y === y);
     if (trap) {
       if (!trap.permanent) {
@@ -4935,9 +4939,11 @@ function applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn = 
       if (mon) {
         weakenOrClearParalysis(mon, ml);
         applyPotionEffect("water", WATER_BOTTLE.value, "monster", mon, dg, p, ml, luFn, blessed, cursed);
+        applySoakedStatusToMonster(mon, ml);
       }
       if (p && tx === p.x && ty === p.y) {
         applyPotionEffect("water", WATER_BOTTLE.value, "player", p, dg, p, ml, luFn, blessed, cursed);
+        applySoakedStatus(p, ml);
       }
     }
   }
@@ -8838,6 +8844,17 @@ export function applySoakedStatus(p, ml, turns = null, msg = null) {
   p.soakedTurns = Math.max(_was, turns);
   if (ml && _was === 0) ml.push(msg || `ずぶ濡れになった！(${turns}ターン)`);
   else if (ml && _was > 0 && p.soakedTurns > _was) ml.push(`ずぶ濡れが長引いた！(${p.soakedTurns}ターン)`);
+  return true;
+}
+
+/** 水の飛沫で敵をずぶ濡れにする。 */
+export function applySoakedStatusToMonster(monster, ml, turns = null) {
+  if (!monster) return false;
+  if (turns == null) turns = statusTurns("soaked", { kind: "monster", target: monster });
+  const was = monster.soakedTurns || 0;
+  monster.soakedTurns = Math.max(was, turns);
+  if (ml && was === 0) ml.push(`${monster.name || "敵"}はずぶ濡れになった！(${turns}ターン)`);
+  else if (ml && was > 0 && monster.soakedTurns > was) ml.push(`${monster.name || "敵"}のずぶ濡れが長引いた！(${monster.soakedTurns}ターン)`);
   return true;
 }
 
