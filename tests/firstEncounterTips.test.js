@@ -46,6 +46,10 @@ describe("first encounter tips", () => {
     expect(tip.text[1]).toContain("豪華な専用報酬");
   });
 
+  it("石像Tipsに破壊時の強敵出現を含める", () => {
+    expect(FIRST_ENCOUNTER_TIPS.statue.text[1]).toContain("強敵");
+  });
+
   it("持ち物いっぱいTipsはFキーではなく道具欄の足元ページを案内する", () => {
     const tip = getFirstEncounterTip("inventory_full", "beginner", []);
     expect(tip.text[1]).toContain("道具欄（Xキー）の「足元」ページ");
