@@ -103,6 +103,25 @@ describe("planConvenientDash", () => {
     expect(route).toEqual([[0, 1], [-1, 0], [-1, 0], [-1, 0], [-1, 0], [-1, 0]]);
   });
 
+  it("同じ最短距離なら入力軸に沿った指輪を選ぶ", () => {
+    const map = mapWithWalls();
+    for (let y = 2; y <= 7; y++) for (let x = 2; x <= 8; x++) map[y][x] = T.FLOOR;
+    const route = planConvenientDash(
+      {
+        map,
+        rooms: [{ x: 2, y: 2, w: 7, h: 6 }],
+        // 配列上は左の指輪を先に置くが、真上の指輪を選ぶ。
+        items: [{ x: 3, y: 2, type: "ring" }, { x: 5, y: 2, type: "ring" }],
+        monsters: [],
+        statues: [],
+      },
+      { x: 5, y: 5 },
+      0,
+      -1,
+    );
+    expect(route).toEqual([[0, -1], [0, -1], [0, -1]]);
+  });
+
   it("大箱などの床オブジェクトも目的地として選ぶ", () => {
     const map = mapWithWalls();
     for (let y = 2; y <= 6; y++) for (let x = 2; x <= 6; x++) map[y][x] = T.FLOOR;

@@ -133,6 +133,27 @@ function orderedDirectionsToward(current, target) {
   });
 }
 
+function targetTieScore(start, target, dx, dy) {
+  const vx = target.x - start.x;
+  const vy = target.y - start.y;
+  // 同じ歩数なら、入力方向の軸から横にずれていない対象を優先する。
+  // 斜め入力では入力ベクトルからの外れ量（外積）を使う。
+  const lateral = dx === 0
+    ? Math.abs(vx)
+    : dy === 0
+      ? Math.abs(vy)
+      : Math.abs(vx * dy - vy * dx);
+  const forward = dx !== 0 ? Math.abs(vx) : Math.abs(vy);
+  return [lateral, forward, Math.abs(vx) + Math.abs(vy), target.y, target.x];
+}
+
+function compareScores(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+}
+
 function findRoomTarget(dg, room, start, dx, dy, canWalkOnWater) {
   const objectTargets = [];
   const addObjects = (objects = []) => {
@@ -184,9 +205,15 @@ function buildPathToRoomTarget(dg, start, room, targets, canWalkOnWater, dx, dy)
   const first = { x: start.x + dx, y: start.y + dy };
   if (!isWalkable(dg, first.x, first.y, canWalkOnWater) || isBlockedByActor(dg, first.x, first.y)) return null;
   let best = null;
+  let bestScore = null;
   for (const target of targets) {
     const route = buildPathToTarget(dg, start, first, room, target, canWalkOnWater);
-    if (route && (!best || route.length < best.length)) best = route;
+    if (!route) continue;
+    const score = [route.length, ...targetTieScore(start, target, dx, dy)];
+    if (!bestScore || compareScores(score, bestScore) < 0) {
+      best = route;
+      bestScore = score;
+    }
   }
   return best;
 }
