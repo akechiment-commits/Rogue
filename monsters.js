@@ -1115,10 +1115,10 @@ export const MONS = [
       { name: "わてさん",           hp: 100, atk: 38, def: 14, exp: 120 },
     ],
   },
-  { name: "まずい魚",     hp: 18,  atk: 9,  def: 2,  exp: 14, speed: 1,   tile: 172, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 10, waterOnly: true, floodedOnly: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 4 }, advanced: { min: 2, max: 4 }, legend: { min: 2, max: 4 } },
+  { name: "まずい魚",     hp: 18,  atk: 9,  def: 2,  exp: 14, speed: 1,   tile: 172, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 15, waterOnly: true, floodedOnly: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 5 }, advanced: { min: 2, max: 5 }, legend: { min: 2, max: 5 } },
     levels: [
-      { name: "マグナムフィッシュ", hp: 30, atk: 15, def: 4, exp: 28, dungeonFloors: { intermediate: { min: 5, max: 7 }, advanced: { min: 5, max: 7 }, legend: { min: 5, max: 7 } } },
-      { name: "かせきうお",       hp: 48, atk: 24, def: 7, exp: 55, dungeonFloors: { intermediate: { min: 8, max: 10 }, advanced: { min: 8, max: 10 }, legend: { min: 8, max: 10 } } },
+      { name: "マグナムフィッシュ", hp: 42, atk: 21, def: 6, exp: 52, dungeonFloors: { intermediate: { min: 6, max: 10 }, advanced: { min: 6, max: 10 }, legend: { min: 6, max: 10 } } },
+      { name: "かせきうお",       hp: 72, atk: 34, def: 10, exp: 105, dungeonFloors: { intermediate: { min: 11, max: 15 }, advanced: { min: 11, max: 15 }, legend: { min: 11, max: 15 } } },
     ],
   },
   { name: "水中花",       hp: 42,  atk: 22, def: 5,  exp: 55, speed: 1,   tile: 217, kind: "beast",    baseKind: "waterFlower",   monLevel: 1, minFloor: 15, maxFloor: 35, waterOnly: true, stationary: true, subtype: "waterFlower", desc: "水中にのみ出現し、移動しない。同じ部屋にいると誘導弾を射ってくる。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 13, max: 24 } },
@@ -1494,19 +1494,24 @@ export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloo
   });
   if (!candidates.length) return null;
 
-  /* まず、そのダンジョンの通常の階別プールにいる敵を優先する。 */
-  const regular = candidates.filter((m) => isMonsterDefAllowedAtFloor(m, floor, dungeonType, { allowFloodedOnly: true }));
-  if (regular.length > 0) {
-    const base = pick(regular);
-    return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
-  }
-
-  /* 浅層など通常プールが空の階は、基礎出現帯が最も近い水棲敵を選ぶ。 */
   const distanceToBaseRange = (m) => {
     if (m.minFloor !== undefined && floor < m.minFloor) return m.minFloor - floor;
     if (m.maxFloor !== undefined && floor > m.maxFloor) return floor - m.maxFloor;
     return 0;
   };
+
+  /* 通常の階別プールを軸にしつつ、基礎出現帯が重なる水棲敵も混ぜる。 */
+  const regular = candidates.filter((m) => isMonsterDefAllowedAtFloor(m, floor, dungeonType, { allowFloodedOnly: true }));
+  const inBaseRange = candidates.filter((m) => distanceToBaseRange(m) === 0);
+  const regularWithNeighbors = regular.length > 0
+    ? [...regular, ...inBaseRange.filter((m) => !regular.includes(m))]
+    : [];
+  if (regularWithNeighbors.length > 0) {
+    const base = pick(regularWithNeighbors);
+    return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
+  }
+
+  /* 浅層など通常プールが空の階は、基礎出現帯が最も近い水棲敵を選ぶ。 */
   const nearestDistance = Math.min(...candidates.map(distanceToBaseRange));
   const nearest = candidates.filter((m) => distanceToBaseRange(m) === nearestDistance);
   const base = pick(nearest);

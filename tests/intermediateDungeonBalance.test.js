@@ -24,7 +24,7 @@ const INTERMEDIATE_MONSTER_BAN = [
 
 function intermediateMonsterKinds(floor) {
   return MONS.filter((m) => {
-    if (m.penaltyOnly) return false;
+    if (m.penaltyOnly || m.floodedOnly) return false;
     if (m.dungeons && !m.dungeons.includes("intermediate")) return false;
     const df = m.dungeonFloors?.intermediate;
     if (df === null) return false;

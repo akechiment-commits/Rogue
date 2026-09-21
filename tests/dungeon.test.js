@@ -288,12 +288,17 @@ describe("genDungeon", () => {
     expect(fish.subtype).toBeUndefined();
     expect(fish.levels.map((level) => level.name)).toEqual(["マグナムフィッシュ", "かせきうお"]);
     expect(fish.levels).toMatchObject([
-      { hp: 30, atk: 15, def: 4 },
-      { hp: 48, atk: 24, def: 7 },
+      { hp: 42, atk: 21, def: 6 },
+      { hp: 72, atk: 34, def: 10 },
     ]);
     expect(pickFloodedWaterMonsterDef(1, "intermediate")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 1 });
-    expect(pickFloodedWaterMonsterDef(4, "intermediate")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 2 });
-    expect(pickFloodedWaterMonsterDef(7, "intermediate")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 3 });
+    const lv2Picks = Array.from({ length: 60 }, () => pickFloodedWaterMonsterDef(5, "intermediate"));
+    const lv3Picks = Array.from({ length: 60 }, () => pickFloodedWaterMonsterDef(10, "intermediate"));
+    expect(lv2Picks.find((picked) => picked.base.baseKind === "badFish")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 2 });
+    expect(lv3Picks.find((picked) => picked.base.baseKind === "badFish")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 3 });
+    const mixedKinds = new Set();
+    for (const picked of lv2Picks) mixedKinds.add(picked.base.baseKind);
+    expect(mixedKinds).toEqual(new Set(["badFish", "wateri"]));
     for (let i = 0; i < 30; i++) {
       expect(pickMonsterDef(3, "intermediate").base.baseKind).not.toBe("badFish");
     }
