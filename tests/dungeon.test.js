@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, generateDebugSpecialFloor, DEBUG_SPECIAL_FLOORS, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
-import { pickMonsterDef } from "../monsters.js";
+import { MONS, isMonsterDefAvailableAt, pickMonsterDef } from "../monsters.js";
 import { T, MW, MH, isNarrowPassage } from "../utils.js";
 import { FLOOR_TITLES } from "../GameHelpers.js";
 import { activateDimensionalVaults } from "../specialFixtures.js";
@@ -254,6 +254,31 @@ describe("genDungeon", () => {
       for (const cells of clusters) {
         const hasReward = rewards.some((obj) => cells.includes(`${obj.x},${obj.y}`));
         expect(hasReward).toBe(true);
+      }
+    }
+  });
+
+  it("水浸しフロアもダンジョン・階層で許可された水棲敵だけを出す", () => {
+    const waterDefs = new Map(MONS.filter((m) => m.waterOnly).map((m) => [m.baseKind, m]));
+    const cases = [
+      [0, "beginner"],
+      [12, "intermediate"],
+      [14, "intermediate"],
+      [17, "intermediate"],
+      [11, "advanced"],
+      [14, "advanced"],
+      [18, "advanced"],
+      [0, "legend"],
+      [24, "legend"],
+      [31, "legend"],
+      [43, "legend"],
+    ];
+    for (const [depth, dungeonType] of cases) {
+      for (let i = 0; i < 6; i++) {
+        const dg = genFloodedFloor(depth, dungeonType);
+        for (const monster of dg.monsters.filter((m) => m.waterOnly)) {
+          expect(isMonsterDefAvailableAt(waterDefs.get(monster.baseKind), depth, dungeonType)).toBe(true);
+        }
       }
     }
   });

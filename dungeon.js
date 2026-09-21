@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -1888,12 +1888,17 @@ export function genFloodedFloor(depth, dungeonType = null) {
     const p = rnd(dryTiles);
     if (p) mons.push(mkMon(depth, p[0], p[1], 0.12, map, springs, dungeonType));
   }
-  const waterKinds = MONS.filter((m) => m.waterOnly && !m.penaltyOnly && m.dungeonFloors?.[dungeonType] !== null);
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 3); i++) {
     const p = rnd(waterTiles);
-    if (!p || !waterKinds.length) continue;
-    const base = pick(waterKinds);
-    mons.push(makeMonsterFromBase(base, 1, p[0], p[1], { dormant: Math.random() < 0.12 }));
+    const pickedWaterMonster = pickWaterOnlyMonsterDef(depth, dungeonType);
+    if (!p || !pickedWaterMonster) continue;
+    mons.push(makeMonsterFromBase(
+      pickedWaterMonster.base,
+      pickedWaterMonster.spawnLevel,
+      p[0],
+      p[1],
+      { dormant: Math.random() < 0.12 },
+    ));
   }
   const itemTiles = islandTiles.length ? islandTiles : dryTiles;
   for (let i = 0; i < rng(8, 14); i++) {
@@ -3573,14 +3578,15 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       const _idx = rng(0, _waterTiles.length - 1);
       const [_wx, _wy] = _waterTiles.splice(_idx, 1)[0];
       if (mons.some(mn => mn.x === _wx && mn.y === _wy)) continue;
-      const { base: _wb, spawnLevel: _wsl } = pickMonsterDef(depth, dungeonType);
-      /* waterOnlyモンスターが取れなかった場合は専用にわてりを選ぶ */
-      const _wBase = _wb.waterOnly ? _wb : (MONS.find(m => m.waterOnly && m.minFloor <= depth + 1 && depth + 1 <= m.maxFloor && (!m.dungeons || !dungeonType || m.dungeons.includes(dungeonType))) ?? null);
-      if (!_wBase || !_wBase.waterOnly) continue;
-      const { levels: _wl, ...wmt } = _wBase;
-      const _wst = _wsl >= 2 && _wBase.levels?.[_wsl - 2] ? { ...wmt, ..._wBase.levels[_wsl - 2], monLevel: _wsl } : wmt;
-      mons.push({ ..._wst, id: uid(), x: _wx, y: _wy, maxHp: _wst.hp, turnAccum: 0, aware: false,
-        dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null, dormant: false });
+      const pickedWaterMonster = pickWaterOnlyMonsterDef(depth, dungeonType);
+      if (!pickedWaterMonster) continue;
+      mons.push(makeMonsterFromBase(
+        pickedWaterMonster.base,
+        pickedWaterMonster.spawnLevel,
+        _wx,
+        _wy,
+        { dormant: false },
+      ));
     }
   }
   const monsterHouseRoom = tryGenerateFloorMonsterHouse({

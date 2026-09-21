@@ -1379,34 +1379,43 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
     if (m.penaltyOnly) return false;
     if (excludeWaterOnly && m.waterOnly) return false;
     if (excludeItemMimic && m.baseKind === "itemMimic") return false;
-    if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
-    if (dungeonType === "advanced") return advancedMonsterAllowed(m.baseKind, floor);
-    if (dungeonType === "legend") return legendMonsterAllowed(m.baseKind, floor);
-    const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
-    if (df === null) return false; // このダンジョンには出現しない
-    const minF = df?.min !== undefined ? df.min : m.minFloor;
-    const maxF = df?.max !== undefined ? df.max : m.maxFloor;
-    if (minF <= floor && floor <= maxF) return true;
-    // baseの範囲外でも、レベルバリアントの出現範囲に該当すれば選択対象にする
-    return m.levels?.some(lv => {
-      const lvDf = dungeonType ? lv.dungeonFloors?.[dungeonType] : undefined;
-      if (lvDf === null) return false;
-      const lvMin = lvDf?.min ?? lv.minFloor;
-      const lvMax = lvDf?.max ?? lv.maxFloor;
-      return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
-    }) ?? false;
+    return isMonsterDefAllowedAtFloor(m, floor, dungeonType);
   });
   const fallback = MONS.filter(m => !m.penaltyOnly && (!excludeItemMimic || m.baseKind !== "itemMimic"));
   const base = eligible.length > 0 ? pick(eligible) : (fallback[0] ?? MONS[0]);
 
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
      高レベルから順にチェックし、最初に条件を満たしたレベルを採用する */
-  let spawnLevel = 1;
-  if (dungeonType === "advanced") {
-    spawnLevel = advancedMonsterSpawnLevel(base, floor);
-  } else if (dungeonType === "legend") {
-    spawnLevel = legendMonsterSpawnLevel(base, floor);
-  } else if (base.levels?.length > 0) {
+  const spawnLevel = monsterSpawnLevelAtFloor(base, floor, dungeonType);
+
+  return { base, spawnLevel };
+}
+
+/* ダンジョン種別と階層を含めた、モンスター定義の共通出現判定。 */
+function isMonsterDefAllowedAtFloor(base, floor, dungeonType = null) {
+  if (!base || base.penaltyOnly) return false;
+  if (base.dungeons && dungeonType && !base.dungeons.includes(dungeonType)) return false;
+  if (dungeonType === "advanced") return advancedMonsterAllowed(base.baseKind, floor);
+  if (dungeonType === "legend") return legendMonsterAllowed(base.baseKind, floor);
+  const df = dungeonType ? base.dungeonFloors?.[dungeonType] : undefined;
+  if (df === null) return false; // このダンジョンには出現しない
+  const minF = df?.min !== undefined ? df.min : base.minFloor;
+  const maxF = df?.max !== undefined ? df.max : base.maxFloor;
+  if (minF !== undefined && maxF !== undefined && minF <= floor && floor <= maxF) return true;
+  // baseの範囲外でも、レベルバリアントの出現範囲に該当すれば選択対象にする
+  return base.levels?.some(lv => {
+    const lvDf = dungeonType ? lv.dungeonFloors?.[dungeonType] : undefined;
+    if (lvDf === null) return false;
+    const lvMin = lvDf?.min ?? lv.minFloor;
+    const lvMax = lvDf?.max ?? lv.maxFloor;
+    return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
+  }) ?? false;
+}
+
+function monsterSpawnLevelAtFloor(base, floor, dungeonType = null) {
+  if (dungeonType === "advanced") return advancedMonsterSpawnLevel(base, floor);
+  if (dungeonType === "legend") return legendMonsterSpawnLevel(base, floor);
+  if (base.levels?.length > 0) {
     for (let i = base.levels.length; i >= 1; i--) {
       const lv = base.levels[i - 1];
       const lvDf = dungeonType ? lv.dungeonFloors?.[dungeonType] : undefined;
@@ -1414,13 +1423,26 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
       const lvMin = lvDf?.min ?? lv.minFloor;
       const lvMax = lvDf?.max ?? lv.maxFloor;
       if (lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax)) {
-        spawnLevel = i + 1;
-        break;
+        return i + 1;
       }
     }
   }
+  return 1;
+}
 
-  return { base, spawnLevel };
+/** 現在のダンジョン・階で出現可能かを、特殊フロア生成からも使える形で返す。 */
+export function isMonsterDefAvailableAt(base, depth, dungeonType = null, { poolFloor = null } = {}) {
+  const floor = poolFloor != null ? poolFloor : depth + 1;
+  return isMonsterDefAllowedAtFloor(base, floor, dungeonType);
+}
+
+/** 水場に置く水棲限定敵を、通常湧きと同じ階別プールから抽選する。 */
+export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor = null } = {}) {
+  const floor = poolFloor != null ? poolFloor : depth + 1;
+  const eligible = MONS.filter((m) => m.waterOnly && isMonsterDefAllowedAtFloor(m, floor, dungeonType));
+  if (!eligible.length) return null;
+  const base = pick(eligible);
+  return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType) };
 }
 
 /**
