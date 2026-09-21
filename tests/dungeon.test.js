@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, generateDebugSpecialFloor, DEBUG_SPECIAL_FLOORS, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
-import { MONS, isMonsterDefAvailableAt, pickMonsterDef } from "../monsters.js";
+import { pickFloodedWaterMonsterDef, pickMonsterDef } from "../monsters.js";
 import { T, MW, MH, isNarrowPassage } from "../utils.js";
 import { FLOOR_TITLES } from "../GameHelpers.js";
 import { activateDimensionalVaults } from "../specialFixtures.js";
@@ -258,28 +258,34 @@ describe("genDungeon", () => {
     }
   });
 
-  it("水浸しフロアもダンジョン・階層で許可された水棲敵だけを出す", () => {
-    const waterDefs = new Map(MONS.filter((m) => m.waterOnly).map((m) => [m.baseKind, m]));
+  it("初心者には水浸しを出さず、中級以上では階層別の水棲敵を出す", () => {
+    expect(pickFloodedWaterMonsterDef(3, "beginner")).toBeNull();
+    expect(pickFloodedWaterMonsterDef(3, "tutorial")).toBeNull();
     const cases = [
-      [0, "beginner"],
+      [1, "intermediate"],
       [12, "intermediate"],
-      [14, "intermediate"],
       [17, "intermediate"],
-      [11, "advanced"],
+      [1, "advanced"],
       [14, "advanced"],
       [18, "advanced"],
-      [0, "legend"],
+      [1, "legend"],
       [24, "legend"],
       [31, "legend"],
       [43, "legend"],
     ];
     for (const [depth, dungeonType] of cases) {
+      expect(pickFloodedWaterMonsterDef(depth, dungeonType)?.base.waterOnly).toBe(true);
       for (let i = 0; i < 6; i++) {
         const dg = genFloodedFloor(depth, dungeonType);
-        for (const monster of dg.monsters.filter((m) => m.waterOnly)) {
-          expect(isMonsterDefAvailableAt(waterDefs.get(monster.baseKind), depth, dungeonType)).toBe(true);
-        }
+        expect(dg.monsters.some((m) => m.waterOnly)).toBe(true);
       }
+    }
+  });
+
+  it("初心者の通常特殊フロア抽選には水浸しを含めない", () => {
+    for (let i = 0; i < 80; i++) {
+      expect(genDungeon(1, "beginner").floorType).not.toBe("floodedFloor");
+      expect(genDungeon(2, "beginner").floorType).not.toBe("floodedFloor");
     }
   });
 

@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -1890,7 +1890,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
   }
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 3); i++) {
     const p = rnd(waterTiles);
-    const pickedWaterMonster = pickWaterOnlyMonsterDef(depth, dungeonType);
+    const pickedWaterMonster = pickFloodedWaterMonsterDef(depth, dungeonType);
     if (!p || !pickedWaterMonster) continue;
     mons.push(makeMonsterFromBase(
       pickedWaterMonster.base,
@@ -3180,7 +3180,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
   /* B1F（depth=0）は特殊フロア一切なし（通常フロア確定） */
   if (depth > 0 && Math.random() < 0.25) {
-    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor, genFloodedFloor, genTwinWingFloor];
+    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor, ...(dungeonType === "beginner" || dungeonType === "tutorial" ? [] : [genFloodedFloor]), genTwinWingFloor];
     const _sf = pick(specials)(depth, dungeonType);
     _sf.dungeonType = dungeonType;
     attachFloorGimmicks(_sf, depth);

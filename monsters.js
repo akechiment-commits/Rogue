@@ -1446,6 +1446,40 @@ export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor =
 }
 
 /**
+ * 水浸し特殊フロア用。通常フロアの出現帯とは別に、水棲敵を階層相応で必ず供給する。
+ * 初心者は水浸しフロア自体を通常抽選から除外するため、ここでも候補を返さない。
+ */
+export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloor = null } = {}) {
+  const floor = poolFloor != null ? poolFloor : depth + 1;
+  if (dungeonType === "beginner" || dungeonType === "tutorial") return null;
+  const candidates = MONS.filter((m) => {
+    if (!m.waterOnly || m.penaltyOnly) return false;
+    if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
+    const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
+    return df !== null;
+  });
+  if (!candidates.length) return null;
+
+  /* まず、そのダンジョンの通常の階別プールにいる敵を優先する。 */
+  const regular = candidates.filter((m) => isMonsterDefAllowedAtFloor(m, floor, dungeonType));
+  if (regular.length > 0) {
+    const base = pick(regular);
+    return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType) };
+  }
+
+  /* 浅層など通常プールが空の階は、基礎出現帯が最も近い水棲敵を選ぶ。 */
+  const distanceToBaseRange = (m) => {
+    if (m.minFloor !== undefined && floor < m.minFloor) return m.minFloor - floor;
+    if (m.maxFloor !== undefined && floor > m.maxFloor) return floor - m.maxFloor;
+    return 0;
+  };
+  const nearestDistance = Math.min(...candidates.map(distanceToBaseRange));
+  const nearest = candidates.filter((m) => distanceToBaseRange(m) === nearestDistance);
+  const base = pick(nearest);
+  return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType) };
+}
+
+/**
  * 変化の杖・魔法用。現在のフロアに出現する種族から、指定Lvの定義を返す。
  * 祝福／呪いのLv補正は元の敵を基準にし、Lv1〜3の範囲で止める。
  */
