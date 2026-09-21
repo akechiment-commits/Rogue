@@ -11,7 +11,7 @@ export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   item_pen: { title: "ペン", trigger: "初めてペンを拾う", text: ["足元に魔方陣を描く道具。", "種類と祝福・呪いで効果が変わる。"] },
   item_marker: { title: "魔法の筆", trigger: "初めて魔法の筆を拾う", text: ["白紙の巻物に魔法を書き込める。", "書き込みにはインクを使う。"] },
   item_ring: { title: "指輪", trigger: "初めて指輪を拾う", text: ["装備すると常時効果が働く。", "指輪は2個まで装備できる。"] },
-  item_spellbook: { title: "魔法書", trigger: "初めて魔法書を拾う", text: ["読むと書かれた魔法を覚える。", "未識別なら効果を確かめてから読もう。"] },
+  item_spellbook: { title: "魔法書", trigger: "初めて魔法書を拾う", text: ["読むと魔法を覚え、その場で発動する。", "MP不足なら反動があるので、未識別なら慎重に。"] },
   item_pot: { title: "壺", trigger: "初めて壺を拾う", text: ["道具を入れて使う壺がある。", "種類と容量を確認しよう。"] },
   item_food: { title: "食料", trigger: "初めて食料を拾う", text: ["食べると満腹度が回復する。", "空腹になる前に食べよう。"] },
   item_gem: { title: "宝石", trigger: "初めて宝石を拾う", text: ["宝石は店で売ると金貨になる。", "買った店から遠い階の店で売るほど高くなる。"] },

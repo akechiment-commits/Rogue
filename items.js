@@ -7254,6 +7254,13 @@ export const SPELLBOOKS=[
   {name:"外道の書",           type:"spellbook",spell:"gedo_book",       specialBook:"gedo", rarity:"S", weight:0.05, sellPrice:15000, desc:"読むとランダムな魔法を習得する。通常は4種類、祝福は8種類。",tile:43},
 ];
 
+/* 魔法書は読むと習得した魔法がその場で発動し、通常詠唱と同じMPを消費する。 */
+for (const _spellbook of SPELLBOOKS) {
+  if (_spellbook.spell && !_spellbook.specialBook && !_spellbook.desc.includes("その場で魔法が発動")) {
+    _spellbook.desc += "\n読むとその場で魔法が発動し、必要なMPを消費する。MP不足時は魔力反動。";
+  }
+}
+
 /** 外道の書の習得処理。通常・祝福は同じ本の中で重複しない魔法を選び、呪いは1つだけを4回選ぶ。 */
 export function applyGedoBook(player, { blessed = false, cursed = false } = {}, randomFn = Math.random) {
   if (!player) return { requested: 0, count: 0, entries: [], target: null, blessed, cursed };

@@ -9,7 +9,7 @@ import {
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
-  inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem,
+  inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
@@ -2521,11 +2521,139 @@ export function useItemActions({
     const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
     const _revReal = _wasUnknown ? it.name : null;
     const _bookName = _wasUnknown ? _revFake : dnameRef(it);
+    let _autoSpellId = null;
+    let _autoSpellLevel = 1;
+    let _autoCastEnabled = true;
+
+    /* 魔法書は読むと習得した魔法がその場で発動する。識別状態はこの処理に影響しない。 */
+    const _autoCastReadSpell = (spellId, spellLevel) => {
+      const _spell = SPELLS.find((spell) => spell.id === spellId);
+      if (!_spell || _spell.debug || _spell.specialBook) return;
+      const _lv = Math.max(1, Number(spellLevel) || 1);
+      const _cost = _spell.fixedMpCost
+        ? (_spell.mpCost ?? 0)
+        : Math.max(1, Math.round((_spell.mpCost ?? 0) * (1 - (_lv - 1) * 0.15)));
+      const _currentMp = Math.max(0, Number(p.mp) || 0);
+      if (_currentMp < _cost) {
+        const _shortage = _cost - _currentMp;
+        const _recoil = Math.max(1, _shortage * 3 + rng(0, Math.max(2, _shortage)));
+        p.mp = 0;
+        p.hp -= _recoil;
+        p.deathCause = "魔法書の魔力反動で";
+        ml.push(`${_spell.name}が暴発した！MPが${_shortage}足りず、魔力の反動で${_recoil}ダメージ！`);
+        if (_shortage >= Math.ceil(Math.max(1, _cost) / 2)) {
+          const _confuseTurns = Math.min(12, statusTurns("confuse", { kind: "player" }) + Math.floor(_shortage / 3));
+          p.confusedTurns = (p.confusedTurns || 0) + _confuseTurns;
+          ml.push(`魔力が乱れて混乱した！(${_confuseTurns}ターン)`);
+        }
+        return;
+      }
+
+      p.mp = _currentMp - _cost;
+      ml.push(`${_spell.name}が本を読んだ瞬間に発動した！[MP -${_cost}]`);
+      const _facing = p.facing || { dx: 0, dy: 1 };
+      const _fdx = Number(_facing.dx) || 0;
+      const _fdy = Number(_facing.dy) || 1;
+
+      const _randomItemTarget = (mode) => {
+        const _targets = p.inventory.filter((_item) => {
+          if (!_item || _item.type === "goal" || _item.type === "gold_nugget") return false;
+          if (mode === "identify") {
+            if (isBcInstanceType(_item)) return !_item.fullIdent && !_item.bcKnown;
+            const _key = getIdentKey(_item);
+            return !!_key && (!sr.current.ident.has(_key) || (!_item.fullIdent && !_item.bcKnown));
+          }
+          if (mode === "curse") return _item.type !== "gold" && _item.type !== "arrow";
+          return true;
+        });
+        return _targets.length > 0 ? pick(_targets) : null;
+      };
+
+      if (_spell.effect === "identify_magic") {
+        const _target = _randomItemTarget("identify");
+        if (!_target) {
+          ml.push("識別の魔法が発動したが、未識別の道具はなかった。");
+        } else {
+          const _targetName = itemDisplayName(_target, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
+          const _targetKey = getIdentKey(_target);
+          if (_targetKey) {
+            const _wasTargetUnknown = !sr.current.ident.has(_targetKey);
+            sr.current.ident.add(_targetKey);
+            if (_wasTargetUnknown) trackItem(_target);
+          }
+          _target.fullIdent = true;
+          _target.bcKnown = true;
+          ml.push(`識別の魔法が${_targetName}にかかり、正体が分かった！`);
+        }
+        return;
+      }
+
+      if (_spell.effect === "bless_magic" || _spell.effect === "curse_magic") {
+        const _mode = _spell.effect === "bless_magic" ? "bless" : "curse";
+        const _target = _randomItemTarget(_mode);
+        if (!_target) {
+          ml.push(`${_spell.name}が発動したが、対象になる道具がなかった。`);
+        } else {
+          const _targetName = itemDisplayName(_target, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
+          if (_mode === "bless") {
+            if (_target.type === "pot") _target.capacity = (_target.capacity || 1) + 1;
+            else { _target.blessed = true; _target.cursed = false; _target.bcKnown = true; }
+            ml.push(`${_targetName}が祝福された！`);
+          } else if (_target.type === "pot") {
+            const _newCapacity = Math.max(0, (_target.capacity || 1) - 1);
+            if ((_target.contents?.length || 0) > _newCapacity) {
+              const _contents = [...(_target.contents || [])];
+              _target.contents = [];
+              const _targetIndex = p.inventory.indexOf(_target);
+              if (_targetIndex !== -1) p.inventory.splice(_targetIndex, 1);
+              const _spillFt = new Set();
+              for (const _content of _contents) placeItemAt(dg, p.x, p.y, _content, ml, _spillFt, 0, p);
+              ml.push(`${_targetName}が呪いで割れ、中身が足元に散らばった！`);
+            } else {
+              _target.capacity = _newCapacity;
+              ml.push(`${_targetName}が呪われ、容量が1減った！`);
+            }
+          } else {
+            _target.cursed = true; _target.blessed = false; _target.bcKnown = true;
+            ml.push(`${_targetName}が呪われた！`);
+          }
+        }
+        return;
+      }
+
+      if (_spell.needsDir) {
+        pushBoltAnim(p.x, p.y, _fdx, _fdy, dg, _spell.effect);
+        const _land = castSpellBolt(p, dg, _spell, _fdx, _fdy, ml, lu, _lv);
+        if (_spell.effect === "fire_bolt" && _land.hitType !== "sealed" && !isFireExplosionNullified(dg, p)) {
+          pushExplosionAnim(_land.x, _land.y);
+          if (_land.hitType !== "void") ml.push("爆発！");
+          if (Math.max(Math.abs(p.x - _land.x), Math.abs(p.y - _land.y)) <= 1) {
+            const _selfBlast = multiplyCursedMagicDamage(Math.round(rng(10, 15) * getSpellPowerMultiplier(_lv)), p, dg);
+            p.deathCause = "炎の魔法の爆風で";
+            p.hp -= _selfBlast;
+            ml.push(`爆風を受けた！${_selfBlast}ダメージ！`);
+          }
+          for (const _monster of [...dg.monsters]) {
+            if (_monster.hp <= 0 || Math.max(Math.abs(_monster.x - _land.x), Math.abs(_monster.y - _land.y)) > 1) continue;
+            if (consumeBarrier(_monster, ml)) continue;
+            const _blastDamage = multiplyMagicDamage(Math.round(rng(8, 14) * getSpellPowerMultiplier(_lv)), p.weapon, _monster, dg);
+            _monster.hp -= _blastDamage;
+            ml.push(`爆風で${_monster.name}に${_blastDamage}ダメージ！`);
+            if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, lu);
+          }
+        }
+        return;
+      }
+
+      applySpellEffect(_spell.effect, "self", null, 0, 0, dg, p, ml, lu, _lv, _cost);
+    };
     /* 識別 */
     if (_sbIK && _wasUnknown) { sr.current.ident.add(_sbIK); trackItem(it); }
     if (it.specialBook === "gedo") {
       const _result = applyGedoBook(p, { blessed: !!it.blessed, cursed: !!it.cursed });
       p.inventory.splice(idx, 1);
+      /* 外道の書は複数の魔法を同時習得する特殊本なので、個別の自動発動は行わない。 */
+      _autoCastEnabled = false;
       if (_result.count === 0) {
         ml.push(`${_bookName}を読んだが、外道の力で習得できる魔法がなかった。${it.cursed ? "【呪】" : ""}`);
       } else if (_result.cursed) {
@@ -2554,10 +2682,14 @@ export function useItemActions({
           const _curLv = p.spellLevels[_tgt.id] || 1;
           const _newLv = _curLv + 1;
           p.spellLevels[_tgt.id] = _newLv;
+          _autoSpellId = _tgt.id;
+          _autoSpellLevel = _newLv;
           ml.push(`${_bookName}を読んだ。呪いで魔力が乱れ「${_tgt.name}」がレベルアップした！(Lv.${_newLv})【呪】`);
         } else {
           p.spells = [...p.spells, _tgt.id];
           p.spellLevels[_tgt.id] = 1;
+          _autoSpellId = _tgt.id;
+          _autoSpellLevel = 1;
           ml.push(`${_bookName}を読んだ。呪いで魔力が乱れ「${_tgt.name}」を習得した！(Lv.1)【呪】`);
         }
       }
@@ -2573,11 +2705,14 @@ export function useItemActions({
       if (_curLv >= 6) {
         ml.push(`「${_spName}」はすでに最大レベルだ。(Lv.${_curLv} MP:${_spellCost(spellDef, _curLv)})`);
         // 最大レベルの場合は魔法書を消費しない
+        _autoCastEnabled = false;
       } else {
         const _gain = it.blessed ? 2 : 1;
         const _newLv = Math.min(6, _curLv + _gain);
         p.spellLevels[it.spell] = _newLv;
         p.inventory.splice(idx, 1);
+        _autoSpellId = it.spell;
+        _autoSpellLevel = _newLv;
         const _newCost = _spellCost(spellDef, _newLv);
         ml.push(`${_bookName}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})${it.blessed ? "【祝】" : ""}`);
       }
@@ -2588,6 +2723,8 @@ export function useItemActions({
       p.spellLevels[it.spell] = _startLv;
       p.spells = [...p.spells, it.spell];
       p.inventory.splice(idx, 1);
+      _autoSpellId = it.spell;
+      _autoSpellLevel = _startLv;
       const spellDef = SPELLS.find((s) => s.id === it.spell);
       const _spellCostInit = (sd, lv) => sd && !sd.fixedMpCost
         ? Math.max(1, Math.round(sd.mpCost * (1 - (lv - 1) * 0.15)))
@@ -2595,6 +2732,7 @@ export function useItemActions({
       const _initCost = _spellCostInit(spellDef, _startLv);
       ml.push(`${_bookName}を読んだ。「${spellDef ? spellDef.name : it.spell}」を習得した！(Lv.${_startLv} 消費MP:${_initCost})${it.blessed ? "【祝】" : ""}`);
     }
+    if (_autoCastEnabled && _autoSpellId) _autoCastReadSpell(_autoSpellId, _autoSpellLevel);
     setShowInv(false); setSelIdx(null); setShowDesc(null);
     endTurn(sr.current, p, ml);
     /* リビールメッセージ */
