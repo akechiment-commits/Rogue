@@ -120,7 +120,7 @@ describe("上級ダンジョンの敵分布", () => {
       for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
     }
     const advancedKinds = MONS
-      .filter((monster) => !monster.penaltyOnly && !(monster.dungeons && !monster.dungeons.includes("advanced")))
+      .filter((monster) => !monster.penaltyOnly && !monster.floodedOnly && !(monster.dungeons && !monster.dungeons.includes("advanced")))
       .map((monster) => monster.baseKind);
     expect(new Set(advancedKinds).size).toBe(72);
     for (const kind of advancedKinds) expect(counts.get(kind)).toBeGreaterThanOrEqual(3);

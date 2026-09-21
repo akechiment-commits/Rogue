@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, genFloodedFloor, genTwinWingFloor, generateDebugSpecialFloor, DEBUG_SPECIAL_FLOORS, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, MONSTER_HOUSE_FLOOR_CHANCE, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
-import { pickFloodedWaterMonsterDef, pickMonsterDef } from "../monsters.js";
+import { MONS, pickFloodedWaterMonsterDef, pickMonsterDef } from "../monsters.js";
 import { T, MW, MH, isNarrowPassage } from "../utils.js";
 import { FLOOR_TITLES } from "../GameHelpers.js";
 import { activateDimensionalVaults } from "../specialFixtures.js";
@@ -279,6 +279,23 @@ describe("genDungeon", () => {
         const dg = genFloodedFloor(depth, dungeonType);
         expect(dg.monsters.some((m) => m.waterOnly)).toBe(true);
       }
+    }
+  });
+
+  it("低層水浸し専用魚は5階前後の能力で3段階に成長する", () => {
+    const fish = MONS.find((m) => m.baseKind === "badFish");
+    expect(fish).toMatchObject({ name: "まずい魚", waterOnly: true, floodedOnly: true, hp: 18, atk: 9, def: 2 });
+    expect(fish.subtype).toBeUndefined();
+    expect(fish.levels.map((level) => level.name)).toEqual(["マグナムフィッシュ", "かせきうお"]);
+    expect(fish.levels).toMatchObject([
+      { hp: 30, atk: 15, def: 4 },
+      { hp: 48, atk: 24, def: 7 },
+    ]);
+    expect(pickFloodedWaterMonsterDef(1, "intermediate")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 1 });
+    expect(pickFloodedWaterMonsterDef(4, "intermediate")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 2 });
+    expect(pickFloodedWaterMonsterDef(7, "intermediate")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 3 });
+    for (let i = 0; i < 30; i++) {
+      expect(pickMonsterDef(3, "intermediate").base.baseKind).not.toBe("badFish");
     }
   });
 
