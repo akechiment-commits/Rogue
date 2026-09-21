@@ -779,7 +779,8 @@ for (const m of MONS) {
   if (m.levels) {
     for (let i = 0; i < m.levels.length; i++) {
       const lv = m.levels[i];
-      monsterData.push([lv.name, i + 2, lv.hp, lv.atk, lv.def, lv.exp, spd, m.baseKind, '', '', '']);
+      const levelSpeed = m.baseKind === 'gelcube' && i + 2 === 3 ? 1 : spd;
+      monsterData.push([lv.name, i + 2, lv.hp, lv.atk, lv.def, lv.exp, levelSpeed, m.baseKind, '', '', '']);
     }
   }
 }

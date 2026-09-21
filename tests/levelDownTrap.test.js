@@ -82,6 +82,18 @@ describe("レベルダウンの罠", () => {
     expect(tattoo.speed).toBe(2);
     expect(tattoo.baseSpeed).toBe(2);
   });
+
+  it("ゼラチンキューブは直接Lv3で生成されても等速になる", () => {
+    const gelcubeBase = MONS.find((monster) => monster.baseKind === "gelcube");
+    const gelcube = makeMonsterFromBase(gelcubeBase, 3, 5, 5);
+    expect(gelcube.speed).toBe(1);
+    expect(gelcube.baseSpeed).toBe(1);
+
+    const fromLevelUp = makeMonsterFromBase(gelcubeBase, 2, 5, 5);
+    expect(monLevelUp(fromLevelUp, makeEmptyDg(), [])).toBe(true);
+    expect(fromLevelUp.speed).toBe(1);
+    expect(fromLevelUp.baseSpeed).toBe(1);
+  });
 });
 
 describe("識別・呪いの魔法の消費MP", () => {

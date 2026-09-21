@@ -1459,7 +1459,10 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
 function buildMonStats(base, spawnLevel) {
   const { levels: _lvls, ...mt } = base;
   if (spawnLevel >= 2 && base.levels?.[spawnLevel - 2]) {
-    return { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel };
+    const stats = { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel };
+    // ゼラチンキューブはLv3で等速になる。直接Lv3湧きでも同じ速度にする。
+    if (base.baseKind === "gelcube" && spawnLevel === 3) stats.speed = 1;
+    return stats;
   }
   return mt;
 }
