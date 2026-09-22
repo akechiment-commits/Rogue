@@ -347,6 +347,7 @@ export const TILE_RENDER = {
   178: { bg: null, fg: "#80b0ff", ch: "S" }, /* 眠り術師 */
   179: { bg: null, fg: "#a0a0a0", ch: "G" }, /* ガーゴイル */
   180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
+  223: { bg: null, fg: "#b5b867", ch: "魚" }, /* まずい魚系 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
   214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */

@@ -1115,9 +1115,9 @@ export const MONS = [
       { name: "わてさん",           hp: 100, atk: 38, def: 14, exp: 120 },
     ],
   },
-  { name: "まずい魚",     hp: 18,  atk: 9,  def: 2,  exp: 14, speed: 1,   tile: 172, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 15, waterOnly: true, floodedOnly: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 5 }, advanced: { min: 2, max: 5 }, legend: { min: 2, max: 5 } },
+  { name: "まずい魚",     hp: 18,  atk: 9,  def: 2,  exp: 14, speed: 1,   tile: 223, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 15, waterOnly: true, floodedOnly: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 5 }, advanced: { min: 2, max: 5 }, legend: { min: 2, max: 5 } },
     levels: [
-      { name: "マグナムフィッシュ", hp: 42, atk: 21, def: 6, exp: 52, dungeonFloors: { intermediate: { min: 6, max: 10 }, advanced: { min: 6, max: 10 }, legend: { min: 6, max: 10 } } },
+      { name: "古い魚",       hp: 42, atk: 21, def: 6, exp: 52, dungeonFloors: { intermediate: { min: 6, max: 10 }, advanced: { min: 6, max: 10 }, legend: { min: 6, max: 10 } } },
       { name: "かせきうお",       hp: 72, atk: 34, def: 10, exp: 105, dungeonFloors: { intermediate: { min: 11, max: 15 }, advanced: { min: 11, max: 15 }, legend: { min: 11, max: 15 } } },
     ],
   },
