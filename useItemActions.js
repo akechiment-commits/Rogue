@@ -2536,7 +2536,6 @@ export function useItemActions({
       const _currentMp = Math.max(0, Number(p.mp) || 0);
       if (_currentMp < _cost) {
         const _shortage = _cost - _currentMp;
-        const _shortageRatio = _shortage / Math.max(1, _cost);
         /* 不足量が増えるほど反動が急激に重くなる（二次曲線）。 */
         const _recoil = Math.max(1, Math.round(
           _shortage * _shortage * 0.75 + _shortage * 2 + rng(0, Math.max(2, _shortage)),
@@ -2545,22 +2544,22 @@ export function useItemActions({
         p.hp -= _recoil;
         p.deathCause = "魔法書の魔力反動で";
         ml.push(`${_spell.name}が暴発した！MPが${_shortage}足りず、魔力の反動で${_recoil}ダメージ！`);
-        if (_shortageRatio >= 0.25) {
+        if (_shortage >= 5) {
           const _confuseTurns = Math.min(12, statusTurns("confuse", { kind: "player" }) + Math.floor(_shortage / 3));
           p.confusedTurns = (p.confusedTurns || 0) + _confuseTurns;
           ml.push(`魔力が乱れて混乱した！(${_confuseTurns}ターン)`);
         }
-        if (_shortageRatio >= 0.5) {
+        if (_shortage >= 10) {
           const _slowTurns = statusTurns("slow", { kind: "player" }) + Math.floor(_shortage / 4);
           p.slowTurns = (p.slowTurns || 0) + _slowTurns;
           ml.push(`魔力の反動で鈍足になった！(${_slowTurns}ターン)`);
         }
-        if (_shortageRatio >= 0.75) {
+        if (_shortage >= 15) {
           const _sleepTurns = statusTurns("sleep", { kind: "player" }) + Math.floor(_shortage / 5);
           p.sleepTurns = (p.sleepTurns || 0) + _sleepTurns;
           ml.push(`魔力の反動で眠ってしまった！(${_sleepTurns}ターン)`);
         }
-        if (_shortageRatio >= 1) {
+        if (_shortage >= 20) {
           const _sealTurns = applyPlayerSeal(p, ml, { proofMsg: "魔力の反動による封印を防具が防いだ！(耐封印)" });
           if (_sealTurns > 0) ml.push(`魔力の反動で魔法封印になった！(${_sealTurns}ターン)`);
           const _paralyzeTurns = statusTurns("paralyze", { kind: "player" });
