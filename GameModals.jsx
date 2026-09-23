@@ -22,6 +22,7 @@ import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.
 import { GACHA_COST } from "./gachaRules.js";
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 import { foodPotionEffectLabel } from "./foodData.js";
+import { deleteImage } from "./imageStorage.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -179,7 +180,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
               onClick={() => {
                 Object.keys(TILE_NAMES).forEach((k) => {
                   delete customTileImages[parseInt(k)];
-                  localStorage.removeItem(`roguelike_tile_${k}`);
+                  deleteImage(`roguelike_tile_${k}`);
                 });
                 setCtLoaded((c) => c + 1);
               }}

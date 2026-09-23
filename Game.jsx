@@ -41,7 +41,7 @@ import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix,
 import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
-import { saveImage, deleteImage } from "./imageStorage.js";
+import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -314,9 +314,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           body: JSON.stringify({ name, data: d }),
         }).catch(() => {});
       }
-      try {
-        localStorage.setItem(`roguelike_tile_${idx}`, d);
-      } catch (e) {}
+      saveImage(`roguelike_tile_${idx}`, d).catch(() => {});
     };
     r.readAsDataURL(file);
   };
@@ -331,7 +329,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         body: JSON.stringify({ name }),
       }).catch(() => {});
     }
-    localStorage.removeItem(`roguelike_tile_${idx}`);
+    deleteImage(`roguelike_tile_${idx}`).catch(() => {});
   };
 
   /* ===== タイルセット一括読み込み ===== */
@@ -587,15 +585,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         setCtLoaded((c) => c + 1);
       };
       img.onerror = () => {
-        const saved = localStorage.getItem(`roguelike_tile_${idx}`);
-        if (saved) {
-          const i2 = new Image();
-          i2.onload = () => {
-            customTileImages[iidx] = i2;
-            setCtLoaded((c) => c + 1);
-          };
-          i2.src = saved;
-        }
+        loadImage(`roguelike_tile_${idx}`).then((saved) => {
+          if (saved) {
+            const i2 = new Image();
+            i2.onload = () => {
+              customTileImages[iidx] = i2;
+              setCtLoaded((c) => c + 1);
+            };
+            i2.src = saved;
+          }
+        });
       };
       img.src = SHARED_FIXTURE_TILE_IDS.has(iidx)
         ? `/tiles/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`
