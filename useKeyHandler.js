@@ -842,8 +842,10 @@ export function useKeyHandler({
             setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + 2) % 2);
             return;
           }
-          if (k === "enter" || k === "z" || e.code === "Digit1") {
-            if (shopMenuSel === 0) {
+          const digit = getDigitNumber(e);
+          if (k === "enter" || k === "z" || digit === 1 || digit === 2) {
+            const selected = digit === 1 ? 0 : digit === 2 ? 1 : shopMenuSel;
+            if (selected === 0) {
               if (sr.current) {
                 const { player: p2, dungeon: dg2 } = sr.current;
                 const _allShopsPay = getShops(dg2);
@@ -896,10 +898,7 @@ export function useKeyHandler({
             } else setShopMode(null);
             return;
           }
-          if (e.code === "Digit2") {
-            setShopMode(null);
-            return;
-          }
+
           return;
         }
         if (shopMode === "sell") {
