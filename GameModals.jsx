@@ -935,7 +935,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         if (_blockConfirmUntilUp.current) return;
         const item = _menuItems[_menuSel];
         if (item?.enabled) item.action();
-      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+      } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
         e.preventDefault();
         setMode(null);
       }
@@ -970,7 +970,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         if (_blockConfirmUntilUp.current) return;
         const _n = _pageNames[_listSel];
         if (_n) _applyNick(_n);
-      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+      } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
         e.preventDefault();
         _setSubMode(null);
       }
@@ -1022,7 +1022,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
               value={input}
               onChange={e2 => setInput(e2.target.value)}
               onKeyDown={e2 => {
-                if (e2.key === 'Enter') _applyNick(input);
+                if ((e2.key === 'Enter' || e2.code === 'NumpadEnter') && !e2.nativeEvent?.isComposing) _applyNick(input);
                 if (e2.key === 'Escape') _setSubMode(null);
               }}
               placeholder="名前を入力（空欄でリセット）"
