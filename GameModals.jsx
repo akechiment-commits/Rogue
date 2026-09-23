@@ -2192,8 +2192,26 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
         overflowY: "auto",
       }}
     >
-      <div style={{ color: "#daf", fontWeight: "bold", fontSize: 15, marginBottom: 8 }}>
-        {title}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ color: "#daf", fontWeight: "bold", fontSize: 15 }}>
+          {title}
+        </div>
+        <button
+          onClick={onCancel}
+          aria-label="願いを閉じる"
+          style={{
+            background: "#221133",
+            color: "#ccaaff",
+            border: "1px solid #7744aa",
+            borderRadius: 4,
+            padding: "2px 10px",
+            fontSize: 13,
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+        >
+          ✕
+        </button>
       </div>
       {view === "main" && (
         <>
