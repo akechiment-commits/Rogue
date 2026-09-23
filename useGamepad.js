@@ -60,6 +60,16 @@ function modalDirToArrow(dx, dy) {
     : { key: "ArrowRight", code: "ArrowRight" };
 }
 
+/**
+ * モードに応じた方向キー選択。
+ * 見渡す(look)・投擲/射撃(throw)・場所選択(tpSelect)は斜め含む8方向を許可。
+ * 一般メニュー・モーダルリストは上下左右の4方向に正規化。
+ */
+function getGamepadArrow({ isLook = false, isThrow = false, isTpSelect = false } = {}, dx, dy) {
+  const isDirectional = isLook || isThrow || isTpSelect;
+  return isDirectional ? dirToArrow(dx, dy) : modalDirToArrow(dx, dy);
+}
+
 function dpadPressed(gp) {
   return (
     buttonPressed(gp, BTN.UP) ||
@@ -640,8 +650,11 @@ export function useGamepad({
               setFacingMode?.(true);
             }
           } else if (inModal) {
-            const isLook = !!lookModeRef.current;
-            const arrow = isLook ? dirToArrow(move.dx, move.dy) : modalDirToArrow(move.dx, move.dy);
+            const arrow = getGamepadArrow({
+              isLook: !!lookModeRef.current,
+              isThrow: !!throwModeRef.current,
+              isTpSelect: modalTypeRef.current === "tpSelect",
+            }, move.dx, move.dy);
             if (arrow) fireKey(arrow.key, arrow.code);
           } else if (buttonPressed(gp, BTN.LB)) {
             if (sr?.current?.player) {
@@ -673,8 +686,11 @@ export function useGamepad({
             now - moveRepeatAtRef.current >= MOVE_REPEAT_MS
           ) {
             moveRepeatAtRef.current = now;
-            const isLook = !!lookModeRef.current;
-            const arrow = isLook ? dirToArrow(move.dx, move.dy) : modalDirToArrow(move.dx, move.dy);
+            const arrow = getGamepadArrow({
+              isLook: !!lookModeRef.current,
+              isThrow: !!throwModeRef.current,
+              isTpSelect: modalTypeRef.current === "tpSelect",
+            }, move.dx, move.dy);
             if (arrow) fireKey(arrow.key, arrow.code);
           }
         }
@@ -725,4 +741,4 @@ export function useGamepad({
   return { quickOpen, quickSel, setQuickOpen, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld };
 }
 
-export { dirToArrow, modalDirToArrow };
+export { dirToArrow, modalDirToArrow, getGamepadArrow };

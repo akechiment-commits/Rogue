@@ -62,7 +62,7 @@ describe("QUICK_MENU_ITEMS", () => {
   });
 });
 
-import { dirToArrow, modalDirToArrow } from "../useGamepad.js";
+import { dirToArrow, modalDirToArrow, getGamepadArrow } from "../useGamepad.js";
 
 describe("dirToArrow vs modalDirToArrow", () => {
   it("通常移動用 dirToArrow は斜め入力時に Numpad1/3/7/9 を返す", () => {
@@ -87,6 +87,21 @@ describe("dirToArrow vs modalDirToArrow", () => {
     const res2 = modalDirToArrow(1, -1);
     expect(res2.code.startsWith("Arrow")).toBe(true);
     expect(res2.key.startsWith("Arrow")).toBe(true);
+  });
+
+  it("getGamepadArrow はモードに応じて適切な方向変換を選択する", () => {
+    // 一般メニュー（デフォルト）: 斜めは Arrow* に丸められる
+    const menuResult = getGamepadArrow({}, 1, 1);
+    expect(menuResult.code.startsWith("Arrow")).toBe(true);
+
+    // 見渡す（lookMode）: 斜め入力が Numpad3 としてそのまま通る
+    expect(getGamepadArrow({ isLook: true }, 1, 1)).toEqual({ key: "3", code: "Numpad3" });
+
+    // 投擲・射撃・杖振り（throwMode）: 斜め入力が Numpad7 としてそのまま通る
+    expect(getGamepadArrow({ isThrow: true }, -1, -1)).toEqual({ key: "7", code: "Numpad7" });
+
+    // テレポート場所選択（tpSelectMode）: 斜め入力が Numpad9 としてそのまま通る
+    expect(getGamepadArrow({ isTpSelect: true }, 1, -1)).toEqual({ key: "9", code: "Numpad9" });
   });
 });
 
