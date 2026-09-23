@@ -119,18 +119,18 @@ export function useKeyHandler({
   } = invState;
   const {
     modal, dispatchModal,
-    springMode = legacyArgs.springMode, springMenuSel = legacyArgs.springMenuSel, springPage = legacyArgs.springPage,
-    wishMode = legacyArgs.wishMode, putMode = legacyArgs.putMode, putMenuSel = legacyArgs.putMenuSel, putPage = legacyArgs.putPage,
-    markerMode = legacyArgs.markerMode, markerMenuSel = legacyArgs.markerMenuSel, markerPage = legacyArgs.markerPage ?? 0,
-    spellListMode = legacyArgs.spellListMode, spellMenuSel = legacyArgs.spellMenuSel, spellPage = legacyArgs.spellPage,
-    shopMode = legacyArgs.shopMode, shopMenuSel = legacyArgs.shopMenuSel,
-    bigboxMode = legacyArgs.bigboxMode, bigboxMenuSel = legacyArgs.bigboxMenuSel, bigboxPage = legacyArgs.bigboxPage,
-    gachaMode = legacyArgs.gachaMode, gachaMenuSel = legacyArgs.gachaMenuSel,
-    altarMode = legacyArgs.altarMode, altarMenuSel = legacyArgs.altarMenuSel,
-    merchantMode = legacyArgs.merchantMode, merchantMenuSel = legacyArgs.merchantMenuSel,
+    springMode = legacyArgs.springMode, springMenuSel = legacyArgs.springMenuSel ?? 0, springPage = legacyArgs.springPage ?? 0,
+    wishMode = legacyArgs.wishMode, putMode = legacyArgs.putMode, putMenuSel = legacyArgs.putMenuSel ?? 0, putPage = legacyArgs.putPage ?? 0,
+    markerMode = legacyArgs.markerMode, markerMenuSel = legacyArgs.markerMenuSel ?? 0, markerPage = legacyArgs.markerPage ?? 0,
+    spellListMode = legacyArgs.spellListMode, spellMenuSel = legacyArgs.spellMenuSel ?? 0, spellPage = legacyArgs.spellPage ?? 0,
+    shopMode = legacyArgs.shopMode, shopMenuSel = legacyArgs.shopMenuSel ?? 0,
+    bigboxMode = legacyArgs.bigboxMode, bigboxMenuSel = legacyArgs.bigboxMenuSel ?? 0, bigboxPage = legacyArgs.bigboxPage ?? 0,
+    gachaMode = legacyArgs.gachaMode, gachaMenuSel = legacyArgs.gachaMenuSel ?? 0,
+    altarMode = legacyArgs.altarMode, altarMenuSel = legacyArgs.altarMenuSel ?? 0,
+    merchantMode = legacyArgs.merchantMode, merchantMenuSel = legacyArgs.merchantMenuSel ?? 0,
     nicknameMode = legacyArgs.nicknameMode, identifyMode = legacyArgs.identifyMode, revealMode = legacyArgs.revealMode,
     tpSelectMode = legacyArgs.tpSelectMode, floorSelectMode = legacyArgs.floorSelectMode, lookMode = legacyArgs.lookMode,
-    mapMode = legacyArgs.mapMode, debugSpellMode = legacyArgs.debugSpellMode, debugSpellMenuSel = legacyArgs.debugSpellMenuSel,
+    mapMode = legacyArgs.mapMode, debugSpellMode = legacyArgs.debugSpellMode, debugSpellMenuSel = legacyArgs.debugSpellMenuSel ?? 0,
     // setters
     setFloorSelectMode = legacyArgs.setFloorSelectMode, setTpSelectMode = legacyArgs.setTpSelectMode,
     setLookMode = legacyArgs.setLookMode, setMapMode = legacyArgs.setMapMode,
@@ -207,10 +207,10 @@ export function useKeyHandler({
         const _idTotalPg = Math.max(1, Math.ceil(_len_id / 10));
         const _idPageItems = _allList_id.slice(_idPage * 10, (_idPage + 1) * 10);
         const _idPageLen   = _idPageItems.length;
-        const _isUp_id    = k === "arrowup"    || e.code === "Numpad8";
-        const _isDown_id  = k === "arrowdown"  || e.code === "Numpad2";
-        const _isLeft_id  = k === "arrowleft"  || e.code === "Numpad4";
-        const _isRight_id = k === "arrowright" || e.code === "Numpad6";
+        const _isUp_id    = isKeyUp(e);
+        const _isDown_id  = isKeyDown(e);
+        const _isLeft_id  = isKeyLeft(e);
+        const _isRight_id = isKeyRight(e);
         if (_isUp_id || _isDown_id) {
           if (_idPageLen > 0) setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + (_isDown_id ? 1 : -1) + _idPageLen) % _idPageLen });
           return;
@@ -546,10 +546,10 @@ export function useKeyHandler({
         const _pg4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4);
         const _plen4 = _pg4.length;
         const _selCount4 = _plen4 + 1; /* 末尾が「やめる」 */
-        const isUp4 = k === "arrowup" || e.code === "Numpad8";
-        const isDown4 = k === "arrowdown" || e.code === "Numpad2";
-        const isLeft4 = k === "arrowleft" || e.code === "Numpad4";
-        const isRight4 = k === "arrowright" || e.code === "Numpad6";
+        const isUp4 = isKeyUp(e);
+        const isDown4 = isKeyDown(e);
+        const isLeft4 = isKeyLeft(e);
+        const isRight4 = isKeyRight(e);
         if ((isUp4 || isDown4) && _selCount4 > 0) {
           setPutMenuSel((s) => (s + (isDown4 ? 1 : -1) + _selCount4) % _selCount4);
           return;
@@ -586,10 +586,10 @@ export function useKeyHandler({
         }
         if (!sr.current) return;
         const inv5 = sr.current.player.inventory;
-        const isUp5    = k === "arrowup"    || e.code === "Numpad8";
-        const isDown5  = k === "arrowdown"  || e.code === "Numpad2";
-        const isLeft5  = k === "arrowleft"  || e.code === "Numpad4";
-        const isRight5 = k === "arrowright" || e.code === "Numpad6";
+        const isUp5    = isKeyUp(e);
+        const isDown5  = isKeyDown(e);
+        const isLeft5  = isKeyLeft(e);
+        const isRight5 = isKeyRight(e);
         const _mps = 10;
         if (markerMode.step === "select_blank") {
           const blanks5 = inv5
@@ -802,16 +802,16 @@ export function useKeyHandler({
         const _dsLen = Math.min(_dsPageSize, Math.max(0, _dsTotalEntries - _dsSafePage * _dsPageSize));
 
         /* 上下: カーソル移動 */
-        const _dsUp = k === "arrowup" || e.code === "Numpad8";
-        const _dsDown = k === "arrowdown" || e.code === "Numpad2";
+        const _dsUp = isKeyUp(e);
+        const _dsDown = isKeyDown(e);
         if ((_dsUp || _dsDown) && _dsLen > 0) {
           setDebugSpellMenuSel((s) => ((s ?? 0) + (_dsDown ? 1 : -1) + _dsLen) % _dsLen);
           return;
         }
 
         /* 左右: ページ切り替え */
-        const _dsLeft = k === "arrowleft" || e.code === "Numpad4";
-        const _dsRight = k === "arrowright" || e.code === "Numpad6";
+        const _dsLeft = isKeyLeft(e);
+        const _dsRight = isKeyRight(e);
         if ((_dsLeft || _dsRight) && _dsTotalPages > 1) {
           const _np = ((_dsSafePage + (_dsRight ? 1 : -1)) + _dsTotalPages) % _dsTotalPages;
           setDebugSpellMode({ ...debugSpellMode, page: _np });
@@ -1075,8 +1075,8 @@ export function useKeyHandler({
       }
       if (bigboxMode) {
         e.preventDefault();
-        const isUpBB = k === "arrowup" || e.code === "Numpad8";
-        const isDownBB = k === "arrowdown" || e.code === "Numpad2";
+        const isUpBB = isKeyUp(e);
+        const isDownBB = isKeyDown(e);
         if (bigboxMode === "menu") {
           const mlen2 = 4;
           if (isUpBB || isDownBB) {
@@ -1142,8 +1142,8 @@ export function useKeyHandler({
           const _tp = Math.max(1, Math.ceil(il2 / _ps));
           const _pi = inv2.slice(bigboxPage * _ps, (bigboxPage + 1) * _ps);
           const _pil = _pi.length;
-          const isLeftBB = k === "arrowleft" || e.code === "Numpad4";
-          const isRightBB = k === "arrowright" || e.code === "Numpad6";
+          const isLeftBB = isKeyLeft(e);
+          const isRightBB = isKeyRight(e);
           if ((isUpBB || isDownBB) && _pil > 0) {
             setBigboxMenuSel((p) => (p + (isDownBB ? 1 : -1) + _pil) % _pil);
             return;
@@ -1169,8 +1169,8 @@ export function useKeyHandler({
       }
       if (gachaMode) {
         e.preventDefault();
-        const isUpGacha = k === "arrowup" || e.code === "Numpad8";
-        const isDownGacha = k === "arrowdown" || e.code === "Numpad2";
+        const isUpGacha = isKeyUp(e);
+        const isDownGacha = isKeyDown(e);
         if (isUpGacha || isDownGacha) {
           setGachaMenuSel((p) => (p + (isDownGacha ? 1 : -1) + 2) % 2);
           return;
@@ -1194,8 +1194,8 @@ export function useKeyHandler({
       }
       if (springMode) {
         e.preventDefault();
-        const isUp = k === "arrowup" || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
+        const isUp = isKeyUp(e);
+        const isDown = isKeyDown(e);
         if (k === "escape" || k === "x") {
           if (springMode === "soak") {
             setSpringMode("menu");
@@ -1238,8 +1238,8 @@ export function useKeyHandler({
           const inv = sr.current?.player?.inventory || [];
           const ilen = inv.length;
           const _spTotalPg = Math.max(1, Math.ceil(ilen / 10));
-          const isLeft = k === "arrowleft" || e.code === "Numpad4";
-          const isRight = k === "arrowright" || e.code === "Numpad6";
+          const isLeft = isKeyLeft(e);
+          const isRight = isKeyRight(e);
           if ((isUp || isDown) && ilen > 0) {
             setSpringMenuSel((s) => (s + (isDown ? 1 : -1) + 10) % 10);
             return;
@@ -1279,8 +1279,8 @@ export function useKeyHandler({
           return;
         }
         const _scEl = document.querySelector("[data-scores-modal]");
-        if (_scEl && (k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright" || (e.code && e.code.startsWith("Numpad")))) {
-          const up = k === "arrowup" || k === "arrowleft" || e.code === "Numpad8" || e.code === "Numpad4";
+        if (_scEl && (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e))) {
+          const up = isKeyUp(e) || isKeyLeft(e);
           _scEl.scrollTop = Math.max(0, _scEl.scrollTop + (up ? -96 : 96));
         }
         return;
@@ -1381,8 +1381,8 @@ export function useKeyHandler({
         if (!_fsp) return;
         const _visited = getVisitedFloors(sr.current, _fsp.depth);
         const _vIdx = Math.max(0, _visited.indexOf(floorSelectMode.sel));
-        const isUp   = k === "arrowup"   || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
+        const isUp   = isKeyUp(e);
+        const isDown = isKeyDown(e);
         if (isUp) {
           if (_vIdx > 0) setFloorSelectMode({ sel: _visited[_vIdx - 1] });
           return;
@@ -1437,10 +1437,10 @@ export function useKeyHandler({
         const { player: p, dungeon: dg } = sr.current || {};
         if (!p || !dg) return;
         const { cx, cy } = tpSelectMode;
-        const isUp    = k === "arrowup"    || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
+        const isUp    = isKeyUp(e);
+        const isDown  = isKeyDown(e);
+        const isLeft  = isKeyLeft(e);
+        const isRight = isKeyRight(e);
         const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
         const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
         let ncx = cx, ncy = cy;
@@ -1486,8 +1486,8 @@ export function useKeyHandler({
         e.preventDefault();
         const _mlTotal = msgsRef.current.length;
         const _mlMax = Math.max(0, _mlTotal - 20);
-        const isUpML = k === "arrowup" || e.code === "Numpad8";
-        const isDownML = k === "arrowdown" || e.code === "Numpad2";
+        const isUpML = isKeyUp(e);
+        const isDownML = isKeyDown(e);
         if (isUpML) { setMsgLogScrollTop((s) => Math.max(0, s - 1)); return; }
         if (isDownML) { setMsgLogScrollTop((s) => Math.min(_mlMax, s + 1)); return; }
         if (k === "m" || k === "x" || k === "escape") { setMsgLogMode(false); return; }
@@ -1503,10 +1503,10 @@ export function useKeyHandler({
         const { player: p2, dungeon: dg2 } = sr.current || {};
         if (!p2 || !dg2) return;
         const { cx, cy } = lookMode;
-        const isUp    = k === "arrowup"    || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
+        const isUp    = isKeyUp(e);
+        const isDown  = isKeyDown(e);
+        const isLeft  = isKeyLeft(e);
+        const isRight = isKeyRight(e);
         const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
         const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
         let ncx = cx, ncy = cy;
@@ -1731,8 +1731,8 @@ export function useKeyHandler({
             setInvMenuSel(null);
             return;
           }
-          const isLeft = k === "arrowleft" || e.code === "Numpad4";
-          const isRight = k === "arrowright" || e.code === "Numpad6";
+          const isLeft = isKeyLeft(e);
+          const isRight = isKeyRight(e);
           if ((isLeft || isRight) && selIdx !== null) {
             e.preventDefault();
             if (_isFloorPg2 && _flPageItems2[selIdx]) {
@@ -1763,10 +1763,10 @@ export function useKeyHandler({
           }
           return;
         }
-        const isUp = k === "arrowup" || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
-        const isLeft = k === "arrowleft" || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
+        const isUp = isKeyUp(e);
+        const isDown = isKeyDown(e);
+        const isLeft = isKeyLeft(e);
+        const isRight = isKeyRight(e);
         if (k === "escape" || k === "x" || k === "i") {
           e.preventDefault();
           setShowInv(false);
