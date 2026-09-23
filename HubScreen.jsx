@@ -308,7 +308,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
 
       /* 売却確認ダイアログ中 */
       if (r.sellConfirmOpen) {
@@ -335,12 +335,12 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
           if (r.gold >= r.EXPAND_COST) r.expandWarehouse();
           r.setExpandFocused(false);
         } else if (k === "x" || k === "escape") {
-          r.onClose();
+          e.preventDefault(); r.onClose();
         }
         return;
       }
 
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (k === "shift") {
         e.preventDefault();
         r.switchTab(r.isCarry ? "warehouse" : "carry"); return;
@@ -666,7 +666,12 @@ function BankPanel({ saveData, updateSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        if (k === "escape") { e.preventDefault(); e.target.blur(); }
+        return;
+      }
       if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (k === "m") { e.preventDefault(); r.commitCarryGold(Number.MAX_SAFE_INTEGER); return; }
       if (k === "n") { e.preventDefault(); r.commitCarryGold(0); return; }
@@ -819,8 +824,8 @@ function EncyclopediaPanel({ saveData, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      const k = (e.key || "").toLowerCase();
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (k === "shift") {
         e.preventDefault();
         const idx = r.TABS.indexOf(r.tab);
@@ -981,8 +986,8 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      const k = (e.key || "").toLowerCase();
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (isKeyUp(e)) {
         e.preventDefault(); r.setFocusIdx(p => Math.max(0, p - 1));
       } else if (isKeyDown(e)) {
@@ -1121,7 +1126,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       if (r.confirmOverwrite) {
         if (isKeyUp(e) || isKeyDown(e)) {
           e.preventDefault(); r.setConfirmSel(p => p === 0 ? 1 : 0);
@@ -1134,7 +1139,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
         }
         return;
       }
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       const dtIdx = r.DUNGEON_TYPES.findIndex(dt => dt.id === r.dtype);
       if (isKeyUp(e)) {
         e.preventDefault();
@@ -1348,7 +1353,7 @@ function RankingPanel({ saveData, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       if (k === "x" || k === "escape") {
         e.preventDefault();
         r.onClose();
@@ -1763,7 +1768,7 @@ function GraphicStyleModal({ onConfirm }) {
         e.preventDefault();
         selectedRef.current = (selectedRef.current + 1) % GRAPHIC_STYLE_OPTIONS.length;
         setSelected(selectedRef.current);
-      } else if (e.key.toLowerCase() === "z" || e.key === "Enter") {
+      } else if ((e.key || "").toLowerCase() === "z" || e.key === "Enter") {
         e.preventDefault();
         onConfirm(GRAPHIC_STYLE_OPTIONS[selectedRef.current].id);
       }
@@ -1876,7 +1881,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       const tag = (e.target && e.target.tagName) || "";
       const typing = tag === "INPUT" || tag === "TEXTAREA";
 
@@ -2190,7 +2195,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       const r = kbRef.current;
       if (r.needsSetup) return; // 名前・食べ物入力中は地上キーを無効
       if (r.panel !== null) return; // 各パネルが自前でハンドリング
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       if (isKeyUp(e) || isKeyLeft(e)) {
         e.preventDefault(); r.setMainFocus(p => Math.max(0, p - 1));
       } else if (isKeyDown(e) || isKeyRight(e)) {

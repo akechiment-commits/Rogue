@@ -165,7 +165,7 @@ export function useKeyHandler({
     return "使う";
   };
   const handleDialogModalKey = (e) => {
-    const k = e.key.toLowerCase();
+    const k = (e.key || "").toLowerCase();
     if (!revealMode && !nicknameMode && !identifyMode && !putMode && !markerMode &&
         !spellListMode && !debugSpellMode && !shopMode && !merchantMode && !altarMode &&
         !bigboxMode && !gachaMode && !wishMode && !springMode) {
@@ -1259,7 +1259,7 @@ export function useKeyHandler({
   };
   const handleKey = useCallback(
     (e) => {
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       if (k === "shift") {
         shiftRef.current = true;
       }
