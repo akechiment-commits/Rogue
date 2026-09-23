@@ -81,29 +81,55 @@ export function useKeyHandler({
   sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel = 0, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
-  facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
-  markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
-  bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, altarMode, altarMenuSel, merchantMode, merchantMenuSel, nicknameMode, identifyMode, revealMode,
-  tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
+  facingMode,
+  modalState = {},
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign, miniTip,
   exitHubConfirm, exitHubSel,
   gameOverCanReturn, performGameOverReturnToHub, onDismissEnding,
   // state setters
-  setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setFloorSelectMode, setTpSelectMode,
-  setLookMode, setMapMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
-  setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
-  setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
-  setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
-  setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setAltarMode, setAltarMenuSel, setMerchantMode, setMerchantMenuSel, setIdentifyMode,
-  setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
+  setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores,
+  setShowInv, setSelIdx, setInvMenuSel, setShowDesc,
+  setInvPage, setDropMode, setFacingMode, setThrowMode,
   setMsgLogMode, setMsgLogScrollTop,
   setShowSign, closeMiniTip,
   setExitHubConfirm, setExitHubSel, performExitToHub,
   // callbacks
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
   bigboxPutItem, sortInventory, getLookDesc, lu, doOfferFood, doMerchantBuy, doMerchantSell,
+  pastIdent = [], discoveredItems = {},
+  // legacy fallback
+  ...legacyArgs
 }) {
+  const {
+    modal, dispatchModal,
+    springMode = legacyArgs.springMode, springMenuSel = legacyArgs.springMenuSel, springPage = legacyArgs.springPage,
+    wishMode = legacyArgs.wishMode, putMode = legacyArgs.putMode, putMenuSel = legacyArgs.putMenuSel, putPage = legacyArgs.putPage,
+    markerMode = legacyArgs.markerMode, markerMenuSel = legacyArgs.markerMenuSel, markerPage = legacyArgs.markerPage ?? 0,
+    spellListMode = legacyArgs.spellListMode, spellMenuSel = legacyArgs.spellMenuSel, spellPage = legacyArgs.spellPage,
+    shopMode = legacyArgs.shopMode, shopMenuSel = legacyArgs.shopMenuSel,
+    bigboxMode = legacyArgs.bigboxMode, bigboxMenuSel = legacyArgs.bigboxMenuSel, bigboxPage = legacyArgs.bigboxPage,
+    gachaMode = legacyArgs.gachaMode, gachaMenuSel = legacyArgs.gachaMenuSel,
+    altarMode = legacyArgs.altarMode, altarMenuSel = legacyArgs.altarMenuSel,
+    merchantMode = legacyArgs.merchantMode, merchantMenuSel = legacyArgs.merchantMenuSel,
+    nicknameMode = legacyArgs.nicknameMode, identifyMode = legacyArgs.identifyMode, revealMode = legacyArgs.revealMode,
+    tpSelectMode = legacyArgs.tpSelectMode, floorSelectMode = legacyArgs.floorSelectMode, lookMode = legacyArgs.lookMode,
+    mapMode = legacyArgs.mapMode, debugSpellMode = legacyArgs.debugSpellMode, debugSpellMenuSel = legacyArgs.debugSpellMenuSel,
+    // setters
+    setFloorSelectMode = legacyArgs.setFloorSelectMode, setTpSelectMode = legacyArgs.setTpSelectMode,
+    setLookMode = legacyArgs.setLookMode, setMapMode = legacyArgs.setMapMode,
+    setNicknameMode = legacyArgs.setNicknameMode, setNicknameInput = legacyArgs.setNicknameInput,
+    setSpringMode = legacyArgs.setSpringMode, setSpringMenuSel = legacyArgs.setSpringMenuSel, setSpringPage = legacyArgs.setSpringPage,
+    setPutMode = legacyArgs.setPutMode, setPutMenuSel = legacyArgs.setPutMenuSel, setPutPage = legacyArgs.setPutPage,
+    setMarkerMode = legacyArgs.setMarkerMode, setMarkerMenuSel = legacyArgs.setMarkerMenuSel, setMarkerPage = legacyArgs.setMarkerPage,
+    setSpellListMode = legacyArgs.setSpellListMode, setSpellMenuSel = legacyArgs.setSpellMenuSel, setSpellPage = legacyArgs.setSpellPage,
+    setShopMode = legacyArgs.setShopMode, setShopMenuSel = legacyArgs.setShopMenuSel,
+    setBigboxMode = legacyArgs.setBigboxMode, setBigboxMenuSel = legacyArgs.setBigboxMenuSel, setBigboxPage = legacyArgs.setBigboxPage,
+    setGachaMode = legacyArgs.setGachaMode, setGachaMenuSel = legacyArgs.setGachaMenuSel,
+    setAltarMode = legacyArgs.setAltarMode, setAltarMenuSel = legacyArgs.setAltarMenuSel,
+    setMerchantMode = legacyArgs.setMerchantMode, setMerchantMenuSel = legacyArgs.setMerchantMenuSel,
+    setIdentifyMode = legacyArgs.setIdentifyMode, setRevealMode = legacyArgs.setRevealMode,
+  } = modalState;
   /* handleKey を ref 経由で呼び、listener を1本に固定 */
   const handleKeyRef = useRef(null);
 
