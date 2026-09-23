@@ -2090,7 +2090,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
 
       if (inInput) {
         /* 入力中: Esc/↓ で選択肢へ。Enter で願う。↑ でやめる側へ */
-        if (e.key === "Enter") {
+        if ((e.key === "Enter" || e.code === "NumpadEnter") && !e.nativeEvent?.isComposing) {
           e.preventDefault();
           e.stopPropagation();
           confirmText();
@@ -2142,7 +2142,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
           setPage((p) => (p + 1) % totalPages);
           setSel(0);
         }
-      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
+      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z" || e.code === "NumpadEnter") {
         e.preventDefault();
         e.stopPropagation();
         const row = navRows[safeSel];
@@ -2151,7 +2151,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
         } else {
           activateRow(row);
         }
-      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+      } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
         e.preventDefault();
         e.stopPropagation();
         /* 選択肢上の Esc/X は戻る／キャンセル */
