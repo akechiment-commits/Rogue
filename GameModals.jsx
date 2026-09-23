@@ -639,8 +639,16 @@ export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, 
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: mobile ? "12px 14px 8px" : "16px 20px 10px", color: "#d8a8ff", fontSize: mobile ? 16 : 19, fontWeight: "bold", borderBottom: "1px solid #30283a" }}>
-          {resultLabel}の持ち物 ({inventory.length})
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: mobile ? "10px 14px" : "14px 20px", borderBottom: "1px solid #30283a" }}>
+          <span style={{ color: "#d8a8ff", fontSize: mobile ? 16 : 19, fontWeight: "bold" }}>
+            {resultLabel}の持ち物 ({inventory.length})
+          </span>
+          <button
+            onClick={onReopen}
+            style={{ background: "#20182c", color: "#aaa", border: "1px solid #5a4a70", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}
+          >
+            ✕
+          </button>
         </div>
         <div ref={inventoryRef} style={{ padding: mobile ? "8px 10px" : "10px 14px", overflowY: "auto" }}>
           {inventory.length === 0 ? (
