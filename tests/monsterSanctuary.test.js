@@ -62,6 +62,29 @@ describe("敵の特技と聖域", () => {
     expect(messages.some((message) => message.includes("魔封じの魔方陣に封じられた"))).toBe(true);
   });
 
+  it.each([
+    ["通常", false, false],
+    ["呪われた", true, true],
+  ])("%s魔封じの下での杖使用", (_label, cursed, shouldCast) => {
+    const base = MONS.find((monster) => monster.baseKind === "wizard");
+    const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    monster.alwaysUseSpecial = true;
+    const player = makePlayer({ x: 8, y: 5 });
+    const dungeon = makeEmptyDg({
+      rooms: [{ x: 1, y: 1, w: 12, h: 12 }],
+      monsters: [monster],
+      pentacles: [{ kind: "magic_seal", x: 7, y: 7, cursed }],
+      visible: makeVisible(),
+    });
+    const monsterWandFn = vi.fn();
+    const messages = [];
+
+    monsterAI(monster, dungeon, player, messages, { attackOnly: true, monsterWandFn });
+
+    expect(monsterWandFn).toHaveBeenCalledTimes(shouldCast ? 1 : 0);
+    expect(messages.some((message) => message.includes("魔封じの魔方陣に封じられた"))).toBe(!shouldCast);
+  });
+
   it("通常の聖域では隣接特技を試行せず、通常攻撃もしない", () => {
     const base = MONS.find((monster) => monster.baseKind === "itempusher");
     const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });

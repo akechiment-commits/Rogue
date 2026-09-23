@@ -30,6 +30,27 @@ describe("ラクガキ魔の魔方陣描画", () => {
     expect(ml.some(msg => msg.includes("を描いた"))).toBe(true);
   });
 
+  it.each([
+    ["通常", false, false],
+    ["呪われた", true, true],
+  ])("%s魔封じの下での魔方陣描画", (_label, cursed, shouldDraw) => {
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR));
+    const m = makePainter(5, 5);
+    const pl = makePlayer({ x: 7, y: 5 });
+    const rooms = [{ x: 2, y: 2, w: 12, h: 12 }];
+    const seal = { kind: "magic_seal", x: 8, y: 8, cursed };
+    const dg = makeEmptyDg({
+      map, rooms, monsters: [m], items: [], traps: [], pentacles: [seal],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    const ml = [];
+
+    monsterAI(m, dg, pl, ml, { attackOnly: true });
+
+    expect(dg.pentacles.some((pc) => pc.painterId === m.id)).toBe(shouldDraw);
+    expect(ml.some((msg) => msg.includes("魔封じの魔方陣に封じられた"))).toBe(!shouldDraw);
+  });
+
   it("階段の上でも書こうとして失敗し、行動を消費する", () => {
     const map = Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR));
     map[5][5] = T.SD;

@@ -3647,13 +3647,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   /* ── ラクガキ魔：認識中なら足元に魔方陣（失敗位置なら失敗メッセージで行動消費） ── */
   if (m.subtype === "pentaclePainter" && canSee) {
     m.turnAttacks++;
-    const _ppRoom = findRoom(rooms, m.x, m.y);
-    const _ppSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-      (_ppRoom && dg.pentacles?.some(pc =>
-        pc.kind === "magic_seal" &&
-        pc.x >= _ppRoom.x && pc.x < _ppRoom.x + _ppRoom.w &&
-        pc.y >= _ppRoom.y && pc.y < _ppRoom.y + _ppRoom.h
-      ));
+    const _ppSeal = inMagicSealRoom(m.x, m.y, dg);
     if (_ppSeal) {
       ml.push(`${m.name}の魔方陣が魔封じの魔方陣に封じられた！`);
       return true;
@@ -3678,13 +3672,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   /* ── ルカチュウ：同部屋で防御半減魔法 ── */
   if (m.subtype === "defhalf" && canSee && _sameRoom) {
     m.turnAttacks++;
-    const _kpRoom = findRoom(rooms, m.x, m.y);
-    const _kpSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-      (_kpRoom && dg.pentacles?.some(pc =>
-        pc.kind === "magic_seal" &&
-        pc.x >= _kpRoom.x && pc.x < _kpRoom.x + _kpRoom.w &&
-        pc.y >= _kpRoom.y && pc.y < _kpRoom.y + _kpRoom.h
-      ));
+    const _kpSeal = inMagicSealRoom(m.x, m.y, dg);
     if (_kpSeal) {
       ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
       return true;
@@ -3790,13 +3778,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       }
     }
     if (m.subtype === "wanduser" && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && !_plOnBlessedSanc) {
-      const _wRoom = findRoom(rooms, m.x, m.y);
-      const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
-        (_wRoom && dg.pentacles?.some(pc =>
-          pc.kind === "magic_seal" &&
-          pc.x >= _wRoom.x && pc.x < _wRoom.x + _wRoom.w &&
-          pc.y >= _wRoom.y && pc.y < _wRoom.y + _wRoom.h
-        ));
+      const _wSeal = inMagicSealRoom(m.x, m.y, dg);
       if (!_wSeal) {
         m.turnAttacks++;
         opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
@@ -5595,13 +5577,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
 
       if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
-        const _wRoom = findRoom(rooms, m.x, m.y);
-        const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
-          (_wRoom && dg.pentacles?.some(pc =>
-            pc.kind === "magic_seal" &&
-            pc.x >= _wRoom.x && pc.x < _wRoom.x + _wRoom.w &&
-            pc.y >= _wRoom.y && pc.y < _wRoom.y + _wRoom.h
-          ));
+        const _wSeal = inMagicSealRoom(m.x, m.y, dg);
         if (!_wSeal && !_plOnBlessedSanc) {
           m.turnAttacks++;
           opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
@@ -6293,13 +6269,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (canSee && m._defHalfMagicReady) {
           delete m._defHalfMagicReady;
           /* 魔封じチェック */
-          const _kpRoom = findRoom(rooms, m.x, m.y);
-          const _kpSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-            (_kpRoom && dg.pentacles?.some(pc =>
-              pc.kind === "magic_seal" &&
-              pc.x >= _kpRoom.x && pc.x < _kpRoom.x + _kpRoom.w &&
-              pc.y >= _kpRoom.y && pc.y < _kpRoom.y + _kpRoom.h
-            ));
+          const _kpSeal = inMagicSealRoom(m.x, m.y, dg);
           if (!_kpSeal) {
             m.turnAttacks++;
             if (hasPlayerMagicReflect(pl)) {
@@ -6354,13 +6324,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (canSee && m._pentacleDrawReady) {
           delete m._pentacleDrawReady;
           /* 魔封じチェック */
-          const _ppRoom = findRoom(rooms, m.x, m.y);
-          const _ppSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-            (_ppRoom && dg.pentacles?.some(pc =>
-              pc.kind === "magic_seal" &&
-              pc.x >= _ppRoom.x && pc.x < _ppRoom.x + _ppRoom.w &&
-              pc.y >= _ppRoom.y && pc.y < _ppRoom.y + _ppRoom.h
-            ));
+          const _ppSeal = inMagicSealRoom(m.x, m.y, dg);
           /* 描画試行は1回分の行動（成功も失敗も turnAttacks 消費・隣接攻撃にはしない） */
           m.turnAttacks++;
           if (_ppSeal) {

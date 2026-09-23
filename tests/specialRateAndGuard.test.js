@@ -71,6 +71,28 @@ describe("特技発動率と警備員の暗闇耐性", () => {
     expect(caster._defHalfMagicReady).toBe(true);
   });
 
+  it.each([
+    ["通常", false, false],
+    ["呪われた", true, true],
+  ])("%s魔封じの下での防御半減魔法", (_label, cursed, shouldCast) => {
+    const defhalfBase = MONS.find((monster) => monster.subtype === "defhalf");
+    const caster = makeMonsterFromBase(defhalfBase, 1, 5, 5, { aware: true });
+    caster._defHalfMagicReady = true;
+    const player = makePlayer({ x: 8, y: 5 });
+    const dg = makeEmptyDg({
+      rooms: [{ x: 1, y: 1, w: 20, h: 10 }],
+      monsters: [caster],
+      pentacles: [{ kind: "magic_seal", x: 7, y: 7, cursed }],
+      visible: makeVisible(),
+    });
+    const messages = [];
+
+    monsterAI(caster, dg, player, messages, { attackOnly: true });
+
+    expect((player.defSoftenedTurns || 0) > 0).toBe(shouldCast);
+    expect(messages.some((message) => message.includes("魔封じの魔方陣に封じられた"))).toBe(!shouldCast);
+  });
+
   it.each([2, 3])("ボルガLv%dは50%で自爆する", (level) => {
     const bombBase = MONS.find((monster) => monster.baseKind === "bombgoblin");
     const bomb = makeMonsterFromBase(bombBase, level, 5, 5, { aware: true });
