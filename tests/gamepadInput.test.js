@@ -56,7 +56,7 @@ describe("hasNearbyMonster", () => {
 describe("QUICK_MENU_ITEMS", () => {
   it("includes required commands", () => {
     const ids = QUICK_MENU_ITEMS.map((x) => x.id);
-    for (const id of ["item", "map", "history", "look", "log", "underfoot", "magic", "settings", "scores", "traps", "interrupt"]) {
+    for (const id of ["item", "map", "arrow", "look", "log", "underfoot", "magic", "settings", "scores", "tiles", "traps", "interrupt"]) {
       expect(ids).toContain(id);
     }
   });

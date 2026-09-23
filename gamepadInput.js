@@ -113,7 +113,7 @@ export function hasNearbyMonster(player, dungeon, radius = WAIT_STOP_RADIUS) {
 export const QUICK_MENU_ITEMS = [
   { id: "item", label: "アイテム" },
   { id: "map", label: "マップ" },
-  { id: "history", label: "履歴" },
+  { id: "arrow", label: "矢を射る" },
   { id: "look", label: "見渡す" },
   { id: "log", label: "ログ" },
   { id: "underfoot", label: "足元" },

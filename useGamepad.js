@@ -244,6 +244,9 @@ export function useGamepad({
         case "map":
           setMapMode?.(true);
           break;
+        case "arrow":
+          act?.("shoot_arrow");
+          break;
         case "history":
         case "log":
           openMsgLog();
