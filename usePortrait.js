@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { isPlayerFloating } from "./items.js";
+import { loadImage } from "./imageStorage.js";
 import {
   PORTRAIT_COOLDOWN_MS,
   PORTRAIT_WALK_COOLDOWN_MS,
@@ -31,11 +32,16 @@ export function usePortrait({
   msgsRef.current = msgs;
 
   useEffect(() => {
-    const saved = localStorage.getItem("roguelike_portrait");
-    if (saved) {
-      setPortraitSrc(saved);
-      dynamicEnabledRef.current = false;
-    }
+    let active = true;
+    loadImage("roguelike_portrait").then((saved) => {
+      if (active && saved) {
+        setPortraitSrc(saved);
+        dynamicEnabledRef.current = false;
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [setPortraitSrc]);
 
   const pickAndSet = useCallback((key) => {

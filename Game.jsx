@@ -41,6 +41,7 @@ import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix,
 import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
+import { saveImage, deleteImage } from "./imageStorage.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -481,9 +482,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: d }),
       }).catch(() => {});
-      try {
-        localStorage.setItem("roguelike_portrait", d);
-      } catch (ex) {}
+      saveImage("roguelike_portrait", d).catch(() => {});
     };
     r.readAsDataURL(file);
   };
@@ -493,7 +492,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     }).catch(() => {});
-    localStorage.removeItem("roguelike_portrait");
+    deleteImage("roguelike_portrait").catch(() => {});
     portraitControlsRef.current?.resumeDynamic();
   };
   const ref = useRef(null),
