@@ -717,6 +717,9 @@ export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" })
     <div
       ref={scrollRef}
       data-scores-modal="1"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setShow(false);
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -733,13 +736,39 @@ export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" })
     >
       <div
         style={{
-          color: "#8cf",
-          fontSize: mobile ? 16 : 20,
-          fontWeight: "bold",
+          width: "100%",
+          maxWidth: 400,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: 6,
         }}
       >
-        ── 冒険の記録 ──
+        <div
+          style={{
+            color: "#8cf",
+            fontSize: mobile ? 16 : 20,
+            fontWeight: "bold",
+          }}
+        >
+          ── 冒険の記録 ──
+        </div>
+        <button
+          onClick={() => setShow(false)}
+          aria-label="冒険記録を閉じる"
+          style={{
+            background: "#222",
+            color: "#aaa",
+            border: "1px solid #555",
+            borderRadius: 4,
+            padding: "3px 12px",
+            fontSize: 13,
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+        >
+          ✕
+        </button>
       </div>
       <div style={{ color: "#aaf", fontSize: mobile ? 12 : 13, marginBottom: 4 }}>{dungeonLabel}</div>
       <div style={{ color: "#555", fontSize: 11, marginBottom: 10 }}>このダンジョンの記録のみ（死亡・クリア・生還） / 十字でスクロール / A・Bで閉じる</div>
