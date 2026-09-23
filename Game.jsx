@@ -236,9 +236,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setMarkerMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'marker', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
   const setMarkerPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { markerPage: typeof v === 'function' ? v(modal.markerPage ?? 0) : v } });
-  const setSpellListMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
-  const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel) : v } });
-  const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage) : v } });
+  const setSpellListMode = (v) => {
+    const next = typeof v === 'function' ? v(modal.type === 'spellList') : v;
+    next ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: next }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  };
+  const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel ?? 0) : v } });
+  const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage ?? 0) : v } });
   const setTpSelectMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'tpSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setLookMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'look', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setMapMode       = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'map', data: true }) : dispatchModal({ type: 'CLOSE_MODAL' });

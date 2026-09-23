@@ -145,6 +145,7 @@ export function useKeyHandler({
     setAltarMode = legacyArgs.setAltarMode, setAltarMenuSel = legacyArgs.setAltarMenuSel,
     setMerchantMode = legacyArgs.setMerchantMode, setMerchantMenuSel = legacyArgs.setMerchantMenuSel,
     setIdentifyMode = legacyArgs.setIdentifyMode, setRevealMode = legacyArgs.setRevealMode,
+    setDebugSpellMode = legacyArgs.setDebugSpellMode, setDebugSpellMenuSel = legacyArgs.setDebugSpellMenuSel,
   } = modalState;
   /* handleKey を ref 経由で呼び、listener を1本に固定 */
   const handleKeyRef = useRef(null);
@@ -663,21 +664,33 @@ export function useKeyHandler({
         const slen = knownSpells.length;
         const _sps = 10;
         const _totalPages = Math.max(1, Math.ceil(slen / _sps));
-        const _curPage = Math.min(spellPage, _totalPages - 1);
+        const _spPage = typeof spellPage === "number" ? spellPage : 0;
+        const _curPage = Math.max(0, Math.min(_spPage, _totalPages - 1));
         const _pageSpells = knownSpells.slice(_curPage * _sps, (_curPage + 1) * _sps);
         const _plen = _pageSpells.length;
-        const isUpS = k === "arrowup" || e.code === "Numpad8";
-        const isDownS = k === "arrowdown" || e.code === "Numpad2";
-        const isLeftS = k === "arrowleft" || e.code === "Numpad4";
-        const isRightS = k === "arrowright" || e.code === "Numpad6";
-        if ((isUpS || isDownS) && _plen > 0) { setSpellMenuSel((s) => (s + (isDownS ? 1 : -1) + _plen) % _plen); return; }
+        const isUpS = isKeyUp(e);
+        const isDownS = isKeyDown(e);
+        const isLeftS = isKeyLeft(e);
+        const isRightS = isKeyRight(e);
+        if ((isUpS || isDownS) && _plen > 0) {
+          const _curSel = typeof spellMenuSel === "number" ? spellMenuSel : 0;
+          setSpellMenuSel((s) => {
+            const base = typeof s === "number" ? s : _curSel;
+            return (base + (isDownS ? 1 : -1) + _plen) % _plen;
+          });
+          return;
+        }
         if ((isLeftS || isRightS) && _totalPages > 1) {
-          setSpellPage((p) => (p + (isRightS ? 1 : -1) + _totalPages) % _totalPages);
+          setSpellPage((p) => {
+            const base = typeof p === "number" ? p : _curPage;
+            return (base + (isRightS ? 1 : -1) + _totalPages) % _totalPages;
+          });
           setSpellMenuSel(0);
           return;
         }
         if ((k === "enter" || k === "z") && _plen > 0) {
-          const spell = _pageSpells[Math.min(spellMenuSel, _plen - 1)];
+          const _safeSel = typeof spellMenuSel === "number" ? Math.min(spellMenuSel, _plen - 1) : 0;
+          const spell = _pageSpells[Math.max(0, _safeSel)];
           if (!spell) return;
           if ((sr.current?.player?.mp || 0) < spell.mpCost) {
             setMsgs((prev) => [...prev.slice(-80), `MPが足りない！(必要:${spell.mpCost} 現在:${sr.current?.player?.mp || 0})`]);
