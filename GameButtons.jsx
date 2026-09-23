@@ -5,7 +5,7 @@ import { useRef, useEffect, useCallback } from "react";
  * ※コンポーネント外で定義することで、ゲーム状態更新時のアンマウントを防ぎタイマーを維持する */
 const REPEAT_DELAY = 350;
 const REPEAT_INTERVAL = 110;
-export function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} }) {
+export function MobileBtn({ label, sub, onClick, w, h, fs, color, repeat = false, style: s = {} }) {
   const timers = useRef({ delay: null, interval: null });
   const cbRef  = useRef(onClick);
   cbRef.current = onClick;
@@ -19,6 +19,7 @@ export function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} 
   const start = (e) => {
     e.preventDefault();
     cbRef.current();
+    if (!repeat) return;
     timers.current.delay = setTimeout(() => {
       timers.current.interval = setInterval(() => cbRef.current(), REPEAT_INTERVAL);
     }, REPEAT_DELAY);
@@ -46,11 +47,11 @@ export function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} 
     </button>
   );
 }
-export function B({ label, onClick, w = 52, h = 52, fs = 18, style: s = {} }) {
-  return <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} style={s} />;
+export function B({ label, onClick, w = 52, h = 52, fs = 18, repeat = true, style: s = {} }) {
+  return <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} repeat={repeat} style={s} />;
 }
 export function AB({ label, sub, onClick, color = "#8f8", small }) {
-  return <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
+  return <MobileBtn label={label} sub={sub} onClick={onClick} color={color} repeat={false}
     style={{ flex: 1, minWidth: small ? 36 : 44, height: small ? 40 : 48, fontSize: small ? 13 : 15 }} />;
 }
 const TBS = { background: "#2a1a1a", border: "1px solid #5a3a3a", color: "#f88" };
@@ -70,6 +71,7 @@ export function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, 
         <B
           label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "向"}
           fs={facingMode || throwMode || dashMode ? 18 : 13}
+          repeat={false}
           onClick={() => {
             if (facingMode) { setFacingMode(false); }
             else if (throwMode) { setThrowMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
