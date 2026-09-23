@@ -12,7 +12,7 @@ import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { scoresForDungeon, dungeonScoreLabel, scoreHeadline, loadAdventureScores } from "./adventureScores.js";
+import { scoresForDungeon, dungeonScoreLabel, scoreHeadline, formatDeathCause, loadAdventureScores } from "./adventureScores.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
 import { formatPlusSuffix } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
@@ -444,7 +444,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
           lineHeight: 1.5,
         }}
       >
-        {p.deathCause || "不明の原因により"}倒れた
+        {formatDeathCause(p.deathCause)}
       </div>
       <div
         style={{
