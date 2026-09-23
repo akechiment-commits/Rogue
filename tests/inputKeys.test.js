@@ -1,29 +1,41 @@
 import { describe, it, expect } from "vitest";
-import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "../inputKeys.js";
+import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight, getDigitNumber } from "../inputKeys.js";
 
-const ev = (key, code) => ({ key, code });
+describe("inputKeys helper tests", () => {
+  it("矢印キーとテンキーを正しく判定する", () => {
+    expect(isKeyUp({ key: "ArrowUp", code: "ArrowUp" })).toBe(true);
+    expect(isKeyUp({ key: "8", code: "Numpad8" })).toBe(true);
+    expect(isKeyUp({ key: "ArrowDown", code: "ArrowDown" })).toBe(false);
 
-describe("inputKeys", () => {
-  it("矢印キーとテンキーで上下左右を判定する", () => {
-    expect(isKeyUp(ev("ArrowUp", "ArrowUp"))).toBe(true);
-    expect(isKeyUp(ev("8", "Numpad8"))).toBe(true);
-    expect(isKeyDown(ev("ArrowDown", "ArrowDown"))).toBe(true);
-    expect(isKeyDown(ev("2", "Numpad2"))).toBe(true);
-    expect(isKeyLeft(ev("ArrowLeft", "ArrowLeft"))).toBe(true);
-    expect(isKeyLeft(ev("4", "Numpad4"))).toBe(true);
-    expect(isKeyRight(ev("ArrowRight", "ArrowRight"))).toBe(true);
-    expect(isKeyRight(ev("6", "Numpad6"))).toBe(true);
+    expect(isKeyDown({ key: "ArrowDown", code: "ArrowDown" })).toBe(true);
+    expect(isKeyDown({ key: "2", code: "Numpad2" })).toBe(true);
+    expect(isKeyDown({ key: "ArrowUp", code: "ArrowUp" })).toBe(false);
+
+    expect(isKeyLeft({ key: "ArrowLeft", code: "ArrowLeft" })).toBe(true);
+    expect(isKeyLeft({ key: "4", code: "Numpad4" })).toBe(true);
+    expect(isKeyLeft({ key: "ArrowRight", code: "ArrowRight" })).toBe(false);
+
+    expect(isKeyRight({ key: "ArrowRight", code: "ArrowRight" })).toBe(true);
+    expect(isKeyRight({ key: "6", code: "Numpad6" })).toBe(true);
+    expect(isKeyRight({ key: "ArrowLeft", code: "ArrowLeft" })).toBe(false);
   });
 
-  it("無関係なキーは false", () => {
-    expect(isKeyUp(ev("a", "KeyA"))).toBe(false);
-    expect(isKeyDown(ev("z", "KeyZ"))).toBe(false);
-    for (const key of ["h", "j", "k", "l"]) {
-      const event = ev(key, `Key${key.toUpperCase()}`);
-      expect(isKeyUp(event)).toBe(false);
-      expect(isKeyDown(event)).toBe(false);
-      expect(isKeyLeft(event)).toBe(false);
-      expect(isKeyRight(event)).toBe(false);
-    }
+  it("getDigitNumber はキーボード上部数字キー(Digit1〜9)のみ数値を返し、テンキー(Numpad)はnullを返す", () => {
+    // Digit1〜9 は数値を返す
+    expect(getDigitNumber({ key: "1", code: "Digit1" })).toBe(1);
+    expect(getDigitNumber({ key: "2", code: "Digit2" })).toBe(2);
+    expect(getDigitNumber({ key: "9", code: "Digit9" })).toBe(9);
+
+    // テンキー(Numpad)は移動・斜め移動用のため null を返す（誤爆防止）
+    expect(getDigitNumber({ key: "1", code: "Numpad1" })).toBe(null);
+    expect(getDigitNumber({ key: "2", code: "Numpad2" })).toBe(null);
+    expect(getDigitNumber({ key: "4", code: "Numpad4" })).toBe(null);
+    expect(getDigitNumber({ key: "8", code: "Numpad8" })).toBe(null);
+
+    // 0 や英字キーは null を返す
+    expect(getDigitNumber({ key: "0", code: "Digit0" })).toBe(null);
+    expect(getDigitNumber({ key: "z", code: "KeyZ" })).toBe(null);
+    expect(getDigitNumber({ key: "Enter", code: "Enter" })).toBe(null);
+    expect(getDigitNumber(null)).toBe(null);
   });
 });

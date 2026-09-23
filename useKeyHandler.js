@@ -13,7 +13,7 @@ import {
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { prepareLastFloor, DEBUG_SPECIAL_FLOORS } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
-import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight, getDigitNumber } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
@@ -842,7 +842,7 @@ export function useKeyHandler({
             setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + 2) % 2);
             return;
           }
-          if (k === "enter" || k === "z" || e.code === "Digit1" || e.code === "Numpad1") {
+          if (k === "enter" || k === "z" || e.code === "Digit1") {
             if (shopMenuSel === 0) {
               if (sr.current) {
                 const { player: p2, dungeon: dg2 } = sr.current;
@@ -1036,8 +1036,9 @@ export function useKeyHandler({
           setMerchantMenuSel((value) => (value + (down ? 1 : -1) + len) % len);
           return;
         }
-        if (k === "enter" || k === "z" || /^[1-9]$/.test(k)) {
-          const selected = /^[1-9]$/.test(k) ? Number(k) - 1 : merchantMenuSel;
+        const digit = getDigitNumber(e);
+        if (k === "enter" || k === "z" || digit !== null) {
+          const selected = digit !== null ? digit - 1 : merchantMenuSel;
           if (merchantMode === "menu") {
             if (selected === 0) { setMerchantMode("buy"); setMerchantMenuSel(0); }
             else if (selected === 1) { setMerchantMode("sell"); setMerchantMenuSel(0); }
@@ -1064,8 +1065,9 @@ export function useKeyHandler({
         const foods = (sr.current?.player?.inventory || []).map((item, index) => ({ item, index })).filter(({ item }) => item.type === "food");
         const len = foods.length + 1;
         if (up || down) { setAltarMenuSel((value) => (value + (down ? 1 : -1) + len) % len); return; }
-        if (k === "enter" || k === "z" || /^[1-9]$/.test(k)) {
-          const selected = /^[1-9]$/.test(k) ? Number(k) - 1 : altarMenuSel;
+        const digit = getDigitNumber(e);
+        if (k === "enter" || k === "z" || digit !== null) {
+          const selected = digit !== null ? digit - 1 : altarMenuSel;
           if (selected < foods.length) doOfferFood?.(foods[selected].item);
           else { setAltarMode(null); if (altarRef) altarRef.current = null; }
         }
@@ -1107,18 +1109,19 @@ export function useKeyHandler({
             setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
             return;
           }
-          if (k === "1") {
+          const digit = getDigitNumber(e);
+          if (digit === 1) {
             setBigboxMode("put");
             setBigboxMenuSel(0);
             setBigboxPage(0);
-          } else if (k === "2") {
+          } else if (digit === 2) {
             setBigboxMode(null);
             bigboxRef.current = null;
             setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          } else if (k === "3") {
+          } else if (digit === 3) {
             setBigboxMode("desc");
             setBigboxMenuSel(0);
-          } else if (k === "4" && _bbNickKey2) {
+          } else if (digit === 4 && _bbNickKey2) {
             setBigboxMode(null);
             setNicknameMode({ identKey: _bbNickKey2 });
             setNicknameInput(gs?.nicknames?.[_bbNickKey2] || "");
@@ -1172,8 +1175,9 @@ export function useKeyHandler({
           setGachaMenuSel((p) => (p + (isDownGacha ? 1 : -1) + 2) % 2);
           return;
         }
-        if (k === "enter" || k === "z" || k === "1" || k === "2") {
-          const selected = k === "1" ? 0 : k === "2" ? 1 : gachaMenuSel;
+        const digit = getDigitNumber(e);
+        if (k === "enter" || k === "z" || digit === 1 || digit === 2) {
+          const selected = digit === 1 ? 0 : digit === 2 ? 1 : gachaMenuSel;
           if (selected === 0) gachaDrawRef.current?.();
           else { setGachaMode(null); gachaRef.current = null; setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }
           return;
@@ -1219,11 +1223,12 @@ export function useKeyHandler({
             }
             return;
           }
-          if (k === "1") springDrink();
-          else if (k === "2") {
+          const digit = getDigitNumber(e);
+          if (digit === 1) springDrink();
+          else if (digit === 2) {
             setSpringMode("soak");
             setSpringMenuSel(0);
-          } else if (k === "3") {
+          } else if (digit === 3) {
             setSpringMode(null);
             setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
           }
