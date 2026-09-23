@@ -2573,8 +2573,13 @@ export function useItemActions({
       p.mp = _currentMp - _cost;
       ml.push(`${_spell.name}が本を読んだ瞬間に発動した！[MP -${_cost}]`);
       const _facing = p.facing || { dx: 0, dy: 1 };
-      const _fdx = Number(_facing.dx) || 0;
-      const _fdy = Number(_facing.dy) || 1;
+      let _fdx = Number(_facing.dx);
+      let _fdy = Number(_facing.dy);
+      if (Number.isNaN(_fdx)) _fdx = 0;
+      if (Number.isNaN(_fdy)) _fdy = 0;
+      if (_fdx === 0 && _fdy === 0) {
+        _fdy = 1;
+      }
 
       const _randomItemTarget = (mode) => {
         const _targets = p.inventory.filter((_item) => {
