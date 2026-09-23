@@ -474,7 +474,13 @@ export function useGamepad({
             moveHeldRef.current = null;
           }
         }
-        if (edgeDown(prev, next, BTN.A) || edgeDown(prev, next, BTN.B) || edgeDown(prev, next, BTN.Y)) {
+        if (
+          edgeDown(prev, next, BTN.A) ||
+          edgeDown(prev, next, BTN.B) ||
+          edgeDown(prev, next, BTN.X) ||
+          edgeDown(prev, next, BTN.Y) ||
+          edgeDown(prev, next, BTN.START)
+        ) {
           setShowScores?.(false);
         }
         /* RB矢印UIは冒険記録中も更新不要だが状態は落とさない */
