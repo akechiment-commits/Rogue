@@ -3957,10 +3957,13 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
   const visited = getVisitedFloors(sr.current, _p0?.depth);
   const sel = visited.includes(mode.sel) ? mode.sel : (visited[visited.length - 1] ?? mode.sel);
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+    <div onClick={(e) => { if (e.target === e.currentTarget) setMode(null); }} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#111", border: "1px solid #550", borderRadius: 6, padding: "12px 20px", color: "#ffe", minWidth: 180, maxHeight: "70vh", overflowY: "auto" }}>
-        <div style={{ color: "#fa0", fontWeight: "bold", marginBottom: 8, textAlign: "center" }}>階層テレポート【呪】</div>
-        <div style={{ color: "#888", fontSize: 13, marginBottom: 8, textAlign: "center" }}>訪れた階層のみ　↑↓:選択　Z/Enter:決定</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ color: "#fa0", fontWeight: "bold", fontSize: 14 }}>階層テレポート【呪】</span>
+          <button onClick={() => setMode(null)} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        </div>
+        <div style={{ color: "#888", fontSize: 13, marginBottom: 8, textAlign: "center" }}>訪れた階層のみ　↑↓:選択　Z/Enter:決定　X:やめる</div>
         {visited.length === 0 ? (
           <div style={{ color: "#888", textAlign: "center" }}>飛べる階層がない</div>
         ) : visited.map(f => (
@@ -4011,6 +4014,9 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
             {f === sel ? "▶ " : "  "}{f}階
           </div>
         ))}
+        <div style={{ marginTop: 10, textAlign: "center" }}>
+          <button onClick={() => setMode(null)} style={{ background: "#2a1a1a", color: "#f88", border: "1px solid #6a3a3a", borderRadius: 4, padding: "4px 16px", cursor: "pointer", fontSize: 13 }}>やめる</button>
+        </div>
       </div>
     </div>
   );
