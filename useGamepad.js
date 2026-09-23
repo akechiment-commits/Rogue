@@ -41,6 +41,25 @@ function dirToArrow(dx, dy) {
   return null;
 }
 
+/**
+ * モーダル表示中用の4方向正規化。
+ * スティック等の斜め入力を上下左右（Arrow*）に丸め、メニューでの斜め誤爆を防ぐ。
+ */
+function modalDirToArrow(dx, dy) {
+  if (dy < 0 && dx === 0) return { key: "ArrowUp", code: "ArrowUp" };
+  if (dy > 0 && dx === 0) return { key: "ArrowDown", code: "ArrowDown" };
+  if (dx < 0 && dy === 0) return { key: "ArrowLeft", code: "ArrowLeft" };
+  if (dx > 0 && dy === 0) return { key: "ArrowRight", code: "ArrowRight" };
+  if (Math.abs(dy) >= Math.abs(dx)) {
+    return dy < 0
+      ? { key: "ArrowUp", code: "ArrowUp" }
+      : { key: "ArrowDown", code: "ArrowDown" };
+  }
+  return dx < 0
+    ? { key: "ArrowLeft", code: "ArrowLeft" }
+    : { key: "ArrowRight", code: "ArrowRight" };
+}
+
 function dpadPressed(gp) {
   return (
     buttonPressed(gp, BTN.UP) ||
@@ -621,7 +640,8 @@ export function useGamepad({
               setFacingMode?.(true);
             }
           } else if (inModal) {
-            const arrow = dirToArrow(move.dx, move.dy);
+            const isLook = !!lookModeRef.current;
+            const arrow = isLook ? dirToArrow(move.dx, move.dy) : modalDirToArrow(move.dx, move.dy);
             if (arrow) fireKey(arrow.key, arrow.code);
           } else if (buttonPressed(gp, BTN.LB)) {
             if (sr?.current?.player) {
@@ -653,7 +673,8 @@ export function useGamepad({
             now - moveRepeatAtRef.current >= MOVE_REPEAT_MS
           ) {
             moveRepeatAtRef.current = now;
-            const arrow = dirToArrow(move.dx, move.dy);
+            const isLook = !!lookModeRef.current;
+            const arrow = isLook ? dirToArrow(move.dx, move.dy) : modalDirToArrow(move.dx, move.dy);
             if (arrow) fireKey(arrow.key, arrow.code);
           }
         }
@@ -703,3 +724,5 @@ export function useGamepad({
 
   return { quickOpen, quickSel, setQuickOpen, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld };
 }
+
+export { dirToArrow, modalDirToArrow };

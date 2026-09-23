@@ -61,3 +61,32 @@ describe("QUICK_MENU_ITEMS", () => {
     }
   });
 });
+
+import { dirToArrow, modalDirToArrow } from "../useGamepad.js";
+
+describe("dirToArrow vs modalDirToArrow", () => {
+  it("通常移動用 dirToArrow は斜め入力時に Numpad1/3/7/9 を返す", () => {
+    expect(dirToArrow(-1, -1)).toEqual({ key: "7", code: "Numpad7" });
+    expect(dirToArrow(1, -1)).toEqual({ key: "9", code: "Numpad9" });
+    expect(dirToArrow(-1, 1)).toEqual({ key: "1", code: "Numpad1" });
+    expect(dirToArrow(1, 1)).toEqual({ key: "3", code: "Numpad3" });
+  });
+
+  it("モーダル用 modalDirToArrow は斜め入力を上下左右（Arrow*）に正規化し、Numpadを発火しない", () => {
+    // 縦横単独
+    expect(modalDirToArrow(0, -1)).toEqual({ key: "ArrowUp", code: "ArrowUp" });
+    expect(modalDirToArrow(0, 1)).toEqual({ key: "ArrowDown", code: "ArrowDown" });
+    expect(modalDirToArrow(-1, 0)).toEqual({ key: "ArrowLeft", code: "ArrowLeft" });
+    expect(modalDirToArrow(1, 0)).toEqual({ key: "ArrowRight", code: "ArrowRight" });
+
+    // 斜め入力時：上下優先または左右の Arrow キーに丸められ、決して数字やNumpadキーにならない
+    const res1 = modalDirToArrow(-1, 1);
+    expect(res1.code.startsWith("Arrow")).toBe(true);
+    expect(res1.key.startsWith("Arrow")).toBe(true);
+
+    const res2 = modalDirToArrow(1, -1);
+    expect(res2.code.startsWith("Arrow")).toBe(true);
+    expect(res2.key.startsWith("Arrow")).toBe(true);
+  });
+});
+
