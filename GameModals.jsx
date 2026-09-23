@@ -700,10 +700,10 @@ export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" })
       }
       const el = scrollRef.current;
       if (!el) return;
-      if (k === "arrowup" || e.code === "Numpad8" || e.code === "Numpad4" || k === "arrowleft") {
+      if (isKeyUp(e) || isKeyLeft(e)) {
         e.preventDefault();
         el.scrollTop = Math.max(0, el.scrollTop - 96);
-      } else if (k === "arrowdown" || e.code === "Numpad2" || e.code === "Numpad6" || k === "arrowright") {
+      } else if (isKeyDown(e) || isKeyRight(e)) {
         e.preventDefault();
         el.scrollTop = el.scrollTop + 96;
       }
@@ -886,10 +886,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       { enabled: true,                      action: () => setMode(null) },
     ];
     const _onKey = (e) => {
-      if (e.key === "ArrowUp" || e.code === "Numpad8") {
+      if (isKeyUp(e)) {
         e.preventDefault();
         _setMenuSel(s => (s - 1 + _menuItems.length) % _menuItems.length);
-      } else if (e.key === "ArrowDown" || e.code === "Numpad2") {
+      } else if (isKeyDown(e)) {
         e.preventDefault();
         _setMenuSel(s => (s + 1) % _menuItems.length);
       } else if (_isConfirmKey(e)) {
@@ -909,10 +909,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   /* リストモードのキーボード操作 */
   useEffect(() => {
     if (_subMode !== "list" || !mode) return;
-    const _isUp   = (e) => e.key === "ArrowUp"    || e.code === "Numpad8";
-    const _isDown = (e) => e.key === "ArrowDown"  || e.code === "Numpad2";
-    const _isPrev = (e) => e.key === "ArrowLeft"  || e.code === "Numpad4";
-    const _isNext = (e) => e.key === "ArrowRight" || e.code === "Numpad6";
+    const _isUp   = isKeyUp;
+    const _isDown = isKeyDown;
+    const _isPrev = isKeyLeft;
+    const _isNext = isKeyRight;
     const _onKey = (e) => {
       if (_isUp(e)) {
         e.preventDefault();
@@ -3801,12 +3801,12 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
       const list = actionsRef.current;
       const n = list.length;
       if (!n) return;
-      if (k === "arrowup" || k === "arrowleft" || e.code === "Numpad8" || e.code === "Numpad4") {
+      if (isKeyUp(e) || isKeyLeft(e)) {
         e.preventDefault();
         setSel((s) => (s - 1 + n) % n);
         return;
       }
-      if (k === "arrowdown" || k === "arrowright" || e.code === "Numpad2" || e.code === "Numpad6") {
+      if (isKeyDown(e) || isKeyRight(e)) {
         e.preventDefault();
         setSel((s) => (s + 1) % n);
         return;
