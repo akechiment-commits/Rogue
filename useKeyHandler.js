@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
@@ -80,17 +80,17 @@ export function useKeyHandler({
   // refs
   sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
-  gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel = 0, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
+  gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel = 0, endingView,
   facingMode,
   modalState = {},
+  invState = {},
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign, miniTip,
   exitHubConfirm, exitHubSel,
   gameOverCanReturn, performGameOverReturnToHub, onDismissEnding,
   // state setters
   setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores,
-  setShowInv, setSelIdx, setInvMenuSel, setShowDesc,
-  setInvPage, setDropMode, setFacingMode, setThrowMode,
+  setFacingMode,
   setMsgLogMode, setMsgLogScrollTop,
   setShowSign, closeMiniTip,
   setExitHubConfirm, setExitHubSel, performExitToHub,
@@ -101,6 +101,22 @@ export function useKeyHandler({
   // legacy fallback
   ...legacyArgs
 }) {
+  const {
+    showInv = legacyArgs.showInv,
+    selIdx = legacyArgs.selIdx,
+    invPage = legacyArgs.invPage,
+    invMenuSel = legacyArgs.invMenuSel,
+    showDesc = legacyArgs.showDesc,
+    throwMode = legacyArgs.throwMode,
+    dropMode = legacyArgs.dropMode,
+    setShowInv = legacyArgs.setShowInv,
+    setSelIdx = legacyArgs.setSelIdx,
+    setInvPage = legacyArgs.setInvPage,
+    setInvMenuSel = legacyArgs.setInvMenuSel,
+    setShowDesc = legacyArgs.setShowDesc,
+    setThrowMode = legacyArgs.setThrowMode,
+    setDropMode = legacyArgs.setDropMode,
+  } = invState;
   const {
     modal, dispatchModal,
     springMode = legacyArgs.springMode, springMenuSel = legacyArgs.springMenuSel, springPage = legacyArgs.springPage,

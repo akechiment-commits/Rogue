@@ -5396,13 +5396,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setIdentifyMode, setRevealMode,
     setDebugSpellMode, setDebugSpellMenuSel,
   };
+  const invState = {
+    showInv, selIdx, invPage, invMenuSel, showDesc, throwMode, dropMode,
+    setShowInv, setSelIdx, setInvPage, setInvMenuSel, setShowDesc, setThrowMode, setDropMode,
+  };
   useKeyHandler({
     // refs
     sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
     // state values
-    gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
+    gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel, endingView,
     facingMode,
     modalState,
+    invState,
     msgLogMode, msgLogScrollTop, msgsRef,
     showSign, miniTip,
     exitHubConfirm, exitHubSel,
@@ -5411,8 +5416,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     onDismissEnding: performEndingDismiss,
     // state setters
     setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores,
-    setShowInv, setSelIdx, setInvMenuSel, setShowDesc,
-    setInvPage, setDropMode, setFacingMode, setThrowMode,
+    setFacingMode,
     setMsgLogMode, setMsgLogScrollTop,
     setShowSign, closeMiniTip,
     setExitHubConfirm, setExitHubSel, performExitToHub,
