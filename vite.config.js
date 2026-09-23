@@ -228,6 +228,14 @@ function serveRootTilesPlugin() {
     }
   }
 
+  function copyRootPngsSync(src, dst) {
+    fs.mkdirSync(dst, { recursive: true });
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".png") continue;
+      fs.copyFileSync(path.join(src, entry.name), path.join(dst, entry.name));
+    }
+  }
+
   return {
     name: "serve-root-tiles",
 
@@ -268,7 +276,14 @@ function serveRootTilesPlugin() {
       const distDir = path.resolve(process.cwd(), "dist", "tiles");
       for (const sub of ["sprites", "items", "chara_clean2", "treasure_final", "pipo", "Character"]) {
         const src = path.join(TILES_ROOT, sub);
-        if (fs.existsSync(src)) copyDirSync(src, path.join(distDir, sub));
+        if (!fs.existsSync(src)) continue;
+        const dst = path.join(distDir, sub);
+        if (sub === "Character") {
+          // 立ち絵はすべて直下のPNGを参照する。下書き・バックアップのサブフォルダは配信しない。
+          copyRootPngsSync(src, dst);
+        } else {
+          copyDirSync(src, dst);
+        }
       }
     },
   };
