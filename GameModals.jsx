@@ -3706,7 +3706,7 @@ export function InventoryModal({
 }
 
 /* ===== Sidebar Portrait Panel ===== */
-export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings }) {
+export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings, isAnyModalActive = false }) {
   if (!(!mobile || landscape)) return null;
   /* reaction_fall_severe だけ被写体が右寄りに大きく描かれているため、全体を収める。 */
   const fitWideFallPortrait = typeof portraitSrc === "string" && /reaction_fall_severe\.png(?:[?#]|$)/.test(portraitSrc);
@@ -3744,12 +3744,12 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-        <button onClick={() => setShowSettings(true)}
-          style={{ background: "#1a1a2a", border: "1px solid #333", color: "#aaa", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%" }}>
+        <button onClick={() => { if (isAnyModalActive) return; setShowSettings(true); }}
+          style={{ background: isAnyModalActive ? "#151520" : "#1a1a2a", border: `1px solid ${isAnyModalActive ? "#222" : "#333"}`, color: isAnyModalActive ? "#445" : "#aaa", fontSize: 12, borderRadius: 3, cursor: isAnyModalActive ? "default" : "pointer", padding: "3px 0", width: "100%" }}>
           ⚙ 設定
         </button>
-        <button onClick={() => setShowScores(true)}
-          style={{ background: "#0d0d1a", border: "1px solid #336", color: "#8cf", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%" }}>
+        <button onClick={() => { if (isAnyModalActive) return; setShowScores(true); }}
+          style={{ background: isAnyModalActive ? "#101018" : "#0d0d1a", border: `1px solid ${isAnyModalActive ? "#223" : "#336"}`, color: isAnyModalActive ? "#446" : "#8cf", fontSize: 12, borderRadius: 3, cursor: isAnyModalActive ? "default" : "pointer", padding: "3px 0", width: "100%" }}>
           📜 冒険記録
         </button>
       </div>
