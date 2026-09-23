@@ -75,13 +75,13 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { useGamepad } from './useGamepad.js';
+import { useGamepad, getGamepadArrow } from './useGamepad.js';
 import { GamepadQuickMenu, GamepadLtHint } from './GamepadQuickMenu.jsx';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
-import { _invActCount, bbDisplayName, isBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
+import { bbDisplayName, isBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
@@ -110,7 +110,7 @@ import { buildRunResultExtras } from "./runScore.js";
 import { recordAdventureScore } from "./adventureScores.js";
 import { createRunTimer } from "./runTimer.js";
 import { SPRING_CONFUSION_TURNS, springGoldRange } from "./springRules.js";
-import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
@@ -6325,254 +6325,35 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 setRevealMode(null);
                 return;
               }
-              /* === 見渡しモード === */
-              if (lookMode) {
-                const ncx = Math.max(0, Math.min(MW - 1, lookMode.cx + dx));
-                const ncy = Math.max(0, Math.min(MH - 1, lookMode.cy + dy));
-                setLookMode({ cx: ncx, cy: ncy });
-                const { dungeon: _ld } = sr.current || {};
-                if (_ld) {
-                  const _desc = getLookDesc(ncx, ncy, _ld);
-                  if (_desc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_desc}`]);
-                }
-                return;
-              }
-              /* === テレポート先選択モード === */
-              if (tpSelectMode) {
-                setTpSelectMode({ cx: Math.max(0, Math.min(MW - 1, tpSelectMode.cx + dx)), cy: Math.max(0, Math.min(MH - 1, tpSelectMode.cy + dy)) });
-                return;
-              }
-              if (merchantMode) {
-                const _merchant = merchantRef.current;
-                const _mshop = sr.current?.dungeon?.merchantShops?.find((entry) => entry.id === _merchant?.merchantShopId);
-                const _sellCount = (sr.current?.player?.inventory || []).filter((item) => item.type !== "gold" && item.type !== "goal" && sr.current.player.weapon !== item && sr.current.player.armor !== item && sr.current.player.arrow !== item && !(sr.current.player.rings || []).includes(item)).length;
-                const _merchantItems = merchantMode === "buy" ? (_mshop?.stock?.length || 0) : _sellCount;
-                const _merchantPages = Math.max(1, Math.ceil(_merchantItems / 10));
-                if (dx !== 0 && merchantMode !== "menu") {
-                  setMerchantMenuSel((value) => {
-                    const currentPage = value >= _merchantItems ? _merchantPages - 1 : Math.floor(value / 10);
-                    const nextPage = (currentPage + (dx > 0 ? 1 : -1) + _merchantPages) % _merchantPages;
-                    return Math.min(nextPage * 10, _merchantItems);
-                  });
-                } else if (dy !== 0) {
-                  const _merchantLen = merchantMode === "menu" ? 3 : _merchantItems + 1;
-                  if (_merchantLen > 0) setMerchantMenuSel((value) => (value + dy + _merchantLen) % _merchantLen);
-                }
-                return;
-              }
-              if (altarMode) {
-                const _altarFoods = (sr.current?.player?.inventory || []).filter((item) => item.type === "food").length;
-                const _altarLen = _altarFoods + 1;
-                if (dy !== 0) setAltarMenuSel((value) => (value + dy + _altarLen) % _altarLen);
-                return;
-              }
-              /* === インベントリ表示中 === */
-              if (showInv) {
-                const inv = sr.current?.player?.inventory || [];
-                const _invOnlyPg = Math.ceil(inv.length / 10) || 1;
-                const _dg2 = sr.current?.dungeon;
-                const _p2 = sr.current?.player;
-                const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
-                  allBcKnown: !!sr.current?.allBcKnown,
-                  bbFakeNames: sr.current?.bbFakeNames,
-                  ident: sr.current?.ident,
-                  identifiedBigboxes: sr.current?.identifiedBigboxes,
-                }) : { items: [], traps: [], all: [] };
-                const _flItems2 = _fl2.items;
-                const _flTraps2 = _fl2.traps;
-                const _flAll2 = _fl2.all;
-                const _hasFl2 = _flAll2.length > 0;
-                const totalPages = _invOnlyPg + (_hasFl2 ? 1 : 0);
-                const _isFloorPg2 = _hasFl2 && invPage === _invOnlyPg;
-                /* 足元ページ */
-                if (_isFloorPg2) {
-                  const _flLen2 = _flAll2.length;
-                  if (invMenuSel !== null && selIdx !== null && selIdx < _flLen2) {
-                    const _fle2 = _flAll2[selIdx];
-                    const _flN2 = floorEntryActionCount(_fle2, _flItems2, _flTraps2, canUse);
-                    if (dx !== 0 && dy === 0) { setInvMenuSel((s) => (s + dx + _flN2) % _flN2); }
-                    else if (dy !== 0 && dx === 0) { setInvMenuSel(null); setSelIdx((prev) => prev === null ? (dy > 0 ? 0 : _flLen2 - 1) : (prev + dy + _flLen2) % _flLen2); setShowDesc(null); }
-                    return;
-                  }
-                  if (dy !== 0 && dx === 0 && _flLen2 > 0) {
-                    setSelIdx((prev) => { if (prev === null) return dy > 0 ? 0 : _flLen2 - 1; return (prev + dy + _flLen2) % _flLen2; });
-                    setShowDesc(null); setInvMenuSel(null);
-                  } else if (dx !== 0 && dy === 0 && totalPages > 1) {
-                    setInvPage((p) => (p + dx + totalPages) % totalPages);
-                    setSelIdx(0); setInvMenuSel(null); setShowDesc(null);
-                  }
-                  return;
-                }
-                const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
-                const len = pageItems.length;
-                /* サブメニュー表示中: 左右でメニュー選択、上下でアイテム選択に戻す */
-                if (invMenuSel !== null && selIdx !== null && pageItems[selIdx]) {
-                  const _it = pageItems[selIdx];
-                  const _n = _invActCount(_it, invPage * 10 + selIdx, canUse, gs);
-                  if (dx !== 0 && dy === 0) {
-                    setInvMenuSel((s) => (s + dx + _n) % _n);
-                  } else if (dy !== 0 && dx === 0) {
-                    setInvMenuSel(null);
-                    setSelIdx((prev) => prev === null ? (dy > 0 ? 0 : len - 1) : (prev + dy + len) % len);
-                    setShowDesc(null);
-                  }
-                  return;
-                }
-                if (dy !== 0 && dx === 0 && len > 0) {
-                  setSelIdx((prev) => {
-                    if (prev === null) return dy > 0 ? 0 : len - 1;
-                    return (prev + dy + len) % len;
-                  });
-                  setShowDesc(null); setInvMenuSel(null);
-                } else if (dx !== 0 && dy === 0 && totalPages > 1) {
-                  setInvPage((p) => (p + dx + totalPages) % totalPages);
-                  setSelIdx(0); setInvMenuSel(null); setShowDesc(null);
-                }
-                return;
-              }
-              /* === 識別モード：上下で選択、左右でページ送り === */
-              if (identifyMode) {
-                if (!sr.current) return;
-                const _p = sr.current.player;
-                const _isBCMode_t = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
-                const _filt = _p.inventory
-                  .map((_it, _i) => ({ it: _it, i: _i }))
-                  .filter(({ it, i }) => {
-                    return isScrollTargetCandidate(identifyMode, it, i, sr.current.ident);
-                  });
-                const _hasBbTgt = !!(identifyMode.bbFootId && !_isBCMode_t && identifyMode.mode !== 'unidentify' && sr.current?.dungeon?.bigboxes?.find(b => b.id === identifyMode.bbFootId));
-                const _len = _filt.length + (_hasBbTgt ? 1 : 0);
-                const _idPg_t = identifyMode.page || 0;
-                const _idTotalPg_t = Math.max(1, Math.ceil(_len / 10));
-                const _idPgLen_t = Math.min(10, Math.max(0, _len - _idPg_t * 10));
-                if (dy !== 0 && dx === 0 && _idPgLen_t > 0) {
-                  setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + dy + _idPgLen_t) % _idPgLen_t });
-                } else if (dx !== 0 && dy === 0 && _idTotalPg_t > 1) {
-                  setIdentifyMode({ ...identifyMode, page: ((_idPg_t + dx) + _idTotalPg_t) % _idTotalPg_t, sel: 0 });
-                }
-                return;
-              }
-              /* === 壺に入れるモード：上下で選択、左右でページ送り === */
-              if (putMode) {
-                if (!sr.current) return;
-                const inv4 = sr.current.player.inventory;
-                const pItems4 = inv4.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
-                const _ps4 = 10;
-                const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
-                const _plen4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4).length;
-                const _selCount4 = _plen4 + 1; /* やめる */
-                if (dy !== 0 && dx === 0 && _selCount4 > 0) {
-                  setPutMenuSel((s) => (s + dy + _selCount4) % _selCount4);
-                } else if (dx !== 0 && dy === 0 && _tp4 > 1) {
-                  setPutPage((p) => (p + dx + _tp4) % _tp4);
-                  setPutMenuSel(0);
-                }
-                return;
-              }
-              /* === マーカーモード：上下で選択 === */
-              if (markerMode) {
-                if (!sr.current) return;
-                const _mps = 10;
-                const inv5 = sr.current.player.inventory;
-                const _mIdent5 = sr.current.ident ?? new Set();
-                const _mCurDisc5 = getDiscoveries().items;
-                const _mInvEff5 = new Set(inv5.filter(it => it.type === "scroll" && it.effect !== "blank").map(it => it.effect));
-                let fullList = [];
-                if (markerMode.step === "select_blank") {
-                  fullList = inv5.filter(it => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell));
-                } else if (markerMode.step === "select_type") {
-                  fullList = ITEMS.filter(it => it.type === "scroll" && it.effect !== "blank" && (_mIdent5.has(`s:${it.effect}`) || _mCurDisc5[it.effect] || _mInvEff5.has(it.effect)));
-                } else if (markerMode.step === "select_spellbook_type") {
-                  fullList = SPELLBOOKS.filter(it => it.spell && _mIdent5.has(`b:${it.spell}`));
-                }
-                const _mTotalPages = Math.max(1, Math.ceil(fullList.length / _mps));
-                if (dy !== 0 && dx === 0) {
-                  const _pageLen = Math.min(_mps, fullList.length - markerPage * _mps);
-                  if (_pageLen > 0) setMarkerMenuSel((s) => (s + dy + _pageLen) % _pageLen);
-                } else if (dx !== 0 && dy === 0 && _mTotalPages > 1) {
-                  setMarkerPage((p) => (p + dx + _mTotalPages) % _mTotalPages);
-                  setMarkerMenuSel(0);
-                }
-                return;
-              }
-              /* === 店モード：上下で選択 === */
-              if (shopMode === "pay") {
-                if (dy !== 0 && dx === 0) setShopMenuSel((p) => (p + dy + 2) % 2);
-                return;
-              }
-              if (shopMode === "sell") {
-                if (!sr.current) return;
-                const { player: _sp2, dungeon: _sd2 } = sr.current;
-                const _ss2 = getShops(_sd2).find(s => s.room &&
-                  _sp2.x >= s.room.x && _sp2.x < s.room.x + s.room.w &&
-                  _sp2.y >= s.room.y && _sp2.y < s.room.y + s.room.h);
-                const _sf2 = _ss2 ? _sd2.items.filter(
-                  (i) => !i.shopPrice &&
-                    i.x >= _ss2.room.x && i.x < _ss2.room.x + _ss2.room.w &&
-                    i.y >= _ss2.room.y && i.y < _ss2.room.y + _ss2.room.h,
-                ) : [];
-                const _slen2 = _sf2.length + 1;
-                if (dy !== 0 && dx === 0 && _slen2 > 0) {
-                  setShopMenuSel((p) => (p + dy + _slen2) % _slen2);
-                }
-                return;
-              }
-              if (shopMode === "browse" || shopMode === "browseConfirm") {
-                if (dy !== 0 && dx === 0) setShopMenuSel((p) => (p + dy + 2) % 2);
-                return;
-              }
-              /* === 大箱モード：上下で選択、左右でページ送り === */
-              if (bigboxMode) {
-                if (bigboxMode === "menu") {
-                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 4) % 4);
-                } else if (bigboxMode === "put") {
-                  const inv2 = sr.current?.player?.inventory || [];
-                  const _ps = 10;
-                  const _tp = Math.max(1, Math.ceil(inv2.length / _ps));
-                  const _pil = inv2.slice(bigboxPage * _ps, (bigboxPage + 1) * _ps).length;
-                  if (dy !== 0 && dx === 0 && _pil > 0) {
-                    setBigboxMenuSel((p) => (p + dy + _pil) % _pil);
-                  } else if (dx !== 0 && dy === 0 && _tp > 1) {
-                    setBigboxPage((p) => (p + dx + _tp) % _tp);
-                    setBigboxMenuSel(0);
-                  }
-                }
-                return;
-              }
-              /* === 泉モード：上下で選択、左右でページ送り(soak) === */
-              if (springMode) {
-                if (springMode === "menu") {
-                  if (dy !== 0 && dx === 0) setSpringMenuSel((p) => (p + dy + 3) % 3);
-                } else if (springMode === "soak") {
-                  const inv = sr.current?.player?.inventory || [];
-                  if (dy !== 0 && dx === 0 && inv.length > 0) {
-                    const totalPg = Math.max(1, Math.ceil(inv.length / 10));
-                    const curPg = Math.min(springPage, totalPg - 1);
-                    const pgLen = inv.slice(curPg * 10, (curPg + 1) * 10).length;
-                    setSpringMenuSel((s) => (s + dy + pgLen) % pgLen);
-                  } else if (dx !== 0 && dy === 0 && inv.length > 10) {
-                    const totalPg = Math.max(1, Math.ceil(inv.length / 10));
-                    setSpringPage((p) => (p + dx + totalPg) % totalPg);
-                    setSpringMenuSel(0);
-                  }
-                }
-                return;
-              }
-              /* === 魔法選択モード：上下で選択 === */
-              if (spellListMode) {
-                if (dy !== 0 && dx === 0) {
-                  const knownSpells = sr.current?.player?.spells || [];
-                  const slen = knownSpells.length;
-                  if (slen > 0) setSpellMenuSel((s) => (s + dy + slen) % slen);
-                }
-                return;
-              }
               if (facingMode) {
                 if (sr.current) {
                   sr.current.player.facing = { dx, dy };
                   setGs({ ...sr.current });
                 }
                 setFacingMode(false);
+                return;
+              }
+              const isModalActive = !!(
+                lookMode || tpSelectMode || merchantMode || altarMode || showInv ||
+                identifyMode || putMode || markerMode || shopMode || bigboxMode ||
+                gachaMode || springMode || spellListMode || floorSelectMode ||
+                debugSpellMode || msgLogMode || showScores || showSettings ||
+                showSign || miniTip || exitHubConfirm || dead || showEnding
+              );
+              if (isModalActive) {
+                const arrow = getGamepadArrow({
+                  isLook: !!lookMode,
+                  isThrow: !!throwMode,
+                  isTpSelect: modal.type === "tpSelect" || !!tpSelectMode,
+                }, dx, dy);
+                if (arrow) {
+                  window.dispatchEvent(new KeyboardEvent("keydown", {
+                    key: arrow.key,
+                    code: arrow.code,
+                    bubbles: true,
+                    cancelable: true,
+                  }));
+                }
                 return;
               }
               if (throwMode) execDirection(dx, dy);
