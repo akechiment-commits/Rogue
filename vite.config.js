@@ -228,10 +228,11 @@ function serveRootTilesPlugin() {
     }
   }
 
-  function copyRootPngsSync(src, dst) {
+  function copyRootPngsSync(src, dst, allowedNames) {
     fs.mkdirSync(dst, { recursive: true });
     for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
       if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".png") continue;
+      if (!allowedNames.has(path.basename(entry.name, path.extname(entry.name)))) continue;
       fs.copyFileSync(path.join(src, entry.name), path.join(dst, entry.name));
     }
   }
@@ -274,13 +275,14 @@ function serveRootTilesPlugin() {
     // プロダクションビルド: dist/tiles/ にコピー
     closeBundle() {
       const distDir = path.resolve(process.cwd(), "dist", "tiles");
+      const portraitFiles = collectPortraitFiles(mergePortraitCategories(readExtraSlots().slots));
       for (const sub of ["sprites", "items", "chara_clean2", "treasure_final", "pipo", "Character"]) {
         const src = path.join(TILES_ROOT, sub);
         if (!fs.existsSync(src)) continue;
         const dst = path.join(distDir, sub);
         if (sub === "Character") {
-          // 立ち絵はすべて直下のPNGを参照する。下書き・バックアップのサブフォルダは配信しない。
-          copyRootPngsSync(src, dst);
+          // カタログ登録済みの直下PNGだけ配信し、下書き・未登録候補・バックアップは含めない。
+          copyRootPngsSync(src, dst, portraitFiles);
         } else {
           copyDirSync(src, dst);
         }
