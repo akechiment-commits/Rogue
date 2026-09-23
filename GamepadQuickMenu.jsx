@@ -3,12 +3,15 @@ import { QUICK_MENU_ITEMS } from "./gamepadInput.js";
 export const QUICK_MENU_COLS = 2;
 
 /**
- * Yボタンのクイックメニュー（2列グリッド、方向で選択、Bで決定）
+ * Yボタン/モバイル「メニュー」のクイックメニュー（2列グリッド、方向で選択、B/タップで決定）
  */
-export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS }) {
+export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose }) {
   if (!open) return null;
   return (
     <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -25,6 +28,7 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS }) {
           border: "1px solid #333",
           borderRadius: 8,
           width: 360,
+          maxWidth: "92vw",
           padding: "14px 12px",
           display: "flex",
           flexDirection: "column",
@@ -34,7 +38,27 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <span style={{ color: "#fff", fontWeight: "bold", fontSize: 15 }}>クイックメニュー</span>
-          <span style={{ color: "#666", fontSize: 11 }}>B決定 / A戻る</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#666", fontSize: 11 }}>決定 / 閉じる</span>
+            {onClose && (
+              <button
+                onClick={onClose}
+                aria-label="メニューを閉じる"
+                style={{
+                  background: "#222",
+                  color: "#aaa",
+                  border: "1px solid #444",
+                  borderRadius: 4,
+                  padding: "2px 8px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  lineHeight: "1.2",
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
         <div
           style={{
@@ -48,6 +72,7 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS }) {
             return (
               <div
                 key={it.id}
+                onClick={() => onSelect?.(it.id)}
                 style={{
                   padding: "10px 8px",
                   borderRadius: 4,
@@ -57,6 +82,9 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS }) {
                   fontSize: 13,
                   fontWeight: active ? "bold" : "normal",
                   textAlign: "center",
+                  cursor: "pointer",
+                  touchAction: "manipulation",
+                  userSelect: "none",
                 }}
               >
                 {it.label}

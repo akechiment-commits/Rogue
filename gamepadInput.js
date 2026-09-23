@@ -120,6 +120,7 @@ export const QUICK_MENU_ITEMS = [
   { id: "magic", label: "魔法" },
   { id: "settings", label: "設定" },
   { id: "scores", label: "冒険記録" },
+  { id: "tiles", label: "タイル" },
   { id: "traps", label: "罠探る" },
   { id: "interrupt", label: "中断" },
 ];

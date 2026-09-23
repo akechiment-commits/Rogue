@@ -5427,7 +5427,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doOfferFood: doOfferFoodProxy, doMerchantBuy: doMerchantBuyProxy, doMerchantSell: doMerchantSellProxy,
     pastIdent, discoveredItems,
   });
-  const { quickOpen: gamepadQuickOpen, quickSel: gamepadQuickSel, ltHeld: gamepadLtHeld } = useGamepad({
+  const { quickOpen: gamepadQuickOpen, quickSel: gamepadQuickSel, setQuickOpen: setGamepadQuickOpen, runQuickAction, ltHeld: gamepadLtHeld } = useGamepad({
     enabled: true,
     aRef,
     shiftRef,
@@ -5462,6 +5462,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setSpellMenuSel,
     setShowSettings,
     setShowScores,
+    setShowTileEditor,
     setExitHubConfirm,
     setFacingMode,
     setGs,
@@ -6667,16 +6668,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
-                  label="🎨"
-                  sub="タイル"
-                  onClick={() => { if (mapMode || revealMode) return; setShowTileEditor(true); }}
-                  color="#888"
-                />
-                <AB
-                  label="📜"
-                  sub="記録"
-                  onClick={() => { if (mapMode || revealMode) return; setShowScores(true); }}
-                  color="#8cf"
+                  label="☰"
+                  sub="メニュー"
+                  onClick={() => { if (mapMode || revealMode) return; setGamepadQuickOpen(true); }}
+                  color="#f0b040"
                 />
               </div>{" "}
             </div>
@@ -6816,7 +6811,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         onConfirm={performExitToHub}
         onCancel={() => setExitHubConfirm(false)}
         mobile={mobile} />
-      <GamepadQuickMenu open={gamepadQuickOpen} sel={gamepadQuickSel} />
+      <GamepadQuickMenu open={gamepadQuickOpen} sel={gamepadQuickSel} onSelect={runQuickAction} onClose={() => setGamepadQuickOpen(false)} />
       <GamepadLtHint show={gamepadLtHeld} />
     </div>
   );

@@ -130,6 +130,7 @@ export function useGamepad({
   setSpellMenuSel,
   setShowSettings,
   setShowScores,
+  setShowTileEditor,
   setExitHubConfirm,
   setFacingMode,
   setGs,
@@ -263,6 +264,10 @@ export function useGamepad({
         case "scores":
           setShowScores?.(true);
           break;
+        case "tiles":
+        case "tile":
+          setShowTileEditor?.(true);
+          break;
         case "traps":
           act?.("search_traps");
           break;
@@ -282,6 +287,7 @@ export function useGamepad({
       setSpellMenuSel,
       setShowSettings,
       setShowScores,
+      setShowTileEditor,
       setExitHubConfirm,
     ],
   );
@@ -738,7 +744,7 @@ export function useGamepad({
     sr,
   ]);
 
-  return { quickOpen, quickSel, setQuickOpen, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld };
+  return { quickOpen, quickSel, setQuickOpen, runQuickAction, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld };
 }
 
 export { dirToArrow, modalDirToArrow, getGamepadArrow };
