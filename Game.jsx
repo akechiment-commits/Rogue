@@ -5949,6 +5949,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       {l}
     </button>
   );
+  const isModalActive = !!(
+    modal.type ||
+    gamepadQuickOpen ||
+    showInv ||
+    msgLogMode ||
+    showScores ||
+    showSettings ||
+    showSign ||
+    miniTip ||
+    showTileEditor ||
+    exitHubConfirm ||
+    dead ||
+    showEnding
+  );
+  const isAnyModalActive = isModalActive || !!throwMode;
+
   return (
     <div
       ref={ref}
@@ -6334,13 +6350,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 setFacingMode(false);
                 return;
               }
-              const isModalActive = !!(
-                lookMode || tpSelectMode || merchantMode || altarMode || showInv ||
-                identifyMode || putMode || markerMode || shopMode || bigboxMode ||
-                gachaMode || springMode || spellListMode || floorSelectMode ||
-                debugSpellMode || msgLogMode || showScores || showSettings ||
-                showSign || miniTip || exitHubConfirm || dead || showEnding
-              );
               if (isModalActive) {
                 const arrow = getGamepadArrow({
                   isLook: !!lookMode,
@@ -6386,15 +6395,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   small
                   label="矢"
                   sub="射る"
-                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
-                  color={p.arrow ? "#fc0" : "#555"}
+                  onClick={() => {
+                    if (isAnyModalActive) return;
+                    act("shoot_arrow");
+                  }}
+                  color={isAnyModalActive ? "#334455" : (p.arrow ? "#fc0" : "#555")}
                 />
                 <AB
                   small
-                  label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : altarMode ? "閉" : merchantMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : altarMode ? "閉じる" : merchantMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
+                  label={gamepadQuickOpen ? "閉" : miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : altarMode ? "閉" : merchantMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={gamepadQuickOpen ? "閉じる" : miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : altarMode ? "閉じる" : merchantMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
-                    if (mapMode) return;
+                    if (gamepadQuickOpen) { setGamepadQuickOpen(false); return; }
                     if (miniTip) { closeMiniTip(); return; }
                     if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
@@ -6410,24 +6422,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (springMode === "soak") { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); return; }
                     if (springMode) { setSpringMode(null); setSpringMenuSel(0); return; }
                     if (identifyMode) { identifyCancelRef.current?.(); setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
+                    if (mapMode) { setMapMode(null); return; }
+                    if (wishMode) { cancelWish(); return; }
+                    if (msgLogMode) { setMsgLogMode(false); return; }
+                    if (showScores) { setShowScores(false); return; }
+                    if (showSettings) { setShowSettings(false); return; }
+                    if (showTileEditor) { setShowTileEditor(false); return; }
+                    if (isAnyModalActive) return;
                     act("inventory");
                   }}
-                  color={miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode || altarMode || merchantMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                  color={gamepadQuickOpen ? "#f88" : miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode || altarMode || merchantMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : (isAnyModalActive ? "#334455" : "#ff0")}
                 />
                 <AB
                   small
                   label="見"
                   sub="見渡す"
                   onClick={() => {
-                    if (mapMode) return;
-                    if (spellListMode) return;
-                    if (revealMode) return;
-                    if (showInv || springMode || identifyMode || putMode) return;
                     if (lookMode) {
                       setLookMode(null);
                       setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
                       return;
                     }
+                    if (isAnyModalActive) return;
                     const { player: _lp, dungeon: _ld } = sr.current || {};
                     if (_lp && _ld) {
                       setLookMode({ cx: _lp.x, cy: _lp.y });
@@ -6435,9 +6451,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       setMsgs(prev => [...prev.slice(-80), `[見渡す] Dパッドで移動、もう一度タップでキャンセル / ${_initDesc}`]);
                     }
                   }}
-                  color={lookMode ? "#00e5ff" : "#08f"}
+                  color={lookMode ? "#00e5ff" : (isAnyModalActive ? "#334455" : "#08f")}
                 />
-              </div>{" "}
+              </div> {" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
                   label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
@@ -6622,56 +6638,78 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           setInvMenuSel(0);
                         }
                       }
-                    } else { act("interact"); }
+                    } else {
+                      if (isAnyModalActive) return;
+                      act("interact");
+                    }
                   }}
-                  color={spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode || altarMode || merchantMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : "#0ff"}
+                  color={spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode || altarMode || merchantMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : (isAnyModalActive ? "#334455" : "#0ff")}
                 />
                 <AB
                   label={bigboxMode === "put" ? "決" : gachaMode ? "戻" : altarMode || merchantMode ? "戻" : showInv ? "置" : "前"}
                   sub={bigboxMode === "put" ? "決定" : gachaMode ? "閉じる" : altarMode || merchantMode ? "閉じる" : showInv ? "置く" : "調べる"}
                   onClick={() => {
-                    if (mapMode) return;
-                    if (spellListMode) return;
                     if (bigboxMode === "put") { bigboxPutItem(bigboxPage * 10 + bigboxMenuSel); return; }
                     if (gachaMode) { setGachaMode(null); gachaRef.current = null; return; }
                     if (altarMode) { setAltarMode(null); altarRef.current = null; return; }
                     if (merchantMode) { setMerchantMode(null); merchantRef.current = null; return; }
-                    if (springMode || identifyMode || putMode) return;
-                    if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); }
+                    if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); return; }
+                    if (isAnyModalActive) return;
+                    doExamineFront();
                   }}
-                  color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
+                  color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : (isAnyModalActive ? "#334455" : "#4af")}
                 />
                 <AB
                   label={showInv ? "整" : mapMode ? "閉" : "地図"}
                   sub={showInv ? "整理" : mapMode ? "閉じる" : "マップ"}
-                  onClick={() => { if (mapMode) { setMapMode(null); return; } if (spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; if (showInv) { sortInventory(); } else { setMapMode(true); } }}
-                  color={showInv ? "#8f8" : mapMode ? "#9ed0ff" : "#6688aa"}
+                  onClick={() => {
+                    if (mapMode) { setMapMode(null); return; }
+                    if (showInv) { sortInventory(); return; }
+                    if (isAnyModalActive) return;
+                    setMapMode(true);
+                  }}
+                  color={showInv ? "#8f8" : mapMode ? "#9ed0ff" : (isAnyModalActive ? "#334455" : "#6688aa")}
                 />
                 <AB
                   label="罠"
                   sub="探る"
-                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; act("search_traps"); }}
-                  color="#fa0"
+                  onClick={() => {
+                    if (isAnyModalActive) return;
+                    act("search_traps");
+                  }}
+                  color={isAnyModalActive ? "#334455" : "#fa0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "ダッシュ"}
-                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (revealMode) return; if (springMode || identifyMode || putMode) return; setDashMode((v) => !v); }}
-                  color={dashMode ? "#f44" : "#a8f"}
+                  onClick={() => {
+                    if (isAnyModalActive) return;
+                    setDashMode((v) => !v);
+                  }}
+                  color={isAnyModalActive ? "#334455" : (dashMode ? "#f44" : "#a8f")}
                 />
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (mapMode || altarMode || merchantMode) return; if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode || springMode || identifyMode || putMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
-                  color={spellListMode ? "#4af" : "#60a0e0"}
+                  onClick={() => {
+                    if (spellListMode) { setSpellListMode(false); return; }
+                    if (isAnyModalActive) return;
+                    setSpellListMode(true);
+                    setSpellMenuSel(0);
+                  }}
+                  color={spellListMode ? "#4af" : (isAnyModalActive ? "#334455" : "#60a0e0")}
                 />
                 <AB
                   label="☰"
                   sub="メニュー"
-                  onClick={() => { if (mapMode || revealMode) return; setGamepadQuickOpen(true); }}
-                  color="#f0b040"
+                  onClick={() => {
+                    if (gamepadQuickOpen) { setGamepadQuickOpen(false); return; }
+                    if (isAnyModalActive) return;
+                    setGamepadQuickOpen(true);
+                  }}
+                  color={gamepadQuickOpen ? "#f0b040" : (isAnyModalActive ? "#334455" : "#f0b040")}
                 />
               </div>{" "}
             </div>
