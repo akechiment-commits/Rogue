@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+﻿import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
@@ -147,627 +147,13 @@ export function useKeyHandler({
     if (it.type === "pot") return "入れる";
     return "使う";
   };
-  const handleKey = useCallback(
-    (e) => {
-      const k = e.key.toLowerCase();
-      if (k === "shift") {
-        shiftRef.current = true;
-      }
-      if (k === "a") {
-        aRef.current = true;
-      }
-      /* テンキー多重 keydown をここで落とす（見渡す・メニュー・歩行すべて） */
-      if (isDuplicateDirectionEvent(e)) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        return;
-      }
-      if (showScores && !showEnding) {
-        e.preventDefault();
-        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
-          setShowScores(false);
-          return;
-        }
-        const _scEl = document.querySelector("[data-scores-modal]");
-        if (_scEl && (k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright" || (e.code && e.code.startsWith("Numpad")))) {
-          const up = k === "arrowup" || k === "arrowleft" || e.code === "Numpad8" || e.code === "Numpad4";
-          _scEl.scrollTop = Math.max(0, _scEl.scrollTop + (up ? -96 : 96));
-        }
-        return;
-      }
-      if (showEnding) {
-        e.preventDefault();
-        if (showScores) {
-          if (k === "escape" || k === "enter" || k === " " || k === "z") setShowScores(false);
-          return;
-        }
-        if (endingView === "inventory" && (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e))) {
-          const _scrollDir = isKeyUp(e) || isKeyLeft(e) ? -1 : 1;
-          const _inventoryEl = gameOverInventoryRef?.current;
-          if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
-          return;
-        }
-        if (endingView) {
-          setEndingView(null);
-          return;
-        }
-        if (isKeyUp(e) || isKeyLeft(e)) {
-          setEndingSel((p) => (p - 1 + 4) % 4);
-        } else if (isKeyDown(e) || isKeyRight(e)) {
-          setEndingSel((p) => (p + 1) % 4);
-        } else if (k === "enter" || k === " " || k === "z") {
-          if (endingSel === 0) setShowScores(true);
-          else if (endingSel === 1) setEndingView("map");
-          else if (endingSel === 2) setEndingView("inventory");
-          else onDismissEnding?.();
-        }
-        return;
-      }
-      if (miniTip) {
-        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
-          e.preventDefault(); closeMiniTip?.();
-        }
-        return;
-      }
-      if (showSign) {
-        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
-          e.preventDefault(); setShowSign(null);
-        }
-        return;
-      }
-      if (exitHubConfirm) {
-        if (isKeyUp(e) || isKeyLeft(e)) {
-          e.preventDefault(); setExitHubSel(0);
-        } else if (isKeyDown(e) || isKeyRight(e)) {
-          e.preventDefault(); setExitHubSel(1);
-        } else if (k === "enter" || k === " " || k === "z") {
-          e.preventDefault();
-          if (exitHubSel === 0) performExitToHub();
-          else setExitHubConfirm(false);
-        } else if (k === "escape" || k === "x") {
-          e.preventDefault(); setExitHubConfirm(false);
-        }
-        return;
-      }
-      if (dead) {
-        if (gameOverView === "inventory" && (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e))) {
-          e.preventDefault();
-          const _scrollDir = isKeyUp(e) || isKeyLeft(e) ? -1 : 1;
-          const _inventoryEl = gameOverInventoryRef?.current;
-          if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
-          return;
-        }
-        if (gameOverView) {
-          e.preventDefault();
-          setGameOverView(null);
-          return;
-        }
-        if (!showScores) {
-          const _goCount = gameOverCanReturn ? 5 : 4;
-          if (isKeyUp(e) || isKeyLeft(e)) {
-            e.preventDefault();
-            setGameOverSel((p) => (p - 1 + _goCount) % _goCount);
-          } else if (isKeyDown(e) || isKeyRight(e)) {
-            e.preventDefault();
-            setGameOverSel((p) => (p + 1) % _goCount);
-          } else if (k === "enter" || k === " " || k === "z") {
-            e.preventDefault();
-            if (gameOverSel === 0) init();
-            else if (gameOverSel === 1) setShowScores(true);
-            else if (gameOverSel === 2) { setShowScores(false); setGameOverView("map"); }
-            else if (gameOverSel === 3) { setShowScores(false); setGameOverView("inventory"); }
-            else if (gameOverSel === 4) performGameOverReturnToHub?.();
-          }
-        } else {
-          if (k === "escape" || k === "enter" || k === " " || k === "z") {
-            e.preventDefault(); setShowScores(false);
-          }
-        }
-        return;
-      }
-      if (floorSelectMode) {
-        e.preventDefault();
-        const { player: _fsp } = sr.current || {};
-        if (!_fsp) return;
-        const _visited = getVisitedFloors(sr.current, _fsp.depth);
-        const _vIdx = Math.max(0, _visited.indexOf(floorSelectMode.sel));
-        const isUp   = k === "arrowup"   || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
-        if (isUp) {
-          if (_vIdx > 0) setFloorSelectMode({ sel: _visited[_vIdx - 1] });
-          return;
-        }
-        if (isDown) {
-          if (_vIdx < _visited.length - 1) setFloorSelectMode({ sel: _visited[_vIdx + 1] });
-          return;
-        }
-        if (k === "z" || k === "enter") {
-          const _f = floorSelectMode.sel;
-          if (!_visited.includes(_f)) {
-            setMsgs((prev) => [...prev.slice(-80), "まだ訪れていない階層には飛べない！"]);
-            return;
-          }
-          const _ml = [];
-          if (!sr.current.floors) sr.current.floors = {};
-          const _floorChanged = _f !== _fsp.depth;
-          if (_floorChanged) suspendFloor(sr.current.dungeon, _fsp);
-          sr.current.floors[_fsp.depth] = sr.current.dungeon;
-          const _saved = sr.current.floors[_f];
-          if (!_saved) {
-            setMsgs((prev) => [...prev.slice(-80), "その階層のデータがない！"]);
-            return;
-          }
-          const _d = _saved;
-          delete sr.current.floors[_f];
-          const _maxDTp = sr.current.maxDepth;
-          if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor) {
-            prepareLastFloor(_d, sr.current.dungeonType || "beginner");
-          }
-          _fsp.depth = _f;
-          const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
-          _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);
-          _fsp.y = rng(_rm.y, _rm.y + _rm.h - 1);
-          if (_floorChanged) resumeFloor(_d, _fsp);
-          refreshFOV(_d, _fsp);
-          _d.nextSpawnTurn = _fsp.turns + rng(10, 50);
-          sr.current.dungeon = _d;
-          _ml.push(`${_f}階へテレポートした！【呪】`);
-          endTurn(sr.current, _fsp, _ml);
-          setFloorSelectMode(null);
-          setMsgs((prev) => [...prev.slice(-80), ..._ml]);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        }
-        if (k === "x" || k === "escape") { setFloorSelectMode(null); return; }
-        return;
-      }
-      if (tpSelectMode) {
-        e.preventDefault();
-        const { player: p, dungeon: dg } = sr.current || {};
-        if (!p || !dg) return;
-        const { cx, cy } = tpSelectMode;
-        const isUp    = k === "arrowup"    || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
-        const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
-        const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
-        let ncx = cx, ncy = cy;
-        if (isUp)    ncy = Math.max(0, cy - 1);
-        else if (isDown)  ncy = Math.min(MH - 1, cy + 1);
-        else if (isLeft)  ncx = Math.max(0, cx - 1);
-        else if (isRight) ncx = Math.min(MW - 1, cx + 1);
-        else if (isUL) { ncx = Math.max(0, cx - 1); ncy = Math.max(0, cy - 1); }
-        else if (isUR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.max(0, cy - 1); }
-        else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
-        else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
-        if (ncx !== cx || ncy !== cy) { setTpSelectMode({ cx: ncx, cy: ncy }); return; }
-        const doTpConfirm = (tx, ty) => {
-          const ml = [];
-          const _tpFromX = p.x, _tpFromY = p.y;
-          const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== T.BWALL && dg.map[ty]?.[tx] !== undefined;
-          if (isWalkable) {
-            p.x = tx; p.y = ty;
-            ml.push("テレポートした！（目的地指定）【祝】");
-          } else {
-            const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-            p.x = rng(rm.x, rm.x + rm.w - 1);
-            p.y = rng(rm.y, rm.y + rm.h - 1);
-            ml.push("壁の中！ランダムにテレポートした。");
-          }
-          pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
-          endTurn(sr.current, p, ml);
-          refreshFOV(dg, p);
-          setTpSelectMode(null);
-          setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-        };
-        if (k === "z" || k === "enter") { doTpConfirm(cx, cy); return; }
-        if (k === "x" || k === "escape") {
-          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          doTpConfirm(rng(rm.x, rm.x + rm.w - 1), rng(rm.y, rm.y + rm.h - 1));
-          return;
-        }
-        return;
-      }
-      if (msgLogMode) {
-        e.preventDefault();
-        const _mlTotal = msgsRef.current.length;
-        const _mlMax = Math.max(0, _mlTotal - 20);
-        const isUpML = k === "arrowup" || e.code === "Numpad8";
-        const isDownML = k === "arrowdown" || e.code === "Numpad2";
-        if (isUpML) { setMsgLogScrollTop((s) => Math.max(0, s - 1)); return; }
-        if (isDownML) { setMsgLogScrollTop((s) => Math.min(_mlMax, s + 1)); return; }
-        if (k === "m" || k === "x" || k === "escape") { setMsgLogMode(false); return; }
-        return;
-      }
-      if (mapMode) {
-        e.preventDefault();
-        if (k === " " || k === "x" || k === "escape") setMapMode(null);
-        return;
-      }
-      if (lookMode) {
-        e.preventDefault();
-        const { player: p2, dungeon: dg2 } = sr.current || {};
-        if (!p2 || !dg2) return;
-        const { cx, cy } = lookMode;
-        const isUp    = k === "arrowup"    || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
-        const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
-        const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
-        let ncx = cx, ncy = cy;
-        if (isUp)         ncy = Math.max(0, cy - 1);
-        else if (isDown)  ncy = Math.min(MH - 1, cy + 1);
-        else if (isLeft)  ncx = Math.max(0, cx - 1);
-        else if (isRight) ncx = Math.min(MW - 1, cx + 1);
-        else if (isUL) { ncx = Math.max(0, cx - 1); ncy = Math.max(0, cy - 1); }
-        else if (isUR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.max(0, cy - 1); }
-        else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
-        else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
-        if (ncx !== cx || ncy !== cy) {
-          const _ldx = ncx - cx, _ldy = ncy - cy;
-          if (aRef.current) {
-            /* ルック・ダッシュ：通常ダッシュと同じ停止条件でカーソルを移動 */
-            const _ldk = (x, y) => y * MW + x;
-            const _lRoomSet = new Set();
-            for (const r of (dg2.rooms || []))
-              for (let ry = r.y; ry < r.y + r.h; ry++)
-                for (let rx = r.x; rx < r.x + r.w; rx++)
-                  _lRoomSet.add(_ldk(rx, ry));
-            const _lItemMap = new Map();
-            for (const i of (dg2.items || []))
-              if (!_lItemMap.has(_ldk(i.x, i.y))) _lItemMap.set(_ldk(i.x, i.y), i);
-            const _lGetPerps = (x, y) =>
-              (_ldx !== 0 ? [[0,-1],[0,1]] : [[-1,0],[1,0]])
-                .filter(([sdx, sdy]) => {
-                  const sx = x + sdx, sy = y + sdy;
-                  return sx >= 0 && sx < MW && sy >= 0 && sy < MH &&
-                    dg2.map[sy][sx] !== T.WALL && dg2.map[sy][sx] !== T.BWALL;
-                }).length;
-            const _lStartInWall = dg2.map[cy]?.[cx] === T.WALL || dg2.map[cy]?.[cx] === T.BWALL;
-            const _lStartInRoom = _lRoomSet.has(_ldk(cx, cy));
-            let _lcx = cx, _lcy = cy, _lPrevPerps = _lGetPerps(cx, cy);
-            for (let _ls = 0; _ls < 50; _ls++) {
-              const nx = _lcx + _ldx, ny = _lcy + _ldy;
-              if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
-              const _nTile = dg2.map[ny]?.[nx];
-              if (_nTile === T.WALL || _nTile === T.BWALL) break;
-              _lcx = nx; _lcy = ny;
-              /* 壁内スタート：最初の床タイルで停止 */
-              if (_lStartInWall) break;
-              /* 通常停止条件 */
-              if (_lItemMap.has(_ldk(_lcx, _lcy))) break;
-              if (dg2.traps?.find(t => t.x === _lcx && t.y === _lcy)) break;
-              if (dg2.map[_lcy][_lcx] === T.SD || dg2.map[_lcy][_lcx] === T.SU) break;
-              if (dg2.springs?.find(s => s.x === _lcx && s.y === _lcy)) break;
-              if (dg2.bigboxes?.find(b => b.x === _lcx && b.y === _lcy)) break;
-              const _lCurInRoom = _lRoomSet.has(_ldk(_lcx, _lcy));
-              const _lCurPerps = _lGetPerps(_lcx, _lcy);
-              const _lfnx = _lcx + _ldx, _lfny = _lcy + _ldy;
-              const _lNextBlocked = _lfnx < 0 || _lfnx >= MW || _lfny < 0 || _lfny >= MH ||
-                dg2.map[_lfny]?.[_lfnx] === T.WALL || dg2.map[_lfny]?.[_lfnx] === T.BWALL;
-              if (_lStartInRoom) {
-                if (!_lCurInRoom || _lNextBlocked) break;
-              } else {
-                if ((_lCurPerps > _lPrevPerps && _lCurPerps > 0) || _lNextBlocked) break;
-              }
-              _lPrevPerps = _lCurPerps;
-            }
-            if (_lcx !== cx || _lcy !== cy) {
-              setLookMode({ cx: _lcx, cy: _lcy });
-              const _ldesc = getLookDesc(_lcx, _lcy, dg2);
-              if (_ldesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_ldesc}`]);
-            }
-            return;
-          }
-          setLookMode({ cx: ncx, cy: ncy });
-          const _lookDesc = getLookDesc(ncx, ncy, dg2);
-          if (_lookDesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_lookDesc}`]);
-          return;
-        }
-        if (k === "x" || k === "escape") {
-          setLookMode(null);
-          setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
-          return;
-        }
-        return;
-      }
-      if (showInv) {
-        const inv = sr.current?.player?.inventory || [];
-        const _p2 = sr.current?.player;
-        const _dg2 = sr.current?.dungeon;
-        const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
-          allBcKnown: !!sr.current?.allBcKnown,
-          bbFakeNames: sr.current?.bbFakeNames,
-          ident: sr.current?.ident,
-          identifiedBigboxes: sr.current?.identifiedBigboxes,
-        }) : { items: [], traps: [], all: [] };
-        const _flItems2 = _fl2.items;
-        const _flTraps2 = _fl2.traps;
-        const _flAll2 = _fl2.all;
-        const _hasFl2 = _flAll2.length > 0;
-        const _invTotalPg2 = Math.ceil(inv.length / 10) || 1;
-        const totalPages = _invTotalPg2 + (_hasFl2 ? 1 : 0);
-        const _isFloorPg2 = _hasFl2 && invPage === _invTotalPg2;
-        const pageItems = _isFloorPg2 ? [] : inv.slice(invPage * 10, (invPage + 1) * 10);
-        const _flPageItems2 = _isFloorPg2 ? _flAll2 : [];
-        const len = _isFloorPg2 ? _flPageItems2.length : pageItems.length;
-        const absIdx = selIdx !== null ? invPage * 10 + selIdx : null;
-        const getActs = (it, ai) => {
-          const a = [];
-          if (canUse(it))
-            a.push({
-              label: useLabel(it),
-              fn: () => invActRef.current?.use?.(ai),
-            });
-          if (it.type === "spellbook")
-            a.push({ label: "読む", fn: () => invActRef.current?.readSpellbook?.(ai) });
-          if (it.type === "arrow")
-            a.push({ label: "射る", fn: () => invActRef.current?.shoot?.(ai) });
-          if (it.type === "wand")
-            a.push({ label: "振る", fn: () => invActRef.current?.wave?.(ai) });
-          if (it.type === "wand")
-            a.push({
-              label: "壊す",
-              fn: () => invActRef.current?.breakWand?.(ai),
-            });
-          if (it.type === "marker")
-            a.push({ label: "書く", fn: () => invActRef.current?.useMarker?.(ai) });
-          if (it.type === "pot")
-            a.push({
-              label: "割る",
-              fn: () => invActRef.current?.breakPot?.(ai),
-            });
-          if (!it.noDrop)
-            a.push({ label: "置く", fn: () => invActRef.current?.drop?.(ai) });
-          const _isCursedEquipped = it.cursed && (
-            gs?.player?.weapon === it || gs?.player?.armor === it || (gs?.player?.rings || []).includes(it)
-          );
-          if (!_isCursedEquipped && !it.noThrow)
-            a.push({
-              label: it.type === "arrow" ? "投げる(束)" : "投げる",
-              fn: () => invActRef.current?.throw?.(ai),
-            });
-          a.push({
-            label: "説明",
-            fn: () => setShowDesc((p) => (p === ai ? null : ai)),
-          });
-          const _nik = getIdentKey(it);
-          if (_nik && gs?.ident && !gs.ident.has(_nik)) {
-            a.push({
-              label: "名付ける",
-              fn: () => {
-                setNicknameMode({ identKey: _nik });
-                setNicknameInput(gs?.nicknames?.[_nik] || '');
-                setShowInv(false); setSelIdx(null); setShowDesc(null);
-              },
-            });
-          }
-          return a;
-        };
-        const getFloorActs2 = (entry) => {
-          const _role2 = floorEntryRole(entry, _flItems2, _flTraps2);
-          const _j2 = _flAll2.indexOf(entry);
-          const _descAct = { label: "説明", fn: () => setShowDesc((p) => (p === 10000 + _j2 ? null : 10000 + _j2)) };
-          if (_role2 === "trap") {
-            if (isNonSteppableFloorTrap(entry)) return [_descAct];
-            return [
-              { label: "踏む", fn: () => invActRef.current?.floorTrap?.(entry) },
-              _descAct,
-            ];
-          }
-          if (_role2 === "stair") {
-            return [
-              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorStair?.(entry) },
-              _descAct,
-            ];
-          }
-          if (_role2 === "bigbox") {
-            return [
-              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorBigbox?.(entry) },
-              _descAct,
-            ];
-          }
-          if (_role2 === "spring") {
-            return [
-              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorSpring?.(entry) },
-              _descAct,
-            ];
-          }
-          if (_role2 === "gacha") {
-            return [
-              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorGacha?.(entry) },
-              _descAct,
-            ];
-          }
-          if (_role2 === "altar") {
-            return [
-              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorAltar?.(entry) },
-              _descAct,
-            ];
-          }
-          if (FLOOR_INFO_ROLES.has(_role2)) {
-            return [_descAct];
-          }
-          const _isEquipType2 = ["weapon","armor","arrow","ring"].includes(entry.type);
-          const acts2 = [];
-          acts2.push({ label: "拾う", fn: () => invActRef.current?.floorPickup?.(entry) });
-          const _addFloorAct2 = (label, actionFn, skipCap = false, keepInv = false) => {
-            acts2.push({ label, fn: () => invActRef.current?.floorItemAction?.(entry, actionFn, skipCap, keepInv) });
-          };
-          if (entry.type === "pot") {
-            acts2.push({ label: "入れる", fn: () => invActRef.current?.floorOpenPutMode?.(entry) });
-          } else if (entry.type === "marker") {
-            acts2.push({ label: "書く", fn: () => invActRef.current?.floorPen?.(entry) });
-          } else if (canUse(entry)) {
-            _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx), !_isEquipType2, _isEquipType2 || entry.type === "scroll");
-          }
-          if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx), true, false);
-          if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx), true, true);
-          if (entry.type === "wand") acts2.push({ label: "振る", fn: () => invActRef.current?.floorWaveWand?.(entry) });
-          if (entry.type === "wand") _addFloorAct2("壊す", (idx) => invActRef.current?.breakWand?.(idx), true, false);
-          if (entry.type === "pot") _addFloorAct2("割る", (idx) => invActRef.current?.breakPot?.(idx), true, false);
-          _addFloorAct2(entry.type === "arrow" ? "投げる(束)" : "投げる", (idx) => invActRef.current?.throw?.(idx), true, true);
-          acts2.push(_descAct);
-          return acts2;
-        };
-        if (invMenuSel !== null) {
-          if (k === "escape" || k === "x") {
-            e.preventDefault();
-            setInvMenuSel(null);
-            return;
-          }
-          const isLeft = k === "arrowleft" || e.code === "Numpad4";
-          const isRight = k === "arrowright" || e.code === "Numpad6";
-          if ((isLeft || isRight) && selIdx !== null) {
-            e.preventDefault();
-            if (_isFloorPg2 && _flPageItems2[selIdx]) {
-              const acts = getFloorActs2(_flPageItems2[selIdx]);
-              setInvMenuSel((p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length);
-            } else if (!_isFloorPg2 && pageItems[selIdx]) {
-              const acts = getActs(pageItems[selIdx], absIdx);
-              setInvMenuSel((p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length);
-            }
-            return;
-          }
-          if ((k === "enter" || k === "z") && selIdx !== null) {
-            e.preventDefault();
-            if (_isFloorPg2 && _flPageItems2[selIdx]) {
-              const acts = getFloorActs2(_flPageItems2[selIdx]);
-              if (invMenuSel >= 0 && invMenuSel < acts.length) {
-                acts[invMenuSel].fn();
-                setInvMenuSel(null);
-              }
-            } else if (!_isFloorPg2 && pageItems[selIdx]) {
-              const acts = getActs(pageItems[selIdx], absIdx);
-              if (invMenuSel >= 0 && invMenuSel < acts.length) {
-                acts[invMenuSel].fn();
-                setInvMenuSel(null);
-              }
-            }
-            return;
-          }
-          return;
-        }
-        const isUp = k === "arrowup" || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
-        const isLeft = k === "arrowleft" || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
-        if (k === "escape" || k === "x" || k === "i") {
-          e.preventDefault();
-          setShowInv(false);
-          dropModeRef.current = false;
-          setDropMode(false);
-          setInvPage(0);
-          setSelIdx(null);
-          setShowDesc(null);
-          return;
-        }
-        if ((isUp || isDown) && len > 0) {
-          e.preventDefault();
-          setSelIdx((prev) => {
-            if (prev === null) return isDown ? 0 : len - 1;
-            return (prev + (isDown ? 1 : -1) + len) % len;
-          });
-          setShowDesc(null);
-          return;
-        }
-        if (isLeft || isRight) {
-          e.preventDefault();
-          const newPage =
-            (invPage + (isRight ? 1 : -1) + totalPages) % totalPages;
-          setInvPage(newPage);
-          setSelIdx(0);
-          setInvMenuSel(null);
-          setShowDesc(null);
-          return;
-        }
-        if ((k === "enter" || k === "z") && selIdx !== null) {
-          e.preventDefault();
-          if (_isFloorPg2 && _flPageItems2[selIdx]) {
-            setInvMenuSel(0);
-          } else if (!_isFloorPg2 && pageItems[selIdx]) {
-            if (dropModeRef.current) {
-              invActRef.current?.drop?.(invPage * 10 + selIdx);
-            } else {
-              setInvMenuSel(0);
-            }
-          }
-          return;
-        }
-        if (k === "s" && !_isFloorPg2) {
-          e.preventDefault();
-          sortInventory();
-          return;
-        }
-        if (k === "d" && !_isFloorPg2) {
-          e.preventDefault();
-          const newMode = !dropModeRef.current;
-          dropModeRef.current = newMode;
-          setDropMode(newMode);
-          return;
-        }
-        return;
-      }
-      if (facingMode) {
-        const npm2 = {
-          Numpad8: [0, -1],
-          Numpad2: [0, 1],
-          Numpad4: [-1, 0],
-          Numpad6: [1, 0],
-          Numpad7: [-1, -1],
-          Numpad9: [1, -1],
-          Numpad1: [-1, 1],
-          Numpad3: [1, 1],
-        };
-        const _npmFaceCard = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
-        const _isArrowF = k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright";
-        const _isNpmCardF = e.code in _npmFaceCard;
-        if (shiftRef?.current && (_isArrowF || _isNpmCardF)) {
-          e.preventDefault();
-          const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
-          const _dir = _isArrowF ? _dmap[k] : _npmFaceCard[e.code];
-          if (arrowHeldRef) arrowHeldRef.current[_dir] = true;
-          const _h = arrowHeldRef?.current || {};
-          const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
-          const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
-          if (_sdx !== 0 && _sdy !== 0) {
-            if (sr.current) { sr.current.player.facing = { dx: _sdx, dy: _sdy }; setGs({ ...sr.current }); }
-            setFacingMode(false);
-          }
-          return;
-        }
-        const fdir =
-          npm2[e.code] ||
-          (k === "arrowup"
-            ? [0, -1]
-            : k === "arrowdown"
-              ? [0, 1]
-              : k === "arrowleft"
-                ? [-1, 0]
-                : k === "arrowright"
-                  ? [1, 0]
-                  : null);
-        if (fdir) {
-          e.preventDefault();
-          if (sr.current) {
-            sr.current.player.facing = { dx: fdir[0], dy: fdir[1] };
-            setGs({ ...sr.current });
-          }
-          setFacingMode(false);
-          return;
-        }
-        if (k === "t" || k === "escape") {
-          e.preventDefault();
-          setFacingMode(false);
-          return;
-        }
-        return;
-      }
+  const handleDialogModalKey = (e) => {
+    const k = e.key.toLowerCase();
+    if (!revealMode && !nicknameMode && !identifyMode && !putMode && !markerMode &&
+        !spellListMode && !debugSpellMode && !shopMode && !merchantMode && !altarMode &&
+        !bigboxMode && !gachaMode && !wishMode && !springMode) {
+      return false;
+    }
       if (revealMode) {
         /* 何かキーで続きのメッセージを表示。この入力はメッセージ送り専用（同キーでの移動・行動はしない） */
         if (revealModeRef?.current) {
@@ -1835,6 +1221,630 @@ export function useKeyHandler({
         }
         return;
       }
+    return true;
+  };
+  const handleKey = useCallback(
+    (e) => {
+      const k = e.key.toLowerCase();
+      if (k === "shift") {
+        shiftRef.current = true;
+      }
+      if (k === "a") {
+        aRef.current = true;
+      }
+      /* テンキー多重 keydown をここで落とす（見渡す・メニュー・歩行すべて） */
+      if (isDuplicateDirectionEvent(e)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      if (showScores && !showEnding) {
+        e.preventDefault();
+        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
+          setShowScores(false);
+          return;
+        }
+        const _scEl = document.querySelector("[data-scores-modal]");
+        if (_scEl && (k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright" || (e.code && e.code.startsWith("Numpad")))) {
+          const up = k === "arrowup" || k === "arrowleft" || e.code === "Numpad8" || e.code === "Numpad4";
+          _scEl.scrollTop = Math.max(0, _scEl.scrollTop + (up ? -96 : 96));
+        }
+        return;
+      }
+      if (showEnding) {
+        e.preventDefault();
+        if (showScores) {
+          if (k === "escape" || k === "enter" || k === " " || k === "z") setShowScores(false);
+          return;
+        }
+        if (endingView === "inventory" && (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e))) {
+          const _scrollDir = isKeyUp(e) || isKeyLeft(e) ? -1 : 1;
+          const _inventoryEl = gameOverInventoryRef?.current;
+          if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
+          return;
+        }
+        if (endingView) {
+          setEndingView(null);
+          return;
+        }
+        if (isKeyUp(e) || isKeyLeft(e)) {
+          setEndingSel((p) => (p - 1 + 4) % 4);
+        } else if (isKeyDown(e) || isKeyRight(e)) {
+          setEndingSel((p) => (p + 1) % 4);
+        } else if (k === "enter" || k === " " || k === "z") {
+          if (endingSel === 0) setShowScores(true);
+          else if (endingSel === 1) setEndingView("map");
+          else if (endingSel === 2) setEndingView("inventory");
+          else onDismissEnding?.();
+        }
+        return;
+      }
+      if (miniTip) {
+        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
+          e.preventDefault(); closeMiniTip?.();
+        }
+        return;
+      }
+      if (showSign) {
+        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
+          e.preventDefault(); setShowSign(null);
+        }
+        return;
+      }
+      if (exitHubConfirm) {
+        if (isKeyUp(e) || isKeyLeft(e)) {
+          e.preventDefault(); setExitHubSel(0);
+        } else if (isKeyDown(e) || isKeyRight(e)) {
+          e.preventDefault(); setExitHubSel(1);
+        } else if (k === "enter" || k === " " || k === "z") {
+          e.preventDefault();
+          if (exitHubSel === 0) performExitToHub();
+          else setExitHubConfirm(false);
+        } else if (k === "escape" || k === "x") {
+          e.preventDefault(); setExitHubConfirm(false);
+        }
+        return;
+      }
+      if (dead) {
+        if (gameOverView === "inventory" && (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e))) {
+          e.preventDefault();
+          const _scrollDir = isKeyUp(e) || isKeyLeft(e) ? -1 : 1;
+          const _inventoryEl = gameOverInventoryRef?.current;
+          if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
+          return;
+        }
+        if (gameOverView) {
+          e.preventDefault();
+          setGameOverView(null);
+          return;
+        }
+        if (!showScores) {
+          const _goCount = gameOverCanReturn ? 5 : 4;
+          if (isKeyUp(e) || isKeyLeft(e)) {
+            e.preventDefault();
+            setGameOverSel((p) => (p - 1 + _goCount) % _goCount);
+          } else if (isKeyDown(e) || isKeyRight(e)) {
+            e.preventDefault();
+            setGameOverSel((p) => (p + 1) % _goCount);
+          } else if (k === "enter" || k === " " || k === "z") {
+            e.preventDefault();
+            if (gameOverSel === 0) init();
+            else if (gameOverSel === 1) setShowScores(true);
+            else if (gameOverSel === 2) { setShowScores(false); setGameOverView("map"); }
+            else if (gameOverSel === 3) { setShowScores(false); setGameOverView("inventory"); }
+            else if (gameOverSel === 4) performGameOverReturnToHub?.();
+          }
+        } else {
+          if (k === "escape" || k === "enter" || k === " " || k === "z") {
+            e.preventDefault(); setShowScores(false);
+          }
+        }
+        return;
+      }
+      if (floorSelectMode) {
+        e.preventDefault();
+        const { player: _fsp } = sr.current || {};
+        if (!_fsp) return;
+        const _visited = getVisitedFloors(sr.current, _fsp.depth);
+        const _vIdx = Math.max(0, _visited.indexOf(floorSelectMode.sel));
+        const isUp   = k === "arrowup"   || e.code === "Numpad8";
+        const isDown = k === "arrowdown" || e.code === "Numpad2";
+        if (isUp) {
+          if (_vIdx > 0) setFloorSelectMode({ sel: _visited[_vIdx - 1] });
+          return;
+        }
+        if (isDown) {
+          if (_vIdx < _visited.length - 1) setFloorSelectMode({ sel: _visited[_vIdx + 1] });
+          return;
+        }
+        if (k === "z" || k === "enter") {
+          const _f = floorSelectMode.sel;
+          if (!_visited.includes(_f)) {
+            setMsgs((prev) => [...prev.slice(-80), "まだ訪れていない階層には飛べない！"]);
+            return;
+          }
+          const _ml = [];
+          if (!sr.current.floors) sr.current.floors = {};
+          const _floorChanged = _f !== _fsp.depth;
+          if (_floorChanged) suspendFloor(sr.current.dungeon, _fsp);
+          sr.current.floors[_fsp.depth] = sr.current.dungeon;
+          const _saved = sr.current.floors[_f];
+          if (!_saved) {
+            setMsgs((prev) => [...prev.slice(-80), "その階層のデータがない！"]);
+            return;
+          }
+          const _d = _saved;
+          delete sr.current.floors[_f];
+          const _maxDTp = sr.current.maxDepth;
+          if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor) {
+            prepareLastFloor(_d, sr.current.dungeonType || "beginner");
+          }
+          _fsp.depth = _f;
+          const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
+          _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);
+          _fsp.y = rng(_rm.y, _rm.y + _rm.h - 1);
+          if (_floorChanged) resumeFloor(_d, _fsp);
+          refreshFOV(_d, _fsp);
+          _d.nextSpawnTurn = _fsp.turns + rng(10, 50);
+          sr.current.dungeon = _d;
+          _ml.push(`${_f}階へテレポートした！【呪】`);
+          endTurn(sr.current, _fsp, _ml);
+          setFloorSelectMode(null);
+          setMsgs((prev) => [...prev.slice(-80), ..._ml]);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
+        if (k === "x" || k === "escape") { setFloorSelectMode(null); return; }
+        return;
+      }
+      if (tpSelectMode) {
+        e.preventDefault();
+        const { player: p, dungeon: dg } = sr.current || {};
+        if (!p || !dg) return;
+        const { cx, cy } = tpSelectMode;
+        const isUp    = k === "arrowup"    || e.code === "Numpad8";
+        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
+        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
+        const isRight = k === "arrowright" || e.code === "Numpad6";
+        const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
+        const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
+        let ncx = cx, ncy = cy;
+        if (isUp)    ncy = Math.max(0, cy - 1);
+        else if (isDown)  ncy = Math.min(MH - 1, cy + 1);
+        else if (isLeft)  ncx = Math.max(0, cx - 1);
+        else if (isRight) ncx = Math.min(MW - 1, cx + 1);
+        else if (isUL) { ncx = Math.max(0, cx - 1); ncy = Math.max(0, cy - 1); }
+        else if (isUR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.max(0, cy - 1); }
+        else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
+        else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
+        if (ncx !== cx || ncy !== cy) { setTpSelectMode({ cx: ncx, cy: ncy }); return; }
+        const doTpConfirm = (tx, ty) => {
+          const ml = [];
+          const _tpFromX = p.x, _tpFromY = p.y;
+          const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== T.BWALL && dg.map[ty]?.[tx] !== undefined;
+          if (isWalkable) {
+            p.x = tx; p.y = ty;
+            ml.push("テレポートした！（目的地指定）【祝】");
+          } else {
+            const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+            p.x = rng(rm.x, rm.x + rm.w - 1);
+            p.y = rng(rm.y, rm.y + rm.h - 1);
+            ml.push("壁の中！ランダムにテレポートした。");
+          }
+          pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+          endTurn(sr.current, p, ml);
+          refreshFOV(dg, p);
+          setTpSelectMode(null);
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+        };
+        if (k === "z" || k === "enter") { doTpConfirm(cx, cy); return; }
+        if (k === "x" || k === "escape") {
+          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+          doTpConfirm(rng(rm.x, rm.x + rm.w - 1), rng(rm.y, rm.y + rm.h - 1));
+          return;
+        }
+        return;
+      }
+      if (msgLogMode) {
+        e.preventDefault();
+        const _mlTotal = msgsRef.current.length;
+        const _mlMax = Math.max(0, _mlTotal - 20);
+        const isUpML = k === "arrowup" || e.code === "Numpad8";
+        const isDownML = k === "arrowdown" || e.code === "Numpad2";
+        if (isUpML) { setMsgLogScrollTop((s) => Math.max(0, s - 1)); return; }
+        if (isDownML) { setMsgLogScrollTop((s) => Math.min(_mlMax, s + 1)); return; }
+        if (k === "m" || k === "x" || k === "escape") { setMsgLogMode(false); return; }
+        return;
+      }
+      if (mapMode) {
+        e.preventDefault();
+        if (k === " " || k === "x" || k === "escape") setMapMode(null);
+        return;
+      }
+      if (lookMode) {
+        e.preventDefault();
+        const { player: p2, dungeon: dg2 } = sr.current || {};
+        if (!p2 || !dg2) return;
+        const { cx, cy } = lookMode;
+        const isUp    = k === "arrowup"    || e.code === "Numpad8";
+        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
+        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
+        const isRight = k === "arrowright" || e.code === "Numpad6";
+        const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
+        const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
+        let ncx = cx, ncy = cy;
+        if (isUp)         ncy = Math.max(0, cy - 1);
+        else if (isDown)  ncy = Math.min(MH - 1, cy + 1);
+        else if (isLeft)  ncx = Math.max(0, cx - 1);
+        else if (isRight) ncx = Math.min(MW - 1, cx + 1);
+        else if (isUL) { ncx = Math.max(0, cx - 1); ncy = Math.max(0, cy - 1); }
+        else if (isUR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.max(0, cy - 1); }
+        else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
+        else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
+        if (ncx !== cx || ncy !== cy) {
+          const _ldx = ncx - cx, _ldy = ncy - cy;
+          if (aRef.current) {
+            /* ルック・ダッシュ：通常ダッシュと同じ停止条件でカーソルを移動 */
+            const _ldk = (x, y) => y * MW + x;
+            const _lRoomSet = new Set();
+            for (const r of (dg2.rooms || []))
+              for (let ry = r.y; ry < r.y + r.h; ry++)
+                for (let rx = r.x; rx < r.x + r.w; rx++)
+                  _lRoomSet.add(_ldk(rx, ry));
+            const _lItemMap = new Map();
+            for (const i of (dg2.items || []))
+              if (!_lItemMap.has(_ldk(i.x, i.y))) _lItemMap.set(_ldk(i.x, i.y), i);
+            const _lGetPerps = (x, y) =>
+              (_ldx !== 0 ? [[0,-1],[0,1]] : [[-1,0],[1,0]])
+                .filter(([sdx, sdy]) => {
+                  const sx = x + sdx, sy = y + sdy;
+                  return sx >= 0 && sx < MW && sy >= 0 && sy < MH &&
+                    dg2.map[sy][sx] !== T.WALL && dg2.map[sy][sx] !== T.BWALL;
+                }).length;
+            const _lStartInWall = dg2.map[cy]?.[cx] === T.WALL || dg2.map[cy]?.[cx] === T.BWALL;
+            const _lStartInRoom = _lRoomSet.has(_ldk(cx, cy));
+            let _lcx = cx, _lcy = cy, _lPrevPerps = _lGetPerps(cx, cy);
+            for (let _ls = 0; _ls < 50; _ls++) {
+              const nx = _lcx + _ldx, ny = _lcy + _ldy;
+              if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
+              const _nTile = dg2.map[ny]?.[nx];
+              if (_nTile === T.WALL || _nTile === T.BWALL) break;
+              _lcx = nx; _lcy = ny;
+              /* 壁内スタート：最初の床タイルで停止 */
+              if (_lStartInWall) break;
+              /* 通常停止条件 */
+              if (_lItemMap.has(_ldk(_lcx, _lcy))) break;
+              if (dg2.traps?.find(t => t.x === _lcx && t.y === _lcy)) break;
+              if (dg2.map[_lcy][_lcx] === T.SD || dg2.map[_lcy][_lcx] === T.SU) break;
+              if (dg2.springs?.find(s => s.x === _lcx && s.y === _lcy)) break;
+              if (dg2.bigboxes?.find(b => b.x === _lcx && b.y === _lcy)) break;
+              const _lCurInRoom = _lRoomSet.has(_ldk(_lcx, _lcy));
+              const _lCurPerps = _lGetPerps(_lcx, _lcy);
+              const _lfnx = _lcx + _ldx, _lfny = _lcy + _ldy;
+              const _lNextBlocked = _lfnx < 0 || _lfnx >= MW || _lfny < 0 || _lfny >= MH ||
+                dg2.map[_lfny]?.[_lfnx] === T.WALL || dg2.map[_lfny]?.[_lfnx] === T.BWALL;
+              if (_lStartInRoom) {
+                if (!_lCurInRoom || _lNextBlocked) break;
+              } else {
+                if ((_lCurPerps > _lPrevPerps && _lCurPerps > 0) || _lNextBlocked) break;
+              }
+              _lPrevPerps = _lCurPerps;
+            }
+            if (_lcx !== cx || _lcy !== cy) {
+              setLookMode({ cx: _lcx, cy: _lcy });
+              const _ldesc = getLookDesc(_lcx, _lcy, dg2);
+              if (_ldesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_ldesc}`]);
+            }
+            return;
+          }
+          setLookMode({ cx: ncx, cy: ncy });
+          const _lookDesc = getLookDesc(ncx, ncy, dg2);
+          if (_lookDesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_lookDesc}`]);
+          return;
+        }
+        if (k === "x" || k === "escape") {
+          setLookMode(null);
+          setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
+          return;
+        }
+        return;
+      }
+      if (showInv) {
+        const inv = sr.current?.player?.inventory || [];
+        const _p2 = sr.current?.player;
+        const _dg2 = sr.current?.dungeon;
+        const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
+          allBcKnown: !!sr.current?.allBcKnown,
+          bbFakeNames: sr.current?.bbFakeNames,
+          ident: sr.current?.ident,
+          identifiedBigboxes: sr.current?.identifiedBigboxes,
+        }) : { items: [], traps: [], all: [] };
+        const _flItems2 = _fl2.items;
+        const _flTraps2 = _fl2.traps;
+        const _flAll2 = _fl2.all;
+        const _hasFl2 = _flAll2.length > 0;
+        const _invTotalPg2 = Math.ceil(inv.length / 10) || 1;
+        const totalPages = _invTotalPg2 + (_hasFl2 ? 1 : 0);
+        const _isFloorPg2 = _hasFl2 && invPage === _invTotalPg2;
+        const pageItems = _isFloorPg2 ? [] : inv.slice(invPage * 10, (invPage + 1) * 10);
+        const _flPageItems2 = _isFloorPg2 ? _flAll2 : [];
+        const len = _isFloorPg2 ? _flPageItems2.length : pageItems.length;
+        const absIdx = selIdx !== null ? invPage * 10 + selIdx : null;
+        const getActs = (it, ai) => {
+          const a = [];
+          if (canUse(it))
+            a.push({
+              label: useLabel(it),
+              fn: () => invActRef.current?.use?.(ai),
+            });
+          if (it.type === "spellbook")
+            a.push({ label: "読む", fn: () => invActRef.current?.readSpellbook?.(ai) });
+          if (it.type === "arrow")
+            a.push({ label: "射る", fn: () => invActRef.current?.shoot?.(ai) });
+          if (it.type === "wand")
+            a.push({ label: "振る", fn: () => invActRef.current?.wave?.(ai) });
+          if (it.type === "wand")
+            a.push({
+              label: "壊す",
+              fn: () => invActRef.current?.breakWand?.(ai),
+            });
+          if (it.type === "marker")
+            a.push({ label: "書く", fn: () => invActRef.current?.useMarker?.(ai) });
+          if (it.type === "pot")
+            a.push({
+              label: "割る",
+              fn: () => invActRef.current?.breakPot?.(ai),
+            });
+          if (!it.noDrop)
+            a.push({ label: "置く", fn: () => invActRef.current?.drop?.(ai) });
+          const _isCursedEquipped = it.cursed && (
+            gs?.player?.weapon === it || gs?.player?.armor === it || (gs?.player?.rings || []).includes(it)
+          );
+          if (!_isCursedEquipped && !it.noThrow)
+            a.push({
+              label: it.type === "arrow" ? "投げる(束)" : "投げる",
+              fn: () => invActRef.current?.throw?.(ai),
+            });
+          a.push({
+            label: "説明",
+            fn: () => setShowDesc((p) => (p === ai ? null : ai)),
+          });
+          const _nik = getIdentKey(it);
+          if (_nik && gs?.ident && !gs.ident.has(_nik)) {
+            a.push({
+              label: "名付ける",
+              fn: () => {
+                setNicknameMode({ identKey: _nik });
+                setNicknameInput(gs?.nicknames?.[_nik] || '');
+                setShowInv(false); setSelIdx(null); setShowDesc(null);
+              },
+            });
+          }
+          return a;
+        };
+        const getFloorActs2 = (entry) => {
+          const _role2 = floorEntryRole(entry, _flItems2, _flTraps2);
+          const _j2 = _flAll2.indexOf(entry);
+          const _descAct = { label: "説明", fn: () => setShowDesc((p) => (p === 10000 + _j2 ? null : 10000 + _j2)) };
+          if (_role2 === "trap") {
+            if (isNonSteppableFloorTrap(entry)) return [_descAct];
+            return [
+              { label: "踏む", fn: () => invActRef.current?.floorTrap?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "stair") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorStair?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "bigbox") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorBigbox?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "spring") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorSpring?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "gacha") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorGacha?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "altar") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorAltar?.(entry) },
+              _descAct,
+            ];
+          }
+          if (FLOOR_INFO_ROLES.has(_role2)) {
+            return [_descAct];
+          }
+          const _isEquipType2 = ["weapon","armor","arrow","ring"].includes(entry.type);
+          const acts2 = [];
+          acts2.push({ label: "拾う", fn: () => invActRef.current?.floorPickup?.(entry) });
+          const _addFloorAct2 = (label, actionFn, skipCap = false, keepInv = false) => {
+            acts2.push({ label, fn: () => invActRef.current?.floorItemAction?.(entry, actionFn, skipCap, keepInv) });
+          };
+          if (entry.type === "pot") {
+            acts2.push({ label: "入れる", fn: () => invActRef.current?.floorOpenPutMode?.(entry) });
+          } else if (entry.type === "marker") {
+            acts2.push({ label: "書く", fn: () => invActRef.current?.floorPen?.(entry) });
+          } else if (canUse(entry)) {
+            _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx), !_isEquipType2, _isEquipType2 || entry.type === "scroll");
+          }
+          if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx), true, false);
+          if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx), true, true);
+          if (entry.type === "wand") acts2.push({ label: "振る", fn: () => invActRef.current?.floorWaveWand?.(entry) });
+          if (entry.type === "wand") _addFloorAct2("壊す", (idx) => invActRef.current?.breakWand?.(idx), true, false);
+          if (entry.type === "pot") _addFloorAct2("割る", (idx) => invActRef.current?.breakPot?.(idx), true, false);
+          _addFloorAct2(entry.type === "arrow" ? "投げる(束)" : "投げる", (idx) => invActRef.current?.throw?.(idx), true, true);
+          acts2.push(_descAct);
+          return acts2;
+        };
+        if (invMenuSel !== null) {
+          if (k === "escape" || k === "x") {
+            e.preventDefault();
+            setInvMenuSel(null);
+            return;
+          }
+          const isLeft = k === "arrowleft" || e.code === "Numpad4";
+          const isRight = k === "arrowright" || e.code === "Numpad6";
+          if ((isLeft || isRight) && selIdx !== null) {
+            e.preventDefault();
+            if (_isFloorPg2 && _flPageItems2[selIdx]) {
+              const acts = getFloorActs2(_flPageItems2[selIdx]);
+              setInvMenuSel((p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length);
+            } else if (!_isFloorPg2 && pageItems[selIdx]) {
+              const acts = getActs(pageItems[selIdx], absIdx);
+              setInvMenuSel((p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length);
+            }
+            return;
+          }
+          if ((k === "enter" || k === "z") && selIdx !== null) {
+            e.preventDefault();
+            if (_isFloorPg2 && _flPageItems2[selIdx]) {
+              const acts = getFloorActs2(_flPageItems2[selIdx]);
+              if (invMenuSel >= 0 && invMenuSel < acts.length) {
+                acts[invMenuSel].fn();
+                setInvMenuSel(null);
+              }
+            } else if (!_isFloorPg2 && pageItems[selIdx]) {
+              const acts = getActs(pageItems[selIdx], absIdx);
+              if (invMenuSel >= 0 && invMenuSel < acts.length) {
+                acts[invMenuSel].fn();
+                setInvMenuSel(null);
+              }
+            }
+            return;
+          }
+          return;
+        }
+        const isUp = k === "arrowup" || e.code === "Numpad8";
+        const isDown = k === "arrowdown" || e.code === "Numpad2";
+        const isLeft = k === "arrowleft" || e.code === "Numpad4";
+        const isRight = k === "arrowright" || e.code === "Numpad6";
+        if (k === "escape" || k === "x" || k === "i") {
+          e.preventDefault();
+          setShowInv(false);
+          dropModeRef.current = false;
+          setDropMode(false);
+          setInvPage(0);
+          setSelIdx(null);
+          setShowDesc(null);
+          return;
+        }
+        if ((isUp || isDown) && len > 0) {
+          e.preventDefault();
+          setSelIdx((prev) => {
+            if (prev === null) return isDown ? 0 : len - 1;
+            return (prev + (isDown ? 1 : -1) + len) % len;
+          });
+          setShowDesc(null);
+          return;
+        }
+        if (isLeft || isRight) {
+          e.preventDefault();
+          const newPage =
+            (invPage + (isRight ? 1 : -1) + totalPages) % totalPages;
+          setInvPage(newPage);
+          setSelIdx(0);
+          setInvMenuSel(null);
+          setShowDesc(null);
+          return;
+        }
+        if ((k === "enter" || k === "z") && selIdx !== null) {
+          e.preventDefault();
+          if (_isFloorPg2 && _flPageItems2[selIdx]) {
+            setInvMenuSel(0);
+          } else if (!_isFloorPg2 && pageItems[selIdx]) {
+            if (dropModeRef.current) {
+              invActRef.current?.drop?.(invPage * 10 + selIdx);
+            } else {
+              setInvMenuSel(0);
+            }
+          }
+          return;
+        }
+        if (k === "s" && !_isFloorPg2) {
+          e.preventDefault();
+          sortInventory();
+          return;
+        }
+        if (k === "d" && !_isFloorPg2) {
+          e.preventDefault();
+          const newMode = !dropModeRef.current;
+          dropModeRef.current = newMode;
+          setDropMode(newMode);
+          return;
+        }
+        return;
+      }
+      if (facingMode) {
+        const npm2 = {
+          Numpad8: [0, -1],
+          Numpad2: [0, 1],
+          Numpad4: [-1, 0],
+          Numpad6: [1, 0],
+          Numpad7: [-1, -1],
+          Numpad9: [1, -1],
+          Numpad1: [-1, 1],
+          Numpad3: [1, 1],
+        };
+        const _npmFaceCard = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
+        const _isArrowF = k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright";
+        const _isNpmCardF = e.code in _npmFaceCard;
+        if (shiftRef?.current && (_isArrowF || _isNpmCardF)) {
+          e.preventDefault();
+          const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
+          const _dir = _isArrowF ? _dmap[k] : _npmFaceCard[e.code];
+          if (arrowHeldRef) arrowHeldRef.current[_dir] = true;
+          const _h = arrowHeldRef?.current || {};
+          const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
+          const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
+          if (_sdx !== 0 && _sdy !== 0) {
+            if (sr.current) { sr.current.player.facing = { dx: _sdx, dy: _sdy }; setGs({ ...sr.current }); }
+            setFacingMode(false);
+          }
+          return;
+        }
+        const fdir =
+          npm2[e.code] ||
+          (k === "arrowup"
+            ? [0, -1]
+            : k === "arrowdown"
+              ? [0, 1]
+              : k === "arrowleft"
+                ? [-1, 0]
+                : k === "arrowright"
+                  ? [1, 0]
+                  : null);
+        if (fdir) {
+          e.preventDefault();
+          if (sr.current) {
+            sr.current.player.facing = { dx: fdir[0], dy: fdir[1] };
+            setGs({ ...sr.current });
+          }
+          setFacingMode(false);
+          return;
+        }
+        if (k === "t" || k === "escape") {
+          e.preventDefault();
+          setFacingMode(false);
+          return;
+        }
+        return;
+      }
+      if (handleDialogModalKey(e) !== false) return;
       if (throwMode !== null) {
         if (k === "escape" || k === "x") {
           e.preventDefault();
