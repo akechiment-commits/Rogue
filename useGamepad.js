@@ -14,6 +14,7 @@ import {
   readMoveDir,
   readLookDir,
 } from "./gamepadInput.js";
+import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 
 const QUICK_MENU_COLS = 2;
 const WAIT_REPEAT_MS = 130;
@@ -562,7 +563,11 @@ export function useGamepad({
         /* このフレーム先頭で xHeldRef は既に false に更新済みなので、
            単押し判定は「方向を使っていない」だけで見る */
         if (!xUsedDirRef.current && !anyModalUi() && !dead) {
-          fireKey("t", "KeyT");
+          const _p = sr?.current?.player;
+          const _dg = sr?.current?.dungeon;
+          if (_p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
+            setGs?.({ ...sr.current });
+          }
         }
         facingModeRef.current = false;
         setFacingMode?.(false);

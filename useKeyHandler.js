@@ -19,8 +19,6 @@ import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 import { isDebugItemGetEffect } from "./debugSpellRules.js";
-import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
-
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
 
@@ -2084,14 +2082,7 @@ export function useKeyHandler({
         !putMode
       ) {
         e.preventDefault();
-        const _p = sr.current?.player;
-        const _dg = sr.current?.dungeon;
-        if (_p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
-          setFacingMode(false);
-          setGs({ ...sr.current });
-        } else {
-          setFacingMode((f) => !f);
-        }
+        setFacingMode((f) => !f);
       }
     },
     [
