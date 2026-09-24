@@ -73,8 +73,29 @@ function isDuplicateDirectionEvent(e) {
   return false;
 }
 
+/**
+ * 押しっぱなし（e.repeat === true）による高速連続開閉（点滅）や誤爆を防止すべきキーかどうか。
+ * - x: インベントリ開閉、キャンセル、閉じる
+ * - c: 魔法一覧トグル開閉
+ * - i: インベントリ開閉
+ * - m: メッセージログ画面開閉
+ * - escape: キャンセル・閉じる
+ *
+ * ※ s（足踏み・罠探索）や z（攻撃・調べる）、移動キー（Arrow / Numpad）は
+ *    長押しによる連続実行が必要なため、ここには含めない。
+ */
+function isRepeatBlockedKey(e) {
+  if (!e || !e.repeat) return false;
+  const target = e.target;
+  if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+    return false;
+  }
+  const k = (e.key || "").toLowerCase();
+  return k === "x" || k === "c" || k === "i" || k === "m" || k === "escape";
+}
+
 /* テスト用に export */
-export { isDuplicateDirectionEvent, directionFamily };
+export { isDuplicateDirectionEvent, directionFamily, isRepeatBlockedKey };
 
 export function useKeyHandler({
   // refs
@@ -1273,6 +1294,12 @@ export function useKeyHandler({
       if (isDuplicateDirectionEvent(e)) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        return;
+      }
+      /* メニュー開閉・トグルキー（x, c, i, m, escape）の押しっぱなしによる高速連続開閉（点滅）を防止。
+         ※ s（足踏み・罠探索）や z（攻撃・調べる）、移動キーなどの長押し連続実行は維持する。 */
+      if (isRepeatBlockedKey(e)) {
+        e.preventDefault();
         return;
       }
       if (showScores && !showEnding) {
