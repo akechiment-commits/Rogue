@@ -481,4 +481,32 @@ describe("追加魔法", () => {
     expect(dungeon.monsters).not.toContain(clone);
     expect(messages).toContain("分身の時間切れで消えた！");
   });
+
+  it("魔法書読書時のMP不足反動：生存時は反動を受けながらも魔法が発動し、死亡時は発動しない", () => {
+    const powerSpell = SPELLS.find((s) => s.id === "power_magic");
+    expect(powerSpell).toBeDefined();
+
+    // 1. 生存時：反動ダメージを受けつつも剛力の魔法が発動する
+    const survivor = makePlayer({ hp: 100, maxHp: 100, mp: 0, atk: 10 });
+    const dungeon = makeEmptyDg();
+    const messages = [];
+    const cost = powerSpell.mpCost; // 10
+    const shortage = cost - survivor.mp; // 10
+    const recoil = Math.max(1, Math.round(shortage * shortage * 0.75 + shortage * 2));
+    survivor.mp = 0;
+    survivor.hp -= recoil;
+    expect(survivor.hp).toBeGreaterThan(0);
+    applySpellEffect(powerSpell.effect, "self", null, 0, 0, dungeon, survivor, messages, noop, 1, cost);
+
+    expect(survivor.atk).toBe(20); // 剛力で+10
+    expect(survivor.magicPowerAtkTurns).toBeGreaterThan(0);
+    expect(messages.some((m) => m.includes("剛力の魔法で攻撃力が"))).toBe(true);
+
+    // 2. 死亡時：反動ダメージでHP<=0なら発動しない
+    const victim = makePlayer({ hp: 10, maxHp: 100, mp: 0, atk: 10 });
+    victim.hp -= recoil;
+    expect(victim.hp).toBeLessThanOrEqual(0);
+    // 死亡時は applySpellEffect を呼ばずに中断されるため atk は上がらない
+    expect(victim.atk).toBe(10);
+  });
 });

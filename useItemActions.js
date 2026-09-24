@@ -2543,7 +2543,7 @@ export function useItemActions({
         p.mp = 0;
         p.hp -= _recoil;
         p.deathCause = "魔法書の魔力反動で";
-        ml.push(`${_spell.name}が暴発した！MPが${_shortage}足りず、魔力の反動で${_recoil}ダメージ！`);
+        ml.push(`MPが${_shortage}足りず、魔力の反動で${_recoil}ダメージ！`);
         if (_shortage >= 5) {
           const _confuseTurns = Math.min(12, statusTurns("confuse", { kind: "player" }) + Math.floor(_shortage / 3));
           p.confusedTurns = (p.confusedTurns || 0) + _confuseTurns;
@@ -2567,11 +2567,12 @@ export function useItemActions({
           p.paralyzeTurns = (p.paralyzeTurns || 0) + _paralyzeTurns;
           ml.push(`魔力の反動で金縛りになった！(${_paralyzeTurns}ターン)`);
         }
-        return;
+        if (p.hp <= 0) return;
+        ml.push(`魔力の反動を受けながらも、${_spell.name}が発動した！`);
+      } else {
+        p.mp = _currentMp - _cost;
+        ml.push(`${_spell.name}が本を読んだ瞬間に発動した！[MP -${_cost}]`);
       }
-
-      p.mp = _currentMp - _cost;
-      ml.push(`${_spell.name}が本を読んだ瞬間に発動した！[MP -${_cost}]`);
       const _facing = p.facing || { dx: 0, dy: 1 };
       let _fdx = Number(_facing.dx);
       let _fdy = Number(_facing.dy);
