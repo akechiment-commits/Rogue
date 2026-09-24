@@ -1910,9 +1910,10 @@ export function useKeyHandler({
         if (k === "t" || k === "escape") {
           e.preventDefault();
           if (k === "t") {
+            if (e.repeat) return;
             const _p = sr.current?.player;
             const _dg = sr.current?.dungeon;
-            if (!e.repeat && _p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
+            if (_p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
               tFacedEnemyRef.current = true;
               setGs({ ...sr.current });
               return;
@@ -2105,14 +2106,15 @@ export function useKeyHandler({
         !putMode
       ) {
         e.preventDefault();
+        if (e.repeat) return;
         tHeldRef.current = true;
         tUsedDirRef.current = false;
         const _p = sr.current?.player;
         const _dg = sr.current?.dungeon;
-        if (!e.repeat && _p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
+        if (_p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
           tFacedEnemyRef.current = true;
           setGs({ ...sr.current });
-        } else if (!e.repeat) {
+        } else {
           tFacedEnemyRef.current = false;
         }
         setFacingMode(true);
