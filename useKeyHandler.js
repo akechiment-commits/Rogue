@@ -19,11 +19,13 @@ import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 import { isDebugItemGetEffect } from "./debugSpellRules.js";
+import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
 
-/** window 上の単一 keydown（HMR で多重登録されても差し替え） */
+/** window 上の単一 keydown/keyup（HMR で多重登録されても差し替え） */
 const ROGUE_KD = "__rogueKeydownV2";
+const ROGUE_KU = "__rogueKeyupV2";
 
 /** テンキー由来か（NumLock OFF で key が Arrow* になっても code/location で判定） */
 function isNumpadEvent(e) {
@@ -147,6 +149,10 @@ export function useKeyHandler({
   } = modalState;
   /* handleKey を ref 経由で呼び、listener を1本に固定 */
   const handleKeyRef = useRef(null);
+  const handleKeyUpRef = useRef(null);
+  const tHeldRef = useRef(false);
+  const tUsedDirRef = useRef(false);
+  const tFacedEnemyRef = useRef(false);
 
   const canUse = (it) =>
     ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(it.type);
@@ -1869,7 +1875,11 @@ export function useKeyHandler({
           const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
           if (_sdx !== 0 && _sdy !== 0) {
             if (sr.current) { sr.current.player.facing = { dx: _sdx, dy: _sdy }; setGs({ ...sr.current }); }
-            setFacingMode(false);
+            if (tHeldRef.current) {
+              tUsedDirRef.current = true;
+            } else {
+              setFacingMode(false);
+            }
           }
           return;
         }
@@ -1890,11 +1900,24 @@ export function useKeyHandler({
             sr.current.player.facing = { dx: fdir[0], dy: fdir[1] };
             setGs({ ...sr.current });
           }
-          setFacingMode(false);
+          if (tHeldRef.current) {
+            tUsedDirRef.current = true;
+          } else {
+            setFacingMode(false);
+          }
           return;
         }
         if (k === "t" || k === "escape") {
           e.preventDefault();
+          if (k === "t") {
+            const _p = sr.current?.player;
+            const _dg = sr.current?.dungeon;
+            if (!e.repeat && _p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
+              tFacedEnemyRef.current = true;
+              setGs({ ...sr.current });
+              return;
+            }
+          }
           setFacingMode(false);
           return;
         }
@@ -2082,7 +2105,17 @@ export function useKeyHandler({
         !putMode
       ) {
         e.preventDefault();
-        setFacingMode((f) => !f);
+        tHeldRef.current = true;
+        tUsedDirRef.current = false;
+        const _p = sr.current?.player;
+        const _dg = sr.current?.dungeon;
+        if (!e.repeat && _p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
+          tFacedEnemyRef.current = true;
+          setGs({ ...sr.current });
+        } else if (!e.repeat) {
+          tFacedEnemyRef.current = false;
+        }
+        setFacingMode(true);
       }
     },
     [
@@ -2172,20 +2205,46 @@ export function useKeyHandler({
     ],
   );
   handleKeyRef.current = handleKey;
-  /* グローバルに keydown は常に1本。HMR 後も古い listener を必ず外す */
+
+  const handleKeyUp = useCallback((e) => {
+    const k = e.key ? e.key.toLowerCase() : "";
+    if (k === "t") {
+      tHeldRef.current = false;
+      if (tUsedDirRef.current || tFacedEnemyRef.current) {
+        setFacingMode(false);
+      }
+      tUsedDirRef.current = false;
+      tFacedEnemyRef.current = false;
+    }
+  }, [setFacingMode]);
+  handleKeyUpRef.current = handleKeyUp;
+
+  /* グローバルに keydown / keyup は常に1本。HMR 後も古い listener を必ず外す */
   useEffect(() => {
     const onKeyDown = (e) => handleKeyRef.current?.(e);
+    const onKeyUp = (e) => handleKeyUpRef.current?.(e);
     if (typeof window !== "undefined") {
       if (window[ROGUE_KD]) {
         window.removeEventListener("keydown", window[ROGUE_KD], true);
       }
+      if (window[ROGUE_KU]) {
+        window.removeEventListener("keyup", window[ROGUE_KU], true);
+      }
       window[ROGUE_KD] = onKeyDown;
+      window[ROGUE_KU] = onKeyUp;
       window.addEventListener("keydown", onKeyDown, true);
+      window.addEventListener("keyup", onKeyUp, true);
     }
     return () => {
-      if (typeof window !== "undefined" && window[ROGUE_KD] === onKeyDown) {
-        window.removeEventListener("keydown", onKeyDown, true);
-        delete window[ROGUE_KD];
+      if (typeof window !== "undefined") {
+        if (window[ROGUE_KD] === onKeyDown) {
+          window.removeEventListener("keydown", onKeyDown, true);
+          delete window[ROGUE_KD];
+        }
+        if (window[ROGUE_KU] === onKeyUp) {
+          window.removeEventListener("keyup", onKeyUp, true);
+          delete window[ROGUE_KU];
+        }
       }
     };
   }, []);
