@@ -350,9 +350,9 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
 }
 
 /* ===== Game Over Modal ===== */
-export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile, onReturnToHub, portraitSrc, onViewMap, onViewInventory }) {
+export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile, onReturnToHub, portraitSrc, onViewMap, onViewInventory, onViewMsgLog }) {
   if (!dead) return null;
-  const returnSelection = onReturnToHub ? 4 : null;
+  const returnSelection = onReturnToHub ? (onViewMsgLog ? 5 : 4) : null;
   return (
     <div
       style={{
@@ -528,6 +528,25 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         >
           {gameOverSel === 3 ? "▶ " : "　"}持ち物を見る
         </button>
+        {onViewMsgLog && (
+          <button
+            onClick={onViewMsgLog}
+            style={{
+              padding: "10px 20px",
+              width: mobile ? "auto" : "100%",
+              background: gameOverSel === 4 ? "#182030" : "#181828",
+              color: "#80c0ff",
+              border: `1px solid ${gameOverSel === 4 ? "#80c0ff" : "#2a3a5a"}`,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: 14,
+              borderRadius: 6,
+              boxShadow: gameOverSel === 4 ? "0 0 8px #08a" : "none",
+            }}
+          >
+            {gameOverSel === 4 ? "▶ " : "　"}ログを見る
+          </button>
+        )}
         {onReturnToHub && (
           <button
             onClick={onReturnToHub}
@@ -4398,7 +4417,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
 }
 
 /* ===== Ending Modal ===== */
-export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endingSel = 0, setShowScores, onViewMap, onViewInventory, onDismiss }) {
+export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endingSel = 0, setShowScores, onViewMap, onViewInventory, onViewMsgLog, onDismiss }) {
   if (!show) return null;
   const gold  = endingResult?.earnedGold ?? p?.gold ?? 0;
   const depth = endingResult?.depth      ?? p?.depth ?? 1;
@@ -4409,6 +4428,7 @@ export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endi
     { label: "スコアを見る", color: "#8cf", action: () => setShowScores(true) },
     { label: "状況を見る", color: "#8ff", action: onViewMap },
     { label: "持ち物を見る", color: "#d8a8ff", action: onViewInventory },
+    ...(onViewMsgLog ? [{ label: "ログを見る", color: "#80c0ff", action: onViewMsgLog }] : []),
     { label: "地上に戻る", color: "#ffd700", action: onDismiss },
   ];
   return (

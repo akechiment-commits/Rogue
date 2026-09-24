@@ -6802,7 +6802,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <SignModal sign={showSign} onClose={() => setShowSign(null)} mobile={mobile} />
       <MiniTipModal tip={miniTip} onClose={closeMiniTip} mobile={mobile} />
-      <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
+      <MsgLogModal show={msgLogMode || (dead && gameOverView === "log") || (showEnding && endingView === "log")} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => { if (dead && gameOverView === "log") setGameOverView(null); else if (showEnding && endingView === "log") setEndingView(null); else setMsgLogMode(false); }} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
       <GachaModal mode={gachaMode} setMode={setGachaMode} gs={gs} gachaRef={gachaRef} menuSel={gachaMenuSel} setMenuSel={setGachaMenuSel} onDraw={doGachaDraw} mobile={mobile} />
@@ -6823,6 +6823,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         portraitSrc={gameOverPortrait}
         onViewMap={() => { setShowScores(false); setGameOverView("map"); }}
         onViewInventory={() => { setShowScores(false); setGameOverView("inventory"); gameOverInventoryRef.current = null; }}
+        onViewMsgLog={() => { setShowScores(false); setGameOverView("log"); setMsgLogScrollTop(Math.max(0, msgs.length - 20)); }}
         onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined}
       />
       <GameOverMapView show={dead && gameOverView === "map"} onReopen={() => setGameOverView(null)} mobile={mobile} />
@@ -6837,6 +6838,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         mobile={mobile}
         onViewMap={() => { setShowScores(false); setEndingView("map"); }}
         onViewInventory={() => { setShowScores(false); setEndingView("inventory"); gameOverInventoryRef.current = null; }}
+        onViewMsgLog={() => { setShowScores(false); setEndingView("log"); setMsgLogScrollTop(Math.max(0, msgs.length - 20)); }}
         onDismiss={performEndingDismiss}
       />
       <GameOverMapView show={showEnding && endingView === "map"} onReopen={() => setEndingView(null)} mobile={mobile} resultLabel="クリア時" returnLabel="クリア画面" />

@@ -1296,18 +1296,30 @@ export function useKeyHandler({
           if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
           return;
         }
+        if (endingView === "log") {
+          const _mlTotal = msgsRef.current?.length || 0;
+          const _mlMax = Math.max(0, _mlTotal - 20);
+          if (isKeyUp(e)) { setMsgLogScrollTop((s) => Math.max(0, s - 1)); return; }
+          if (isKeyDown(e)) { setMsgLogScrollTop((s) => Math.min(_mlMax, s + 1)); return; }
+          if (k === "m" || k === "x" || k === "escape" || k === "enter" || k === " " || k === "z") {
+            setEndingView(null);
+            return;
+          }
+          return;
+        }
         if (endingView) {
           setEndingView(null);
           return;
         }
         if (isKeyUp(e) || isKeyLeft(e)) {
-          setEndingSel((p) => (p - 1 + 4) % 4);
+          setEndingSel((p) => (p - 1 + 5) % 5);
         } else if (isKeyDown(e) || isKeyRight(e)) {
-          setEndingSel((p) => (p + 1) % 4);
+          setEndingSel((p) => (p + 1) % 5);
         } else if (k === "enter" || k === " " || k === "z") {
           if (endingSel === 0) setShowScores(true);
           else if (endingSel === 1) setEndingView("map");
           else if (endingSel === 2) setEndingView("inventory");
+          else if (endingSel === 3) { setEndingView("log"); setMsgLogScrollTop(Math.max(0, (msgsRef.current?.length || 0) - 20)); }
           else onDismissEnding?.();
         }
         return;
@@ -1346,13 +1358,25 @@ export function useKeyHandler({
           if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
           return;
         }
+        if (gameOverView === "log") {
+          e.preventDefault();
+          const _mlTotal = msgsRef.current?.length || 0;
+          const _mlMax = Math.max(0, _mlTotal - 20);
+          if (isKeyUp(e)) { setMsgLogScrollTop((s) => Math.max(0, s - 1)); return; }
+          if (isKeyDown(e)) { setMsgLogScrollTop((s) => Math.min(_mlMax, s + 1)); return; }
+          if (k === "m" || k === "x" || k === "escape" || k === "enter" || k === " " || k === "z") {
+            setGameOverView(null);
+            return;
+          }
+          return;
+        }
         if (gameOverView) {
           e.preventDefault();
           setGameOverView(null);
           return;
         }
         if (!showScores) {
-          const _goCount = gameOverCanReturn ? 5 : 4;
+          const _goCount = gameOverCanReturn ? 6 : 5;
           if (isKeyUp(e) || isKeyLeft(e)) {
             e.preventDefault();
             setGameOverSel((p) => (p - 1 + _goCount) % _goCount);
@@ -1365,7 +1389,8 @@ export function useKeyHandler({
             else if (gameOverSel === 1) setShowScores(true);
             else if (gameOverSel === 2) { setShowScores(false); setGameOverView("map"); }
             else if (gameOverSel === 3) { setShowScores(false); setGameOverView("inventory"); }
-            else if (gameOverSel === 4) performGameOverReturnToHub?.();
+            else if (gameOverSel === 4) { setShowScores(false); setGameOverView("log"); setMsgLogScrollTop(Math.max(0, (msgsRef.current?.length || 0) - 20)); }
+            else if (gameOverSel === 5) performGameOverReturnToHub?.();
           }
         } else {
           if (k === "escape" || k === "enter" || k === " " || k === "z") {
