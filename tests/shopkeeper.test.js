@@ -218,9 +218,73 @@ describe("wandering merchant", () => {
     expect(merchant.state).toBe("friendly");
     expect(merchant.speed).toBe(0.5);
 
+    // 自分のキルスコアにならない状況（noExp: true）で死亡した場合は泥棒扱いにならない
     merchant.hp = 0;
     killMonster(merchant, dg, p, [], () => {}, true);
+    expect(dg.shopTheft).not.toBe(true);
+    expect(p.isThief).not.toBe(true);
+  });
+
+  it("行商人がプレイヤーのキルスコアになる状況で倒された場合のみ泥棒扱いになり、売っていた商品を1つ落とす", () => {
+    const item1 = { id: "st1", name: "薬草", type: "potion" };
+    const item2 = { id: "st2", name: "長剣", type: "weapon" };
+    const merchant = {
+      id: "wm2", name: "行商人", hp: 200, maxHp: 200, atk: 100, def: 100,
+      speed: 0.5, baseSpeed: 0.5, tile: 37, type: "shopkeeper", state: "friendly",
+      isWanderingMerchant: true, merchantShopId: "wm-shop2", x: 5, y: 5,
+      turnAccum: 0, aware: false, dir: { x: 0, y: 1 }, lastPx: 5, lastPy: 5,
+    };
+    const dg = makeEmptyDg({
+      monsters: [merchant],
+      items: [],
+      merchantShops: [{ id: "wm-shop2", merchantId: "wm2", stock: [item1, item2] }],
+    });
+    const p = makePlayer({ x: 1, y: 1 });
+    const ml = [];
+
+    merchant.hp = 0;
+    // noExp: false（プレイヤーのキル）
+    killMonster(merchant, dg, p, ml, () => {}, false);
     expect(dg.shopTheft).toBe(true);
     expect(p.isThief).toBe(true);
+    expect(ml.some(m => m.includes("泥棒扱いになった"))).toBe(true);
+
+    // 在庫から1つだけ落とす
+    expect(dg.items).toHaveLength(1);
+    const dropped = dg.items[0];
+    expect(["薬草", "長剣"]).toContain(dropped.name);
+    // 落としたアイテムは在庫から消え、残りは1つ
+    const shop = dg.merchantShops[0];
+    expect(shop.stock).toHaveLength(1);
+    expect(shop.stock[0].name).not.toBe(dropped.name);
+    expect(ml.some(m => m.includes(`行商人が売っていた${dropped.name}を落とした！`))).toBe(true);
+  });
+
+  it("行商人がモンスターに倒された場合は泥棒扱いにならず、商品は1つ落とす", () => {
+    const item1 = { id: "st3", name: "パン", type: "food" };
+    const merchant = {
+      id: "wm3", name: "行商人", hp: 200, maxHp: 200, atk: 100, def: 100,
+      speed: 0.5, baseSpeed: 0.5, tile: 37, type: "shopkeeper", state: "friendly",
+      isWanderingMerchant: true, merchantShopId: "wm-shop3", x: 4, y: 4,
+    };
+    const enemyMon = { id: "em1", name: "スライム", x: 4, y: 5 };
+    const dg = makeEmptyDg({
+      monsters: [merchant, enemyMon],
+      items: [],
+      merchantShops: [{ id: "wm-shop3", merchantId: "wm3", stock: [item1] }],
+    });
+    const p = makePlayer({ x: 1, y: 1 });
+    const ml = [];
+
+    merchant.hp = 0;
+    // killerMon あり（モンスターによる撃破）
+    killMonster(merchant, dg, p, ml, () => {}, false, enemyMon);
+    expect(dg.shopTheft).not.toBe(true);
+    expect(p.isThief).not.toBe(true);
+
+    // 商品は落とす
+    expect(dg.items).toHaveLength(1);
+    expect(dg.items[0].name).toBe("パン");
+    expect(dg.merchantShops[0].stock).toHaveLength(0);
   });
 });

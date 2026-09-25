@@ -5369,6 +5369,26 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
 
   const drops = [];
+  /* 行商人：売っていた商品（在庫）の中からランダムに1つだけ落とす */
+  if (m.isWanderingMerchant) {
+    const _shop = dg.merchantShops?.find(s => s.id === m.merchantShopId || s.merchantId === m.id);
+    if (_shop?.stock?.length > 0) {
+      const _idx = rng(0, _shop.stock.length - 1);
+      const _chosen = _shop.stock[_idx];
+      _shop.stock.splice(_idx, 1);
+      const _dropItem = { ..._chosen, id: uid() };
+      if (_dropItem.contents) _dropItem.contents = _dropItem.contents.map(c => ({ ...c }));
+      const _ft = new Set();
+      const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
+      if (_spr) {
+        soakItemIntoSpring(_spr, _dropItem, ml, dg);
+      } else {
+        placeItemAt(dg, m.x, m.y, _dropItem, ml, _ft, 0, p);
+      }
+      ml.push(`${m.name}が売っていた${resolveItemName(_dropItem)}を落とした！`);
+    }
+    return;
+  }
   /* ゼラチンキューブ：取り込んでいたアイテムを全てその場にばらまく */
   if (m.baseKind === "gelcube" && m.heldItems?.length > 0) {
     const _ft = new Set();
@@ -5653,7 +5673,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* HP0になったモンスターの状態異常を、復活判定や撃破演出より先に消す。 */
   if (mon.hp <= 0) clearStatusEffectsOnHpZero(mon);
-  if (mon.isWanderingMerchant && p && !killerMon) {
+  if (mon.isWanderingMerchant && p && !killerMon && !noExp) {
     const _alreadyThief = !!(dg.shopTheft || p.isThief);
     dg.shopTheft = true;
     p.isThief = true;
