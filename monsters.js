@@ -755,10 +755,10 @@ export const MONS = [
       { name: "ミフネ",                 hp: 70,  atk: 29, def: 8,  exp: 98  },
     ],
   },
-  { name: "ひったくり",   hp: 28,  atk: 16, def: 3,  exp: 45,  speed: 1,   tile: 153, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 14 }, advanced: { min: 9, max: 17 } },
+  { name: "はぐれ乱波",   hp: 28,  atk: 16, def: 3,  exp: 45,  speed: 1,   tile: 153, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 14 }, advanced: { min: 9, max: 17 } },
     levels: [
-      { name: "分捕り",                 hp: 46,  atk: 22, def: 5,  exp: 72,  dungeonFloors: { advanced: { min: 24, max: 26 } } },
-      { name: "根刮ぎ",                 hp: 67,  atk: 29, def: 8,  exp: 108 },
+      { name: "闇透破",                 hp: 46,  atk: 22, def: 5,  exp: 72,  dungeonFloors: { advanced: { min: 24, max: 26 } } },
+      { name: "草",                     hp: 67,  atk: 29, def: 8,  exp: 108 },
     ],
   },
   { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13, dungeonFloors: { beginner: { min: 3, max: 6 }, intermediate: { min: 2, max: 5 }, advanced: { min: 4, max: 5 } },
@@ -878,11 +878,11 @@ export const MONS = [
       { name: "アイテムモドキ王", hp: 95,  atk: 39, def: 13, exp: 138, dungeonFloors: { advanced: { min: 26, max: 30 } } },
     ],
   },
-  { name: "拾い投げ",     hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
+  { name: "ひょい河童",   hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
     desc: "プレイヤーを認識すると、隣接していない間は床のアイテムを拾い、一直線上から投げつける。投げる前に倒せばアイテムを落とす。",
     levels: [
-      { name: "強拾い投げ",   hp: 69,  atk: 29, def: 9,  exp: 100, dungeonFloors: { advanced: { min: 26, max: 30 } } },
-      { name: "拾い投げ王",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
+      { name: "剛腕水虎",     hp: 69,  atk: 29, def: 9,  exp: 100, dungeonFloors: { advanced: { min: 26, max: 30 } } },
+      { name: "豪傑九千坊",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 19 } },
@@ -4073,6 +4073,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     playerCloneAI(m, dg, pl, ml, opts);
     return;
   }
+  m.turnAttacks = m.turnAttacks || 0;
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
   let _rangedAttackReady = false;
@@ -5266,7 +5267,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── itemThrower（拾い投げ）：床のアイテムを拾い、一直線上から投げる ── */
+    /* ── itemThrower（ひょい河童系）：床のアイテムを拾い、一直線上から投げる ── */
     if (m.subtype === "itemThrower" && !m.sealed && m.aware && !_plInvis) {
       const _itAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _itDx = pl.x - m.x, _itDy = pl.y - m.y;
@@ -5933,7 +5934,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── stealthrower（盗投士等）：盗む→次ターンに投げる ── */
+    /* ── stealthrower（はぐれ乱波系）：盗む→次ターンに投げる ── */
     if (m.subtype === "stealthrower" && !m.sealed) {
       const _srHeldItem = syncStealthrowerHeldItem(m);
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
