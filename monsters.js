@@ -775,8 +775,8 @@ export const MONS = [
   },
   { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 164, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 9, max: 10 }, intermediate: { min: 6, max: 8 }, advanced: { min: 5, max: 12 } },
     levels: [
-      { name: "強インプ",           hp: 44,  atk: 24, def: 7,  exp: 52, dungeonFloors: { advanced: { min: 15, max: 18 } } },
-      { name: "覇インプ",           hp: 65,  atk: 30, def: 11, exp: 70, dungeonFloors: { advanced: { min: 20, max: 22 } } },
+      { name: "レッサーインプ",     hp: 44,  atk: 24, def: 7,  exp: 52, dungeonFloors: { advanced: { min: 15, max: 18 } } },
+      { name: "アークインプ",       hp: 65,  atk: 30, def: 11, exp: 70, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
   { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 7, max: 9 }, intermediate: { min: 4, max: 6 }, advanced: { min: 5, max: 12 } },
@@ -829,8 +829,8 @@ export const MONS = [
   },
   { name: "レプラコーン", hp: 20,  atk: 9,  def: 1,  exp: 38,  speed: 2,   tile: 109, kind: "humanoid", baseKind: "leprechaun",    monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "goldthief", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 15 }, advanced: { min: 7, max: 16 } },
     levels: [
-      { name: "強レプラコーン",       hp: 33,  atk: 13, def: 3,  exp: 61  },
-      { name: "覇レプラコーン",       hp: 52,  atk: 17, def: 5,  exp: 95  },
+      { name: "クルラコーン",         hp: 33,  atk: 13, def: 3,  exp: 61  },
+      { name: "エルドラド",           hp: 52,  atk: 17, def: 5,  exp: 95  },
     ],
   },
   { name: "錆虫",         hp: 24,  atk: 13,  def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 12 }, advanced: { min: 8, max: 17 } },
@@ -841,8 +841,8 @@ export const MONS = [
   },
   { name: "足払い鬼",     hp: 20,  atk: 11, def: 2,  exp: 28,  speed: 1,   tile: 151, kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 5,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 5, max: 7 }, advanced: { min: 7, max: 16 } },
     levels: [
-      { name: "強足払い鬼",         hp: 46,  atk: 21, def: 6,  exp: 68,  dungeonFloors: { advanced: { min: 18, max: 22 } } },
-      { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
+      { name: "転倒鬼",             hp: 46,  atk: 21, def: 6,  exp: 68,  dungeonFloors: { advanced: { min: 18, max: 22 } } },
+      { name: "崩し羅刹",           hp: 68,  atk: 28, def: 10, exp: 100 },
     ],
   },
   { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", randomElementalWands: true, dungeonFloors: { intermediate: { min: 11, max: 13 }, advanced: { min: 9, max: 17 } },
@@ -1006,8 +1006,8 @@ export const MONS = [
   },
   { name: "トロル",       hp: 68,  atk: 29, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "trollcrit", desc: "通常攻撃時に25%で1.5倍ダメージの痛恨の一撃を放つ。", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
     levels: [
-      { name: "強トロル",           hp: 108, atk: 40, def: 13, exp: 120 },
-      { name: "覇トロル",           hp: 169, atk: 53, def: 17, exp: 188 },
+      { name: "トロルウォーリア",     hp: 108, atk: 40, def: 13, exp: 120 },
+      { name: "トロルキング",         hp: 169, atk: 53, def: 17, exp: 188 },
     ],
   },
   { name: "火ダルマ",     hp: 74,  atk: 36, def: 6,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",     monLevel: 1, minFloor: 25, maxFloor: 50, float: true, elemWeak: "ice", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
@@ -1042,8 +1042,8 @@ export const MONS = [
   },
   { name: "デーモン",     hp: 108, atk: 50, def: 13, exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",        monLevel: 1, minFloor: 27, maxFloor: 50, maxAttacks: 3, float: true, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
     levels: [
-      { name: "強デーモン",         hp: 173, atk: 71, def: 19, exp: 256 },
-      { name: "魔王",               hp: 270, atk: 90, def: 24, exp: 400 },
+      { name: "アークデーモン",       hp: 173, atk: 71, def: 19, exp: 256 },
+      { name: "グレーターデーモン",   hp: 270, atk: 90, def: 24, exp: 400 },
     ],
   },
   /* ===== 新型モンスター4種 ===== */
