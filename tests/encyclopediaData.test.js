@@ -38,7 +38,7 @@ describe("encyclopedia data", () => {
     expect(getMonsterDescription("タトゥーバード")).toContain("フェザーガード");
     expect(getMonsterDescription("深淵神")).toContain("最終ボス");
     expect(getMonsterDescription("杖術師")).toContain("テレポート");
-    expect(getMonsterDescription("大蛇")).toContain("毒");
+    expect(getMonsterDescription("にじりヘビ")).toContain("毒");
   });
 
   it("キーアイテムの解説と未設定時の共通文を提供する", () => {

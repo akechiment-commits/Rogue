@@ -1796,7 +1796,7 @@ export function weaponCriticalRate(weapon, sesameActive = false) {
 
 export const WEAPON_ABILITIES = [
   { id:"reach",         name:"長柄",      desc:"2マス先の敵まで攻撃できる" },
-  { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・大蛇)に1.5倍ダメージ" },
+  { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・にじりヘビ)に1.5倍ダメージ" },
   { id:"bane_undead",   name:"聖属性",    desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に1.5倍ダメージ" },
   { id:"bane_undead_2", name:"上位聖属性",  desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に2倍ダメージ（上位特効）" },
   { id:"bane_dragon_2", name:"上位竜特効",  desc:"竜系の敵(ドラゴン)に2倍ダメージ（上位特効）" },

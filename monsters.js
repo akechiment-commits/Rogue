@@ -835,8 +835,8 @@ export const MONS = [
   },
   { name: "錆虫",         hp: 24,  atk: 13,  def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 12 }, advanced: { min: 8, max: 17 } },
     levels: [
-      { name: "強錆虫",             hp: 39,  atk: 18, def: 5,  exp: 64,  dungeonFloors: { advanced: { min: 21, max: 23 } } },
-      { name: "覇錆虫",             hp: 61,  atk: 25, def: 7,  exp: 100 },
+      { name: "赤錆虫",             hp: 39,  atk: 18, def: 5,  exp: 64,  dungeonFloors: { advanced: { min: 21, max: 23 } } },
+      { name: "錆喰い蟲",           hp: 61,  atk: 25, def: 7,  exp: 100 },
     ],
   },
   { name: "足払い鬼",     hp: 20,  atk: 11, def: 2,  exp: 28,  speed: 1,   tile: 151, kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 5,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 5, max: 7 }, advanced: { min: 7, max: 16 } },
@@ -887,8 +887,8 @@ export const MONS = [
   },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 19 } },
     levels: [
-      { name: "強ボムスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
-      { name: "覇ボムスライム",     hp: 95,  atk: 29, def: 5,  exp: 138 },
+      { name: "ニトロスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
+      { name: "メテオスライム",     hp: 95,  atk: 29, def: 5,  exp: 138 },
     ],
   },
   { name: "ボルガ",       hp: 28,  atk: 12, def: 0,  exp: 60,  speed: 1,   tile: 159, kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, minFloor: 12, maxFloor: 26, subtype: "kamikaze", dungeonFloors: { intermediate: null, advanced: { min: 10, max: 19 } },
@@ -937,10 +937,10 @@ export const MONS = [
       { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
     ],
   },
-  { name: "大蛇",         hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, desc: "隣接時25%で毒撃（1回攻撃、毒薬と同じ毒）。不発時は通常の二回攻撃。", dungeonFloors: { intermediate: null, advanced: { min: 12, max: 22 } },
+  { name: "にじりヘビ",   hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, desc: "隣接時25%で毒撃（1回攻撃、毒薬と同じ毒）。不発時は通常の二回攻撃。", dungeonFloors: { intermediate: null, advanced: { min: 12, max: 22 } },
     levels: [
-      { name: "強大蛇",             hp: 76,  atk: 32, def: 9,  exp: 83  },
-      { name: "覇大蛇",             hp: 119, atk: 42, def: 13, exp: 130 },
+      { name: "スパークヘビ",       hp: 76,  atk: 32, def: 9,  exp: 83  },
+      { name: "暗黒ヘビ",           hp: 119, atk: 42, def: 13, exp: 130 },
     ],
   },
   { name: "ゴールドタイガー", hp: 38,  atk: 20, def: 5,  exp: 55,  speed: 1,   tile: 149, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "trapthrower", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 24 } },
@@ -6117,7 +6117,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* 強化・回復対象なし／抽選外 → 通常行動（プレイヤーへ接近）にフォールスルー */
     }
 
-    /* ── 大蛇：隣接時 25% で1回攻撃の毒撃。不発時は通常の二回攻撃へ ── */
+    /* ── にじりヘビ：隣接時 25% で1回攻撃の毒撃。不発時は通常の二回攻撃へ ── */
     if (m.baseKind === "serpent" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       if (_moveOnly) return;
       if (_plOnSanc) return;
