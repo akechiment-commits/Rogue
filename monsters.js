@@ -927,8 +927,8 @@ export const MONS = [
   },
   { name: "岩砕き",       hp: 68,  atk: 28, def: 7,  exp: 65,  speed: 0.5, tile: 154, kind: "beast",    baseKind: "walldigger",    monLevel: 1, minFloor: 16, maxFloor: 50, wallDigger: true, dungeonFloors: { intermediate: null, advanced: { min: 12, max: 23 } },
     levels: [
-      { name: "強岩砕き",           hp: 108, atk: 38, def: 12, exp: 104 },
-      { name: "覇岩砕き",           hp: 169, atk: 50, def: 16, exp: 163 },
+      { name: "山崩し",             hp: 108, atk: 38, def: 12, exp: 104 },
+      { name: "大地穿ち",           hp: 169, atk: 50, def: 16, exp: 163 },
     ],
   },
   { name: "罠師",         hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 22 } },
@@ -1018,8 +1018,8 @@ export const MONS = [
   },
   { name: "ガーゴイル",   hp: 88,  atk: 32, def: 16, exp: 90,  speed: 0.5, tile: 179, kind: "undead",   baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true, dungeonFloors: { intermediate: null, advanced: { min: 19, max: 29 } },
     levels: [
-      { name: "強ガーゴイル",       hp: 140, atk: 46, def: 21, exp: 144 },
-      { name: "覇ガーゴイル",       hp: 220, atk: 58, def: 27, exp: 225 },
+      { name: "黒曜ガーゴイル",     hp: 140, atk: 46, def: 21, exp: 144 },
+      { name: "アダマントガーゴイル", hp: 220, atk: 58, def: 27, exp: 225 },
     ],
   },
   { name: "ヴァンパイア", hp: 81,  atk: 32, def: 10, exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",       monLevel: 1, minFloor: 26, maxFloor: 50, maxAttacks: 2, float: true, dungeonFloors: { intermediate: null, advanced: { min: 19, max: 29 } },
