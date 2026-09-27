@@ -20,6 +20,7 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 import { isDebugItemGetEffect } from "./debugSpellRules.js";
 import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
+import { unlockAudio, triggerSE } from "./soundEvents.js";
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
 
@@ -2250,7 +2251,10 @@ export function useKeyHandler({
 
   /* グローバルに keydown / keyup は常に1本。HMR 後も古い listener を必ず外す */
   useEffect(() => {
-    const onKeyDown = (e) => handleKeyRef.current?.(e);
+    const onKeyDown = (e) => {
+      unlockAudio();
+      handleKeyRef.current?.(e);
+    };
     const onKeyUp = (e) => handleKeyUpRef.current?.(e);
     if (typeof window !== "undefined") {
       if (window[ROGUE_KD]) {

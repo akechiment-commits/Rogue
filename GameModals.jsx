@@ -3780,7 +3780,7 @@ export function InventoryModal({
 }
 
 /* ===== Sidebar Portrait Panel ===== */
-export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings, isAnyModalActive = false }) {
+export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings, setShowSound, isAnyModalActive = false }) {
   if (!(!mobile || landscape)) return null;
   /* reaction_fall_severe だけ被写体が右寄りに大きく描かれているため、全体を収める。 */
   const fitWideFallPortrait = typeof portraitSrc === "string" && /reaction_fall_severe\.png(?:[?#]|$)/.test(portraitSrc);
@@ -3826,6 +3826,10 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
           style={{ background: isAnyModalActive ? "#101018" : "#0d0d1a", border: `1px solid ${isAnyModalActive ? "#223" : "#336"}`, color: isAnyModalActive ? "#446" : "#8cf", fontSize: 12, borderRadius: 3, cursor: isAnyModalActive ? "default" : "pointer", padding: "3px 0", width: "100%" }}>
           📜 冒険記録
         </button>
+        <button onClick={() => { if (isAnyModalActive) return; if (setShowSound) setShowSound(true); }}
+          style={{ background: isAnyModalActive ? "#151520" : "#1a1a28", border: `1px solid ${isAnyModalActive ? "#222" : "#445"}`, color: isAnyModalActive ? "#445" : "#ffd700", fontSize: 12, borderRadius: 3, cursor: isAnyModalActive ? "default" : "pointer", padding: "3px 0", width: "100%" }}>
+          🎵 サウンド
+        </button>
       </div>
     </div>
   );
@@ -3838,7 +3842,7 @@ const DESKTOP_VW_OPTIONS = [
   { value: 33, label: "小" },
 ];
 
-export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, portraitSrc, loadTileset, currentTileset, desktopVW, setDesktopVW, mobile }) {
+export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, portraitSrc, loadTileset, currentTileset, desktopVW, setDesktopVW, mobile, setShowSound }) {
   const tilesetKeys = Object.keys(TILESET_LABELS);
   const actions = useMemo(() => {
     const list = [];
@@ -3852,6 +3856,7 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
     }
     list.push({ id: "portrait", kind: "portrait", label: "立ち絵を変更" });
     if (portraitSrc) list.push({ id: "clearPortrait", kind: "clearPortrait", label: "立ち絵を消去" });
+    list.push({ id: "sound", kind: "sound", label: "🎵 サウンド設定" });
     list.push({ id: "close", kind: "close", label: "閉じる" });
     return list;
   }, [mobile, portraitSrc, tilesetKeys.join("|")]);
@@ -3898,6 +3903,7 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
         else if (a.kind === "vw") setDesktopVW(a.value);
         else if (a.kind === "portrait") fileRef.current?.click();
         else if (a.kind === "clearPortrait") clearPortrait();
+        else if (a.kind === "sound") { setShow(false); if (setShowSound) setShowSound(true); }
         else if (a.kind === "close") setShow(false);
       }
     };
@@ -3968,6 +3974,13 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
               </button>
             )}
           </div>
+        </div>
+
+        <div>
+          <button onClick={() => { setShow(false); if (setShowSound) setShowSound(true); }}
+            style={{ width: "100%", padding: "6px 0", background: focused?.kind === "sound" ? "#2a2a1a" : "#1a1a24", border: `1px solid ${focused?.kind === "sound" ? "#ffd700" : "#445"}`, color: focused?.kind === "sound" ? "#ffd700" : "#ccc", borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: "bold" }}>
+            🎵 サウンド設定 & サウンドテスト
+          </button>
         </div>
 
         <button onClick={() => setShow(false)}

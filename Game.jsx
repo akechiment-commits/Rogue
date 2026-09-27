@@ -42,6 +42,8 @@ import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
 import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
+import SoundModal from "./SoundModal.jsx";
+import { updateDungeonBgm, processActionMessages, triggerSE, unlockAudio } from "./soundEvents.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -284,6 +286,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const showTileEditorRef = useRef(false);
   showTileEditorRef.current = showTileEditor;
   const [showSettings, setShowSettings] = useState(false);
+  const [showSound, setShowSound] = useState(false);
   const showSettingsRef = useRef(false);
   showSettingsRef.current = showSettings;
   const showScoresRef = useRef(false);
@@ -296,6 +299,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [desktopVW, setDesktopVW] = useState(() => parseInt(localStorage.getItem('roguelike_desktop_vw') || '25'));
   const [landscape, setLandscape] = useState(false);
   const [portraitSrc, setPortraitSrc] = useState(null);
+
+  /* フロア変更・ゲームオーバー・クリア・モンスターハウス状態に応じたBGM自動更新 */
+  useEffect(() => {
+    if (gs) {
+      updateDungeonBgm(gs);
+    }
+  }, [gs?.dungeon?.depth, gs?.dungeon?.isMonsterHouseActive, gs?.isGameOver, gs?.isGameClear, dead, showEnding]);
   const loadCustomTile = (idx, file) => {
     const r = new FileReader();
     r.onload = (e) => {
@@ -3484,7 +3494,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       sr.current = { ...st };
       setGs({ ...st });
-      if (drainHungerWarn() || drainPinchAlert()) setRevealMode({ pendingMsgs: [] });
+      if (drainHungerWarn() || drainPinchAlert()) {
+        triggerSE("alert");
+        setRevealMode({ pendingMsgs: [] });
+      }
+      processActionMessages(ml);
+      updateDungeonBgm(st);
       /* Play animations if any were queued */
       const _hasAnim = _ad.playerMove || _ad.playerKnockback || _ad.playerTeleport || _ad.trapWait || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
       if (_hasAnim) {
@@ -5956,6 +5971,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     msgLogMode ||
     showScores ||
     showSettings ||
+    showSound ||
     showSign ||
     miniTip ||
     showTileEditor ||
@@ -5969,7 +5985,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     <div
       ref={ref}
       tabIndex={0}
-      onClick={() => ref.current?.focus()}
+      onClick={() => { unlockAudio(); ref.current?.focus(); }}
       style={{
         width: "100%",
         maxWidth: mobile ? "100%" : 1200,
@@ -6427,6 +6443,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (msgLogMode) { setMsgLogMode(false); return; }
                     if (showScores) { setShowScores(false); return; }
                     if (showSettings) { setShowSettings(false); return; }
+                    if (showSound) { setShowSound(false); return; }
                     if (showTileEditor) { setShowTileEditor(false); return; }
                     if (isAnyModalActive) return;
                     act("inventory");
@@ -6844,9 +6861,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <GameOverMapView show={showEnding && endingView === "map"} onReopen={() => setEndingView(null)} mobile={mobile} resultLabel="クリア時" returnLabel="クリア画面" />
       <GameOverInventoryModal show={showEnding && endingView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} inventoryRef={gameOverInventoryRef} onReopen={() => setEndingView(null)} resultLabel="クリア時" returnLabel="クリア画面" />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} dungeonType={gameOverResult?.dungeonType || endingResult?.dungeonType || sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner"} />
-      <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} isAnyModalActive={isAnyModalActive} />
+      <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} setShowSound={setShowSound} isAnyModalActive={isAnyModalActive} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />
-      <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); localStorage.setItem('roguelike_desktop_vw', String(v)); }} mobile={mobile} />
+      <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); localStorage.setItem('roguelike_desktop_vw', String(v)); }} mobile={mobile} setShowSound={setShowSound} />
+      <SoundModal isOpen={showSound} onClose={() => setShowSound(false)} gameState={gs} />
       <ExitHubConfirmModal show={exitHubConfirm} sel={exitHubSel} setSel={setExitHubSel}
         onConfirm={performExitToHub}
         onCancel={() => setExitHubConfirm(false)}
