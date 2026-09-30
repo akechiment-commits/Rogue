@@ -64,8 +64,8 @@ class SoundEngine {
   }
 
   _loadSettings() {
-    if (typeof window === "undefined" || !window.localStorage) return;
     try {
+      if (typeof window === "undefined" || !window.localStorage) return;
       const savedBgm = localStorage.getItem("rogue_bgm_vol");
       const savedSe = localStorage.getItem("rogue_se_vol");
       const savedMute = localStorage.getItem("rogue_audio_mute");
@@ -78,8 +78,8 @@ class SoundEngine {
   }
 
   _saveSettings() {
-    if (typeof window === "undefined" || !window.localStorage) return;
     try {
+      if (typeof window === "undefined" || !window.localStorage) return;
       localStorage.setItem("rogue_bgm_vol", String(this.bgmVolume));
       localStorage.setItem("rogue_se_vol", String(this.seVolume));
       localStorage.setItem("rogue_audio_mute", String(this.isMuted));

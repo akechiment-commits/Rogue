@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
+import { readPreference, writePreference } from "./browserPreferences.js";
 import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
 import {
   findRoom,
@@ -303,8 +304,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [exitHubSel, setExitHubSel] = useState(0);
   const exitHubConfirmRef = useRef(false);
   exitHubConfirmRef.current = exitHubConfirm;
-  const [currentTileset, setCurrentTileset] = useState(() => localStorage.getItem('roguelike_tileset') || 'default');
-  const [desktopVW, setDesktopVW] = useState(() => parseInt(localStorage.getItem('roguelike_desktop_vw') || '25'));
+  const [currentTileset, setCurrentTileset] = useState(() => readPreference('roguelike_tileset', 'default') || 'default');
+  const [desktopVW, setDesktopVW] = useState(() => parseInt(readPreference('roguelike_desktop_vw', '25') || '25'));
   const [landscape, setLandscape] = useState(false);
   const [portraitSrc, setPortraitSrc] = useState(null);
 
@@ -392,7 +393,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       })));
       await loadPublicNamedTiles([...PUBLIC_TRAP_TILE_IDS, ...PUBLIC_SPECIAL_PROJECTILE_TILE_IDS]);
       setCurrentTileset('default');
-      localStorage.setItem('roguelike_tileset', 'default');
+      writePreference('roguelike_tileset', 'default');
       setCtLoaded(c => c + 1);
       return;
     }
@@ -451,7 +452,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
        * DawnLike／デフォルトだけpublic/tilesの16pxマップアイコンを使う。 */
       if (name !== 'mon1') await loadPublicNamedTiles([...PUBLIC_TRAP_TILE_IDS, ...PUBLIC_SPECIAL_PROJECTILE_TILE_IDS]);
       setCurrentTileset(name);
-      localStorage.setItem('roguelike_tileset', name);
+      writePreference('roguelike_tileset', name);
       setCtLoaded(c => c + 1);
     } catch (e) {
       console.error('Tileset load failed:', e);
@@ -580,7 +581,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, []);
   /* Generate procedural pixel art as default tiles, then override with saved tileset or custom PNGs */
   useEffect(() => {
-    const _savedTileset = localStorage.getItem('roguelike_tileset') || 'default';
+    const _savedTileset = readPreference('roguelike_tileset', 'default') || 'default';
     if (_savedTileset !== 'default') {
       /* 保存されたプリセットタイルセットを復元 */
       loadTileset(_savedTileset);
@@ -6864,7 +6865,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} dungeonType={gameOverResult?.dungeonType || endingResult?.dungeonType || sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner"} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} setShowSound={setShowSound} isAnyModalActive={isAnyModalActive} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />
-      <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); localStorage.setItem('roguelike_desktop_vw', String(v)); }} mobile={mobile} setShowSound={setShowSound} />
+      <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); writePreference('roguelike_desktop_vw', v); }} mobile={mobile} setShowSound={setShowSound} />
       <SoundModal isOpen={showSound} onClose={() => setShowSound(false)} gameState={gs} scene={{ gameOver: dead, gameClear: showEnding }} />
       <ExitHubConfirmModal show={exitHubConfirm} sel={exitHubSel} setSel={setExitHubSel}
         onConfirm={performExitToHub}
