@@ -102,7 +102,7 @@ export function useKeyHandler({
   // refs
   sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
-  gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel = 0, endingView,
+  gs, dead, showEnding, showScores, showSound = false, gameOverSel, gameOverView, endingSel = 0, endingView,
   facingMode,
   modalState = {},
   invState = {},
@@ -111,7 +111,7 @@ export function useKeyHandler({
   exitHubConfirm, exitHubSel,
   gameOverCanReturn, performGameOverReturnToHub, onDismissEnding,
   // state setters
-  setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores,
+  setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setShowSound,
   setFacingMode,
   setMsgLogMode, setMsgLogScrollTop,
   setShowSign, closeMiniTip,
@@ -1285,6 +1285,10 @@ export function useKeyHandler({
   const handleKey = useCallback(
     (e) => {
       const k = (e.key || "").toLowerCase();
+      if (showSound) {
+        if (!e.repeat && (k === "escape" || k === "x")) setShowSound?.(false);
+        return;
+      }
       if (k === "shift") {
         shiftRef.current = true;
       }
@@ -2210,6 +2214,8 @@ export function useKeyHandler({
       endingSel,
       endingView,
       showScores,
+      showSound,
+      setShowSound,
       nicknameMode,
       identifyMode,
       revealMode,

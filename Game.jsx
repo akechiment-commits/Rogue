@@ -287,6 +287,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   showTileEditorRef.current = showTileEditor;
   const [showSettings, setShowSettings] = useState(false);
   const [showSound, setShowSound] = useState(false);
+  const showSoundRef = useRef(false);
+  showSoundRef.current = showSound;
   const showSettingsRef = useRef(false);
   showSettingsRef.current = showSettings;
   const showScoresRef = useRef(false);
@@ -2281,13 +2283,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     /* HP0後に残った状態異常があっても、死亡処理中に自動ターンを再実行しない。 */
     if (gs.player.hp <= 0) return;
     if (shopMode) return;
-    if (miniTip) return;
+    if (miniTip || showSound) return;
     if (!hasForcedTurn(gs.player)) return;
     setShowInv(false);
     setThrowMode(null);
     /* Wait for any running animation to finish before advancing */
     const tryAdvance = () => {
-      if (!sr.current) return;
+      if (!sr.current || showSoundRef.current) return;
       if (animBusyRef.current) {
         /* Animation still running — poll until it finishes */
         setTimeout(tryAdvance, 50);
@@ -2338,7 +2340,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _advDelay = (gs.player.potConfinedTurns || 0) > 0 ? 120 : 400;
     const timer = setTimeout(tryAdvance, _advDelay);
     return () => clearTimeout(timer);
-  }, [gs, shopMode, miniTip, endTurn, playAnim, lu]);
+  }, [gs, shopMode, miniTip, showSound, endTurn, playAnim, lu]);
 
   const performExitToHub = useCallback(() => {
     if (!onReturnToHub || !sr.current) return;
@@ -2417,7 +2419,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const lastMoveAtRef = useRef(0);
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
-      if (dead || !sr.current) return;
+      if (dead || !sr.current || showSoundRef.current) return;
       if (animBusyRef.current) {
         /* 移動以外・interact以外のアクション（wait・罠探し等）はアニメ終了後に実行するためバッファ。
            interactは階段降下後のアニメ中にバッファすると昇り階段を踏んで逆行する問題があるため除外。 */
@@ -3536,7 +3538,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   showSignRef.current = showSign;
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
   const doExamineFront = useCallback(() => {
-    if (!sr.current) return;
+    if (!sr.current || showSoundRef.current) return;
     if (lookMode || mapMode) return;
     if (bigboxModeRef.current || gachaModeRef.current) return;
     if (nicknameModeRef.current) return;
@@ -3673,7 +3675,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (animBusyRef.current) return;
       if (springMode || wishMode || gachaModeRef.current || altarMode || merchantMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || showScoresRef.current || exitHubConfirmRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showSoundRef.current || showTileEditorRef.current || showScoresRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -3732,6 +3734,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _dBbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _dBbMap.set(_dk(b.x, b.y), b);
       const _dPentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _dPentMap.set(_dk(pc.x, pc.y), pc);
       while (steps < 50) {
+        if (showSoundRef.current) break;
         if (convenientRoute) {
           if (routeIndex >= convenientRoute.length) break;
           [stepDx, stepDy] = convenientRoute[routeIndex];
@@ -5420,7 +5423,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     // refs
     sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
     // state values
-    gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel, endingView,
+    gs, dead, showEnding, showScores, showSound, gameOverSel, gameOverView, endingSel, endingView,
     facingMode,
     modalState,
     invState,
@@ -5431,7 +5434,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     performGameOverReturnToHub,
     onDismissEnding: performEndingDismiss,
     // state setters
-    setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores,
+    setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setShowSound,
     setFacingMode,
     setMsgLogMode, setMsgLogScrollTop,
     setShowSign, closeMiniTip,
@@ -5459,6 +5462,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     spellListMode,
     exitHubConfirm,
     showSettings,
+    showSound,
     showScores,
     throwMode,
     debugSpellMode,
@@ -5476,6 +5480,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setSpellListMode,
     setSpellMenuSel,
     setShowSettings,
+    setShowSound,
     setShowScores,
     setShowTileEditor,
     setExitHubConfirm,
@@ -5623,11 +5628,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* 催眠術を受けたら、短い待機の後に状態異常による自動ターン処理とは別に1行動を実行する。 */
   useEffect(() => {
     const p = gs?.player;
-    if (!p || (p.hypnosisPending || 0) <= 0 || dead || showEnding || shopMode || miniTip) return;
+    if (!p || (p.hypnosisPending || 0) <= 0 || dead || showEnding || shopMode || miniTip || showSound) return;
     if (hasForcedTurn(p)) return;
     let timer = null;
     const run = () => {
-      if (!sr.current) return;
+      if (!sr.current || showSoundRef.current) return;
       if (animBusyRef.current) {
         timer = setTimeout(run, 50);
         return;
@@ -5638,7 +5643,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     };
     timer = setTimeout(run, HYPNOSIS_ACTION_DELAY_MS);
     return () => { if (timer !== null) clearTimeout(timer); };
-  }, [gs, dead, showEnding, shopMode, miniTip, doHypnotizedAction]);
+  }, [gs, dead, showEnding, shopMode, miniTip, showSound, doHypnotizedAction]);
   doMarkerWriteRef.current = doMarkerWrite;
   /* ===== 足元ページ用コールバック ===== */
   const _doFloorPickup = (item) => {

@@ -1,7 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { soundEngine } from "./soundEngine.js";
 import { ALL_BGM_TRACKS, ALL_SE_LIST } from "./musicData.js";
 import { updateDungeonBgm, playDirectBgm, triggerSE, unlockAudio } from "./soundEvents.js";
+import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+
+export function handleSoundModalKey(e, { panel, onClose, setBgmVol, setSeVol }) {
+  e.stopImmediatePropagation();
+  const key = (e.key || "").toLowerCase();
+  if (key === "escape" || key === "x") {
+    e.preventDefault();
+    if (!e.repeat) onClose();
+    return;
+  }
+  const controls = [...(panel?.querySelectorAll("button, input") || [])];
+  const focused = controls.find(control => control === panel?.ownerDocument?.activeElement);
+  const index = controls.indexOf(focused);
+  const horizontal = isKeyLeft(e) || isKeyRight(e);
+  if (focused?.dataset?.volume && horizontal) {
+    e.preventDefault();
+    const value = Math.max(0, Math.min(1, Number(focused.value) + (isKeyLeft(e) ? -0.01 : 0.01)));
+    if (focused.dataset.volume === "bgm") { soundEngine.setBgmVolume(value); setBgmVol(value); }
+    else { soundEngine.setSeVolume(value); setSeVol(value); }
+  } else if (isKeyUp(e) || isKeyDown(e) || horizontal) {
+    e.preventDefault();
+    const delta = isKeyUp(e) || isKeyLeft(e) ? -1 : 1;
+    controls[(index < 0 ? 0 : (index + delta + controls.length) % controls.length)]?.focus();
+  } else if (key === "enter" || key === "z" || key === " ") {
+    e.preventDefault();
+    if (!e.repeat && focused?.tagName === "BUTTON") focused.click();
+  }
+}
 
 /**
  * Sound settings and Jukebox / Sound Test modal.
@@ -12,6 +40,9 @@ export default function SoundModal({ isOpen, onClose, gameState }) {
   const [isMuted, setIsMuted] = useState(soundEngine.isMuted);
   const [activeTab, setActiveTab] = useState("bgm"); // "bgm" | "se"
   const [playingBgmName, setPlayingBgmName] = useState(soundEngine.currentBgmName);
+  const panelRef = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (isOpen) {
@@ -21,6 +52,14 @@ export default function SoundModal({ isOpen, onClose, gameState }) {
       setIsMuted(soundEngine.isMuted);
       setPlayingBgmName(soundEngine.currentBgmName);
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    panelRef.current?.querySelector("input")?.focus();
+    const onKey = e => handleSoundModalKey(e, { panel: panelRef.current, onClose: () => closeRef.current(), setBgmVol, setSeVol });
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -81,6 +120,7 @@ export default function SoundModal({ isOpen, onClose, gameState }) {
         padding: "16px",
       }}
       onClick={(e) => {
+        e.stopPropagation();
         if (e.target === e.currentTarget) {
           triggerSE("cancel");
           onClose();
@@ -88,6 +128,7 @@ export default function SoundModal({ isOpen, onClose, gameState }) {
       }}
     >
       <div
+        ref={panelRef}
         style={{
           background: "#1a1c23",
           border: "2px solid #b8860b",
@@ -153,6 +194,7 @@ export default function SoundModal({ isOpen, onClose, gameState }) {
               <span style={{ color: "#ffd700", width: "40px" }}>{Math.round(bgmVol * 100)}%</span>
             </label>
             <input
+              data-volume="bgm"
               type="range"
               min="0"
               max="1"
@@ -169,6 +211,7 @@ export default function SoundModal({ isOpen, onClose, gameState }) {
               <span style={{ color: "#ffd700", width: "40px" }}>{Math.round(seVol * 100)}%</span>
             </label>
             <input
+              data-volume="se"
               type="range"
               min="0"
               max="1"

@@ -113,6 +113,7 @@ export function useGamepad({
   spellListMode,
   exitHubConfirm,
   showSettings,
+  showSound,
   showScores,
   throwMode,
   debugSpellMode,
@@ -130,6 +131,7 @@ export function useGamepad({
   setSpellListMode,
   setSpellMenuSel,
   setShowSettings,
+  setShowSound,
   setShowScores,
   setShowTileEditor,
   setExitHubConfirm,
@@ -153,6 +155,8 @@ export function useGamepad({
   facingModeRef.current = !!facingMode;
   const showSettingsRef = useRef(!!showSettings);
   showSettingsRef.current = !!showSettings;
+  const showSoundRef = useRef(!!showSound);
+  showSoundRef.current = !!showSound;
   const showScoresRef = useRef(!!showScores);
   showScoresRef.current = !!showScores;
   const showInvRef = useRef(!!showInv);
@@ -207,6 +211,7 @@ export function useGamepad({
       spellListModeRef.current ||
       exitHubConfirmRef.current ||
       showSettingsRef.current ||
+      showSoundRef.current ||
       showScoresRef.current ||
       throwModeRef.current ||
       debugSpellModeRef.current ||
@@ -311,7 +316,7 @@ export function useGamepad({
     (dx, dy, { convenient, dash } = {}) => {
       if (dead) return;
       if (quickOpenRef.current) return;
-      if (showScoresRef.current || showSettingsRef.current || showInvRef.current) return;
+      if (showScoresRef.current || showSettingsRef.current || showSoundRef.current || showInvRef.current) return;
       if (mapModeRef.current || lookModeRef.current || msgLogModeRef.current) return;
       if (spellListModeRef.current || exitHubConfirmRef.current || throwModeRef.current || debugSpellModeRef.current) return;
       /* 振り向き中・X押し中は絶対に移動しない */
@@ -377,6 +382,27 @@ export function useGamepad({
 
       const next = snapshotButtons(gp);
       const prev = prevBtnRef.current;
+
+      if (showSoundRef.current) {
+        if (aRef) aRef.current = false;
+        if (shiftRef) shiftRef.current = false;
+        waitHeldRef.current = false;
+        setQuickOpen(false);
+        for (const [button, key] of [[BTN.UP, "ArrowUp"], [BTN.DOWN, "ArrowDown"], [BTN.LEFT, "ArrowLeft"], [BTN.RIGHT, "ArrowRight"]]) {
+          if (edgeDown(prev, next, button)) fireKey(key, key);
+        }
+        const stick = !dpadPressed(gp) && readMoveDir(gp);
+        const moveKey = stick ? `sound:${stick.dx},${stick.dy}` : null;
+        if (moveKey && moveHeldRef.current !== moveKey) {
+          const arrow = modalDirToArrow(stick.dx, stick.dy);
+          fireKey(arrow.key, arrow.code);
+        }
+        moveHeldRef.current = moveKey;
+        if (edgeDown(prev, next, BTN.B)) fireKey("Enter", "Enter");
+        if (edgeDown(prev, next, BTN.A) || edgeDown(prev, next, BTN.Y) || edgeDown(prev, next, BTN.START)) setShowSound?.(false);
+        prevBtnRef.current = next;
+        return;
+      }
 
       const _rbNow = buttonPressed(gp, BTN.RB);
       if (shiftRef) shiftRef.current = _rbNow;
@@ -755,6 +781,7 @@ export function useGamepad({
     setFacingMode,
     setGs,
     setRbHeldUi,
+    setShowSound,
     sr,
   ]);
 
