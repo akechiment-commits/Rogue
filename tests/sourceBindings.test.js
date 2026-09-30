@@ -22,6 +22,9 @@ function unboundSelected(file, names) {
 }
 
 describe("ゲームの実行経路に必要な変数参照", () => {
+  it("射撃とワッカの指輪を併用した追加射撃で矢の処理を参照できる", () => {
+    expect(unboundSelected("Game.jsx", ["shootArrow"])).toEqual([]);
+  });
   it("階再訪と大箱の識別・祝福複製で識別／図鑑関数を参照できる", () => {
     expect(unboundSelected("Game.jsx", ["markBigboxKindIdentified"])).toEqual([]);
     expect(unboundSelected("GameModals.jsx", ["trackBigbox"])).toEqual([]);
