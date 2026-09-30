@@ -6,6 +6,7 @@ import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { generateSessionFloor } from "../floorGeneration.js";
 import { synchronizeFloorArrival } from "../floorArrival.js";
 import { declareFloorExitTheft } from "../items.js";
+import { markBigboxKindIdentified } from "../GameHelpers.js";
 
 // Reactを起動せず、本体の階移動コールバックそのものを実行する。
 function changeFloorFor(state) {
@@ -15,13 +16,22 @@ function changeFloorFor(state) {
   const deps = {
     sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor,
     generateSessionFloor, synchronizeFloorArrival, declareFloorExitTheft,
-    setDungeonAllBcKnown: () => {}, ensureStairsPresent: () => {},
+    setDungeonAllBcKnown: () => {}, ensureStairsPresent: () => {}, markBigboxKindIdentified,
     refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, rng: low => low,
   };
   return new Function(...Object.keys(deps), `${source.slice(start, end)}; return chgFloor;`)(...Object.values(deps));
 }
 
 describe("階移動と不在処理の接続", () => {
+  it("再訪した階の識別済み大箱を冒険中の識別集合へ引き継ぐ", () => {
+    const box = { id: "known-box", kind: "storage", revealed: true };
+    const destination = makeEmptyDg({ bigboxes: [box], stairUp: { x: 2, y: 2 } });
+    const player = makePlayer({ depth: 1, actionTime: 120 });
+    const state = { player, dungeon: makeEmptyDg(), floors: { 2: destination }, maxDepth: null, allBcKnown: false, identifiedBigboxes: new Set() };
+    expect(changeFloorFor(state)(player, 1, false, { stairs: true })).toBe(destination);
+    expect(state.identifiedBigboxes.has("storage")).toBe(true);
+  });
+
   it("階段で逃げて長時間後に戻ると追跡者は残り、通常の1行動だけ行う", () => {
     const waiting = { id: "waiting", x: 5, y: 5, aware: true, hp: 30, speed: 1, actionTime: 120 };
     const patrol = { id: "patrol", x: 20, y: 20, aware: false, hp: 30, speed: 1, actionTime: 120 };

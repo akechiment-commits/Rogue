@@ -7,7 +7,7 @@ import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFl
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor } from "./dungeon.js";
 import { makeVent, makeStatue, makeAltar } from "./fixtures.js";
-import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
+import { getDiscoveries, trackItem, trackBigbox } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";

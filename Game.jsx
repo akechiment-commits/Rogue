@@ -83,7 +83,7 @@ import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTele
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
-import { bbDisplayName, isBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
+import { bbDisplayName, isBigboxKindIdentified, markBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
