@@ -21,6 +21,12 @@ describe("applyMessageUpdate", () => {
       { text: "復元済み", turn: 1 },
     ]);
   });
+  it("古い行を切り詰めても、追加行が配列の前半に入っても現在ターンを付ける", () => {
+    const previous = Array.from({ length: 82 }, (_, i) => ({ text: `前の行${i}`, turn: i }));
+    const next = applyMessageUpdate(previous, rows => [...rows.slice(-1), "新しい行"], 100);
+    expect(next[0]).toBe(previous[81]);
+    expect(next[1]).toEqual({ text: "新しい行", turn: 100 });
+  });
 });
 
 describe("appendMessages", () => {
