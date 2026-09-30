@@ -5603,7 +5603,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           const bi = dg.bigboxes.findIndex(b => b.x === ax && b.y === ay);
           if (bi >= 0) {
             const bb = dg.bigboxes[bi];
-            breakBigboxContents(bb, dg, ml, nameFn, null, null, { player: p, luFn });
+            breakBigboxContents(bb, dg, ml, null, null, null, { player: p, luFn });
             ml.push("大箱が爆発で壊れた！");
           }
         }
