@@ -93,6 +93,7 @@ import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
+import { generateSessionFloor } from "./floorGeneration.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
@@ -1786,18 +1787,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     let d;
     if (_isLastFloorPitfall) {
       /* 隠し宝部屋を生成 */
-      d = _saved || genTreasureRoom(pl.depth, sr.current.dungeonType || null);
+      d = _saved || generateSessionFloor(sr.current, nd, { pitfall });
       if (_saved) delete sr.current.floors[nd];
     } else if (_saved) {
       d = _saved;
       delete sr.current.floors[nd];
-    } else if (sr.current.dungeonType === "tutorial") {
-      const _chgMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
-      d = genTutorialFloor(nd, { mobile: _chgMobile });
-    } else if (sr.current.isDebugRun && nd >= 2) {
-      d = genDebugFloorByDepth(nd, sr.current.dungeonType || "beginner");
     } else {
-      d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
+      d = generateSessionFloor(sr.current, nd, { pitfall });
     }
     setDungeonAllBcKnown(d, !!sr.current.allBcKnown);
     if (!sr.current.allBcKnown) {
@@ -1862,11 +1858,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, []);
   const withPitfallBag = useCallback((fn) => {
     const _pfBag = [];
+    const sourceDepth = sr.current.player.depth;
     setPitfallBag(_pfBag);
-    fn();
-    clearPitfallBag();
+    try { fn(); } finally { clearPitfallBag(); }
     if (!sr.current.floors) sr.current.floors = {};
-    processPitfallBag(_pfBag, sr.current.floors, sr.current.player.depth);
+    processPitfallBag(_pfBag, sr.current.floors, sourceDepth, sr.current);
   }, []);
   const spawnRelicGuardian = useCallback((st, p, dg, ml) => {
     if (!st || !p || !dg || st.dungeonType === "tutorial" || !p.inventory?.some((item) => item.type === "goal")) return false;
@@ -1892,6 +1888,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       installPlayerHpMessageHook(ml, p);
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
+      const _etSourceDepth = p.depth;
       setPitfallBag(_etPfBag);
       const _etStartHp = p.hp;
       const _clock = beginPlayerTurnClock(p, { idleBeat: !!extraOpts.idleBeat });
@@ -2253,7 +2250,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       /* 落下エンティティを次の階に配置 */
       clearPitfallBag();
       if (!st.floors) st.floors = {};
-      processPitfallBag(_etPfBag, st.floors, p.depth);
+      processPitfallBag(_etPfBag, st.floors, _etSourceDepth, st);
       /* 階段が杖などで消えた場合の復元（最深層・宝部屋は下りを要求しない） */
       const _maxDEt = st.maxDepth;
       ensureStairsPresent(st.dungeon, {

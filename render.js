@@ -1,6 +1,6 @@
 import { TI, rng } from "./utils.js";
 import { getIdentKey, potOccupancyCount } from "./items.js";
-import { genDungeon } from "./dungeon.js";
+import { generateSessionFloor } from "./floorGeneration.js";
 
 /* Tile name mapping — place images at CUSTOM_TILE_PATH/{name}.png to override spritesheet */
 export const TILE_NAMES = {
@@ -436,11 +436,12 @@ export function _itemPickupSuffix(it, ident) {
 }
 
 /* 落とし穴バッグを処理して落下エンティティを次の階に配置する */
-export function processPitfallBag(bag, floors, depth) {
+export function processPitfallBag(bag, floors, depth, session = null) {
   if (!bag || bag.length === 0) return;
   const nd = depth + 1;
-  if (!floors[nd]) floors[nd] = genDungeon(nd - 1);
-  const nf = floors[nd];
+  const currentDestination = session?.player?.depth === nd ? session.dungeon : null;
+  if (!currentDestination && !floors[nd]) floors[nd] = generateSessionFloor(session, nd, { pitfall: true, sourceDepth: depth });
+  const nf = currentDestination || floors[nd];
   for (const { kind, entity } of bag) {
     const room = nf.rooms[rng(0, nf.rooms.length - 1)];
     entity.x = rng(room.x, room.x + room.w - 1);
