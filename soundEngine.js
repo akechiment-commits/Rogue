@@ -374,7 +374,8 @@ class SoundEngine {
 
     // Expand notes for each track into 16th-note steps
     // 1 step = 1/16 note = 60 / tempo / 4 seconds
-    this.tempo = score.tempo || 120;
+    const tempo = Number(score.tempo);
+    this.tempo = Number.isFinite(tempo) && tempo > 0 ? tempo : 120;
     this.secondsPerStep = (60 / this.tempo) / 4;
 
     this.parsedTracks = score.tracks.map(tr => {
@@ -399,6 +400,7 @@ class SoundEngine {
 
     // Determine loop length (max steps across tracks)
     this.totalSteps = Math.max(...this.parsedTracks.map(t => t.steps.length));
+    if (!(this.totalSteps > 0)) { this.stopBGM(); return; }
     this.currentStep = 0;
     this.nextNoteTime = this.ctx ? this.ctx.currentTime + 0.05 : 0;
 
@@ -418,14 +420,23 @@ class SoundEngine {
   }
 
   _schedule() {
-    if (!this.isPlayingBgm || !this.ctx || !this.parsedTracks) return;
+    if (!this.isPlayingBgm || !this.ctx || !this.parsedTracks || !(this.totalSteps > 0)) return;
 
     // Schedule notes ahead by 0.2 seconds (lookahead)
     const scheduleAheadTime = 0.2;
-    while (this.nextNoteTime < this.ctx.currentTime + scheduleAheadTime) {
+    const now = this.ctx.currentTime;
+    // ブラウザ休止などで遅れた音は捨て、曲中の位置だけ進める。
+    if (this.nextNoteTime < now) {
+      const skipped = Math.ceil((now - this.nextNoteTime) / this.secondsPerStep);
+      this.currentStep = (this.currentStep + skipped) % this.totalSteps;
+      this.nextNoteTime = Math.max(now, this.nextNoteTime + skipped * this.secondsPerStep);
+    }
+    let scheduled = 0;
+    while (this.nextNoteTime < now + scheduleAheadTime && scheduled < 64) {
       this._playStepAt(this.currentStep, this.nextNoteTime);
       this.nextNoteTime += this.secondsPerStep;
       this.currentStep = (this.currentStep + 1) % this.totalSteps;
+      scheduled++;
     }
   }
 
