@@ -2,7 +2,7 @@
    ダンジョン途中のゲーム状態をlocalStorageに保存・復元する。
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
-import { installPlayerHpReverseHook } from "./utils.js";
+import { installPlayerHpReverseHook, MW, MH } from "./utils.js";
 import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
 
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
@@ -71,11 +71,28 @@ function migrateV1ToV2(data) {
   };
 }
 
+function isSavedDungeon(dungeon) {
+  if (!dungeon || typeof dungeon !== 'object') return false;
+  for (const key of ['map', 'visible', 'explored']) {
+    if (!Array.isArray(dungeon[key]) || dungeon[key].length !== MH ||
+        !dungeon[key].every(row => Array.isArray(row) && row.length === MW)) return false;
+  }
+  return ['monsters', 'items', 'traps'].every(key =>
+    Array.isArray(dungeon[key]) && dungeon[key].every(entry => entry && typeof entry === 'object'));
+}
+
 function normalizeSaveData(data) {
   if (!data || typeof data !== 'object') return null;
   const migrated = data.version === 1 ? migrateV1ToV2(data) : data;
   if (migrated.version !== GAME_SAVE_VERSION) return null;
   if (!migrated.player || !Array.isArray(migrated.player.inventory)) return null;
+  if (!isSavedDungeon(migrated.dungeon) ||
+      !Object.values(migrated.floors || {}).every(isSavedDungeon)) return null;
+  const player = migrated.player;
+  if (!Number.isFinite(player.hp) || !Number.isFinite(player.maxHp) || player.maxHp <= 0 ||
+      !Number.isInteger(player.x) || !Number.isInteger(player.y) ||
+      player.x < 0 || player.x >= MW || player.y < 0 || player.y >= MH ||
+      !player.inventory.every(item => item && typeof item === 'object')) return null;
   const oldInventory = migrated.player.inventory;
   const remapIndex = (index) => {
     if (!Number.isInteger(index) || index < 0 || isInternalGravityTrigger(oldInventory[index])) return -1;

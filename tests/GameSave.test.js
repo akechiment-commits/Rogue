@@ -6,6 +6,16 @@ import {
   hasGameSave,
 } from "../GameSave.js";
 import { clearSave } from "../SaveData.js";
+import { makeEmptyDg } from "./helpers.js";
+import { MW, MH } from "../utils.js";
+
+function savedFloor(overrides = {}) {
+  return makeEmptyDg({
+    visible: Array.from({ length: MH }, () => Array(MW).fill(false)),
+    explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
+    ...overrides,
+  });
+}
 
 function makeSession() {
   const sword = { id: "w1", name: "短剣", type: "weapon", atk: 3 };
@@ -23,8 +33,8 @@ function makeSession() {
       arrow: null,
       rings: [],
     },
-    dungeon: { depth: 3, monsters: [], items: [] },
-    floors: { 3: { depth: 3 } },
+    dungeon: savedFloor({ depth: 3 }),
+    floors: { 3: savedFloor({ depth: 3 }) },
     ident: new Set(["p:heal", "s:teleport"]),
     identifiedBigboxes: new Set(["refill"]),
     fakeNames: { "p:heal": "赤い液体" },
@@ -113,7 +123,7 @@ describe("GameSave", () => {
     session.player.armor = session.player.inventory[2];
     session.player.rings = [ring];
     session.dungeon.items = [{ ...gravityTrigger, x: 5, y: 5 }];
-    session.floors[2] = { depth: 2, items: [{ ...gravityTrigger, x: 3, y: 3 }] };
+    session.floors[2] = savedFloor({ depth: 2, items: [{ ...gravityTrigger, x: 3, y: 3 }] });
 
     expect(saveGameState(session, [], null, null)).toBe(true);
     const loaded = loadGameState();
@@ -131,6 +141,22 @@ describe("GameSave", () => {
     expect(loadGameState()).toBeNull();
 
     localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify({ version: 2, player: {} }));
+    expect(loadGameState()).toBeNull();
+  });
+
+  it.each([
+    data => { delete data.dungeon; },
+    data => { data.dungeon.map = []; },
+    data => { data.dungeon.explored[0] = []; },
+    data => { data.dungeon.monsters = [null]; },
+    data => { data.floors[3] = null; },
+    data => { data.player.x = MW; },
+    data => { data.player.inventory.push(null); },
+  ])("復元後に描画や階移動を落とす構造のセーブを拒否する %#", corrupt => {
+    saveGameState(makeSession(), [], null, null);
+    const data = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);
+    corrupt(data);
+    localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify(data));
     expect(loadGameState()).toBeNull();
   });
 
