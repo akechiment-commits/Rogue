@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { soundEngine } from "../soundEngine.js";
-import { updateDungeonBgm } from "../soundEvents.js";
+import { updateDungeonBgm, processActionMessages, createMessageSoundObserver } from "../soundEvents.js";
+import { applyMessageUpdate } from "../messageLog.js";
 import { genDungeon, triggerMonsterHouse } from "../dungeon.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 afterEach(() => vi.restoreAllMocks());
@@ -39,5 +40,36 @@ describe("ゲーム状態とBGM", () => {
     expect(play.mock.calls.at(-1)[0].name).toBe("gameclear");
     updateDungeonBgm(state, { gameOver: true });
     expect(play.mock.calls.at(-1)[0].name).toBe("gameover");
+  });
+});
+
+describe("共通ログからの効果音", () => {
+  it("アイテム使用のオブジェクト形式ログにも対応し、同じ描画では二重再生しない", () => {
+    const play = vi.spyOn(soundEngine, "playSE").mockImplementation(() => {});
+    const history = [{ text: "冒険が始まった！", turn: 0 }];
+    const observe = createMessageSoundObserver(history);
+    const next = applyMessageUpdate(history, rows => [...rows, "回復薬を飲んだ。HPが回復した！"], 1);
+    observe(next);
+    observe(next);
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledWith("useItem");
+  });
+  it("セーブの履歴復元では再生せず、同じ文章でも次の行動は再生する", () => {
+    const play = vi.spyOn(soundEngine, "playSE").mockImplementation(() => {});
+    const history = [{ text: "回復薬を飲んだ。", turn: 1 }];
+    const observe = createMessageSoundObserver();
+    observe(history, { reset: true });
+    observe(history);
+    expect(play).not.toHaveBeenCalled();
+    observe([...history, { text: "回復薬を飲んだ。", turn: 2 }]);
+    expect(play).toHaveBeenCalledOnce();
+  });
+  it("金貨の実際の拾得文言を認識し、罠を見るだけでは発動音を鳴らさない", () => {
+    const play = vi.spyOn(soundEngine, "playSE").mockImplementation(() => {});
+    processActionMessages([{ text: "100ゴールドを拾った！" }]);
+    expect(play).toHaveBeenCalledWith("gold");
+    play.mockClear();
+    processActionMessages([{ text: "足元に罠がある。" }]);
+    expect(play).not.toHaveBeenCalled();
   });
 });

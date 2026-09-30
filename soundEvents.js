@@ -83,7 +83,7 @@ export function processActionMessages(newMsgs) {
 
   // Check from newest to oldest for the most prominent sound event
   for (let i = newMsgs.length - 1; i >= 0; i--) {
-    const msg = String(newMsgs[i]);
+    const msg = String(newMsgs[i]?.text ?? newMsgs[i]);
 
     if (msg.includes("レベルアップ！")) {
       triggerSE("levelUp");
@@ -105,11 +105,11 @@ export function processActionMessages(newMsgs) {
       triggerSE("shatter");
       return;
     }
-    if (msg.includes("罠") || msg.includes("作動した") || msg.includes("爆破") || msg.includes("爆発")) {
+    if (/罠.*(?:発動|作動|踏んだ)/.test(msg) || msg.includes("作動した") || msg.includes("爆破") || msg.includes("爆発")) {
       triggerSE("trap");
       return;
     }
-    if (msg.includes("ゴールドを手に入れた") || msg.includes("Gを手に入れた") || msg.includes("G拾った")) {
+    if (/(?:G|ゴールド|金貨).*?(?:拾った|手に入れた)/.test(msg)) {
       triggerSE("gold");
       return;
     }
@@ -133,7 +133,7 @@ export function processActionMessages(newMsgs) {
       triggerSE("throw");
       return;
     }
-    if (msg.includes("降りた") || msg.includes("次の階") || msg.includes("フロアへ進んだ")) {
+    if (msg.includes("降りた") || msg.includes("昇った") || msg.includes("次の階") || msg.includes("フロアへ進んだ")) {
       triggerSE("stairs");
       return;
     }
@@ -146,6 +146,16 @@ export function processActionMessages(newMsgs) {
       return;
     }
   }
+}
+
+/** コミットされたログの追加分だけを再生する。復元履歴はresetで読み飛ばす。 */
+export function createMessageSoundObserver(initialMessages = []) {
+  let previous = new Set(initialMessages);
+  return (messages, { reset = false } = {}) => {
+    const additions = reset ? [] : messages.filter(message => !previous.has(message));
+    previous = new Set(messages);
+    processActionMessages(additions);
+  };
 }
 
 /**

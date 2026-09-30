@@ -43,7 +43,7 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
 import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
 import SoundModal from "./SoundModal.jsx";
-import { updateDungeonBgm, processActionMessages, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
+import { updateDungeonBgm, createMessageSoundObserver, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -133,6 +133,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
   const newMiniTipMessagesRef = useRef([]);
+  const messageSoundObserverRef = useRef(null);
+  if (!messageSoundObserverRef.current) messageSoundObserverRef.current = createMessageSoundObserver(msgs);
+  useEffect(() => { messageSoundObserverRef.current(msgs); }, [msgs]);
   /* フロアターン付きメッセージ追加ラッパー */
   const setMsgs = useCallback((updater) => {
     const t = sr.current?.floorTurns ?? 0;
@@ -839,7 +842,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       syncSpawnFloorMeta(rs, rs.dungeon);
       sr.current = rs;
       setGs(rs);
-      setMsgs(resumeState.msgs || [{ text: "冒険を再開した。", turn: 0 }]);
+      const restoredMessages = applyMessageUpdate([], resumeState.msgs || [{ text: "冒険を再開した。", turn: 0 }], rs.floorTurns);
+      messageSoundObserverRef.current(restoredMessages, { reset: true });
+      setMsgs(restoredMessages);
       ref.current?.focus();
     } else {
       init();
@@ -3496,7 +3501,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         triggerSE("alert");
         setRevealMode({ pendingMsgs: [] });
       }
-      processActionMessages(ml);
       updateDungeonBgm(st);
       /* Play animations if any were queued */
       const _hasAnim = _ad.playerMove || _ad.playerKnockback || _ad.playerTeleport || _ad.trapWait || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
