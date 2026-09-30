@@ -30,20 +30,19 @@ export function resolveTurnHazards(state, player, messages, {
   }
 
   if (tickTimedEffects && dungeon.pendingBombs?.length > 0 && player.hp > 0) {
-    const remaining = [];
-    for (const bomb of dungeon.pendingBombs) {
+    for (const bomb of [...dungeon.pendingBombs]) {
+      // 先行する爆発に誘爆・消火されたものは、再び起爆しない。
+      if (!dungeon.pendingBombs.includes(bomb)) continue;
       bomb.turnsLeft--;
       if (bomb.turnsLeft <= 0) {
+        // 爆発処理に入る前に消費し、誘爆先から逆に誘爆されるのを防ぐ。
+        dungeon.pendingBombs = dungeon.pendingBombs.filter(pending => pending !== bomb);
         messages.push("時限爆弾の罠が大爆発した！");
         doTimeBombExplosion(bomb.x, bomb.y, dungeon, player, messages, lu, getItemName, { sourcePending: bomb });
       } else {
         messages.push(`時限爆弾の罠：あと${bomb.turnsLeft}ターンで爆発！`);
-        remaining.push(bomb);
       }
     }
-    /* 爆発の連鎖で先に消費された作動済み爆弾を復活させない。 */
-    const _stillPending = new Set(dungeon.pendingBombs || []);
-    dungeon.pendingBombs = remaining.filter((bomb) => _stillPending.has(bomb));
   }
 
   if (!state._pendingSpin || player.hp <= 0) return { spinFired: false };
