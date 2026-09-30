@@ -48,6 +48,8 @@ describe("formatInventoryItem", () => {
 
   it("食料、壺、未払い品の補足を表示する", () => {
     expect(label({ type: "food", name: "パン", value: 20, cooked: false, potionEffects: ["heal"] })).toBe("パン(満+20)(生★)");
+    expect(label({ type: "food", name: "腐ったパン", value: 20, rotten: true })).toBe("腐ったパン(満+8)(腐)");
+    expect(label({ type: "food", name: "ヤバイパン", value: 20, rotten: true, yabai: true })).toBe("ヤバイパン(満+4)(腐)");
     expect(label({ type: "pot", name: "壺", identKey: "pot", capacity: 3, contents: [{}], shopPrice: 400 }, { identified: new Set(["pot"]) })).toBe("壺 [1/3] 〔未払:400G〕");
   });
 
