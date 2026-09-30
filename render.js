@@ -1,6 +1,7 @@
 import { TI, rng } from "./utils.js";
 import { getIdentKey, potOccupancyCount } from "./items.js";
 import { generateSessionFloor } from "./floorGeneration.js";
+import { placeFallenEntities } from "./pitfallPlacement.js";
 
 /* Tile name mapping — place images at CUSTOM_TILE_PATH/{name}.png to override spritesheet */
 export const TILE_NAMES = {
@@ -442,13 +443,7 @@ export function processPitfallBag(bag, floors, depth, session = null) {
   const currentDestination = session?.player?.depth === nd ? session.dungeon : null;
   if (!currentDestination && !floors[nd]) floors[nd] = generateSessionFloor(session, nd, { pitfall: true, sourceDepth: depth });
   const nf = currentDestination || floors[nd];
-  for (const { kind, entity } of bag) {
-    const room = nf.rooms[rng(0, nf.rooms.length - 1)];
-    entity.x = rng(room.x, room.x + room.w - 1);
-    entity.y = rng(room.y, room.y + room.h - 1);
-    if (kind === 'item') nf.items.push(entity);
-    else if (kind === 'monster') nf.monsters.push(entity);
-  }
+  placeFallenEntities(nf, bag, { player: currentDestination ? session.player : null, actionTime: session?.player?.actionTime || 0 });
 }
 
 /* アイテム表示名を返す（未識別なら偽名 or ニックネーム、識別済みなら本名優先） */

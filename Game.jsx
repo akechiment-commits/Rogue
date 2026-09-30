@@ -95,6 +95,7 @@ import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDue
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
+import { placeFallenEntities } from "./pitfallPlacement.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
@@ -1882,6 +1883,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const endTurn = useCallback(
     (st, p, ml, extraOpts = {}) => {
       installPlayerHpMessageHook(ml, p);
+      placeFallenEntities(st.dungeon, [], { player: p, actionTime: p.actionTime || 0 });
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
       const _etSourceDepth = p.depth;
