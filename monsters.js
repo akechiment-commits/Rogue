@@ -2996,7 +2996,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     }
     /* 石像：敵の杖弾は有害効果なので破壊 */
     if (statueAt(dg, _tx, _ty)) {
-      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, null, pl?.depth, {
         breaks: true,
         itemDeps: getFixtureItemDeps(),
       });

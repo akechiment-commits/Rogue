@@ -6,9 +6,28 @@ import {
   throwItemBreaksStatue, hitStatueWithAction, displaceObjectsFromStatue, statueAt,
 } from "../fixtures.js";
 import { doExplosion, getFixtureItemDeps, placeItemAt } from "../items.js";
-import { monsterAI } from "../monsters.js";
+import { monsterAI, _resolveMonsterWandBolt } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
+
+describe("敵の杖と石像", () => {
+  it("魔法弾は石像を破壊して止まり、後ろのプレイヤーへは届かない", () => {
+    const caster = { id: "caster", name: "杖使い", x: 4, y: 5 };
+    const player = makePlayer({ x: 8, y: 5, depth: 1 });
+    const dg = makeEmptyDg({ statues: [makeStatue(6, 5)], monsters: [caster] });
+    const messages = [];
+    const onPlayerHit = vi.fn();
+    expect(() => _resolveMonsterWandBolt(caster, dg, player, messages, {
+      dx: 1, dy: 0, boltColor: "slow_wand", onPlayerHit,
+      onMonsterHit: vi.fn(), onWallReflect: vi.fn(),
+      onMagicReflect: vi.fn(), onPlayerReflect: vi.fn(),
+    })).not.toThrow();
+    expect(dg.statues).toEqual([]);
+    expect(onPlayerHit).not.toHaveBeenCalled();
+    expect(messages).toContain("石像が砕け散った！");
+    expect(dg.items.some(item => item.x === 6 && item.y === 5)).toBe(true);
+  });
+});
 
 describe("偽階段", () => {
   it("未看破時は階段に見える", () => {
