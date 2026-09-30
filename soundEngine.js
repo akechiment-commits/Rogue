@@ -51,6 +51,7 @@ class SoundEngine {
     this.currentBgmName = null;
     this.isPlayingBgm = false;
     this.schedulerTimer = null;
+    this.bgmSources = new Set();
     this.nextNoteTime = 0;
     this.trackStepIndices = [];
     this.currentStep = 0;
@@ -367,6 +368,7 @@ class SoundEngine {
 
     this.init();
     this.stopBGM();
+    if (!this.ctx) return;
 
     this.currentBgm = score;
     this.currentBgmName = score.name || "unnamed";
@@ -417,6 +419,18 @@ class SoundEngine {
     }
     this.currentBgm = null;
     this.currentBgmName = null;
+    for (const source of [...this.bgmSources]) {
+      try { source.stop(); } catch { /* 終了済み音源 */ }
+      source.onended?.();
+    }
+  }
+
+  _trackBgmSource(source, nodes) {
+    this.bgmSources.add(source);
+    source.onended = () => {
+      this.bgmSources.delete(source);
+      for (const node of nodes) node.disconnect?.();
+    };
   }
 
   _schedule() {
@@ -469,6 +483,8 @@ class SoundEngine {
           filter.connect(g);
           g.connect(this.bgmGain);
 
+          this._trackBgmSource(noise, [noise, filter, g]);
+
           noise.start(time);
           noise.stop(time + dur + 0.05);
         }
@@ -486,6 +502,8 @@ class SoundEngine {
 
         osc.connect(g);
         g.connect(this.bgmGain);
+
+        this._trackBgmSource(osc, [osc, g]);
 
         osc.start(time);
         osc.stop(time + dur + 0.05);

@@ -43,7 +43,7 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
 import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
 import SoundModal from "./SoundModal.jsx";
-import { updateDungeonBgm, processActionMessages, triggerSE, unlockAudio } from "./soundEvents.js";
+import { updateDungeonBgm, processActionMessages, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -311,6 +311,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       updateDungeonBgm(gs, { gameOver: dead, gameClear: showEnding });
     }
   }, [gs, dead, showEnding]);
+  useEffect(() => () => stopBgm(), []);
   const loadCustomTile = (idx, file) => {
     const r = new FileReader();
     r.onload = (e) => {
