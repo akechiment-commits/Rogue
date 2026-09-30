@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
-import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
+import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName, getIdentKey, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft,
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
@@ -826,11 +826,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _tfPool = resolveRuntimeSpawnPoolFloor(dg, p.depth);
         const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, levelOffset, { poolFloor: _tfPool });
         ml.push(`${target.name}は${nt.name}に変化した！`);
-        const ox = target.x, oy = target.y;
-        Object.assign(target, { ...nt, id:target.id, x:ox, y:oy, maxHp:nt.hp,
-          turnAccum:0, aware:target.aware, dir:target.dir,
-          lastPx:target.lastPx, lastPy:target.lastPy,
-          subtype:nt.subtype, wandEffect:nt.wandEffect, randomStatusWands:nt.randomStatusWands, randomElementalWands:nt.randomElementalWands, wallWalker:nt.wallWalker });
+        applyMonsterTransformation(target, nt);
         break;
       }
       if (kind === "player") {

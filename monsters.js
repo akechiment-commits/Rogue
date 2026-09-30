@@ -1550,6 +1550,23 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
   return buildMonStats(base, availableLevel);
 }
 
+const TRANSFORM_DEFINITION_KEYS = new Set(MONS.flatMap(base =>
+  [base, ...(base.levels || [])].flatMap(definition => Object.keys(definition))
+));
+
+/** 定義にない元の固有特性を消し、座標・時計・状態異常など個体情報は保つ。 */
+export function applyMonsterTransformation(target, definition) {
+  for (const key of TRANSFORM_DEFINITION_KEYS) {
+    if (!(key in definition)) delete target[key];
+  }
+  Object.assign(target, definition, {
+    maxHp: definition.hp, baseSpeed: definition.speed ?? 1, turnAccum: 0,
+  });
+  const ammo = createMonsterProjectileAmmo(target);
+  if (ammo) target.projectileAmmo = ammo;
+  else delete target.projectileAmmo;
+}
+
 /** depth/spawnLevel からモンスターのステータスオブジェクトを作る */
 function buildMonStats(base, spawnLevel) {
   const { levels: _lvls, ...mt } = base;
@@ -4016,6 +4033,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 registerMonsterRuntime({
   getMonsterCatalog: () => MONS,
   pickTransformMonsterDef,
+  applyMonsterTransformation,
   pickMonsterDef,
   makeMonsterFromBase,
   spawnMonsters,

@@ -5,6 +5,7 @@ import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTrac
 import {
   findMonsterRoom as findRoom,
   pickTransformMonsterDef,
+  applyMonsterTransformation,
   pickMonsterDef,
   makeMonsterFromBase,
   monLevelDown,
@@ -8058,8 +8059,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
         const _tfPool = resolveRuntimeSpawnPoolFloor(dg, p.depth);
-        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, 0, { poolFloor: _tfPool }); const prevName = target.name; const ox = target.x, oy = target.y;
-        Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, randomStatusWands: nt.randomStatusWands, randomElementalWands: nt.randomElementalWands, wallWalker: nt.wallWalker });
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, 0, { poolFloor: _tfPool }); const prevName = target.name;
+        applyMonsterTransformation(target, nt);
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;
     }

@@ -24,6 +24,10 @@ export function pickTransformMonsterDef(...args) {
   return requireRuntime("pickTransformMonsterDef")(...args);
 }
 
+export function applyMonsterTransformation(...args) {
+  return requireRuntime("applyMonsterTransformation")(...args);
+}
+
 export function spawnMonsters(...args) {
   return requireRuntime("spawnMonsters")(...args);
 }
