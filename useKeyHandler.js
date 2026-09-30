@@ -9,6 +9,7 @@ import {
   itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
   extractPotContents, scatterPotContents,
+  declareFloorExitTheft,
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { prepareLastFloor, DEBUG_SPECIAL_FLOORS } from "./dungeon.js";
@@ -1468,6 +1469,7 @@ export function useKeyHandler({
             return;
           }
           const _d = _saved;
+          if (_floorChanged) declareFloorExitTheft(_fsp, sr.current.dungeon, _ml);
           delete sr.current.floors[_f];
           const _maxDTp = sr.current.maxDepth;
           if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor) {

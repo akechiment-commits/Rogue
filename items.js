@@ -7104,7 +7104,16 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
   return !wasThief;
 }
 
-/** 未払いを抱えたまま店の外にいるか確認し、泥棒状態にする（endTurn 等） */
+/** フロア離脱前に、所持商品と使用済み商品の未払いを確認する。 */
+export function declareFloorExitTheft(p, dg, ml = null) {
+  if (!p || !dg) return false;
+  const hasGoods = p.inventory?.some(item => item.shopPrice > 0);
+  const hasDebt = getShops(dg).some(shop => (shop.unpaidTotal || 0) > 0);
+  if (!hasGoods && !hasDebt) return false;
+  return declareShopTheft(p, dg, ml, { message: ml ? undefined : null });
+}
+
+/** 未払いを抱えたまま店の外にいるか確認し、泥棒状態にする（endTurn 等）。 */
 export function checkShopTheft(p, dg, ml) {
   if (!dg || !p || p.isThief) return;
   const shops = getShops(dg);

@@ -17,7 +17,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   LUCK_POTION_TURNS,
   resolveItemName, applyBubbleGoldScroll, pickBigboxType, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
-  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
+  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
@@ -1098,7 +1098,10 @@ export function useItemActions({
             const _targetFloor = _visited[Math.floor(Math.random() * _visited.length)];
             if (_targetFloor != null) {
               if (!sr.current.floors) sr.current.floors = {};
-              if (_targetFloor !== p.depth) suspendFloor(dg, p);
+              if (_targetFloor !== p.depth) {
+                declareFloorExitTheft(p, dg, ml);
+                suspendFloor(dg, p);
+              }
               sr.current.floors[p.depth] = dg;
               const _saved = sr.current.floors[_targetFloor];
               if (_saved) {

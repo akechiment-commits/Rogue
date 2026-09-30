@@ -21,7 +21,7 @@ import {
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
-  checkShopTheft, declareShopTheft, calmShopkeeperIfFullyHealed, applyLightningToInventory,
+  checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
@@ -1741,6 +1741,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.x = _dest.portal.x; p.y = _dest.portal.y;
       ml.push(`ポータルから${_dest.portal.name}へ抜けた！`);
     } else {
+      declareFloorExitTheft(p, sr.current.dungeon, ml);
       sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
       _dest.dg.monsters = _dest.dg.monsters.filter((monster) => !monster.isPlayerClone);
       suspendFloor(sr.current.dungeon, p);
@@ -1772,14 +1773,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _isLastFloorPitfall = pitfall && _maxD !== null && pl.depth >= _maxD && dir > 0;
     if (!sr.current.floors) sr.current.floors = {};
     /* 店の商品を持ったまま階層を離脱した場合は即座に泥棒状態にする */
-    const _hasUnpaidItems = pl.inventory.some(ci => ci.shopPrice);
-    const _chgShops = getShops(sr.current.dungeon);
-    const _wasInUnpaidShop = _chgShops.some(s => (s.unpaidTotal || 0) > 0 && s.room &&
-      pl.x >= s.room.x && pl.x < s.room.x + s.room.w &&
-      pl.y >= s.room.y && pl.y < s.room.y + s.room.h);
-    if (_hasUnpaidItems || _wasInUnpaidShop) {
-      declareShopTheft(pl, sr.current.dungeon, null, { message: null });
-    }
+    declareFloorExitTheft(pl, sr.current.dungeon);
     sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
     suspendFloor(sr.current.dungeon, pl, { stairs });
     sr.current.floors[pl.depth] = sr.current.dungeon;
