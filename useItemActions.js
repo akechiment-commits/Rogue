@@ -36,6 +36,7 @@ import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js"
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
+import { synchronizeFloorArrival } from "./floorArrival.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -1116,7 +1117,7 @@ export function useItemActions({
                 p.y = rng(_rm.y, _rm.y + _rm.h - 1);
                 if (_saved !== dg) resumeFloor(_saved, p);
                 refreshFOV(_saved, p);
-                _saved.nextSpawnTurn = p.turns + rng(10, 50);
+                synchronizeFloorArrival(sr.current, _saved, { floorChanged: _saved !== dg, spawnDelay: rng(10, 50) });
                 sr.current.dungeon = _saved;
                 ml.push(`${_targetFloor}階へテレポートした！【呪】`);
               } else {

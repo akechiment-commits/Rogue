@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { describe, it, expect } from "vitest";
 import { declareFloorExitTheft } from "../items.js";
 import { suspendFloor, resumeFloor } from "../floorAbsence.js";
+import { synchronizeFloorArrival } from "../floorArrival.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 export function portalFor(state) {
@@ -9,7 +10,7 @@ export function portalFor(state) {
   const start = source.indexOf("  const playerPortalWarp = useCallback(");
   const end = source.indexOf("  const chgFloor", start);
   const deps = { sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor,
-    declareFloorExitTheft, refreshFOV: () => {}, pushPlayerTeleportAnim: () => {} };
+    declareFloorExitTheft, synchronizeFloorArrival, refreshFOV: () => {}, pushPlayerTeleportAnim: () => {} };
   return new Function(...Object.keys(deps), `${source.slice(start, end)}; return playerPortalWarp;`)(...Object.values(deps));
 }
 function fixture({ debt = 100, goods = true } = {}) {
@@ -43,5 +44,20 @@ describe("プレイヤーの別階ポータル", () => {
     second.state.floors = {};
     portalFor(second.state)(second.state.player, second.state, []);
     expect(second.state.player.isThief).toBeFalsy();
+    expect(second.state.floorTurns).toBe(999);
+  });
+  it("別階到着時に滞在ターンと自然湧き時刻を更新し、長居ペナルティを持ち越さない", () => {
+    const { state, dest } = fixture();
+    portalFor(state)(state.player, state, []);
+    expect(state.floorTurns).toBe(0);
+    expect(dest.nextSpawnTurn).toBe(80);
+    expect(state.maxReachedFloor).toBe(2);
+    expect(dest.maxFloors).toBe(30);
+  });
+  it("同じ階へのテレポートでは滞在ターンを消さない", () => {
+    const { state } = fixture();
+    synchronizeFloorArrival(state, state.dungeon, { floorChanged: false, spawnDelay: 10 });
+    expect(state.floorTurns).toBe(999);
+    expect(state.dungeon.nextSpawnTurn).toBe(60);
   });
 });

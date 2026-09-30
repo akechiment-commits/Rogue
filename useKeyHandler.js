@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
+import { synchronizeFloorArrival } from "./floorArrival.js";
 import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
@@ -1481,7 +1482,7 @@ export function useKeyHandler({
           _fsp.y = rng(_rm.y, _rm.y + _rm.h - 1);
           if (_floorChanged) resumeFloor(_d, _fsp);
           refreshFOV(_d, _fsp);
-          _d.nextSpawnTurn = _fsp.turns + rng(10, 50);
+          synchronizeFloorArrival(sr.current, _d, { floorChanged: _floorChanged, spawnDelay: rng(10, 50) });
           sr.current.dungeon = _d;
           _ml.push(`${_f}階へテレポートした！【呪】`);
           endTurn(sr.current, _fsp, _ml);

@@ -94,6 +94,7 @@ import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advanceP
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
+import { synchronizeFloorArrival } from "./floorArrival.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
@@ -1751,6 +1752,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       st.dungeon = _dest.dg;
       p.depth = _dest.depth;
       p.x = _dest.portal.x; p.y = _dest.portal.y;
+      synchronizeFloorArrival(st, _dest.dg);
+      sr.current.floorTurns = st.floorTurns;
+      sr.current.maxReachedFloor = st.maxReachedFloor;
       resumeFloor(_dest.dg, p);
       refreshFOV(_dest.dg, p);
       ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
@@ -1801,7 +1805,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       prepareLastFloor(d, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
-    syncSpawnFloorMeta(sr.current, d);
     /* 最深層に到着時、goalアイテムが所持品にもフロアにもなければ再配置 */
     if (_maxD !== null && nd >= _maxD && d.isLastFloor && sr.current.dungeonType !== "tutorial") {
       const _hasGoalInv = pl.inventory?.some(i => i.type === "goal");
@@ -1845,9 +1848,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     refreshFOV(d, pl);
     /* 落とし穴・ランダム階層移動は同座標でも、落下してから出現する待機を必ず入れる */
     if (pitfall) pushPlayerTeleportAnim(_pitfallFromX, _pitfallFromY, pl.x, pl.y, true);
-    if (sr.current.dungeonType !== "tutorial") d.nextSpawnTurn = pl.turns + 30;
+    synchronizeFloorArrival(sr.current, d);
     d._firstVisit = !_saved;
-    sr.current.floorTurns = 0; /* 階層移動でフロアターンをリセット */
     return d;
   }, []);
   const withPitfallBag = useCallback((fn) => {
