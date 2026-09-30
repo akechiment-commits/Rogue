@@ -69,7 +69,7 @@ export function writeSave(data) {
 }
 
 export function clearSave() {
-  localStorage.removeItem(SAVE_KEY);
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* storage unavailable */ }
 }
 
 /* Merge one run's discoveries into save's discovered map */

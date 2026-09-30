@@ -5,6 +5,7 @@ import {
   clearGameSave,
   hasGameSave,
 } from "../GameSave.js";
+import { clearSave } from "../SaveData.js";
 
 function makeSession() {
   const sword = { id: "w1", name: "短剣", type: "weapon", atk: 3 };
@@ -42,6 +43,16 @@ function makeSession() {
 }
 
 describe("GameSave", () => {
+  it("ブラウザがストレージへのアクセスを拒否しても拠点と初期化処理を落とさない", () => {
+    vi.stubGlobal("localStorage", {
+      getItem() { throw new Error("storage denied"); },
+      removeItem() { throw new Error("storage denied"); },
+    });
+    expect(hasGameSave()).toBe(false);
+    expect(() => clearGameSave()).not.toThrow();
+    expect(() => clearSave()).not.toThrow();
+  });
+
   beforeEach(() => {
     vi.stubGlobal("localStorage", {
       _data: {},

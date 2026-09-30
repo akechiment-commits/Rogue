@@ -184,9 +184,9 @@ export function loadGameState() {
 }
 
 export function clearGameSave() {
-  localStorage.removeItem(GAME_SAVE_KEY);
+  try { localStorage.removeItem(GAME_SAVE_KEY); } catch { /* storage unavailable */ }
 }
 
 export function hasGameSave() {
-  return localStorage.getItem(GAME_SAVE_KEY) !== null;
+  try { return localStorage.getItem(GAME_SAVE_KEY) !== null; } catch { return false; }
 }
