@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { suspendFloor, resumeFloor } from "../floorAbsence.js";
 import { beginPlayerTurnClock, takeDueActions } from "../actionClock.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { generateSessionFloor } from "../floorGeneration.js";
+import { synchronizeFloorArrival } from "../floorArrival.js";
+import { declareFloorExitTheft } from "../items.js";
 
 // Reactを起動せず、本体の階移動コールバックそのものを実行する。
 function changeFloorFor(state) {
@@ -11,7 +14,8 @@ function changeFloorFor(state) {
   const end = source.indexOf("  const withPitfallBag", start);
   const deps = {
     sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor,
-    getShops: () => [], setDungeonAllBcKnown: () => {}, ensureStairsPresent: () => {},
+    generateSessionFloor, synchronizeFloorArrival, declareFloorExitTheft,
+    setDungeonAllBcKnown: () => {}, ensureStairsPresent: () => {},
     refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, rng: low => low,
   };
   return new Function(...Object.keys(deps), `${source.slice(start, end)}; return chgFloor;`)(...Object.values(deps));
