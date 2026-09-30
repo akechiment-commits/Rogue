@@ -3633,11 +3633,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setAltarMode("menu"); setAltarMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), "祭壇がある。何を捧げる？"]);
         } else if (vault6) {
-          p.x = nx;
-          p.y = ny;
-          acted = true;
-          showFirstEncounterTip("dimensional_vault");
-          ml.push(`${vault6.name || "次元宝物庫"}の入口に入った。`);
+          act("move", fd.dx, fd.dy);
         } else if (_statueFront) {
           setMsgs((prev) => [...prev.slice(-80), "石像がある。"]);
         } else {
