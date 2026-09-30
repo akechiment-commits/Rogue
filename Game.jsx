@@ -308,9 +308,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* フロア変更・ゲームオーバー・クリア・モンスターハウス状態に応じたBGM自動更新 */
   useEffect(() => {
     if (gs) {
-      updateDungeonBgm(gs);
+      updateDungeonBgm(gs, { gameOver: dead, gameClear: showEnding });
     }
-  }, [gs?.dungeon?.depth, gs?.dungeon?.isMonsterHouseActive, gs?.isGameOver, gs?.isGameClear, dead, showEnding]);
+  }, [gs, dead, showEnding]);
   const loadCustomTile = (idx, file) => {
     const r = new FileReader();
     r.onload = (e) => {
@@ -6864,7 +6864,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} setShowSound={setShowSound} isAnyModalActive={isAnyModalActive} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />
       <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); localStorage.setItem('roguelike_desktop_vw', String(v)); }} mobile={mobile} setShowSound={setShowSound} />
-      <SoundModal isOpen={showSound} onClose={() => setShowSound(false)} gameState={gs} />
+      <SoundModal isOpen={showSound} onClose={() => setShowSound(false)} gameState={gs} scene={{ gameOver: dead, gameClear: showEnding }} />
       <ExitHubConfirmModal show={exitHubConfirm} sel={exitHubSel} setSel={setExitHubSel}
         onConfirm={performExitToHub}
         onCancel={() => setExitHubConfirm(false)}

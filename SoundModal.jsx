@@ -34,7 +34,7 @@ export function handleSoundModalKey(e, { panel, onClose, setBgmVol, setSeVol }) 
 /**
  * Sound settings and Jukebox / Sound Test modal.
  */
-export default function SoundModal({ isOpen, onClose, gameState }) {
+export default function SoundModal({ isOpen, onClose, gameState, scene }) {
   const [bgmVol, setBgmVol] = useState(soundEngine.bgmVolume);
   const [seVol, setSeVol] = useState(soundEngine.seVolume);
   const [isMuted, setIsMuted] = useState(soundEngine.isMuted);
@@ -100,7 +100,7 @@ export default function SoundModal({ isOpen, onClose, gameState }) {
 
   const handleRestoreGameBgm = () => {
     unlockAudio();
-    updateDungeonBgm(gameState);
+    updateDungeonBgm(gameState, scene);
     setPlayingBgmName(soundEngine.currentBgmName);
   };
 

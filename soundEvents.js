@@ -4,6 +4,7 @@
  */
 
 import { soundEngine } from "./soundEngine.js";
+import { getShops } from "./utils.js";
 import {
   BGM_DUNGEON_SHALLOW,
   BGM_DUNGEON_DEEP,
@@ -17,17 +18,17 @@ import {
 /**
  * Updates the currently playing BGM based on game and dungeon state.
  */
-export function updateDungeonBgm(gameState) {
+export function updateDungeonBgm(gameState, { gameOver = false, gameClear = false } = {}) {
   if (!gameState) return;
 
   // 1. Game Over
-  if (gameState.isGameOver || gameState.player?.hp <= 0 || gameState.gameOverView) {
+  if (gameOver || gameState.isGameOver || gameState.player?.hp <= 0 || gameState.gameOverView) {
     soundEngine.playBGM(BGM_GAMEOVER);
     return;
   }
 
   // 2. Game Clear
-  if (gameState.isGameClear || gameState.gameClear || gameState.endingView) {
+  if (gameClear || gameState.isGameClear || gameState.gameClear || gameState.endingView) {
     soundEngine.playBGM(BGM_GAMECLEAR);
     return;
   }
@@ -42,24 +43,24 @@ export function updateDungeonBgm(gameState) {
   }
 
   // 4. Monster House triggered / active
-  if (dg.isMonsterHouseActive) {
+  if (dg.isMonsterHouseActive && dg.monsters?.some(monster => monster.monsterHouseMember && monster.hp > 0)) {
     soundEngine.playBGM(BGM_MONSTER_HOUSE);
     return;
   }
 
   // 5. Shop room
   const pl = gameState.pl || gameState.player;
-  if (pl && dg.rooms) {
-    const curRoom = dg.rooms.find(r => pl.x >= r.x && pl.x < r.x + r.w && pl.y >= r.y && pl.y < r.y + r.h);
-    if (curRoom && curRoom.isShop) {
+  if (pl) {
+    const inShop = getShops(dg).some(({ room }) => room && pl.x >= room.x && pl.x < room.x + room.w && pl.y >= room.y && pl.y < room.y + room.h);
+    if (inShop) {
       soundEngine.playBGM(BGM_SHOP);
       return;
     }
   }
 
   // 6. Deep vs Shallow dungeon floors
-  const depth = dg.depth || 1;
-  const maxDepth = dg.maxDepth || 30;
+  const depth = pl?.depth || 1;
+  const maxDepth = gameState.maxDepth ?? dg.maxFloors ?? 30;
   if (depth >= Math.max(12, Math.floor(maxDepth * 0.45))) {
     soundEngine.playBGM(BGM_DUNGEON_DEEP);
   } else {

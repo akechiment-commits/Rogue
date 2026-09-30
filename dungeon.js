@@ -306,7 +306,8 @@ export function triggerMonsterHouse(dg, p, ml) {
     dg.monsterHouseRoom = null;
     return;
   }
-  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; m._justWoke = true; });
+  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; m._justWoke = true; m.monsterHouseMember = true; });
+  dg.isMonsterHouseActive = true;
   ml.push(`モンスターハウスだ！敵が一斉に目覚めた！(${sleeping.length}体)`);
   dg.monsterSenseActive = true; /* このフロアの全モンスター位置が見えるようになる */
   dg.monsterHouseRoom = null;
@@ -360,6 +361,10 @@ export function applyMonsterHouseToRoom(dg, room, p, ml, opts = {}) {
   );
   const isStrong = houseOpts.levelBoost > 0;
   if (playerInRoom) {
+    dg.isMonsterHouseActive = true;
+    for (const monster of dg.monsters) {
+      if (monster.x >= room.x && monster.x < room.x + room.w && monster.y >= room.y && monster.y < room.y + room.h && !monster.isPlayerClone && monster.type !== "shopkeeper") monster.monsterHouseMember = true;
+    }
     ml.push(isStrong
       ? "強モンスターハウスだ！強力な敵が一斉に現れた！"
       : "モンスターハウスだ！敵が一斉に現れた！");
