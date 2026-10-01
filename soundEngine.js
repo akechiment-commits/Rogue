@@ -1,4 +1,5 @@
 import { SOUND_EFFECTS } from "./soundEffectData.js";
+import { MUSIC_INSTRUMENTS, synthesizeMusicNote } from "./musicInstruments.js";
 
 /**
  * Web Audio API based Sound Engine for Roguelike Game.
@@ -71,6 +72,10 @@ class SoundEngine {
     this.bgmCompleted = false;
     this.schedulerTimer = null;
     this.bgmSources = new Set();
+    this.musicNoteBuffers = new Map();
+    this.musicBufferBytes = 0;
+    this.musicBufferLimit = 12 * 1024 * 1024;
+    this.bgmRoom = null;
     this.seSources = new Set();
     this.maxSeSources = 64;
     this.seStartOffset = 0;
@@ -346,6 +351,10 @@ class SoundEngine {
       try { source.stop(); } catch { /* 終了済み音源 */ }
       source.onended?.();
     }
+    if (this.bgmRoom) {
+      for (const node of this.bgmRoom.nodes) node.disconnect?.();
+      this.bgmRoom = null;
+    }
   }
 
   _trackBgmSource(source, nodes) {
@@ -395,12 +404,70 @@ class SoundEngine {
     }
     if (filter) { source.connect(filter); filter.connect(gain); nodes.push(filter); }
     else source.connect(gain);
+    let output = gain;
     if (track.pan && typeof this.ctx.createStereoPanner === "function") {
       const pan = this.ctx.createStereoPanner();
       pan.pan.setValueAtTime(track.pan, time);
-      gain.connect(pan); pan.connect(this.bgmGain); nodes.push(pan);
-    } else gain.connect(this.bgmGain);
+      gain.connect(pan); output = pan; nodes.push(pan);
+    }
+    output.connect(this.bgmGain);
+    if (track.roomSend > 0) {
+      const room = this._ensureBgmRoom();
+      if (room) {
+        const send = this.ctx.createGain();
+        send.gain.setValueAtTime(track.roomSend, time);
+        output.connect(send); send.connect(room.input); nodes.push(send);
+      }
+    }
     this._trackBgmSource(source, nodes);
+  }
+
+  _ensureBgmRoom() {
+    if (this.bgmRoom) return this.bgmRoom;
+    if (typeof this.ctx.createConvolver !== "function") return null;
+    const filter = this.ctx.createBiquadFilter(), convolver = this.ctx.createConvolver(), wet = this.ctx.createGain();
+    filter.type = "lowpass"; filter.frequency.value = 2800;
+    wet.gain.value = 0.32;
+    const impulse = this.ctx.createBuffer(2, Math.ceil(this.ctx.sampleRate * 1.35), this.ctx.sampleRate);
+    let seed = 98765;
+    for (let channel = 0; channel < 2; channel++) {
+      const pcm = impulse.getChannelData(channel);
+      let smooth = 0;
+      for (let i = 0; i < pcm.length; i++) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        smooth = smooth * 0.65 + (seed / 2147483648 - 1) * 0.35;
+        const t = i / this.ctx.sampleRate;
+        pcm[i] = t < 0.025 ? 0 : smooth * Math.exp(-(t - 0.025) * 5.5);
+      }
+    }
+    convolver.buffer = impulse;
+    filter.connect(convolver); convolver.connect(wet); wet.connect(this.bgmGain);
+    this.bgmRoom = { input: filter, nodes: [filter, convolver, wet] };
+    return this.bgmRoom;
+  }
+
+  _playMusicInstrument(track, step, time, duration, volume) {
+    const key = `${this.ctx.sampleRate}:${track.instrument}:${step.freq}:${duration}`;
+    let buffer = this.musicNoteBuffers.get(key);
+    if (!buffer) {
+      const pcm = synthesizeMusicNote(track.instrument, step.freq, duration, this.ctx.sampleRate);
+      buffer = this.ctx.createBuffer(1, pcm.length, this.ctx.sampleRate);
+      buffer.getChannelData(0).set(pcm);
+      if (pcm.byteLength <= this.musicBufferLimit) {
+        while (this.musicNoteBuffers.size && (this.musicBufferBytes + pcm.byteLength > this.musicBufferLimit || this.musicNoteBuffers.size >= 128)) {
+          const oldest = this.musicNoteBuffers.keys().next().value;
+          this.musicBufferBytes -= this.musicNoteBuffers.get(oldest).length * 4;
+          this.musicNoteBuffers.delete(oldest);
+        }
+        this.musicNoteBuffers.set(key, buffer);
+        this.musicBufferBytes += pcm.byteLength;
+      }
+    }
+    const source = this.ctx.createBufferSource(), gain = this.ctx.createGain();
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(volume, time);
+    this._connectBgmVoice(source, gain, track, time);
+    source.start(time); source.stop(time + buffer.duration);
   }
 
   _playStepAt(stepIndex, time) {
@@ -436,6 +503,10 @@ class SoundEngine {
           noise.stop(time + drumDur + 0.03);
         }
       } else if (step.freq > 0) {
+        if (MUSIC_INSTRUMENTS[tr.instrument]) {
+          this._playMusicInstrument(tr, step, time, dur, gainVal);
+          continue;
+        }
         const osc = this.ctx.createOscillator();
         const g = this.ctx.createGain();
 

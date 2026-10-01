@@ -12,7 +12,12 @@ describe("BGM停止と音源の寿命", () => {
       const value = { gain: param, frequency: param, connect: vi.fn(), disconnect: vi.fn(), start: vi.fn(), stop: vi.fn() };
       nodes.push(value); return value;
     };
-    engine.ctx = { currentTime: 0, createOscillator: node, createGain: node, createBufferSource: node, createBiquadFilter: node };
+    engine.ctx = { currentTime: 0, sampleRate: 8000, createOscillator: node, createGain: node, createBufferSource: node, createBiquadFilter: node,
+      createBuffer: (channels, length, rate) => {
+        const data = Array.from({ length: channels }, () => new Float32Array(length));
+        return { length, duration: length / rate, getChannelData: channel => data[channel] };
+      },
+    };
     engine.bgmGain = {};
     engine.noiseBuffer = {};
   });

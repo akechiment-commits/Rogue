@@ -13,7 +13,8 @@ const browser = [process.env.ROGUE_AUDIO_BROWSER,
 ].find(candidate => candidate && fs.existsSync(candidate));
 if (!browser) throw new Error('Chrome/Edgeが見つからない。ROGUE_AUDIO_BROWSERに実行ファイルを指定してください。');
 const seconds = Number(process.argv[2]) || 24;
-const html = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre>
+const selected = process.argv[3] || null;
+const html = `<!doctype html><meta charset="utf-8"><pre id="progress"></pre><pre id="result">pending</pre>
 <script type="module">
 import { soundEngine, parseMusicScore } from ${JSON.stringify(pathToFileURL(path.join(root, 'soundEngine.js')).href)};
 import { ALL_BGM_TRACKS, ALL_SE_LIST } from ${JSON.stringify(pathToFileURL(path.join(root, 'musicData.js')).href)};
@@ -52,7 +53,8 @@ function wav(buffer) {
 }
 async function run() {
   const results = [];
-  for (const score of ALL_BGM_TRACKS) {
+  for (const score of ALL_BGM_TRACKS.filter(score => !${JSON.stringify(selected)} || score.name === ${JSON.stringify(selected)})) {
+    document.querySelector('#progress').textContent = score.name + ': preparing';
     const tracks = parseMusicScore(score), total = Math.max(...tracks.map(track => track.steps.length));
     const stepDuration = 60 / score.tempo / 4;
     const duration = score.loop === false ? total * stepDuration + 0.4 : Math.min(${seconds}, total * stepDuration);
@@ -64,6 +66,7 @@ async function run() {
       engine.bgmGain.gain.setValueAtTime(engine.bgmVolume, duration - 0.35);
       engine.bgmGain.gain.linearRampToValueAtTime(0, duration - 0.01);
     }
+    document.querySelector('#progress').textContent = score.name + ': rendering';
     results.push({ file: score.name + '.wav', title: score.title, ...wav(await context.startRendering()) });
   }
   let elapsed = 0;
@@ -73,6 +76,7 @@ async function run() {
     return slot;
   });
   const duration = elapsed + 0.3;
+  document.querySelector('#progress').textContent = 'SE: preparing';
   const context = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate), engine = engineFor(context);
   for (let i = 0; i < ALL_SE_LIST.length; i++) {
     const offset = slots[i].start;
@@ -82,6 +86,7 @@ async function run() {
     engine.playSE(ALL_SE_LIST[i].id);
     engine._playTone = tone; engine._playNoise = noise;
   }
+  document.querySelector('#progress').textContent = 'SE: rendering';
   const rendered = await context.startRendering();
   const samples = rendered.getChannelData(0);
   const segments = ALL_SE_LIST.map((se, index) => {
@@ -137,10 +142,13 @@ try {
   const call = (method, params = {}) => new Promise(resolve => {
     const request = ++id; pending.set(request, resolve); socket.send(JSON.stringify({ id: request, method, params }));
   });
-  while (Date.now() - start < 90000) {
+  let lastProgress;
+  while (Date.now() - start < 180000) {
     const result = await call('Runtime.evaluate', { expression: 'document.querySelector("#result")?.textContent', returnByValue: true });
     resultText = result?.result?.value;
     if (resultText && resultText !== 'pending') break;
+    const progress = await call('Runtime.evaluate', { expression: 'document.querySelector("#progress")?.textContent', returnByValue: true });
+    if (progress?.result?.value !== lastProgress) { lastProgress = progress?.result?.value; console.log(lastProgress); }
     await sleep(100);
   }
   if (!resultText || resultText === 'pending') throw new Error(`音声の書き出しが完了しなかった: ${errors.slice(-1200)}`);

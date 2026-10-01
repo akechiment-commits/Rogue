@@ -74,38 +74,51 @@ function arrange({ name, title, desc, tempo, chords, melody, style = "explore", 
   };
 }
 
-const SHALLOW_A = [
-  "-:2 D5:2 F5:3 E5:1 D5:2 A4:2 C5:2 A4:2",
-  "D5:4 F5:2 D5:2 Bb4:3 A4:1 F4:2 A4:2",
-  "A4:2 C5:2 F5:4 E5:2 C5:2 A4:4",
-  "G5:3 E5:1 D5:2 C5:2 G4:4 -:2 A4:2",
-  "Bb4:2 D5:2 G5:3 F5:1 D5:2 Bb4:2 A4:2 G4:2",
-  "F5:4 E5:2 D5:2 A4:4 -:2 C5:2",
-  "D5:2 F5:2 Bb4:4 A4:2 F4:2 D5:4",
-  "C#5:2 E5:2 A5:3 G5:1 E5:2 C#5:2 A4:2 -:2",
+// 同じ探索主題を、息のある旋律と室内楽の編成へ作り直す。
+const SHALLOW_CHAMBER_A = [
+  "-:2 D5:4 F5:4 E5:2 D5:4", "Bb4:6 D5:2 F5:4 -:4",
+  "A4:4 C5:2 F5:6 E5:2 C5:2", "E5:4 D5:2 C5:6 -:4",
+  "Bb4:4 D5:4 G5:4 F5:2 D5:2", "F5:4 E5:2 D5:6 -:4",
+  "F5:6 D5:2 Bb4:4 A4:2 F4:2", "E5:4 C#5:4 A4:4 -:4",
 ];
-const SHALLOW_B = [
-  "C5:2 F5:2 A5:4 G5:2 F5:2 E5:4",
-  "E5:3 D5:1 C5:2 G4:2 E5:4 -:2 G5:2",
-  "F5:2 E5:2 D5:4 A4:2 C5:2 D5:4",
-  "C5:3 B4:1 A4:2 E5:2 G5:4 E5:2 C5:2",
-  "D5:2 F5:2 A5:4 F5:2 D5:2 Bb4:4",
-  "A4:2 C5:2 F5:3 E5:1 C5:2 A4:2 F4:4",
-  "G4:2 Bb4:2 D5:2 F5:2 G5:4 F5:2 D5:2",
-  "E5:3 C#5:1 A4:4 B4:2 C#5:2 E5:2 -:2",
-];
-export const BGM_DUNGEON_SHALLOW = arrange({
-  name: "dungeon_shallow", title: "灯りを携えて", tempo: 112,
-  desc: "D短調。32小節の探索曲。歌う主題、明るい中間部、短い掛け合いから主題へ戻る。",
-  chords: ["Dm","Bb","F","C","Gm","Dm","Bb","A", "F","C","Dm","Am","Bb","F","Gm","A",
-    "Dm","Bb","F","C","Gm","Dm","Bb","A", "Bb","F","Gm","Dm","Bb","Gm","A","A"],
-  melody: [...SHALLOW_A, ...SHALLOW_B, ...SHALLOW_A.slice(0, 6),
-    "F5:2 D5:2 Bb4:2 D5:2 F5:4 E5:2 D5:2", "C#5:4 A4:2 E5:2 G5:2 E5:2 C#5:2 -:2",
-    "F5:4 D5:2 Bb4:2 A4:4 -:4", "C5:2 A4:2 F4:4 A4:2 C5:2 F5:4",
-    "D5:4 Bb4:2 G4:2 D5:4 -:2 F5:2", "E5:2 D5:2 A4:4 F5:2 E5:2 D5:4",
-    "Bb4:2 D5:2 F5:4 A5:2 F5:2 D5:4", "G5:3 F5:1 D5:2 Bb4:2 A4:4 G4:4",
-    "E5:2 C#5:2 A4:4 C#5:2 E5:2 G5:4", "E5:4 C#5:2 B4:2 A4:4 -:4"],
-});
+function chamberExploration() {
+  const chords = ["Dm","Bb","F","C","Gm","Dm","Bb","A", "F","C","Dm","Am","Bb","F","Gm","A",
+    "Dm","Bb","F","C","Gm","Dm","Bb","A", "Bb","F","Gm","Dm","Bb","Gm","A","A"];
+  const melody = [...SHALLOW_CHAMBER_A,
+    "F5:4 A5:6 G5:2 F5:4", "C5:4 E5:4 G5:4 -:4",
+    "A4:4 D5:6 E5:2 F5:4", "E5:4 C5:4 A4:6 -:2",
+    "Bb4:4 D5:4 F5:4 A5:4", "G5:4 F5:4 C5:4 A4:4",
+    "Bb4:4 D5:4 G5:6 F5:2", "E5:6 C#5:2 A4:4 -:4",
+    ...SHALLOW_CHAMBER_A.slice(0, 6),
+    "F5:4 D5:4 Bb4:4 A4:4", "C#5:6 E5:2 A4:4 -:4",
+    "F5:6 D5:2 Bb4:4 -:4", "C5:4 A4:4 F4:4 A4:4",
+    "Bb4:4 D5:4 G5:4 -:4", "F5:4 E5:2 D5:6 A4:4",
+    "Bb4:4 D5:4 F5:6 -:2", "D5:4 Bb4:4 A4:4 G4:4",
+    "E5:6 C#5:2 A4:4 -:4", "C#5:4 B4:2 A4:6 -:4"];
+  const piano = [], inner = [], upper = [], bass = [], lead = [];
+  for (let bar = 0; bar < chords.length; bar++) {
+    const c = CHORDS[chords[bar]], lift = bar >= 8 && bar < 16 ? 0.95 : bar >= 24 ? 0.68 : 0.8;
+    lead.push(...parseBar(melody[bar]).map(([note, length], index) => [note, length, lift * (index % 3 === 0 ? 1 : 0.87)]));
+    piano.push(...parseBar(bar % 4 === 3
+      ? `${c[0]}:4:0.65 ${c[1]}:4:0.5 -:4 ${c[2]}:2:0.46 ${c[3]}:2:0.38`
+      : `${c[0]}:2:0.7 -:2 ${c[2]}:2:0.48 -:2 ${c[1]}:4:0.6 ${c[3]}:2:0.4 -:2`));
+    inner.push(...parseBar(bar < 2 ? "-:16" : `${octave(c[1], 3)}:16:${lift * 0.7}`));
+    upper.push(...parseBar(bar < 4 || (bar >= 24 && bar % 2 === 1) ? "-:16" : `${octave(c[2], 4)}:16:${lift * 0.55}`));
+    bass.push(...parseBar(`${octave(c[0], 2)}:12:0.75 -:4`));
+  }
+  return {
+    name: "dungeon_shallow", title: "灯りを携えて", tempo: 96, loop: true, bars: 32,
+    desc: "D短調。32小節・80秒。笛の探索主題、柔らかい鍵盤、薄い弦、丸い低音の5パート。明るい中間部から主題へ戻り、静かな結びからループする。打楽器を使わず、短い室内の残響を添える。",
+    tracks: [
+      { type: "sine", instrument: "woodFlute", volume: 0.22, gate: 0.94, pan: -0.08, cutoff: 3900, roomSend: 0.3, notes: lead },
+      { type: "sine", instrument: "feltPiano", volume: 0.22, gate: 0.82, pan: -0.32, cutoff: 3000, roomSend: 0.22, notes: piano },
+      { type: "sine", instrument: "softStrings", volume: 0.12, gate: 0.96, pan: -0.48, cutoff: 2200, roomSend: 0.42, notes: inner },
+      { type: "sine", instrument: "softStrings", volume: 0.09, gate: 0.96, pan: 0.46, cutoff: 2500, roomSend: 0.42, notes: upper },
+      { type: "sine", instrument: "roundBass", volume: 0.28, gate: 0.94, pan: 0, cutoff: 550, notes: bass },
+    ],
+  };
+}
+export const BGM_DUNGEON_SHALLOW = chamberExploration();
 
 const DEEP_A = [
   "-:4 C5:3 Db5:1 G4:4 Eb5:2 Db5:2", "C5:6 -:2 Ab4:2 G4:2 Eb4:4",
