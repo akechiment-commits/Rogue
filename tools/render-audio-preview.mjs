@@ -17,6 +17,7 @@ const html = `<!doctype html><meta charset="utf-8"><pre id="result">pending</pre
 <script type="module">
 import { soundEngine, parseMusicScore } from ${JSON.stringify(pathToFileURL(path.join(root, 'soundEngine.js')).href)};
 import { ALL_BGM_TRACKS, ALL_SE_LIST } from ${JSON.stringify(pathToFileURL(path.join(root, 'musicData.js')).href)};
+import { soundEffectDuration } from ${JSON.stringify(pathToFileURL(path.join(root, 'soundEffectData.js')).href)};
 const sampleRate = 32000;
 function engineFor(context) {
   const engine = new soundEngine.constructor();
@@ -65,10 +66,16 @@ async function run() {
     }
     results.push({ file: score.name + '.wav', title: score.title, ...wav(await context.startRendering()) });
   }
-  const duration = ALL_SE_LIST.length * 0.8 + 0.6;
+  let elapsed = 0;
+  const slots = ALL_SE_LIST.map(se => {
+    const slot = { start: elapsed, duration: Math.max(0.1, soundEffectDuration(se.id)) };
+    elapsed += slot.duration + 0.28;
+    return slot;
+  });
+  const duration = elapsed + 0.3;
   const context = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate), engine = engineFor(context);
   for (let i = 0; i < ALL_SE_LIST.length; i++) {
-    const offset = i * 0.8;
+    const offset = slots[i].start;
     const tone = engine._playTone.bind(engine), noise = engine._playNoise.bind(engine);
     engine._playTone = options => tone({ ...options, start: (options.start || 0) + offset });
     engine._playNoise = options => noise({ ...options, start: (options.start || 0) + offset });
@@ -78,12 +85,19 @@ async function run() {
   const rendered = await context.startRendering();
   const samples = rendered.getChannelData(0);
   const segments = ALL_SE_LIST.map((se, index) => {
-    let energy = 0;
-    const start = Math.floor(index * 0.8 * sampleRate), end = Math.floor((index * 0.8 + 0.65) * sampleRate);
-    for (let frame = start; frame < end; frame++) energy += samples[frame] * samples[frame];
-    return { id: se.id, rms: Math.sqrt(energy / (end - start)) };
+    let energy = 0, tailEnergy = 0, tailFrames = 0;
+    const slot = slots[index];
+    const start = Math.floor(slot.start * sampleRate), end = Math.floor((slot.start + slot.duration) * sampleRate);
+    for (let frame = start; frame < end; frame++) {
+      energy += samples[frame] * samples[frame];
+      if (frame >= start + (end - start) * 0.45 && frame < start + (end - start) * 0.7) {
+        tailEnergy += samples[frame] * samples[frame]; tailFrames++;
+      }
+    }
+    return { id: se.id, ...slot, rms: Math.sqrt(energy / (end - start)), tailRms: Math.sqrt(tailEnergy / tailFrames) };
   });
   if (segments.some(segment => segment.rms < 0.0001)) throw new Error('SE一覧に無音の区間がある');
+  if (segments.some(segment => ['hit', 'crit', 'explosion', 'magic', 'heal', 'revive'].includes(segment.id) && segment.tailRms < segment.rms * 0.05)) throw new Error('主要SEの後半に響きが残っていない');
   results.push({ file: 'se-montage.wav', title: '効果音一覧', order: ALL_SE_LIST.map(se => se.name), segments, ...wav(rendered) });
   return results;
 }

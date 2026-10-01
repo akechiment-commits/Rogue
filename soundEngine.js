@@ -202,7 +202,7 @@ class SoundEngine {
   /**
    * Helper to create an envelope-controlled tone
    */
-  _playTone({ freq = 440, type = "square", start = 0, duration = 0.1, gain = 0.3, pitchSlideTo = null }) {
+  _playTone({ freq = 440, type = "square", start = 0, duration = 0.1, gain = 0.3, pitchSlideTo = null, pitchSlideTime = null }) {
     if (!this.ctx || this.isMuted || this.seVolume <= 0) return;
     const now = this.ctx.currentTime + start + (this.seStartOffset || 0);
     const osc = this.ctx.createOscillator();
@@ -211,10 +211,13 @@ class SoundEngine {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
     if (pitchSlideTo !== null) {
-      osc.frequency.exponentialRampToValueAtTime(Math.max(10, pitchSlideTo), now + duration);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(10, pitchSlideTo), now + Math.min(duration, pitchSlideTime ?? duration));
     }
 
-    g.gain.setValueAtTime(gain, now);
+    // 立ち上がり→響きの胴→余韻。音量を即座にゼロ近くへ落とさない。
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(gain, now + Math.min(0.003, duration * 0.08));
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.24), now + duration * 0.6);
     g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
     osc.connect(g);
@@ -242,7 +245,9 @@ class SoundEngine {
     }
 
     const g = this.ctx.createGain();
-    g.gain.setValueAtTime(gain, now);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(gain, now + Math.min(0.002, duration * 0.08));
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.12), now + duration * 0.62);
     g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
     noise.connect(filter);

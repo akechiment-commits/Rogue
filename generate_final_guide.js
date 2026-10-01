@@ -8,6 +8,7 @@ import { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.
 import { GOAL_ITEMS } from './dungeon.js';
 import { FIRST_ENCOUNTER_TIPS } from './firstEncounterTips.js';
 import { ALL_BGM_TRACKS, ALL_SE_LIST } from './musicData.js';
+import { soundEffectDuration } from './soundEffectData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
@@ -1160,14 +1161,15 @@ wb.Sheets['25_ダンジョン出現']['!cols'] = [
   { wch: 28 }, { wch: 14 }, { wch: 90 },
 ];
 
-const soundData = [['種別', '名前', 'ID', 'BPM／小節数', '演奏・発火条件']];
+const soundData = [['種別', '名前', 'ID', 'BPM／小節数／音の長さ', '演奏・発火条件']];
 for (const bgm of ALL_BGM_TRACKS) {
   soundData.push(['BGM', bgm.title, bgm.name, `${bgm.tempo} BPM / ${bgm.bars}小節`,
     `${bgm.desc} ${bgm.loop === false ? '1回演奏して停止。' : '全パート同じ長さでループ。'}`]);
 }
-for (const se of ALL_SE_LIST) soundData.push(['SE', se.name, se.id, '短い合成音', se.desc]);
+for (const se of ALL_SE_LIST) soundData.push(['SE', se.name, se.id, `${soundEffectDuration(se.id).toFixed(2)}秒`, se.desc]);
 soundData.push(['共通', '効果音の重複・発火', '-', '-', '新規ログ、HP・座標・階層・装備・状態の変化、アニメーションから発火を決める。1行動の命中・撃破・被弾などは短い間隔で別々に鳴らす。同じ種類は1バッチ1回。会心と通常命中は重ねない。罠・薬の説明、自然回復、履歴復元、同じログの再描画では鳴らさない。']);
 soundData.push(['共通', 'メニュー操作', '-', '-', '拠点・ゲーム内メニューの矢印・テンキー・ゲームパッドの移動、決定、キャンセル、有効なボタンのクリックに対応。名前入力などの文字操作、無効ボタン、サウンドテストの二重発火は除外する。']);
+soundData.push(['共通', '効果音の響き', '-', '-', '戦闘音は衝撃・低い胴鳴り・金属や破片の余韻を組み合わせる。回復・魔法は音程の重なりで展開する。立ち上がりから段階的に減衰し、主要音の後半にも響きを残す。頻繁な足音とカーソル音は短く控えめ。音が終わるまで操作を待たせることはない。']);
 const soundWs = addSheet('26_サウンド', soundData);
 soundWs['!cols'] = [{ wch: 10 }, { wch: 28 }, { wch: 24 }, { wch: 24 }, { wch: 100 }];
 
