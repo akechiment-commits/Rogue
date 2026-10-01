@@ -74,47 +74,47 @@ function arrange({ name, title, desc, tempo, chords, melody, style = "explore", 
   };
 }
 
-// 同じ探索主題を、息のある旋律と室内楽の編成へ作り直す。
-const SHALLOW_CHAMBER_A = [
-  "-:2 D5:4 F5:4 E5:2 D5:4", "Bb4:6 D5:2 F5:4 -:4",
-  "A4:4 C5:2 F5:6 E5:2 C5:2", "E5:4 D5:2 C5:6 -:4",
-  "Bb4:4 D5:4 G5:4 F5:2 D5:2", "F5:4 E5:2 D5:6 -:4",
-  "F5:6 D5:2 Bb4:4 A4:2 F4:2", "E5:4 C#5:4 A4:4 -:4",
+// 浅層は気軽な探索。柔らかい室内楽の音色で、長調の軽い主題を歌う。
+const SHALLOW_LIGHT_A = [
+  "C5:3 E5:1 G5:4 A5:2 G5:2 E5:4", "F5:3 A5:1 G5:2 F5:2 E5:4 -:4",
+  "E5:2 G5:2 C6:4 B5:2 G5:2 E5:4", "D5:3 G5:1 B5:2 A5:2 G5:4 -:4",
+  "A5:3 G5:1 F5:4 E5:2 F5:2 A5:4", "G5:2 E5:2 C5:4 D5:2 E5:2 G5:4",
+  "F5:3 E5:1 D5:4 A4:2 D5:2 F5:4", "G5:2 F5:2 D5:4 B4:2 D5:2 G5:2 -:2",
 ];
 function chamberExploration() {
-  const chords = ["Dm","Bb","F","C","Gm","Dm","Bb","A", "F","C","Dm","Am","Bb","F","Gm","A",
-    "Dm","Bb","F","C","Gm","Dm","Bb","A", "Bb","F","Gm","Dm","Bb","Gm","A","A"];
-  const melody = [...SHALLOW_CHAMBER_A,
-    "F5:4 A5:6 G5:2 F5:4", "C5:4 E5:4 G5:4 -:4",
-    "A4:4 D5:6 E5:2 F5:4", "E5:4 C5:4 A4:6 -:2",
-    "Bb4:4 D5:4 F5:4 A5:4", "G5:4 F5:4 C5:4 A4:4",
-    "Bb4:4 D5:4 G5:6 F5:2", "E5:6 C#5:2 A4:4 -:4",
-    ...SHALLOW_CHAMBER_A.slice(0, 6),
-    "F5:4 D5:4 Bb4:4 A4:4", "C#5:6 E5:2 A4:4 -:4",
-    "F5:6 D5:2 Bb4:4 -:4", "C5:4 A4:4 F4:4 A4:4",
-    "Bb4:4 D5:4 G5:4 -:4", "F5:4 E5:2 D5:6 A4:4",
-    "Bb4:4 D5:4 F5:6 -:2", "D5:4 Bb4:4 A4:4 G4:4",
-    "E5:6 C#5:2 A4:4 -:4", "C#5:4 B4:2 A4:6 -:4"];
+  const chords = ["C","F","C","G7","F","C","Dm","G7", "F","C","Dm","G7","F","C","G7","C",
+    "C","F","C","G7","F","C","Dm","G7", "F","C","Dm","G7","F","C","G7","G7"];
+  const melody = [...SHALLOW_LIGHT_A,
+    "A5:4 C6:3 A5:1 G5:2 F5:2 E5:4", "G5:3 E5:1 C5:4 E5:2 G5:2 C6:4",
+    "A5:2 F5:2 D5:4 E5:2 F5:2 A5:4", "B5:3 A5:1 G5:4 F5:2 D5:2 B4:4",
+    "C6:4 A5:2 G5:2 F5:4 -:4", "E5:2 G5:2 C6:4 B5:2 G5:2 E5:4",
+    "F5:2 D5:2 B4:4 D5:2 F5:2 G5:4", "E5:3 G5:1 C6:6 -:2 G5:2 E5:2",
+    ...SHALLOW_LIGHT_A.slice(0, 6),
+    "A5:3 F5:1 D5:4 F5:2 E5:2 D5:4", "B4:2 D5:2 G5:4 F5:2 D5:2 B4:2 -:2",
+    "A5:3 G5:1 F5:4 C5:4 -:4", "E5:2 G5:2 C6:4 G5:2 E5:2 C5:4",
+    "D5:3 F5:1 A5:4 G5:2 F5:2 E5:4", "D5:2 G5:2 B5:4 A5:2 G5:2 D5:4",
+    "F5:2 A5:2 C6:4 A5:2 G5:2 F5:4", "G5:3 E5:1 C5:4 E5:2 G5:2 C6:4",
+    "B5:2 A5:2 G5:4 F5:2 D5:2 B4:4", "D5:2 G5:2 B5:4 G5:4 -:4"];
   const piano = [], inner = [], upper = [], bass = [], lead = [];
   for (let bar = 0; bar < chords.length; bar++) {
-    const c = CHORDS[chords[bar]], lift = bar >= 8 && bar < 16 ? 0.95 : bar >= 24 ? 0.68 : 0.8;
+    const c = CHORDS[chords[bar]], lift = bar >= 8 && bar < 16 ? 0.94 : bar >= 24 ? 0.8 : 0.85;
     lead.push(...parseBar(melody[bar]).map(([note, length], index) => [note, length, lift * (index % 3 === 0 ? 1 : 0.87)]));
     piano.push(...parseBar(bar % 4 === 3
-      ? `${c[0]}:4:0.65 ${c[1]}:4:0.5 -:4 ${c[2]}:2:0.46 ${c[3]}:2:0.38`
-      : `${c[0]}:2:0.7 -:2 ${c[2]}:2:0.48 -:2 ${c[1]}:4:0.6 ${c[3]}:2:0.4 -:2`));
-    inner.push(...parseBar(bar < 2 ? "-:16" : `${octave(c[1], 3)}:16:${lift * 0.7}`));
-    upper.push(...parseBar(bar < 4 || (bar >= 24 && bar % 2 === 1) ? "-:16" : `${octave(c[2], 4)}:16:${lift * 0.55}`));
-    bass.push(...parseBar(`${octave(c[0], 2)}:12:0.75 -:4`));
+      ? `${c[0]}:2:0.64 -:2 ${c[2]}:2:0.46 -:2 ${c[1]}:2:0.56 -:2 ${c[3]}:2:0.36 -:2`
+      : `${c[0]}:3:0.66 -:1 ${c[2]}:2:0.46 -:2 ${c[1]}:3:0.56 -:1 ${c[3]}:2:0.36 -:2`));
+    inner.push(...parseBar(bar < 2 ? "-:16" : `${octave(c[1], 3)}:6:${lift * 0.52} -:2 ${octave(c[1], 3)}:6:${lift * 0.42} -:2`));
+    upper.push(...parseBar(bar < 4 || bar % 4 === 3 ? "-:16" : `${octave(c[2], 4)}:12:${lift * 0.45} -:4`));
+    bass.push(...parseBar(`${octave(c[0], 2)}:3:0.64 -:1 ${octave(c[2], 2)}:3:0.48 -:1 ${octave(c[0], 2)}:3:0.56 -:1 ${octave(c[2], 2)}:3:0.44 -:1`));
   }
   return {
-    name: "dungeon_shallow", title: "灯りを携えて", tempo: 96, loop: true, bars: 32,
-    desc: "D短調。32小節・80秒。笛の探索主題、柔らかい鍵盤、薄い弦、丸い低音の5パート。明るい中間部から主題へ戻り、静かな結びからループする。打楽器を使わず、短い室内の残響を添える。",
+    name: "dungeon_shallow", title: "気ままな探検", tempo: 112, loop: true, bars: 32,
+    desc: "C長調。32小節・約69秒。軽やかな笛の主題、弾む鍵盤と低音、薄い弦の5パート。晴れやかな中間部と小さな掛け合いから主題へ戻る、お気楽な探索曲。打楽器を使わず、柔らかい室内楽の響きを添える。",
     tracks: [
-      { type: "sine", instrument: "woodFlute", volume: 0.22, gate: 0.94, pan: -0.08, cutoff: 3900, roomSend: 0.3, notes: lead },
-      { type: "sine", instrument: "feltPiano", volume: 0.22, gate: 0.82, pan: -0.32, cutoff: 3000, roomSend: 0.22, notes: piano },
-      { type: "sine", instrument: "softStrings", volume: 0.12, gate: 0.96, pan: -0.48, cutoff: 2200, roomSend: 0.42, notes: inner },
-      { type: "sine", instrument: "softStrings", volume: 0.09, gate: 0.96, pan: 0.46, cutoff: 2500, roomSend: 0.42, notes: upper },
-      { type: "sine", instrument: "roundBass", volume: 0.28, gate: 0.94, pan: 0, cutoff: 550, notes: bass },
+      { type: "sine", instrument: "woodFlute", volume: 0.22, gate: 0.87, pan: -0.08, cutoff: 3900, roomSend: 0.25, notes: lead },
+      { type: "sine", instrument: "feltPiano", volume: 0.22, gate: 0.67, pan: -0.32, cutoff: 3000, roomSend: 0.2, notes: piano },
+      { type: "sine", instrument: "softStrings", volume: 0.1, gate: 0.88, pan: -0.48, cutoff: 2200, roomSend: 0.32, notes: inner },
+      { type: "sine", instrument: "softStrings", volume: 0.075, gate: 0.92, pan: 0.46, cutoff: 2500, roomSend: 0.32, notes: upper },
+      { type: "sine", instrument: "roundBass", volume: 0.25, gate: 0.72, pan: 0, cutoff: 550, notes: bass },
     ],
   };
 }
