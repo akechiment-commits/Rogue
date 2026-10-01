@@ -69,8 +69,8 @@ class SoundEngine {
       const savedBgm = localStorage.getItem("rogue_bgm_vol");
       const savedSe = localStorage.getItem("rogue_se_vol");
       const savedMute = localStorage.getItem("rogue_audio_mute");
-      if (savedBgm !== null) this.bgmVolume = Math.max(0, Math.min(1, parseFloat(savedBgm)));
-      if (savedSe !== null) this.seVolume = Math.max(0, Math.min(1, parseFloat(savedSe)));
+      if (savedBgm?.trim() && Number.isFinite(Number(savedBgm))) this.bgmVolume = Math.max(0, Math.min(1, Number(savedBgm)));
+      if (savedSe?.trim() && Number.isFinite(Number(savedSe))) this.seVolume = Math.max(0, Math.min(1, Number(savedSe)));
       if (savedMute !== null) this.isMuted = savedMute === "true";
     } catch {
       // Ignore storage errors

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { readPreference, writePreference } from "./browserPreferences.js";
+import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
 import {
   findRoom,
@@ -305,7 +305,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const exitHubConfirmRef = useRef(false);
   exitHubConfirmRef.current = exitHubConfirm;
   const [currentTileset, setCurrentTileset] = useState(() => readPreference('roguelike_tileset', 'default') || 'default');
-  const [desktopVW, setDesktopVW] = useState(() => parseInt(readPreference('roguelike_desktop_vw', '25') || '25'));
+  const [desktopVW, setDesktopVW] = useState(readDesktopViewportWidth);
   const [landscape, setLandscape] = useState(false);
   const [portraitSrc, setPortraitSrc] = useState(null);
 
