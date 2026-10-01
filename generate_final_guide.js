@@ -218,6 +218,17 @@ function guideDesc(item) {
   return item.type === 'pot' ? `${desc}\n${POT_RANDOM_BC_NOTE}` : desc;
 }
 
+// 通常・祝福・呪いを手書きした表にも、上書きした仕様全文を出力する。
+function injectGuideDescriptions(data) {
+  const catalog = new Map([...ITEMS, WATER_BOTTLE].map(item => [item.name, item]));
+  data[0].push('詳細説明');
+  for (let i = 1; i < data.length; i++) {
+    const item = catalog.get(data[i][0]);
+    data[i].push(item ? guideDesc(item) : '');
+  }
+  return data;
+}
+
 // アイテム名 → rarity のマップを生成
 const _rarityMap = new Map();
 const _priceMap = new Map();
@@ -448,7 +459,7 @@ const potionData = [
   ['', '耐封印防具', '無効化', '-', ''],
 ];
 
-addSheet('01_薬', injectRarityAndPrice(potionData));
+addSheet('01_薬', injectGuideDescriptions(injectRarityAndPrice(potionData)));
 
 // ===== 食べ物への薬効果 =====
 const foodData = [
@@ -511,7 +522,7 @@ const scrollData = [
   ['白紙の巻物', '魔法の筆で書き込み対象', '魔法の筆で書き込み対象', '魔法の筆で書き込み対象', '1651-1656'],
 ];
 
-addSheet('03_巻物', injectRarityAndPrice(scrollData));
+addSheet('03_巻物', injectGuideDescriptions(injectRarityAndPrice(scrollData)));
 
 // ===== 武器・防具 =====
 const _weapons = ITEMS.filter(i => i.type === 'weapon');
@@ -587,7 +598,7 @@ const penData = [
   ['罠のペン', 'trap_gen', '毎ターン10%で描いた部屋に罠配置（同フロアなら別部屋でも発動）', '毎ターン10%でフロア内に罠配置（同フロアなら別部屋でも発動）', '毎ターン30%でフロア内の罠を1つ削除（同フロアなら別部屋でも発動）'],
   ['石飛ばしのペン', 'stone_throw', '魔法の石を15個持つ。毎ターン25%で部屋内に5-10ダメージの石（命中100%、みかわし陣・服・オリーブ油のみ回避）。誰かに当たって消えた場合は弾薬を消費せず、地面に落ちて回収可能になった時だけ1個消費', '毎ターン25%で部屋内に10-20ダメージ（2倍）。弾薬の扱いは通常と同じ', '毎ターン25%で部屋内に石が飛んで回復。アンデッドには逆効果。弾薬の扱いは通常と同じ'],
   ['吹き飛ばしのペン', 'knockback_aura', '近接攻撃ヒット時、敵が5マス吹き飛ぶ', '近接攻撃ヒット時、敵が壁に当たるまで吹き飛ぶ', '近接攻撃ヒット時、敵が1マス吹き飛ぶ'],
-  ['爆発のペン', 'explosion', '敵倒時、その場で敵現HP3/4ダメージの爆発。壁・罠・大箱・範囲内の魔方陣を破壊。石像は中身を出さず消滅', 'フロア全体で敵倒時に爆発', '呪いTP存在時は全爆発を打ち消す'],
+  ['爆発のペン', 'explosion', '敵撃破を起点に3×3爆発。通常敵は即死、ボスは即死耐性ダメージ、プレイヤーは現HP3/4を基準に耐性補正。壁・罠・大箱・範囲内の魔方陣を破壊', 'フロア全体で敵撃破時に爆発', '炎・爆発を打ち消す'],
   ['囮のペン', 'decoy', '同じ部屋の敵が囮の魔方陣に集まる。陣取り中の敵は動かず、近づく敵を攻撃', 'フロア全体の敵が囮の魔方陣に集まる（BFS最短経路）', 'フロア全敵が常にプレイヤーを認識して追跡'],
   ['ただのペン', 'plain', '何も起こらない', '何も起こらない', '何も起こらない'],
   ['重力のペン', 'gravity', '部屋内で浮遊敵が罠にかかる。水上の浮遊敵を陸に弾き出す（逃げ場がない通常敵は即死、ボスは現在HPの1/4ダメージ）', 'フロア全体で浮遊敵が罠にかかる。水上の浮遊敵を陸に弾き出す（逃げ場がない通常敵は即死、ボスは現在HPの1/4ダメージ）', '部屋内全員が浮遊状態に（常時）'],
@@ -609,7 +620,7 @@ for (let i = 1; i < penData.length; i++) {
   penData[i].splice(2, 0, penInitialChargeRange(pen));
 }
 
-addSheet('07_ペン', injectRarityAndPrice(penData));
+addSheet('07_ペン', injectGuideDescriptions(injectRarityAndPrice(penData)));
 
 // ===== 魔法の筆・魔法書 =====
 const otherData = [
