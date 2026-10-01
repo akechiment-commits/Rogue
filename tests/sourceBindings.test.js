@@ -7,6 +7,7 @@ const require = createRequire(import.meta.url);
 const { parse } = require("@babel/parser");
 const traverse = require("@babel/traverse").default;
 const globals = new Set(("console window document navigator location localStorage sessionStorage indexedDB Image ImageData FileReader File Blob URL URLSearchParams fetch Request Response Headers AbortController DOMException KeyboardEvent CustomEvent Event Audio AudioContext HTMLElement HTMLCanvasElement OffscreenCanvas Worker performance requestAnimationFrame cancelAnimationFrame setTimeout clearTimeout setInterval clearInterval queueMicrotask structuredClone atob btoa alert confirm prompt crypto self globalThis process Buffer __dirname __filename module exports require Object Array Number String Boolean Math Date JSON Set Map WeakSet WeakMap Promise RegExp Error TypeError RangeError ReferenceError SyntaxError AggregateError Uint8Array Uint8ClampedArray Uint16Array Uint32Array Int8Array Int16Array Int32Array Float32Array Float64Array ArrayBuffer DataView TextEncoder TextDecoder Intl Symbol BigInt Infinity NaN undefined parseInt parseFloat isNaN isFinite encodeURIComponent decodeURIComponent encodeURI decodeURI eval Function").split(" "));
+globals.add("WebSocket");
 const sourceFiles = execFileSync("git", ["ls-files", "*.js", "*.jsx", "*.mjs", "*.cjs"], {
   cwd: new URL("..", import.meta.url), encoding: "utf8",
 }).trim().split(/\r?\n/).filter(file => !/^(tests|tiles|public|art-preview)\//.test(file));

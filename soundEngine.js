@@ -33,6 +33,22 @@ export function noteToFreq(noteStr) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
+/** 譜面の展開は実時間再生とOfflineAudioContextでの試聴書き出しで共通。 */
+export function parseMusicScore(score) {
+  return score.tracks.map(track => {
+    const steps = [];
+    for (const item of track.notes || []) {
+      const note = Array.isArray(item) ? item[0] : item.note;
+      const len = Array.isArray(item) ? item[1] : item.len;
+      const velocity = Array.isArray(item) ? item[2] : item.velocity;
+      if (!Number.isInteger(len) || len <= 0) continue;
+      steps.push({ freq: noteToFreq(note), len, velocity: velocity ?? 1, isNoise: track.type === "noise" });
+      for (let i = 1; i < len; i++) steps.push({ freq: 0, len: 0, hold: true });
+    }
+    return { ...track, type: track.type || "square", volume: track.volume ?? 0.2, steps };
+  });
+}
+
 class SoundEngine {
   constructor() {
     this.ctx = null;
@@ -50,6 +66,7 @@ class SoundEngine {
     this.currentBgm = null;
     this.currentBgmName = null;
     this.isPlayingBgm = false;
+    this.bgmCompleted = false;
     this.schedulerTimer = null;
     this.bgmSources = new Set();
     this.nextNoteTime = 0;
@@ -362,7 +379,7 @@ class SoundEngine {
       return;
     }
 
-    if (!forceRestart && this.currentBgmName === score.name && this.isPlayingBgm) {
+    if (!forceRestart && this.currentBgmName === score.name && (this.isPlayingBgm || this.bgmCompleted)) {
       return; // Already playing this track
     }
 
@@ -380,25 +397,7 @@ class SoundEngine {
     this.tempo = Number.isFinite(tempo) && tempo > 0 ? tempo : 120;
     this.secondsPerStep = (60 / this.tempo) / 4;
 
-    this.parsedTracks = score.tracks.map(tr => {
-      const steps = [];
-      for (const item of tr.notes) {
-        // item: [noteName, lengthInSteps] or { note, len }
-        const note = Array.isArray(item) ? item[0] : item.note;
-        const len = Array.isArray(item) ? item[1] : item.len;
-        const freq = noteToFreq(note);
-        steps.push({ freq, len, isNoise: tr.type === "noise" });
-        // Fill remaining steps with continuation / rest
-        for (let i = 1; i < len; i++) {
-          steps.push({ freq: 0, len: 0, hold: true });
-        }
-      }
-      return {
-        type: tr.type || "square",
-        volume: tr.volume !== undefined ? tr.volume : 0.2,
-        steps,
-      };
-    });
+    this.parsedTracks = parseMusicScore(score);
 
     // Determine loop length (max steps across tracks)
     this.totalSteps = Math.max(...this.parsedTracks.map(t => t.steps.length));
@@ -408,11 +407,12 @@ class SoundEngine {
 
     // Start scheduling loop
     this._schedule();
-    this.schedulerTimer = setInterval(() => this._schedule(), 50);
+    if (this.isPlayingBgm) this.schedulerTimer = setInterval(() => this._schedule(), 50);
   }
 
   stopBGM() {
     this.isPlayingBgm = false;
+    this.bgmCompleted = false;
     if (this.schedulerTimer) {
       clearInterval(this.schedulerTimer);
       this.schedulerTimer = null;
@@ -442,16 +442,42 @@ class SoundEngine {
     // ブラウザ休止などで遅れた音は捨て、曲中の位置だけ進める。
     if (this.nextNoteTime < now) {
       const skipped = Math.ceil((now - this.nextNoteTime) / this.secondsPerStep);
-      this.currentStep = (this.currentStep + skipped) % this.totalSteps;
+      this.currentStep = this.currentBgm?.loop === false
+        ? this.currentStep + skipped : (this.currentStep + skipped) % this.totalSteps;
       this.nextNoteTime = Math.max(now, this.nextNoteTime + skipped * this.secondsPerStep);
     }
     let scheduled = 0;
     while (this.nextNoteTime < now + scheduleAheadTime && scheduled < 64) {
+      if (this.currentBgm?.loop === false && this.currentStep >= this.totalSteps) {
+        this.isPlayingBgm = false;
+        this.bgmCompleted = true;
+        clearInterval(this.schedulerTimer);
+        this.schedulerTimer = null;
+        break;
+      }
       this._playStepAt(this.currentStep, this.nextNoteTime);
       this.nextNoteTime += this.secondsPerStep;
-      this.currentStep = (this.currentStep + 1) % this.totalSteps;
+      this.currentStep = this.currentBgm?.loop === false
+        ? this.currentStep + 1 : (this.currentStep + 1) % this.totalSteps;
       scheduled++;
     }
+  }
+
+  _connectBgmVoice(source, gain, track, time, filter = null) {
+    const nodes = [source, gain];
+    if (!filter && track.cutoff && typeof this.ctx.createBiquadFilter === "function") {
+      filter = this.ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(track.cutoff, time);
+    }
+    if (filter) { source.connect(filter); filter.connect(gain); nodes.push(filter); }
+    else source.connect(gain);
+    if (track.pan && typeof this.ctx.createStereoPanner === "function") {
+      const pan = this.ctx.createStereoPanner();
+      pan.pan.setValueAtTime(track.pan, time);
+      gain.connect(pan); pan.connect(this.bgmGain); nodes.push(pan);
+    } else gain.connect(this.bgmGain);
+    this._trackBgmSource(source, nodes);
   }
 
   _playStepAt(stepIndex, time) {
@@ -461,8 +487,9 @@ class SoundEngine {
       const step = tr.steps[stepIndex % tr.steps.length];
       if (!step || step.hold) continue;
 
-      const dur = Math.max(0.04, step.len * this.secondsPerStep * 0.9); // Staccato articulation
-      const gainVal = tr.volume;
+      const dur = Math.max(0.025, step.len * this.secondsPerStep * (tr.gate ?? 0.85));
+      const gainVal = tr.volume * (step.velocity ?? 1);
+      if (gainVal <= 0) continue;
 
       if (step.isNoise) {
         if (step.freq > 0 && this.noiseBuffer) {
@@ -476,37 +503,42 @@ class SoundEngine {
           filter.frequency.setValueAtTime(step.freq > 200 ? 5000 : 1200, time);
 
           const g = this.ctx.createGain();
-          g.gain.setValueAtTime(gainVal, time);
-          g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-
-          noise.connect(filter);
-          filter.connect(g);
-          g.connect(this.bgmGain);
-
-          this._trackBgmSource(noise, [noise, filter, g]);
+          const drumDur = step.freq > 900 ? 0.17 : step.freq > 200 ? 0.035 : 0.12;
+          g.gain.setValueAtTime(0.0001, time);
+          g.gain.linearRampToValueAtTime(gainVal, time + 0.002);
+          g.gain.exponentialRampToValueAtTime(0.0001, time + drumDur);
+          this._connectBgmVoice(noise, g, tr, time, filter);
 
           noise.start(time);
-          noise.stop(time + dur + 0.05);
+          noise.stop(time + drumDur + 0.03);
         }
       } else if (step.freq > 0) {
         const osc = this.ctx.createOscillator();
         const g = this.ctx.createGain();
 
         osc.type = tr.type;
-        osc.frequency.setValueAtTime(step.freq, time);
+        const kick = tr.instrument === "kick";
+        const toneDur = kick ? 0.16 : dur;
+        osc.frequency.setValueAtTime(kick ? 135 : step.freq, time);
+        if (kick) osc.frequency.exponentialRampToValueAtTime(42, time + 0.11);
 
         // Envelope: soft attack, decay
         g.gain.setValueAtTime(0.0001, time);
-        g.gain.linearRampToValueAtTime(gainVal, time + 0.008);
-        g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-
-        osc.connect(g);
-        g.connect(this.bgmGain);
-
-        this._trackBgmSource(osc, [osc, g]);
+        const attack = Math.min(tr.attack ?? 0.005, toneDur * 0.15);
+        g.gain.linearRampToValueAtTime(gainVal, time + attack);
+        if (kick) g.gain.exponentialRampToValueAtTime(0.0001, time + toneDur);
+        else {
+          const decay = Math.min(tr.decay ?? 0.05, toneDur * 0.3);
+          const release = Math.min(tr.release ?? 0.04, toneDur * 0.25);
+          const sustain = Math.max(0.0001, gainVal * (tr.sustain ?? 0.65));
+          g.gain.exponentialRampToValueAtTime(sustain, time + attack + decay);
+          g.gain.setValueAtTime(sustain, time + Math.max(attack + decay, toneDur - release));
+          g.gain.exponentialRampToValueAtTime(0.0001, time + toneDur);
+        }
+        this._connectBgmVoice(osc, g, tr, time);
 
         osc.start(time);
-        osc.stop(time + dur + 0.05);
+        osc.stop(time + toneDur + 0.03);
       }
     }
   }

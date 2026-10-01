@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { soundEngine } from "../soundEngine.js";
-import { BGM_DUNGEON_SHALLOW } from "../musicData.js";
+import { BGM_DUNGEON_SHALLOW, BGM_GAMEOVER } from "../musicData.js";
 
 describe("BGMスケジューラー", () => {
   let engine, play;
@@ -36,5 +36,19 @@ describe("BGMスケジューラー", () => {
     engine.playBGM({ name: "empty", tracks: [{ notes: [] }] });
     expect(engine.isPlayingBgm).toBe(false);
     expect(engine.schedulerTimer).toBeNull();
+  });
+  it("終止曲は最後で停止し、同じ画面の更新では再発火しない", () => {
+    engine.playBGM(BGM_GAMEOVER);
+    play.mockClear();
+    engine.ctx.currentTime = 100;
+    engine._schedule();
+    expect(play).not.toHaveBeenCalled();
+    expect(engine.isPlayingBgm).toBe(false);
+    expect(engine.bgmCompleted).toBe(true);
+    expect(engine.schedulerTimer).toBeNull();
+    engine.playBGM(BGM_GAMEOVER);
+    expect(play).not.toHaveBeenCalled();
+    engine.playBGM(BGM_GAMEOVER, true);
+    expect(play).toHaveBeenCalled();
   });
 });

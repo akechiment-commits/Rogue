@@ -38,6 +38,14 @@ describe('SoundEngine / noteToFreq', () => {
 });
 
 describe('musicData tracks verification', () => {
+  it('すべてのパートが小節数に一致し、ループの継ぎ目で拍がずれない', () => {
+    for (const score of ALL_BGM_TRACKS) {
+      for (const track of score.tracks) {
+        expect(track.notes.reduce((sum, note) => sum + note[1], 0)).toBe(score.bars * 16);
+        expect(track.notes.every(note => Number.isFinite(note[2]) && note[2] >= 0 && note[2] <= 1)).toBe(true);
+      }
+    }
+  });
   it('all BGM tracks have valid structure and tempo', () => {
     expect(ALL_BGM_TRACKS.length).toBe(7);
 
