@@ -549,12 +549,12 @@ export function useItemActions({
       }
     } else if (it.type === "food") {
       const _foodBm = getBlessMultiplier(it);
-      /* ヤバイ食料：満腹度0.2倍、大ダメージ、毒、混乱 */
+      /* ヤバイ食料：通常の満腹度1/4、大ダメージ、毒、混乱 */
       if (it.iceCream && !it.yabai && !it.rotten && !it.burnt) {
         p.inventory.splice(idx, 1);
         applyIceCreamEffect(p, "player", ml, { name: _useItemName });
       } else if (it.yabai) {
-        const _yabaiHunger = Math.max(1, Math.round(it.value * _foodBm * 0.2));
+        const _yabaiHunger = Math.max(1, Math.round(it.value * _foodBm * 0.25));
         p.inventory.splice(idx, 1);
         if (p.hunger < 0) p.hunger = 0;
         const _yabaiAdded = Math.min(_yabaiHunger, p.maxHunger - p.hunger);
@@ -587,9 +587,9 @@ export function useItemActions({
         const _ySlowT = statusTurns("slow", { kind: "player" });
         p.slowTurns = (p.slowTurns || 0) + _ySlowT;
         ml.push(`体が重くなった…(鈍足${_ySlowT}ターン)`);
-      /* 腐った食料：満腹度0.4倍、毒＋ダメージ、効果なし */
+      /* 腐った食料：通常の満腹度1/2、毒＋ダメージ、効果なし */
       } else if (it.rotten) {
-        const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.4));
+        const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.5));
         p.inventory.splice(idx, 1);
         if (p.hunger < 0) p.hunger = 0;
         const _rotAdded = Math.min(_rotVal, p.maxHunger - p.hunger);

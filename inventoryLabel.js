@@ -63,7 +63,7 @@ export function formatInventoryItem(item, {
   } else if (item.type === "potion" && (item.effect === "heal" || item.effect === "heal_big") && isIdentified) {
     label += ` (HP+${item.value})`;
   } else if (item.type === "food") {
-    const rotMultiplier = item.yabai ? 0.2 : item.rotten ? 0.4 : 1;
+    const rotMultiplier = item.yabai ? 0.25 : item.rotten ? 0.5 : 1;
     label += `(満+${Math.max(1, Math.round(item.value * rotMultiplier))})`;
     if (item.rotten || !item.cooked || item.potionEffects?.length) {
       label += "(";
