@@ -3,9 +3,12 @@ import { soundEngine } from "./soundEngine.js";
 import { ALL_BGM_TRACKS, ALL_SE_LIST } from "./musicData.js";
 import { updateDungeonBgm, playDirectBgm, triggerSE, unlockAudio } from "./soundEvents.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+import { soundForInterfaceKey } from "./soundRules.js";
 
 export function handleSoundModalKey(e, { panel, onClose, setBgmVol, setSeVol }) {
   e.stopImmediatePropagation();
+  const interfaceSound = soundForInterfaceKey(e);
+  if (interfaceSound) triggerSE(interfaceSound);
   const key = (e.key || "").toLowerCase();
   if (key === "escape" || key === "x") {
     e.preventDefault();
@@ -106,6 +109,7 @@ export default function SoundModal({ isOpen, onClose, gameState, scene }) {
 
   return (
     <div
+      data-audio-panel
       style={{
         position: "fixed",
         top: 0,

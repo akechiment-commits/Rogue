@@ -51,8 +51,8 @@ describe("共通ログからの効果音", () => {
     const next = applyMessageUpdate(history, rows => [...rows, "回復薬を飲んだ。HPが回復した！"], 1);
     observe(next);
     observe(next);
-    expect(play).toHaveBeenCalledTimes(1);
-    expect(play).toHaveBeenCalledWith("useItem");
+    expect(play.mock.calls.map(([id]) => id)).toEqual(["drink", "heal"]);
+    expect(play.mock.calls[1][1].delay).toBeGreaterThan(0);
   });
   it("セーブの履歴復元では再生せず、同じ文章でも次の行動は再生する", () => {
     const play = vi.spyOn(soundEngine, "playSE").mockImplementation(() => {});

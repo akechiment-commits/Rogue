@@ -1,3 +1,6 @@
+import { classifySoundMessages, snapshotSoundState, soundStateChanges, animationSounds } from "./soundRules.js";
+import { getActivePlayerName } from "./playerLabel.js";
+
 /**
  * Sound Events coordinator.
  * Bridges game state changes, player actions, animations, and messages to the SoundEngine.
@@ -68,93 +71,46 @@ export function updateDungeonBgm(gameState, { gameOver = false, gameClear = fals
   }
 }
 
-/**
- * Trigger sound effects by name.
- */
-export function triggerSE(name) {
-  soundEngine.playSE(name);
+const interfaceTimes = new Map();
+const queuedAnimationSounds = [];
+
+export function triggerSE(name, { delay = 0 } = {}) {
+  const cooldown = ({ cursor: 55, select: 40, cancel: 40, footstep: 70 })[name] || 0;
+  const now = performance.now();
+  if (cooldown && now - (interfaceTimes.get(name) ?? -Infinity) < cooldown) return;
+  if (cooldown) interfaceTimes.set(name, now);
+  if (delay > 0) soundEngine.playSE(name, { delay });
+  else soundEngine.playSE(name);
 }
 
-/**
- * Analyzes newly generated message log entries and triggers appropriate SEs.
- */
-export function processActionMessages(newMsgs) {
-  if (!newMsgs || !newMsgs.length) return;
-
-  // Check from newest to oldest for the most prominent sound event
-  for (let i = newMsgs.length - 1; i >= 0; i--) {
-    const msg = String(newMsgs[i]?.text ?? newMsgs[i]);
-
-    if (msg.includes("レベルアップ！")) {
-      triggerSE("levelUp");
-      return;
-    }
-    if (msg.includes("倒した！") || msg.includes("撃破")) {
-      triggerSE("defeat");
-      return;
-    }
-    if (msg.includes("会心の一撃") || msg.includes("痛恨の一撃") || msg.includes("強烈な一撃")) {
-      triggerSE("crit");
-      return;
-    }
-    if (msg.includes("外れた") || msg.includes("かわした") || msg.includes("命中しなかった")) {
-      triggerSE("miss");
-      return;
-    }
-    if (msg.includes("割れてしまった") || msg.includes("割れた") || msg.includes("粉々に")) {
-      triggerSE("shatter");
-      return;
-    }
-    if (/罠.*(?:発動|作動|踏んだ)/.test(msg) || msg.includes("作動した") || msg.includes("爆破") || msg.includes("爆発")) {
-      triggerSE("trap");
-      return;
-    }
-    if (/(?:G|ゴールド|金貨).*?(?:拾った|手に入れた)/.test(msg)) {
-      triggerSE("gold");
-      return;
-    }
-    if (msg.includes("拾った") || msg.includes("手に入れた")) {
-      triggerSE("pickup");
-      return;
-    }
-    if (msg.includes("食べた") || msg.includes("たいらげた") || msg.includes("口にした")) {
-      triggerSE("eat");
-      return;
-    }
-    if (msg.includes("飲んだ") || msg.includes("読んだ") || msg.includes("唱えた")) {
-      triggerSE("useItem");
-      return;
-    }
-    if (msg.includes("杖を振った") || msg.includes("魔法") || msg.includes("光弾")) {
-      triggerSE("magic");
-      return;
-    }
-    if (msg.includes("投げた") || msg.includes("放った") || msg.includes("射った")) {
-      triggerSE("throw");
-      return;
-    }
-    if (msg.includes("降りた") || msg.includes("昇った") || msg.includes("次の階") || msg.includes("フロアへ進んだ")) {
-      triggerSE("stairs");
-      return;
-    }
-    if (msg.includes("ダメージを受けた") || msg.includes("攻撃を受けた") || msg.includes("痛打")) {
-      triggerSE("playerDamage");
-      return;
-    }
-    if (msg.includes("ダメージを与えた") || msg.includes("攻撃！")) {
-      triggerSE("hit");
-      return;
-    }
-  }
+export function queueAnimationSounds(data) {
+  queuedAnimationSounds.push(...animationSounds(data));
 }
 
-/** コミットされたログの追加分だけを再生する。復元履歴はresetで読み飛ばす。 */
+export function processActionMessages(newMsgs, { playerName = "", explicit = [], changes = [] } = {}) {
+  const classified = classifySoundMessages(newMsgs || [], { playerName });
+  const movement = classified.includes("teleport") || explicit.some(id => id === "teleport" || id === "knockback" || id === "stairs");
+  const filteredChanges = movement ? changes.filter(id => id !== "footstep" && id !== "water") : changes;
+  const sounds = new Set([...classified, ...explicit, ...filteredChanges]);
+  if ((classified.includes("magic") || classified.includes("shoot")) && !classified.includes("throw")) sounds.delete("throw");
+  if (sounds.has("crit")) sounds.delete("hit");
+  let index = 0;
+  for (const id of sounds) triggerSE(id, { delay: Math.min(0.48, index++ * 0.055) });
+  return [...sounds];
+}
+
+/** 履歴復元は鳴らさず、ログ上限到達後も新規行と実際の状態変化を検出する。 */
 export function createMessageSoundObserver(initialMessages = []) {
-  let previous = new Set(initialMessages);
-  return (messages, { reset = false } = {}) => {
+  let previous = new Set(initialMessages), snapshot = null;
+  return (messages, { reset = false, state = null } = {}) => {
     const additions = reset ? [] : messages.filter(message => !previous.has(message));
     previous = new Set(messages);
-    processActionMessages(additions);
+    const next = snapshotSoundState(state);
+    const changes = reset ? [] : soundStateChanges(snapshot, next);
+    if (reset || next) snapshot = next;
+    const explicit = reset ? [] : queuedAnimationSounds.slice();
+    queuedAnimationSounds.length = 0;
+    if (!reset) processActionMessages(additions, { playerName: next?.playerName || getActivePlayerName(), explicit, changes });
   };
 }
 
@@ -169,6 +125,7 @@ export function playDirectBgm(track) {
  * Stop any currently playing BGM.
  */
 export function stopBgm() {
+  queuedAnimationSounds.length = 0;
   soundEngine.stopBGM();
 }
 

@@ -44,7 +44,8 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
 import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
 import SoundModal from "./SoundModal.jsx";
-import { updateDungeonBgm, createMessageSoundObserver, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
+import { updateDungeonBgm, createMessageSoundObserver, queueAnimationSounds, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
+import { useInterfaceSounds } from "./useInterfaceSounds.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -136,7 +137,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const newMiniTipMessagesRef = useRef([]);
   const messageSoundObserverRef = useRef(null);
   if (!messageSoundObserverRef.current) messageSoundObserverRef.current = createMessageSoundObserver(msgs);
-  useEffect(() => { messageSoundObserverRef.current(msgs); }, [msgs]);
   /* フロアターン付きメッセージ追加ラッパー */
   const setMsgs = useCallback((updater) => {
     const t = sr.current?.floorTurns ?? 0;
@@ -911,6 +911,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
 
   const playAnim = useCallback(async (data) => {
     if (!data || !canvasRef.current) return;
+    queueAnimationSounds(data);
     animBusyRef.current = true;
     try {
     const _easeOut = (t) => t * t * (3 - 2 * t); /* smoothstep */
@@ -5906,6 +5907,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   globalThis.__rogueItemNameFn = (it) =>
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   execRef.current = execDirection;
+  const isModalActive = !!(
+    modal.type || gamepadQuickOpen || showInv || msgLogMode || showScores || showSettings ||
+    showSound || showSign || miniTip || showTileEditor || exitHubConfirm || dead || showEnding
+  );
+  const isAnyModalActive = isModalActive || !!throwMode;
+  useInterfaceSounds(isModalActive);
+  // 道具使用のアニメーション収集後に、ログ・実際の変化・アニメーションをまとめて鳴らす。
+  useEffect(() => { messageSoundObserverRef.current(msgs, { state: gs }); }, [msgs, gs]);
   if (!gs) return null;
   const { player: p } = gs;
   const _tutorialHasProof = gs.dungeonType === "tutorial"
@@ -5966,22 +5975,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       {l}
     </button>
   );
-  const isModalActive = !!(
-    modal.type ||
-    gamepadQuickOpen ||
-    showInv ||
-    msgLogMode ||
-    showScores ||
-    showSettings ||
-    showSound ||
-    showSign ||
-    miniTip ||
-    showTileEditor ||
-    exitHubConfirm ||
-    dead ||
-    showEnding
-  );
-  const isAnyModalActive = isModalActive || !!throwMode;
 
   return (
     <div

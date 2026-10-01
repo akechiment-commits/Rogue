@@ -1,3 +1,5 @@
+import { SOUND_EFFECTS } from "./soundEffectData.js";
+
 /**
  * Web Audio API based Sound Engine for Roguelike Game.
  * Provides retro-style Chiptune synthesizer, BGM scheduler, and SE player.
@@ -69,6 +71,9 @@ class SoundEngine {
     this.bgmCompleted = false;
     this.schedulerTimer = null;
     this.bgmSources = new Set();
+    this.seSources = new Set();
+    this.maxSeSources = 64;
+    this.seStartOffset = 0;
     this.nextNoteTime = 0;
     this.trackStepIndices = [];
     this.currentStep = 0;
@@ -199,7 +204,7 @@ class SoundEngine {
    */
   _playTone({ freq = 440, type = "square", start = 0, duration = 0.1, gain = 0.3, pitchSlideTo = null }) {
     if (!this.ctx || this.isMuted || this.seVolume <= 0) return;
-    const now = this.ctx.currentTime + start;
+    const now = this.ctx.currentTime + start + (this.seStartOffset || 0);
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
 
@@ -214,6 +219,7 @@ class SoundEngine {
 
     osc.connect(g);
     g.connect(this.seGain);
+    this._trackSeSource(osc, [osc, g]);
 
     osc.start(now);
     osc.stop(now + duration + 0.05);
@@ -224,7 +230,7 @@ class SoundEngine {
    */
   _playNoise({ start = 0, duration = 0.1, gain = 0.4, filterFreq = 1000, filterType = "lowpass", filterSlideTo = null }) {
     if (!this.ctx || !this.noiseBuffer || this.isMuted || this.seVolume <= 0) return;
-    const now = this.ctx.currentTime + start;
+    const now = this.ctx.currentTime + start + (this.seStartOffset || 0);
     const noise = this.ctx.createBufferSource();
     noise.buffer = this.noiseBuffer;
 
@@ -242,127 +248,39 @@ class SoundEngine {
     noise.connect(filter);
     filter.connect(g);
     g.connect(this.seGain);
+    this._trackSeSource(noise, [noise, filter, g]);
 
     noise.start(now);
     noise.stop(now + duration + 0.05);
   }
 
-  playSE(name) {
+  _trackSeSource(source, nodes) {
+    if (this.seSources.size >= this.maxSeSources) {
+      const oldest = this.seSources.values().next().value;
+      try { oldest.stop(); } catch { /* 終了済み */ }
+      oldest.onended?.();
+    }
+    this.seSources.add(source);
+    source.onended = () => {
+      this.seSources.delete(source);
+      for (const node of nodes) node.disconnect?.();
+    };
+  }
+
+  playSE(name, { delay = 0 } = {}) {
+    const effect = SOUND_EFFECTS[name];
+    if (!effect) return;
     if (!this.ctx) this.init();
     if (!this.ctx || this.isMuted || this.seVolume <= 0) return;
     if (this.ctx.state === "suspended") this.unlock();
-
-    switch (name) {
-      case "hit": // Player attacks enemy (punch/slash)
-        this._playTone({ freq: 220, type: "square", duration: 0.08, gain: 0.25, pitchSlideTo: 60 });
-        this._playNoise({ duration: 0.08, gain: 0.35, filterFreq: 1200, filterSlideTo: 200 });
-        break;
-
-      case "crit": // Critical hit / powerful strike
-        this._playTone({ freq: 440, type: "sawtooth", duration: 0.15, gain: 0.3, pitchSlideTo: 80 });
-        this._playTone({ freq: 880, type: "square", start: 0.02, duration: 0.12, gain: 0.2, pitchSlideTo: 110 });
-        this._playNoise({ duration: 0.2, gain: 0.5, filterFreq: 2500, filterSlideTo: 100 });
-        break;
-
-      case "miss": // Attack missed (swing air)
-        this._playTone({ freq: 350, type: "sine", duration: 0.1, gain: 0.15, pitchSlideTo: 120 });
-        break;
-
-      case "playerDamage": // Player takes damage
-        this._playTone({ freq: 160, type: "triangle", duration: 0.12, gain: 0.35, pitchSlideTo: 40 });
-        this._playNoise({ duration: 0.14, gain: 0.4, filterFreq: 800, filterSlideTo: 100 });
-        break;
-
-      case "defeat": // Monster defeated
-        this._playTone({ freq: 300, type: "sawtooth", duration: 0.18, gain: 0.25, pitchSlideTo: 50 });
-        this._playNoise({ start: 0.04, duration: 0.2, gain: 0.35, filterFreq: 1500, filterSlideTo: 150 });
-        break;
-
-      case "levelUp": // Level up fanfare (retro arpeggio C4 - E4 - G4 - C5)
-        [
-          { f: 261.6, t: 0.00 }, // C4
-          { f: 329.6, t: 0.08 }, // E4
-          { f: 392.0, t: 0.16 }, // G4
-          { f: 523.3, t: 0.24 }, // C5
-          { f: 659.3, t: 0.34 }, // E5
-        ].forEach(n => {
-          this._playTone({ freq: n.f, type: "square", start: n.t, duration: 0.18, gain: 0.22 });
-        });
-        break;
-
-      case "stairs": // Descend stairs (descending notes)
-        [
-          { f: 400, t: 0.00 },
-          { f: 320, t: 0.09 },
-          { f: 240, t: 0.18 },
-          { f: 160, t: 0.27 },
-        ].forEach(n => {
-          this._playTone({ freq: n.f, type: "square", start: n.t, duration: 0.12, gain: 0.18 });
-        });
-        break;
-
-      case "pickup": // Pick up item
-        this._playTone({ freq: 440, type: "square", duration: 0.06, gain: 0.18 });
-        this._playTone({ freq: 880, type: "square", start: 0.05, duration: 0.09, gain: 0.22 });
-        break;
-
-      case "useItem": // Drink potion / read scroll
-        this._playTone({ freq: 523.3, type: "triangle", duration: 0.12, gain: 0.25, pitchSlideTo: 784 });
-        this._playTone({ freq: 784.0, type: "sine", start: 0.08, duration: 0.16, gain: 0.25, pitchSlideTo: 1046.5 });
-        break;
-
-      case "eat": // Eat food
-        this._playTone({ freq: 220, type: "triangle", duration: 0.08, gain: 0.25, pitchSlideTo: 330 });
-        this._playTone({ freq: 260, type: "triangle", start: 0.09, duration: 0.1, gain: 0.25, pitchSlideTo: 390 });
-        break;
-
-      case "throw": // Throw item
-        this._playTone({ freq: 280, type: "sine", duration: 0.12, gain: 0.2, pitchSlideTo: 600 });
-        this._playNoise({ duration: 0.1, gain: 0.15, filterFreq: 1500, filterSlideTo: 500 });
-        break;
-
-      case "shatter": // Pot breaks / glass shatters
-        this._playNoise({ duration: 0.25, gain: 0.45, filterFreq: 4000, filterSlideTo: 300 });
-        this._playTone({ freq: 600, type: "square", duration: 0.1, gain: 0.18, pitchSlideTo: 150 });
-        break;
-
-      case "trap": // Trap sprung
-        this._playTone({ freq: 800, type: "sawtooth", duration: 0.05, gain: 0.25, pitchSlideTo: 100 });
-        this._playNoise({ start: 0.04, duration: 0.2, gain: 0.4, filterFreq: 1000, filterSlideTo: 120 });
-        break;
-
-      case "magic": // Wand fired / magic cast
-        this._playTone({ freq: 440, type: "sawtooth", duration: 0.18, gain: 0.2, pitchSlideTo: 1200 });
-        this._playTone({ freq: 880, type: "sine", start: 0.06, duration: 0.18, gain: 0.25, pitchSlideTo: 1500 });
-        break;
-
-      case "gold": // Coin picked up (chime)
-        this._playTone({ freq: 1318.5, type: "square", duration: 0.08, gain: 0.2 }); // E6
-        this._playTone({ freq: 1975.5, type: "square", start: 0.06, duration: 0.18, gain: 0.25 }); // B6
-        break;
-
-      case "cursor": // Menu move cursor
-        this._playTone({ freq: 600, type: "square", duration: 0.03, gain: 0.1 });
-        break;
-
-      case "select": // Menu confirm
-        this._playTone({ freq: 440, type: "square", duration: 0.05, gain: 0.15 });
-        this._playTone({ freq: 659.3, type: "square", start: 0.04, duration: 0.08, gain: 0.18 });
-        break;
-
-      case "cancel": // Menu cancel / back
-        this._playTone({ freq: 350, type: "square", duration: 0.05, gain: 0.15 });
-        this._playTone({ freq: 260, type: "square", start: 0.04, duration: 0.08, gain: 0.15 });
-        break;
-
-      case "alert": // Danger / hunger warning
-        this._playTone({ freq: 880, type: "square", duration: 0.08, gain: 0.25 });
-        this._playTone({ freq: 880, type: "square", start: 0.12, duration: 0.08, gain: 0.25 });
-        break;
-
-      default:
-        break;
-    }
+    const previousOffset = this.seStartOffset || 0;
+    this.seStartOffset = Math.max(0, Number(delay) || 0);
+    try {
+      for (const voice of effect.voices) {
+        if (voice.kind === "noise") this._playNoise(voice);
+        else this._playTone(voice);
+      }
+    } finally { this.seStartOffset = previousOffset; }
   }
 
   /* =====================================================================

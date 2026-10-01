@@ -7,6 +7,7 @@ import { FOOD_DESCRIPTIONS, foodGuideDetails } from './foodDescriptions.js';
 import { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 import { GOAL_ITEMS } from './dungeon.js';
 import { FIRST_ENCOUNTER_TIPS } from './firstEncounterTips.js';
+import { ALL_BGM_TRACKS, ALL_SE_LIST } from './musicData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
@@ -292,6 +293,7 @@ const indexData = [
   ['24. ガチャマシーン', '出現・抽選・破壊・店内ルール'],
   ['識別システム', '未識別アイテムはカテゴリごとの偽名で表示。同じカテゴリ内で偽名が重複しないよう、登録アイテム数を十分に上回る名前プールを使用。未識別の力・守り・命の指輪は＋値を表示しない。全識別ダンジョンでは、冒険中に生成・落下したアイテムは床または水底に置かれた時点で、行商人の商品棚は生成時点で、祝呪と杖・ペン等の残り回数まで判明する'],
   ['25. ダンジョン出現制限', '初心者・中級者・上級・超上級の罠・大箱・道具・敵の出し分け'],
+  ['26. サウンド', '新しい7曲の構成と40種類の効果音、実際に鳴る条件'],
   ['敵の自動出現位置', '通常の部屋ありフロアでは自然湧き・長居ペナルティ・店の警備員を部屋内に限定する。迷路廊下・環状回廊・洞窟の廊下主体フロアでは廊下にも出現する。召喚・復活・イベントによる出現は各効果の配置処理に従う'],
   ['投擲ダメージ', '通常投擲の補正攻撃力は、武器=＋値込みの実効攻撃力、防具=＋値込みの実効防御力、指輪・巻物=1、壺=5、空き瓶・食料など=3。プレイヤー攻撃力・補正攻撃力・対象防御力による通常の飛び道具ダメージ計算を使い、壺も固定3〜6ダメージではない'],
   ['指輪生成', '力・守り・命の指輪は、床・店・敵ドロップ・デバッグを含む生成時に必ず＋1〜3になる。合成・強化・弱化などによる後からの変動は別処理'],
@@ -1157,6 +1159,17 @@ addSheet('25_ダンジョン出現', dungeonSpawnData);
 wb.Sheets['25_ダンジョン出現']['!cols'] = [
   { wch: 28 }, { wch: 14 }, { wch: 90 },
 ];
+
+const soundData = [['種別', '名前', 'ID', 'BPM／小節数', '演奏・発火条件']];
+for (const bgm of ALL_BGM_TRACKS) {
+  soundData.push(['BGM', bgm.title, bgm.name, `${bgm.tempo} BPM / ${bgm.bars}小節`,
+    `${bgm.desc} ${bgm.loop === false ? '1回演奏して停止。' : '全パート同じ長さでループ。'}`]);
+}
+for (const se of ALL_SE_LIST) soundData.push(['SE', se.name, se.id, '短い合成音', se.desc]);
+soundData.push(['共通', '効果音の重複・発火', '-', '-', '新規ログ、HP・座標・階層・装備・状態の変化、アニメーションから発火を決める。1行動の命中・撃破・被弾などは短い間隔で別々に鳴らす。同じ種類は1バッチ1回。会心と通常命中は重ねない。罠・薬の説明、自然回復、履歴復元、同じログの再描画では鳴らさない。']);
+soundData.push(['共通', 'メニュー操作', '-', '-', '拠点・ゲーム内メニューの矢印・テンキー・ゲームパッドの移動、決定、キャンセル、有効なボタンのクリックに対応。名前入力などの文字操作、無効ボタン、サウンドテストの二重発火は除外する。']);
+const soundWs = addSheet('26_サウンド', soundData);
+soundWs['!cols'] = [{ wch: 10 }, { wch: 28 }, { wch: 24 }, { wch: 24 }, { wch: 100 }];
 
 XLSX.writeFile(wb, GUIDE_XLSX);
 console.log(`✅ Complete game guide updated: ${GUIDE_XLSX}`);

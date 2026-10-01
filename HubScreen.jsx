@@ -6,6 +6,8 @@ import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES
 import { clampCarryGold, validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { useHubGamepad } from "./useHubGamepad.js";
+import { useInterfaceSounds } from "./useInterfaceSounds.js";
+import { triggerSE } from "./soundEvents.js";
 import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
 import {
   applyFavoriteFoodToSave,
@@ -199,6 +201,8 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   };
 
   const sellFromWarehouse = (idx) => {
+    if (!wh[idx]) return;
+    triggerSE("shopSell");
     updateSave(prev => {
       const warehouse = prev.warehouse || [];
       const item      = warehouse[idx];
@@ -228,6 +232,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
   const bulkSell = () => {
     if (checkedIdxs.size === 0) return;
+    if ([...checkedIdxs].some(index => wh[index])) triggerSE("shopSell");
     updateSave(prev => {
       const warehouse = prev.warehouse || [];
       let earned = 0;
@@ -972,6 +977,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
       }
       return;
     }
+    triggerSE("shopBuy");
     updateSave(prev => ({
       ...prev,
       hubGold:   prev.hubGold - price,
@@ -2134,6 +2140,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
   useHubGamepad(true);
+  useInterfaceSounds(true);
 
   const needsName = !String(saveData.playerName || "").trim();
   const needsFood = !String(saveData.favoriteFood || "").trim();

@@ -20,6 +20,8 @@ import { ALL_BGM_TRACKS, ALL_SE_LIST } from ${JSON.stringify(pathToFileURL(path.
 const sampleRate = 32000;
 function engineFor(context) {
   const engine = new soundEngine.constructor();
+  // 書き出しは全SEを未来へ一括予約するので、実時間向けの同時発音上限を使わない。
+  engine.maxSeSources = Infinity;
   engine.ctx = context;
   engine.bgmGain = context.createGain(); engine.bgmGain.gain.value = engine.bgmVolume; engine.bgmGain.connect(context.destination);
   engine.seGain = context.createGain(); engine.seGain.gain.value = engine.seVolume; engine.seGain.connect(context.destination);
@@ -73,7 +75,16 @@ async function run() {
     engine.playSE(ALL_SE_LIST[i].id);
     engine._playTone = tone; engine._playNoise = noise;
   }
-  results.push({ file: 'se-montage.wav', title: '効果音一覧', order: ALL_SE_LIST.map(se => se.name), ...wav(await context.startRendering()) });
+  const rendered = await context.startRendering();
+  const samples = rendered.getChannelData(0);
+  const segments = ALL_SE_LIST.map((se, index) => {
+    let energy = 0;
+    const start = Math.floor(index * 0.8 * sampleRate), end = Math.floor((index * 0.8 + 0.65) * sampleRate);
+    for (let frame = start; frame < end; frame++) energy += samples[frame] * samples[frame];
+    return { id: se.id, rms: Math.sqrt(energy / (end - start)) };
+  });
+  if (segments.some(segment => segment.rms < 0.0001)) throw new Error('SE一覧に無音の区間がある');
+  results.push({ file: 'se-montage.wav', title: '効果音一覧', order: ALL_SE_LIST.map(se => se.name), segments, ...wav(rendered) });
   return results;
 }
 try { document.querySelector('#result').textContent = JSON.stringify(await run()); }
