@@ -15,11 +15,14 @@ describe("ゲーム状態とBGM", () => {
   });
   it("実際に生成した深層階でplayer.depthから深層BGMを選ぶ", () => {
     const play = vi.spyOn(soundEngine, "playBGM").mockImplementation(() => {});
-    updateDungeonBgm({ player: makePlayer({ depth: 10 }), dungeon: genDungeon(10, "advanced"), maxDepth: 30 });
+    const dg10 = genDungeon(10, "advanced"); dg10.shops = [];
+    const dg11 = genDungeon(11, "advanced"); dg11.shops = [];
+    const dg20 = genDungeon(20, "advanced"); dg20.shops = [];
+    updateDungeonBgm({ player: makePlayer({ depth: 10 }), dungeon: dg10, maxDepth: 30 });
     expect(play.mock.calls.at(-1)[0].name).toBe("dungeon_shallow");
-    updateDungeonBgm({ player: makePlayer({ depth: 11 }), dungeon: genDungeon(11, "advanced"), maxDepth: 30 });
+    updateDungeonBgm({ player: makePlayer({ depth: 11 }), dungeon: dg11, maxDepth: 30 });
     expect(play.mock.calls.at(-1)[0].name).toBe("dungeon_deep");
-    updateDungeonBgm({ player: makePlayer({ depth: 21 }), dungeon: genDungeon(20, "advanced"), maxDepth: 30 });
+    updateDungeonBgm({ player: makePlayer({ depth: 21 }), dungeon: dg20, maxDepth: 30 });
     expect(play.mock.calls.at(-1)[0].name).toBe("dungeon_deep");
   });
   it("店のroom記録を使って入店・退店に追従する", () => {

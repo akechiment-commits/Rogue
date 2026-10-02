@@ -139,10 +139,19 @@ class SoundEngine {
       this.bgmGain.gain.setValueAtTime(this.bgmVolume, this.ctx.currentTime);
       this.bgmGain.connect(this.masterGain);
 
+      // SE compressor to add punch, glue transients, and prevent clipping
+      this.seCompressor = this.ctx.createDynamicsCompressor();
+      this.seCompressor.threshold.setValueAtTime(-4, this.ctx.currentTime);
+      this.seCompressor.knee.setValueAtTime(6, this.ctx.currentTime);
+      this.seCompressor.ratio.setValueAtTime(6, this.ctx.currentTime);
+      this.seCompressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+      this.seCompressor.release.setValueAtTime(0.08, this.ctx.currentTime);
+
       // SE gain
       this.seGain = this.ctx.createGain();
       this.seGain.gain.setValueAtTime(this.seVolume, this.ctx.currentTime);
-      this.seGain.connect(this.masterGain);
+      this.seGain.connect(this.seCompressor);
+      this.seCompressor.connect(this.masterGain);
 
       // Generate 2 seconds of white noise buffer
       const bufferSize = this.ctx.sampleRate * 2;
@@ -207,27 +216,58 @@ class SoundEngine {
   /**
    * Helper to create an envelope-controlled tone
    */
-  _playTone({ freq = 440, type = "square", start = 0, duration = 0.1, gain = 0.3, pitchSlideTo = null, pitchSlideTime = null }) {
+  _playTone({
+    freq = 440,
+    type = "square",
+    start = 0,
+    duration = 0.1,
+    gain = 0.3,
+    pitchSlideTo = null,
+    pitchSlideTime = null,
+    filterFreq = null,
+    filterType = "lowpass",
+    filterQ = 1,
+    filterSlideTo = null,
+    attackTime = null,
+    decayRatio = 0.6,
+    sustainRatio = 0.24,
+  }) {
     if (!this.ctx || this.isMuted || this.seVolume <= 0) return;
     const now = this.ctx.currentTime + start + (this.seStartOffset || 0);
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
 
     osc.type = type;
-    osc.frequency.setValueAtTime(freq, now);
+    osc.frequency.setValueAtTime(Math.max(10, freq), now);
     if (pitchSlideTo !== null) {
       osc.frequency.exponentialRampToValueAtTime(Math.max(10, pitchSlideTo), now + Math.min(duration, pitchSlideTime ?? duration));
     }
 
-    // 立ち上がり→響きの胴→余韻。音量を即座にゼロ近くへ落とさない。
+    const attack = attackTime !== null ? Math.min(attackTime, duration * 0.2) : Math.min(0.003, duration * 0.08);
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(gain, now + Math.min(0.003, duration * 0.08));
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.24), now + duration * 0.6);
+    g.gain.linearRampToValueAtTime(gain, now + attack);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * sustainRatio), now + duration * decayRatio);
     g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-    osc.connect(g);
+    const nodes = [osc, g];
+    let output = osc;
+
+    if (filterFreq !== null && typeof this.ctx.createBiquadFilter === "function") {
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = filterType;
+      filter.frequency.setValueAtTime(filterFreq, now);
+      filter.Q.setValueAtTime(filterQ, now);
+      if (filterSlideTo !== null) {
+        filter.frequency.exponentialRampToValueAtTime(Math.max(20, filterSlideTo), now + duration);
+      }
+      output.connect(filter);
+      output = filter;
+      nodes.push(filter);
+    }
+
+    output.connect(g);
     g.connect(this.seGain);
-    this._trackSeSource(osc, [osc, g]);
+    this._trackSeSource(osc, nodes);
 
     osc.start(now);
     osc.stop(now + duration + 0.05);
@@ -236,7 +276,18 @@ class SoundEngine {
   /**
    * Helper to play filtered noise burst
    */
-  _playNoise({ start = 0, duration = 0.1, gain = 0.4, filterFreq = 1000, filterType = "lowpass", filterSlideTo = null }) {
+  _playNoise({
+    start = 0,
+    duration = 0.1,
+    gain = 0.4,
+    filterFreq = 1000,
+    filterType = "lowpass",
+    filterSlideTo = null,
+    filterQ = 1,
+    attackTime = null,
+    decayRatio = 0.62,
+    sustainRatio = 0.12,
+  }) {
     if (!this.ctx || !this.noiseBuffer || this.isMuted || this.seVolume <= 0) return;
     const now = this.ctx.currentTime + start + (this.seStartOffset || 0);
     const noise = this.ctx.createBufferSource();
@@ -245,14 +296,16 @@ class SoundEngine {
     const filter = this.ctx.createBiquadFilter();
     filter.type = filterType;
     filter.frequency.setValueAtTime(filterFreq, now);
+    filter.Q.setValueAtTime(filterQ, now);
     if (filterSlideTo !== null) {
       filter.frequency.exponentialRampToValueAtTime(Math.max(20, filterSlideTo), now + duration);
     }
 
     const g = this.ctx.createGain();
+    const attack = attackTime !== null ? Math.min(attackTime, duration * 0.2) : Math.min(0.002, duration * 0.08);
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(gain, now + Math.min(0.002, duration * 0.08));
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.12), now + duration * 0.62);
+    g.gain.linearRampToValueAtTime(gain, now + attack);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * sustainRatio), now + duration * decayRatio);
     g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
     noise.connect(filter);
