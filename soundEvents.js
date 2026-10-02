@@ -70,7 +70,7 @@ export function updateDungeonBgm(gameState, { gameOver = false, gameClear = fals
   // 6. Deep vs Shallow dungeon floors
   const depth = pl?.depth || 1;
   const maxDepth = gameState.maxDepth ?? dg.maxFloors ?? 30;
-  if (depth >= Math.max(12, Math.floor(maxDepth * 0.45))) {
+  if (depth >= 11) {
     soundEngine.playBGM(BGM_DUNGEON_DEEP);
   } else {
     soundEngine.playBGM(BGM_DUNGEON_SHALLOW);

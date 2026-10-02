@@ -15,6 +15,10 @@ describe("ゲーム状態とBGM", () => {
   });
   it("実際に生成した深層階でplayer.depthから深層BGMを選ぶ", () => {
     const play = vi.spyOn(soundEngine, "playBGM").mockImplementation(() => {});
+    updateDungeonBgm({ player: makePlayer({ depth: 10 }), dungeon: genDungeon(10, "advanced"), maxDepth: 30 });
+    expect(play.mock.calls.at(-1)[0].name).toBe("dungeon_shallow");
+    updateDungeonBgm({ player: makePlayer({ depth: 11 }), dungeon: genDungeon(11, "advanced"), maxDepth: 30 });
+    expect(play.mock.calls.at(-1)[0].name).toBe("dungeon_deep");
     updateDungeonBgm({ player: makePlayer({ depth: 21 }), dungeon: genDungeon(20, "advanced"), maxDepth: 30 });
     expect(play.mock.calls.at(-1)[0].name).toBe("dungeon_deep");
   });
