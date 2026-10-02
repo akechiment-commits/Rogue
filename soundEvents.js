@@ -9,6 +9,7 @@ import { getActivePlayerName } from "./playerLabel.js";
 import { soundEngine } from "./soundEngine.js";
 import { getShops } from "./utils.js";
 import {
+  BGM_HUB,
   BGM_DUNGEON_SHALLOW,
   BGM_DUNGEON_DEEP,
   BGM_MONSTER_HOUSE,
@@ -17,6 +18,11 @@ import {
   BGM_GAMEOVER,
   BGM_GAMECLEAR,
 } from "./musicData.js";
+
+/** 拠点の表示・帰還で同じテーマを使う。再描画では先頭に戻さない。 */
+export function updateHubBgm() {
+  soundEngine.playBGM(BGM_HUB);
+}
 
 /**
  * Updates the currently playing BGM based on game and dungeon state.

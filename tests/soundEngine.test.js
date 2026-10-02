@@ -3,6 +3,7 @@ import { noteToFreq } from '../soundEngine.js';
 import {
   ALL_BGM_TRACKS,
   ALL_SE_LIST,
+  BGM_HUB,
   BGM_DUNGEON_SHALLOW,
   BGM_DUNGEON_DEEP,
   BGM_MONSTER_HOUSE,
@@ -47,7 +48,7 @@ describe('musicData tracks verification', () => {
     }
   });
   it('all BGM tracks have valid structure and tempo', () => {
-    expect(ALL_BGM_TRACKS.length).toBe(7);
+    expect(ALL_BGM_TRACKS.length).toBe(8);
 
     for (const bgm of ALL_BGM_TRACKS) {
       expect(bgm.name).toBeTruthy();
@@ -77,6 +78,7 @@ describe('musicData tracks verification', () => {
   });
 
   it('all required BGM themes exist', () => {
+    expect(BGM_HUB.name).toBe('hub');
     expect(BGM_DUNGEON_SHALLOW.name).toBe('dungeon_shallow');
     expect(BGM_DUNGEON_DEEP.name).toBe('dungeon_deep');
     expect(BGM_MONSTER_HOUSE.name).toBe('monster_house');

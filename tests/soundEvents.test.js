@@ -1,11 +1,18 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { soundEngine } from "../soundEngine.js";
-import { updateDungeonBgm, processActionMessages, createMessageSoundObserver } from "../soundEvents.js";
+import { updateHubBgm, updateDungeonBgm, processActionMessages, createMessageSoundObserver } from "../soundEvents.js";
 import { applyMessageUpdate } from "../messageLog.js";
 import { genDungeon, triggerMonsterHouse } from "../dungeon.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 afterEach(() => vi.restoreAllMocks());
 describe("ゲーム状態とBGM", () => {
+  it("拠点から出発して探索曲へ切り替わり、帰還で拠点テーマへ戻る", () => {
+    const play = vi.spyOn(soundEngine, "playBGM").mockImplementation(() => {});
+    updateHubBgm();
+    updateDungeonBgm({ player: makePlayer(), dungeon: makeEmptyDg() });
+    updateHubBgm();
+    expect(play.mock.calls.map(([score]) => score.name)).toEqual(["hub", "dungeon_shallow", "hub"]);
+  });
   it("実際に生成した深層階でplayer.depthから深層BGMを選ぶ", () => {
     const play = vi.spyOn(soundEngine, "playBGM").mockImplementation(() => {});
     updateDungeonBgm({ player: makePlayer({ depth: 21 }), dungeon: genDungeon(20, "advanced"), maxDepth: 30 });

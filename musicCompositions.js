@@ -120,6 +120,65 @@ function chamberExploration() {
 }
 export const BGM_DUNGEON_SHALLOW = chamberExploration();
 
+// ゲーム全体の顔になる拠点テーマ。鍵盤で示した動機を笛が歌い、弦が支える。
+const HUB_THEME = [
+  "D5:2 G5:4 A5:2 B5:4 A5:2 G5:2", "E5:4 G5:2 C6:2 B5:4 G5:4",
+  "G5:4 F#5:2 E5:2 B4:4 E5:4", "F#5:4 A5:2 G5:2 F#5:4 D5:2 -:2",
+  "E5:2 G5:2 C6:4 B5:2 A5:2 G5:4", "B5:3 A5:1 G5:4 D5:4 B4:4",
+  "C5:2 E5:2 A5:4 G5:2 E5:2 C5:4", "D5:4 F#5:2 A5:2 G5:4 F#5:2 -:2",
+];
+function hubTheme() {
+  const chords = ["G","C","G","D", "G","C","Em","D","C","G","Am","D",
+    "C","D","G","Em","C","G","Am","D", "Em","C","G","D","Am","Em","C","D",
+    "G","C","Em","D","C","G","Am","D", "C","G","Am","D"];
+  const introduction = [
+    "D4:2 G4:2 A4:2 B4:2 D5:4 B4:2 A4:2", "E4:4 G4:2 C5:2 B4:4 G4:4",
+    "B4:4 A4:2 G4:2 D4:4 G4:4", "A4:4 F#4:4 D4:4 -:4",
+  ];
+  const melody = ["-:16", "-:16", "-:16", "-:16", ...HUB_THEME,
+    "G5:4 C6:6 B5:2 A5:4", "A5:4 D6:4 C6:2 B5:2 A5:4",
+    "B5:4 A5:2 G5:2 D5:4 G5:4", "E5:2 G5:2 B5:4 A5:2 G5:2 E5:4",
+    "G5:4 E5:2 C5:2 G5:4 C6:4", "B5:3 A5:1 G5:6 -:2 D5:2 B4:2",
+    "A5:4 G5:2 E5:2 C5:4 E5:4", "F#5:2 A5:2 D6:4 C6:2 A5:2 F#5:4",
+    "B4:6 G4:2 E5:4 -:4", "E5:4 C5:4 G4:4 -:4",
+    "D5:4 B4:4 G4:4 B4:4", "A4:4 D5:4 F#5:4 -:4",
+    "C5:4 E5:4 A5:4 G5:4", "E5:6 D5:2 B4:4 -:4",
+    "G4:2 C5:2 E5:4 G5:4 E5:4", "F#5:4 A5:4 D6:4 -:4",
+    ...HUB_THEME,
+    "E5:4 G5:4 C6:4 B5:4", "A5:2 G5:2 D5:4 B4:4 G4:4",
+    "C5:4 E5:4 A5:4 G5:4", "F#5:4 D5:4 A4:4 -:4"];
+  const lead = [], piano = [], response = [], inner = [], upper = [], bass = [];
+  for (let bar = 0; bar < chords.length; bar++) {
+    const c = CHORDS[chords[bar]], quiet = bar >= 20 && bar < 28;
+    const lift = bar < 4 ? 0.58 : quiet ? 0.65 : bar >= 28 && bar < 36 ? 0.98 : bar >= 12 && bar < 20 ? 0.93 : 0.84;
+    lead.push(...parseBar(melody[bar]).map(([note, length], index) => [note, length, lift * (index % 3 === 0 ? 1 : 0.9)]));
+    piano.push(...parseBar(bar < 4 ? introduction[bar] : quiet
+      ? `${c[0]}:4:0.55 -:4 ${c[2]}:4:0.4 -:4`
+      : `${c[0]}:2:0.65 -:2 ${c[2]}:2:0.46 ${c[1]}:2:0.5 -:2 ${c[3]}:2:0.35 ${c[2]}:2:0.45 -:2`));
+    response.push(...parseBar(bar < 4 || quiet ? "-:16" : bar % 4 === 3
+      ? `-:8 ${octave(c[1], 5)}:2:0.52 ${octave(c[2], 5)}:2:0.46 ${octave(c[3], 5)}:2:0.38 -:2`
+      : "-:16"));
+    inner.push(...parseBar(bar < 2 ? "-:16" : `${octave(c[1], 3)}:16:${lift * 0.7}`));
+    upper.push(...parseBar(bar < 4 || quiet || bar >= 36 ? "-:16" : `${octave(c[2], 4)}:16:${lift * 0.6}`));
+    bass.push(...parseBar(bar < 4 || quiet || bar >= 36
+      ? `${octave(c[0], 2)}:12:0.68 -:4`
+      : `${octave(c[0], 2)}:6:0.7 -:2 ${octave(c[2], 2)}:6:0.52 -:2`));
+  }
+  return {
+    name: "hub", title: "冒険の待つ場所", tempo: 104, loop: true, bars: 40,
+    desc: "G長調。40小節・約92秒。鍵盤の導入から笛が歌う主題、弦が広がる中間部、穏やかな橋渡し、主題の再現へ進む拠点テーマ。冒険へ向かう期待と、帰ってきた安心感を柔らかい室内楽の6パートで描く。",
+    tracks: [
+      { type: "sine", instrument: "woodFlute", volume: 0.23, gate: 0.93, pan: -0.07, cutoff: 3900, roomSend: 0.3, notes: lead },
+      { type: "sine", instrument: "feltPiano", volume: 0.21, gate: 0.86, pan: -0.28, cutoff: 3000, roomSend: 0.23, notes: piano },
+      { type: "sine", instrument: "feltPiano", volume: 0.13, gate: 0.82, pan: 0.34, cutoff: 3200, roomSend: 0.3, notes: response },
+      { type: "sine", instrument: "softStrings", volume: 0.14, gate: 0.96, pan: -0.48, cutoff: 2200, roomSend: 0.4, notes: inner },
+      { type: "sine", instrument: "softStrings", volume: 0.105, gate: 0.96, pan: 0.46, cutoff: 2500, roomSend: 0.4, notes: upper },
+      { type: "sine", instrument: "roundBass", volume: 0.26, gate: 0.9, pan: 0, cutoff: 550, notes: bass },
+    ],
+  };
+}
+export const BGM_HUB = hubTheme();
+
 const DEEP_A = [
   "-:4 C5:3 Db5:1 G4:4 Eb5:2 Db5:2", "C5:6 -:2 Ab4:2 G4:2 Eb4:4",
   "Db5:3 C5:1 Ab4:4 F5:2 Eb5:2 Db5:4", "D5:2 Eb5:2 G5:4 F5:2 Eb5:2 D5:4",
@@ -213,5 +272,5 @@ export const BGM_GAMECLEAR = arrange({
     "E5:8 G5:8", "F5:8 A5:8", "B4:8 D5:8", "E5:12 -:4"],
 });
 
-export const ALL_BGM_TRACKS = [BGM_DUNGEON_SHALLOW, BGM_DUNGEON_DEEP, BGM_MONSTER_HOUSE,
+export const ALL_BGM_TRACKS = [BGM_HUB, BGM_DUNGEON_SHALLOW, BGM_DUNGEON_DEEP, BGM_MONSTER_HOUSE,
   BGM_SHOP, BGM_BOSS, BGM_GAMEOVER, BGM_GAMECLEAR];

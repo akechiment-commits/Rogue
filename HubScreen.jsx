@@ -7,6 +7,7 @@ import { clampCarryGold, validateHubShopPurchase, validateBulkToWarehouse, canSt
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { useHubGamepad } from "./useHubGamepad.js";
 import { useInterfaceSounds } from "./useInterfaceSounds.js";
+import { useHubMusic } from "./useHubMusic.js";
 import { triggerSE } from "./soundEvents.js";
 import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
 import {
@@ -2140,6 +2141,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
   useHubGamepad(true);
+  useHubMusic();
   useInterfaceSounds(true);
 
   const needsName = !String(saveData.playerName || "").trim();
