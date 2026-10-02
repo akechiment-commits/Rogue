@@ -12,6 +12,7 @@ import {
   BGM_HUB,
   BGM_DUNGEON_SHALLOW,
   BGM_DUNGEON_DEEP,
+  BGM_DUNGEON_ABYSS,
   BGM_MONSTER_HOUSE,
   BGM_SHOP,
   BGM_BOSS,
@@ -70,7 +71,9 @@ export function updateDungeonBgm(gameState, { gameOver = false, gameClear = fals
   // 6. Deep vs Shallow dungeon floors
   const depth = pl?.depth || 1;
   const maxDepth = gameState.maxDepth ?? dg.maxFloors ?? 30;
-  if (depth >= 11) {
+  if (depth >= 21) {
+    soundEngine.playBGM(BGM_DUNGEON_ABYSS);
+  } else if (depth >= 11) {
     soundEngine.playBGM(BGM_DUNGEON_DEEP);
   } else {
     soundEngine.playBGM(BGM_DUNGEON_SHALLOW);

@@ -8,6 +8,7 @@ const CHORDS = {
   G: ["G3", "B3", "D4", "F#4"], Cm: ["C4", "Eb4", "G4", "Bb4"],
   Ab: ["Ab3", "C4", "Eb4", "G4"], Db: ["Db4", "F4", "Ab4", "C5"],
   Eb: ["Eb4", "G4", "Bb4", "D5"], G7: ["G3", "B3", "D4", "F4"],
+  Fm: ["F3", "Ab3", "C4", "Eb4"],
 };
 const octave = (note, value) => note.replace(/\d+$/, String(value));
 const parseBar = (score) => {
@@ -333,6 +334,120 @@ function deepExploration() {
 }
 export const BGM_DUNGEON_DEEP = deepExploration();
 
+// 21階〜30階の最深層・奈落探索テーマ。底知れぬ深淵の闇、脈動する重低音、冷徹な静寂と緊迫のアンサンブル。
+function abyssExploration() {
+  const chords = [
+    // 1-8: 深淵への降下・重い心拍
+    "Cm", "Fm", "Bb", "Eb", "Ab", "Fm", "G", "Cm",
+    // 9-16: 異界の胎動・ナポリ和音と緊迫
+    "Cm", "Ab", "Db", "G", "Cm", "Fm", "G7", "Cm",
+    // 17-24: 奈落の残光・平行調Ebの哀愁から暗黒へ
+    "Eb", "Bb", "Cm", "Gm", "Ab", "Eb", "Fm", "G",
+    // 25-32: 不退転の覚悟・クライマックスから静寂へ
+    "Cm", "Fm", "Bb", "Eb", "Ab", "Db", "G", "Cm",
+  ];
+
+  const melody = [
+    // 1-8
+    "C5:3 D5:1 Eb5:4 G5:3 F5:1 Eb5:2 D5:2", "F5:4 Ab5:2 G5:2 F5:4 C5:4",
+    "D5:3 Eb5:1 F5:4 Bb5:2 A5:2 G5:2 F5:2", "G5:6 F5:2 Eb5:4 -:4",
+    "Eb5:3 F5:1 G5:4 C6:2 Bb5:2 Ab5:2 G5:2", "F5:4 Ab5:2 G5:2 F5:4 C5:4",
+    "D5:2 Eb5:2 F5:4 Eb5:2 D5:2 B4:4", "C5:6 -:2 C5:4 -:4",
+    // 9-16
+    "G5:3 F5:1 Eb5:2 D5:2 C5:4 G4:4", "Ab4:2 C5:2 Eb5:4 Ab5:3 G5:1 F5:4",
+    "F4:2 Ab4:2 Db5:4 F5:3 Eb5:1 Db5:4", "B4:2 D5:2 G5:4 F5:2 Eb5:2 D5:4",
+    "Eb5:4 C5:2 D5:2 Eb5:4 G5:4", "F5:3 Eb5:1 Db5:4 Ab5:2 Gb5:2 F5:4",
+    "D5:2 Eb5:2 F5:4 Eb5:2 D5:2 B4:4", "C5:8 -:4 C5:2 D5:2",
+    // 17-24
+    "Eb5:4 G5:2 Bb5:2 Eb6:4 D6:2 C6:2", "Bb5:6 -:2 F5:4 Bb5:4",
+    "C6:4 G5:2 Eb5:2 C5:4 Eb5:4", "D5:6 -:2 G4:4 Bb4:4",
+    "C5:3 D5:1 Eb5:4 Ab5:2 G5:2 F5:4", "G5:4 Bb5:2 A5:2 G5:4 Eb5:4",
+    "F5:2 G5:2 Ab5:4 G5:2 F5:2 C5:4", "D5:4 G5:4 F5:2 Eb5:2 D5:4",
+    // 25-32
+    "C5:3 D5:1 Eb5:4 G5:2 C6:2 Bb5:2 A5:2", "Ab5:4 F5:2 G5:2 Ab5:4 C6:4",
+    "Bb5:3 A5:1 G5:2 F5:2 D5:4 F5:4", "G5:6 -:2 Eb5:4 G5:4",
+    "C6:4 Ab5:2 G5:2 F5:4 Eb5:4", "F5:3 Eb5:1 Db5:4 Ab5:4 F5:4",
+    "D5:2 F5:2 G5:4 Eb5:2 D5:2 B4:4", "C5:8 -:8",
+  ];
+
+  const lead = [], piano = [], inner = [], upper = [], bass = [];
+  const kick = [], snare = [], hats = [], openHats = [];
+
+  for (let bar = 0; bar < chords.length; bar++) {
+    const c = CHORDS[chords[bar]];
+    const intro = bar < 4;
+    const bridge = bar >= 16 && bar < 24;
+    const climax = bar >= 24;
+    const lift = climax ? 1.0 : bridge ? 0.95 : intro ? 0.86 : 0.92;
+
+    lead.push(...parseBar(melody[bar]).map(([note, length], index) => [
+      note,
+      length,
+      lift * (index % 3 === 0 ? 1 : 0.88),
+    ]));
+
+    // ピアノ: 水滴のような高音の分散和音と不穏な低音打鍵
+    piano.push(...parseBar(intro
+      ? `${c[0]}:3:0.58 -:1 ${c[2]}:2:0.44 ${c[1]}:2:0.52 -:2 ${c[3]}:2:0.4 ${c[2]}:2:0.48 -:2`
+      : bridge
+        ? `${c[0]}:2:0.74 -:1 ${c[2]}:1:0.46 ${c[1]}:2:0.6 -:2 ${c[0]}:2:0.64 ${c[3]}:2:0.46 ${c[2]}:2:0.56 -:2`
+        : `${c[0]}:2:0.7 -:1 ${c[2]}:1:0.45 ${c[1]}:2:0.58 -:2 ${c[0]}:2:0.6 ${c[3]}:2:0.44 ${c[2]}:2:0.52 -:2`
+    ));
+
+    // 内声弦: 重厚で不穏な持続和声
+    inner.push(...parseBar(`${octave(c[1], 3)}:16:${lift * 0.74}`));
+
+    // 上声弦: 張り詰めた高音サスペンス
+    upper.push(...parseBar(intro ? "-:16" : `${octave(c[2], 4)}:16:${lift * 0.65}`));
+
+    // ベース: 奈落を這う重低音
+    bass.push(...parseBar(intro
+      ? `${octave(c[0], 2)}:6:0.75 -:2 ${octave(c[2], 2)}:6:0.6 -:2`
+      : `${octave(c[0], 2)}:3:0.8 -:1 ${octave(c[2], 2)}:3:0.64 -:1 ${octave(c[0], 3)}:2:0.7 -:2 ${octave(c[2], 2)}:3:0.6 -:1`
+    ));
+
+    const fill = bar % 8 === 7;
+    const open = bar % 4 === 3 && !intro;
+
+    // バスドラム: 深淵の鼓動（脈動）
+    kick.push(...parseBar(intro
+      ? (bar === 2 || bar === 3 ? "C2:4:0.65 -:12" : "-:16")
+      : (bar % 4 === 2 ? "C2:4:0.9 -:2 C2:2:0.55 C2:4:0.8 -:4" : "C2:4:0.88 -:4 C2:4:0.8 -:4")
+    ));
+
+    // スネア: 緊迫のリムショット＆フィル
+    snare.push(...parseBar(intro
+      ? (bar === 3 ? "-:12 C2:2:0.42 C2:2:0.62" : "-:16")
+      : (fill ? "-:4 C2:4:0.8 -:2 C2:2:0.48 C2:2:0.62 C2:2:0.92" : `-:4 C2:4:${bridge ? 0.65 : 0.82} -:4 C2:4:${bridge ? 0.72 : 0.88}`)
+    ));
+
+    // ハット: 秒針のように時間を刻む
+    hats.push(...parseBar(intro
+      ? "C5:2:0.42 -:2 C5:2:0.34 -:2 C5:2:0.4 -:2 C5:2:0.32 -:2"
+      : `C5:2:0.54 C5:2:0.36 C5:2:0.46 C5:2:0.34 C5:2:0.5 C5:2:0.38 C5:2:0.46 ${open ? "-:2" : "C5:2:0.34"}`
+    ));
+
+    openHats.push(...parseBar(open ? "-:14 C6:2:0.5" : "-:16"));
+  }
+
+  return {
+    name: "dungeon_abyss", title: "深淵の胎動", tempo: 110, loop: true, bars: 32,
+    desc: "C短調。32小節・約70秒。21階〜30階の最深層・奈落探索テーマ。底知れぬ深淵の闇、脈動する重低音キック、冷徹な静寂と不穏な半音階。研ぎ澄まされた極限の緊張感、重厚な弦のクラスター、冷たく美しいピアノと哀愁の木管が織りなす10パートの本格アンサンブル。",
+    tracks: [
+      { type: "sine", instrument: "woodFlute", volume: 0.27, gate: 0.86, pan: -0.05, cutoff: 3800, roomSend: 0.32, notes: lead },
+      { type: "sine", instrument: "feltPiano", volume: 0.24, gate: 0.68, pan: -0.26, cutoff: 3000, roomSend: 0.25, notes: piano },
+      { type: "sine", instrument: "softStrings", volume: 0.15, gate: 0.95, pan: -0.45, cutoff: 2200, roomSend: 0.38, notes: inner },
+      { type: "sine", instrument: "softStrings", volume: 0.12, gate: 0.95, pan: 0.45, cutoff: 2600, roomSend: 0.38, notes: upper },
+      { type: "sine", instrument: "roundBass", volume: 0.35, gate: 0.76, pan: 0, cutoff: 600, notes: bass },
+      { type: "sine", instrument: "drumKick", volume: 0.32, pan: 0, cutoff: 950, notes: kick },
+      { type: "sine", instrument: "drumSnare", volume: 0.19, pan: 0.06, cutoff: 4400, roomSend: 0.12, notes: snare },
+      { type: "sine", instrument: "drumHat", volume: 0.13, pan: 0.28, cutoff: 7000, notes: hats },
+      { type: "sine", instrument: "drumOpenHat", volume: 0.11, pan: 0.32, cutoff: 7000, notes: openHats },
+    ],
+  };
+}
+export const BGM_DUNGEON_ABYSS = abyssExploration();
+
 const BATTLE_A = [
   "E5:3 -:1 E5:2 G5:2 B5:4 A5:2 G5:2", "D5:2 G5:2 B5:3 A5:1 G5:2 D5:2 B4:4",
   "C5:2 E5:2 A5:4 G5:2 E5:2 C5:4", "F#5:3 E5:1 D5:2 A4:2 F#5:4 -:2 A5:2",
@@ -407,5 +522,5 @@ export const BGM_GAMECLEAR = arrange({
     "E5:8 G5:8", "F5:8 A5:8", "B4:8 D5:8", "E5:12 -:4"],
 });
 
-export const ALL_BGM_TRACKS = [BGM_HUB, BGM_DUNGEON_SHALLOW, BGM_DUNGEON_DEEP, BGM_MONSTER_HOUSE,
-  BGM_SHOP, BGM_BOSS, BGM_GAMEOVER, BGM_GAMECLEAR];
+export const ALL_BGM_TRACKS = [BGM_HUB, BGM_DUNGEON_SHALLOW, BGM_DUNGEON_DEEP, BGM_DUNGEON_ABYSS,
+  BGM_MONSTER_HOUSE, BGM_SHOP, BGM_BOSS, BGM_GAMEOVER, BGM_GAMECLEAR];
