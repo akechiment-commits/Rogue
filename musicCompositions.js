@@ -122,7 +122,7 @@ export const BGM_DUNGEON_SHALLOW = chamberExploration();
 
 // ゲーム全体の顔になる拠点テーマ。鍵盤で示した動機を笛が歌い、弦が支える。
 const HUB_THEME = [
-  "D5:2 G5:4 A5:2 B5:4 A5:2 G5:2", "E5:4 G5:2 C6:2 B5:4 G5:4",
+  "D5:1 -:1 G5:3 A5:1 B5:4 A5:2 G5:2 D5:2", "E5:3 G5:1 C6:4 B5:2 G5:2 E5:4",
   "G5:4 F#5:2 E5:2 B4:4 E5:4", "F#5:4 A5:2 G5:2 F#5:4 D5:2 -:2",
   "E5:2 G5:2 C6:4 B5:2 A5:2 G5:4", "B5:3 A5:1 G5:4 D5:4 B4:4",
   "C5:2 E5:2 A5:4 G5:2 E5:2 C5:4", "D5:4 F#5:2 A5:2 G5:4 F#5:2 -:2",
@@ -135,45 +135,63 @@ function hubTheme() {
     "D4:2 G4:2 A4:2 B4:2 D5:4 B4:2 A4:2", "E4:4 G4:2 C5:2 B4:4 G4:4",
     "B4:4 A4:2 G4:2 D4:4 G4:4", "A4:4 F#4:4 D4:4 -:4",
   ];
-  const melody = ["-:16", "-:16", "-:16", "-:16", ...HUB_THEME,
+  const melody = [
+    "D5:2 G5:4 A5:2 B5:4 A5:2 G5:2", "E5:2 G5:2 C6:4 B5:2 G5:2 E5:4",
+    "B5:2 A5:2 G5:4 D5:2 G5:2 B5:4", "A5:3 G5:1 F#5:2 E5:2 D5:4 -:2 F#5:2", ...HUB_THEME,
     "G5:4 C6:6 B5:2 A5:4", "A5:4 D6:4 C6:2 B5:2 A5:4",
     "B5:4 A5:2 G5:2 D5:4 G5:4", "E5:2 G5:2 B5:4 A5:2 G5:2 E5:4",
     "G5:4 E5:2 C5:2 G5:4 C6:4", "B5:3 A5:1 G5:6 -:2 D5:2 B4:2",
     "A5:4 G5:2 E5:2 C5:4 E5:4", "F#5:2 A5:2 D6:4 C6:2 A5:2 F#5:4",
-    "B4:6 G4:2 E5:4 -:4", "E5:4 C5:4 G4:4 -:4",
-    "D5:4 B4:4 G4:4 B4:4", "A4:4 D5:4 F#5:4 -:4",
-    "C5:4 E5:4 A5:4 G5:4", "E5:6 D5:2 B4:4 -:4",
+    "E5:2 G5:2 B5:4 A5:2 G5:2 E5:4", "E5:3 G5:1 C6:4 B5:2 G5:2 E5:4",
+    "D5:2 G5:2 B5:4 A5:2 G5:2 D5:4", "A5:3 G5:1 F#5:2 E5:2 D5:4 F#5:4",
+    "C5:2 E5:2 A5:4 G5:2 E5:2 C5:4", "E5:3 G5:1 B5:4 A5:2 G5:2 E5:4",
     "G4:2 C5:2 E5:4 G5:4 E5:4", "F#5:4 A5:4 D6:4 -:4",
     ...HUB_THEME,
     "E5:4 G5:4 C6:4 B5:4", "A5:2 G5:2 D5:4 B4:4 G4:4",
     "C5:4 E5:4 A5:4 G5:4", "F#5:4 D5:4 A4:4 -:4"];
   const lead = [], piano = [], response = [], inner = [], upper = [], bass = [];
+  const kick = [], snare = [], hats = [], openHats = [];
   for (let bar = 0; bar < chords.length; bar++) {
-    const c = CHORDS[chords[bar]], quiet = bar >= 20 && bar < 28;
-    const lift = bar < 4 ? 0.58 : quiet ? 0.65 : bar >= 28 && bar < 36 ? 0.98 : bar >= 12 && bar < 20 ? 0.93 : 0.84;
+    const c = CHORDS[chords[bar]], bridge = bar >= 20 && bar < 28;
+    const lift = bar < 4 ? 0.9 : bridge ? 0.84 : bar >= 28 && bar < 36 ? 1 : bar >= 12 && bar < 20 ? 0.97 : 0.94;
     lead.push(...parseBar(melody[bar]).map(([note, length], index) => [note, length, lift * (index % 3 === 0 ? 1 : 0.9)]));
-    piano.push(...parseBar(bar < 4 ? introduction[bar] : quiet
-      ? `${c[0]}:4:0.55 -:4 ${c[2]}:4:0.4 -:4`
-      : `${c[0]}:2:0.65 -:2 ${c[2]}:2:0.46 ${c[1]}:2:0.5 -:2 ${c[3]}:2:0.35 ${c[2]}:2:0.45 -:2`));
-    response.push(...parseBar(bar < 4 || quiet ? "-:16" : bar % 4 === 3
-      ? `-:8 ${octave(c[1], 5)}:2:0.52 ${octave(c[2], 5)}:2:0.46 ${octave(c[3], 5)}:2:0.38 -:2`
+    piano.push(...parseBar(bar < 4 ? introduction[bar] : bridge
+      ? `${c[0]}:3:0.65 -:1 ${c[2]}:2:0.52 ${c[1]}:2:0.6 -:2 ${c[3]}:2:0.46 ${c[2]}:2:0.54 -:2`
+      : `${c[0]}:2:0.76 -:1 ${c[2]}:1:0.48 ${c[1]}:2:0.65 -:2 ${c[0]}:2:0.67 ${c[3]}:2:0.5 ${c[2]}:2:0.6 -:2`));
+    response.push(...parseBar(bridge ? "-:16" : bar % 4 === 3
+      ? `-:8 ${octave(c[1], 5)}:2:0.65 ${octave(c[2], 5)}:2:0.6 ${octave(c[3], 5)}:2:0.52 -:2`
       : "-:16"));
-    inner.push(...parseBar(bar < 2 ? "-:16" : `${octave(c[1], 3)}:16:${lift * 0.7}`));
-    upper.push(...parseBar(bar < 4 || quiet || bar >= 36 ? "-:16" : `${octave(c[2], 4)}:16:${lift * 0.6}`));
-    bass.push(...parseBar(bar < 4 || quiet || bar >= 36
-      ? `${octave(c[0], 2)}:12:0.68 -:4`
-      : `${octave(c[0], 2)}:6:0.7 -:2 ${octave(c[2], 2)}:6:0.52 -:2`));
+    inner.push(...parseBar(`${octave(c[1], 3)}:16:${lift * 0.72}`));
+    upper.push(...parseBar(bridge ? "-:16" : `${octave(c[2], 4)}:16:${lift * 0.64}`));
+    bass.push(...parseBar(bridge
+      ? `${octave(c[0], 2)}:3:0.76 -:1 ${octave(c[2], 2)}:3:0.6 -:1 ${octave(c[0], 3)}:3:0.68 -:1 ${octave(c[2], 2)}:3:0.56 -:1`
+      : `${octave(c[0], 2)}:2:0.82 -:2 ${octave(c[2], 2)}:2:0.64 -:2 ${octave(c[0], 3)}:2:0.72 -:2 ${octave(c[2], 2)}:2:0.62 -:2`));
+    const fill = bar % 8 === 7, open = bar % 4 === 3 && !bridge;
+    kick.push(...parseBar(bar % 4 === 2
+      ? "C2:4:0.86 -:2 C2:2:0.54 C2:4:0.78 -:4"
+      : "C2:4:0.86 -:4 C2:4:0.78 -:4"));
+    snare.push(...parseBar(fill
+      ? "-:4 C2:4:0.8 -:2 C2:2:0.48 C2:2:0.62 C2:2:0.94"
+      : `-:4 C2:4:${bridge ? 0.62 : 0.84} -:4 C2:4:${bridge ? 0.7 : 0.92}`));
+    hats.push(...parseBar(bridge
+      ? "C5:2:0.46 -:2 C5:2:0.36 -:2 C5:2:0.44 -:2 C5:2:0.34 -:2"
+      : `C5:2:0.58 C5:2:0.36 C5:2:0.48 C5:2:0.34 C5:2:0.54 C5:2:0.38 C5:2:0.48 ${open ? "-:2" : "C5:2:0.34"}`));
+    openHats.push(...parseBar(open ? "-:14 C6:2:0.5" : "-:16"));
   }
   return {
-    name: "hub", title: "冒険の待つ場所", tempo: 104, loop: true, bars: 40,
-    desc: "G長調。40小節・約92秒。鍵盤の導入から笛が歌う主題、弦が広がる中間部、穏やかな橋渡し、主題の再現へ進む拠点テーマ。冒険へ向かう期待と、帰ってきた安心感を柔らかい室内楽の6パートで描く。",
+    name: "hub", title: "冒険の待つ場所", tempo: 124, loop: true, bars: 40,
+    desc: "G長調。40小節・約77秒。冒頭から笛の主題とドラムが入り、動くベースと鍵盤が冒険への勢いを作る。弦が広がる中間部、リズムを残した橋渡し、力強い主題再現へ進む10パートの拠点テーマ。",
     tracks: [
-      { type: "sine", instrument: "woodFlute", volume: 0.23, gate: 0.93, pan: -0.07, cutoff: 3900, roomSend: 0.3, notes: lead },
-      { type: "sine", instrument: "feltPiano", volume: 0.21, gate: 0.86, pan: -0.28, cutoff: 3000, roomSend: 0.23, notes: piano },
-      { type: "sine", instrument: "feltPiano", volume: 0.13, gate: 0.82, pan: 0.34, cutoff: 3200, roomSend: 0.3, notes: response },
-      { type: "sine", instrument: "softStrings", volume: 0.14, gate: 0.96, pan: -0.48, cutoff: 2200, roomSend: 0.4, notes: inner },
-      { type: "sine", instrument: "softStrings", volume: 0.105, gate: 0.96, pan: 0.46, cutoff: 2500, roomSend: 0.4, notes: upper },
-      { type: "sine", instrument: "roundBass", volume: 0.26, gate: 0.9, pan: 0, cutoff: 550, notes: bass },
+      { type: "sine", instrument: "woodFlute", volume: 0.28, gate: 0.86, pan: -0.07, cutoff: 4100, roomSend: 0.22, notes: lead },
+      { type: "sine", instrument: "feltPiano", volume: 0.24, gate: 0.72, pan: -0.28, cutoff: 3300, roomSend: 0.18, notes: piano },
+      { type: "sine", instrument: "feltPiano", volume: 0.16, gate: 0.76, pan: 0.34, cutoff: 3400, roomSend: 0.22, notes: response },
+      { type: "sine", instrument: "softStrings", volume: 0.16, gate: 0.96, pan: -0.48, cutoff: 2400, roomSend: 0.3, notes: inner },
+      { type: "sine", instrument: "softStrings", volume: 0.12, gate: 0.96, pan: 0.46, cutoff: 2700, roomSend: 0.3, notes: upper },
+      { type: "sine", instrument: "roundBass", volume: 0.34, gate: 0.78, pan: 0, cutoff: 700, notes: bass },
+      { type: "sine", instrument: "drumKick", volume: 0.3, pan: 0, cutoff: 1100, notes: kick },
+      { type: "sine", instrument: "drumSnare", volume: 0.22, pan: 0.08, cutoff: 4800, roomSend: 0.08, notes: snare },
+      { type: "sine", instrument: "drumHat", volume: 0.135, pan: 0.32, cutoff: 7400, notes: hats },
+      { type: "sine", instrument: "drumOpenHat", volume: 0.12, pan: 0.35, cutoff: 7400, notes: openHats },
     ],
   };
 }

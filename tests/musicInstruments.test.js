@@ -3,7 +3,7 @@ import { MUSIC_INSTRUMENTS, synthesizeMusicNote } from '../musicInstruments.js';
 import { soundEngine } from '../soundEngine.js';
 
 describe('探索曲の柔らかい楽器音', () => {
-  it.each(Object.keys(MUSIC_INSTRUMENTS))('%sは音割れせず、発音終了後にも滑らかな余韻を持つ', instrument => {
+  it.each(Object.keys(MUSIC_INSTRUMENTS).filter(name => MUSIC_INSTRUMENTS[name].kind !== 'percussion'))('%sは音割れせず、発音終了後にも滑らかな余韻を持つ', instrument => {
     const rate = 16000, held = 0.4;
     const pcm = synthesizeMusicNote(instrument, 440, held, rate);
     let peak = 0, tailEnergy = 0;
@@ -15,6 +15,16 @@ describe('探索曲の柔らかい楽器音', () => {
     expect(peak).toBeGreaterThan(0.1);
     expect(peak).toBeLessThan(0.9);
     expect(tailEnergy).toBeGreaterThan(1);
+    expect(Math.abs(pcm[0])).toBe(0);
+    expect(Math.abs(pcm.at(-1))).toBeLessThan(0.000001);
+  });
+  it.each(['drumKick', 'drumSnare', 'drumHat', 'drumOpenHat'])('%sは長い譜面音符でも打撃音として短く収まり、無音や音割れを生じない', instrument => {
+    const pcm = synthesizeMusicNote(instrument, 130, 2, 16000);
+    let energy = 0, peak = 0;
+    for (const value of pcm) { energy += value * value; peak = Math.max(peak, Math.abs(value)); }
+    expect(pcm.length / 16000).toBeLessThan(0.5);
+    expect(energy).toBeGreaterThan(1);
+    expect(peak).toBeLessThan(0.9);
     expect(Math.abs(pcm[0])).toBe(0);
     expect(Math.abs(pcm.at(-1))).toBeLessThan(0.000001);
   });
