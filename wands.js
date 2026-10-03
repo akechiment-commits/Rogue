@@ -13,7 +13,7 @@ import {
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, makeChangeBoxItem, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
-  setWandBreakEffectHandler,
+  setWandBreakEffectHandler, reducePotCapacity,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
@@ -39,20 +39,13 @@ import {
 function changeInventoryPotCapacity(pot, delta, p, dg, ml, nameFn = null) {
   if (pot?.type !== "pot") return false;
   const potName = resolveItemName(pot, nameFn);
-  const next = Math.max(0, (pot.capacity ?? 1) + delta);
   delete pot.blessed;
   delete pot.cursed;
-  if (delta < 0 && (pot.contents?.length || 0) > next) {
-    const idx = p.inventory.indexOf(pot);
-    if (idx !== -1) {
-      const ft = new Set();
-      for (const content of [...(pot.contents || [])]) placeItemAt(dg, p.x, p.y, content, ml, ft);
-      p.inventory.splice(idx, 1);
-      ml.push(`${potName}が容量不足で割れ、中身が足元に落ちた！`);
-    }
-    return true;
+  if (delta < 0) {
+    if (reducePotCapacity(pot, -delta, dg, p, ml, nameFn).broken) return true;
+  } else {
+    pot.capacity = Math.max(0, (pot.capacity ?? 1) + delta);
   }
-  pot.capacity = next;
   ml.push(`${potName}の容量が${delta > 0 ? 1 : -1}${delta > 0 ? "増えた" : "減った"}！(${pot.capacity})`);
   return true;
 }
@@ -1368,14 +1361,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_bwCursed) {
           // 呪われた祝福の杖→落ちてるアイテムを呪う
           if (target.type === "pot") {
-            const _newCap = Math.max(0, (target.capacity ?? 1) - 1);
-            if ((target.contents?.length || 0) > _newCap) {
-              removeFloorItem(dg, target);
-              const _fts = new Set();
-              for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-              ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！【呪】`);
-            } else {
-              target.capacity = _newCap;
+            if (!reducePotCapacity(target, 1, dg, p, ml, nameFn).broken) {
               ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-1 → ${target.capacity})【呪】`);
             }
           } else {
@@ -1464,14 +1450,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (target.type === "arrow") { ml.push("矢には呪いが効かない。"); break; }
         if (target.type === "pot") {
           const _potLoss = _cwBlessed ? 2 : 1;
-          const _newCap = Math.max(0, (target.capacity ?? 1) - _potLoss);
-          if ((target.contents?.length || 0) > _newCap) {
-            removeFloorItem(dg, target);
-            const _fts = new Set();
-            for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-            ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
-          } else {
-            target.capacity = _newCap;
+          if (!reducePotCapacity(target, _potLoss, dg, p, ml, nameFn).broken) {
             ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-${_potLoss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
           }
         } else {

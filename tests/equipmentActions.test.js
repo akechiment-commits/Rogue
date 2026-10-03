@@ -10,7 +10,7 @@ import { useItemActions } from "../useItemActions.js";
 import { useKeyHandler } from "../useKeyHandler.js";
 import { IdentifyModal } from "../GameModals.jsx";
 import { applyWandEffect } from "../wands.js";
-import { applyUnequipTrapToPlayer, applyWaterGunToInventory } from "../items.js";
+import { applyUnequipTrapToPlayer, applyWaterGunToInventory, applyWaterSplash, confineMonsterInImprisonPot } from "../items.js";
 import { saveGameState, loadGameState } from "../GameSave.js";
 import { applyPlayerPoison, applyYabaiPoison } from "../statusDuration.js";
 import { advanceEarlyStatusTimers } from "../turnUpkeep.js";
@@ -135,6 +135,80 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  function imprisonedPot(f, carried = true, capacity = 1) {
+    const pot = { id: "prison-capacity", name: "とじこめの壺", type: "pot", potEffect: "imprison", capacity, contents: [], confinedMonsters: [] };
+    const enemy = makeMonsterFromBase(MONS[0], 2, 6, 5);
+    f.dungeon.monsters.push(enemy);
+    confineMonsterInImprisonPot(pot, enemy, f.dungeon, []);
+    if (carried) f.player.inventory.unshift(pot);
+    else f.dungeon.items.push(Object.assign(pot, { x: 6, y: 5 }));
+    return { pot, enemy };
+  }
+  function expectPrisonReleased(f, pot, enemy) {
+    expect(f.player.inventory).not.toContain(pot);
+    expect(f.dungeon.items).not.toContain(pot);
+    expect(pot.confinedMonsters).toHaveLength(0);
+    expect(f.dungeon.monsters).toHaveLength(1);
+    expect(f.dungeon.monsters[0].name).toBe(enemy.name);
+    expect(f.dungeon.monsters[0].actionTime).toBe(f.player.actionTime || 0);
+  }
+  it.each(["pointer", "keyboard"])("満員のとじこめの壺を呪うと割れて敵が放出される: %s", control => {
+    const f = fixture([]), { pot, enemy } = imprisonedPot(f);
+    choose(f, { mode: "curse", sel: 0, spellCost: 15 }, control);
+    expectPrisonReleased(f, pot, enemy);
+    expect(f.player.mp).toBe(85);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
+  it.each([
+    ["curse_wand", 1, true], ["curse_wand", 1, false],
+    ["bless_wand", 0.5, true], ["bless_wand", 0.5, false],
+    ["curse_wand", 2, true], ["curse_wand", 2, false],
+  ])("%s（倍率%s、所持%s）の容量減少でも閉じ込め敵を放出する", (effect, multiplier, carried) => {
+    const f = fixture([]), { pot, enemy } = imprisonedPot(f, carried);
+    applyWandEffect(effect, carried ? "player" : "item", carried ? f.player : pot,
+      0, 0, f.dungeon, f.player, [], vi.fn(), null, multiplier);
+    expectPrisonReleased(f, pot, enemy);
+  });
+  it("呪いの水が床の満員とじこめ壺にかかっても敵を放出する", () => {
+    const f = fixture([]), { pot, enemy } = imprisonedPot(f, false);
+    applyWaterSplash(f.dungeon, pot.x, pot.y, false, true, [], f.player, vi.fn());
+    expectPrisonReleased(f, pot, enemy);
+  });
+  it("呪いの水を飲んだときも満員とじこめ壺の容量不足を処理する", () => {
+    const water = { name: "水", type: "potion", effect: "water", cursed: true };
+    const f = fixture([water]), { pot, enemy } = imprisonedPot(f);
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    f.actions.doUseItem(1);
+    expectPrisonReleased(f, pot, enemy);
+  });
+  it("呪いの魔法書を読んで自動発動した場合も閉じ込め敵を数える", () => {
+    const book = { name: "呪いの魔法書", type: "spellbook", spell: "curse_magic" };
+    const f = fixture([book]), { pot, enemy } = imprisonedPot(f);
+    f.sr.current.ident.add("b:curse_magic");
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    f.actions.doReadSpellbook(1);
+    expectPrisonReleased(f, pot, enemy);
+  });
+  it("容量減少後も敵の数が容量以内ならとじこめ壺は割れない", () => {
+    const f = fixture([]), { pot } = imprisonedPot(f, true, 2);
+    applyWandEffect("curse_wand", "player", f.player, 0, 0, f.dungeon, f.player, [], vi.fn());
+    expect(pot.capacity).toBe(1);
+    expect(pot.confinedMonsters).toHaveLength(1);
+    expect(f.player.inventory).toContain(pot);
+    expect(f.dungeon.monsters).toHaveLength(0);
+  });
+  it.each(["pointer", "keyboard"])("通常の満員壺を呪った場合は中身を床へ出し、別の所持品を維持する: %s", control => {
+    const content = { id: "stored-ring", name: "命の指輪", type: "ring", effect: "life_ring", plus: 1 };
+    const pot = { id: "storage-capacity", name: "保存の壺", type: "pot", potEffect: "none", capacity: 1, contents: [content] };
+    const keep = { id: "keep-food", name: "パン", type: "food", value: 20 };
+    const f = fixture([pot, keep]);
+    choose(f, { mode: "curse", sel: 0, spellCost: 15 }, control);
+    expect(f.player.inventory).toEqual([keep]);
+    expect(f.dungeon.items.some(item => item.id === content.id)).toBe(true);
+    expect(pot.contents).toHaveLength(0);
+    expect(f.player.mp).toBe(85);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
   it.each(["pointer", "keyboard"])("呪われた強化の巻物で下限に達した命の指輪を外しても最大HPが増殖しない: %s", control => {
     const ring = life(1), f = fixture([ring], { hp: 30, maxHp: 30 });
     f.actions.doUseItem(0);

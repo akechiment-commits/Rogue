@@ -1074,6 +1074,29 @@ export function potOccupancyCount(pot) {
   return pot.contents?.length || 0;
 }
 
+/* 容量不足の判定を道具・閉じ込め敵で共通化する。通常の道具は従来どおり床へ出す。 */
+export function reducePotCapacity(pot, amount, dg, p, ml, nameFn = null) {
+  const next = Math.max(0, (pot.capacity ?? 1) - amount);
+  pot.capacity = next;
+  if (potOccupancyCount(pot) <= next) return { broken: false, removedAt: -1 };
+  const name = resolveItemName(pot, nameFn);
+  const removedAt = p?.inventory?.indexOf(pot) ?? -1;
+  const x = removedAt >= 0 ? p.x : (pot.x ?? p?.x);
+  const y = removedAt >= 0 ? p.y : (pot.y ?? p?.y);
+  if (removedAt >= 0) p.inventory.splice(removedAt, 1);
+  else removeFloorItem(dg, pot);
+  ml.push(`${name}が容量不足で割れた！`);
+  if (pot.potEffect === "imprison") {
+    releaseConfinedMonstersFromPot(pot, dg, x, y, p, ml);
+  } else {
+    const contents = [...(pot.contents || [])];
+    pot.contents = [];
+    const ft = new Set();
+    for (const item of contents) placeItemAt(dg, x, y, item, ml, ft, 0, p);
+  }
+  return { broken: true, removedAt };
+}
+
 export function imprisonPotRemainingCapacity(pot) {
   if (!pot || pot.potEffect !== "imprison") {
     return Math.max(0, (pot?.capacity ?? 3) - (pot?.contents?.length || 0));
@@ -4980,14 +5003,8 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
       it.capacity = (it.capacity ?? 1) + 1;
       ml.push(`${resolveItemName(it)}が祝福の水を浴びた！(容量+1 → ${it.capacity})【祝】`);
     } else if (cursed) {
-      const _nc = Math.max(0, (it.capacity ?? 1) - 1);
-      if ((it.contents?.length || 0) > _nc) {
-        const _fts = new Set();
-        for (const _ci of (it.contents || [])) placeItemAt(dg, cx, cy, _ci, ml, _fts);
-        removeFloorItem(dg, it);
-        ml.push(`${resolveItemName(it)}が呪いの水を浴びて割れた！中身が飛び出した！【呪】`);
-      } else {
-        it.capacity = _nc;
+      const result = reducePotCapacity(it, 1, dg, p, ml, dnFn);
+      if (!result.broken) {
         ml.push(`${resolveItemName(it)}が呪いの水を浴びた！(容量-1 → ${it.capacity})【呪】`);
       }
     }

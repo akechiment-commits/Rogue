@@ -1,4 +1,5 @@
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
+import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
@@ -5093,8 +5094,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (_cursable.length > 0) {
         const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
         if (_ci.type === "pot") {
-          _ci.capacity = Math.max(0, _ci.capacity - 1);
-          ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})`);
+          const result = reducePotCapacity(_ci, 1, dg, p, ml, dnameRef);
+          if (!result.broken) ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})`);
         } else {
           setPlayerItemProperties(p, _ci, { cursed: true, blessed: false, bcKnown: true });
           ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);

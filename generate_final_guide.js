@@ -216,6 +216,8 @@ const RING_HP_FLOOR_NOTE = '最大HPは「指輪補正前の最大HP（最低1�
 GUIDE_DESC_OVERRIDES["命の指輪"] += ' ' + RING_HP_FLOOR_NOTE;
 
 GUIDE_DESC_OVERRIDES["とじこめの壺"] += "\n放出した敵の行動時計は放出時のプレイヤー時計へ合わせ、閉じ込め中の未消化行動を実行させない。途中の移動・攻撃回数や特技予約も消す。別階へ持ち運んだ場合やセーブ再開後も同じ。";
+const POT_CAPACITY_REDUCTION_NOTE = '呪いの魔法（タップ・キー・魔法書からの自動発動）、呪いの杖、呪われた祝福の杖、呪いの水を飲む／床の壺へかける、泉の呪いによる容量減少は共通処理を使う。使用容量は通常の壺なら道具の数、とじこめの壺なら閉じ込めた敵の数。減少後の容量を使用容量が超える場合だけ壺が割れ、所持品または床から取り除く。通常壺の中身は通常の床配置処理で周囲へ出し、とじこめの壺の敵は通常の放出処理（配置・水没判定・行動時計同期）で出す。容量内に収まる壺と空の容量0の壺は割れない。';
+GUIDE_DESC_OVERRIDES["とじこめの壺"] += '\n' + POT_CAPACITY_REDUCTION_NOTE;
 
 function guideDesc(item) {
   let desc = GUIDE_DESC_OVERRIDES[item.name] ?? item.desc ?? '';
@@ -594,6 +596,7 @@ const POT_INITIAL_CAPACITY_RANGES = Object.freeze({
 const potInitialCapacityRange = (p) => POT_INITIAL_CAPACITY_RANGES[p.potEffect] ?? '3〜5';
 
 const potData = [['壺名', 'potEffect', 'テンプレート容量 / フロア・店 初期容量範囲', 'rarity', 'sellPrice', '説明']];
+potData.push(['【呪いによる容量不足】', '', '', '', '', POT_CAPACITY_REDUCTION_NOTE]);
 potData.push(['【容量0の扱い】', '', '', '', '', ZERO_POT_CAPACITY_NOTE]);
 potData.push(['【生成ルール】', '', '通常フロアと店はrandPotCapacity()で効果別に抽選。テンプレートcapacity値は基準値・固定配置用。', '', '', '保存=6〜9、弱化/火薬/強欲=4〜6、強化/祝福/呪い=1〜2、クライン=2〜4、その他=3〜5（願いを含む）']);
 for (const p of POTS) {

@@ -5,6 +5,7 @@ import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
+import { reducePotCapacity } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
@@ -1391,13 +1392,11 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       /* 未識別品は呪い処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
       const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (_selIt.type === 'pot') {
-        const _nc = Math.max(0, (_selIt.capacity ?? 1) - 1);
         const _p_ui = sr.current.player;
-        if ((_selIt.contents?.length || 0) > _nc) {
-          const _rmIdx2 = _p_ui.inventory.indexOf(_selIt);
-          if (_rmIdx2 !== -1) { const _fts3 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_ui.x, _p_ui.y, _ci, [], _fts3); _p_ui.inventory.splice(_rmIdx2, 1); }
-          _msgResult = `${_selItDN}が呪いで割れた！中身が足元に落ちた！【呪】`;
-        } else { _selIt.capacity = _nc; _msgResult = `${_selItDN}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
+        const _capacityMsgs = [];
+        const result = reducePotCapacity(_selIt, 1, sr.current.dungeon, _p_ui, _capacityMsgs, () => _selItDN);
+        if (result.removedAt >= 0 && mode.scrollIdx != null && result.removedAt < mode.scrollIdx) mode.scrollIdx--;
+        _msgResult = result.broken ? _capacityMsgs : `${_selItDN}を呪った！(容量-1 → ${_selIt.capacity})【呪】`;
       } else { setPlayerItemProperties(sr.current.player, _selIt, { cursed: true, blessed: false, bcKnown: true }); _msgResult = `${_selItDN}を呪った！【呪】`; }
     } else if (mode.mode === 'duplicate') {
       const _dupCount = mode.cursed ? 0 : 1;

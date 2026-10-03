@@ -11,7 +11,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
-  extractPotContents, scatterPotContents,
+  extractPotContents, scatterPotContents, reducePotCapacity,
   declareFloorExitTheft,
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
@@ -448,12 +448,11 @@ export function useKeyHandler({
             } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_selIt.name}を祝福した！【祝】`; }
           } else if (identifyMode.mode === 'curse') {
             if (_selIt.type === 'pot') {
-              const _nc = Math.max(0, (_selIt.capacity ?? 1) - 1);
-              if ((_selIt.contents?.length || 0) > _nc) {
-                const _rmIdx = _p_id.inventory.indexOf(_selIt);
-                if (_rmIdx !== -1) { const _fts2 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_id.x, _p_id.y, _ci, [], _fts2); _p_id.inventory.splice(_rmIdx, 1); }
-                _msgResult = `${_selIt.name}が呪いで割れた！中身が足元に落ちた！【呪】`;
-              } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
+              const _capacityMsgs = [];
+              const result = reducePotCapacity(_selIt, 1, sr.current.dungeon, _p_id, _capacityMsgs,
+                item => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+              if (result.removedAt >= 0 && identifyMode.scrollIdx != null && result.removedAt < identifyMode.scrollIdx) identifyMode.scrollIdx--;
+              _msgResult = result.broken ? _capacityMsgs : `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`;
             } else { setPlayerItemProperties(sr.current.player, _selIt, { cursed: true, blessed: false, bcKnown: true }); _msgResult = `${_selIt.name}を呪った！【呪】`; }
           } else if (identifyMode.mode === 'duplicate') {
             const _dupCount = identifyMode.cursed ? 0 : 1;

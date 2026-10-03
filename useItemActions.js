@@ -39,6 +39,7 @@ import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionC
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
+import { reducePotCapacity } from "./items.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -318,8 +319,8 @@ export function useItemActions({
           if (_cursable.length > 0) {
             const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
             if (_ci.type === "pot") {
-              _ci.capacity = Math.max(0, (_ci.capacity ?? 1) - 1);
-              ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})【呪】`);
+              const result = reducePotCapacity(_ci, 1, dg, p, ml, dnameRef);
+              if (!result.broken) ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})【呪】`);
             } else {
               setPlayerItemProperties(p, _ci, { cursed: true, blessed: false, bcKnown: true });
               ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
@@ -2601,17 +2602,8 @@ export function useItemActions({
             else { setPlayerItemProperties(p, _target, { blessed: true, cursed: false, bcKnown: true }); }
             ml.push(`${_targetName}が祝福された！`);
           } else if (_target.type === "pot") {
-            const _newCapacity = Math.max(0, (_target.capacity ?? 1) - 1);
-            if ((_target.contents?.length || 0) > _newCapacity) {
-              const _contents = [...(_target.contents || [])];
-              _target.contents = [];
-              const _targetIndex = p.inventory.indexOf(_target);
-              if (_targetIndex !== -1) p.inventory.splice(_targetIndex, 1);
-              const _spillFt = new Set();
-              for (const _content of _contents) placeItemAt(dg, p.x, p.y, _content, ml, _spillFt, 0, p);
-              ml.push(`${_targetName}が呪いで割れ、中身が足元に散らばった！`);
-            } else {
-              _target.capacity = _newCapacity;
+            const result = reducePotCapacity(_target, 1, dg, p, ml, dnameRef);
+            if (!result.broken) {
               ml.push(`${_targetName}が呪われ、容量が1減った！`);
             }
           } else {
