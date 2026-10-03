@@ -1,4 +1,4 @@
-import { setPlayerItemProperties } from "./equipmentEffects.js";
+import { adjustPlayerBaseMaxHp, setPlayerItemProperties } from "./equipmentEffects.js";
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
@@ -832,7 +832,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         const h = rng(-10, 10);
-        p.maxHp = Math.max(1, p.maxHp + h);
+        adjustPlayerBaseMaxHp(p, h);
         p.hp = Math.min(p.hp, p.maxHp);
         if (h < 0) p.deathCause = "変化の杖で";
         ml.push(h >= 0 ? `体に変化が...最大HP+${h}` : `体に異変が...最大HP${h}`);

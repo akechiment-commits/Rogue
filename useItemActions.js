@@ -1,4 +1,4 @@
-import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
+import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
@@ -214,8 +214,7 @@ export function useItemActions({
               p.hp += _maxHpGain;
               _hMsg = `${_useItemName}を飲んだ。HPが最大なので${_maxHpGain}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`;
             } else {
-              p.maxHp += _maxHpGain;
-              p.hp += _maxHpGain;
+              p.hp += adjustPlayerBaseMaxHp(p, _maxHpGain);
               _hMsg = `${_useItemName}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;
             }
           } else {
@@ -248,7 +247,7 @@ export function useItemActions({
               p.hp += _shUp;
               _shMsg = `${_useItemName}を飲んだ。HPが最大なので${_shUp}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`;
             } else {
-              p.maxHp += _shUp; p.hp += _shUp;
+              p.hp += adjustPlayerBaseMaxHp(p, _shUp);
               _shMsg = `${_useItemName}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`;
             }
           }
@@ -630,7 +629,7 @@ export function useItemActions({
         p.def += _defUp; ml.push(`体が頑丈になった！防御力+${_defUp}`);
       } else if (fe === "vitality_food") {
         const _hpUp = _fTier + 1;
-        p.maxHp += _hpUp; p.hp += _hpUp; ml.push(`生命力が増した！最大HP+${_hpUp}`);
+        p.hp += adjustPlayerBaseMaxHp(p, _hpUp); ml.push(`生命力が増した！最大HP+${_hpUp}`);
       } else if (fe === "exp_food") {
         /* 次のレベルまでに必要な経験値の何割か: 極小10%〜爆盛60% */
         const _expPct = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6][_fTier];

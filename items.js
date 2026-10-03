@@ -38,7 +38,7 @@ import { grantPlayerHaste, hasteDurationLabel, playerHasteStage } from './action
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
-import { replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
+import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 
@@ -2504,7 +2504,7 @@ export function applyPlayerLevelDown(p, ml) {
   }
 
   p.level = currentLevel - 1;
-  p.maxHp = Math.max(1, (p.maxHp || 1) - 5);
+  adjustPlayerBaseMaxHp(p, -5);
   p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
   p.atk = Math.max(1, (p.atk || 1) - 1);
   /* Game.jsx のレベルアップ処理はLv3,6,...到達時だけ防御力と最大MPを増やす。 */
@@ -4147,8 +4147,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
               p.hp += _up;
               ml.push(`HPが満タンだったので${_up}ダメージを受けた！${blessed ? "(祝福)" : ""}`);
             } else {
-              p.maxHp += _up;
-              p.hp += _up;
+              p.hp += adjustPlayerBaseMaxHp(p, _up);
               ml.push(`HPが満タンだったのでHP最大値が${_up}上昇した！${blessed ? "(祝福)" : ""}`);
             }
             pushHealAnim(p.x, p.y);
@@ -4186,8 +4185,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             p.hp += _shUp;
             ml.push(`HPが満タンだったので${_shUp}ダメージを受けた！${blessed ? "(祝福)" : ""}`);
           } else {
-            p.maxHp += _shUp;
-            p.hp += _shUp;
+            p.hp += adjustPlayerBaseMaxHp(p, _shUp);
             ml.push(`HPが満タンだったのでHP最大値が${_shUp}上昇した！${blessed ? "(祝福)" : ""}`);
           }
           pushHealAnim(p.x, p.y);

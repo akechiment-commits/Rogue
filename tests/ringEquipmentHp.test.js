@@ -1,9 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("react", () => ({ useCallback: fn => fn, useRef: value => ({ current: value }), useEffect: () => {} }));
 import { useItemActions } from "../useItemActions.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { MW, MH } from "../utils.js";
-import { grantDungeonStarterGear } from "../items.js";
+import { applyPlayerLevelDown, applyPotionEffect, grantDungeonStarterGear } from "../items.js";
+import { replacePlayerRings, setPlayerItemProperties, unequipPlayerItem } from "../equipmentEffects.js";
+import { saveGameState, loadGameState } from "../GameSave.js";
+import { applyWandEffect } from "../wands.js";
+import { grantWish } from "../wish.js";
+
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 const life = (plus = 3, extra = {}) => ({ name: "命の指輪", type: "ring", effect: "life_ring", plus, bcKnown: true, ...extra });
 function setup(inventory, overrides = {}) {
@@ -82,5 +88,89 @@ describe("指輪装備のHP補正", () => {
   it("マイナスの命の指輪は現HPを新しい最大HPまでに制限する", () => {
     const f = setup([life(-3)], { hp: 99 });
     f.use(0); expect([f.player.hp, f.player.maxHp]).toEqual([85, 85]);
+  });
+  it.each([false, true])("最大HPの下限に達した命の指輪を外しても、最大HPが増殖しない（保存再開: %s）", reload => {
+    const ring = life(-10);
+    const f = setup([ring], { hp: 30, maxHp: 30 });
+    f.use(0);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 1]);
+    let player = f.player;
+    if (reload) {
+      const store = new Map();
+      vi.stubGlobal("localStorage", { setItem: (key, value) => store.set(key, value), getItem: key => store.get(key) ?? null });
+      const dungeon = makeEmptyDg({ visible: Array.from({ length: MH }, () => Array(MW).fill(false)),
+        explored: Array.from({ length: MH }, () => Array(MW).fill(false)) });
+      expect(saveGameState({ player, dungeon, floors: {}, ident: new Set() }, [], {}, {})).toBe(true);
+      player = loadGameState().player;
+      unequipPlayerItem(player, player.rings[0]);
+    } else {
+      f.use(0);
+    }
+    expect([player.hp, player.maxHp]).toEqual([1, 30]);
+  });
+  it("下限到達中の指輪強化は、切り捨てた負の補正を解消してから最大HPを増やす", () => {
+    const ring = life(-10), f = setup([ring], { hp: 30, maxHp: 30 });
+    f.use(0);
+    setPlayerItemProperties(f.player, ring, { plus: -8 });
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 1]);
+    setPlayerItemProperties(f.player, ring, { plus: -5 });
+    expect([f.player.hp, f.player.maxHp]).toEqual([5, 5]);
+    f.use(0);
+    expect([f.player.hp, f.player.maxHp]).toEqual([5, 30]);
+  });
+  it.each([false, true])("下限到達中に祝福指輪を追加しても、外す順序で最大HPが変わらない（負の指輪を先に外す: %s）", negativeFirst => {
+    const negative = life(-10), positive = { name: "灯火の指輪", type: "ring", effect: "torch_ring", blessed: true };
+    const f = setup([negative, positive], { hp: 30, maxHp: 30 });
+    f.use(0); f.use(1);
+    expect(f.player.maxHp).toBe(1);
+    f.use(negativeFirst ? 0 : 1);
+    expect(f.player.maxHp).toBe(negativeFirst ? 40 : 1);
+    f.use(negativeFirst ? 1 : 0);
+    expect(f.player.maxHp).toBe(30);
+    expect(f.player.visionBonus).toBe(0);
+  });
+  it.each([
+    { name: "回復薬", type: "potion", effect: "heal", value: 30 },
+    { name: "生命の食料", type: "food", effect: "vitality_food", value: 10 },
+  ])("下限到達中の%sによる永続HP増加は、指輪を外しても保持する", item => {
+    const ring = life(-10), f = setup([ring, item], { hp: 30, maxHp: 30 });
+    f.use(0); f.use(1);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 1]);
+    f.use(0);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 31]);
+  });
+  it("下限到達中のレベルダウンも、指輪補正前の最大HPから差し引く", () => {
+    const ring = life(-10), f = setup([ring], { hp: 30, maxHp: 30, level: 3 });
+    f.use(0);
+    applyPlayerLevelDown(f.player, []);
+    f.use(0);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 25]);
+  });
+  it("まとめて指輪を交換する処理でも下限の補正を保持する", () => {
+    const f = setup([], { hp: 30, maxHp: 30 });
+    replacePlayerRings(f.player, [life(-10)]);
+    replacePlayerRings(f.player, [life(-8)]);
+    expect(f.player.maxHp).toBe(1);
+    replacePlayerRings(f.player, []);
+    expect(f.player.maxHp).toBe(30);
+  });
+  it("下限到達中に浴びた超回復薬と願いによるレベルアップの永続増加も保持する", () => {
+    const ring = life(-10), f = setup([ring], { hp: 30, maxHp: 30 });
+    f.use(0);
+    applyPotionEffect("superheal", 100, "player", f.player, makeEmptyDg(), f.player, [], vi.fn());
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 1]);
+    grantWish({ kind: "preset", id: "level_up" }, { player: f.player, dungeon: makeEmptyDg(), ml: [] });
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 1]);
+    f.use(0);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 48]);
+  });
+  it("変化の杖による最大HP減少は、指輪補正前の下限1で止める", () => {
+    const ring = life(2), f = setup([ring], { hp: 3, maxHp: 3 });
+    f.use(0);
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    applyWandEffect("transform", "player", f.player, 0, 0, makeEmptyDg(), f.player, [], vi.fn(), vi.fn());
+    expect(f.player.maxHp).toBe(11);
+    f.use(0);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 1]);
   });
 });

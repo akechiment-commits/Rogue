@@ -4,10 +4,27 @@ export function ringHpBonus(ring) {
   return (ring.effect === "life_ring" ? (ring.plus || 0) * 5 : 0) + (ring.blessed ? 10 : 0);
 }
 
+/* 下限で隠れた補正は装備変更・セーブ後も保持し、外す際に足し戻しすぎない。 */
+function setMaxHpWithRingFloor(player, rawMaxHp) {
+  player.maxHp = Math.max(1, rawMaxHp);
+  const loss = player.maxHp - rawMaxHp;
+  if (loss > 0) player.ringHpFloorLoss = loss;
+  else delete player.ringHpFloorLoss;
+}
+
+/* 永続増減は指輪補正前の最大HP（最低1）へ反映する。返り値は表示上の増減。 */
+export function adjustPlayerBaseMaxHp(player, delta) {
+  const previousMaxHp = player.maxHp;
+  const ringsBonus = (player.rings || []).reduce((sum, ring) => sum + ringHpBonus(ring), 0);
+  const baseMaxHp = Math.max(1, previousMaxHp - (player.ringHpFloorLoss || 0) - ringsBonus);
+  setMaxHpWithRingFloor(player, Math.max(1, baseMaxHp + delta) + ringsBonus);
+  return player.maxHp - previousMaxHp;
+}
+
 export function adjustRingHp(player, bonus, wasFullHp = player.hp === player.maxHp) {
   if (!bonus) return;
   const previousMaxHp = player.maxHp;
-  player.maxHp = Math.max(1, player.maxHp + bonus);
+  setMaxHpWithRingFloor(player, previousMaxHp - (player.ringHpFloorLoss || 0) + bonus);
   const increase = Math.max(0, player.maxHp - previousMaxHp);
   setPlayerHpForCapacityChange(player, Math.min(player.maxHp, player.hp + (wasFullHp ? increase : 0)));
 }

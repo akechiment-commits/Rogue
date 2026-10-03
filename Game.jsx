@@ -1,4 +1,4 @@
-import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
+import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
@@ -1153,7 +1153,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.level++;
       p.exp -= p.nextExp;
       p.nextExp = Math.floor(p.nextExp * 1.5);
-      p.maxHp += 5;
+      adjustPlayerBaseMaxHp(p, 5);
       p.hp = Math.min(p.hp + 10, p.maxHp);
       p.atk++;
       if (p.level % 3 === 0) { p.def++; p.maxMp++; }
@@ -5005,8 +5005,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push("体が強くなった気がする。防御力+1");
     } else if (r < 0.34) {
       // 最大HP+3
-      p.maxHp += 3;
-      p.hp += 3;
+      p.hp += adjustPlayerBaseMaxHp(p, 3);
       ml.push("生命力が満ちてきた。最大HP+3");
     } else if (r < 0.39) {
       // 満腹度回復

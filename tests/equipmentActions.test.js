@@ -135,6 +135,19 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it.each(["pointer", "keyboard"])("呪われた強化の巻物で下限に達した命の指輪を外しても最大HPが増殖しない: %s", control => {
+    const ring = life(1), f = fixture([ring], { hp: 30, maxHp: 30 });
+    f.actions.doUseItem(0);
+    for (let i = 0; i < 11; i++) {
+      f.player.inventory.push({ name: "武器強化の巻物", type: "scroll", effect: "weapon_up", cursed: true });
+      choose(f, { mode: "weapon_up", scrollIdx: 1, sel: 0, cursed: true }, control);
+    }
+    expect(ring.plus).toBe(-10);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 1]);
+    f.actions.doUseItem(0);
+    expect([f.player.hp, f.player.maxHp]).toEqual([1, 30]);
+    expect(f.player.inventory).toEqual([ring]);
+  });
   it.each([
     life(),
     { name: "パン", type: "food", value: 20 },

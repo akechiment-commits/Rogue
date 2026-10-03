@@ -19,6 +19,7 @@ import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
 import { clearPlayerPoison } from "./statusDuration.js";
 import { markBigboxKindIdentified } from "./GameHelpers.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
+import { adjustPlayerBaseMaxHp } from "./equipmentEffects.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
 export const WISH_CHANCE_DRINK = 0.005;
@@ -415,7 +416,7 @@ function clearMajorDebuffs(p) {
 function forceLevelUp(p, ml) {
   p.level = (p.level || 1) + 1;
   p.nextExp = Math.floor((p.nextExp || 20) * 1.5);
-  p.maxHp += 5;
+  adjustPlayerBaseMaxHp(p, 5);
   p.hp = Math.min(p.hp + 10, p.maxHp);
   p.atk = (p.atk || 1) + 1;
   if (p.level % 3 === 0) {
