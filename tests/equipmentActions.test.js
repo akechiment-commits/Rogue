@@ -135,6 +135,15 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it.each(["pointer", "keyboard"])("呪われた強化で＋0にした指輪を落としても＋値を再抽選しない: %s", control => {
+    const ring = life(1), scroll = { name: "武器強化の巻物", type: "scroll", effect: "weapon_up", cursed: true };
+    const f = fixture([ring, scroll], {}, { dropModeRef: { current: false } });
+    choose(f, { mode: "weapon_up", scrollIdx: 1, sel: 0, cursed: true }, control);
+    expect(ring.plus).toBe(0);
+    f.actions.doDropItem(0);
+    expect(f.dungeon.items).toContain(ring);
+    expect(ring.plus).toBe(0);
+  });
   function imprisonedPot(f, carried = true, capacity = 1) {
     const pot = { id: "prison-capacity", name: "とじこめの壺", type: "pot", potEffect: "imprison", capacity, contents: [], confinedMonsters: [] };
     const enemy = makeMonsterFromBase(MONS[0], 2, 6, 5);

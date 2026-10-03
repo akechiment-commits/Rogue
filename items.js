@@ -5150,7 +5150,6 @@ function soakItem(item) {
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false, _avoidOriginSpring = false) {
   if (item?._ephemeralTrapTrigger) return false;
-  applyGeneratedRingPlus(item);
   /* 帯電毛玉は所持品または箱・壺の中にだけ存在できる。破壊・散乱などで
      床へ出る経路は、罠や泉などの床効果を発生させず、その場で消滅させる。 */
   if (item?.type === "charged_fuzzball") {
@@ -5318,6 +5317,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen") _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       placeItemAt(dg, m.x, m.y, _di, ml, _ft, 0, p);
@@ -5368,7 +5368,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     if (_tier >= 4) {
       const _rPool = RINGS.filter(r => ["A","B"].includes(r.rarity));
       placeItemAt(dg, m.x, m.y,
-        { ...pick(_rPool.length ? _rPool : RINGS), id: uid() },
+        applyGeneratedRingPlus({ ...pick(_rPool.length ? _rPool : RINGS), id: uid() }),
         ml, _ft, 0, p);
     }
     /* 収納上手の巻物（tier1=5階ボスのみ確定） */
@@ -5458,6 +5458,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
@@ -5470,6 +5471,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
@@ -5482,6 +5484,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);

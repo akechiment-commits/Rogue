@@ -12,7 +12,7 @@ import {
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T,
   BOMB_ARROW_T, STONE_T, MAGIC_STONE_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
-  getIdentKey, placeItemAt, killMonster,
+  getIdentKey, placeItemAt, killMonster, applyGeneratedRingPlus,
 } from "./items.js";
 import { trackBigbox, trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
@@ -325,9 +325,7 @@ export function makeWishedItem(tmpl, opts = {}) {
     it.contents = [];
     it.capacity = it.capacity || 3;
   }
-  if (it.type === "ring" && (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring")) {
-    it.plus = it.plus ?? 0;
-  }
+  applyGeneratedRingPlus(it);
   if (it.charges != null) it._origCharges = it.charges;
   it.fullIdent = true;
   it.bcKnown = true;

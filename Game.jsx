@@ -22,7 +22,7 @@ import {
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow,
-  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool,
+  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
@@ -5533,9 +5533,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (reward?.type === "arrow") reward.count = rng(3, 12);
     if (reward?.type === "wand") reward.charges = reward.effect === "curse_wand" || reward.effect === "bless_wand" || reward.effect === "wish" ? 1 : Math.max(1, reward.charges || 5);
     if (reward?.type === "pen") reward.charges = reward.charges || 3;
-    if (reward?.type === "ring") {
-      reward.plus = reward.plus ?? (reward.effect === "power_ring" || reward.effect === "defense_ring" || reward.effect === "life_ring" ? rng(1, 3) : reward.plus);
-    }
+    applyGeneratedRingPlus(reward);
     const ml = [`${itemDisplayName(food, s.fakeNames, s.ident, s.nicknames)}を祭壇に捧げた。（${altar.offerCount}回目）`];
     if (reward) {
       if (p.inventory.length < (p.maxInventory || 30)) {
