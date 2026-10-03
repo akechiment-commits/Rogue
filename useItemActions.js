@@ -38,6 +38,7 @@ import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionC
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { setPlayerHpForCapacityChange } from "./utils.js";
+import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -147,11 +148,7 @@ function _forceUnequip(p, it) {
 
 /* 指輪のHP増加は、装備操作を始めた時点で満タンだった場合だけ現HPにも反映する。 */
 function _applyRingHpBonus(p, it, wasFullHp) {
-  const bonus = (it.effect === "life_ring" ? (it.plus || 0) * 5 : 0) + (it.blessed ? 10 : 0);
-  const previousMaxHp = p.maxHp;
-  p.maxHp = Math.max(1, p.maxHp + bonus);
-  const increase = Math.max(0, p.maxHp - previousMaxHp);
-  setPlayerHpForCapacityChange(p, Math.min(p.maxHp, p.hp + (wasFullHp ? increase : 0)));
+  adjustRingHp(p, ringHpBonus(it), wasFullHp);
 }
 
 /* 合成獣：アイテムを飲み込むたびに速度を上げる */

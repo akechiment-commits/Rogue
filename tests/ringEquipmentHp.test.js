@@ -3,6 +3,7 @@ vi.mock("react", () => ({ useCallback: fn => fn, useRef: value => ({ current: va
 import { useItemActions } from "../useItemActions.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { MW, MH } from "../utils.js";
+import { grantDungeonStarterGear } from "../items.js";
 
 const life = (plus = 3, extra = {}) => ({ name: "命の指輪", type: "ring", effect: "life_ring", plus, bcKnown: true, ...extra });
 function setup(inventory, overrides = {}) {
@@ -20,6 +21,16 @@ function setup(inventory, overrides = {}) {
 }
 
 describe("指輪装備のHP補正", () => {
+  it.each([10, 30])("持ち込み指輪の自動装備にもHP・視界補正が入り、外すと元に戻る: HP%d", hp => {
+    const ring = life(1, { blessed: true }), torch = { name: "灯火の指輪", type: "ring", effect: "torch_ring" };
+    const f = setup([ring, torch], { hp, maxHp: 30 });
+    grantDungeonStarterGear(f.player);
+    expect([f.player.hp, f.player.maxHp, f.player.visionBonus]).toEqual([hp === 30 ? 45 : hp, 45, 1]);
+    grantDungeonStarterGear(f.player);
+    expect([f.player.hp, f.player.maxHp, f.player.visionBonus]).toEqual([hp === 30 ? 45 : hp, 45, 1]);
+    f.use(0); f.use(1);
+    expect([f.player.hp, f.player.maxHp, f.player.visionBonus]).toEqual([hp, 30, 0]);
+  });
   it.each([10, 99])("負傷中のHP%dは、命の指輪の付け外しを繰り返しても回復しない", hp => {
     const f = setup([life()], { hp });
     for (let i = 0; i < 3; i++) {

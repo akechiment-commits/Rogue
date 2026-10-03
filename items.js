@@ -38,6 +38,7 @@ import { grantPlayerHaste, hasteDurationLabel, playerHasteStage } from './action
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
+import { replacePlayerRings } from './equipmentEffects.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 
@@ -8504,7 +8505,7 @@ export function grantDungeonStarterGear(player, { uidFn = uid, catalog = ITEMS }
     const rings = player.inventory.filter((item) => item?.type === "ring").slice(0, 2);
     player.weapon = weapon;
     player.armor = armor;
-    player.rings = rings;
+    replacePlayerRings(player, rings);
     result.weapon = weapon;
     result.armor = armor;
     result.rings = rings;

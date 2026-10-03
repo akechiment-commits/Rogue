@@ -561,6 +561,7 @@ addSheet('04_武器防具', weaponArmorData);
 // ===== 指輪（Ring）=====
 const ringData = [['指輪名', 'effect', 'rarity', 'sellPrice', '説明']];
 ringData.push(['【祝福の共通効果】', '', '', '', '種類を問わず装備中は最大HP+10。装備操作開始前にHP満タンの場合だけ現在HPも増える。負傷中の付け外しでは回復しない。2個装備時の交換は古い指輪を外す前に判定する。取り外し時は最大HP補正を戻し、現在HPは新しい最大HPを超える分だけ下がる。']);
+ringData.push(['【持ち込み時の自動装備】', '', '', '', '所持品の上から2個までを自動装備し、命の指輪・祝福指輪の最大HP補正と灯火の指輪の視界+1を通常装備と同様に適用する。装備前に満タンの場合だけ現在HPも増える。同じ装備で初期化処理を繰り返しても補正は重複しない。']);
 for (const r of RINGS) {
   ringData.push([r.name, r.effect, r.rarity, r.sellPrice, guideDesc(r)]);
 }
