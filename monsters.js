@@ -1,6 +1,7 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
+import { unequipPlayerItem } from "./equipmentEffects.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
@@ -5867,17 +5868,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _pool = [..._ueSlots];
           for (let i = 0; i < _ueCount && _pool.length > 0; i++) {
             const _pick = _pool.splice(Math.floor(Math.random() * _pool.length), 1)[0];
-            if (_pick.slot === "weapon") pl.weapon = null;
-            else if (_pick.slot === "armor") pl.armor = null;
-            else if (_pick.slot === "ring") {
-              pl.rings = (pl.rings || []).filter(r => r !== _pick.it);
-              if (_pick.it.effect === "life_ring") {
-                const _bonus = (_pick.it.plus || 0) * 5;
-                pl.maxHp = Math.max(1, pl.maxHp - _bonus);
-                pl.hp = Math.min(pl.hp, pl.maxHp);
-              }
-              if (_pick.it.effect === "torch_ring") pl.visionBonus = Math.max(0, (pl.visionBonus || 0) - 1);
-            }
+            unequipPlayerItem(pl, _pick.it);
             ml.push(`${m.name}に${resolveItemName(_pick.it)}を外された！`);
           }
           return;

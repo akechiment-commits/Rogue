@@ -1,4 +1,4 @@
-import { setPlayerItemProperties } from "./equipmentEffects.js";
+import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -341,8 +341,7 @@ export function useKeyHandler({
             /* ===== 売却の巻物 ===== */
             const _baseGold = itemPrice(_selIt);
             const _earned = identifyMode.blessed ? _baseGold * 2 : identifyMode.cursed ? Math.floor(_baseGold / 2) : _baseGold;
-            if (_p_id.weapon === _selIt) _p_id.weapon = null;
-            if (_p_id.armor === _selIt) _p_id.armor = null;
+            unequipPlayerItem(_p_id, _selIt);
             const _rmIdx_sell = _p_id.inventory.indexOf(_selIt);
             if (_rmIdx_sell !== -1) {
               _p_id.inventory.splice(_rmIdx_sell, 1);
@@ -372,8 +371,7 @@ export function useKeyHandler({
               const _newIt = { ..._tsfTmpl, id: uid() };
               if (_tsfTmpl.type === "wand") _newIt.charges = _tsfTmpl.maxCharges ?? _tsfTmpl.charges ?? 5;
               if (_tsfTmpl.type === "arrow") _newIt.count = _tsfTmpl.count ?? 1;
-              if (_p_id.weapon === _selIt) _p_id.weapon = null;
-              if (_p_id.armor === _selIt) _p_id.armor = null;
+              unequipPlayerItem(_p_id, _selIt);
               const _rmIdx_tsf = _p_id.inventory.indexOf(_selIt);
               if (_rmIdx_tsf !== -1) {
                 _p_id.inventory.splice(_rmIdx_tsf, 1, _newIt);
@@ -462,6 +460,7 @@ export function useKeyHandler({
               } else {
                 const _rmIdx = _p_id.inventory.indexOf(_selIt);
                 if (_rmIdx !== -1) {
+                  unequipPlayerItem(_p_id, _selIt);
                   _p_id.inventory.splice(_rmIdx, 1);
                   if (identifyMode.scrollIdx != null && _rmIdx < identifyMode.scrollIdx) {
                     identifyMode.scrollIdx--;

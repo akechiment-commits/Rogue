@@ -31,3 +31,12 @@ export function setPlayerItemProperties(player, item, properties) {
   Object.assign(item, properties);
   if (equipped) adjustRingHp(player, ringHpBonus(item) - before, wasFullHp);
 }
+
+export function unequipPlayerItem(player, item) {
+  if (player.weapon === item) player.weapon = null;
+  if (player.armor === item) player.armor = null;
+  if (player.arrow === item) player.arrow = null;
+  if (player.rings?.includes(item)) {
+    replacePlayerRings(player, player.rings.filter(ring => ring !== item), false);
+  }
+}

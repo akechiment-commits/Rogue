@@ -4,6 +4,7 @@
 
 import { installPlayerHpReverseHook, MW, MH } from "./utils.js";
 import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
+import { unequipPlayerItem } from "./equipmentEffects.js";
 
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 const GAME_SAVE_VERSION = 2;
@@ -25,11 +26,15 @@ function withoutInternalGravityTriggers(dungeon) {
 function serializePlayer(p) {
   const inventory = p.inventory.filter(item => !isInternalGravityTrigger(item));
   const out = { ...p, inventory };
+  /* 旧状態で所持品から消えた装備が残っていても、その補正をセーブへ持ち越さない。 */
+  for (const item of [p.weapon, p.armor, p.arrow, ...(p.rings || [])]) {
+    if (item && !inventory.includes(item)) unequipPlayerItem(out, item);
+  }
   /* 装備品をインデックスに変換（inventory内のオブジェクト参照を保存不可能なため） */
-  out._weaponIdx = p.weapon ? inventory.indexOf(p.weapon) : -1;
-  out._armorIdx  = p.armor  ? inventory.indexOf(p.armor)  : -1;
-  out._arrowIdx  = p.arrow  ? inventory.indexOf(p.arrow)  : -1;
-  out._ringIdxs  = (p.rings || []).map(r => inventory.indexOf(r));
+  out._weaponIdx = out.weapon ? inventory.indexOf(out.weapon) : -1;
+  out._armorIdx  = out.armor  ? inventory.indexOf(out.armor)  : -1;
+  out._arrowIdx  = out.arrow  ? inventory.indexOf(out.arrow)  : -1;
+  out._ringIdxs  = (out.rings || []).map(r => inventory.indexOf(r));
   /* シリアライズ用に参照を消す（JSONで循環しないように） */
   delete out.weapon;
   delete out.armor;

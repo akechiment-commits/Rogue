@@ -1,4 +1,4 @@
-import { setPlayerItemProperties } from "./equipmentEffects.js";
+import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
@@ -38,7 +38,6 @@ import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
-import { setPlayerHpForCapacityChange } from "./utils.js";
 import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
@@ -132,19 +131,7 @@ function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) 
 
 /* インベントリから消える際に装備スロットを強制解除するヘルパー */
 function _forceUnequip(p, it) {
-  if (p.weapon === it) p.weapon = null;
-  if (p.armor  === it) p.armor  = null;
-  if (p.arrow  === it) p.arrow  = null;
-  if (p.rings?.includes(it)) {
-    p.rings = p.rings.filter(r => r !== it);
-    if (it.effect === "life_ring") {
-      const _bonus = (it.plus || 0) * 5;
-      p.maxHp = Math.max(1, p.maxHp - _bonus);
-      p.hp = Math.min(p.hp, p.maxHp);
-    }
-    if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
-    if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
-  }
+  unequipPlayerItem(p, it);
 }
 
 /* 指輪のHP増加は、装備操作を始めた時点で満タンだった場合だけ現HPにも反映する。 */
@@ -1847,7 +1834,10 @@ export function useItemActions({
           if (p.inventory.length > _newMax) {
             const _excess = p.inventory.splice(_newMax);
             const _fts = new Set();
-            for (const _ei of _excess) placeItemAt(dg, p.x, p.y, _ei, ml, _fts, 0, p);
+            for (const _ei of _excess) {
+              _forceUnequip(p, _ei);
+              placeItemAt(dg, p.x, p.y, _ei, ml, _fts, 0, p);
+            }
             ml.push(`最大所持数が${_actual}減った…(${_curMax}→${_newMax}) 超過分が落ちた！【呪】`);
           } else {
             ml.push(`最大所持数が${_actual}減った…(${_curMax}→${_newMax})【呪】`);
@@ -2069,14 +2059,7 @@ export function useItemActions({
         if (it.cursed) {
           ml.push(`${_rdn(it)}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`);
         } else {
-          p.rings = (p.rings || []).filter(r => r !== it);
-          if (it.effect === "life_ring") {
-            const _lifeBonus = (it.plus || 0) * 5;
-            p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
-            setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp));
-          }
-          if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp)); }
-          if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
+          _forceUnequip(p, it);
           ml.push(`${_rdn(it)}を外した。`);
         }
       } else {
@@ -2086,14 +2069,7 @@ export function useItemActions({
           if (_removed.cursed) {
             ml.push(`${_rdn(_removed)}は呪われていて外せない！指輪を装備できなかった。`);
           } else {
-            p.rings = p.rings.slice(0, p.rings.length - 1);
-            if (_removed.effect === "life_ring") {
-              const _lifeBonus = (_removed.plus || 0) * 5;
-              p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
-              setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp));
-            }
-            if (_removed.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp)); }
-            if (_removed.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
+            _forceUnequip(p, _removed);
             ml.push(`${_rdn(_removed)}を外した。`);
             if (!p.rings) p.rings = [];
             p.rings.push(it);

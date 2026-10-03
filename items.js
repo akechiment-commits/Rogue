@@ -38,7 +38,7 @@ import { grantPlayerHaste, hasteDurationLabel, playerHasteStage } from './action
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
-import { replacePlayerRings } from './equipmentEffects.js';
+import { replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 
@@ -2819,17 +2819,7 @@ export function applyUnequipTrapToPlayer(p, ml, nameFn = null) {
     return false;
   }
   const pickSlot = slots[rng(0, slots.length - 1)];
-  if (pickSlot.slot === "weapon") p.weapon = null;
-  else if (pickSlot.slot === "armor") p.armor = null;
-  else if (pickSlot.slot === "ring") {
-    p.rings = (p.rings || []).filter((r) => r !== pickSlot.it);
-    if (pickSlot.it.effect === "life_ring") {
-      const bonus = (pickSlot.it.plus || 0) * 5;
-      p.maxHp = Math.max(1, p.maxHp - bonus);
-      p.hp = Math.min(p.hp, p.maxHp);
-    }
-    if (pickSlot.it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
-  }
+  unequipPlayerItem(p, pickSlot.it);
   ml.push(`${resolveItemName(pickSlot.it, nameFn)}の装備が外れた！`);
   return true;
 }
@@ -7499,6 +7489,7 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
   if (victim.type === "arrow" && (victim.bombArrow || victim.specialProjectile === "crawling_bomb")) {
     const n = victim.count ?? 1;
     if (n <= 1) {
+      unequipPlayerItem(p, victim);
       p.inventory = p.inventory.filter((it) => it !== victim);
       if (ml) ml.push(`水を浴びて${_dn}が1つ消えた！`);
     } else {

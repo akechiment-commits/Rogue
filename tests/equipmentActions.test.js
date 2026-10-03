@@ -10,6 +10,8 @@ import { useItemActions } from "../useItemActions.js";
 import { useKeyHandler } from "../useKeyHandler.js";
 import { IdentifyModal } from "../GameModals.jsx";
 import { applyWandEffect } from "../wands.js";
+import { applyUnequipTrapToPlayer, applyWaterGunToInventory } from "../items.js";
+import { saveGameState, loadGameState } from "../GameSave.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { MW, MH } from "../utils.js";
 
@@ -44,6 +46,31 @@ function choose(f, mode, control) {
 }
 
 describe.each(["keyboard", "pointer"])("装備中の指輪更新: %s", control => {
+  it.each([
+    ["sell_item", life(1, { blessed: true })],
+    ["transform_item", life(1, { blessed: true })],
+    ["duplicate", life(1, { blessed: true })],
+    ["sell_item", { name: "灯火の指輪", type: "ring", effect: "torch_ring", blessed: true }],
+    ["sell_item", { name: "矢", type: "arrow", count: 10 }],
+    ["duplicate", { name: "短剣", type: "weapon", atk: 3 }],
+    ["duplicate", { name: "革の鎧", type: "armor", def: 2 }],
+  ])("%sで%sが消えると、装備参照と補正も解除する", (mode, template) => {
+    const item = { ...template }, scroll = { name: "巻物", type: "scroll", effect: mode, bcKnown: true };
+    const f = fixture([item, scroll]);
+    f.actions.doUseItem(0);
+    choose(f, { mode, scrollIdx: 1, sel: 0, cursed: mode === "duplicate" }, control);
+    expect(f.player.inventory).not.toContain(item);
+    expect(f.player.rings).not.toContain(item);
+    for (const slot of ["weapon", "armor", "arrow"]) expect(f.player[slot]).not.toBe(item);
+    expect(f.player.maxHp).toBe(100);
+    expect(f.player.visionBonus || 0).toBe(0);
+    const store = new Map();
+    vi.stubGlobal("localStorage", { setItem: (key, value) => store.set(key, value), getItem: key => store.get(key) ?? null });
+    expect(saveGameState(f.sr.current, [], {}, {})).toBe(true);
+    const restored = loadGameState();
+    expect(restored.player.maxHp).toBe(100);
+    expect(restored.player.rings).toHaveLength(0);
+  });
   it.each([30, 100])("HP%dで強化し、外しても基礎最大HPは減らない", hp => {
     const ring = life(), scroll = { name: "武器強化の巻物", type: "scroll", effect: "weapon_up", bcKnown: true };
     const f = fixture([ring, scroll], { hp });
@@ -85,5 +112,54 @@ describe("所持品への祝福・呪い", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     f.actions.doUseItem(1); expect(f.player.maxHp).toBe(115);
     f.actions.doUseItem(1); expect(f.player.maxHp).toBe(105);
+  });
+});
+
+describe("装備解除と保存", () => {
+  it.each([
+    { name: "短剣", type: "weapon", atk: 3 },
+    life(1, { blessed: true }),
+    { name: "灯火の指輪", type: "ring", effect: "torch_ring", blessed: true },
+    { name: "矢", type: "arrow", count: 10 },
+  ])("呪われた収納上手で超過した%sが落ちると装備を解除する", template => {
+    const item = { ...template, id: "dropped" };
+    const scroll = { name: "収納上手の巻物", type: "scroll", effect: "expand_inv", cursed: true, bcKnown: true };
+    const f = fixture([scroll, ...Array.from({ length: 10 }, () => ({ name: "パン", type: "food", value: 20 })), item], { maxInventory: 12 });
+    f.actions.doUseItem(11);
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    f.actions.doUseItem(0);
+    expect(f.player.maxInventory).toBe(10);
+    expect(f.player.inventory).not.toContain(item);
+    expect(f.dungeon.items.some(it => it.id === item.id)).toBe(true);
+    expect(f.player.rings).not.toContain(item);
+    for (const slot of ["weapon", "armor", "arrow"]) expect(f.player[slot]).not.toBe(item);
+    expect(f.player.maxHp).toBe(100);
+    expect(f.player.visionBonus || 0).toBe(0);
+  });
+  it("装備外しの罠は祝福による+10も戻す", () => {
+    const ring = life(1, { blessed: true }), f = fixture([ring], { hp: 100, reverseTurns: 10 });
+    f.actions.doUseItem(0);
+    expect(f.player.maxHp).toBe(115);
+    applyUnequipTrapToPlayer(f.player, []);
+    expect([f.player.hp, f.player.maxHp]).toEqual([100, 100]);
+    expect(f.player.rings).toHaveLength(0);
+  });
+  it("所持品から消えた旧状態の指輪補正を、新しくセーブする時に除く", () => {
+    const ring = life(1, { blessed: true }), f = fixture([ring], { hp: 100 });
+    f.actions.doUseItem(0); f.player.inventory = [];
+    const store = new Map();
+    vi.stubGlobal("localStorage", { setItem: (key, value) => store.set(key, value), getItem: key => store.get(key) ?? null });
+    expect(saveGameState(f.sr.current, [], {}, {})).toBe(true);
+    const restored = loadGameState();
+    expect(restored.player.rings).toHaveLength(0);
+    expect([restored.player.hp, restored.player.maxHp]).toEqual([100, 100]);
+    expect(f.player.maxHp).toBe(115); // 保存用コピーだけを補正する。
+  });
+  it("水で最後の爆弾矢が消えた場合も矢の装備を解除する", () => {
+    const arrow = { name: "爆弾矢", type: "arrow", bombArrow: true, count: 1 };
+    const f = fixture([arrow], { arrow });
+    applyWaterGunToInventory(f.player, []);
+    expect(f.player.inventory).toHaveLength(0);
+    expect(f.player.arrow).toBeNull();
   });
 });

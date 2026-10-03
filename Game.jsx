@@ -1,4 +1,4 @@
-import { setPlayerItemProperties } from "./equipmentEffects.js";
+import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
@@ -5273,19 +5273,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         return;
       }
       /* 大箱に入れる前に装備スロットを解除（指輪は命の指輪maxHp処理含む） */
-      if (p.weapon === it) p.weapon = null;
-      if (p.armor  === it) p.armor  = null;
-      if (p.arrow  === it) p.arrow  = null;
-      if (p.rings?.includes(it)) {
-        p.rings = p.rings.filter(r => r !== it);
-        if (it.effect === "life_ring") {
-          const _bonus = (it.plus || 0) * 5;
-          p.maxHp = Math.max(1, p.maxHp - _bonus);
-          p.hp = Math.min(p.hp, p.maxHp);
-        }
-        if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
-        if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
-      }
+      unequipPlayerItem(p, it);
       p.inventory.splice(itemIdx, 1);
       bigboxAddItem(bb, it, dg, ml);
       endTurn(sr.current, p, ml);

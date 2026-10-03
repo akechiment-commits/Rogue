@@ -1,4 +1,4 @@
-import { setPlayerItemProperties } from "./equipmentEffects.js";
+import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
@@ -1240,8 +1240,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _baseGold = itemPrice(_selIt);
       const _earned = mode.blessed ? _baseGold * 2 : mode.cursed ? Math.floor(_baseGold / 2) : _baseGold;
       /* 装備中なら外す */
-      if (_p_sell.weapon === _selIt) _p_sell.weapon = null;
-      if (_p_sell.armor === _selIt) _p_sell.armor = null;
+      unequipPlayerItem(_p_sell, _selIt);
       const _rmIdx_sell = _p_sell.inventory.indexOf(_selIt);
       if (_rmIdx_sell !== -1) {
         _p_sell.inventory.splice(_rmIdx_sell, 1);
@@ -1279,8 +1278,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         const _rmIdx_tsf = _p_tsf.inventory.indexOf(_selIt);
         if (_rmIdx_tsf !== -1) {
           /* 装備中なら外す */
-          if (_p_tsf.weapon === _selIt) _p_tsf.weapon = null;
-          if (_p_tsf.armor === _selIt) _p_tsf.armor = null;
+          unequipPlayerItem(_p_tsf, _selIt);
           _p_tsf.inventory.splice(_rmIdx_tsf, 1, _newIt);
           trackItem(_newIt);
           // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
@@ -1409,6 +1407,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         } else {
           const _rmIdx = _p_dup.inventory.indexOf(_selIt);
           if (_rmIdx !== -1) {
+            unequipPlayerItem(_p_dup, _selIt);
             _p_dup.inventory.splice(_rmIdx, 1);
             if (mode.scrollIdx != null && _rmIdx < mode.scrollIdx) mode.scrollIdx--;
           }
