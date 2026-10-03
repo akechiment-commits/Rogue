@@ -212,6 +212,8 @@ const GUIDE_DESC_OVERRIDES = {
 const POT_RANDOM_BC_NOTE = "フロア生成時に祝福抽選になった壺は祝福フラグを持たず容量+1、呪い抽選になった壺は呪いフラグを持たず容量-1（0未満にはならない）。";
 const CURSE_DESCRIPTION_TYPES = new Set(['potion', 'scroll', 'wand', 'pen', 'spellbook', 'bottle', 'marker']);
 
+GUIDE_DESC_OVERRIDES["とじこめの壺"] += "\n放出した敵の行動時計は放出時のプレイヤー時計へ合わせ、閉じ込め中の未消化行動を実行させない。途中の移動・攻撃回数や特技予約も消す。別階へ持ち運んだ場合やセーブ再開後も同じ。";
+
 function guideDesc(item) {
   let desc = GUIDE_DESC_OVERRIDES[item.name] ?? item.desc ?? '';
   if (CURSE_DESCRIPTION_TYPES.has(item.type)) {

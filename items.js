@@ -1261,10 +1261,15 @@ export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
       x: _pos.x,
       y: _pos.y,
       turnAccum: 0,
+      actionTime: p?.actionTime || 0,
+      turnAttacks: 0,
+      _phaseActionCount: 0,
+      _movesMadeThisPhase: 0,
       aware: true,
       lastPx: p?.x ?? px,
       lastPy: p?.y ?? py,
     };
+    for (const key of ["absentSince", "waitDuringAbsence", "_movedThisTurn", "_defHalfMagicReady", "_pentacleDrawReady", "_mimicReady", "_mimicSourceId", "_dreamEaterStrikeReady", "_krakInkReady"]) delete mon[key];
     dg.monsters.push(mon);
     wakeIfDormant(mon);
     ml.push(`${mon.name}が現れた！`);
