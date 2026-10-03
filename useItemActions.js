@@ -37,6 +37,7 @@ import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
+import { setPlayerHpForCapacityChange } from "./utils.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -142,6 +143,15 @@ function _forceUnequip(p, it) {
     if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
     if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
   }
+}
+
+/* 指輪のHP増加は、装備操作を始めた時点で満タンだった場合だけ現HPにも反映する。 */
+function _applyRingHpBonus(p, it, wasFullHp) {
+  const bonus = (it.effect === "life_ring" ? (it.plus || 0) * 5 : 0) + (it.blessed ? 10 : 0);
+  const previousMaxHp = p.maxHp;
+  p.maxHp = Math.max(1, p.maxHp + bonus);
+  const increase = Math.max(0, p.maxHp - previousMaxHp);
+  setPlayerHpForCapacityChange(p, Math.min(p.maxHp, p.hp + (wasFullHp ? increase : 0)));
 }
 
 /* 合成獣：アイテムを飲み込むたびに速度を上げる */
@@ -2058,6 +2068,7 @@ export function useItemActions({
       if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
       else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone || it.specialProjectile) ? "個" : "本"})を装備した。`); }
     } else if (it.type === "ring") {
+      const _wasFullHp = p.hp === p.maxHp;
       const _rdn = (r) => itemDisplayName(r, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       const equipped = (p.rings || []).some(r => r === it);
       if (equipped) {
@@ -2068,9 +2079,9 @@ export function useItemActions({
           if (it.effect === "life_ring") {
             const _lifeBonus = (it.plus || 0) * 5;
             p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
-            p.hp = Math.min(p.hp, p.maxHp);
+            setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp));
           }
-          if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
+          if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp)); }
           if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
           ml.push(`${_rdn(it)}を外した。`);
         }
@@ -2085,20 +2096,15 @@ export function useItemActions({
             if (_removed.effect === "life_ring") {
               const _lifeBonus = (_removed.plus || 0) * 5;
               p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
-              p.hp = Math.min(p.hp, p.maxHp);
+              setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp));
             }
-            if (_removed.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
+            if (_removed.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); setPlayerHpForCapacityChange(p, Math.min(p.hp, p.maxHp)); }
             if (_removed.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
             ml.push(`${_rdn(_removed)}を外した。`);
             if (!p.rings) p.rings = [];
             p.rings.push(it);
             it.bcKnown = true;
-            if (it.effect === "life_ring") {
-              const _lifeBonus2 = (it.plus || 0) * 5;
-              p.maxHp += _lifeBonus2;
-              p.hp += _lifeBonus2;
-            }
-            if (it.blessed) { p.maxHp += 10; p.hp += 10; }
+            _applyRingHpBonus(p, it, _wasFullHp);
             if (it.effect === "torch_ring") p.visionBonus = (p.visionBonus || 0) + 1;
             ml.push(`${_rdn(it)}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
             if (it.effect === "explode_ring") {
@@ -2114,12 +2120,7 @@ export function useItemActions({
           if (!p.rings) p.rings = [];
           p.rings.push(it);
           it.bcKnown = true;
-          if (it.effect === "life_ring") {
-            const _lifeBonus3 = (it.plus || 0) * 5;
-            p.maxHp += _lifeBonus3;
-            p.hp += _lifeBonus3;
-          }
-          if (it.blessed) { p.maxHp += 10; p.hp += 10; }
+          _applyRingHpBonus(p, it, _wasFullHp);
           if (it.effect === "torch_ring") p.visionBonus = (p.visionBonus || 0) + 1;
           ml.push(`${_rdn(it)}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
           /* 爆発の指輪：装備時即爆発 */

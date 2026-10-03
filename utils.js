@@ -812,6 +812,15 @@ export function installPlayerHpMessageHook(messages, p) {
   return messages;
 }
 
+const playerCapacityHpSetters = new WeakMap();
+
+/* 最大HP補正に伴う現HPの調整は、回復・被ダメージの効果として扱わない。 */
+export function setPlayerHpForCapacityChange(p, hp) {
+  const setter = playerCapacityHpSetters.get(p);
+  if (setter) setter(hp);
+  else p.hp = hp;
+}
+
 /**
  * プレイヤーの hp 代入をフックし、
  * - reverseTurns 中は増減を反転する（ダメージ→回復、回復→ダメージ）
@@ -879,6 +888,10 @@ export function installPlayerHpReverseHook(p) {
          後続処理が走る場合も、自動ターンの残り物が状態を延長しないようにする。 */
       if (raw <= 0) clearStatusEffectsOnHpZero(this);
     },
+  });
+  playerCapacityHpSetters.set(p, hp => {
+    raw = hp;
+    if (raw <= 0) clearStatusEffectsOnHpZero(p);
   });
   p._hpReverseHook = true;
   return p;

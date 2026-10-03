@@ -8308,7 +8308,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
 export const RINGS = [
   { name: "力の指輪",       type:"ring", effect:"power_ring",   plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
   { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
-  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:4, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
+  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:4, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。HP満タンで装備すると現在HPも増える。合成や強化で＋値を上げられる。" },
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
   { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げたり射ったりしたものが10マス以内の最も近い敵へホーミングし必中になる。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
