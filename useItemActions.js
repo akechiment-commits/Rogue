@@ -319,7 +319,7 @@ export function useItemActions({
           if (_cursable.length > 0) {
             const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
             if (_ci.type === "pot") {
-              _ci.capacity = Math.max(0, (_ci.capacity || 1) - 1);
+              _ci.capacity = Math.max(0, (_ci.capacity ?? 1) - 1);
               ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})【呪】`);
             } else {
               setPlayerItemProperties(p, _ci, { cursed: true, blessed: false, bcKnown: true });
@@ -2598,11 +2598,11 @@ export function useItemActions({
         } else {
           const _targetName = itemDisplayName(_target, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           if (_mode === "bless") {
-            if (_target.type === "pot") _target.capacity = (_target.capacity || 1) + 1;
+            if (_target.type === "pot") _target.capacity = (_target.capacity ?? 1) + 1;
             else { setPlayerItemProperties(p, _target, { blessed: true, cursed: false, bcKnown: true }); }
             ml.push(`${_targetName}が祝福された！`);
           } else if (_target.type === "pot") {
-            const _newCapacity = Math.max(0, (_target.capacity || 1) - 1);
+            const _newCapacity = Math.max(0, (_target.capacity ?? 1) - 1);
             if ((_target.contents?.length || 0) > _newCapacity) {
               const _contents = [...(_target.contents || [])];
               _target.contents = [];

@@ -1173,7 +1173,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             if (!_dupPlaced) _bbMsg = "複製する場所がなかった。";
           }
         } else if (mode.mode === 'sell_item') {
-          const _remaining = Math.max(1, (_bb.capacity || 1) - (_bb.contents?.length || 0));
+          const _remaining = Math.max(1, (_bb.capacity ?? 1) - (_bb.contents?.length || 0));
           const _baseG = bigboxSellBaseValue(_bbT) * _remaining;
           const _earnedG = mode.blessed ? _baseG * 2 : mode.cursed ? Math.floor(_baseG / 2) : _baseG;
           sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
@@ -1202,7 +1202,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
             _bbMsg = `${_bbDN}の中身を吸い出した！大箱は壊れた！【呪】`;
           } else {
-            if (mode.blessed) _bb.capacity = (_bb.capacity || 1) + 1;
+            if (mode.blessed) _bb.capacity = (_bb.capacity ?? 1) + 1;
             _bbMsg = _extBbItems.length > 0
               ? `${_bbDN}から${_extBbItems.map(c => itemDisplayName(c, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)).join('、')}が出た！${mode.blessed ? '（容量+1）【祝】' : ''}`
               : `${_bbDN}は空だった。${mode.blessed ? '（容量+1）【祝】' : ''}`;
@@ -1382,14 +1382,14 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       /* 未識別品は祝福処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
       const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (_selIt.type === 'pot') {
-        _selIt.capacity = (_selIt.capacity || 1) + 1;
+        _selIt.capacity = (_selIt.capacity ?? 1) + 1;
         _msgResult = `${_selItDN}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
       } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_selItDN}を祝福した！【祝】`; }
     } else if (mode.mode === 'curse') {
       /* 未識別品は呪い処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
       const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (_selIt.type === 'pot') {
-        const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
+        const _nc = Math.max(0, (_selIt.capacity ?? 1) - 1);
         const _p_ui = sr.current.player;
         if ((_selIt.contents?.length || 0) > _nc) {
           const _rmIdx2 = _p_ui.inventory.indexOf(_selIt);
@@ -1423,7 +1423,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         delete _newItM._encyclopediaTracked;
         if (mode.blessed) {
           if (_newItM.type === "pot") {
-            _newItM.capacity = (_newItM.capacity || 3) + 1;
+            _newItM.capacity = (_newItM.capacity ?? 3) + 1;
             delete _newItM.blessed;
             delete _newItM.cursed;
           } else {

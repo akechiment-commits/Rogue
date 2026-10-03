@@ -1397,7 +1397,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             },
             onBigbox: (bb, mlx) => {
               const _hbbDN = _wbBbNameFn(bb);
-              const _newCap = Math.max(0, (bb.capacity || 1) - 1);
+              const _newCap = Math.max(0, (bb.capacity ?? 1) - 1);
               if ((bb.contents?.length || 0) > _newCap) {
                 breakBigboxContents(bb, dg, mlx, _wbItemNameFn, null, null, { player: pl, luFn: lu });
                 mlx.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
@@ -4474,7 +4474,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
           ml.push(`${_idn}が強化された！(${fp(before)}→${fp(item.plus)})`);
         } else if (item.type === "pot") {
-          item.capacity = (item.capacity || 1) + 1;
+          item.capacity = (item.capacity ?? 1) + 1;
           ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           ml.push(`${_idn}には効果がなかった。`);
@@ -4601,7 +4601,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (item.type === "goal" || item.type === "gold_nugget") {
           ml.push(`${_idn}には効果がなかった。`);
         } else if (item.type === "pot") {
-          item.capacity = (item.capacity || 1) + 1;
+          item.capacity = (item.capacity ?? 1) + 1;
           ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           item.blessed = true;
@@ -4613,7 +4613,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (item.type === "goal" || item.type === "gold" || item.type === "gold_nugget") {
           ml.push(`${_idn}には効果がなかった。`);
         } else if (item.type === "pot") {
-          const _newCap = Math.max(0, (item.capacity || 1) - 1);
+          const _newCap = Math.max(0, (item.capacity ?? 1) - 1);
           item.capacity = _newCap;
           ml.push(`${_idn}の容量が1減った！(${_newCap})`);
         } else if (item.type === "food") {
@@ -4703,7 +4703,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 announceFireExplosionNullified(dg, p, ml, "爆発");
               }
               _bbExploded = true;
-            } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity || 3)) {
+            } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity ?? 3)) {
               ml.push(`${_idn}が割れて${_oilMap[item.potEffect]}が飛び散った！`);
               dg.oilyTiles = dg.oilyTiles || [];
               const _addOilArea = (cx, cy) => {
@@ -4743,7 +4743,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
             } else {
               const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
-              const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity || 3) - (item.contents?.length || 0)) * 100 : 0;
+              const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity ?? 3) - (item.contents?.length || 0)) * 100 : 0;
               for (const m of [..._scMons]) {
                 if (consumeBarrier(m, ml)) continue;
                 const _itd = clampDmgFixed(m, _potDmg(m.def), true);
@@ -4887,13 +4887,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (bb.contents?.length > 0) ml.push(`${bbDisplayName(bb, sr.current)}が壊れ中身が飛び出した！`);
           else ml.push(`${bbDisplayName(bb, sr.current)}が爆発で壊れた！`);
         } else {
-          bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
+          bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
         }
       } else if (bb.kind === "trash") {
         /* 入れたアイテムを即削除（消滅）し容量を1減らす */
         const _trIdx = bb.contents.indexOf(item);
         if (_trIdx >= 0) bb.contents.splice(_trIdx, 1);
-        bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
+        bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
         ml.push(`${_idn}は消えてしまった。`);
       }
       if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);

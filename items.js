@@ -985,7 +985,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     if (item.type === "pot") {
       delete item.blessed;
       delete item.cursed;
-      item.capacity = (item.capacity || 1) + 1;
+      item.capacity = (item.capacity ?? 1) + 1;
       ml.push(`${_in}の容量が1増えた！(${item.capacity})【祝】`);
     } else {
       item.blessed = true;
@@ -1001,7 +1001,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     if (item.type === "pot") {
       delete item.blessed;
       delete item.cursed;
-      item.capacity = Math.max(0, (item.capacity || 1) - 1);
+      item.capacity = Math.max(0, (item.capacity ?? 1) - 1);
       ml.push(`${_in}の容量が1減った！(${item.capacity})【呪】`);
     } else {
       item.cursed  = true;
@@ -1076,9 +1076,9 @@ export function potOccupancyCount(pot) {
 
 export function imprisonPotRemainingCapacity(pot) {
   if (!pot || pot.potEffect !== "imprison") {
-    return Math.max(0, (pot?.capacity || 3) - (pot?.contents?.length || 0));
+    return Math.max(0, (pot?.capacity ?? 3) - (pot?.contents?.length || 0));
   }
-  return Math.max(0, (pot.capacity || 3) - (pot.confinedMonsters?.length || 0));
+  return Math.max(0, (pot.capacity ?? 3) - (pot.confinedMonsters?.length || 0));
 }
 
 export function canConfineMonsterInImprisonPot(mon) {
@@ -1553,7 +1553,7 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
 /** 唐辛子・胡椒の壺：容量が残ったまま割れたとき、周囲のキャラを暗闇にする。 */
 function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
   if (!pot || !["spicy", "pepper"].includes(pot.potEffect)) return false;
-  if ((pot.contents?.length || 0) >= (pot.capacity || 3)) return false;
+  if ((pot.contents?.length || 0) >= (pot.capacity ?? 3)) return false;
 
   const _label = pot.potEffect === "pepper" ? "胡椒" : "唐辛子";
   ml.push(`${resolveItemName(pot, nameFn)}が割れて${_label}の粉が舞い、周囲が暗闇に包まれた！`);
@@ -1594,7 +1594,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   const _pn = resolveItemName(pot, nameFn);
   /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
   if (pot.potEffect === "greed") {
-    const _remaining = Math.max(0, (pot.capacity || 4) - (pot.contents?.length || 0));
+    const _remaining = Math.max(0, (pot.capacity ?? 4) - (pot.contents?.length || 0));
     ml.push(`${_pn}が割れた！`);
     const ft = new Set();
     for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft); }
@@ -1625,7 +1625,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn);
   /* 回復の壺：命中した対象を回復（アンデッドはダメージ） */
   if (pot.potEffect === "heal_pot") {
-    const _hpAmt = Math.max(0, (pot.capacity || 3) - (pot.contents?.length || 0)) * 100;
+    const _hpAmt = Math.max(0, (pot.capacity ?? 3) - (pot.contents?.length || 0)) * 100;
     ml.push(`${_pn}が割れた！`);
     if (_hpAmt > 0) {
       const _hm = monsterAt(dg, px, py);
@@ -1665,7 +1665,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   }
   /* 油系壺：満タンでない場合は周囲8マスに油が飛散 */
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
-  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
+  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity ?? 3)) {
     ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
@@ -1734,7 +1734,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     return { potRemovedAt: null };
   }
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
-  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
+  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity ?? 3)) {
     ml.push(`${resolveItemName(pot)}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
@@ -1774,7 +1774,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     ml.push(`${resolveItemName(pot)}は空だった。`);
   }
   if (blessed) {
-    pot.capacity = (pot.capacity || 1) + 1;
+    pot.capacity = (pot.capacity ?? 1) + 1;
     ml.push(`${resolveItemName(pot)}の容量が1増えた！(${pot.capacity})【祝】`);
   }
   return { potRemovedAt: null };
@@ -4974,10 +4974,10 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
     ml.push(`${resolveItemName(it, dnFn)}が水の影響で溶けて消滅した！`);
   } else if (it.type === "pot") {
     if (blessed) {
-      it.capacity = (it.capacity || 1) + 1;
+      it.capacity = (it.capacity ?? 1) + 1;
       ml.push(`${resolveItemName(it)}が祝福の水を浴びた！(容量+1 → ${it.capacity})【祝】`);
     } else if (cursed) {
-      const _nc = Math.max(0, (it.capacity || 1) - 1);
+      const _nc = Math.max(0, (it.capacity ?? 1) - 1);
       if ((it.contents?.length || 0) > _nc) {
         const _fts = new Set();
         for (const _ci of (it.contents || [])) placeItemAt(dg, cx, cy, _ci, ml, _fts);

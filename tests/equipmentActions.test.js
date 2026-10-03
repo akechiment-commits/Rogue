@@ -26,7 +26,7 @@ function fixture(inventory, overrides = {}) {
     explored: Array.from({ length: MH }, () => Array(MW).fill(false)) });
   const sr = { current: { player, dungeon, ident: new Set(["s:expand_inv", "s:sell_item", "s:weapon_up", "r:life_ring"]), fakeNames: {}, nicknames: {}, floors: {}, dungeonType: "advanced" } };
   const props = { sr, endTurn: vi.fn(), dnameRef: it => it.name, setGs: vi.fn(), setMsgs: vi.fn(), setShowInv: vi.fn(),
-    setSelIdx: vi.fn(), setShowDesc: vi.fn(), setIdentifyMode: vi.fn(), lu: vi.fn() };
+    setSelIdx: vi.fn(), setShowDesc: vi.fn(), setIdentifyMode: vi.fn(), setPutMode: vi.fn(), setPutMenuSel: vi.fn(), setPutPage: vi.fn(), lu: vi.fn() };
   return { player, dungeon, sr, props, actions: useItemActions(props) };
 }
 function choose(f, mode, control) {
@@ -48,6 +48,12 @@ function choose(f, mode, control) {
 }
 
 describe.each(["keyboard", "pointer"])("装備中の指輪更新: %s", control => {
+  it("容量0の壺の祝福は1増やすだけで、初期容量へ戻さない", () => {
+    const pot = { name: "保存の壺", type: "pot", potEffect: "none", capacity: 0, contents: [] };
+    const f = fixture([pot]);
+    choose(f, { mode: "bless", spellCost: 18, sel: 0 }, control);
+    expect(pot.capacity).toBe(1);
+  });
   it.each(["weapon_up", "armor_up"])("%sの巻物だけを消費し、次に並んだ道具は消さない", mode => {
     const ring = life(), scroll = { name: "強化の巻物", type: "scroll", effect: mode, bcKnown: true };
     const food = { id: "keep", name: "パン", type: "food", value: 20 };
@@ -127,6 +133,18 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it("回復の壺を使い切ってから割っても、回復効果は復活しない", () => {
+    const pot = { name: "回復の壺", type: "pot", potEffect: "heal_pot", id: "healpot", capacity: 1, contents: [] };
+    const food = { name: "パン", type: "food", value: 20 };
+    const f = fixture([pot, food], { hp: 350, maxHp: 400 });
+    f.actions.doPutItem(1, { potIdx: 0 });
+    expect(pot.capacity).toBe(0);
+    expect(f.player.hp).toBe(400);
+    f.player.hp = 20;
+    f.actions.doBreakPot(0);
+    expect(f.player.hp).toBe(20);
+    expect(f.player.inventory).toHaveLength(0);
+  });
   it.each([
     { name: "短剣", type: "weapon", atk: 3 },
     life(1, { blessed: true }),

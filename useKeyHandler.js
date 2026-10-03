@@ -286,7 +286,7 @@ export function useKeyHandler({
                   if (!_dupPlaced) _bbMsg = "複製する場所がなかった。";
                 }
               } else if (identifyMode.mode === 'sell_item') {
-                const _remaining = Math.max(1, (_bb.capacity || 1) - (_bb.contents?.length || 0));
+                const _remaining = Math.max(1, (_bb.capacity ?? 1) - (_bb.contents?.length || 0));
                 const _baseG = bigboxSellBaseValue(_bbT) * _remaining;
                 const _earnedG = identifyMode.blessed ? _baseG * 2 : identifyMode.cursed ? Math.floor(_baseG / 2) : _baseG;
                 sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
@@ -313,7 +313,7 @@ export function useKeyHandler({
                   sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
                   _bbMsg = `${_bb.name}の中身を吸い出した！大箱は壊れた！【呪】`;
                 } else {
-                  if (identifyMode.blessed) _bb.capacity = (_bb.capacity || 1) + 1;
+                  if (identifyMode.blessed) _bb.capacity = (_bb.capacity ?? 1) + 1;
                   _bbMsg = _extItems.length > 0
                     ? `${_bb.name}から${_extItems.map(c => c.name).join('、')}が出た！${identifyMode.blessed ? '（容量+1）【祝】' : ''}`
                     : `${_bb.name}は空だった。${identifyMode.blessed ? '（容量+1）【祝】' : ''}`;
@@ -440,12 +440,12 @@ export function useKeyHandler({
                ここで先に削除すると scrollIdx がずれて別アイテムまで消える二重削除バグが起きる。 */
           } else if (identifyMode.mode === 'bless') {
             if (_selIt.type === 'pot') {
-              _selIt.capacity = (_selIt.capacity || 1) + 1;
+              _selIt.capacity = (_selIt.capacity ?? 1) + 1;
               _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
             } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_selIt.name}を祝福した！【祝】`; }
           } else if (identifyMode.mode === 'curse') {
             if (_selIt.type === 'pot') {
-              const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
+              const _nc = Math.max(0, (_selIt.capacity ?? 1) - 1);
               if ((_selIt.contents?.length || 0) > _nc) {
                 const _rmIdx = _p_id.inventory.indexOf(_selIt);
                 if (_rmIdx !== -1) { const _fts2 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_id.x, _p_id.y, _ci, [], _fts2); _p_id.inventory.splice(_rmIdx, 1); }
@@ -491,7 +491,7 @@ export function useKeyHandler({
               delete _newIt._encyclopediaTracked;
               if (identifyMode.blessed) {
                 if (_newIt.type === "pot") {
-                  _newIt.capacity = (_newIt.capacity || 3) + 1;
+                  _newIt.capacity = (_newIt.capacity ?? 3) + 1;
                   delete _newIt.blessed;
                   delete _newIt.cursed;
                 } else {

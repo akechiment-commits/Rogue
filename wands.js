@@ -39,7 +39,7 @@ import {
 function changeInventoryPotCapacity(pot, delta, p, dg, ml, nameFn = null) {
   if (pot?.type !== "pot") return false;
   const potName = resolveItemName(pot, nameFn);
-  const next = Math.max(0, (pot.capacity || 1) + delta);
+  const next = Math.max(0, (pot.capacity ?? 1) + delta);
   delete pot.blessed;
   delete pot.cursed;
   if (delta < 0 && (pot.contents?.length || 0) > next) {
@@ -459,7 +459,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     if (eff === "bless_wand") {
       const _bwBlessed = blMult > 1, _bwCursed = blMult < 1;
       if (_bwCursed) {
-        const _newCap = Math.max(0, (target.capacity || 1) - 1);
+        const _newCap = Math.max(0, (target.capacity ?? 1) - 1);
         if ((target.contents?.length || 0) > _newCap) {
           breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！【呪】`);
@@ -481,7 +481,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
       } else {
         const _loss = _cwBlessed ? 2 : 1;
-        const _newCap = Math.max(0, (target.capacity || 1) - _loss);
+        const _newCap = Math.max(0, (target.capacity ?? 1) - _loss);
         if ((target.contents?.length || 0) > _newCap) {
           breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
@@ -1368,7 +1368,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_bwCursed) {
           // 呪われた祝福の杖→落ちてるアイテムを呪う
           if (target.type === "pot") {
-            const _newCap = Math.max(0, (target.capacity || 1) - 1);
+            const _newCap = Math.max(0, (target.capacity ?? 1) - 1);
             if ((target.contents?.length || 0) > _newCap) {
               removeFloorItem(dg, target);
               const _fts = new Set();
@@ -1386,7 +1386,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         if (target.type === "pot") {
           const _potGain = _bwBlessed ? 2 : 1;
-          target.capacity = (target.capacity || 1) + _potGain;
+          target.capacity = (target.capacity ?? 1) + _potGain;
           ml.push(`${_dname_item(target)}が祝福の光を受け容量が増えた！(容量+${_potGain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
         } else {
           setPlayerItemProperties(p, target, { blessed: true, cursed: false, bcKnown: true });
@@ -1453,7 +1453,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_cwCursed) {
           // 呪われた呪いの杖→落ちてるアイテムを祝福する（反転）
           if (target.type === "pot") {
-            target.capacity = (target.capacity || 1) + 1;
+            target.capacity = (target.capacity ?? 1) + 1;
             ml.push(`${_dname_item(target)}が呪いの反動で容量が増えた！(容量+1 → ${target.capacity})【呪→祝】`);
           } else {
             setPlayerItemProperties(p, target, { blessed: true, cursed: false, bcKnown: true });
@@ -1464,7 +1464,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (target.type === "arrow") { ml.push("矢には呪いが効かない。"); break; }
         if (target.type === "pot") {
           const _potLoss = _cwBlessed ? 2 : 1;
-          const _newCap = Math.max(0, (target.capacity || 1) - _potLoss);
+          const _newCap = Math.max(0, (target.capacity ?? 1) - _potLoss);
           if ((target.contents?.length || 0) > _newCap) {
             removeFloorItem(dg, target);
             const _fts = new Set();
