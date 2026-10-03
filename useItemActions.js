@@ -2081,7 +2081,7 @@ export function useItemActions({
               ml.push("指輪が爆発した！");
               doExplosion(p.x, p.y, dg, p, ml, dnameRef, "爆発の指輪", null, null, false, true);
             }
-            if (it.effect === "antidote_ring" && p.poisoned) {
+            if (it.effect === "antidote_ring" && (p.poisoned || (p.poisonedTurns || 0) > 0 || (p.poisonAtkLoss || 0) > 0)) {
               clearPlayerPoison(p);
               ml.push("指輪の力で毒が消えた！攻撃力も回復！");
             }
@@ -2099,7 +2099,7 @@ export function useItemActions({
             doExplosion(p.x, p.y, dg, p, ml, dnameRef, "爆発の指輪", null, null, false, true);
           }
           /* 毒消しの指輪：装備時に毒を解除 */
-          if (it.effect === "antidote_ring" && p.poisoned) {
+          if (it.effect === "antidote_ring" && (p.poisoned || (p.poisonedTurns || 0) > 0 || (p.poisonAtkLoss || 0) > 0)) {
             clearPlayerPoison(p);
             ml.push("指輪の力で毒が消えた！攻撃力も回復！");
           }

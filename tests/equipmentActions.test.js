@@ -12,6 +12,8 @@ import { IdentifyModal } from "../GameModals.jsx";
 import { applyWandEffect } from "../wands.js";
 import { applyUnequipTrapToPlayer, applyWaterGunToInventory } from "../items.js";
 import { saveGameState, loadGameState } from "../GameSave.js";
+import { applyPlayerPoison, applyYabaiPoison } from "../statusDuration.js";
+import { advanceEarlyStatusTimers } from "../turnUpkeep.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { MW, MH } from "../utils.js";
 
@@ -161,5 +163,29 @@ describe("装備解除と保存", () => {
     applyWaterGunToInventory(f.player, []);
     expect(f.player.inventory).toHaveLength(0);
     expect(f.player.arrow).toBeNull();
+  });
+});
+
+describe.each([false, true])("毒消し指輪（2枠からの交換: %s）", replace => {
+  it.each(["active", "expired", "yabaiExpired", "unrelatedLoss", "healthy"])("%s: 残った毒の攻撃力低下を治す", state => {
+    const ring = { name: "毒消しの指輪", type: "ring", effect: "antidote_ring" };
+    const initial = replace ? [{ name: "指輪1", type: "ring" }, { name: "指輪2", type: "ring" }] : [];
+    const f = fixture([ring, ...initial], { rings: initial });
+    if (state !== "healthy") {
+      if (state === "yabaiExpired") applyYabaiPoison(f.player, "player");
+      else applyPlayerPoison(f.player);
+      if (state !== "active") {
+        for (let i = 0; i < 10; i++) advanceEarlyStatusTimers(f.player, []);
+        expect(f.player.poisoned).toBe(false);
+        expect(f.player.poisonAtkLoss).toBeGreaterThan(0);
+      }
+      if (state === "unrelatedLoss") f.player.atk -= 2;
+    }
+    f.actions.doUseItem(0);
+    expect(f.player.rings).toContain(ring);
+    expect(!!f.player.poisoned).toBe(false);
+    expect(f.player.poisonedTurns || 0).toBe(0);
+    expect(f.player.poisonAtkLoss || 0).toBe(0);
+    expect(f.player.atk).toBe(state === "unrelatedLoss" ? 6 : 8);
   });
 });

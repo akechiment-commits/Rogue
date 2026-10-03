@@ -8304,7 +8304,7 @@ export const RINGS = [
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
   { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げたり射ったりしたものが10マス以内の最も近い敵へホーミングし必中になる。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
-  { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備中、毒が無効になる。" },
+  { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備時に毒と毒による攻撃力低下を治す。装備中、毒が無効になる。" },
   { name: "買い物上手の指輪", type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"D", weight:8, sellPrice:1000, tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
