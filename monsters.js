@@ -1608,12 +1608,7 @@ function clearStealthrowerHeldItem(m, item) {
 /* 所持品から弾き出すアイテムが装備中なら、装備参照も同時に解除する。 */
 function detachPlayerEquipment(pl, item) {
   if (!pl || !item) return;
-  if (pl.weapon === item) pl.weapon = null;
-  if (pl.armor === item) pl.armor = null;
-  if (pl.arrow === item) pl.arrow = null;
-  if (Array.isArray(pl.rings) && pl.rings.includes(item)) {
-    pl.rings = pl.rings.filter(ring => ring !== item);
-  }
+  unequipPlayerItem(pl, item);
 }
 
 function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯電毛玉を押し付けてきた！`) {
@@ -3881,6 +3876,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         if (cands.length) {
           const stolen = cands[rng(0, cands.length - 1)];
           const idx = pl.inventory.indexOf(stolen);
+          detachPlayerEquipment(pl, stolen);
           if (idx !== -1) pl.inventory.splice(idx, 1);
           placeItemAt(dg, m.x, m.y, stolen, ml, new Set());
           ml.push(`${m.name}が${stolen.name}を盗んだ！`);
@@ -5751,6 +5747,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_stealable.length > 0) {
           const _stolen = pick(_stealable);
           const _sidx = pl.inventory.indexOf(_stolen);
+          detachPlayerEquipment(pl, _stolen);
           pl.inventory.splice(_sidx, 1);
           /* テレポートブロック確認 */
           const _thieveTpBlock = hasCursedTeleportPentacle(dg);
@@ -6062,6 +6059,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             return;
           }
           const _stolen = pick(_srStealable);
+          detachPlayerEquipment(pl, _stolen);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
           const _srFinal = (_stolen.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stolen.plus || 0 } : _stolen;
           m._stealthrowerHeldItem = _srFinal;
