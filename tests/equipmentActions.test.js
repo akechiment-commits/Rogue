@@ -134,6 +134,21 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it.each([false, true])("とじこめの壺へ道具を入れようとしても、道具も装備補正も失わない（所持: %s）", carried => {
+    const target = life(1, { blessed: true });
+    const pot = { id: "floor-prison", name: "とじこめの壺", type: "pot", potEffect: "imprison", capacity: 3, contents: [], confinedMonsters: [] };
+    const inventory = carried ? [target, pot] : [target];
+    const f = fixture(inventory, { hp: 100 });
+    f.actions.doUseItem(0);
+    f.props.endTurn.mockClear();
+    if (!carried) f.dungeon.items.push(pot);
+    f.actions.doPutItem(0, carried ? { potIdx: 1 } : { floorPot: pot });
+    expect(f.player.inventory).toEqual(inventory);
+    expect(f.player.rings).toContain(target);
+    expect([f.player.hp, f.player.maxHp]).toEqual([115, 115]);
+    expect(pot.contents).toHaveLength(0);
+    expect(f.props.endTurn).not.toHaveBeenCalled();
+  });
   it("キャンセル済みの対象選択画面へ遅れて届くタップでは道具を使わない", () => {
     const target = life(), scroll = { name: "武器強化の巻物", type: "scroll", effect: "weapon_up" };
     const f = fixture([target, scroll]);

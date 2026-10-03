@@ -2837,6 +2837,11 @@ export function useItemActions({
         setPutMode(null);
         return;
       }
+      if (pot.potEffect === "imprison") {
+        setMsgs((prev) => [...prev.slice(-80), "この壺に道具は入れられない。"]);
+        setPutMode(null);
+        return;
+      }
       if (!pot.contents) pot.contents = [];
       const it = p.inventory[itemIdx];
       if (!it) return;
