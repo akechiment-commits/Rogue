@@ -1,3 +1,4 @@
+import { setPlayerItemProperties } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -424,13 +425,13 @@ export function useKeyHandler({
               : (_selIt.type === "armor" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)));
             if (_isValidUpTarget) {
               const _bef = _selIt.plus || 0;
-              _selIt.plus = _bef + _gain;
+              setPlayerItemProperties(sr.current.player, _selIt, { plus: _bef + _gain });
               const _glow = _gain > 0 ? "輝いた" : "くすんだ";
               _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
               if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
             } else if (_selIt.type === "ring") {
               const _bef = _selIt.plus || 0;
-              _selIt.plus = _bef + _gain;
+              setPlayerItemProperties(sr.current.player, _selIt, { plus: _bef + _gain });
               const _glow = _gain > 0 ? "輝いた" : "くすんだ";
               _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
               if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
@@ -443,7 +444,7 @@ export function useKeyHandler({
             if (_selIt.type === 'pot') {
               _selIt.capacity = (_selIt.capacity || 1) + 1;
               _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
-            } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を祝福した！【祝】`; }
+            } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_selIt.name}を祝福した！【祝】`; }
           } else if (identifyMode.mode === 'curse') {
             if (_selIt.type === 'pot') {
               const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
@@ -452,7 +453,7 @@ export function useKeyHandler({
                 if (_rmIdx !== -1) { const _fts2 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_id.x, _p_id.y, _ci, [], _fts2); _p_id.inventory.splice(_rmIdx, 1); }
                 _msgResult = `${_selIt.name}が呪いで割れた！中身が足元に落ちた！【呪】`;
               } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
-            } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を呪った！【呪】`; }
+            } else { setPlayerItemProperties(sr.current.player, _selIt, { cursed: true, blessed: false, bcKnown: true }); _msgResult = `${_selIt.name}を呪った！【呪】`; }
           } else if (identifyMode.mode === 'duplicate') {
             const _dupCount = identifyMode.cursed ? 0 : 1;
             if (_dupCount === 0) {

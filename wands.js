@@ -1,3 +1,4 @@
+import { setPlayerItemProperties } from "./equipmentEffects.js";
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
@@ -1378,7 +1379,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-1 → ${target.capacity})【呪】`);
             }
           } else {
-            target.cursed = true; target.blessed = false; target.bcKnown = true;
+            setPlayerItemProperties(p, target, { cursed: true, blessed: false, bcKnown: true });
             ml.push(`${_dname_item(target)}が呪われた！【呪】`);
           }
           break;
@@ -1388,7 +1389,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           target.capacity = (target.capacity || 1) + _potGain;
           ml.push(`${_dname_item(target)}が祝福の光を受け容量が増えた！(容量+${_potGain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
         } else {
-          target.blessed = true; target.cursed = false; target.bcKnown = true;
+          setPlayerItemProperties(p, target, { blessed: true, cursed: false, bcKnown: true });
           ml.push(`${_dname_item(target)}が祝福された！【祝】`);
         }
         break;
@@ -1422,7 +1423,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _t = pick(_inv);
           if (!changeInventoryPotCapacity(_t, -1, p, dg, ml, nameFn)) {
             const _tName = resolveItemName(_t, nameFn);
-            _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
+            setPlayerItemProperties(p, _t, { cursed: true, blessed: false, bcKnown: true });
             ml.push(`${_tName}が呪われた！【呪】`);
           }
         } else {
@@ -1433,7 +1434,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           for (const _t of _pool) {
             if (!changeInventoryPotCapacity(_t, 1, p, dg, ml, nameFn)) {
               const _tName = resolveItemName(_t, nameFn);
-              _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
+              setPlayerItemProperties(p, _t, { blessed: true, cursed: false, bcKnown: true });
               ml.push(`${_tName}が祝福された！【祝】`);
             }
           }
@@ -1455,7 +1456,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             target.capacity = (target.capacity || 1) + 1;
             ml.push(`${_dname_item(target)}が呪いの反動で容量が増えた！(容量+1 → ${target.capacity})【呪→祝】`);
           } else {
-            target.blessed = true; target.cursed = false; target.bcKnown = true;
+            setPlayerItemProperties(p, target, { blessed: true, cursed: false, bcKnown: true });
             ml.push(`${_dname_item(target)}が祝福された！【呪→祝】`);
           }
           break;
@@ -1474,7 +1475,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-${_potLoss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
           }
         } else {
-          target.cursed = true; target.blessed = false; target.bcKnown = true;
+          setPlayerItemProperties(p, target, { cursed: true, blessed: false, bcKnown: true });
           ml.push(`${_dname_item(target)}が呪われた！【呪】`);
         }
         break;
@@ -1508,7 +1509,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _t = pick(_inv);
           if (!changeInventoryPotCapacity(_t, 1, p, dg, ml, nameFn)) {
             const _tName = resolveItemName(_t, nameFn);
-            _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
+            setPlayerItemProperties(p, _t, { blessed: true, cursed: false, bcKnown: true });
             ml.push(`${_tName}が祝福された！【呪→祝】`);
           }
         } else {
@@ -1519,7 +1520,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           for (const _t of _pool) {
             if (!changeInventoryPotCapacity(_t, -1, p, dg, ml, nameFn)) {
               const _tName = resolveItemName(_t, nameFn);
-              _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
+              setPlayerItemProperties(p, _t, { cursed: true, blessed: false, bcKnown: true });
               ml.push(`${_tName}が呪われた！【呪】`);
             }
           }

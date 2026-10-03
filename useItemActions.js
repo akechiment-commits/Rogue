@@ -1,3 +1,4 @@
+import { setPlayerItemProperties } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
@@ -320,9 +321,7 @@ export function useItemActions({
               _bi.capacity = (_bi.capacity || 0) + 1;
               ml.push(`${dnameRef(_bi)}が光り輝いた！容量が1増えた！(${_bi.capacity})【祝】`);
             } else {
-              _bi.blessed = true;
-              _bi.cursed = false;
-              _bi.bcKnown = true;
+              setPlayerItemProperties(p, _bi, { blessed: true, cursed: false, bcKnown: true });
               ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
             }
           } else {
@@ -336,9 +335,7 @@ export function useItemActions({
               _ci.capacity = Math.max(0, (_ci.capacity || 1) - 1);
               ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})【呪】`);
             } else {
-              _ci.cursed = true;
-              _ci.blessed = false;
-              _ci.bcKnown = true;
+              setPlayerItemProperties(p, _ci, { cursed: true, blessed: false, bcKnown: true });
               ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
             }
           } else {
@@ -2626,7 +2623,7 @@ export function useItemActions({
           const _targetName = itemDisplayName(_target, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           if (_mode === "bless") {
             if (_target.type === "pot") _target.capacity = (_target.capacity || 1) + 1;
-            else { _target.blessed = true; _target.cursed = false; _target.bcKnown = true; }
+            else { setPlayerItemProperties(p, _target, { blessed: true, cursed: false, bcKnown: true }); }
             ml.push(`${_targetName}が祝福された！`);
           } else if (_target.type === "pot") {
             const _newCapacity = Math.max(0, (_target.capacity || 1) - 1);
@@ -2643,7 +2640,7 @@ export function useItemActions({
               ml.push(`${_targetName}が呪われ、容量が1減った！`);
             }
           } else {
-            _target.cursed = true; _target.blessed = false; _target.bcKnown = true;
+            setPlayerItemProperties(p, _target, { cursed: true, blessed: false, bcKnown: true });
             ml.push(`${_targetName}が呪われた！`);
           }
         }

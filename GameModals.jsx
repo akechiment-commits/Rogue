@@ -1,3 +1,4 @@
+import { setPlayerItemProperties } from "./equipmentEffects.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
@@ -1322,7 +1323,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
                                                              : "黄金の輝きを放ち...ゴールデンアクスに変化した！";
           _msgResult = `${_oldName}が${_transformMsg}${_sfx}`;
         } else {
-          _selIt.plus = _bef + _gain;
+          setPlayerItemProperties(sr.current.player, _selIt, { plus: _bef + _gain });
           const _glow = _gain > 0 ? "輝いた" : "くすんだ";
           _msgResult = `${_selItDN}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
           if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
@@ -1386,7 +1387,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       if (_selIt.type === 'pot') {
         _selIt.capacity = (_selIt.capacity || 1) + 1;
         _msgResult = `${_selItDN}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
-      } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selItDN}を祝福した！【祝】`; }
+      } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_selItDN}を祝福した！【祝】`; }
     } else if (mode.mode === 'curse') {
       /* 未識別品は呪い処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
       const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -1398,7 +1399,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           if (_rmIdx2 !== -1) { const _fts3 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_ui.x, _p_ui.y, _ci, [], _fts3); _p_ui.inventory.splice(_rmIdx2, 1); }
           _msgResult = `${_selItDN}が呪いで割れた！中身が足元に落ちた！【呪】`;
         } else { _selIt.capacity = _nc; _msgResult = `${_selItDN}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
-      } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selItDN}を呪った！【呪】`; }
+      } else { setPlayerItemProperties(sr.current.player, _selIt, { cursed: true, blessed: false, bcKnown: true }); _msgResult = `${_selItDN}を呪った！【呪】`; }
     } else if (mode.mode === 'duplicate') {
       const _dupCount = mode.cursed ? 0 : 1;
       const _p_dup = sr.current.player;

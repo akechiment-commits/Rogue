@@ -22,3 +22,12 @@ export function replacePlayerRings(player, rings, wasFullHp = player.hp === play
   if (visionDelta) player.visionBonus = Math.max(0, (player.visionBonus || 0) + visionDelta);
   player.rings = rings;
 }
+
+/* 装備中の＋値や祝福が変わった瞬間に、適用済み補正との差を反映する。 */
+export function setPlayerItemProperties(player, item, properties) {
+  const equipped = player?.rings?.includes(item);
+  const before = equipped ? ringHpBonus(item) : 0;
+  const wasFullHp = player && player.hp === player.maxHp;
+  Object.assign(item, properties);
+  if (equipped) adjustRingHp(player, ringHpBonus(item) - before, wasFullHp);
+}

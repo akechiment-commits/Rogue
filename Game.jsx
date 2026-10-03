@@ -1,3 +1,4 @@
+import { setPlayerItemProperties } from "./equipmentEffects.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
@@ -5045,9 +5046,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           _bi.capacity += 1;
           ml.push(`${dnameRef(_bi)}が光り輝いた！容量が1増えた！(${_bi.capacity})`);
         } else {
-          _bi.blessed = true;
-          _bi.cursed = false;
-          _bi.bcKnown = true;
+          setPlayerItemProperties(p, _bi, { blessed: true, cursed: false, bcKnown: true });
           ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
         }
       } else {
@@ -5098,9 +5097,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           _ci.capacity = Math.max(0, _ci.capacity - 1);
           ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})`);
         } else {
-          _ci.cursed = true;
-          _ci.blessed = false;
-          _ci.bcKnown = true;
+          setPlayerItemProperties(p, _ci, { cursed: true, blessed: false, bcKnown: true });
           ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
         }
       } else {
