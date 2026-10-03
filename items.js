@@ -2139,6 +2139,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           blasted.add(it);
           if (it.potEffect === "gunpowder") {
             /* 火薬壺：後で連鎖爆発 */
+          } else if (it.potEffect === "imprison") {
+            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`);
+            releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
           } else if (it.contents?.length > 0) {
             const ft2 = new Set();
             for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
@@ -2286,7 +2289,10 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         else { burnFoodItem(it, ml); }
       } else if (it.type === "pot") {
         _blasted.add(it);
-        if (it.contents?.length > 0) {
+        if (it.potEffect === "imprison") {
+          ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
+          releaseConfinedMonstersFromPot(it, dg, it.x, it.y, p, ml);
+        } else if (it.contents?.length > 0) {
           const _ft2 = new Set();
           for (const ci of it.contents) placeItemAt(dg, it.x, it.y, ci, ml, _ft2);
           ml.push(`壺「${resolveItemName(it)}」が爆発で割れ、中身が飛び出した！`);
@@ -2438,7 +2444,10 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
-          if (it.contents?.length > 0) {
+          if (it.potEffect === "imprison") {
+            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`);
+            releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
+          } else if (it.contents?.length > 0) {
             const ft2 = new Set();
             for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
             ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れ、中身が飛び出した！`);
@@ -5602,6 +5611,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           else if (it.type === "pot") {
             blasted.add(it);
             if (it.potEffect !== "gunpowder") ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
+            if (it.potEffect === "imprison") releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
           } else if (it.type === "wand") {
             _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, null, blasted);
           } else if (it.type === "item_mimic") {

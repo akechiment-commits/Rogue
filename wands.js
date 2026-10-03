@@ -13,7 +13,7 @@ import {
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, makeChangeBoxItem, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
-  setWandBreakEffectHandler, reducePotCapacity,
+  setWandBreakEffectHandler, reducePotCapacity, releaseConfinedMonstersFromPot,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
@@ -872,7 +872,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
-        if (target.type === "pot" && target.contents && target.contents.length > 0) {
+        if (target.type === "pot" && target.potEffect === "imprison") {
+          ml.push(`軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`);
+          releaseConfinedMonstersFromPot(target, dg, target.x, target.y, p, ml);
+        } else if (target.type === "pot" && target.contents && target.contents.length > 0) {
           const _sfFts = new Set();
           for (const _ci of target.contents) placeItemAt(dg, target.x, target.y, _ci, ml, _sfFts);
           ml.push(`軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！中身が飛び出した！`);
@@ -1012,7 +1015,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
         if (target.type === "pot") {
-          if (target.contents && target.contents.length > 0) {
+          if (target.potEffect === "imprison") {
+            ml.push(`${resolveItemName(target, nameFn)}が壊れた！`);
+            releaseConfinedMonstersFromPot(target, dg, target.x, target.y, p, ml);
+          } else if (target.contents && target.contents.length > 0) {
             const ft = new Set();
             for (const ci of target.contents) placeItemAt(dg, target.x, target.y, ci, ml, ft);
             ml.push(`${resolveItemName(target, nameFn)}が壊れて中身が飛び出した！`);
