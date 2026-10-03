@@ -7,17 +7,23 @@ const REPEAT_DELAY = 350;
 const REPEAT_INTERVAL = 110;
 export function MobileBtn({ label, sub, onClick, w, h, fs, color, repeat = false, style: s = {} }) {
   const timers = useRef({ delay: null, interval: null });
+  const activePointer = useRef(null);
   const cbRef  = useRef(onClick);
   cbRef.current = onClick;
-  const stop = useCallback(() => {
+  const stop = useCallback((e) => {
+    if (e && e.pointerId !== activePointer.current) return;
     clearTimeout(timers.current.delay);
     clearInterval(timers.current.interval);
     timers.current.delay = timers.current.interval = null;
+    activePointer.current = null;
   }, []);
   /* アンマウント時にタイマーをクリア（画面遷移でリピートが残る問題の防止） */
   useEffect(() => stop, [stop]);
   const start = (e) => {
+    if (e.button != null && e.button !== 0) return;
     e.preventDefault();
+    if (activePointer.current !== null) return;
+    activePointer.current = e.pointerId;
     cbRef.current();
     if (!repeat) return;
     timers.current.delay = setTimeout(() => {
