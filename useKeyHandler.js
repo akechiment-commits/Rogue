@@ -1,4 +1,5 @@
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
+import { claimModalConfirmation, cancelModalConfirmation } from "./modalConfirmation.js";
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -249,6 +250,7 @@ export function useKeyHandler({
           return;
         }
         if (k === "escape" || k === "x") {
+          cancelModalConfirmation(identifyMode);
           identifyCancelRef?.current?.();
           setIdentifyMode(null);
           setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
@@ -257,6 +259,7 @@ export function useKeyHandler({
         if ((k === "enter" || k === "z") && _idPageLen > 0) {
           const _curSel_id = Math.min(identifyMode.sel || 0, _idPageLen - 1);
           const { it: _selIt } = _idPageItems[_curSel_id];
+          if (!claimModalConfirmation(identifyMode, _p_id)) return;
           /* ===== 大箱ターゲット処理 ===== */
           if (_selIt._isBbTarget) {
             const _bb = _dg_id?.bigboxes?.find(b => b.id === _selIt._bbId);

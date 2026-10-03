@@ -1,4 +1,5 @@
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
+import { claimModalConfirmation, cancelModalConfirmation } from "./modalConfirmation.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
@@ -1138,6 +1139,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     const _absIdx = _idPage_ui * 10 + _vi;
     const { it: _selIt } = _filtered[_absIdx] ?? {};
     if (!_selIt) return;
+    if (!claimModalConfirmation(mode, sr.current.player)) return;
     /* 操作で識別状態が変わる前の、プレイヤー向け表示名を固定する。 */
     const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     /* ===== 大箱ターゲット処理 ===== */
@@ -1515,7 +1517,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
                 style={{ background: "#1a3a5a", color: "#8af", border: "1px solid #4060a0", borderRadius: 4, padding: "2px 6px", cursor: "pointer", touchAction: "manipulation" }}>▶</button>
             </>
           )}
-          <button onClick={() => { identifyCancelRef?.current?.(); setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
+          <button onClick={() => { cancelModalConfirmation(mode); identifyCancelRef?.current?.(); setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
             style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 13 }}>✕</button>
         </div>
       </div>

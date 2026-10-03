@@ -15,6 +15,7 @@ import { saveGameState, loadGameState } from "../GameSave.js";
 import { applyPlayerPoison, applyYabaiPoison } from "../statusDuration.js";
 import { advanceEarlyStatusTimers } from "../turnUpkeep.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
+import { cancelModalConfirmation } from "../modalConfirmation.js";
 import { MW, MH } from "../utils.js";
 
 afterEach(() => { effects.length = 0; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -133,6 +134,44 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it("キャンセル済みの対象選択画面へ遅れて届くタップでは道具を使わない", () => {
+    const target = life(), scroll = { name: "武器強化の巻物", type: "scroll", effect: "weapon_up" };
+    const f = fixture([target, scroll]);
+    const mode = { mode: "weapon_up", scrollIdx: 1, sel: 0 };
+    cancelModalConfirmation(mode);
+    choose(f, mode, "pointer");
+    expect(target.plus).toBe(1);
+    expect(f.player.inventory).toEqual([target, scroll]);
+    expect(f.props.endTurn).not.toHaveBeenCalled();
+  });
+  it("MP不足の古い選択画面では祝福を実行せず、MPを負にしない", () => {
+    const target = life(), f = fixture([target], { mp: 0 });
+    choose(f, { mode: "bless", spellCost: 18, sel: 0 }, "pointer");
+    expect(target.blessed).toBeUndefined();
+    expect(f.player.mp).toBe(0);
+    expect(f.props.endTurn).not.toHaveBeenCalled();
+  });
+  it("祝福の連続使用は次の選択画面へ進んでからなら実行できる", () => {
+    const target = life(), f = fixture([target]);
+    const mode = { mode: "bless", spellCost: 18, sel: 0 };
+    choose(f, mode, "pointer"); choose(f, mode, "keyboard");
+    expect(f.player.mp).toBe(82);
+    choose(f, { ...mode }, "pointer");
+    expect(f.player.mp).toBe(64);
+    expect(f.props.endTurn).toHaveBeenCalledTimes(2);
+  });
+  it.each([
+    ["pointer", "keyboard"], ["keyboard", "pointer"], ["pointer", "pointer"],
+  ])("同じ巻物の選択画面を%s→%sで続けて確定しても1回だけ消費する", (first, second) => {
+    const target = life(), scroll = { name: "武器強化の巻物", type: "scroll", effect: "weapon_up", bcKnown: true };
+    const keep = { name: "パン", type: "food", value: 20 };
+    const f = fixture([target, scroll, keep]);
+    const mode = { mode: "weapon_up", scrollIdx: 1, sel: 0 };
+    choose(f, mode, first); choose(f, mode, second);
+    expect(target.plus).toBe(2);
+    expect(f.player.inventory).toEqual([target, keep]);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
   it("回復の壺を使い切ってから割っても、回復効果は復活しない", () => {
     const pot = { name: "回復の壺", type: "pot", potEffect: "heal_pot", id: "healpot", capacity: 1, contents: [] };
     const food = { name: "パン", type: "food", value: 20 };
