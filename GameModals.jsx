@@ -1329,8 +1329,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       } else {
         _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
       }
-      const _rmIdx_up = _p_up.inventory.findIndex((_, _ri) => _ri === mode.scrollIdx);
-      if (_rmIdx_up !== -1) _p_up.inventory.splice(_rmIdx_up, 1);
+      /* 巻物の消費は末尾の共通処理で1回だけ行う。先に消すと次の所持品まで消える。 */
     } else if (mode.mode === 'forge_item') {
       /* ===== 錬成の巻物 ===== */
       if (_selIt.type !== "weapon" && _selIt.type !== "armor") {

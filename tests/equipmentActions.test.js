@@ -48,6 +48,15 @@ function choose(f, mode, control) {
 }
 
 describe.each(["keyboard", "pointer"])("装備中の指輪更新: %s", control => {
+  it.each(["weapon_up", "armor_up"])("%sの巻物だけを消費し、次に並んだ道具は消さない", mode => {
+    const ring = life(), scroll = { name: "強化の巻物", type: "scroll", effect: mode, bcKnown: true };
+    const food = { id: "keep", name: "パン", type: "food", value: 20 };
+    const f = fixture([ring, scroll, food]);
+    choose(f, { mode, scrollIdx: 1, sel: 0 }, control);
+    expect(ring.plus).toBe(2);
+    expect(f.player.inventory).toEqual([ring, food]);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
   it.each([
     ["sell_item", life(1, { blessed: true })],
     ["transform_item", life(1, { blessed: true })],
