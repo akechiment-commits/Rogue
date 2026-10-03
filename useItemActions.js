@@ -4311,6 +4311,7 @@ export function useItemActions({
             }
             const m = monsterAt(dg, tx, ty);
             if (m) {
+              const lb = _mkThrowLb();
               if (monSubmergesProjectiles(m)) {
                 ml.push(`${m.name}が潜って${lb}をかわした！`);
                 lx = tx; ly = ty;
@@ -4319,7 +4320,6 @@ export function useItemActions({
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
               const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !isEvasionDisabledByStatus(m) && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
-              const lb = _mkThrowLb();
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
                 ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);

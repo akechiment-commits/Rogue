@@ -17,17 +17,18 @@ import { advanceEarlyStatusTimers } from "../turnUpkeep.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { cancelModalConfirmation } from "../modalConfirmation.js";
 import { MW, MH } from "../utils.js";
+import { MONS, makeMonsterFromBase } from "../monsters.js";
 
 afterEach(() => { effects.length = 0; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const life = (plus = 1, extra = {}) => ({ id: "life", name: "命の指輪", type: "ring", effect: "life_ring", plus, bcKnown: true, ...extra });
-function fixture(inventory, overrides = {}) {
+function fixture(inventory, overrides = {}, actionOptions = {}) {
   const player = makePlayer({ hp: 30, maxHp: 100, atk: 8, def: 2, depth: 1, turns: 0, gold: 0, mp: 100, inventory, ...overrides });
   const dungeon = makeEmptyDg({ rooms: [{ x: 1, y: 1, w: 12, h: 12 }],
     visible: Array.from({ length: MH }, () => Array(MW).fill(false)),
     explored: Array.from({ length: MH }, () => Array(MW).fill(false)) });
   const sr = { current: { player, dungeon, ident: new Set(["s:expand_inv", "s:sell_item", "s:weapon_up", "r:life_ring"]), fakeNames: {}, nicknames: {}, floors: {}, dungeonType: "advanced" } };
   const props = { sr, endTurn: vi.fn(), dnameRef: it => it.name, setGs: vi.fn(), setMsgs: vi.fn(), setShowInv: vi.fn(),
-    setSelIdx: vi.fn(), setShowDesc: vi.fn(), setIdentifyMode: vi.fn(), setPutMode: vi.fn(), setPutMenuSel: vi.fn(), setPutPage: vi.fn(), lu: vi.fn() };
+    setSelIdx: vi.fn(), setShowDesc: vi.fn(), setIdentifyMode: vi.fn(), setPutMode: vi.fn(), setPutMenuSel: vi.fn(), setPutPage: vi.fn(), setThrowMode: vi.fn(), withPitfallBag: fn => fn(), lu: vi.fn(), ...actionOptions };
   return { player, dungeon, sr, props, actions: useItemActions(props) };
 }
 function choose(f, mode, control) {
@@ -134,6 +135,26 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it.each([
+    life(),
+    { name: "パン", type: "food", value: 20 },
+    { name: "短剣", type: "weapon", atk: 3 },
+    { name: "革の鎧", type: "armor", def: 2 },
+    { name: "炎の杖", type: "wand", effect: "fire_wand", charges: 2 },
+  ])("%sをかわしモグラへ投げても処理が落ちず、背後まで飛ぶ", template => {
+    const ring = { ...template, id: "thrown" }, keep = { name: "パン", type: "food", value: 20 };
+    const f = fixture([ring, keep], {}, { throwMode: { idx: 0, mode: "throw" } });
+    const mole = makeMonsterFromBase(MONS.find(m => m.baseKind === "dodgemole"), 1, 6, 5);
+    f.dungeon.monsters.push(mole);
+    const hp = mole.hp;
+    expect(() => f.actions.execDirection(1, 0)).not.toThrow();
+    expect(mole.hp).toBe(hp);
+    expect(f.player.inventory).toEqual([keep]);
+    const landed = f.dungeon.items.find(item => item.id === ring.id);
+    expect(landed).toBeDefined();
+    expect(landed.x).toBeGreaterThan(mole.x);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
   it.each([false, true])("とじこめの壺へ道具を入れようとしても、道具も装備補正も失わない（所持: %s）", carried => {
     const target = life(1, { blessed: true });
     const pot = { id: "floor-prison", name: "とじこめの壺", type: "pot", potEffect: "imprison", capacity: 3, contents: [], confinedMonsters: [] };
