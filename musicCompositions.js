@@ -466,44 +466,43 @@ export const BGM_MONSTER_HOUSE = arrange({
     "F#5:1 G5:1 A5:2 F#5:2 D#5:2 B4:2 D#5:2 F#5:4", "A5:2 F#5:2 D#5:4 B4:4 -:4"],
 });
 
-// 店・行商人テーマ。G長調・114 BPM。アコースティック・スウィングによる本格フルアンサンブル。
+// 店・行商人テーマ。G長調・116 BPM。ドラムレスのアコーディオン・マリンバ・ピチカートによるミュゼット風アンサンブル。
 function shopTheme() {
   const chords = [
-    // 1-8: 主題A 店主の笑顔とランプの灯
+    // 1-8: 主題A 蚤の市の朝・ランプの灯り
     "G", "Em", "Am", "D", "G", "E7", "Am", "D",
     // 9-16: 主題B 珍品のショーケース・品定め
-    "C", "G", "Am", "D", "Em", "Bm", "C", "D",
-    // 17-24: 展開部C 奥の棚の秘宝・カフェスウィング
-    "C", "D", "Bm", "Em", "Am", "D", "G", "G7",
-    // 25-32: サビ〜クライマックスD 最高の掘り出し物・温かい見送り
-    "C", "D", "G", "Em", "Am", "D", "G", "G",
+    "C", "G", "Am", "D", "Bm", "Em", "Am", "D",
+    // 17-24: 展開部C 奥の小部屋・秘密の骨董品
+    "Em", "Bm", "C", "G", "Am", "B", "Em", "D",
+    // 25-32: サビ〜クライマックスD 掘り出し物のダンス・温かい見送り
+    "G", "E7", "Am", "D", "Bm", "Em", "Am", "G",
   ];
 
   const melody = [
     // 1-8
-    "B4:3 D5:1 G5:2 D5:2 B4:3 A4:1 G4:4", "B4:3 G4:1 E5:2 G5:2 F#5:3 E5:1 B4:4",
-    "C5:3 E5:1 A5:2 E5:2 C5:3 B4:1 A4:4", "F#5:3 E5:1 D5:2 A4:2 C5:3 A4:1 F#4:4",
-    "G4:3 B4:1 D5:2 G5:2 B5:3 A5:1 G5:4", "G#4:3 B4:1 E5:2 G#5:2 B5:3 A5:1 E5:4",
-    "A4:3 C5:1 E5:2 G5:2 F#5:3 E5:1 C5:4", "D5:2 F#5:2 A5:4 D6:4 -:4",
+    "B4:3 C5:1 D5:2 B4:2 G4:3 A4:1 B4:4", "G4:3 A4:1 B4:2 G4:2 E4:4 G4:4",
+    "A4:3 B4:1 C5:2 E5:2 A5:4 G5:2 E5:2", "F#5:3 E5:1 D5:2 F#4:2 A4:4 D5:4",
+    "B4:3 C5:1 D5:2 G5:2 B5:4 A5:2 G5:2", "G#5:3 F#5:1 E5:2 D5:2 B4:4 E5:4",
+    "C5:2 E5:2 A5:4 F#5:3 E5:1 D5:4", "G4:4 B4:4 D5:4 -:4",
     // 9-16
-    "E5:3 G5:1 C6:2 B5:2 G5:3 E5:1 C5:4", "D5:3 G5:1 B5:4 A5:3 G5:1 D5:4",
-    "C5:2 E5:2 A5:3 G5:1 F#5:2 E5:2 C5:4", "D5:3 F#5:1 A5:4 C6:4 -:4",
-    "B5:3 G5:1 E5:2 G5:2 B5:4 G5:4", "F#5:3 D5:1 B4:2 D5:2 F#5:4 D5:4",
-    "E5:2 G5:2 C6:3 B5:1 A5:2 G5:2 E5:4", "F#5:2 A5:2 D6:4 D5:4 -:4",
+    "E5:3 F#5:1 G5:4 C6:4 B5:2 A5:2", "D5:3 E5:1 F#5:4 B5:4 A5:2 G5:2",
+    "C5:2 E5:2 A5:4 G5:2 F#5:2 E5:4", "F#5:3 G5:1 A5:4 D6:4 -:4",
+    "F#5:3 G5:1 A5:2 F#5:2 D5:4 F#5:4", "G5:3 A5:1 B5:2 G5:2 E5:4 G5:4",
+    "A5:3 B5:1 C6:2 B5:2 A5:2 G5:2 F#5:2 E5:2", "D5:4 F#5:4 A5:4 -:4",
     // 17-24
-    "G5:4 E5:2 G5:2 C6:4 B5:2 A5:2", "F#5:4 D5:2 F#5:2 A5:4 G5:2 F#5:2",
-    "D5:3 F#5:1 B5:4 A5:2 F#5:2 D5:4", "E5:3 G5:1 B5:6 -:2 G5:2 E5:2",
-    "C5:2 E5:2 A5:4 G5:2 E5:2 C5:4", "F#5:2 A5:2 C6:4 B5:2 A5:2 F#5:4",
-    "G5:6 -:2 B5:4 D6:4", "F6:4 D6:2 B5:2 G5:4 -:4",
+    "E5:4 G5:2 B5:2 E6:4 D6:2 B5:2", "D6:4 B5:2 F#5:2 D5:4 F#5:4",
+    "E5:4 G5:2 C6:2 E6:4 D6:2 C6:2", "B5:4 G5:2 D5:2 B4:4 D5:4",
+    "C5:2 E5:2 A5:4 G5:2 E5:2 C5:4", "D#5:2 F#5:2 B5:4 A5:2 F#5:2 D#5:4",
+    "E5:6 -:2 G5:4 B5:4", "A5:4 F#5:4 D5:4 -:4",
     // 25-32
-    "E6:3 D6:1 C6:2 B5:2 A5:2 G5:2 E5:4", "F#6:3 E6:1 D6:2 C6:2 B5:2 A5:2 F#5:4",
-    "G6:4 D6:2 B5:2 G5:4 B5:4", "E6:3 D6:1 B5:2 G5:2 E5:4 G5:4",
-    "A5:2 B5:2 C6:4 E6:3 D6:1 C6:4", "D6:2 C6:2 A5:2 F#5:2 D5:4 F#5:4",
-    "G5:6 -:2 B5:4 D6:4", "G5:8 -:8",
+    "B5:3 C6:1 D6:2 B5:2 G5:3 A5:1 B5:4", "G#5:3 A5:1 B5:2 D6:2 E6:4 B5:4",
+    "C6:3 B5:1 A5:2 G5:2 F#5:2 G5:2 A5:4", "D6:4 B5:2 A5:2 G5:4 F#5:4",
+    "F#5:2 G5:2 A5:4 D5:2 F#5:2 A5:4", "G5:2 A5:2 B5:4 E5:2 G5:2 B5:4",
+    "C6:2 B5:2 A5:2 G5:2 F#5:4 D5:4", "G5:8 -:8",
   ];
 
-  const lead = [], piano = [], inner = [], upper = [], bass = [];
-  const kick = [], snare = [], hats = [], openHats = [];
+  const lead = [], comping = [], marimba = [], pizz = [], bass = [];
 
   for (let bar = 0; bar < chords.length; bar++) {
     const c = CHORDS[chords[bar]];
@@ -511,73 +510,49 @@ function shopTheme() {
     const climax = bar >= 24;
     const lift = climax ? 1.0 : bridge ? 0.94 : 0.96;
 
-    // 旋律
+    // 1. アコーディオン主旋律（ミュゼット・シャンソン風の豊かな表情）
     lead.push(...parseBar(melody[bar]).map(([note, length], index) => [
       note,
       length,
-      lift * (index % 3 === 0 ? 1 : 0.9),
+      lift * (index % 3 === 0 ? 1 : 0.92),
     ]));
 
-    // ピアノ: スウィング・コンピング（軽快なジャズ風裏打ちスタッカート＆装飾アルペジオ）
-    piano.push(...parseBar(climax
-      ? `-:2 ${c[1]}:2:0.68 ${c[2]}:2:0.6 -:2 ${c[0]}:2:0.7 ${c[3]}:2:0.62 -:2 ${c[2]}:2:0.65`
-      : bridge
-        ? `${c[0]}:3:0.65 -:1 ${c[2]}:2:0.52 ${c[1]}:2:0.58 -:2 ${c[3]}:2:0.48 ${c[2]}:2:0.55 -:2`
-        : `-:2 ${c[1]}:2:0.62 -:2 ${c[2]}:2:0.54 -:2 ${c[1]}:2:0.64 -:2 ${c[3]}:2:0.56`
+    // 2. アコーディオン伴奏（小気味良い裏打ちスタッカート: ズッ・チャッ・ズッ・チャッ）
+    comping.push(...parseBar(
+      `-:2 ${c[1]}:2:0.64 -:2 ${c[2]}:2:0.56 -:2 ${c[1]}:2:0.66 -:2 ${c[3] || c[0]}:2:0.58`
     ));
 
-    // 内声弦: 暖かなランプの光のようなレガート持続和音
-    inner.push(...parseBar(`${octave(c[1], 3)}:16:${lift * 0.72}`));
-
-    // 上声弦: 対位的なオブリガート・上品な装飾カウンター
-    upper.push(...parseBar(bar % 2 === 1
-      ? `${octave(c[2], 4)}:16:${lift * 0.64}`
-      : `-:8 ${octave(c[3] || c[0], 4)}:4:${lift * 0.6} -:4`
+    // 3. マリンバ（木琴・トイパーカッション）: コロコロと転がる愛らしい装飾・アルペジオ
+    marimba.push(...parseBar(bar % 2 === 1
+      ? `-:8 ${octave(c[2], 5)}:2:0.62 ${octave(c[1], 5)}:2:0.55 ${octave(c[0], 5)}:2:0.58 -:2`
+      : climax
+        ? `${octave(c[0], 5)}:2:0.55 ${octave(c[1], 5)}:2:0.5 ${octave(c[2], 5)}:2:0.58 ${octave(c[3] || c[0], 5)}:2:0.52 -:8`
+        : "-:16"
     ));
 
-    // ベース: ウォーキングベース（4つ刻み・小粋に歩くウッドベース風ライン）
-    const root = octave(c[0], 2), third = octave(c[1], 2), fifth = octave(c[2], 2);
+    // 4. ピチカート弦: 愛嬌たっぷりの対位ライン・指弾きステップ
+    pizz.push(...parseBar(bridge
+      ? `${octave(c[0], 4)}:4:0.7 ${octave(c[2], 4)}:4:0.6 ${octave(c[1], 4)}:4:0.65 ${octave(c[2], 4)}:4:0.58`
+      : `${octave(c[0], 4)}:2:0.75 -:2 ${octave(c[2], 4)}:2:0.62 -:2 ${octave(c[1], 4)}:2:0.68 -:2 ${octave(c[2], 4)}:2:0.6 -:2`
+    ));
+
+    // 5. ウッドベース: どっしりと温かい2ビート低音
+    const root = octave(c[0], 2), fifth = octave(c[2], 2);
     bass.push(...parseBar(climax
-      ? `${root}:3:0.8 -:1 ${third}:3:0.68 -:1 ${fifth}:3:0.75 -:1 ${octave(c[0], 3)}:3:0.7 -:1`
-      : `${root}:3:0.76 -:1 ${fifth}:3:0.65 -:1 ${third}:3:0.7 -:1 ${fifth}:3:0.62 -:1`
+      ? `${root}:3:0.8 -:1 ${fifth}:3:0.68 -:1 ${root}:3:0.75 -:1 ${fifth}:3:0.65 -:1`
+      : `${root}:4:0.78 -:4 ${fifth}:4:0.72 -:4`
     ));
-
-    const fill = bar % 4 === 3;
-    const open = bar % 2 === 1;
-
-    // バスドラム: ソフトでファットなスウィング2ビート／クライマックス4つ打ち
-    kick.push(...parseBar(climax
-      ? "C2:4:0.8 C2:4:0.7 C2:4:0.78 C2:4:0.72"
-      : "C2:4:0.78 -:4 C2:4:0.72 -:4"
-    ));
-
-    // スネア: ブラシルックスネア（裏拍2拍目・4拍目＋フィルイン）
-    snare.push(...parseBar(fill
-      ? "-:4 C2:4:0.75 -:2 C2:2:0.5 C2:2:0.6 C2:2:0.88"
-      : "-:4 C2:4:0.76 -:4 C2:4:0.82"
-    ));
-
-    // ハット: スウィングするハイハット刻み
-    hats.push(...parseBar(
-      `-:2 C5:2:0.52 -:2 C5:2:0.4 -:2 C5:2:0.54 -:2 ${open ? "-:2" : "C5:2:0.42"}`
-    ));
-
-    openHats.push(...parseBar(open ? "-:14 C6:2:0.5" : "-:16"));
   }
 
   return {
-    name: "shop", title: "小さな灯の店", tempo: 114, loop: true, bars: 32,
-    desc: "G長調。32小節・約67秒。店・行商人テーマ。薄暗い迷宮に灯る温かなランプ、品定めをする楽しさと小粋な異国情緒。軽快なウォーキングベース、跳ねるピアノの裏打ち、温かく表情豊かな木管フルートと優雅な弦が織りなすアコースティック・スウィングの本格フルアンサンブル。",
+    name: "shop", title: "小さな灯の店", tempo: 116, loop: true, bars: 32,
+    desc: "G長調。32小節・約66秒。店・行商人テーマ。ドラムセットを完全廃止し、哀愁漂うアコーディオンのミュゼット旋律、コロコロと転がるマリンバ（木琴）、小気味良いピチカート弦と温かいウッドベースで紡ぐ、フレンチ・カフェ＆蚤の市風アコースティック・アンサンブル。",
     tracks: [
-      { type: "sine", instrument: "woodFlute", volume: 0.28, gate: 0.88, pan: -0.06, cutoff: 4200, roomSend: 0.26, notes: lead },
-      { type: "sine", instrument: "feltPiano", volume: 0.24, gate: 0.70, pan: -0.26, cutoff: 3400, roomSend: 0.20, notes: piano },
-      { type: "sine", instrument: "softStrings", volume: 0.15, gate: 0.95, pan: -0.45, cutoff: 2300, roomSend: 0.35, notes: inner },
-      { type: "sine", instrument: "softStrings", volume: 0.12, gate: 0.92, pan: 0.42, cutoff: 2600, roomSend: 0.35, notes: upper },
-      { type: "sine", instrument: "roundBass", volume: 0.34, gate: 0.78, pan: 0, cutoff: 750, notes: bass },
-      { type: "sine", instrument: "drumKick", volume: 0.28, pan: 0, cutoff: 950, notes: kick },
-      { type: "sine", instrument: "drumSnare", volume: 0.20, pan: 0.06, cutoff: 4600, roomSend: 0.12, notes: snare },
-      { type: "sine", instrument: "drumHat", volume: 0.13, pan: 0.28, cutoff: 7200, notes: hats },
-      { type: "sine", instrument: "drumOpenHat", volume: 0.11, pan: 0.32, cutoff: 7200, notes: openHats },
+      { type: "sine", instrument: "accordion", volume: 0.32, gate: 0.88, pan: -0.08, cutoff: 4600, roomSend: 0.24, notes: lead },
+      { type: "sine", instrument: "accordion", volume: 0.20, gate: 0.65, pan: 0.24, cutoff: 3600, roomSend: 0.18, notes: comping },
+      { type: "sine", instrument: "marimba", volume: 0.24, gate: 0.70, pan: 0.36, cutoff: 5200, roomSend: 0.28, notes: marimba },
+      { type: "sine", instrument: "pizzicato", volume: 0.26, gate: 0.75, pan: -0.32, cutoff: 3800, roomSend: 0.22, notes: pizz },
+      { type: "sine", instrument: "roundBass", volume: 0.36, gate: 0.80, pan: 0, cutoff: 700, notes: bass },
     ],
   };
 }
