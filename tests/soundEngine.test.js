@@ -6,6 +6,7 @@ import {
   BGM_HUB,
   BGM_DUNGEON_SHALLOW,
   BGM_DUNGEON_DEEP,
+  BGM_DUNGEON_ABYSS,
   BGM_MONSTER_HOUSE,
   BGM_SHOP,
   BGM_BOSS,
@@ -48,7 +49,11 @@ describe('musicData tracks verification', () => {
     }
   });
   it('all BGM tracks have valid structure and tempo', () => {
-    expect(ALL_BGM_TRACKS.length).toBe(8);
+    expect(new Set(ALL_BGM_TRACKS.map(track => track.name)).size).toBe(ALL_BGM_TRACKS.length);
+    expect(ALL_BGM_TRACKS).toEqual(expect.arrayContaining([
+      BGM_HUB, BGM_DUNGEON_SHALLOW, BGM_DUNGEON_DEEP, BGM_DUNGEON_ABYSS,
+      BGM_MONSTER_HOUSE, BGM_SHOP, BGM_BOSS, BGM_GAMEOVER, BGM_GAMECLEAR,
+    ]));
 
     for (const bgm of ALL_BGM_TRACKS) {
       expect(bgm.name).toBeTruthy();

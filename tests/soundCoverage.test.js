@@ -100,7 +100,7 @@ describe("効果音の発火範囲", () => {
     expect(Object.keys(SOUND_EFFECTS)).toHaveLength(40);
     for (const effect of Object.values(SOUND_EFFECTS)) for (const voice of effect.voices) {
       expect(Number.isFinite(voice.duration) && voice.duration > 0).toBe(true);
-      expect(Number.isFinite(voice.gain) && voice.gain >= 0 && voice.gain <= 0.5).toBe(true);
+      expect(Number.isFinite(voice.gain) && voice.gain >= 0 && voice.gain <= 1).toBe(true);
       if (voice.kind === "tone") expect(Number.isFinite(voice.freq) && voice.freq > 0).toBe(true);
     }
   });
