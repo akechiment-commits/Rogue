@@ -135,6 +135,19 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it.each(["pointer", "keyboard"])("保存壺の吸い出しで足元の地雷が起動すると被ダメージと巻物消費を両方処理する: %s", control => {
+    const content = { id: "stored-sword", name: "短剣", type: "weapon", atk: 3 };
+    const pot = { id: "storage", name: "保存の壺", type: "pot", potEffect: "none", capacity: 3, contents: [content] };
+    const scroll = { id: "extract", name: "吸い出しの巻物", type: "scroll", effect: "pot_extract" };
+    const ring = life();
+    const f = fixture([pot, scroll, ring]);
+    f.dungeon.traps.push({ id: "mine", name: "地雷", effect: "explode", x: 5, y: 5, revealed: true });
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    choose(f, { mode: "pot_extract", scrollIdx: 1, sel: 0 }, control);
+    expect(f.player.hp).toBe(15);
+    expect(f.player.inventory).toEqual([pot, ring]);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
   it.each(["pointer", "keyboard"])("吸い出し中の爆発で使用巻物が燃えても、後ろの指輪を余分に消さない: %s", control => {
     const pot = { id: "powder", name: "火薬壺", type: "pot", potEffect: "gunpowder", capacity: 3, contents: [] };
     const scroll = { id: "extract", name: "吸い出しの巻物", type: "scroll", effect: "pot_extract" };

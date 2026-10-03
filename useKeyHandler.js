@@ -264,6 +264,7 @@ export function useKeyHandler({
           if (_selIt._isBbTarget) {
             const _bb = _dg_id?.bigboxes?.find(b => b.id === _selIt._bbId);
             let _bbMsg = "";
+            const _bbEffectMsgs = [];
             if (_bb) {
               const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
               if (identifyMode.mode === 'identify') {
@@ -311,7 +312,7 @@ export function useKeyHandler({
                 const _extItems = [...(_bb.contents || [])];
                 _bb.contents = [];
                 const _extFts = new Set();
-                for (const _ci of _extItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, [], _extFts);
+                for (const _ci of _extItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, _bbEffectMsgs, _extFts, 0, sr.current.player);
                 if (identifyMode.cursed) {
                   sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
                   _bbMsg = `${_bb.name}の中身を吸い出した！大箱は壊れた！【呪】`;
@@ -332,7 +333,7 @@ export function useKeyHandler({
             const _etMl_bb = [];
             endTurn(sr.current, sr.current.player, _etMl_bb);
             setIdentifyMode(null);
-            setMsgs((prev) => [...prev.slice(-80), ...(identifyMode.spellMsg ? [identifyMode.spellMsg] : []), _bbMsg, ..._etMl_bb]);
+            setMsgs((prev) => [...prev.slice(-80), ...(identifyMode.spellMsg ? [identifyMode.spellMsg] : []), _bbMsg, ..._bbEffectMsgs, ..._etMl_bb]);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
           }

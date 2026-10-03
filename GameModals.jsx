@@ -1147,6 +1147,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     if (_selIt._isBbTarget) {
       const _bb = sr.current.dungeon?.bigboxes?.find(b => b.id === _selIt._bbId);
       let _bbMsg = "";
+      const _bbEffectMsgs = [];
       if (_bb) {
         const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
         const _bbDN = (isBigboxKindIdentified(_bb, sr.current) || mode.mode === 'identify')
@@ -1200,7 +1201,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           const _extBbItems = [...(_bb.contents || [])];
           _bb.contents = [];
           const _extBbFts = new Set();
-          for (const _ci of _extBbItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, [], _extBbFts);
+          for (const _ci of _extBbItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, _bbEffectMsgs, _extBbFts, 0, sr.current.player);
           if (mode.cursed) {
             sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
             _bbMsg = `${_bbDN}の中身を吸い出した！大箱は壊れた！【呪】`;
@@ -1221,7 +1222,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _etMl_bb = [];
       endTurn(sr.current, sr.current.player, _etMl_bb);
       setMode(null);
-      setMsgs((prev) => [...prev.slice(-80), ...(mode.spellMsg ? [mode.spellMsg] : []), _bbMsg, ..._etMl_bb]);
+      setMsgs((prev) => [...prev.slice(-80), ...(mode.spellMsg ? [mode.spellMsg] : []), _bbMsg, ..._bbEffectMsgs, ..._etMl_bb]);
       sr.current = { ...sr.current }; setGs({ ...sr.current });
       return;
     }

@@ -1565,13 +1565,13 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
     return;
   }
   const ft = new Set();
-  for (const item of [...(bb.contents || [])]) placeItemAt(dg, x, y, item, ml, ft);
+  for (const item of [...(bb.contents || [])]) placeItemAt(dg, x, y, item, ml, ft, 0, options.player || null);
   if (bb.kind === "trash") {
     const loot = makeChangeBoxItem("change", {
       dungeonType: dg?.dungeonType ?? options?.player?.dungeonType ?? null,
       floor: Number.isFinite(options?.player?.depth) ? options.player.depth : 99,
     });
-    placeItemAt(dg, x, y, loot, ml, ft);
+    placeItemAt(dg, x, y, loot, ml, ft, 0, options.player || null);
     ml.push(`ゴミ箱から${resolveItemName(loot, nameFn)}が飛び出した！`);
   }
   stageBigbox(bb);
@@ -1625,7 +1625,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     const _remaining = Math.max(0, (pot.capacity ?? 4) - (pot.contents?.length || 0));
     ml.push(`${_pn}が割れた！`);
     const ft = new Set();
-    for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft); }
+    for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
     if (_remaining > 0) {
       ml.push(`${_remaining}個のランダムなアイテムが飛び出した！`);
       const _lootOptions = {
@@ -1639,7 +1639,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         if (!_riTemplate) continue;
         const _ri = { ..._riTemplate, id: uid() };
         if (_ri.type === 'gold') _ri.value = rng(20, 80);
-        placeItemAt(dg, px, py, _ri, ml, ft);
+        placeItemAt(dg, px, py, _ri, ml, ft, 0, p);
       }
     }
     return;
@@ -1731,7 +1731,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     }
     if (pot.contents?.length > 0) {
       const ft = new Set();
-      for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
+      for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
     }
     return;
   }
@@ -1741,7 +1741,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   }
   ml.push(`${_pn}が割れて中身が飛び出した！`);
   const ft = new Set();
-  for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
+  for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
 }
 
 /* 吸い出しの巻物：壺を割らずに中身を吸い出して足元にばらまく
@@ -1796,7 +1796,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
   const ft = new Set();
   if ((pot.contents?.length || 0) > 0) {
     ml.push(`${resolveItemName(pot)}から中身が飛び出した！`);
-    for (const item of [...pot.contents]) { placeItemAt(dg, px, py, item, ml, ft); }
+    for (const item of [...pot.contents]) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
     pot.contents = [];
   } else {
     ml.push(`${resolveItemName(pot)}は空だった。`);

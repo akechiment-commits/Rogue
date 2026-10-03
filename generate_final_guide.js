@@ -213,6 +213,8 @@ const POT_RANDOM_BC_NOTE = "フロア生成時に祝福抽選になった壺は�
 const CURSE_DESCRIPTION_TYPES = new Set(['potion', 'scroll', 'wand', 'pen', 'spellbook', 'bottle', 'marker']);
 
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' 対象確定時に使用巻物の個体を記録し、効果終了後に同じ巻物だけを消費する。火薬壺の爆発や散乱中の罠などで所持品が変わっても、古い所持品番号で別の道具を消さない。使用巻物自体が効果中に消滅済みなら追加削除しない。タップとキーで共通。';
+const CONTAINER_TRAP_NOTE = '壺の破壊・中身の吸い出し・大箱の破壊で出る道具は、プレイヤー情報を含む通常の床配置処理を通す。道具が地雷を起動した場合は、爆風内のプレイヤーにも通常のHP半減・耐火軽減・所持品への炎の影響を適用する。爆風外のプレイヤーにはダメージを与えない。大箱の吸い出しもタップ・キーで同じ判定を使い、発動した罠のログを表示する。';
+GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
 
 const RING_HP_FLOOR_NOTE = '最大HPは「指輪補正前の最大HP（最低1）＋命・祝福指輪の補正合計」を計算して最低1に制限する。負の命の指輪で下限1に達した場合、丸めた差を保持し、取り外し・交換・強化・祝呪変更で最大HPを過剰に足し戻さない。差はセーブ・ロードでも保持する。レベル・薬・食料・泉・願い・変化の杖による永続増減は指輪補正前の値へ反映する。負の補正で下限に留まる間は画面の最大HPが増えなくても永続増加は保存され、指輪を外すと現れる。薬・食料・泉の永続増加に伴う現HP増加は装備後の最大HPが実際に増えた分だけ。レベルアップ時の既存HP回復は新しい最大HPまでに制限する。指輪の正の補正差は変更前のHP満タン時だけ現HPにも適用する。旧版で既に下限の差を失ったセーブは元の最大HPを特定できず、自動で復元しない。';
 GUIDE_DESC_OVERRIDES["命の指輪"] += ' ' + RING_HP_FLOOR_NOTE;
@@ -600,6 +602,7 @@ const POT_INITIAL_CAPACITY_RANGES = Object.freeze({
 const potInitialCapacityRange = (p) => POT_INITIAL_CAPACITY_RANGES[p.potEffect] ?? '3〜5';
 
 const potData = [['壺名', 'potEffect', 'テンプレート容量 / フロア・店 初期容量範囲', 'rarity', 'sellPrice', '説明']];
+potData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
 potData.push(['【呪いによる容量不足】', '', '', '', '', POT_CAPACITY_REDUCTION_NOTE]);
 potData.push(['【容量0の扱い】', '', '', '', '', ZERO_POT_CAPACITY_NOTE]);
 potData.push(['【生成ルール】', '', '通常フロアと店はrandPotCapacity()で効果別に抽選。テンプレートcapacity値は基準値・固定配置用。', '', '', '保存=6〜9、弱化/火薬/強欲=4〜6、強化/祝福/呪い=1〜2、クライン=2〜4、その他=3〜5（願いを含む）']);
@@ -991,6 +994,7 @@ addSheet('13_食べ物', foodItemData);
 
 // ===== 大箱（BigBox）=====
 const bigboxData = [['大箱名', 'kind', '容量（rng）', 'レア度', '重み', '効果']];
+bigboxData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
 bigboxData.push(['【冒険中の識別】', '', '', '', '', '一度識別または名付けた大箱のkindは、その冒険中は同種の大箱も識別済みとして表示する。呪いの物知りの杖などで未識別化した場合は、そのkind全体の識別状態を解除する。']);
 for (const b of BB_TYPES) {
   bigboxData.push([b.name, b.kind, String(b.cap()), b.rarity ?? '', b.weight ?? '', guideDesc(b)]);
