@@ -1,5 +1,5 @@
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
-import { claimModalConfirmation, cancelModalConfirmation } from "./modalConfirmation.js";
+import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
@@ -1216,7 +1216,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       }
       if (mode.identKey) { const _scrWasUnk = !sr.current.ident.has(mode.identKey); sr.current.ident.add(mode.identKey); if (_scrWasUnk && mode.scrollIdx != null) { const _sc = sr.current.player.inventory[mode.scrollIdx]; if (_sc) trackItem(_sc); } }
       if (mode.revMsg) setMsgs((prev) => [...prev.slice(-80), mode.revMsg]);
-      if (mode.scrollIdx != null) { sr.current.player.inventory.splice(mode.scrollIdx, 1); if (identifyCancelRef) identifyCancelRef.current = null; }
+      if (mode.scrollIdx != null) { consumeModalScroll(mode, sr.current.player); if (identifyCancelRef) identifyCancelRef.current = null; }
       if (mode.spellCost != null) sr.current.player.mp -= mode.spellCost;
       const _etMl_bb = [];
       endTurn(sr.current, sr.current.player, _etMl_bb);
@@ -1456,7 +1456,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       }
     }
     if (mode.scrollIdx != null) {
-      sr.current.player.inventory.splice(mode.scrollIdx, 1);
+      consumeModalScroll(mode, sr.current.player);
       if (identifyCancelRef) identifyCancelRef.current = null;
     }
     if (mode.spellCost != null) {

@@ -1,5 +1,5 @@
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
-import { claimModalConfirmation, cancelModalConfirmation } from "./modalConfirmation.js";
+import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -327,7 +327,7 @@ export function useKeyHandler({
             }
             if (identifyMode.identKey && sr.current) { const _scrWasUnk = !sr.current.ident.has(identifyMode.identKey); sr.current.ident.add(identifyMode.identKey); if (_scrWasUnk && identifyMode.scrollIdx != null) { const _sc = sr.current.player.inventory[identifyMode.scrollIdx]; if (_sc) trackItem(_sc); } }
             if (identifyMode.revMsg) setMsgs((prev) => [...prev.slice(-80), identifyMode.revMsg]);
-            if (identifyMode.scrollIdx != null) { sr.current.player.inventory.splice(identifyMode.scrollIdx, 1); }
+            if (identifyMode.scrollIdx != null) { consumeModalScroll(identifyMode, sr.current.player); }
             if (identifyMode.spellCost != null) { sr.current.player.mp -= identifyMode.spellCost; }
             const _etMl_bb = [];
             endTurn(sr.current, sr.current.player, _etMl_bb);
@@ -538,7 +538,7 @@ export function useKeyHandler({
             }
           }
           if (identifyMode.scrollIdx != null) {
-            sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
+            consumeModalScroll(identifyMode, sr.current.player);
           }
           if (identifyMode.spellCost != null) {
             sr.current.player.mp -= identifyMode.spellCost;

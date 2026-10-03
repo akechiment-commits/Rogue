@@ -135,6 +135,31 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it.each(["pointer", "keyboard"])("吸い出し中の爆発で使用巻物が燃えても、後ろの指輪を余分に消さない: %s", control => {
+    const pot = { id: "powder", name: "火薬壺", type: "pot", potEffect: "gunpowder", capacity: 3, contents: [] };
+    const scroll = { id: "extract", name: "吸い出しの巻物", type: "scroll", effect: "pot_extract" };
+    const ring = life();
+    const f = fixture([pot, scroll, ring]);
+    f.actions.doUseItem(2);
+    f.props.endTurn.mockClear();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    choose(f, { mode: "pot_extract", scrollIdx: 1, sel: 0 }, control);
+    expect(f.player.inventory).toEqual([pot, ring]);
+    expect(f.player.rings).toContain(ring);
+    expect(f.player.maxHp).toBe(105);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
+  it.each(["pointer", "keyboard"])("吸い出し中の爆発で巻物より前の薬が割れても、使用巻物だけを消費する: %s", control => {
+    const pot = { id: "powder", name: "火薬壺", type: "pot", potEffect: "gunpowder", capacity: 3, contents: [] };
+    const potion = { id: "fragile", name: "回復薬", type: "potion", effect: "heal", value: 30 };
+    const scroll = { id: "extract", name: "吸い出しの巻物", type: "scroll", effect: "pot_extract" };
+    const ring = life();
+    const f = fixture([pot, potion, scroll, ring]);
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
+    choose(f, { mode: "pot_extract", scrollIdx: 2, sel: 0 }, control);
+    expect(f.player.inventory).toEqual([pot, ring]);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
   it.each(["pointer", "keyboard"])("呪われた強化で＋0にした指輪を落としても＋値を再抽選しない: %s", control => {
     const ring = life(1), scroll = { name: "武器強化の巻物", type: "scroll", effect: "weapon_up", cursed: true };
     const f = fixture([ring, scroll], {}, { dropModeRef: { current: false } });
