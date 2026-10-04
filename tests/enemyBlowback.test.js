@@ -266,3 +266,64 @@ describe("敵が飛ばした道具・大箱の撃破者", () => {
     expect(player.exp).toBe(45);
   });
 });
+
+describe("吹き飛ばされた大箱のプレイヤー命中", () => {
+  function hitPlayer({ level = 1, contents = false, hp = 100, sleepTurns = 0, blocked = false, diagonal = false, random = 0.1 } = {}) {
+    vi.spyOn(Math, "random").mockReturnValue(random);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), level, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const stored = { id: "stored", type: "ring", name: "命の指輪", effect: "life", plus: 1 };
+    const box = { id: "box", name: "合成の大箱", kind: "synthesis", capacity: 2,
+      contents: contents ? [stored] : [], x: 7, y: diagonal ? 7 : 5 };
+    const player = makePlayer({ x: 10, y: diagonal ? 10 : 5, depth: 1, exp: 0, hp, sleepTurns });
+    const dungeon = makeEmptyDg({ monsters: [mage], bigboxes: [box],
+      rooms: [{ x: 1, y: 1, w: 20, h: 20 }] });
+    if (blocked) dungeon.traps.push({ id: "blocker", name: "落とし穴", effect: "pitfall", x: 8, y: 5, permanent: true });
+    const messages = [];
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+    expect(messages.some(message => message.includes("杖を振った"))).toBe(true);
+    return { player, dungeon, box, stored, messages };
+  }
+
+  it.each([[1, false], [1, true], [3, false], [3, true]])("Lv%sが飛ばした箱に当たると22ダメージを受けて箱が壊れる（中身:%s）", (level, contents) => {
+    const { player, dungeon, box, stored, messages } = hitPlayer({ level, contents });
+    expect(player.hp).toBe(78);
+    expect([player.x, player.y]).toEqual([10, 5]);
+    expect(dungeon.bigboxes).not.toContain(box);
+    expect(box.contents).toEqual([]);
+    expect(dungeon.items.filter(item => item.id === stored.id)).toHaveLength(contents ? 1 : 0);
+    if (contents) expect(dungeon.items.find(item => item.id === stored.id)).toMatchObject({ x: 9, y: 5 });
+    expect(messages.filter(message => message.includes("激突！22ダメージ"))).toHaveLength(1);
+  });
+  it("斜めから飛んできた箱にも当たる", () => {
+    const { player, dungeon, box, stored } = hitPlayer({ diagonal: true, contents: true });
+    expect(player.hp).toBe(78);
+    expect(dungeon.bigboxes).not.toContain(box);
+    expect(dungeon.items.find(item => item.id === stored.id)).toMatchObject({ x: 9, y: 9 });
+  });
+  it("衝突でHP0以下になる場合は死因を箱の衝突として記録する", () => {
+    const { player, dungeon, box } = hitPlayer({ hp: 10 });
+    expect(player.hp).toBeLessThanOrEqual(0);
+    expect(player.deathCause).toContain("合成の大箱");
+    expect(dungeon.bigboxes).not.toContain(box);
+  });
+  it("眠っていても当たり、衝撃で目を覚ます", () => {
+    const { player } = hitPlayer({ sleepTurns: 5 });
+    expect(player.hp).toBe(78);
+    expect(player.sleepTurns).toBe(0);
+    expect(player.sleepInterruptedTurns).toBe(1);
+  });
+  it("プレイヤーより手前の罠で止まった場合は当たらず箱も壊れない", () => {
+    const { player, dungeon, box, stored } = hitPlayer({ blocked: true, contents: true });
+    expect(player.hp).toBe(100);
+    expect(dungeon.bigboxes).toContain(box);
+    expect([box.x, box.y]).toEqual([7, 5]);
+    expect(box.contents).toEqual([stored]);
+    expect(dungeon.items).toEqual([]);
+  });
+  it.each([[0, 20], [0.999, 40]])("衝突ダメージの下限・上限を適用する（乱数:%s、ダメージ:%s）", (random, damage) => {
+    const { player, dungeon, box } = hitPlayer({ random });
+    expect(player.hp).toBe(100 - damage);
+    expect(dungeon.bigboxes).not.toContain(box);
+  });
+});

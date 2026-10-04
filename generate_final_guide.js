@@ -219,6 +219,7 @@ const ENEMY_BLOWBACK_TRAP_NOTE = '敵の吹き飛ばしの杖でプレイヤー�
 const ENEMY_BLOWBACK_KILL_NOTE = '敵の吹き飛ばしの杖による撃破は杖の共通効果処理で1回だけ行う。途中の敵を倒した場合、杖の使用者は1段階だけ成長し、プレイヤー経験値は入らない。壁・プレイヤーの魔法反射・敵の魔法反射で射手が倒れる場合も、撃破・経験値・ドロップを二重処理しない。';
 const ENEMY_BLOWBACK_COLLISION_NOTE = '敵の吹き飛ばしの杖でプレイヤーまたは敵が別の敵にぶつかった場合、双方が杖の使用者の攻撃力ぶんの衝突ダメージを受ける。衝突相手がHP0以下なら着地座標を確定した後に共通の撃破・通常ドロップ処理を行い、盗品も返す。衝突・吹き飛ばし先の水没による撃破は杖を使った敵へ帰属し、使用者が1段階成長する。プレイヤー経験値は入らない。既に別の処理で除去された敵を再度撃破しない。';
 const ENEMY_BLOWBACK_OBJECT_NOTE = '敵の吹き飛ばしの杖で床の通常投擲物を飛ばして敵に命中させた場合、飛ばした薬瓶の薬液で敵を倒した場合、大箱を飛ばして敵への激突で倒した場合も、杖を使った敵を撃破者として共通撃破処理へ渡す。プレイヤー経験値は入らず、使用者が1段階成長する。撃破対象の通常ドロップ・盗品返却は行う。生き残った敵の盗品は保持する。プレイヤー自身が同じ方法で倒した場合は従来どおりプレイヤーに経験値が入る。';
+const BIGBOX_PLAYER_COLLISION_NOTE = '吹き飛ばされた大箱は敵だけでなくプレイヤーにも衝突する。プレイヤーのマスへ進もうとした時点で飛翔を止め、プレイヤーに20〜40ダメージを1回与えて箱を壊す。通常・祝福で衝突ダメージの範囲は共通。プレイヤーの位置は動かさない。箱の破壊処理は衝突地点の1マス手前を起点に行い、通常箱の中身は通常の床配置処理で1回だけ散らす。空箱でも衝突ダメージと破壊は発生する。中身の散乱前に衝突ダメージを適用し、致死時の死因を大箱との衝突として記録する。睡眠中なら衝撃で目覚め、通常の被ダメージ時と同じ睡眠中断状態にする。手前の道具・罠・泉・魔方陣・階段で止まった場合はプレイヤーに当たらない。';
 GUIDE_DESC_OVERRIDES["地雷"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["落とし穴"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
@@ -752,6 +753,7 @@ function monTraits(m) {
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_KILL_NOTE);
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_COLLISION_NOTE);
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_OBJECT_NOTE);
+  if (m.baseKind === 'windmage') t.push(BIGBOX_PLAYER_COLLISION_NOTE);
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時25%で混乱（封印中は発動しない）');
   if (m.baseKind === 'boss_demonking') t.push('近接攻撃命中時25%で金縛り。5ターンごとに取り巻きを1体召喚');
   if (m.baseKind === 'boss_warlord') t.push('近接攻撃命中時25%で防御半減');
@@ -879,7 +881,7 @@ addSheet('11_モンスター', monsterData);
 
 // ===== 杖（Wand）=====
 const WAND_DETAILS = {
-  knockback:    { normal:'対象を10マス先まで吹き飛ばす。壁激突ダメ5（敵/プレイヤー）。大箱は敵激突で大ダメージ＋破壊', blessed:'100マス先まで吹き飛ばす（実質無限・壁/敵まで）。壁激突ダメ10。大箱も同様', cursed:'対象を自分の手前に引き寄せる' },
+  knockback:    { normal:'対象を10マス先まで吹き飛ばす。壁激突ダメ5（敵/プレイヤー）。大箱は敵・プレイヤーへの激突で20〜40ダメージ＋破壊', blessed:'100マス先まで吹き飛ばす（実質無限・壁/敵まで）。壁激突ダメ10。大箱の衝突ダメージは通常と同じ20〜40', cursed:'対象を自分の手前に引き寄せる' },
   lightning:    { normal:'rng(20,30)雷撃ダメ', blessed:'rng(40,60)ダメ（×2）', cursed:'対象HP+rng(20,30)回復（アンデッドには20-30ダメ）' },
   slow:         { normal:'敵の速度を半減(10T) / 自分は2倍速10T', blessed:'速度半減+金縛り10T付与', cursed:'対象を2倍速にする（プレイヤーは2倍速10T）' },
   transform:    { normal:'現フロアで出現する別モンスターへ同Lvで変化 / アイテム・罠は通常weight抽選', blessed:'現フロアの別モンスターへ1Lv下げて変化（Lv1なら同Lv） / アイテム運枠36%、罠はD・E運枠36%', cursed:'現フロアの別モンスターへ1Lv上げて変化（Lv3なら同Lv） / アイテム運枠9%、罠はC以上運枠36%' },
@@ -923,6 +925,7 @@ wandData.push(['【敵の吹き飛ばしと罠】', '', '', '', '', '', '', ENEM
 wandData.push(['【敵の吹き飛ばしによる撃破】', '', '', '', '', '', '', ENEMY_BLOWBACK_KILL_NOTE]);
 wandData.push(['【敵の吹き飛ばしによる衝突・水没】', '', '', '', '', '', '', ENEMY_BLOWBACK_COLLISION_NOTE]);
 wandData.push(['【敵が飛ばした道具・大箱の撃破者】', '', '', '', '', '', '', ENEMY_BLOWBACK_OBJECT_NOTE]);
+wandData.push(['【大箱のプレイヤー衝突】', '', '', '', '', '', '', BIGBOX_PLAYER_COLLISION_NOTE]);
 addSheet('12_杖', wandData);
 
 // ===== 食べ物（Food）=====
@@ -1018,6 +1021,7 @@ const bigboxData = [['大箱名', 'kind', '容量（rng）', 'レア度', '重�
 bigboxData.push(['【破壊中の誘爆】', '', '', '', '', '大箱を壊す際は中身の一覧を取り出し、箱をフロアから除去して箱内の中身を空にしてから、取り出した道具を一度だけ床へ配置する。散乱中の道具が地雷や爆発を起動しても、同じ箱を再び壊して同じ道具を重複登録したり、同じ地雷を再帰的に繰り返し起動したりしない。']);
 bigboxData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
 bigboxData.push(['【敵が飛ばした大箱の撃破者】', '', '', '', '', ENEMY_BLOWBACK_OBJECT_NOTE]);
+bigboxData.push(['【プレイヤーへの衝突】', '', '', '', '', BIGBOX_PLAYER_COLLISION_NOTE]);
 bigboxData.push(['【冒険中の識別】', '', '', '', '', '一度識別または名付けた大箱のkindは、その冒険中は同種の大箱も識別済みとして表示する。呪いの物知りの杖などで未識別化した場合は、そのkind全体の識別状態を解除する。']);
 for (const b of BB_TYPES) {
   bigboxData.push([b.name, b.kind, String(b.cap()), b.rarity ?? '', b.weight ?? '', guideDesc(b)]);

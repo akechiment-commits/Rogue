@@ -16,6 +16,7 @@ import {
   setWandBreakEffectHandler, reducePotCapacity, releaseConfinedMonstersFromPot,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
+import { interruptPlayerSleep } from './turnUpkeep.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
@@ -359,12 +360,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _bbMaxDist = _bbBlessed ? 100 : 10; /* 通常10マス、祝福は実質無限（壁/敵まで飛ぶ） */
       let bbx = target.x, bby = target.y, bbroke = false;
       let _bbHitMon = null;
+      let _bbHitPlayer = false;
       for (let i = 0; i < _bbMaxDist; i++) {
         const nx = bbx + dx, ny = bby + dy;
         if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
           bbroke = true; break;
         }
-        /* 敵に激突：大ダメージ＋箱破壊 */
+        /* キャラクターに激突：大ダメージ＋箱破壊 */
+        if (p && p.x === nx && p.y === ny) { _bbHitPlayer = true; bbroke = true; break; }
         const _hm = monsterAt(dg, nx, ny);
         if (_hm) { _bbHitMon = _hm; bbroke = true; break; }
         /* アイテム・罠・泉・魔方陣・階段と重ならないよう手前で止まる */
@@ -376,16 +379,26 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         bbx = nx; bby = ny;
       }
       if (bbroke) {
+        const _bbHadContents = (target.contents?.length || 0) > 0;
+        if (_bbHitPlayer) {
+          const _bbDmg = rng(20, 40);
+          p.deathCause = `${target.name}との衝突により`;
+          p.hp -= _bbDmg;
+          ml.push(`${target.name}が${pl()}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
+          interruptPlayerSleep(p, ml);
+        }
         breakBigboxContents(target, dg, ml, nameFn, bbx, bby, { player: p, luFn });
-        if (_bbHitMon) {
+        if (_bbHitPlayer) {
+          if (_bbHadContents) ml.push("中身が飛び出した！");
+        } else if (_bbHitMon) {
           const _bbDmg = rng(20, 40);
           _bbHitMon.hp -= _bbDmg;
           ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
           if (_bbHitMon.hp <= 0) _defeat(_bbHitMon);
-          if (target.contents?.length > 0) {
+          if (_bbHadContents) {
             ml.push("中身が飛び出した！");
           }
-        } else if (target.contents?.length > 0) {
+        } else if (_bbHadContents) {
           ml.push(`${resolveItemName(target, nameFn)}は壁に叩きつけられて壊れた！中身が飛び出した！`);
         } else {
           ml.push(`${target.name}は壁に叩きつけられて壊れた！`);
