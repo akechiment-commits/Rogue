@@ -1617,7 +1617,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     );
     const _phase = phaseMode || "both"; // "moveOnly" | "attackOnly" | "both"
     dg.monsters.forEach((m) => {
-      if (m.hp <= 0) return;
+      if (sr.current?.dungeon !== dg || m.hp <= 0) return;
       if (_phase === "attackOnly") {
         /* 移動した敵は攻撃フェーズをスキップ（speed<=1のみ。倍速敵は移動後も攻撃できる） */
         if (m._movedThisTurn) { delete m._movedThisTurn; return; }
@@ -1630,7 +1630,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         delete m._movesMadeThisPhase;
         m.turnAttacks = 0;
         for (let _ai = 0; _ai < _atkBudget; _ai++) {
-          if (m.hp <= 0) break;
+          if (sr.current?.dungeon !== dg || m.hp <= 0) break;
           monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
         }
         return;
@@ -1651,6 +1651,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       let _actionCount = 0;
       let _moveCount = 0; /* 実際に位置が変わったアクション数 */
       for (let _ai = 0; _ai < _due; _ai++) {
+        if (sr.current?.dungeon !== dg) break;
         _actionCount++;
         if (m.hp <= 0) break;
         if (_phase === "moveOnly") {
