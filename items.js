@@ -3456,7 +3456,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           p.hp -= 10;
           _pHitMon.hp -= 10;
           ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`);
-          if (_pHitMon.hp <= 0) trackMonster(_pHitMon);
+          if (_pHitMon.hp <= 0) {
+            ml.push(`${_pHitMon.name}は倒れた！`);
+            trackMonster(_pHitMon);
+            monsterDrop(_pHitMon, dg, ml, p);
+          }
           dg.monsters = dg.monsters.filter(m => m.hp > 0);
         }
         else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
