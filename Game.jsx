@@ -1319,6 +1319,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (_tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
           if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
+        } else if (_tr === "deferred_explosion" && dg2._pendingMineExplosion) {
+          /* 敵の特技は攻撃フェーズ中にも罠を起動する。
+             通常の発火フェーズを待つと次のプレイヤー行動まで持ち越されるため即時解決する。 */
+          const pendingMine = dg2._pendingMineExplosion;
+          delete dg2._pendingMineExplosion;
+          ml2.push(`${pendingMine.name}が発動！`);
+          runMineExplosion(dg2, pendingMine, p, ml2, lu);
         }
         return _tr;
       },
