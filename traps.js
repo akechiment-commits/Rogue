@@ -5,6 +5,7 @@ import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
+import { claimTrapActivation } from "./trapActivationTurn.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   if ((dg?.timeStopTurns || 0) > 0) return null;
@@ -15,6 +16,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapPlayer(trap, p, dg, ml, nameFn, luFn, ctx);
   }
+  if (!claimTrapActivation(dg, trap, { reserve: trap.effect === "explode" })) return null;
   trackTrap(trap);
   trap.revealed = true;
   let r = null;

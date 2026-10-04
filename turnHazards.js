@@ -1,3 +1,5 @@
+import { canActivateTrap } from "./trapActivationTurn.js";
+
 /** 敵移動後・敵攻撃前に発火する罠、爆発、時限爆弾を解決する。 */
 export function resolveTurnHazards(state, player, messages, {
   hasRingEffect,
@@ -25,8 +27,12 @@ export function resolveTurnHazards(state, player, messages, {
   if (state._pendingMineExplosion && player.hp > 0) {
     const pendingMine = state._pendingMineExplosion;
     delete state._pendingMineExplosion;
-    messages.push(`${pendingMine.name}が発動！`);
-    runMineExplosion(dungeon, pendingMine, player, messages, lu);
+    const trap = pendingMine.trapId != null ? { id: pendingMine.trapId }
+      : dungeon.traps?.find(t => t.effect === "explode" && t.x === pendingMine.x && t.y === pendingMine.y);
+    if (!trap || canActivateTrap(dungeon, trap, true)) {
+      messages.push(`${pendingMine.name}が発動！`);
+      runMineExplosion(dungeon, pendingMine, player, messages, lu);
+    }
   }
 
   if (tickTimedEffects && dungeon.pendingBombs?.length > 0 && player.hp > 0) {
@@ -48,6 +54,7 @@ export function resolveTurnHazards(state, player, messages, {
   if (!state._pendingSpin || player.hp <= 0) return { spinFired: false };
   const pendingSpin = state._pendingSpin;
   delete state._pendingSpin;
+  if (!canActivateTrap(dungeon, pendingSpin)) return { spinFired: false };
   fireTrapPlayer(pendingSpin, player, dungeon, messages, getItemName, lu, { ident });
   return { spinFired: true };
 }

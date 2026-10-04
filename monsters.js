@@ -2573,7 +2573,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   trap.revealed = true;
   trackTrap(trap);
   ml.push(`重力の力で${m.name}が${trap.name}を踏んだ！`);
-  fireTrapItem(
+  const result = fireTrapItem(
     trap,
     { name: "重力の力", type: "misc", x: m.x, y: m.y, _ephemeralTrapTrigger: true },
     dg,
@@ -2585,7 +2585,9 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
     it => it.name,
     luFn,
   );
-  maybeBreakTrapAfterStep(trap, dg, ml, { fromStep: true, p: pl });
+  if (result !== "already_activated" && result !== "time_stopped" && trap.effect !== "explode") {
+    maybeBreakTrapAfterStep(trap, dg, ml, { fromStep: true, p: pl });
+  }
 }
 
 /* ===== 直線飛翔の共通処理（物理弾道専用・魔法弾には使わない）=====

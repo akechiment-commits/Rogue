@@ -23,6 +23,7 @@ import {
 } from './lootRules.js';
 import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
+import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
@@ -2586,8 +2587,11 @@ export function findMineTrapForPending(dg, pme) {
 
 /** 地雷の爆発：爆発後に破壊判定（踏む・投げ・誘爆すべて共通） */
 export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
+  if ((dg?.timeStopTurns || 0) > 0) return false;
   const { chainMsg = null } = opts;
   const trap = findMineTrapForPending(dg, pme);
+  const activationTrap = pme?.trapId != null ? { id: pme.trapId } : trap || pme;
+  if (!claimTrapActivation(dg, activationTrap, { allowReserved: true })) return false;
   if (trap?.id != null && dg._mineDetonatedIds?.has(trap.id)) return;
   if (trap) {
     trap.revealed = true;
@@ -2600,6 +2604,7 @@ export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
   if (chainMsg) ml.push(chainMsg);
   doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true, true);
   if (trap) maybeBreakTrapAfterStep(trap, dg, ml, { p });
+  return true;
 }
 
 /** 複数罠を一括除去（呪いの罠の巻物など） */
@@ -3083,6 +3088,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet);
   }
+  if (!claimTrapActivation(dg, trap)) return "already_activated";
   trackTrap(trap);
   switch (trap.effect) {
     case "explode": {
@@ -5222,7 +5228,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       return false;
     }
-    const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
+    const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id) && canActivateTrap(dg, t));
     if (trap) {
       if ((dg.timeStopTurns || 0) > 0) continue;
       /* 罠座標まで飛んでくるアーク（seq = dep+1）を先に登録 */
@@ -5230,7 +5236,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       ft.add(trap.id);
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
-      if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
+      if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
         removeTrap(dg, trap, ml, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") return false;
@@ -5982,7 +5988,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       trap.revealed = true;
       const ft = new Set(); ft.add(trap.id);
       const r = fireTrapItem(trap, item, dg, lx, ly, mlx, ft, p);
-      if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
+      if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
         removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") { res.consumed = true; return "destroyed"; }
@@ -6443,6 +6449,7 @@ function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   _trap.revealed = true;
   const _ft = new Set(_trap.id != null ? [_trap.id] : []);
   const _result = fireTrapItem(_trap, _trigger, dg, x, y, ml, _ft, p, null, luFn);
+  if (_result === "already_activated" || _result === "time_stopped") return { action: "continue" };
   if (_trap.effect !== "explode" && !_trap.permanent && Math.random() < trapStepBreakChance(_trap)) {
     removeTrap(dg, _trap, ml, { message: `${_trap.name}は壊れた。`, ft: _ft, p });
   }

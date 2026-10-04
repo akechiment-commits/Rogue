@@ -5,6 +5,7 @@ import {
 } from "../items.js";
 import { MONS, makeMonsterFromBase, monLevelDown, monLevelUp } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { finishTrapActivationTurn } from "../trapActivationTurn.js";
 
 const levelDownTrap = TRAPS.find((trap) => trap.effect === "level_down_trap");
 
@@ -55,6 +56,7 @@ describe("レベルダウンの罠", () => {
     expect(mon.name).toBe(MONS[0].name);
     expect(ml.some((message) => message.includes("レベルダウンして"))).toBe(true);
 
+    finishTrapActivationTurn({ dungeon: dg });
     const levelOne = makeMonsterFromBase(MONS[0], 1, 6, 5);
     dg.monsters = [levelOne];
     const ml2 = [];

@@ -36,6 +36,7 @@ import {
 } from "./items.js";
 import { applyWandEffect, triggerWandBreakEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
+import { finishTrapActivationTurn } from "./trapActivationTurn.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
@@ -2278,6 +2279,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           signalPinchAlert();
         }
       }
+      finishTrapActivationTurn(st);
     },
     [moveMons, lu, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
   );
