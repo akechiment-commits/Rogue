@@ -9,6 +9,7 @@ export const MUSIC_INSTRUMENTS = {
   pizzicato: { attack: 0.001, release: 0.22, partials: [1, 0.42, 0.18, 0.08] },
   steelGuitar: { attack: 0.002, release: 0.24, partials: [1, 0.55, 0.32, 0.18, 0.09, 0.04] },
   slapBass: { attack: 0.002, release: 0.10, partials: [1, 0.48, 0.22, 0.08, 0.03] },
+  brassLead: { attack: 0.012, release: 0.16, partials: [1, 0.72, 0.48, 0.32, 0.20, 0.12, 0.06] },
   drumKick: { kind: 'percussion', duration: 0.36 },
   drumSnare: { kind: 'percussion', duration: 0.25 },
   drumHat: { kind: 'percussion', duration: 0.085 },
@@ -51,6 +52,7 @@ export function synthesizeMusicNote(instrument, frequency, heldSeconds, sampleRa
   if (profile.kind === 'percussion') return synthesizePercussion(instrument, sampleRate);
   const piano = instrument === 'feltPiano', flute = instrument === 'woodFlute', strings = instrument === 'softStrings';
   const accordion = instrument === 'accordion', marimba = instrument === 'marimba', pizzicato = instrument === 'pizzicato';
+  const brass = instrument === 'brassLead';
   const attack = Math.min(profile.attack, heldSeconds * 0.25);
   const duration = heldSeconds + profile.release;
   const pcm = new Float32Array(Math.ceil(duration * sampleRate));
@@ -70,7 +72,7 @@ export function synthesizeMusicNote(instrument, frequency, heldSeconds, sampleRa
     const t = frame / sampleRate;
     const rise = Math.sin(Math.min(1, t / attack) * Math.PI * 0.5) ** 2;
     const release = t <= heldSeconds ? 1 : Math.cos(Math.min(1, (t - heldSeconds) / profile.release) * Math.PI * 0.5) ** 2;
-    const vibrato = (flute || strings || accordion) ? 0.035 * Math.sin(2 * Math.PI * (accordion ? 6.2 : 5.1) * t) * Math.min(1, Math.max(0, t - 0.15) * 3) : 0;
+    const vibrato = (flute || strings || accordion || brass) ? 0.032 * Math.sin(2 * Math.PI * (brass ? 5.8 : accordion ? 6.2 : 5.1) * t) * Math.min(1, Math.max(0, t - 0.12) * 3) : 0;
     let value = 0;
     for (const partial of partials) {
       const phase = 2 * Math.PI * frequency * partial.ratio * t;
@@ -79,6 +81,8 @@ export function synthesizeMusicNote(instrument, frequency, heldSeconds, sampleRa
         carrier = (Math.sin(phase + vibrato) + 0.38 * Math.sin(phase * 1.0018 + 0.7) + 0.38 * Math.sin(phase * 0.9982 - 0.7)) / 1.76;
       } else if (accordion) {
         carrier = (Math.sin(phase + vibrato) + 0.55 * Math.sin(phase * 1.0024 + 0.4) + 0.35 * Math.sin(phase * 0.9976 - 0.4)) / 1.65;
+      } else if (brass) {
+        carrier = (Math.sin(phase + vibrato) + 0.42 * Math.sin(phase * 1.0022 + 0.3) + 0.42 * Math.sin(phase * 0.9978 - 0.3)) / 1.84;
       } else {
         carrier = Math.sin(phase + vibrato);
       }

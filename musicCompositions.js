@@ -9,7 +9,9 @@ const CHORDS = {
   Ab: ["Ab3", "C4", "Eb4", "G4"], Db: ["Db4", "F4", "Ab4", "C5"],
   Eb: ["Eb4", "G4", "Bb4", "D5"], G7: ["G3", "B3", "D4", "F4"],
   Fm: ["F3", "Ab3", "C4", "Eb4"], Bm: ["B3", "D4", "F#4", "A4"],
-  E7: ["E3", "G#3", "B3", "D4"],
+  E7: ["E3", "G#3", "B3", "D4"], Bbm: ["Bb3", "Db4", "F4", "Ab4"],
+  Gb: ["Gb3", "Bb3", "Db4", "F4"], Ebm: ["Eb3", "Gb3", "Bb3", "Db4"],
+  CsharpDim: ["C#4", "E4", "G4", "Bb4"],
 };
 const octave = (note, value) => note.replace(/\d+$/, String(value));
 const parseBar = (score) => {
@@ -550,117 +552,252 @@ function shopTheme() {
 }
 export const BGM_SHOP = shopTheme();
 
-// ボス戦テーマ。E短調・144 BPM。本格フルアンサンブルによる決戦の交響詩。
+// ボス戦テーマ。D短調・158 BPM。FF3『バトル2』をオマージュした超高速・怒涛のバトルアンサンブル。
 function bossBattleTheme() {
   const chords = [
-    // 1-8: 開幕の激突・第1主題
-    "Em", "C", "D", "Em", "C", "Am", "B", "B",
-    // 9-16: 交差する刃・第2主題
-    "Em", "G", "Am", "B", "C", "D", "B", "Em",
-    // 17-24: 死線・展開部
-    "C", "D", "Em", "Bm", "C", "Am", "B", "B",
-    // 25-32: 限界突破・サビ〜決着のクライマックス
-    "Em", "C", "G", "D", "C", "Am", "B", "Em",
+    // 1-4: 【衝撃のイントロ】Dm一撃打 ➔ 狂気の16分ベースラン ➔ 緊迫のファンファーレ
+    "Dm", "Dm", "Dm", "A",
+    // 5-12: 【Aメロ】疾走する第1主題（和声短調・対位法・マシンガンベース）
+    "Dm", "Gm", "C", "F", "Bb", "Gm", "A", "A",
+    // 13-20: 【Bメロ】劇的転調（Bbマイナー・Dbへの突入・カノンの掛け合い）
+    "Bbm", "Gb", "Ab", "Db", "Ebm", "Fm", "Gb", "A",
+    // 21-28: 【サビ】哀愁と熱狂のクライマックス（限界突破・ハイスピード解放）
+    "Dm", "C", "Bb", "A", "Dm", "Gm", "C", "F",
+    // 29-32: 【ループブリッジ】ディミニッシュの減七テンション ➔ 全パート一斉ブレイク
+    "Bb", "C", "CsharpDim", "A",
   ];
 
-  const melody = [
-    // 1-8
-    "E5:2 E5:1 -:1 G5:2 B5:2 E6:4 D6:2 B5:2", "C6:3 B5:1 A5:2 G5:2 F#5:4 A5:4",
-    "B5:2 A5:2 G5:2 F#5:2 E5:4 G5:4", "F#5:3 G5:1 A5:2 B5:2 G5:4 E5:4",
-    "C6:2 B5:2 A5:2 G5:2 A5:4 C6:4", "A5:3 B5:1 C6:2 D6:2 B5:4 G5:4",
-    "F#5:2 G5:2 A5:4 B5:2 A5:2 G5:2 F#5:2", "D#5:4 F#5:4 B5:4 -:4",
-    // 9-16
-    "E5:2 G5:2 B5:4 E6:3 D6:1 B5:2 G5:2", "D6:3 B5:1 G5:2 B5:2 D6:4 G6:4",
-    "C6:2 B5:2 A5:4 E6:2 D6:2 C6:4", "B5:4 F#5:2 A5:2 B5:4 D#6:4",
-    "E6:2 D6:2 C6:4 B5:2 A5:2 G5:4", "A5:2 B5:2 C6:4 D6:3 C6:1 B5:2 A5:2",
-    "F#5:2 A5:2 D#6:4 B5:2 A5:2 F#5:4", "E5:6 -:2 E5:4 -:4",
-    // 17-24
-    "G5:4 E5:2 G5:2 C6:4 B5:2 A5:2", "F#5:4 D5:2 F#5:2 A5:4 G5:2 F#5:2",
-    "G5:6 -:2 B5:4 E6:4", "D#6:4 B5:2 F#5:2 D#5:4 -:4",
-    "E5:2 G5:2 C6:4 B5:2 A5:2 G5:4", "A5:2 C6:2 E6:4 D6:2 C6:2 B5:4",
-    "F#5:3 G5:1 A5:2 B5:2 C6:2 B5:2 A5:2 G5:2", "F#5:4 D#5:4 B4:4 -:4",
-    // 25-32
-    "E6:4 B5:2 G5:2 E5:4 G5:4", "A5:3 B5:1 C6:4 E6:2 D6:2 C6:4",
-    "D6:4 B5:2 G5:2 D5:4 G5:4", "F#5:3 G5:1 A5:4 D6:2 C6:2 B5:4",
-    "C6:4 A5:2 F#5:2 E5:4 G5:4", "A5:2 B5:2 C6:4 D#6:4 F#6:4",
-    "E6:6 D#6:2 E6:4 B5:4", "E5:8 -:8",
+  const riff = [
+    // 1-4: イントロ
+    "D5:2 -:2 -:4 -:8",
+    "-:8 A4:2 D5:2 E5:2 F5:2",
+    "G5:2 A5:4 D6:4 C#6:2 D6:4",
+    "E6:4 C#6:4 A5:4 -:4",
+
+    // 5-12: Aメロ
+    "D5:2 D5:1 -:1 F5:2 G5:2 A5:4 D6:4",
+    "Bb5:3 A5:1 G5:2 F5:2 E5:4 G5:4",
+    "C5:2 C5:1 -:1 E5:2 F5:2 G5:4 C6:4",
+    "A5:3 G5:1 F5:2 E5:2 D5:4 F5:4",
+    "Bb5:2 D6:2 F6:4 E6:2 D6:2 C#6:2 D6:2",
+    "G5:2 Bb5:2 D6:4 C6:2 Bb5:2 A5:2 G5:2",
+    "E5:2 G5:2 C#6:4 Bb5:2 A5:2 G5:2 E5:2",
+    "A5:4 C#6:4 E6:4 -:4",
+
+    // 13-20: Bメロ（転調）
+    "F5:4 Bb5:4 Db6:4 C6:2 Bb5:2",
+    "Gb5:4 Bb5:4 Db6:4 Bb5:4",
+    "Ab5:4 C6:4 Eb6:4 Db6:2 C6:2",
+    "F5:4 Ab5:4 Db6:4 -:4",
+    "Gb5:3 F5:1 Eb5:2 Gb5:2 Bb5:4 Ab5:2 Gb5:2",
+    "Ab5:3 G5:1 F5:2 Ab5:2 C6:4 Bb5:2 Ab5:2",
+    "Bb5:2 Db6:2 Gb6:4 F6:2 Eb6:2 Db6:2 C6:2",
+    "C#6:4 A5:4 E5:4 -:4",
+
+    // 21-28: サビ
+    "D6:6 A5:2 F5:4 D5:4",
+    "E6:4 C6:2 G5:2 E5:4 G5:4",
+    "F6:6 D6:2 Bb5:4 G5:4",
+    "A6:4 E6:2 C#6:2 A5:4 -:4",
+    "D6:3 E6:1 F6:4 E6:2 D6:2 C6:4",
+    "Bb5:3 C6:1 D6:4 C6:2 Bb5:2 A5:4",
+    "G5:2 C6:2 E6:4 D6:2 C6:2 B5:4",
+    "A5:4 C6:4 F6:4 -:4",
+
+    // 29-32: ループブリッジ
+    "D6:3 C6:1 Bb5:2 A5:2 Bb5:4 D6:4",
+    "E6:3 D6:1 C6:2 B5:2 C6:4 E6:4",
+    "G6:2 F6:2 E6:2 D6:2 C#6:2 D6:2 E6:2 G6:2",
+    "A6:4 -:4 A5:4 -:4",
   ];
 
-  const lead = [], piano = [], inner = [], upper = [], bass = [];
-  const kick = [], snare = [], hats = [], openHats = [];
+  const stringsScore = [
+    // 1-4: イントロ
+    "D4:2 -:2 -:4 -:8",
+    "-:8 D4:2 F4:2 G4:2 A4:2",
+    "Bb4:2 C5:4 F5:4 E5:2 F5:4",
+    "G5:4 E5:4 C#5:4 -:4",
+
+    // 5-12: Aメロ（主旋律との対位法・隙間を埋めるカウンター）
+    "-:6 D4:2 F4:2 A4:2 D5:2 F5:2",
+    "G5:2 F5:2 D5:2 Bb4:2 G4:4 Bb4:4",
+    "-:6 C4:2 E4:2 G4:2 C5:2 E5:2",
+    "F5:2 E5:2 C5:2 A4:2 F4:4 A4:4",
+    "D5:4 F5:4 G5:2 F5:2 E5:2 D5:2",
+    "Bb4:4 D5:4 E5:2 D5:2 C5:2 Bb4:2",
+    "G4:4 Bb4:4 A4:2 G4:2 F#4:2 G4:2",
+    "A4:4 E4:4 C#4:4 -:4",
+
+    // 13-20: Bメロ（カノン・追唱）
+    "-:4 F4:4 Bb4:4 Db5:4",
+    "Eb5:4 Gb4:4 Bb4:4 Gb4:4",
+    "-:4 Ab4:4 C5:4 Eb5:4",
+    "Db5:4 F4:4 Ab4:4 -:4",
+    "-:4 Gb4:4 Bb4:4 Db5:4",
+    "-:4 Ab4:4 C5:4 Eb5:4",
+    "Db5:2 F5:2 Bb5:4 Ab5:2 Gb5:2 F5:2 Eb5:2",
+    "E5:4 C#5:4 A4:4 -:4",
+
+    // 21-28: サビ（伸びやかな和声オブリガート）
+    "F5:6 D5:2 A4:4 F4:4",
+    "G5:4 E5:2 C5:2 G4:4 C5:4",
+    "D5:6 F5:2 D5:4 Bb4:4",
+    "E5:4 C#5:2 A4:2 E4:4 -:4",
+    "F5:3 G5:1 A5:4 G5:2 F5:2 E5:4",
+    "D5:3 E5:1 F5:4 E5:2 D5:2 C5:4",
+    "B4:2 E5:2 G5:4 F5:2 E5:2 D5:4",
+    "C5:4 F5:4 A5:4 -:4",
+
+    // 29-32: ループブリッジ
+    "Bb4:4 D5:4 F5:4 Bb5:4",
+    "C5:4 E5:4 G5:4 C6:4",
+    "C#5:4 E5:4 G5:4 Bb5:4",
+    "A5:4 -:4 A4:4 -:4",
+  ];
+
+  const bassScore = [
+    // 1-4: イントロ（衝撃のD2一撃打 ➔ 狂気の16分ベースラン）
+    "D2:2 -:2 D2:1 D2:1 D3:2 D2:1 D2:1 C3:2 D2:1 D2:1 Bb2:2",
+    "D2:1 D2:1 A2:2 D2:1 D2:1 G2:2 D2:1 D2:1 F2:2 E2:2 C#2:2",
+    "D2:1 D2:1 D3:2 D2:1 D2:1 D3:2 D2:1 D2:1 C3:2 D2:1 D2:1 Bb2:2",
+    "A2:4 E2:4 C#2:4 -:4",
+
+    // 5-12: Aメロ（16分ノンストップ・マシンガンベースラン）
+    "D2:1 D2:1 D3:2 D2:1 D2:1 A2:2 D2:1 D2:1 D3:2 A2:2 D2:2",
+    "G2:1 G2:1 G3:2 G2:1 G2:1 D3:2 G2:1 G2:1 G3:2 D3:2 G2:2",
+    "C2:1 C2:1 C3:2 C2:1 C2:1 G2:2 C2:1 C2:1 C3:2 G2:2 C2:2",
+    "F2:1 F2:1 F3:2 F2:1 F2:1 C3:2 F2:1 F2:1 F3:2 C3:2 F2:2",
+    "Bb2:1 Bb2:1 Bb3:2 Bb2:1 Bb2:1 F2:2 Bb2:1 Bb2:1 Bb3:2 F2:2 Bb2:2",
+    "G2:1 G2:1 G3:2 G2:1 G2:1 D3:2 G2:1 G2:1 G3:2 D3:2 G2:2",
+    "A2:1 A2:1 A3:2 A2:1 A2:1 E2:2 A2:1 A2:1 A3:2 G2:2 E2:2",
+    "A2:4 E2:4 C#2:4 -:4",
+
+    // 13-20: Bメロ（転調ベースラン）
+    "Bb2:1 Bb2:1 Bb3:2 Bb2:1 Bb2:1 F2:2 Bb2:1 Bb2:1 Bb3:2 F2:2 Bb2:2",
+    "Gb2:1 Gb2:1 Gb3:2 Gb2:1 Gb2:1 Db3:2 Gb2:1 Gb2:1 Gb3:2 Db3:2 Gb2:2",
+    "Ab2:1 Ab2:1 Ab3:2 Ab2:1 Ab2:1 Eb3:2 Ab2:1 Ab2:1 Ab3:2 Eb3:2 Ab2:2",
+    "Db2:1 Db2:1 Db3:2 Db2:1 Db2:1 Ab2:2 Db2:1 Db2:1 Db3:2 Ab2:2 Db2:2",
+    "Eb2:1 Eb2:1 Eb3:2 Eb2:1 Eb2:1 Bb2:2 Eb2:1 Eb2:1 Eb3:2 Bb2:2 Eb2:2",
+    "F2:1 F2:1 F3:2 F2:1 F2:1 C3:2 F2:1 F2:1 F3:2 C3:2 F2:2",
+    "Gb2:1 Gb2:1 Gb3:2 Gb2:1 Gb2:1 Db3:2 Gb2:1 Gb2:1 Gb3:2 Db3:2 Gb2:2",
+    "A2:4 E2:4 C#2:4 -:4",
+
+    // 21-28: サビ（ドライブする16分疾走）
+    "D2:1 D2:1 D3:2 D2:1 D2:1 D3:2 D2:1 D2:1 A2:2 C3:2 D3:2",
+    "C2:1 C2:1 C3:2 C2:1 C2:1 C3:2 C2:1 C2:1 G2:2 B2:2 C3:2",
+    "Bb2:1 Bb2:1 Bb3:2 Bb2:1 Bb2:1 Bb3:2 Bb2:1 Bb2:1 F2:2 A2:2 Bb2:2",
+    "A2:1 A2:1 A3:2 A2:1 A2:1 A3:2 A2:1 A2:1 E2:2 G2:2 A2:2",
+    "D2:1 D2:1 D3:2 D2:1 D2:1 A2:2 D2:1 D2:1 D3:2 A2:2 D2:2",
+    "G2:1 G2:1 G3:2 G2:1 G2:1 D3:2 G2:1 G2:1 G3:2 D3:2 G2:2",
+    "C2:1 C2:1 C3:2 C2:1 C2:1 G2:2 C2:1 C2:1 C3:2 G2:2 C2:2",
+    "F2:4 C2:4 F2:4 -:4",
+
+    // 29-32: ループブリッジ
+    "Bb2:2 Bb2:2 D3:2 F3:2 Bb2:2 Bb2:2 D3:2 F3:2",
+    "C2:2 C2:2 E3:2 G3:2 C2:2 C2:2 E3:2 G3:2",
+    "C#2:2 E2:2 G2:2 Bb2:2 C#3:2 E3:2 G3:2 Bb3:2",
+    "A2:4 -:4 A1:4 -:4",
+  ];
+
+  const lead = [], piano = [], strings = [], bass = [];
+  const kick = [], snare = [], hats = [];
 
   for (let bar = 0; bar < chords.length; bar++) {
     const c = CHORDS[chords[bar]];
-    const bridge = bar >= 16 && bar < 24;
-    const climax = bar >= 24;
-    const lift = climax ? 1.0 : bridge ? 0.94 : 0.96;
+    const climax = bar >= 20 && bar < 28;
+    const lift = climax ? 1.0 : 0.94;
 
-    lead.push(...parseBar(melody[bar]).map(([note, length], index) => [
-      note,
-      length,
-      lift * (index % 3 === 0 ? 1 : 0.9),
-    ]));
+    // 1. リードブラス（切り裂く主旋律）
+    lead.push(...parseBar(riff[bar]).map(([n, l], i) => [n, l, lift * (i % 2 === 0 ? 1 : 0.9)]));
 
-    // ピアノ: 猛烈な16分の疾走刻み・アルペジオ
-    piano.push(...parseBar(bridge
-      ? `${c[0]}:2:0.7 -:1 ${c[2]}:1:0.5 ${c[1]}:2:0.62 -:2 ${c[3]}:2:0.52 ${c[2]}:2:0.6 -:2 ${c[0]}:2:0.64`
-      : climax
-        ? `${c[0]}:1:0.75 ${c[1]}:1:0.6 ${c[2]}:2:0.68 ${c[1]}:2:0.58 ${c[3]}:2:0.7 ${c[2]}:2:0.6 ${c[1]}:2:0.55 ${c[0]}:2:0.7 -:2`
-        : `${c[0]}:2:0.75 -:1 ${c[2]}:1:0.55 ${c[1]}:2:0.68 -:1 ${c[2]}:1:0.52 ${c[0]}:2:0.7 ${c[3]}:2:0.58 ${c[2]}:2:0.65 -:2`
-    ));
+    // 2. ピアノ（超高速アルペジオ＆スタッカート）
+    if (bar === 0) {
+      piano.push(...parseBar("D4:2 -:14"));
+    } else if (bar === 1) {
+      piano.push(...parseBar("-:8 D5:2 F5:2 A5:2 D6:2"));
+    } else if (bar === 2) {
+      piano.push(...parseBar("F5:2 A5:2 D6:2 F6:2 E6:2 D6:2 C#6:2 E6:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      piano.push(...parseBar(`${c[0]}:4 ${c[1]}:4 ${c[2]}:4 -:4`));
+    } else if (bar === 30) {
+      piano.push(...parseBar("C#4:2 E4:2 G4:2 Bb4:2 C#5:2 E5:2 G5:2 Bb5:2"));
+    } else if (bar === 31) {
+      piano.push(...parseBar("A4:4 -:4 A4:4 -:4"));
+    } else if (climax) {
+      piano.push(...parseBar(`${c[0]}:1 ${c[1]}:1 ${c[2]}:1 ${c[3] || c[0]}:1 ${octave(c[0], 5)}:1 ${c[2]}:1 ${c[1]}:1 ${c[0]}:1 ${c[0]}:1 ${c[1]}:1 ${c[2]}:1 ${c[3] || c[0]}:1 ${octave(c[0], 5)}:1 ${c[2]}:1 ${c[1]}:1 ${c[0]}:1`));
+    } else {
+      piano.push(...parseBar(`${c[0]}:2 -:1 ${c[2]}:1 ${c[1]}:2 -:1 ${c[2]}:1 ${c[0]}:2 -:1 ${c[2]}:1 ${c[1]}:2 -:2`));
+    }
 
-    // 内声弦: 激しいスタッカートと和声の壁
-    inner.push(...parseBar(`${octave(c[1], 3)}:16:${lift * 0.78}`));
+    // 3. ストリングス（対位法・カウンター旋律）
+    strings.push(...parseBar(stringsScore[bar]).map(([n, l], i) => [n, l, lift * 0.9]));
 
-    // 上声弦: 激情の高音カウンター
-    upper.push(...parseBar(bar % 2 === 0
-      ? `${octave(c[2], 4)}:16:${lift * 0.72}`
-      : `${octave(c[3] || c[0], 4)}:16:${lift * 0.68}`
-    ));
+    // 4. スラップベース（怒涛の16分マシンガン）
+    bass.push(...parseBar(bassScore[bar]));
 
-    // ベース: 疾走するシンコペーション低音
-    const root = octave(c[0], 2), fifth = octave(c[2], 2);
-    bass.push(...parseBar(climax
-      ? `${root}:2:0.88 -:1 ${root}:1:0.7 ${fifth}:2:0.78 ${octave(c[0], 3)}:2:0.82 ${root}:2:0.8 ${fifth}:2:0.75 ${root}:2:0.82 ${octave(c[2], 2)}:2:0.7`
-      : `${root}:2:0.85 -:1 ${root}:1:0.68 ${fifth}:2:0.75 ${root}:2:0.8 ${fifth}:2:0.72 ${root}:2:0.8 ${octave(c[0], 3)}:2:0.76 -:2`
-    ));
+    // 5. キック
+    if (bar === 0) {
+      kick.push(...parseBar("C2:2 -:14"));
+    } else if (bar === 1) {
+      kick.push(...parseBar("-:8 C2:2 -:2 C2:2 C2:2"));
+    } else if (bar === 2) {
+      kick.push(...parseBar("C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 -:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      kick.push(...parseBar("C2:4 C2:4 C2:4 -:4"));
+    } else if (bar === 28 || bar === 29) {
+      kick.push(...parseBar("C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2"));
+    } else if (bar === 30) {
+      kick.push(...parseBar("C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1"));
+    } else if (bar === 31) {
+      kick.push(...parseBar("C2:4 -:4 C2:4 -:4"));
+    } else {
+      kick.push(...parseBar("C2:2 -:2 C2:2 C2:1 C2:1 C2:2 -:2 C2:2 C2:2"));
+    }
 
-    const fill = bar % 4 === 3;
-    const open = bar % 2 === 1;
+    // 6. スネア
+    if (bar === 0) {
+      snare.push(...parseBar("C2:2 -:14"));
+    } else if (bar === 1) {
+      snare.push(...parseBar("-:16"));
+    } else if (bar === 2) {
+      snare.push(...parseBar("-:8 C2:2 C2:2 C2:2 C2:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      snare.push(...parseBar("C2:4 C2:4 C2:4 -:4"));
+    } else if (bar === 30) {
+      snare.push(...parseBar("C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2"));
+    } else if (bar === 31) {
+      snare.push(...parseBar("C2:4 -:4 C2:4 -:4"));
+    } else {
+      snare.push(...parseBar("-:4 C2:4 -:4 C2:4"));
+    }
 
-    // バスドラム: ダブルキック疾走ビート
-    kick.push(...parseBar(climax
-      ? "C2:2:0.9 C2:2:0.7 -:1 C2:1:0.6 C2:2:0.85 C2:2:0.7 -:2 C2:2:0.82 C2:2:0.8"
-      : "C2:2:0.9 -:2 C2:2:0.75 C2:2:0.6 C2:2:0.88 -:2 C2:2:0.8 -:2"
-    ));
-
-    // スネア: バックビート＆激しいフィルイン
-    snare.push(...parseBar(fill
-      ? "-:4 C2:2:0.75 C2:2:0.6 -:2 C2:2:0.82 C2:2:0.65 C2:2:0.95"
-      : "-:4 C2:4:0.88 -:4 C2:4:0.92"
-    ));
-
-    // ハット: 16分刻み
-    hats.push(...parseBar(
-      `C5:2:0.55 C5:2:0.38 C5:2:0.48 C5:2:0.35 C5:2:0.52 C5:2:0.38 C5:2:0.48 ${open ? "-:2" : "C5:2:0.35"}`
-    ));
-
-    openHats.push(...parseBar(open ? "-:14 C6:2:0.55" : "-:16"));
+    // 7. ハット
+    if (bar === 0) {
+      hats.push(...parseBar("-:16"));
+    } else if (bar === 1) {
+      hats.push(...parseBar("-:8 C5:2 C5:2 C5:2 C5:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      hats.push(...parseBar("C5:4 C5:4 C5:4 -:4"));
+    } else if (bar === 30) {
+      hats.push(...parseBar("C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1"));
+    } else if (bar === 31) {
+      hats.push(...parseBar("C5:4 -:4 C5:4 -:4"));
+    } else {
+      hats.push(...parseBar("C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2"));
+    }
   }
 
   return {
-    name: "boss", title: "誓いの刃", tempo: 144, loop: true, bars: 32,
-    desc: "E短調。32小節・約54秒。ボス戦テーマ。疾走するドラムス、唸る重低音ベース、猛烈なピアノの刻みと激情のストリングスが織りなす決戦の本格フルアンサンブル。切り結ぶ刃の緊迫感、死線を越えるサビ、限界を突破してクライマックスへと駆け抜ける。",
+    name: "boss", title: "誓いの刃", tempo: 158, loop: true, bars: 32,
+    desc: "D短調。32小節・約48秒。ボス戦テーマ。FF3『バトル2』の熱狂と緊迫感をオマージュした超高速バトルアンサンブル。一撃打から雪崩れ込む狂気の16分マシンガンベースラン、和声短調を切り裂く分厚いブラスリード、主旋律と激しく追走する対位法ストリングス、Bbマイナーへのドラマチックな転調とディミニッシュの減七緊張、全パート一斉ブレイクが織りなす極限の死闘。",
     tracks: [
-      { type: "sine", instrument: "woodFlute", volume: 0.28, gate: 0.88, pan: -0.06, cutoff: 4200, roomSend: 0.28, notes: lead },
-      { type: "sine", instrument: "feltPiano", volume: 0.25, gate: 0.72, pan: -0.28, cutoff: 3400, roomSend: 0.22, notes: piano },
-      { type: "sine", instrument: "softStrings", volume: 0.16, gate: 0.95, pan: -0.46, cutoff: 2400, roomSend: 0.35, notes: inner },
-      { type: "sine", instrument: "softStrings", volume: 0.13, gate: 0.95, pan: 0.44, cutoff: 2800, roomSend: 0.35, notes: upper },
-      { type: "sine", instrument: "roundBass", volume: 0.36, gate: 0.80, pan: 0, cutoff: 750, notes: bass },
-      { type: "sine", instrument: "drumKick", volume: 0.32, pan: 0, cutoff: 1100, notes: kick },
-      { type: "sine", instrument: "drumSnare", volume: 0.22, pan: 0.06, cutoff: 4800, roomSend: 0.1, notes: snare },
-      { type: "sine", instrument: "drumHat", volume: 0.14, pan: 0.30, cutoff: 7400, notes: hats },
-      { type: "sine", instrument: "drumOpenHat", volume: 0.12, pan: 0.34, cutoff: 7400, notes: openHats },
+      { type: "sine", instrument: "brassLead", volume: 0.32, gate: 0.88, pan: -0.06, cutoff: 4800, roomSend: 0.22, notes: lead },
+      { type: "sine", instrument: "feltPiano", volume: 0.22, gate: 0.68, pan: 0.28, cutoff: 3600, roomSend: 0.18, notes: piano },
+      { type: "sine", instrument: "softStrings", volume: 0.18, gate: 0.90, pan: -0.42, cutoff: 3200, roomSend: 0.30, notes: strings },
+      { type: "sine", instrument: "slapBass", volume: 0.40, gate: 0.74, pan: 0, cutoff: 850, notes: bass },
+      { type: "sine", instrument: "drumKick", volume: 0.32, pan: 0, cutoff: 1200, notes: kick },
+      { type: "sine", instrument: "drumSnare", volume: 0.25, pan: 0.06, cutoff: 5000, roomSend: 0.10, notes: snare },
+      { type: "sine", instrument: "drumHat", volume: 0.14, pan: 0.28, cutoff: 7500, notes: hats },
     ],
   };
 }
