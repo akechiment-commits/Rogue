@@ -1753,9 +1753,12 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
  *   呼び出し側は scrollIdx 等の補正に使う。 */
 export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed = false) {
   if (cursed) {
-    scatterPotContents(pot, dg, px, py, p, ml, luFn);
     const _idx = p?.inventory ? p.inventory.indexOf(pot) : -1;
     if (_idx !== -1) p.inventory.splice(_idx, 1);
+    else removeFloorItem(dg, pot);
+    /* 破壊予定の壺を先に外し、散乱中の爆風が同じ壺を再び割らないようにする。 */
+    scatterPotContents(pot, dg, px, py, p, ml, luFn);
+    pot.contents = [];
     ml.push("【呪】");
     return { potRemovedAt: _idx !== -1 ? _idx : null };
   }
@@ -1764,8 +1767,11 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     doGunpowderExplosion(px, py, dg, p, ml, luFn, resolveItemName(pot));
     return { potRemovedAt: null };
   }
+  /* 中身を先に切り離す。途中で壺が壊れても、放出済みの道具をもう一度出さない。 */
+  const contents = [...(pot.contents || [])];
+  pot.contents = [];
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
-  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity ?? 3)) {
+  if (_oilEffects[pot.potEffect] && contents.length < (pot.capacity ?? 3)) {
     ml.push(`${resolveItemName(pot)}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
@@ -1797,10 +1803,9 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     }
   }
   const ft = new Set();
-  if ((pot.contents?.length || 0) > 0) {
+  if (contents.length > 0) {
     ml.push(`${resolveItemName(pot)}から中身が飛び出した！`);
-    for (const item of [...pot.contents]) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
-    pot.contents = [];
+    for (const item of contents) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
   } else {
     ml.push(`${resolveItemName(pot)}は空だった。`);
   }

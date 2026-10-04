@@ -5,6 +5,33 @@ import { makeEmptyDg, makePlayer } from "./helpers.js";
 afterEach(() => vi.restoreAllMocks());
 
 describe("壺・大箱から出た道具の罠判定", () => {
+  it.each([false, true])("吸い出し中に壺が地雷の熱で壊れても、同じ中身を二度出さない（呪い: %s）", cursed => {
+    vi.spyOn(Math, "random").mockReturnValue(0.9);
+    const player = makePlayer({ hp: 100, maxHp: 100, depth: 1 });
+    const sword = { id: "sword", name: "短剣", type: "weapon", atk: 3 };
+    const ring = { id: "ring", name: "命の指輪", type: "ring", effect: "life_ring", plus: 1 };
+    const pot = { id: "storage", name: "保存の壺", type: "pot", potEffect: "none", capacity: 3, contents: [sword, ring] };
+    player.inventory.push(pot);
+    const dungeon = makeEmptyDg({ traps: [{ id: "mine", name: "地雷", effect: "explode", x: 5, y: 5 }] });
+    const messages = [];
+    extractPotContents(pot, dungeon, 5, 5, player, messages, vi.fn(), false, cursed);
+    expect(messages.filter(message => message.includes("地雷が発動"))).toHaveLength(1);
+    expect(player.hp).toBe(50);
+    expect(player.inventory).not.toContain(pot);
+    expect(pot.contents).toHaveLength(0);
+    expect(dungeon.items.filter(item => item.id === sword.id)).toHaveLength(0);
+    expect(dungeon.items.filter(item => item.id === ring.id)).toHaveLength(1);
+  });
+  it.each([1, 2])("油壺の吸い出しは、取り出す前の中身の数で残り油を判定する（容量: %s）", capacity => {
+    const player = makePlayer();
+    const ring = { id: "ring", name: "命の指輪", type: "ring", effect: "life_ring", plus: 1 };
+    const pot = { name: "オリーブオイルの壺", type: "pot", potEffect: "olive", capacity, contents: [ring] };
+    const dungeon = makeEmptyDg();
+    extractPotContents(pot, dungeon, 5, 5, player, [], vi.fn(), false);
+    expect((dungeon.oilyTiles || []).length > 0).toBe(capacity === 2);
+    expect(pot.contents).toHaveLength(0);
+    expect(dungeon.items).toContain(ring);
+  });
   it("散乱中の地雷で元の大箱を繰り返し破壊せず、中身を複製しない", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.9);
     const player = makePlayer({ hp: 100, maxHp: 100, x: 4, y: 6, depth: 1 });

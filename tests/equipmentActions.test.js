@@ -135,6 +135,23 @@ describe("所持品への祝福・呪い", () => {
 });
 
 describe("装備解除と保存", () => {
+  it.each([
+    ["pointer", false], ["keyboard", false], ["pointer", true], ["keyboard", true],
+  ])("吸い出し中に壺が壊れても、中身と使用巻物の処理を一度だけ行う: %s（呪い%s）", (control, cursed) => {
+    const sword = { id: "stored-sword", name: "短剣", type: "weapon", atk: 3 };
+    const lootRing = { ...life(), id: "stored-ring" };
+    const pot = { id: "storage", name: "保存の壺", type: "pot", potEffect: "none", capacity: 3, contents: [sword, lootRing] };
+    const scroll = { id: "extract", name: "吸い出しの巻物", type: "scroll", effect: "pot_extract", cursed };
+    const keep = life();
+    const f = fixture([pot, scroll, keep]);
+    f.dungeon.traps.push({ id: "mine", name: "地雷", effect: "explode", x: 5, y: 5 });
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
+    choose(f, { mode: "pot_extract", scrollIdx: 1, sel: 0, cursed }, control);
+    expect(f.player.hp).toBe(15);
+    expect(f.player.inventory).toEqual([keep]);
+    expect(f.dungeon.items.filter(item => item.id === lootRing.id)).toHaveLength(1);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
   it.each(["pointer", "keyboard"])("保存壺の吸い出しで足元の地雷が起動すると被ダメージと巻物消費を両方処理する: %s", control => {
     const content = { id: "stored-sword", name: "短剣", type: "weapon", atk: 3 };
     const pot = { id: "storage", name: "保存の壺", type: "pot", potEffect: "none", capacity: 3, contents: [content] };
