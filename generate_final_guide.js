@@ -606,6 +606,7 @@ const potData = [['壺名', 'potEffect', 'テンプレート容量 / フロア�
 potData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
 potData.push(['【呪いによる容量不足】', '', '', '', '', POT_CAPACITY_REDUCTION_NOTE]);
 potData.push(['【容量0の扱い】', '', '', '', '', ZERO_POT_CAPACITY_NOTE]);
+potData.push(['【投げた壺と落とし穴】', '', '', '', '', '投げた壺が敵に外れて敵の足元の落とし穴を作動させた場合は、壺と落下可能な敵を通常の下階への落下処理へ渡す。壺は中身を保持したまま次の階へ配置し、元の階で壺を割ったり中身を撒いたりしない。落下先に空きがなければ下階の落下待ち一覧に保持する。罠がない場合や同じターンに発動済みの落とし穴では、外れた壺は通常どおりその場で割れる。']);
 potData.push(['【生成ルール】', '', '通常フロアと店はrandPotCapacity()で効果別に抽選。テンプレートcapacity値は基準値・固定配置用。', '', '', '保存=6〜9、弱化/火薬/強欲=4〜6、強化/祝福/呪い=1〜2、クライン=2〜4、その他=3〜5（願いを含む）']);
 for (const p of POTS) {
   potData.push([p.name, p.potEffect, `${p.capacity} / ${potInitialCapacityRange(p)}`, p.rarity, p.sellPrice, guideDesc(p)]);

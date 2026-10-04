@@ -11,6 +11,8 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { IdentifyModal } from "../GameModals.jsx";
 import { applyWandEffect } from "../wands.js";
 import { applyUnequipTrapToPlayer, applyWaterGunToInventory, applyWaterSplash, confineMonsterInImprisonPot } from "../items.js";
+import { setPitfallBag, clearPitfallBag, fireTrapItem } from "../items.js";
+import { processPitfallBag } from "../render.js";
 import { saveGameState, loadGameState } from "../GameSave.js";
 import { applyPlayerPoison, applyYabaiPoison } from "../statusDuration.js";
 import { advanceEarlyStatusTimers } from "../turnUpkeep.js";
@@ -94,6 +96,65 @@ describe("外れた飛び道具の着地で起動する罠", () => {
     expect(messages.filter(message => String(message).includes("地雷が発動"))).toHaveLength(1);
     expect(messages.filter(message => String(message).includes("地雷が誘爆"))).toHaveLength(2);
     expect(f.player.hp).toBe(50);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
+});
+
+describe("外れた壺と落とし穴", () => {
+  it("敵の足元の穴へ落ちた壺と敵を次の階へ渡し、元の階へ中身を撒かない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.95);
+    const ring = life();
+    const pot = { id: "pot", name: "保存の壺", type: "pot", potEffect: "none", capacity: 3, contents: [ring] };
+    const fallen = [];
+    const f = fixture([pot], {}, {
+      throwMode: { idx: 0, mode: "throw" },
+      withPitfallBag: fn => {
+        setPitfallBag(fallen);
+        try { fn(); } finally { clearPitfallBag(); }
+      },
+    });
+    const target = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 6, 5);
+    f.dungeon.monsters.push(target);
+    f.dungeon.traps.push({ id: "pit", name: "落とし穴", effect: "pitfall", x: 6, y: 5 });
+    f.actions.execDirection(1, 0);
+    expect(fallen).toEqual([{ kind: "monster", entity: target }, { kind: "item", entity: pot }]);
+    expect(f.dungeon.monsters).not.toContain(target);
+    expect(f.dungeon.items).not.toContain(ring);
+    expect(pot.contents).toEqual([ring]);
+    expect(f.player.inventory).not.toContain(pot);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+    const below = makeEmptyDg({ rooms: [{ x: 1, y: 1, w: 12, h: 12 }] });
+    f.sr.current.floors[2] = below;
+    processPitfallBag(fallen, f.sr.current.floors, 1, f.sr.current);
+    expect(below.monsters).toContain(target);
+    expect(below.items).toContain(pot);
+    expect(below.items).not.toContain(ring);
+    expect(pot.contents).toEqual([ring]);
+  });
+  it.each([false, true])("罠なし・発動済みの穴では、外れた壺は通常どおり割れる（発動済み:%s）", alreadyActivated => {
+    vi.spyOn(Math, "random").mockReturnValue(0.95);
+    const ring = life();
+    const pot = { id: "pot", name: "保存の壺", type: "pot", potEffect: "none", capacity: 3, contents: [ring] };
+    const fallen = [];
+    const f = fixture([pot], {}, {
+      throwMode: { idx: 0, mode: "throw" },
+      withPitfallBag: fn => {
+        setPitfallBag(fallen);
+        try { fn(); } finally { clearPitfallBag(); }
+      },
+    });
+    if (alreadyActivated) {
+      const trap = { id: "pit", name: "落とし穴", effect: "pitfall", x: 6, y: 5 };
+      f.dungeon.traps.push(trap);
+      fireTrapItem(trap, { name: "重力の力", _ephemeralTrapTrigger: true }, f.dungeon, 6, 5, [], new Set(), f.player);
+    }
+    const target = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 6, 5);
+    f.dungeon.monsters.push(target);
+    f.actions.execDirection(1, 0);
+    expect(fallen).toHaveLength(0);
+    expect(f.dungeon.monsters).toContain(target);
+    expect(f.dungeon.items).toContain(ring);
+    expect(f.player.inventory).not.toContain(pot);
     expect(f.props.endTurn).toHaveBeenCalledOnce();
   });
 });

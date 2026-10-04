@@ -4090,7 +4090,7 @@ export function useItemActions({
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}${_itemPickupSuffix(it, sr.current?.ident)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false, _potHitSelf = false, _potHitEnemyProjectile = false;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false, _potHitSelf = false, _potHitEnemyProjectile = false, _potFellIntoPit = false;
           let _pFdx = dx, _pFdy = dy, _pCx = p.x, _pCy = p.y, _pWind = false;
           for (let d = 1; d <= _maxRange; d++) {
             const _ps = stepProjectile(dg, _pCx, _pCy, _pFdx, _pFdy);
@@ -4155,7 +4155,11 @@ export function useItemActions({
                 lx = tx; ly = ty;
                 ml.push(`${dnameRef(it)}は${m.name}に外れ、足元に落ちた！`);
                 const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_ptTrap) fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
+                if (_ptTrap) {
+                  let _ptResult;
+                  withPitfallBag(() => { _ptResult = fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu); });
+                  _potFellIntoPit = _ptTrap.effect === "pitfall" && (_ptResult === "destroyed" || _ptResult === "pitfall_player");
+                }
                 break;
               }
               if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; break; } }
@@ -4191,7 +4195,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_potHitEnemyProjectile) {
+          if (_potFellIntoPit) {
+            /* 壺ごと次の階へ渡したので、元の階では割らず中身も撒かない。 */
+          } else if (_potHitEnemyProjectile) {
             /* 敵の誘導弾に当たって、壺も誘導弾も消滅する。 */
           } else if (_potFdBurned) {
             /* 火ダルマに燃やされた：何もしない */
