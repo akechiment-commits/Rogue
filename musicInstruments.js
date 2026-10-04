@@ -7,6 +7,8 @@ export const MUSIC_INSTRUMENTS = {
   accordion: { attack: 0.024, release: 0.14, partials: [1, 0.65, 0.42, 0.28, 0.18, 0.12] },
   marimba: { attack: 0.001, release: 0.16, partials: [1, 0.22, 0.05, 0.02] },
   pizzicato: { attack: 0.001, release: 0.22, partials: [1, 0.42, 0.18, 0.08] },
+  steelGuitar: { attack: 0.002, release: 0.24, partials: [1, 0.55, 0.32, 0.18, 0.09, 0.04] },
+  slapBass: { attack: 0.002, release: 0.10, partials: [1, 0.48, 0.22, 0.08, 0.03] },
   drumKick: { kind: 'percussion', duration: 0.36 },
   drumSnare: { kind: 'percussion', duration: 0.25 },
   drumHat: { kind: 'percussion', duration: 0.085 },
@@ -58,6 +60,8 @@ export function synthesizeMusicNote(instrument, frequency, heldSeconds, sampleRa
     decay: piano ? 2.6 / (1 + i * 0.95)
       : marimba ? 0.12 / (1 + i * 0.8)
       : pizzicato ? 0.20 / (1 + i * 0.7)
+      : instrument === 'steelGuitar' ? 0.35 / (1 + i * 0.7)
+      : instrument === 'slapBass' ? 0.18 / (1 + i * 0.85)
       : Infinity,
   })).filter(partial => partial.ratio * frequency < sampleRate * 0.43);
   const scale = 0.8 / profile.partials.reduce((sum, amplitude) => sum + amplitude, 0);
