@@ -1134,18 +1134,18 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
 }
 
 /** 強制移動の着地点が水上なら、水に適応できない敵を撃破する。 */
-export function drownMonsterIfNeeded(mon, dg, p, ml, luFn) {
+export function drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon = null) {
   if (!mon || !dg?.map || !dg.monsters?.includes(mon)) return false;
   if (canMonsterSurviveOnWater(mon, dg, mon.x, mon.y)) return false;
   if (mon.isBoss) {
     const _bd = bossInstantDeathDamage(mon);
     mon.hp -= _bd;
     ml.push(`${mon.name}は水没に耐えたが${_bd}ダメージを受けた！`);
-    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
+    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
     return true;
   }
   ml.push(`${mon.name}は水没した！`);
-  killMonster(mon, dg, p, ml, luFn);
+  killMonster(mon, dg, p, ml, luFn, false, killerMon);
   return true;
 }
 
@@ -6073,12 +6073,13 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   return res;
 }
 
-export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0) {
+export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0, killerMon = null) {
   if (kind === "player" && resistsForcedMove(p)) {
     if (ml) ml.push("体幹の指輪のおかげで踏ん張った！強制移動を防いだ！");
     return { x, y, consumed: false, blocked: true };
   }
   let cx = x, cy = y;
+  let collisionVictim = null;
   const _isFloorObj = kind === "trap" || kind === "vent" || kind === "pentacle";
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
@@ -6131,6 +6132,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
         if (collisionAtk > 0) {
           entity.hp -= collisionAtk;
           _colM.hp -= collisionAtk;
+          collisionVictim = _colM;
           ml.push(`${entity.name}が${_colM.name}に激突！お互いに${collisionAtk}ダメージ！`);
         }
         break;
@@ -6144,6 +6146,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           p.hp -= collisionAtk;
           p.deathCause = `${_pColM.name}との衝突により`;
           _pColM.hp -= collisionAtk;
+          collisionVictim = _pColM;
           ml.push(`${_pColM.name}に激突！お互いに${collisionAtk}ダメージ！`);
         }
         break;
@@ -6151,14 +6154,21 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     }
     cx = nx; cy = ny;
   }
-  if (kind === "monster") {
+  /* 着地座標を確定してから衝突相手の撃破・ドロップを処理する。
+     ドロップ先の罠などにも、着地後のプレイヤー位置を使わせる。 */
+  if (kind === "monster" || kind === "player") {
     entity.x = cx; entity.y = cy;
-    if (drownMonsterIfNeeded(entity, dg, p, ml, luFn)) {
+  }
+  if (collisionVictim?.hp <= 0 && dg.monsters.includes(collisionVictim)) {
+    killMonster(collisionVictim, dg, p, ml, luFn, false, killerMon);
+  }
+  if (kind === "monster") {
+    if (!dg.monsters.includes(entity)) return { x: cx, y: cy, consumed: false, killed: true };
+    if (drownMonsterIfNeeded(entity, dg, p, ml, luFn, killerMon)) {
       return { x: cx, y: cy, consumed: false, killed: true };
     }
   }
   else if (kind === "player") {
-    entity.x = cx; entity.y = cy;
     if (cx !== x || cy !== y) {
       pushAnim({ type: "playerKnockback", fromX: x, fromY: y, toX: cx, toY: cy, dx, dy });
     }

@@ -217,6 +217,7 @@ const CONTAINER_TRAP_NOTE = '壺の破壊・中身の吸い出し・大箱の破
 const TRAP_CONSUMED_PROJECTILE_NOTE = 'ふきとばしの杖による床道具の飛翔や敵の投擲では、飛翔中に罠が道具を消費した時点で着地後の処理を打ち切る。地雷で消滅した杖は床へ戻さず、壺の中身を散らしたり火薬壺の追加爆発を起こしたりしない。落とし穴へ落ちた道具は下階への移送処理に任せ、元の階に再配置しない。消費されずに着地した杖・壺は通常の着地処理を行う。薬瓶が罠に当たって割れた場合の薬液処理は通常どおり行う。';
 const ENEMY_BLOWBACK_TRAP_NOTE = '敵の吹き飛ばしの杖でプレイヤーが罠へ着地した場合、または杖で飛んだ罠がプレイヤーに当たった場合は、敵行動用の罠処理を通す。落とし穴ではその場で下階へ移動し、元の階の残りの敵行動を停止する。地雷ではその敵行動中に即時爆発し、予約を次のプレイヤー行動へ持ち越さない。同じ罠の個体は同一ターンに再発動しない。';
 const ENEMY_BLOWBACK_KILL_NOTE = '敵の吹き飛ばしの杖による撃破は杖の共通効果処理で1回だけ行う。途中の敵を倒した場合、杖の使用者は1段階だけ成長し、プレイヤー経験値は入らない。壁・プレイヤーの魔法反射・敵の魔法反射で射手が倒れる場合も、撃破・経験値・ドロップを二重処理しない。';
+const ENEMY_BLOWBACK_COLLISION_NOTE = '敵の吹き飛ばしの杖でプレイヤーまたは敵が別の敵にぶつかった場合、双方が杖の使用者の攻撃力ぶんの衝突ダメージを受ける。衝突相手がHP0以下なら着地座標を確定した後に共通の撃破・通常ドロップ処理を行い、盗品も返す。衝突・吹き飛ばし先の水没による撃破は杖を使った敵へ帰属し、使用者が1段階成長する。プレイヤー経験値は入らない。既に別の処理で除去された敵を再度撃破しない。';
 GUIDE_DESC_OVERRIDES["地雷"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["落とし穴"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
@@ -748,6 +749,7 @@ function monTraits(m) {
   const t = [];
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_TRAP_NOTE);
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_KILL_NOTE);
+  if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_COLLISION_NOTE);
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時25%で混乱（封印中は発動しない）');
   if (m.baseKind === 'boss_demonking') t.push('近接攻撃命中時25%で金縛り。5ターンごとに取り巻きを1体召喚');
   if (m.baseKind === 'boss_warlord') t.push('近接攻撃命中時25%で防御半減');
@@ -917,6 +919,7 @@ for (const w of [...WANDS, GODSPARKWAND_T]) {
 wandData.push(['【飛翔中の罠による消費】', '', '', '', '', '', '', TRAP_CONSUMED_PROJECTILE_NOTE]);
 wandData.push(['【敵の吹き飛ばしと罠】', '', '', '', '', '', '', ENEMY_BLOWBACK_TRAP_NOTE]);
 wandData.push(['【敵の吹き飛ばしによる撃破】', '', '', '', '', '', '', ENEMY_BLOWBACK_KILL_NOTE]);
+wandData.push(['【敵の吹き飛ばしによる衝突・水没】', '', '', '', '', '', '', ENEMY_BLOWBACK_COLLISION_NOTE]);
 addSheet('12_杖', wandData);
 
 // ===== 食べ物（Food）=====

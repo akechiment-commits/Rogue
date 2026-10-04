@@ -3,14 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { monsterAI, MONS, makeMonsterFromBase, findRoom, resolveMonsterWandEffect, _resolveMonsterWandBolt } from "../monsters.js";
 import { fireTrapPlayer } from "../traps.js";
 import { takeDueActions } from "../actionClock.js";
-import { inMagicSealRoom, runMineExplosion, itemDisplayName, killMonster } from "../items.js";
+import { inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag } from "../items.js";
+import { itemDisplayName } from "../render.js";
 import { hasGravityPentacle, T } from "../utils.js";
 import { interruptPlayerSleep } from "../turnUpkeep.js";
 import { trackTrap } from "../DiscoveryTracker.js";
 import { applyWandEffect } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); clearPitfallBag(); });
 
 // Game の敵行動コールバックと実際の敵AI・杖・罠処理を実行する。
 // React・描画は省略し、階移動先だけを固定する。
@@ -129,5 +130,83 @@ describe("敵の吹き飛ばしの杖の防御と通常命中", () => {
     expect([player.x, player.y]).toEqual([8, 5]);
     expect(player.hp).toBe(100);
     if (defense === "barrier") expect(obstacle.barrier).toBe(0);
+  });
+});
+
+describe("敵の吹き飛ばしによる衝突撃破", () => {
+  it.each([["player", 5], ["monster", 5], ["player", 25], ["monster", 25]])("吹き飛んだ%sとの衝突でHP%sの敵を正しく処理する", (kind, hp) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const player = makePlayer({ x: kind === "player" ? 8 : 10, y: 5, depth: 1, exp: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1,
+      kind === "player" ? 10 : 8, 5);
+    const stolen = { id: "stolen", name: "命の指輪", type: "ring", effect: "life", plus: 1 };
+    Object.assign(victim, { hp, _phaseActionCount: 0, _stealthrowerHeldItem: stolen, heldItems: [stolen] });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    if (kind === "monster") {
+      const pushed = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 7, 5);
+      Object.assign(pushed, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
+      dungeon.monsters.push(pushed);
+    }
+    const messages = [];
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+    expect(messages.some(message => message.includes("激突"))).toBe(true);
+    if (hp === 5) {
+      expect(dungeon.monsters).not.toContain(victim);
+      expect(dungeon.items.filter(item => item.id === "stolen")).toHaveLength(1);
+      expect(mage.monLevel).toBe(2);
+    } else {
+      expect(dungeon.monsters).toContain(victim);
+      expect(victim.hp).toBe(5);
+      expect(victim._stealthrowerHeldItem).toBe(stolen);
+      expect(dungeon.items).toEqual([]);
+      expect(mage.monLevel).toBe(1);
+    }
+    expect(player.exp).toBe(0);
+  });
+
+  it("敵が水へ吹き飛ばして倒した場合も、敵に撃破を帰属させる", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 7, 5);
+    Object.assign(victim, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
+    const player = makePlayer({ x: 13, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    dungeon.map[5][10] = T.WATER;
+    dungeon.map[5][11] = T.WALL;
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+  });
+});
+
+describe("敵の吹き飛ばしの杖が床の道具に当たる場合", () => {
+  it.each([
+    ["wand", "explode"], ["pot", "explode"], ["wand", "pitfall"], ["pot", "pitfall"],
+  ])("%sが%sで消費された後、元の階へ再配置しない", (type, effect) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const moved = type === "wand"
+      ? { id: "moved", type, name: "眠りの杖", effect: "sleep", charges: 3, x: 7, y: 5 }
+      : { id: "moved", type, name: "保存の壺", potEffect: "none", capacity: 3, x: 7, y: 5,
+        contents: [{ id: "stored", type: "ring", name: "命の指輪", effect: "life", plus: 1 }] };
+    const trap = { id: "landing-trap", name: effect === "explode" ? "地雷" : "落とし穴",
+      effect, x: 8, y: 5, permanent: true };
+    const player = makePlayer({ x: 10, y: 5, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage], traps: [trap], items: [moved],
+      rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const bag = [];
+    setPitfallBag(bag);
+    try {
+      moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    } finally { clearPitfallBag(); }
+    expect(dungeon.items).toEqual([]);
+    expect(player.hp).toBe(100);
+    expect(bag).toHaveLength(effect === "pitfall" ? 1 : 0);
+    if (effect === "pitfall") expect(bag[0].entity).toBe(moved);
   });
 });

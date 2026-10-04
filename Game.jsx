@@ -1435,7 +1435,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               if (hasGravityPentacle(dg, pl.x, pl.y)) { mlx.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); return; }
-              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false, m, opts.fireTrapFn);
+              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, m, null, false, m, opts.fireTrapFn);
               interruptPlayerSleep(pl, mlx);
               if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; mlx.push("衝撃で金縛りが解けた！"); }
             },
