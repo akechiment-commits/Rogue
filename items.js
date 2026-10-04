@@ -1564,8 +1564,13 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
     }
     return;
   }
+  /* 中身の着地で罠・爆発が起きても、同じ箱を再度破壊しないよう先に除去する。 */
+  const contents = [...(bb.contents || [])];
+  bb.contents = [];
+  stageBigbox(bb);
+  dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
   const ft = new Set();
-  for (const item of [...(bb.contents || [])]) placeItemAt(dg, x, y, item, ml, ft, 0, options.player || null);
+  for (const item of contents) placeItemAt(dg, x, y, item, ml, ft, 0, options.player || null);
   if (bb.kind === "trash") {
     const loot = makeChangeBoxItem("change", {
       dungeonType: dg?.dungeonType ?? options?.player?.dungeonType ?? null,
@@ -1574,8 +1579,6 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
     placeItemAt(dg, x, y, loot, ml, ft, 0, options.player || null);
     ml.push(`ゴミ箱から${resolveItemName(loot, nameFn)}が飛び出した！`);
   }
-  stageBigbox(bb);
-  dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
 }
 
 /** 唐辛子・胡椒の壺：容量が残ったまま割れたとき、周囲のキャラを暗闇にする。 */
