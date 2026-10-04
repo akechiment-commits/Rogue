@@ -3125,7 +3125,7 @@ export function useItemActions({
                 if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
                 const _msft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, _stDrop(), ml, _msft));
+                withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, _stDrop(), ml, _msft, 0, p));
               } else if (_msTarget.baseKind === "gelcube") {
                 _msTarget.heldItems = _msTarget.heldItems || [];
                 _msTarget.heldItems.push(_stDrop());
@@ -3196,7 +3196,7 @@ export function useItemActions({
                   _stPeelIfNeeded();
                 } else if (_stRx !== _stLx || _stRy !== _stLy) {
                   const _stRft = new Set();
-                  withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, _stDrop(), ml, _stRft));
+                  withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, _stDrop(), ml, _stRft, 0, p));
                 } else {
                   _stPeelIfNeeded();
                 }
@@ -3214,7 +3214,7 @@ export function useItemActions({
                 if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
                 const _stft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft));
+                withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft, 0, p));
               } else {
                 const _stDmg = calcProjectileDmg(p, _stAtk, _stM.def);
                 _stM.hp -= _stDmg;
@@ -3231,7 +3231,7 @@ export function useItemActions({
             } else {
               /* 敵なし：着弾点に落ちる（罠も起動） */
               const _stft = new Set();
-              withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft));
+              withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft, 0, p));
             }
           }
           if (p.arrow.count <= 0) {
@@ -3336,7 +3336,7 @@ export function useItemActions({
         const _arPeelIfNeeded = () => { if (!_arUnit) peelShopArrowUnit(_arItem); };
         const _arDropAt = (px, py, mlx) => {
           const _ft = new Set();
-          withPitfallBag(() => placeItemAt(dg, px, py, _arDropItem(), mlx, _ft));
+          withPitfallBag(() => placeItemAt(dg, px, py, _arDropItem(), mlx, _ft, 0, p));
         };
         const _arEndDrop = (px, py, mlx) => {
           if (_arIsPierce || _isCursedFc) {
@@ -3391,9 +3391,7 @@ export function useItemActions({
               mlx.push(`${_arName}は${mon.name}に外れ、足元に落ちた！`);
               const _arMissItem = _arDropItem();
               const _arft = new Set();
-              withPitfallBag(() => placeItemAt(dg, mon.x, mon.y, _arMissItem, mlx, _arft));
-              const _arTrap = dg.traps.find(t => t.x === mon.x && t.y === mon.y);
-              if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, mon.x, mon.y, mlx, new Set(), p, dnameRef, lu);
+              withPitfallBag(() => placeItemAt(dg, mon.x, mon.y, _arMissItem, mlx, _arft, 0, p));
               return;
             }
             /* 命中 */
@@ -3699,7 +3697,7 @@ export function useItemActions({
             if (_wakkaDodgeMode === "dodge") {
               ml.push("みかわしの魔方陣の加護で" + _wakkaTarget.name + "に" + _wakkaName + "が当たらなかった！");
               const _wakkaFt = new Set();
-              withPitfallBag(() => placeItemAt(dg, _wakkaTarget.x, _wakkaTarget.y, it, ml, _wakkaFt));
+              withPitfallBag(() => placeItemAt(dg, _wakkaTarget.x, _wakkaTarget.y, it, ml, _wakkaFt, 0, p));
             } else if (monReflectsProjectiles(_wakkaTarget)) {
               reflectMagicStoneToPlayer(p, _wakkaTarget, _wakkaName, it.atk || 5, ml);
             } else {
@@ -3782,7 +3780,7 @@ export function useItemActions({
                 if (_msDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
                 const _msft2 = new Set();
-                withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, _invStDrop(), ml, _msft2));
+                withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, _invStDrop(), ml, _msft2, 0, p));
               } else {
                 const _msDmg2 = calcProjectileDmg(p, _invStAtk, _msTarget2.def);
                 _msTarget2.hp -= _msDmg2;
@@ -3846,7 +3844,7 @@ export function useItemActions({
                 ml.push(`跳ね返された${_invStName}が${pl()}に命中！${_stRefDmg2}ダメージ！消滅した。`);
               } else if (_stRx2 !== _stLx2 || _stRy2 !== _stLy2) {
                 const _stRft2 = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stRx2, _stRy2, _invStDrop(), ml, _stRft2));
+                withPitfallBag(() => placeItemAt(dg, _stRx2, _stRy2, _invStDrop(), ml, _stRft2, 0, p));
               }
               _invStPeel();
             } else if (_stM2) {
@@ -3856,7 +3854,7 @@ export function useItemActions({
                 if (_stDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
                 const _stft2 = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, _invStDrop(), ml, _stft2));
+                withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, _invStDrop(), ml, _stft2, 0, p));
               } else {
                 const _stDmg2 = calcProjectileDmg(p, _invStAtk, _stM2.def);
                 _stM2.hp -= _stDmg2;
@@ -3871,7 +3869,7 @@ export function useItemActions({
               bigboxAddItem(_stBB2, _invStDrop(), dg, ml);
             } else {
               const _stft2 = new Set();
-              withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, _invStDrop(), ml, _stft2));
+              withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, _invStDrop(), ml, _stft2, 0, p));
             }
           }
           endTurn(sr.current, p, ml);
@@ -4295,7 +4293,7 @@ export function useItemActions({
               } else {
                 hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: false });
                 const _sft = new Set();
-                withPitfallBag(() => placeItemAt(dg, tx, ty, it, ml, _sft));
+                withPitfallBag(() => placeItemAt(dg, tx, ty, it, ml, _sft, 0, p));
               }
               lx = tx; ly = ty; hit = true;
               break;
@@ -4395,7 +4393,7 @@ export function useItemActions({
                 } else if (_rfx !== tx || _rfy !== ty) {
                   /* 壁で止まった場合のみ最終地点に落とす */
                   const _rffG = new Set();
-                  withPitfallBag(() => placeItemAt(dg, _rfx, _rfy, it, ml, _rffG));
+                  withPitfallBag(() => placeItemAt(dg, _rfx, _rfy, it, ml, _rffG, 0, p));
                 }
                 /* 経路が即座に塞がれている場合はアイテム消滅 */
                 if (it.type === "wand") _wandFiredEffect = true; /* 杖が跳ね返された後に足元配置されないよう */
@@ -4415,10 +4413,8 @@ export function useItemActions({
                 }
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _fm_ft = new Set();
-                withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft));
+                withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft, 0, p));
                 if (it.type === "wand") _wandPlacedOnMiss = true;
-                const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
               }
               if (it.type === "wand") {
@@ -4543,7 +4539,7 @@ export function useItemActions({
           } else if (hit && it.type === "wand" && !_wandFiredEffect && !_wandPlacedOnMiss) {
             /* 外れた杖は足元に落ちる */
             const ft = new Set();
-            withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
+            withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft, 0, p));
           } else if (!hit) {
             const lb = _mkThrowLb();
             ml.push(`${lb}を投げた。`);

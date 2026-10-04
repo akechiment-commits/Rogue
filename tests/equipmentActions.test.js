@@ -49,6 +49,55 @@ function choose(f, mode, control) {
   }
 }
 
+describe("外れた飛び道具の着地で起動する罠", () => {
+  it.each([
+    ["throw", { name: "短剣", type: "weapon", atk: 3 }],
+    ["throw", { name: "炎の杖", type: "wand", effect: "fire_wand", charges: 2 }],
+    ["shoot_equipped", { name: "矢", type: "arrow", atk: 3, count: 2 }],
+    ["shoot", { name: "矢", type: "arrow", atk: 3, count: 2 }],
+    ["shoot_equipped", { name: "魔法の石", type: "arrow", magicStone: true, atk: 5, count: 2 }],
+    ["throw", { name: "魔法の石", type: "arrow", magicStone: true, atk: 5, count: 2 }],
+  ])("%sの%sが敵に外れて地雷へ落ちると、隣の自分にも爆風が当たる", (mode, template) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.95);
+    const item = { ...template, id: "projectile" };
+    const missRing = { id: "miss-ring", name: "下手投げの指輪", type: "ring", effect: "miss_throw_ring" };
+    const f = fixture([item, missRing], { hp: 100, rings: [missRing] }, { throwMode: { idx: 0, mode } });
+    if (mode === "shoot_equipped") f.player.arrow = item;
+    const target = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 6, 5);
+    f.dungeon.monsters.push(target);
+    f.dungeon.traps.push({ id: "mine", name: "地雷", effect: "explode", x: 6, y: 5 });
+    f.actions.execDirection(1, 0);
+    const messages = f.props.setMsgs.mock.calls.flatMap(([update]) => update([]));
+    expect(messages.filter(message => String(message).includes("地雷が発動"))).toHaveLength(1);
+    expect(f.player.hp).toBe(50);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
+  it.each([[6, true, 67], [7, false, 100]])("着地の地雷も距離と耐火を考慮する（敵のx:%s、耐火:%s）", (x, protectedByArmor, expectedHp) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.95);
+    const sword = { id: "projectile", name: "短剣", type: "weapon", atk: 3 };
+    const f = fixture([sword], { hp: 100, ...(protectedByArmor ? { armor: { abilities: ["fire_resist"] } } : {}) },
+      { throwMode: { idx: 0, mode: "throw" } });
+    f.dungeon.monsters.push(makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, x, 5));
+    f.dungeon.traps.push({ id: "mine", name: "地雷", effect: "explode", x, y: 5 });
+    f.actions.execDirection(1, 0);
+    expect(f.player.hp).toBe(expectedHp);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
+  it.each(["shoot_equipped", "throw"])("%sの石が地雷へ落ち、別の地雷が誘爆した場合にも自分へ爆風が届く", mode => {
+    vi.spyOn(Math, "random").mockReturnValue(0.95);
+    const stone = { id: "stone", name: "石", type: "arrow", stone: true, atk: 5, count: 2 };
+    const f = fixture([stone], { hp: 100 }, { throwMode: { idx: 0, mode, bundle: false } });
+    if (mode === "shoot_equipped") f.player.arrow = stone;
+    for (const x of [6, 7, 8]) f.dungeon.traps.push({ id: `mine-${x}`, name: "地雷", effect: "explode", x, y: 5 });
+    f.actions.execDirection(1, 0);
+    const messages = f.props.setMsgs.mock.calls.flatMap(([update]) => update([]));
+    expect(messages.filter(message => String(message).includes("地雷が発動"))).toHaveLength(1);
+    expect(messages.filter(message => String(message).includes("地雷が誘爆"))).toHaveLength(2);
+    expect(f.player.hp).toBe(50);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
+});
+
 describe.each(["keyboard", "pointer"])("装備中の指輪更新: %s", control => {
   it("容量0の壺の祝福は1増やすだけで、初期容量へ戻さない", () => {
     const pot = { name: "保存の壺", type: "pot", potEffect: "none", capacity: 0, contents: [] };

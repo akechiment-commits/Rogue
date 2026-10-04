@@ -1101,6 +1101,7 @@ addSheet('18_目標アイテム', goalItemData);
 
 // ===== 飛び道具 =====
 const projectileData = [['名称', '攻撃力', 'レア度', '重み', '売値', '束', '挙動', '説明']];
+projectileData.push(['【共通：着地と罠】', '-', '-', '-', '-', '-', '通常の床配置で判定', '矢・石・魔法の石や、武器・防具・指輪・杖などの投擲物が外れたり遮蔽物で止まって着地した際も、プレイヤー情報を渡して罠を判定する。地雷が起動・誘爆した場合は、爆風内のプレイヤーにも通常のHP半減・耐火軽減・所持品への炎の影響を適用する。爆風外にはダメージを与えない。着地後に同じ罠を別途再起動しない。装備中の射撃・所持品からの射撃／投擲で共通。']);
 for (const a of [ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T, TORPEDO_T, CRAWLING_BOMB_T, HOMING_SHOT_T]) {
   const behavior = a.specialProjectile === 'torpedo' ? '水上を1マス/ターン進み、水外で着地'
     : a.specialProjectile === 'crawling_bomb' ? '床を1マス/ターン進み接触爆発'
