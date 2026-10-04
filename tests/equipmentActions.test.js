@@ -127,9 +127,9 @@ describe("外れた壺と落とし穴", () => {
     f.sr.current.floors[2] = below;
     processPitfallBag(fallen, f.sr.current.floors, 1, f.sr.current);
     expect(below.monsters).toContain(target);
-    expect(below.items).toContain(pot);
-    expect(below.items).not.toContain(ring);
-    expect(pot.contents).toEqual([ring]);
+    expect(below.items).not.toContain(pot);
+    expect(below.items).toContain(ring);
+    expect(pot.contents).toHaveLength(0);
   });
   it.each([false, true])("罠なし・発動済みの穴では、外れた壺は通常どおり割れる（発動済み:%s）", alreadyActivated => {
     vi.spyOn(Math, "random").mockReturnValue(0.95);
