@@ -5877,6 +5877,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
      resへ引き継ぐ。これがないと投擲物が発射地点扱いになり、遮蔽物の裏で
      消えたように見える。 */
   let _terminalStop = null;
+  let _destroyedByTrap = false;
 
   /* 通常投擲ダメージ計算（防具・指輪・巻物・壺・空き瓶も種別補正を反映） */
   const _projDmg = (def = 0) => calcProjectileDmg(p, thrownItemAttack(item), def);
@@ -5995,7 +5996,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
         removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft, p });
       }
-      if (r === "destroyed") { res.consumed = true; return "destroyed"; }
+      if (r === "destroyed") { res.consumed = true; _destroyedByTrap = true; return "destroyed"; }
       res.x = lx; res.y = ly; res.consumed = false;
     },
     onWallStop: (lx, ly) => {
@@ -6017,6 +6018,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     destroyItemMimicFloorItem(dg, item);
     dg.items = dg.items.filter(i => i !== item);
   }
+  /* 罠で消費された道具に着地後の効果を適用しない。薬瓶は onTrap で
+     薬液処理を予約するため、この消滅判定には含めない。 */
+  if (_destroyedByTrap) return res;
 
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
