@@ -210,3 +210,59 @@ describe("敵の吹き飛ばしの杖が床の道具に当たる場合", () => {
     if (effect === "pitfall") expect(bag[0].entity).toBe(moved);
   });
 });
+
+describe("敵が飛ばした道具・大箱の撃破者", () => {
+  it.each([
+    ["weapon", 1], ["potion", 1], ["bigbox", 1],
+    ["weapon", 100], ["potion", 100], ["bigbox", 100],
+  ])("%sでHP%sの敵を攻撃した時、撃破と成長を正しく処理する", (type, hp) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, 9, 5);
+    const stolen = { id: "stolen", type: "ring", name: "命の指輪", effect: "life", plus: 1 };
+    Object.assign(victim, { hp, maxHp: 100, _phaseActionCount: 0, _stealthrowerHeldItem: stolen, heldItems: [stolen] });
+    const moved = type === "weapon"
+      ? { id: "moved", type, name: "短剣", atk: 3, x: 7, y: 5 }
+      : type === "potion"
+        ? { id: "moved", type, name: "毒薬", effect: "poison", value: 0, x: 7, y: 5 }
+        : { id: "moved", name: "合成の大箱", kind: "synthesis", capacity: 2, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0, atk: 3 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: type === "bigbox" ? [] : [moved],
+      bigboxes: type === "bigbox" ? [moved] : [], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const messages = [];
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+    expect(messages.some(message => message.includes("杖を振った"))).toBe(true);
+    expect(player.exp).toBe(0);
+    if (hp === 1) {
+      expect(dungeon.monsters).not.toContain(victim);
+      expect(mage.monLevel).toBe(2);
+      expect(dungeon.items.filter(item => item.id === "stolen")).toHaveLength(1);
+    } else {
+      expect(dungeon.monsters).toContain(victim);
+      expect(victim.hp).toBeLessThan(100);
+      expect(victim.hp).toBeGreaterThan(0);
+      expect(mage.monLevel).toBe(1);
+      expect(victim._stealthrowerHeldItem).toBe(stolen);
+      expect(dungeon.items.filter(item => item.id === "stolen")).toHaveLength(0);
+    }
+  });
+
+  it.each(["weapon", "potion", "bigbox"])("プレイヤー自身が%sを飛ばして倒した場合は従来どおり経験値が入る", type => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, 9, 5);
+    victim.hp = 1;
+    const moved = type === "weapon"
+      ? { id: "moved", type, name: "短剣", atk: 3, x: 7, y: 5 }
+      : type === "potion"
+        ? { id: "moved", type, name: "毒薬", effect: "poison", value: 0, x: 7, y: 5 }
+        : { id: "moved", name: "合成の大箱", kind: "synthesis", capacity: 2, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0, atk: 3 });
+    const dungeon = makeEmptyDg({ monsters: [victim], items: type === "bigbox" ? [] : [moved],
+      bigboxes: type === "bigbox" ? [moved] : [] });
+    applyWandEffect("knockback", type === "bigbox" ? "bigbox" : "item", moved, 1, 0,
+      dungeon, player, [], () => {});
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(45);
+  });
+});

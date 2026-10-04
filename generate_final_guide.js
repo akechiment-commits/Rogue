@@ -218,6 +218,7 @@ const TRAP_CONSUMED_PROJECTILE_NOTE = 'ふきとばしの杖による床道具�
 const ENEMY_BLOWBACK_TRAP_NOTE = '敵の吹き飛ばしの杖でプレイヤーが罠へ着地した場合、または杖で飛んだ罠がプレイヤーに当たった場合は、敵行動用の罠処理を通す。落とし穴ではその場で下階へ移動し、元の階の残りの敵行動を停止する。地雷ではその敵行動中に即時爆発し、予約を次のプレイヤー行動へ持ち越さない。同じ罠の個体は同一ターンに再発動しない。';
 const ENEMY_BLOWBACK_KILL_NOTE = '敵の吹き飛ばしの杖による撃破は杖の共通効果処理で1回だけ行う。途中の敵を倒した場合、杖の使用者は1段階だけ成長し、プレイヤー経験値は入らない。壁・プレイヤーの魔法反射・敵の魔法反射で射手が倒れる場合も、撃破・経験値・ドロップを二重処理しない。';
 const ENEMY_BLOWBACK_COLLISION_NOTE = '敵の吹き飛ばしの杖でプレイヤーまたは敵が別の敵にぶつかった場合、双方が杖の使用者の攻撃力ぶんの衝突ダメージを受ける。衝突相手がHP0以下なら着地座標を確定した後に共通の撃破・通常ドロップ処理を行い、盗品も返す。衝突・吹き飛ばし先の水没による撃破は杖を使った敵へ帰属し、使用者が1段階成長する。プレイヤー経験値は入らない。既に別の処理で除去された敵を再度撃破しない。';
+const ENEMY_BLOWBACK_OBJECT_NOTE = '敵の吹き飛ばしの杖で床の通常投擲物を飛ばして敵に命中させた場合、飛ばした薬瓶の薬液で敵を倒した場合、大箱を飛ばして敵への激突で倒した場合も、杖を使った敵を撃破者として共通撃破処理へ渡す。プレイヤー経験値は入らず、使用者が1段階成長する。撃破対象の通常ドロップ・盗品返却は行う。生き残った敵の盗品は保持する。プレイヤー自身が同じ方法で倒した場合は従来どおりプレイヤーに経験値が入る。';
 GUIDE_DESC_OVERRIDES["地雷"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["落とし穴"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
@@ -750,6 +751,7 @@ function monTraits(m) {
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_TRAP_NOTE);
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_KILL_NOTE);
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_COLLISION_NOTE);
+  if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_OBJECT_NOTE);
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時25%で混乱（封印中は発動しない）');
   if (m.baseKind === 'boss_demonking') t.push('近接攻撃命中時25%で金縛り。5ターンごとに取り巻きを1体召喚');
   if (m.baseKind === 'boss_warlord') t.push('近接攻撃命中時25%で防御半減');
@@ -920,6 +922,7 @@ wandData.push(['【飛翔中の罠による消費】', '', '', '', '', '', '', T
 wandData.push(['【敵の吹き飛ばしと罠】', '', '', '', '', '', '', ENEMY_BLOWBACK_TRAP_NOTE]);
 wandData.push(['【敵の吹き飛ばしによる撃破】', '', '', '', '', '', '', ENEMY_BLOWBACK_KILL_NOTE]);
 wandData.push(['【敵の吹き飛ばしによる衝突・水没】', '', '', '', '', '', '', ENEMY_BLOWBACK_COLLISION_NOTE]);
+wandData.push(['【敵が飛ばした道具・大箱の撃破者】', '', '', '', '', '', '', ENEMY_BLOWBACK_OBJECT_NOTE]);
 addSheet('12_杖', wandData);
 
 // ===== 食べ物（Food）=====
@@ -1014,6 +1017,7 @@ addSheet('13_食べ物', foodItemData);
 const bigboxData = [['大箱名', 'kind', '容量（rng）', 'レア度', '重み', '効果']];
 bigboxData.push(['【破壊中の誘爆】', '', '', '', '', '大箱を壊す際は中身の一覧を取り出し、箱をフロアから除去して箱内の中身を空にしてから、取り出した道具を一度だけ床へ配置する。散乱中の道具が地雷や爆発を起動しても、同じ箱を再び壊して同じ道具を重複登録したり、同じ地雷を再帰的に繰り返し起動したりしない。']);
 bigboxData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
+bigboxData.push(['【敵が飛ばした大箱の撃破者】', '', '', '', '', ENEMY_BLOWBACK_OBJECT_NOTE]);
 bigboxData.push(['【冒険中の識別】', '', '', '', '', '一度識別または名付けた大箱のkindは、その冒険中は同種の大箱も識別済みとして表示する。呪いの物知りの杖などで未識別化した場合は、そのkind全体の識別状態を解除する。']);
 for (const b of BB_TYPES) {
   bigboxData.push([b.name, b.kind, String(b.cap()), b.rarity ?? '', b.weight ?? '', guideDesc(b)]);

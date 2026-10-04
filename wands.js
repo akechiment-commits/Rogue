@@ -381,7 +381,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _bbDmg = rng(20, 40);
           _bbHitMon.hp -= _bbDmg;
           ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
-          if (_bbHitMon.hp <= 0) killMonster(_bbHitMon, dg, p, ml, luFn);
+          if (_bbHitMon.hp <= 0) _defeat(_bbHitMon);
           if (target.contents?.length > 0) {
             ml.push("中身が飛び出した！");
           }
@@ -639,7 +639,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 仮想射手（押し出し起点：アイテムの元位置） */
         const _shooter = { x: target.x, y: target.y, name: target.name };
         const res = throwItemAlongLine(_shooter, dg, target, dx, dy, d, ml, p, luFn, {
-          bbFn, nameFn, applyWandFn: applyWandEffect,
+          bbFn, nameFn, applyWandFn: applyWandEffect, killerMon,
         });
         /* 店外へ出た／途中で消えた店商品は請求して値札を外す（placeItemAt でも処理されるが消費時の保険） */
         if (target.shopPrice) {

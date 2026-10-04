@@ -1453,10 +1453,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, pl.atk || 3, null, null, false);
             },
             onItem: (it, mlx) => {
-              applyWandEffect("knockback", "item", it, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
+              _applyMonsterWandEffect("knockback", "item", it, dx, dy, mlx);
             },
             onBigbox: (bb, mlx) => {
-              applyWandEffect("knockback", "bigbox", bb, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
+              _applyMonsterWandEffect("knockback", "bigbox", bb, dx, dy, mlx);
             },
             onTrap: (trap, mlx) => {
               trap.revealed = true;
