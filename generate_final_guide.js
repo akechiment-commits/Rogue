@@ -215,6 +215,9 @@ const CURSE_DESCRIPTION_TYPES = new Set(['potion', 'scroll', 'wand', 'pen', 'spe
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' 対象確定時に使用巻物の個体を記録し、効果終了後に同じ巻物だけを消費する。火薬壺の爆発や散乱中の罠などで所持品が変わっても、古い所持品番号で別の道具を消さない。使用巻物自体が効果中に消滅済みなら追加削除しない。タップとキーで共通。';
 const CONTAINER_TRAP_NOTE = '壺の破壊・中身の吸い出し・大箱の破壊で出る道具は、プレイヤー情報を含む通常の床配置処理を通す。道具が地雷を起動した場合は、爆風内のプレイヤーにも通常のHP半減・耐火軽減・所持品への炎の影響を適用する。爆風外のプレイヤーにはダメージを与えない。大箱の吸い出しもタップ・キーで同じ判定を使い、発動した罠のログを表示する。';
 const TRAP_CONSUMED_PROJECTILE_NOTE = 'ふきとばしの杖による床道具の飛翔や敵の投擲では、飛翔中に罠が道具を消費した時点で着地後の処理を打ち切る。地雷で消滅した杖は床へ戻さず、壺の中身を散らしたり火薬壺の追加爆発を起こしたりしない。落とし穴へ落ちた道具は下階への移送処理に任せ、元の階に再配置しない。消費されずに着地した杖・壺は通常の着地処理を行う。薬瓶が罠に当たって割れた場合の薬液処理は通常どおり行う。';
+const ENEMY_BLOWBACK_TRAP_NOTE = '敵の吹き飛ばしの杖でプレイヤーが罠へ着地した場合、または杖で飛んだ罠がプレイヤーに当たった場合は、敵行動用の罠処理を通す。落とし穴ではその場で下階へ移動し、元の階の残りの敵行動を停止する。地雷ではその敵行動中に即時爆発し、予約を次のプレイヤー行動へ持ち越さない。同じ罠の個体は同一ターンに再発動しない。';
+GUIDE_DESC_OVERRIDES["地雷"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
+GUIDE_DESC_OVERRIDES["落とし穴"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' 通常・祝福では、吸い出す中身を先に壺から切り離して空にし、その一覧を一度だけ床へ出す。途中で爆風の熱により元の壺が壊れても、同じ中身を再放出しない。油の飛散条件は吸い出す前の中身の数で判定する。呪いでは破壊する壺を所持品／床から先に除き、中身を散乱させる。';
 
@@ -742,6 +745,7 @@ addSheet('10_罠', trapData);
 // モンスターの特性を取得するヘルパー
 function monTraits(m) {
   const t = [];
+  if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_TRAP_NOTE);
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時25%で混乱（封印中は発動しない）');
   if (m.baseKind === 'boss_demonking') t.push('近接攻撃命中時25%で金縛り。5ターンごとに取り巻きを1体召喚');
   if (m.baseKind === 'boss_warlord') t.push('近接攻撃命中時25%で防御半減');
@@ -909,6 +913,7 @@ for (const w of [...WANDS, GODSPARKWAND_T]) {
 }
 
 wandData.push(['【飛翔中の罠による消費】', '', '', '', '', '', '', TRAP_CONSUMED_PROJECTILE_NOTE]);
+wandData.push(['【敵の吹き飛ばしと罠】', '', '', '', '', '', '', ENEMY_BLOWBACK_TRAP_NOTE]);
 addSheet('12_杖', wandData);
 
 // ===== 食べ物（Food）=====

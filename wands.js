@@ -74,7 +74,11 @@ function statueTeleportDest(dg, ox, oy, p) {
  *   2. この関数の switch(eff) に case "effect名": { ... } を追加
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
-export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null) {
+export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null) {
+  // 敵行動中は Game の罠処理へ渡し、階移動と予約された地雷の即時解決まで行う。
+  const _activatePlayerTrap = trap => fireTrapFn
+    ? fireTrapFn(trap, p, dg, ml)
+    : fireTrapPlayer(trap, p, dg, ml, nameFn, luFn);
   const _magicDamage = (amount, victim = target) =>
     kind === "monster" && sourceIsPlayer
       ? multiplyMagicDamage(amount, p?.weapon, victim, dg)
@@ -626,7 +630,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.hp -= _magicDamage(_kbDmgBase, p);
         pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, collisionAtk);
         const _kbLandTrap = dg.traps.find(t => t.x === p.x && t.y === p.y);
-        if (_kbLandTrap) fireTrapPlayer(_kbLandTrap, p, dg, ml, nameFn, luFn);
+        if (_kbLandTrap) _activatePlayerTrap(_kbLandTrap);
         break;
       }
       if (kind === "item") {
@@ -650,7 +654,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _trapRes = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "trap", target, p, luFn);
         if (_trapRes.hitPlayer) {
           ml.push(`飛んできた${target.name}が${pl()}に命中！`);
-          const _trapPlR = fireTrapPlayer(target, p, dg, ml, nameFn, luFn);
+          const _trapPlR = _activatePlayerTrap(target);
           if (_trapPlR !== "deferred_explosion") {
             removeTrap(dg, target, ml, { fromStep: true, p });
           }
