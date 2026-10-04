@@ -1441,20 +1441,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             },
             onMonsterHit: (mon, mlx) => {
               applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, m, null, false);
-              if (mon.hp <= 0) { killMonster(mon, dg, pl, mlx, lu, false, m); }
             },
             onWallReflect: (mlx) => {
               mlx.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`);
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
-              if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onMagicReflect: (refl, mlx) => {
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
-              if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onPlayerReflect: (mlx) => {
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, pl.atk || 3, null, null, false);
-              if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onItem: (it, mlx) => {
               applyWandEffect("knockback", "item", it, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
