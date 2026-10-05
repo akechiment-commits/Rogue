@@ -8,7 +8,7 @@ import { itemDisplayName } from "../render.js";
 import { hasGravityPentacle, T } from "../utils.js";
 import { interruptPlayerSleep } from "../turnUpkeep.js";
 import { trackTrap } from "../DiscoveryTracker.js";
-import { applyWandEffect } from "../wands.js";
+import { applyWandEffect, fireWandBolt } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => { vi.restoreAllMocks(); clearPitfallBag(); });
@@ -324,6 +324,109 @@ describe("吹き飛ばされた大箱のプレイヤー命中", () => {
   it.each([[0, 20], [0.999, 40]])("衝突ダメージの下限・上限を適用する（乱数:%s、ダメージ:%s）", (random, damage) => {
     const { player, dungeon, box } = hitPlayer({ random });
     expect(player.hp).toBe(100 - damage);
+    expect(dungeon.bigboxes).not.toContain(box);
+  });
+});
+
+describe("大箱の激突と破壊の順番", () => {
+  it("ニトロ箱で通常敵を倒しても経験値と撃破ログは1回だけ", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(victim, { hp: 100, maxHp: 100 });
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [victim], bigboxes: [box] });
+    const messages = [];
+    const levelUp = vi.fn();
+    fireWandBolt(player, dungeon, "knockback", 1, 0, messages, levelUp);
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(victim.exp);
+    expect(levelUp).toHaveBeenCalledOnce();
+    expect(messages.filter(message => message.includes("コボルドを倒した"))).toHaveLength(1);
+    const collision = messages.findIndex(message => message.includes("激突"));
+    const explosion = messages.findIndex(message => message.includes("ニトロ箱が爆発"));
+    expect(collision).toBeLessThan(explosion);
+  });
+
+  it("敵が飛ばしたニトロ箱の激突で倒れた敵を爆発後に再撃破しない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0 });
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], bigboxes: [box], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const messages = [];
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+    expect(messages.filter(message => message.includes("コボルド") && message.includes("倒され"))).toHaveLength(1);
+    expect(messages.filter(message => message.includes("コボルドを倒した"))).toHaveLength(0);
+  });
+
+  it("撃破時の盗品が地雷を起動しても衝突済みのニトロ箱を再び爆発させない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, 9, 5);
+    const stolen = { id: "stolen", name: "命の指輪", type: "ring", effect: "life", plus: 1 };
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0, heldItems: [stolen], _stealthrowerHeldItem: stolen });
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: 8, y: 5 };
+    const mine = { id: "mine", name: "地雷", effect: "explode", x: 9, y: 5, permanent: true };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], bigboxes: [box], traps: [mine],
+      rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const messages = [];
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+    expect(messages.filter(message => message.startsWith("ニトロ箱が爆発した！"))).toHaveLength(1);
+    expect(messages.filter(message => message.startsWith("地雷が発動！"))).toHaveLength(1);
+    expect(dungeon.bigboxes).not.toContain(box);
+    expect(mage.monLevel).toBe(2);
+    expect(player.exp).toBe(0);
+  });
+
+  it("爆発で復活した敵へ、同じ箱の激突ダメージを後から追加しない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(victim, { hp: 100, maxHp: 100 });
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [victim], bigboxes: [box],
+      pentacles: [{ id: "revival", kind: "revival", name: "復活の魔方陣", x: 9, y: 5 }] });
+    const messages = [];
+    fireWandBolt(player, dungeon, "knockback", 1, 0, messages, () => {});
+    expect(dungeon.monsters).toContain(victim);
+    expect(victim.hp).toBe(100);
+    expect(player.exp).toBe(0);
+    expect(messages.filter(message => message.includes("HP全回復"))).toHaveLength(1);
+  });
+
+  it("ボスは激突の後のHPを基準にニトロ箱の割合ダメージを受ける", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const victim = { id: "boss", name: "ボス", x: 9, y: 5, hp: 100, maxHp: 100, isBoss: true, exp: 100 };
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [victim], bigboxes: [box] });
+    fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
+    expect(victim.hp).toBe(45); // 100→激突40で60→爆発15で45
+    expect(player.exp).toBe(0);
+    expect(dungeon.monsters).toContain(victim);
+  });
+
+  it("プレイヤーへ当てたニトロ箱も激突1回・爆発1回の順に処理する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 10, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage], bigboxes: [box], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const messages = [];
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+    expect(player.hp).toBe(15); // 100→激突40で60→爆発45で15
+    expect(messages.filter(message => message.includes("激突！40ダメージ"))).toHaveLength(1);
+    expect(messages.filter(message => message.startsWith("ニトロ箱が爆発した！"))).toHaveLength(1);
     expect(dungeon.bigboxes).not.toContain(box);
   });
 });

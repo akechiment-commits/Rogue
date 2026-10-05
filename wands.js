@@ -380,24 +380,24 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (bbroke) {
         const _bbHadContents = (target.contents?.length || 0) > 0;
+        /* 激突を先に解決する。撃破時のドロップが誘爆しても、衝突済みの
+           箱を再度壊さないよう、床から外してからダメージを適用する。 */
+        dg.bigboxes = (dg.bigboxes || []).filter(box => box !== target);
         if (_bbHitPlayer) {
           const _bbDmg = rng(20, 40);
           p.deathCause = `${target.name}との衝突により`;
           p.hp -= _bbDmg;
           ml.push(`${target.name}が${pl()}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
           interruptPlayerSleep(p, ml);
-        }
-        breakBigboxContents(target, dg, ml, nameFn, bbx, bby, { player: p, luFn });
-        if (_bbHitPlayer) {
-          if (_bbHadContents) ml.push("中身が飛び出した！");
         } else if (_bbHitMon) {
           const _bbDmg = rng(20, 40);
           _bbHitMon.hp -= _bbDmg;
           ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
           if (_bbHitMon.hp <= 0) _defeat(_bbHitMon);
-          if (_bbHadContents) {
-            ml.push("中身が飛び出した！");
-          }
+        }
+        breakBigboxContents(target, dg, ml, nameFn, bbx, bby, { player: p, luFn });
+        if (_bbHitPlayer || _bbHitMon) {
+          if (_bbHadContents) ml.push("中身が飛び出した！");
         } else if (_bbHadContents) {
           ml.push(`${resolveItemName(target, nameFn)}は壁に叩きつけられて壊れた！中身が飛び出した！`);
         } else {

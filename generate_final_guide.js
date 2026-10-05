@@ -220,6 +220,7 @@ const ENEMY_BLOWBACK_KILL_NOTE = '敵の吹き飛ばしの杖による撃破は�
 const ENEMY_BLOWBACK_COLLISION_NOTE = '敵の吹き飛ばしの杖でプレイヤーまたは敵が別の敵にぶつかった場合、双方が杖の使用者の攻撃力ぶんの衝突ダメージを受ける。衝突相手がHP0以下なら着地座標を確定した後に共通の撃破・通常ドロップ処理を行い、盗品も返す。衝突・吹き飛ばし先の水没による撃破は杖を使った敵へ帰属し、使用者が1段階成長する。プレイヤー経験値は入らない。既に別の処理で除去された敵を再度撃破しない。';
 const ENEMY_BLOWBACK_OBJECT_NOTE = '敵の吹き飛ばしの杖で床の通常投擲物を飛ばして敵に命中させた場合、飛ばした薬瓶の薬液で敵を倒した場合、大箱を飛ばして敵への激突で倒した場合も、杖を使った敵を撃破者として共通撃破処理へ渡す。プレイヤー経験値は入らず、使用者が1段階成長する。撃破対象の通常ドロップ・盗品返却は行う。生き残った敵の盗品は保持する。プレイヤー自身が同じ方法で倒した場合は従来どおりプレイヤーに経験値が入る。';
 const BIGBOX_PLAYER_COLLISION_NOTE = '吹き飛ばされた大箱は敵だけでなくプレイヤーにも衝突する。プレイヤーのマスへ進もうとした時点で飛翔を止め、プレイヤーに20〜40ダメージを1回与えて箱を壊す。通常・祝福で衝突ダメージの範囲は共通。プレイヤーの位置は動かさない。箱の破壊処理は衝突地点の1マス手前を起点に行い、通常箱の中身は通常の床配置処理で1回だけ散らす。空箱でも衝突ダメージと破壊は発生する。中身の散乱前に衝突ダメージを適用し、致死時の死因を大箱との衝突として記録する。睡眠中なら衝撃で目覚め、通常の被ダメージ時と同じ睡眠中断状態にする。手前の道具・罠・泉・魔方陣・階段で止まった場合はプレイヤーに当たらない。';
+const BIGBOX_IMPACT_ORDER_NOTE = '吹き飛ばされた大箱が敵またはプレイヤーに激突した場合、箱を床の大箱一覧から先に外し、激突ダメージと必要な撃破処理を済ませてから箱の破壊処理を行う。ニトロ箱は激突後に爆発し、通常箱は激突後に中身を散らす。爆発で倒れた敵へ同じ激突を後から追加せず、撃破・経験値・ドロップを二重に処理しない。爆発で復活した敵へ同じ箱の激突ダメージを後から与えない。ニトロ箱のボスへの割合ダメージは激突後の現在HPを基準にする。激突で倒れた敵のドロップが地雷などを起動しても、床から外した衝突済みの箱を再破壊・再爆発させない。';
 GUIDE_DESC_OVERRIDES["地雷"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["落とし穴"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
@@ -754,6 +755,7 @@ function monTraits(m) {
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_COLLISION_NOTE);
   if (m.baseKind === 'windmage') t.push(ENEMY_BLOWBACK_OBJECT_NOTE);
   if (m.baseKind === 'windmage') t.push(BIGBOX_PLAYER_COLLISION_NOTE);
+  if (m.baseKind === 'windmage') t.push(BIGBOX_IMPACT_ORDER_NOTE);
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時25%で混乱（封印中は発動しない）');
   if (m.baseKind === 'boss_demonking') t.push('近接攻撃命中時25%で金縛り。5ターンごとに取り巻きを1体召喚');
   if (m.baseKind === 'boss_warlord') t.push('近接攻撃命中時25%で防御半減');
@@ -926,6 +928,7 @@ wandData.push(['【敵の吹き飛ばしによる撃破】', '', '', '', '', '',
 wandData.push(['【敵の吹き飛ばしによる衝突・水没】', '', '', '', '', '', '', ENEMY_BLOWBACK_COLLISION_NOTE]);
 wandData.push(['【敵が飛ばした道具・大箱の撃破者】', '', '', '', '', '', '', ENEMY_BLOWBACK_OBJECT_NOTE]);
 wandData.push(['【大箱のプレイヤー衝突】', '', '', '', '', '', '', BIGBOX_PLAYER_COLLISION_NOTE]);
+wandData.push(['【大箱の激突と破壊の順番】', '', '', '', '', '', '', BIGBOX_IMPACT_ORDER_NOTE]);
 addSheet('12_杖', wandData);
 
 // ===== 食べ物（Food）=====
@@ -1022,6 +1025,7 @@ bigboxData.push(['【破壊中の誘爆】', '', '', '', '', '大箱を壊す際
 bigboxData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
 bigboxData.push(['【敵が飛ばした大箱の撃破者】', '', '', '', '', ENEMY_BLOWBACK_OBJECT_NOTE]);
 bigboxData.push(['【プレイヤーへの衝突】', '', '', '', '', BIGBOX_PLAYER_COLLISION_NOTE]);
+bigboxData.push(['【激突と破壊の順番】', '', '', '', '', BIGBOX_IMPACT_ORDER_NOTE]);
 bigboxData.push(['【冒険中の識別】', '', '', '', '', '一度識別または名付けた大箱のkindは、その冒険中は同種の大箱も識別済みとして表示する。呪いの物知りの杖などで未識別化した場合は、そのkind全体の識別状態を解除する。']);
 for (const b of BB_TYPES) {
   bigboxData.push([b.name, b.kind, String(b.cap()), b.rarity ?? '', b.weight ?? '', guideDesc(b)]);
