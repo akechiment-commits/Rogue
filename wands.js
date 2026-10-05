@@ -739,7 +739,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.hp -= dmg;
         ml.push(`${_hitYou("雷撃")}${dmg}ダメージ！${lightningResistDamageLabel(p)}`);
         pushLightningAnim(p.x, p.y);
-        applyLightningToInventory(p, dg, ml, luFn, nameFn);
+        applyLightningToInventory(p, dg, ml, luFn, nameFn, false, { killerMon, sourceIsPlayer, fireTrapFn });
         break;
       }
       if (kind === "item") {
@@ -751,7 +751,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`雷撃で${_dname_item(target)}が割れた！`);
-          scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn);
+          scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn, { killerMon, sourceIsPlayer, fireTrapFn });
         } else if (target.type === "bottle") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
@@ -1729,7 +1729,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.deathCause = _wandDeath("炎の杖");
         p.hp -= _fwDmg;
         ml.push(`${_hitYou("炎の弾")}${_fwDmg}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
-        applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
+        applyLightningToInventory(p, dg, ml, luFn, nameFn, true, { killerMon, sourceIsPlayer, fireTrapFn });
         break;
       }
       if (kind === "item") {
@@ -1854,7 +1854,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.deathCause = "ゴッドスパークの杖により";
         p.hp -= _gsSelfDmg;
         ml.push(`ゴッドスパーク炸裂！自分に${_gsSelfDmg}ダメージ！${lightningResistDamageLabel(p)}${_gsBlessed ? "【祝】" : ""}`);
-        applyLightningToInventory(p, dg, ml, luFn, nameFn);
+        applyLightningToInventory(p, dg, ml, luFn, nameFn, false, { killerMon, sourceIsPlayer, fireTrapFn });
         break;
       }
       if (kind === "item") {
@@ -1866,7 +1866,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`雷撃で${resolveItemName(target, nameFn)}が割れた！`);
-          scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn);
+          scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn, { killerMon, sourceIsPlayer, fireTrapFn });
         } else if (target.type === "bottle") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
@@ -2197,7 +2197,10 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 }
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
-export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null, blessed = false) {
+export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null, blessed = false, fireTrapFn = null) {
+  const applyEnemyEffect = (kind, target) =>
+    applyWandEffect("lightning", kind, target, dx, dy, dg, pl, ml, luFn, bbFn,
+      kind === "monster" && blessed ? 2 : 1, nameFn, 0, killerMon, null, false, killerMon, fireTrapFn);
   /* 杖の雷撃：判定・アニメとも風で曲がらない */
   pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning", false);
   let _fdx = dx, _fdy = dy, _cx = cx, _cy = cy;
@@ -2249,7 +2252,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       ml.push(`雷撃が命中！${dmg}ダメージ！${lightningResistDamageLabel(pl)}`);
       pushLightningAnim(pl.x, pl.y);
       if (!_hasLightRes) {
-        applyLightningToInventory(pl, dg, ml, luFn, nameFn);
+        applyLightningToInventory(pl, dg, ml, luFn, nameFn, false, { killerMon, sourceIsPlayer: false, fireTrapFn });
       } else {
         ml.push("ゴムゴムの胴がアイテムへの雷を弾いた！");
       }
@@ -2269,20 +2272,20 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, mon);
         }
       } else {
-        applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn, blessed ? 2 : 1, null, 0, killerMon, null, false);
+        applyEnemyEffect("monster", mon);
       }
       return;
     }
     const it = itemAt(dg, tx, ty);
     if (it) {
-      applyWandEffect("lightning", "item", it, dx, dy, dg, pl, ml, luFn, bbFn);
+      applyEnemyEffect("item", it);
       return;
     }
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
       trackTrap(trap);
-      applyWandEffect("lightning", "trap", trap, dx, dy, dg, pl, ml, luFn, bbFn);
+      applyEnemyEffect("trap", trap);
       return;
     }
     if (statueAt(dg, tx, ty)) {
@@ -2294,17 +2297,17 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
-      applyWandEffect("lightning", "bigbox", bb, dx, dy, dg, pl, ml, luFn, bbFn);
+      applyEnemyEffect("bigbox", bb);
       return;
     }
     const gacha = dg.gachaMachines?.find(g => g.x === tx && g.y === ty);
     if (gacha) {
-      applyWandEffect("lightning", "gacha", gacha, dx, dy, dg, pl, ml, luFn, bbFn);
+      applyEnemyEffect("gacha", gacha);
       return;
     }
     const altar = dg.altars?.find(a => a.x === tx && a.y === ty);
     if (altar) {
-      applyWandEffect("lightning", "altar", altar, dx, dy, dg, pl, ml, luFn, bbFn, 1, null, 0, killerMon, null, false, killerMon);
+      applyEnemyEffect("altar", altar);
       return;
     }
   }

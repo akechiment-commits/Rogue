@@ -1622,7 +1622,7 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
   return true;
 }
 
-export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
+export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, context = {}) {
   const _pn = resolveItemName(pot, nameFn);
   /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
   if (pot.potEffect === "greed") {
@@ -1665,7 +1665,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         if (_hm.kind === "undead") {
           _hm.hp -= _hpAmt;
           ml.push(`回復の光が${_hm.name}に${_hpAmt}ダメージを与えた！`);
-          if (_hm.hp <= 0) killMonster(_hm, dg, p, ml, luFn);
+          if (_hm.hp <= 0) killMonster(_hm, dg, p, ml, luFn, false, context.killerMon || null);
         } else {
           const _prev = _hm.hp;
           _hm.hp = Math.min(_hm.maxHp, _hm.hp + _hpAmt);
@@ -1692,7 +1692,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   }
   /* 火薬壺は割れると爆発（中身も消える） */
   if (pot.potEffect === "gunpowder") {
-    doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn);
+    doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn, context.killerMon || null, context);
     return;
   }
   /* 油系壺：満タンでない場合は周囲8マスに油が飛散 */
@@ -2270,7 +2270,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           p.deathCause = `${srcLabel}の爆発により`;
           p.hp -= dmg;
           ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
-          if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
+          if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true,
+            { ...context, killerMon, sourceIsPlayer: context.sourceIsPlayer ?? !killerMon });
         }
         /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
@@ -4340,7 +4341,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.deathCause = "炎の薬の飛散により";
           p.hp -= fd;
           ml.push(`炎に包まれた！${fd}ダメージ！${fireResistDamageLabel(p)}${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
-          applyLightningToInventory(p, dg, ml, luFn, null, true);
+          applyLightningToInventory(p, dg, ml, luFn, null, true, { killerMon, sourceIsPlayer: !killerMon });
         }
       }
       break;
@@ -6052,7 +6053,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
   } else if (_isPot) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
-    scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn);
+    scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn, {
+      killerMon, sourceIsPlayer: opts.sourceIsPlayer ?? !killerMon, fireTrapFn: opts.fireTrapFn,
+    });
   } else if (_isWand) {
     if (res.hitMonster || res.hitPlayer) {
       const _twSnap = { type: "wand", effect: item.effect, charges: item.charges ?? 0, blessed: !!item.blessed, cursed: !!item.cursed, name: item.name };
@@ -7806,7 +7809,7 @@ export function lightningResistDamageLabel(p) {
 }
 
 /* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */
-export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFireContext = false) {
+export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFireContext = false, context = {}) {
   if (p.inventory.length === 0) return;
   if (isFireContext ? hasFireResist(p) : hasLightningResist(p)) return;
   const dn = (it) => resolveItemName(it, nameFn);
@@ -7816,7 +7819,7 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
   if (victim.type === "pot") {
     removeVictim();
     ml.push(isFireContext ? `所持していた「${dn(victim)}」が熱で割れた！` : `所持していた「${dn(victim)}」が雷で割れた！`);
-    scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn);
+    scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn, nameFn, context);
   } else if (victim.type === "potion" || (isFireContext && victim.type === "bottle")) {
     removeVictim();
     ml.push(`所持していた「${dn(victim)}」が割れてなくなった！`);

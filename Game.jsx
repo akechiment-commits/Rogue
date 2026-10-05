@@ -1341,7 +1341,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (_we === "lightning") {
           ml.push(_wandBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
-            _wbItemNameFn, m, _wandBlessed);
+            _wbItemNameFn, m, _wandBlessed, opts.fireTrapFn);
         } else if (_we === "fire_wand" || _we === "ice_wand") {
           const _wandLabel = _we === "fire_wand" ? "炎" : "氷";
           const _wandColor = _we === "fire_wand" ? "#ff6622" : "#80ddff";

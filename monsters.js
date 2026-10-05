@@ -234,7 +234,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     ml.push(`${m.name}が炎ブレスを吐いた！${playerHpEffectLabel(pl, dmg)}！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
     interruptPlayerSleep(pl, ml, "熱さで目が覚めた！");
     if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
-    if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
+    if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true, { killerMon: m, sourceIsPlayer: false });
   };
   for (let _fi = 1; _fi < MW + MH; _fi++) {
     /* Lv2以上は1マスごとにプレイヤーへ向きを更新する（同部屋／同フロア追尾）。 */
@@ -529,7 +529,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
   if (m.baseKind === "firedemon" && dmg > 0) {
-    if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true);
+    if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true, { killerMon: m, sourceIsPlayer: false });
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) {
       const _bonusDmg = Math.max(1, Math.floor(dmg * 0.5));

@@ -235,6 +235,9 @@ GUIDE_DESC_OVERRIDES["地雷"] += ' ' + EXPLOSION_POT_CONTENTS_NOTE;
 GUIDE_DESC_OVERRIDES["時限爆弾の罠"] = (GUIDE_DESC_OVERRIDES["時限爆弾の罠"] || '') + ' ' + EXPLOSION_POT_CONTENTS_NOTE;
 GUIDE_DESC_OVERRIDES["火薬壺"] += ' ' + EXPLOSION_POT_CONTENTS_NOTE;
 GUIDE_DESC_OVERRIDES["ニトロ箱"] += ' ' + EXPLOSION_POT_CONTENTS_NOTE;
+const ENEMY_POT_BREAK_NOTE = '壺の激突後に割れた時の特殊効果にも、飛ばした使用者を引き継ぐ。敵の吹き飛ばしで床の回復の壺がアンデッドに当たって割れ、残り容量×100の回復反転ダメージで倒した場合は、最初に飛ばした敵の撃破とする。火薬壺が当たって割れた場合の爆発・巻き込み・誘爆による撃破も同じ使用者へ帰属させる。敵の雷・ゴッドスパークで床の壺を割る場合、敵の炎・雷の魔法や炎の薬、敵由来の爆発、ドラゴンの炎ブレス・火ダルマの炎属性攻撃で所持中の火薬壺が割れる場合も使用者を保持する。プレイヤー経験値は入らず、生存中の使用者が撃破ごとに1段階成長し、通常ドロップ・盗品返却・ボス報酬は共通撃破処理で行う。使用者が爆風で自滅した場合や途中で死亡済みの場合は経験値をプレイヤーへ振り替えず、死亡済みの使用者は成長しない。敵の杖から渡された敵用罠処理も火薬壺の爆発へ引き継ぎ、その爆風で壊れた吹き飛ばしの杖の着地先の地雷・落とし穴を敵行動中に処理する。プレイヤー自身が壺で倒した場合の経験値、回復量、爆発威力、生存する通常敵への回復、地雷・時限爆弾そのものの撃破仕様は維持する。';
+GUIDE_DESC_OVERRIDES["回復の壺"] += ' ' + ENEMY_POT_BREAK_NOTE;
+GUIDE_DESC_OVERRIDES["火薬壺"] += ' ' + ENEMY_POT_BREAK_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' 通常・祝福では、吸い出す中身を先に壺から切り離して空にし、その一覧を一度だけ床へ出す。途中で爆風の熱により元の壺が壊れても、同じ中身を再放出しない。油の飛散条件は吸い出す前の中身の数で判定する。呪いでは破壊する壺を所持品／床から先に除き、中身を散乱させる。';
 
@@ -627,6 +630,7 @@ const potInitialCapacityRange = (p) => POT_INITIAL_CAPACITY_RANGES[p.potEffect] 
 const potData = [['壺名', 'potEffect', 'テンプレート容量 / フロア・店 初期容量範囲', 'rarity', 'sellPrice', '説明']];
 potData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
 potData.push(['【爆風による壺の破壊と中身】', '', '', '', '', EXPLOSION_POT_CONTENTS_NOTE]);
+potData.push(['【敵が壊した壺の特殊効果の撃破者】', '', '', '', '', ENEMY_POT_BREAK_NOTE]);
 potData.push(['【飛翔中の罠による消費】', '', '', '', '', TRAP_CONSUMED_PROJECTILE_NOTE]);
 potData.push(['【呪いによる容量不足】', '', '', '', '', POT_CAPACITY_REDUCTION_NOTE]);
 potData.push(['【容量0の扱い】', '', '', '', '', ZERO_POT_CAPACITY_NOTE]);
@@ -774,6 +778,7 @@ function monTraits(m) {
   if (m.baseKind === 'windmage') t.push(EXPLOSION_BROKEN_WAND_NOTE);
   if (m.baseKind === 'windmage') t.push(BROKEN_WAND_FLOOR_NOTE);
   if (m.baseKind === 'windmage') t.push(EXPLOSION_WAND_TRAP_NOTE);
+  if (['windmage', 'wizard', 'dragon', 'firedemon'].includes(m.baseKind)) t.push(ENEMY_POT_BREAK_NOTE);
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時25%で混乱（封印中は発動しない）');
   if (m.baseKind === 'boss_demonking') t.push('近接攻撃命中時25%で金縛り。5ターンごとに取り巻きを1体召喚');
   if (m.baseKind === 'boss_warlord') t.push('近接攻撃命中時25%で防御半減');
@@ -952,6 +957,7 @@ wandData.push(['【敵が飛ばす・壊す床の杖の使用者】', '', '', ''
 wandData.push(['【爆風で壊れる杖と連鎖】', '', '', '', '', '', '', EXPLOSION_BROKEN_WAND_NOTE]);
 wandData.push(['【杖の破壊効果中の階移動】', '', '', '', '', '', '', BROKEN_WAND_FLOOR_NOTE]);
 wandData.push(['【誘爆で壊れる杖と着地先の罠】', '', '', '', '', '', '', EXPLOSION_WAND_TRAP_NOTE]);
+wandData.push(['【敵の杖で壊れる壺の撃破者】', '', '', '', '', '', '', ENEMY_POT_BREAK_NOTE]);
 addSheet('12_杖', wandData);
 
 // ===== 食べ物（Food）=====
