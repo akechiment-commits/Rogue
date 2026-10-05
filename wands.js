@@ -2507,7 +2507,8 @@ export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {})
   }
   const times = Math.max(1, Math.ceil((wand.charges ?? 0) / 2));
   const center = { x: cx, y: cy };
-  for (let t = 0; t < times; t++) breakWandAoE(p, dg, wand.effect, ml, luFn, blMult, center, {
+  const initialDepth = p.depth;
+  for (let t = 0; t < times && p.depth === initialDepth; t++) breakWandAoE(p, dg, wand.effect, ml, luFn, blMult, center, {
     identSet: opts.identSet,
     identState: opts.identState,
     trackItemFn: opts.trackItemFn,
@@ -2539,12 +2540,16 @@ export function destroyFloorWand(dg, wand, p, ml, luFn, destroyMsg = null, conte
 export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sageContext = {}) {
   const cx = center?.x ?? p.x;
   const cy = center?.y ?? p.y;
+  const initialDepth = p.depth;
+  const floorChanged = () => p.depth !== initialDepth;
   const killerMon = sageContext.killerMon || null;
   const sourceIsPlayer = sageContext.sourceIsPlayer ?? !killerMon;
-  const _applyBreakEffect = (effect, kind, target, dx, dy) =>
+  const _applyBreakEffect = (effect, kind, target, dx, dy) => {
+    if (floorChanged()) return;
     applyWandEffect(effect, kind, target, dx, dy, dg, p, ml, luFn, null, blMult,
       sageContext.nameFn || null, 0, killerMon, sageContext.bigboxNameFn || null,
       sourceIsPlayer, sageContext.breaker || (sourceIsPlayer ? p : killerMon), sageContext.fireTrapFn || null);
+  };
   const _breakMagicDamage = (amount, monster) => sourceIsPlayer
     ? multiplyMagicDamage(amount, p?.weapon, monster, dg)
     : multiplyCursedMagicDamage(amount, monster, dg);
@@ -2578,6 +2583,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     }
     ml.push("穴掘りの杖が壊れた！");
     _damageWandBreakCenter(dg, p, cx, cy, rng(8, 15), "穴掘りの杖の自壊爆発により", ml, luFn, "穴掘りの杖の", sageContext);
+    if (floorChanged()) return;
     for (const [adx, ady] of _BW_DIRS) {
       const wx = cx + adx, wy = cy + ady;
       if (wx > 0 && wx < MW - 1 && wy > 0 && wy < MH - 1 && (dg.map[wy][wx] === T.WALL || dg.map[wy][wx] === T.BWALL)) {
@@ -2636,11 +2642,13 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     } else {
       ml.push("軟化の杖が壊れた！");
     }
+    if (floorChanged()) return;
     if (!_pitfallBlockedAt(dg, cx, cy)) {
       dg.traps.push({ name:"落とし穴", effect:"pitfall", tile:27, id:uid(), x:cx, y:cy, revealed:true });
       ml.push(p.x === cx && p.y === cy ? "足元に落とし穴ができた！" : "その場に落とし穴ができた！");
     }
     for (const [adx, ady] of _BW_DIRS) {
+      if (floorChanged()) return;
       const ax = cx + adx, ay = cy + ady;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       /* 壁（最外周を除く）→ 食料に変化 */
@@ -2682,6 +2690,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
   if (eff === "warp") {
     const _wCenter = _centerWandTarget(dg, cx, cy, p);
     if (_wCenter) _applyBreakEffect(eff, _wCenter.kind, _wCenter.t, 0, 0);
+    if (floorChanged()) return;
     for (const { kind, t } of _collectBreakAdjacentTargets(dg, cx, cy, p)) {
       _applyBreakEffect(eff, kind, t, 0, 0);
     }
@@ -2716,10 +2725,14 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
   const rd = pick(_BW_DIRS);
   const _defCenter = _centerWandTarget(dg, cx, cy, p);
   if (_defCenter) _applyBreakEffect(eff, _defCenter.kind, _defCenter.t, rd[0], rd[1]);
+  if (floorChanged()) return;
   const targets = _collectBreakAdjacentTargets(dg, cx, cy, p);
   const _footBb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
   if (_footBb && !_defCenter) targets.push({ kind:"bigbox", t:_footBb, dx:rd[0], dy:rd[1] });
-  for (const { kind, t, dx, dy } of targets) _applyBreakEffect(eff, kind, t, dx, dy);
+  for (const { kind, t, dx, dy } of targets) {
+    if (floorChanged()) return;
+    _applyBreakEffect(eff, kind, t, dx, dy);
+  }
 }
 
 setWandBreakEffectHandler(triggerWandBreakEffect);

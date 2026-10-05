@@ -624,6 +624,77 @@ describe("ニトロ箱の爆風で壊れる杖", () => {
 });
 
 describe("敵が飛ばして壊した床の杖の使用者", () => {
+  it.each([2, 4])("破壊効果で階移動したら元の階の隣接効果と残りの発動を打ち切る（残回数%s）", charges => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 10, 6);
+    Object.assign(victim, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
+    const wand = { id: "flying-wand", type: "wand", name: "ふきとばしの杖", effect: "knockback", charges, x: 7, y: 5 };
+    const trap = { id: "landing", name: "落とし穴", effect: "pitfall", x: 8, y: 3, permanent: true };
+    const remainingItem = { id: "under-player", type: "ring", name: "命の指輪", effect: "life", plus: 1, x: 10, y: 5 };
+    const player = makePlayer({ x: 10, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand, remainingItem], traps: [trap], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    dungeon.map[2][7] = T.WALL;
+    const state = { player, dungeon, ident: new Set() };
+    const callbacks = moveEnemiesFor(state);
+    const messages = [];
+    callbacks.moveMons(dungeon, player, messages, "attackOnly");
+    expect(callbacks.chgFloor).toHaveBeenCalledOnce();
+    expect(player.depth).toBe(2);
+    expect(state.dungeon).toBe(callbacks.destination);
+    expect([victim.x, victim.y, victim.hp]).toEqual([10, 6, 100]);
+    expect(dungeon.items).toContain(remainingItem);
+    expect([remainingItem.x, remainingItem.y]).toEqual([10, 5]);
+    expect(messages.some(message => message.includes("コボルドが吹き飛んだ"))).toBe(false);
+    expect(dungeon.items).not.toContain(wand);
+  });
+
+  it.each(["none", "explode"])("同じ階で移動した場合は周囲効果と追加発動を継続する（着地罠:%s）", trapEffect => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 10, 6);
+    Object.assign(victim, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
+    const wand = { id: "flying-wand", type: "wand", name: "ふきとばしの杖", effect: "knockback", charges: 4, x: 7, y: 5 };
+    const remainingItem = { id: "under-player", type: "ring", name: "命の指輪", effect: "life", plus: 1, x: 10, y: 5 };
+    const player = makePlayer({ x: 10, y: 5, depth: 1 });
+    const traps = trapEffect === "none" ? [] : [{ id: "landing", name: "地雷", effect: "explode", x: 8, y: 3, permanent: true }];
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand, remainingItem], traps, rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    dungeon.map[2][7] = T.WALL;
+    const callbacks = moveEnemiesFor({ player, dungeon, ident: new Set() });
+    callbacks.moveMons(dungeon, player, [], "attackOnly");
+    expect(callbacks.chgFloor).not.toHaveBeenCalled();
+    expect(player.depth).toBe(1);
+    expect([victim.x, victim.y, victim.hp]).toEqual([10, 16, 95]);
+    const landedItem = dungeon.items.find(item => item.id === remainingItem.id);
+    expect(landedItem ? [landedItem.x, landedItem.y] : null).not.toEqual([10, 5]);
+    expect(dungeon._pendingMineExplosion).toBeUndefined();
+  });
+
+  it("軟化で別の杖が壊れ階移動した場合も、元の軟化効果による壁の変化を止める", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const flying = { id: "flying-wand", type: "wand", name: "軟化の杖", effect: "soften", charges: 4, x: 7, y: 5 };
+    const chained = { id: "chained-wand", type: "wand", name: "ふきとばしの杖", effect: "knockback", charges: 2, x: 9, y: 4 };
+    const trap = { id: "landing", name: "落とし穴", effect: "pitfall", x: 20, y: 15, permanent: true };
+    const player = makePlayer({ x: 10, y: 5, depth: 1 });
+    const dungeon = makeEmptyDg({ monsters: [mage], items: [flying, chained], traps: [trap], rooms: [{ x: 1, y: 1, w: 25, h: 17 }] });
+    dungeon.map[16][21] = T.WALL;
+    dungeon.map[4][11] = T.WALL;
+    const state = { player, dungeon, ident: new Set() };
+    const callbacks = moveEnemiesFor(state);
+    callbacks.moveMons(dungeon, player, [], "attackOnly");
+    expect(callbacks.chgFloor).toHaveBeenCalledOnce();
+    expect(player.depth).toBe(2);
+    expect(state.dungeon).toBe(callbacks.destination);
+    expect(dungeon.map[4][11]).toBe(T.WALL);
+    expect(dungeon.items.some(item => item.x === 11 && item.y === 4)).toBe(false);
+    expect(dungeon.items).not.toContain(flying);
+    expect(dungeon.items).not.toContain(chained);
+  });
+
   it.each([["fire_wand", 0], ["fire_wand", 2], ["dig", 0], ["dig", 2]])("%sの残回数%sで敵を倒した場合も元の使用者の撃破になる", (effect, charges) => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
