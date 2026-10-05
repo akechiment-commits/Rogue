@@ -3169,6 +3169,7 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
   const dx = Math.sign(pl.x - m.x), dy = Math.sign(pl.y - m.y);
   const name = resolveItemName(item);
   delete m.carriedItem;
+  const beforeHp = pl.hp;
   const result = throwItemAlongLine(m, dg, item, dx, dy, itemThrowerRange(m), ml, pl, luFn, {
     animColor: "#ffbb55",
     killerMon: m,
@@ -3186,7 +3187,7 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
     springLandMsg: (spr) => `${m.name}が${name}を投げつけて${spr?.name || "泉"}に落とした。`,
     noHitLandMsg: () => `${m.name}が${name}を投げつけたが、遮られて地面に落ちた。`,
   });
-  if (result.hitPlayer) onHit?.(m);
+  if (result.hitPlayer) onHit?.(Math.max(0, beforeHp - pl.hp), m);
   return true;
 }
 
@@ -6015,6 +6016,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             }
             /* 投擲：throwItemAlongLineで弾道・命中・薬瓶splash・壺scatter・杖発動を統合処理 */
             clearStealthrowerHeldItem(m, _throwItem);
+            const _srBeforeHp = pl.hp;
             const _srRes = throwItemAlongLine(m, dg, _throwItem, _srDx, _srDy, _srDist, ml, pl, _luFn, {
               animColor: "#ff8800",
               killerMon: m,
@@ -6036,7 +6038,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             });
             /* プレイヤー命中時の追加コールバック（既存仕様：potion/pot以外の命中で発動） */
             if (_srRes.hitPlayer && _throwItem.type !== "potion" && _throwItem.type !== "pot") {
-              if (_onHit) _onHit(m);
+              if (_onHit) _onHit(Math.max(0, _srBeforeHp - pl.hp), m);
             }
             return;
           }
