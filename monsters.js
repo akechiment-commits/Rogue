@@ -880,7 +880,7 @@ export const MONS = [
     ],
   },
   { name: "ひょい河童",   hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
-    desc: "プレイヤーを認識すると、隣接していない間は床のアイテムを拾い、一直線上から投げつける。投げる前に倒せばアイテムを落とす。",
+    desc: "床のアイテムを拾い、一直線上から投げつける（命中率75%）。投げる前に倒せばアイテムを落とす。",
     levels: [
       { name: "剛腕水虎",     hp: 69,  atk: 29, def: 9,  exp: 100, dungeonFloors: { advanced: { min: 26, max: 30 } } },
       { name: "豪傑九千坊",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
@@ -3171,6 +3171,16 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
   delete m.carriedItem;
   const beforeHp = pl.hp;
   const result = throwItemAlongLine(m, dg, item, dx, dy, itemThrowerRange(m), ml, pl, luFn, {
+    hitChance: 0.75,
+    missLandFn: (x, y, missedItem, logs) => {
+      if (missedItem.type === "charged_fuzzball") {
+        placeItemAt(dg, x, y, missedItem, logs, new Set(), 0, pl);
+      } else {
+        const drop = safeArrowDrop(x, y, dg);
+        _monDropWithSpring(drop, missedItem, dg, logs);
+        if (drop) logs.push(`${name}は地面に落ちた。`);
+      }
+    },
     animColor: "#ffbb55",
     killerMon: m,
     bbFn: opts.bbFn,
@@ -3188,6 +3198,7 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
     noHitLandMsg: () => `${m.name}が${name}を投げつけたが、遮られて地面に落ちた。`,
   });
   if (result.hitPlayer) onHit?.(Math.max(0, beforeHp - pl.hp), m);
+  else if (result.missedPlayer) opts.onPlayerMiss?.(m);
   return true;
 }
 

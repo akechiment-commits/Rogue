@@ -5869,6 +5869,8 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
  */
 export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts = {}) {
   const {
+    hitChance = 1,
+    missLandFn = null,
     bbFn = null,
     nameFn = null,
     applyWandFn = null,
@@ -5918,8 +5920,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     baseRange: range,
     reflectorRange,
     boltName: _itemName,
+    hitChance,
     animColor,
     pierce: _isPierceArrow,
+    onMiss: hitChance < 1 || missLandFn ? (lx, ly) => {
+      res.x = lx; res.y = ly; res.missedPlayer = true;
+    } : null,
     onMonHit: (mon, mlx) => {
       if (mon.isWanderingMerchant && mon.state !== "hostile") {
         declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
@@ -6049,6 +6055,14 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   /* 罠で消費された道具に着地後の効果を適用しない。薬瓶は onTrap で
      薬液処理を予約するため、この消滅判定には含めない。 */
   if (_destroyedByTrap) return res;
+
+  /* 命中しなかった投擲物は薬液・破損・爆発を発動せずに落とす。
+     貫通中に別の対象へ命中した場合は、その着弾処理を優先する。 */
+  if (res.missedPlayer && !res.consumed) {
+    if (missLandFn) missLandFn(res.x, res.y, item, ml);
+    else placeItemAt(dg, res.x, res.y, item, ml, new Set(), 0, p);
+    return res;
+  }
 
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
