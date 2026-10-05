@@ -395,7 +395,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
           if (_bbHitMon.hp <= 0) _defeat(_bbHitMon);
         }
-        breakBigboxContents(target, dg, ml, nameFn, bbx, bby, { player: p, luFn });
+        breakBigboxContents(target, dg, ml, nameFn, bbx, bby, { player: p, luFn, killerMon });
         if (_bbHitPlayer || _bbHitMon) {
           if (_bbHadContents) ml.push("中身が飛び出した！");
         } else if (_bbHadContents) {
@@ -446,7 +446,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     if (eff === "soften") {
       /* 大箱を破壊して中身を散乱 */
-      breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
+      breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn, killerMon });
       ml.push(`軟化の魔法弾で${resolveItemName(target, nameFn)}が崩れ落ちた！${(target.contents?.length||0) > 0 ? "中身が飛び出した！" : ""}`);
       return;
     }
@@ -471,7 +471,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (_bwCursed) {
         const _newCap = Math.max(0, (target.capacity ?? 1) - 1);
         if ((target.contents?.length || 0) > _newCap) {
-          breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
+          breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn, killerMon });
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！【呪】`);
         } else {
           target.capacity = _newCap;
@@ -493,7 +493,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _loss = _cwBlessed ? 2 : 1;
         const _newCap = Math.max(0, (target.capacity ?? 1) - _loss);
         if ((target.contents?.length || 0) > _newCap) {
-          breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
+          breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn, killerMon });
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
         } else {
           target.capacity = _newCap;
@@ -503,7 +503,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     /* default: break and scatter (dig, lightning, etc.) */
-    breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn });
+    breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn, killerMon });
     if (target.contents?.length > 0) {
       ml.push(`${resolveItemName(target, nameFn)}が壊れて中身が飛び出した！`);
     } else {
