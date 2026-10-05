@@ -1924,11 +1924,14 @@ export function pickTrap(pool = TRAPS, rngFn = Math.random, biasChance = 0, bias
   return pickWeighted(pool, rngFn);
 }
 
-function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
+function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted, context = {}) {
+  // 連鎖先が別の爆発を起こしても、破壊中の杖を再び壊さない。
+  if (!dg.items.includes(it)) return;
   blasted.add(it);
   const _snap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+  removeFloorItem(dg, it);
   ml.push(`杖「${resolveItemName(it, nameFn)}」が爆発で壊れ、魔法が炸裂した！`);
-  _triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn);
+  _triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn, { nameFn, ...context });
 }
 
 function calcPlayerDefForProjectile(p) {
@@ -2307,7 +2310,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           ml.push(`壺「${resolveItemName(it)}」が爆発で割れ、中身が飛び出した！`);
         } else { ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`); }
       } else if (it.type === "wand") {
-        _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted);
+        _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted,
+          { killerMon, sourceIsPlayer: !killerMon });
       } else if (it.type === "item_mimic") {
         _blasted.add(it);
         ml.push(`「${resolveItemName(it)}」が爆発で消えた！`);

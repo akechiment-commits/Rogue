@@ -223,8 +223,9 @@ const BIGBOX_PLAYER_COLLISION_NOTE = '吹き飛ばされた大箱は敵だけで
 const BIGBOX_IMPACT_ORDER_NOTE = '吹き飛ばされた大箱が敵またはプレイヤーに激突した場合、箱を床の大箱一覧から先に外し、激突ダメージと必要な撃破処理を済ませてから箱の破壊処理を行う。ニトロ箱は激突後に爆発し、通常箱は激突後に中身を散らす。爆発で倒れた敵へ同じ激突を後から追加せず、撃破・経験値・ドロップを二重に処理しない。爆発で復活した敵へ同じ箱の激突ダメージを後から与えない。ニトロ箱のボスへの割合ダメージは激突後の現在HPを基準にする。激突で倒れた敵のドロップが地雷などを起動しても、床から外した衝突済みの箱を再破壊・再爆発させない。';
 const NITRO_ENEMY_KILL_NOTE = '敵の杖で飛ばしたり破壊したりしたニトロ箱の爆発には、杖の使用者を撃破者として引き継ぐ。激突した相手だけでなく、爆風に巻き込まれた通常敵・ボスの撃破でもプレイヤー経験値は入らず、生存中の使用者が撃破ごとに1段階成長する。通常ドロップ・盗品返却・ボス報酬は共通撃破処理で行う。別のニトロ箱や火薬壺へ誘爆した場合も同じ使用者を引き継ぐ。使用者自身が爆風で倒れた場合は自滅扱いとし、その使用者や他の敵の経験値をプレイヤーへ振り替えない。死亡済みの使用者は成長しない。プレイヤー自身が飛ばした箱や、敵の使用者が指定されない従来の爆発の経験値処理は維持する。地雷・時限爆弾への誘爆は各罠の既存の撃破仕様で処理する。';
 const ENEMY_BROKEN_WAND_NOTE = '敵の吹き飛ばしで床の杖が敵・プレイヤーに命中して壊れた場合、最初に飛ばした敵を破壊効果の使用者として引き継ぐ。残回数0の命中対象への単発効果、残回数がある杖の中心・周囲への破壊効果（残回数÷2の切り上げ回数）、穴掘りの中心ダメージ、呪われた穴掘り・軟化の壁生成ダメージへ同じ使用者を渡す。敵が床の杖を穴掘り・軟化で直接壊した場合や、その破壊効果で別の床の杖が壊れた場合も引き継ぐ。炎・ゴッドスパーク・アンデッドへの祝福／呪われた呪いの回復反転ダメージ・体力交換のボス向けダメージ・場所替えによる水没や聖域での撃破では、プレイヤー経験値は入らず、生存中の使用者が撃破ごとに1段階成長する。通常ドロップ・盗品返却・ボス報酬は共通撃破処理で行う。敵由来の魔法ダメージにはプレイヤーの武器の魔法強化を適用しない。壊れた吹き飛ばしの杖でプレイヤーが罠へ移動した場合も敵行動用の罠処理を引き継ぎ、落とし穴への階移動・地雷の即時爆発を処理する。プレイヤー由来の杖の経験値と武器による魔法強化は維持する。';
-GUIDE_DESC_OVERRIDES["ニトロ箱"] += ' ' + NITRO_ENEMY_KILL_NOTE;
-GUIDE_DESC_OVERRIDES["火薬壺"] += ' ' + NITRO_ENEMY_KILL_NOTE;
+const EXPLOSION_BROKEN_WAND_NOTE = '爆風で床の杖が壊れる場合は、杖の残回数・祝呪の情報を保存し、床から先に除去してから破壊効果を発動する。その効果が別のニトロ箱などを起爆しても、既に壊した同じ杖を再破壊しない（残回数に応じた正規の複数回効果は維持する）。通常爆発・地雷・火薬壺／ニトロ箱・時限爆弾などの共通の爆風による杖破壊に適用する。敵が引き起こしたニトロ箱／火薬壺の爆風で壊れた杖にも最初の敵の使用者を引き継ぎ、破壊効果が倒した敵の経験値をプレイヤーへ与えず、生存中の使用者を成長させる。使用者が途中で死亡しても経験値をプレイヤーへ振り替えず、死んだ使用者は成長しない。敵由来の破壊魔法にはプレイヤー武器の魔法強化を適用しない。プレイヤー由来の経験値・魔法強化、残回数0の杖が爆風で壊れた場合に魔法を出さない既存仕様、地雷・時限爆弾自体の撃破仕様は維持する。';
+GUIDE_DESC_OVERRIDES["ニトロ箱"] += ' ' + NITRO_ENEMY_KILL_NOTE + ' ' + EXPLOSION_BROKEN_WAND_NOTE;
+GUIDE_DESC_OVERRIDES["火薬壺"] += ' ' + NITRO_ENEMY_KILL_NOTE + ' ' + EXPLOSION_BROKEN_WAND_NOTE;
 GUIDE_DESC_OVERRIDES["地雷"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["落とし穴"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
@@ -762,6 +763,7 @@ function monTraits(m) {
   if (m.baseKind === 'windmage') t.push(BIGBOX_IMPACT_ORDER_NOTE);
   if (m.baseKind === 'windmage') t.push(NITRO_ENEMY_KILL_NOTE);
   if (m.baseKind === 'windmage') t.push(ENEMY_BROKEN_WAND_NOTE);
+  if (m.baseKind === 'windmage') t.push(EXPLOSION_BROKEN_WAND_NOTE);
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時25%で混乱（封印中は発動しない）');
   if (m.baseKind === 'boss_demonking') t.push('近接攻撃命中時25%で金縛り。5ターンごとに取り巻きを1体召喚');
   if (m.baseKind === 'boss_warlord') t.push('近接攻撃命中時25%で防御半減');
@@ -937,6 +939,7 @@ wandData.push(['【大箱のプレイヤー衝突】', '', '', '', '', '', '', B
 wandData.push(['【大箱の激突と破壊の順番】', '', '', '', '', '', '', BIGBOX_IMPACT_ORDER_NOTE]);
 wandData.push(['【ニトロ箱の爆風の撃破者】', '', '', '', '', '', '', NITRO_ENEMY_KILL_NOTE]);
 wandData.push(['【敵が飛ばす・壊す床の杖の使用者】', '', '', '', '', '', '', ENEMY_BROKEN_WAND_NOTE]);
+wandData.push(['【爆風で壊れる杖と連鎖】', '', '', '', '', '', '', EXPLOSION_BROKEN_WAND_NOTE]);
 addSheet('12_杖', wandData);
 
 // ===== 食べ物（Food）=====

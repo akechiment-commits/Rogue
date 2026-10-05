@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { monsterAI, MONS, makeMonsterFromBase, findRoom, resolveMonsterWandEffect, _resolveMonsterWandBolt } from "../monsters.js";
 import { fireTrapPlayer } from "../traps.js";
 import { takeDueActions } from "../actionClock.js";
-import { inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag } from "../items.js";
+import { inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag, doGunpowderExplosion, doExplosion, doTimeBombExplosion } from "../items.js";
 import { itemDisplayName } from "../render.js";
 import { hasGravityPentacle, T } from "../utils.js";
 import { interruptPlayerSleep } from "../turnUpkeep.js";
@@ -540,6 +540,86 @@ describe("敵が飛ばしたニトロ箱の爆風の撃破者", () => {
     expect(dungeon.monsters).not.toContain(victim);
     expect(player.exp).toBe(0);
     expect(mage.monLevel).toBe(2);
+  });
+});
+
+describe("ニトロ箱の爆風で壊れる杖", () => {
+  it.each([false, true])("敵の箱の爆風で壊れた杖の撃破者を引き継ぐ（使用者死亡:%s）", casterDies => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const centerX = casterDies ? 7 : 8;
+    const direct = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, centerX + 1, 5);
+    Object.assign(direct, { hp: 1, _phaseActionCount: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, centerX + 3, 6);
+    const stolen = { id: "stolen-blast", name: "命の指輪", type: "ring", effect: "life", plus: 1 };
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0, heldItems: [stolen], _stealthrowerHeldItem: stolen });
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: centerX - 1, y: 5 };
+    const wand = { id: "blast-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 2, x: centerX + 2, y: 6 };
+    const player = makePlayer({ x: 13, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, direct, victim], bigboxes: [box], items: [wand], rooms: [{ x: 1, y: 1, w: 22, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(casterDies ? 2 : 3);
+    expect(dungeon.monsters.includes(mage)).toBe(!casterDies);
+    expect(dungeon.items.filter(item => item.id === stolen.id)).toHaveLength(1);
+    expect(dungeon.items).not.toContain(wand);
+  });
+
+  it.each(["gunpowder", "mine", "timebomb"])("%sで壊れた杖がニトロ箱を起爆しても同じ杖を二度壊さない", route => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const wand = { id: "blast-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 2, x: 10, y: 6 };
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: 11, y: 6 };
+    const player = makePlayer({ x: 13, y: 5 });
+    const dungeon = makeEmptyDg({ items: [wand], bigboxes: [box] });
+    const messages = [];
+    if (route === "gunpowder") doGunpowderExplosion(8, 5, dungeon, player, messages, () => {});
+    else if (route === "mine") doExplosion(9, 5, dungeon, player, messages, null, "地雷", null, () => {}, true, false, true);
+    else doTimeBombExplosion(8, 5, dungeon, player, messages, () => {});
+    expect(messages.filter(message => message.startsWith('杖「炎の杖」が爆発で壊れ'))).toHaveLength(1);
+    expect(messages.filter(message => message.startsWith("ニトロ箱が爆発した！5×5"))).toHaveLength(1);
+    expect(dungeon.items).not.toContain(wand);
+    expect(dungeon.bigboxes).toEqual([]);
+  });
+
+  it.each([true, false])("爆風で壊れた杖の威力を使用者で区別する（敵由来:%s）", enemySource => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 11, 6);
+    Object.assign(victim, { hp: 100, maxHp: 100 });
+    const wand = { id: "blast-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 2, x: 10, y: 6 };
+    const player = makePlayer({ x: 13, y: 5, weapon: { name: "アサメ", type: "weapon", atk: 2, ability: "magic_power" } });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand] });
+    doGunpowderExplosion(8, 5, dungeon, player, [], () => {}, "ニトロ箱", enemySource ? mage : null);
+    expect(victim.hp).toBe(enemySource ? 70 : 55);
+  });
+
+  it("敵由来の爆風で壊れた杖が倒したボスの報酬も一度だけ出る", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    const boss = { id: "boss", name: "ボス", x: 11, y: 6, hp: 1, maxHp: 100, exp: 200, isBoss: true, bossTier: 1 };
+    const wand = { id: "blast-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 2, x: 10, y: 6 };
+    const player = makePlayer({ x: 13, y: 5, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, boss], items: [wand] });
+    doGunpowderExplosion(8, 5, dungeon, player, [], () => {}, "ニトロ箱", mage);
+    expect(dungeon.monsters).not.toContain(boss);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+    expect(dungeon.items.filter(item => item.name === "ボスの財宝")).toHaveLength(1);
+  });
+
+  it.each([0, 2])("プレイヤー由来の爆風で残回数%sの杖が壊れる場合の効果を維持する", charges => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, 11, 6);
+    victim.hp = 1;
+    const wand = { id: "blast-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges, x: 10, y: 6 };
+    const player = makePlayer({ x: 13, y: 5, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [victim], items: [wand] });
+    doGunpowderExplosion(8, 5, dungeon, player, [], () => {});
+    expect(dungeon.items).not.toContain(wand);
+    expect(dungeon.monsters.includes(victim)).toBe(charges === 0);
+    expect(player.exp).toBe(charges === 0 ? 0 : 45);
   });
 });
 
