@@ -380,7 +380,7 @@ const _POTION_THROW_POOL = [
   { name: "回復薬",     effect: "heal",     value: 30, tile: 16 },
   { name: "大回復薬",   effect: "heal_big", value: 60, tile: 17 },
 ];
-function monsterThrowPotion(m, dg, pl, ml, bbFn) {
+function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null) {
   const _pot = pick(_POTION_THROW_POOL);
   let _ptdx = Math.sign(pl.x - m.x), _ptdy = Math.sign(pl.y - m.y);
   ml.push(`${m.name}が謎の薬を投げた！`);
@@ -416,7 +416,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
     const _bb = dg.bigboxes?.find(b => b.x === _cx && b.y === _cy);
     if (_bb) {
       const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-      if (bbFn) bbFn(_bb, _potItem, dg, ml);
+      if (bbFn) bbFn(_bb, _potItem, dg, ml, { killerMon: m, sourceIsPlayer: false, fireTrapFn });
       else dg.items.push({ ..._potItem, x: _cx, y: _cy });
       return;
     }
@@ -439,7 +439,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
         const _rrBb = dg.bigboxes?.find(b => b.x === _rrx && b.y === _rry);
         if (_rrBb) {
           const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-          if (bbFn) bbFn(_rrBb, _potItem, dg, ml);
+          if (bbFn) bbFn(_rrBb, _potItem, dg, ml, { killerMon: m, sourceIsPlayer: false, fireTrapFn });
           else dg.items.push({ ..._potItem, x: _rrx, y: _rry });
           return;
         }
@@ -2271,7 +2271,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     },
     onBigbox: (bb, lx, ly, mlx) => {
       mlx.push(`${m.name}の${_arName}が${bb.name}に当たった。`);
-      if (opts.bbFn) opts.bbFn(bb, _makeAr(), dg, mlx);
+      if (opts.bbFn) opts.bbFn(bb, _makeAr(), dg, mlx, { killerMon: m, sourceIsPlayer: false, fireTrapFn: opts.fireTrapFn });
       else dg.items.push({ ..._makeAr(), x: lx, y: ly });
     },
     onSpring: (spr, lx, ly, mlx) => {
@@ -3788,7 +3788,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
       if (inLine && lineLen <= _ptRange) {
         m.turnAttacks++;
-        monsterThrowPotion(m, dg, pl, ml, opts.bbFn);
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn);
         return true;
       }
     }
@@ -5555,7 +5555,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
         if (_ptStraight && _ptDist <= _ptRange && canSee && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
-          monsterThrowPotion(m, dg, pl, ml, opts.bbFn);
+          monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn);
           return;
         }
       }

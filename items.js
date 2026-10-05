@@ -2027,6 +2027,9 @@ export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = 
 }
 
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
+  const killerMon = options.killerMon || null;
+  const initialDepth = p?.depth;
+  const floorChanged = () => p?.depth !== initialDepth;
   ensureItemMimicFloorItems(dg);
   if (!options.nonElemental && isFireExplosionNullified(dg, p)) {
     announceFireExplosionNullified(dg, p, ml, srcLabel);
@@ -2077,12 +2080,17 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     }
     /* 炎の爆発：耐火なしなら所持品を1つ焼く。爆弾矢・魚雷などの飛び道具爆発は対象外。 */
     const _inventoryFire = (ringExplosion || mineExplosion || _playerHpOne) && options.projectileAtk == null && options.nonElemental !== true;
-    if (_inventoryFire && !hasFireResist(p)) applyLightningToInventory(p, dg, ml, luFn, null, true);
+    if (_inventoryFire && !hasFireResist(p)) applyLightningToInventory(p, dg, ml, luFn, null, true, { ...options, killerMon });
   }
+  if (floorChanged()) return;
   const blasted = new Set();
+  const removeBlastedItems = () => {
+    for (const item of blasted) destroyItemMimicFloorItem(dg, item);
+    if (blasted.size > 0) dg.items = dg.items.filter(item => !blasted.has(item));
+  };
   const _killed = new Set();
-  for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
-    for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
+  for (let ddx = -_blastRadius; ddx <= _blastRadius && !floorChanged(); ddx++) {
+    for (let ddy = -_blastRadius; ddy <= _blastRadius && !floorChanged(); ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       /* 壁の破壊 */
@@ -2133,29 +2141,30 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             _bd = scaleMonFireDmg(m, _bd);
             m.hp -= _bd;
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
-            if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion); }
+            if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion, killerMon); }
             continue;
           }
           m.hp = 0;
-          _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion);
+          _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion, killerMon);
         } else if (options.projectileAtk != null) {
           /* 特殊弾の爆発：通常命中と同じ攻撃力計算を、爆心地を含む各敵へ一度だけ適用する。 */
           if (consumeBarrier(m, ml)) continue;
           const md = clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true);
           m.hp -= md;
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
+          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills, killerMon); }
         } else {
           if (consumeBarrier(m, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
           md = scaleMonFireDmg(m, md);
           m.hp -= md;
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
+          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills, killerMon); }
         }
       }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
+        if (floorChanged()) break;
         if (it.shopPrice) chargeShopItem(it, dg, ml, p);
         if (it.type === "scroll") {
           blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
@@ -2175,7 +2184,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             _explosionBreakPot(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
           }
         } else if (it.type === "wand") {
-          _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
+          _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted, options);
         } else if (it.type === "item_mimic") {
           blasted.add(it);
           ml.push(`「${resolveItemName(it, nameFn)}」が爆発で消えた！`);
@@ -2183,25 +2192,27 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
     }
   }
+  if (floorChanged()) { removeBlastedItems(); return; }
   /* 爆発範囲内の大箱を破壊 */
   const _blastedBB = [];
-  for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
-    for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
+  for (let ddx = -_blastRadius; ddx <= _blastRadius && !floorChanged(); ddx++) {
+    for (let ddy = -_blastRadius; ddy <= _blastRadius && !floorChanged(); ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       const _hitBBs = (dg.bigboxes || []).filter(b => b.x === ax && b.y === ay);
       for (const _hbb of _hitBBs) {
+        if (floorChanged()) break;
         if (_blastedBB.includes(_hbb)) continue;
         _blastedBB.push(_hbb);
         ml.push(`${_hbb.name}が爆発で壊れた！`);
-        breakBigboxContents(_hbb, dg, ml, nameFn, null, null, { player: p, luFn });
+        breakBigboxContents(_hbb, dg, ml, nameFn, null, null, { ...options, player: p, luFn, killerMon });
       }
     }
   }
   if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
+  if (floorChanged()) { removeBlastedItems(); return; }
   breakGachaMachinesInRadius(dg, cx, cy, _blastRadius, ml, p, nameFn);
-  for (const it of blasted) destroyItemMimicFloorItem(dg, it);
-  if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
+  removeBlastedItems();
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 爆発範囲内の石像 */
   for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
@@ -2228,8 +2239,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   /* 破壊された火薬壺の連鎖爆発 */
   for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
-    doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
+    if (floorChanged()) return;
+    doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp), killerMon, options);
   }
+  if (floorChanged()) return;
   /* 爆発の種類によらず、範囲内の地雷・時限爆弾を連鎖爆発 */
   chainExplosionHazards(cx, cy, _blastRadius, dg, p, ml, luFn, nameFn, options);
 }
@@ -6043,7 +6056,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   if (res.spring) {
     soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
   } else if (res.bigbox) {
-    if (bbFn) bbFn(res.bigbox, item, dg, ml);
+    if (bbFn) bbFn(res.bigbox, item, dg, ml, {
+      killerMon, sourceIsPlayer: opts.sourceIsPlayer ?? !killerMon, fireTrapFn: opts.fireTrapFn,
+    });
     else { const ft = new Set(); placeItemAt(dg, res.x, res.y, item, ml, ft); }
   } else if (res.gacha) {
     /* ガチャマシーンには薬瓶だけが着弾対象になる。通常の薬液処理で破壊判定も行う。 */
@@ -6406,24 +6421,24 @@ function specialProjectilePathHitMonster(sp, next, dg, monsterSnapshots = null, 
   return null;
 }
 
-export function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
+export function detonateCrawlingBomb(sp, dg, p, ml, luFn, message, context = {}) {
   ml.push(message || `${sp.name}が爆発した！`);
   const _bundleCount = Math.max(1, sp.bundleCount | 0);
   /* 初期の1個は半径1、以降は3個増えるごとに半径を1拡大し、10個以上で半径4。 */
   const _blastRadius = Math.min(4, 1 + Math.floor(Math.max(0, _bundleCount - 1) / 3));
   doExplosion(
     sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, true, false, true, false,
-    { radius: _blastRadius, playerHpOne: _bundleCount >= 2 },
+    { ...context, radius: _blastRadius, playerHpOne: _bundleCount >= 2 },
   );
 }
 
-export function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
+export function detonateTorpedo(sp, dg, p, ml, luFn, monster = null, context = {}) {
   const _inWater = dg.map?.[sp.y]?.[sp.x] === T.WATER;
   const _forceMonster = monster && Math.max(Math.abs(monster.x - sp.x), Math.abs(monster.y - sp.y)) > 1
     ? [monster]
     : [];
   ml.push(`${sp.name}が着弾点で爆発した！`);
-  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { playerSafeInWater: _inWater, nonElemental: true, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
+  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { ...context, playerSafeInWater: _inWater, nonElemental: true, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
 }
 
 function landCrawlingBombAsItem(sp, dg, p, ml) {

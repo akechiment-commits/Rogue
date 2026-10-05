@@ -10,6 +10,7 @@ import { interruptPlayerSleep } from "../turnUpkeep.js";
 import { trackTrap } from "../DiscoveryTracker.js";
 import { applyWandEffect, fireWandBolt, monsterFireLightning } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { createGameBigboxHandlers } from "./gameBigboxHarness.js";
 
 afterEach(() => { vi.restoreAllMocks(); clearPitfallBag(); });
 
@@ -25,7 +26,7 @@ function moveEnemiesFor(state) {
     runMineExplosion, takeDueActions, findRoom, inMagicSealRoom, applyWandEffect, monsterFireLightning,
     resolveMonsterWandEffect, _resolveMonsterWandBolt, hasGravityPentacle,
     interruptPlayerSleep, itemDisplayName, killMonster, chgFloor, trackTrap,
-    bbDisplayName: box => box.name, bigboxAddItem: () => {}, lu: () => {} };
+    bbDisplayName: box => box.name, bigboxAddItem: createGameBigboxHandlers(state).bigboxAddItem, lu: () => {} };
   const moveMons = new Function(...Object.keys(deps), `${source.slice(start, end)}; return moveMons;`)(...Object.values(deps));
   return { moveMons, chgFloor, destination };
 }
@@ -540,6 +541,75 @@ describe("敵が飛ばしたニトロ箱の爆風の撃破者", () => {
     expect(dungeon.monsters).not.toContain(victim);
     expect(player.exp).toBe(0);
     expect(mage.monLevel).toBe(2);
+  });
+});
+
+describe("敵の実際の行動から大箱へ投入する場合", () => {
+  it.each(["nitro", "scatter"].flatMap(kind => ["pitfall", "explode"].map(effect => [kind, effect])))("%sへの投入効果から飛ばされた先の%sも敵用罠処理へ渡す", (kind, effect) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const caster = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(caster, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 6);
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0 });
+    const item = kind === "nitro"
+      ? { id: "flying", name: "短剣", type: "weapon", atk: 3, x: 7, y: 5 }
+      : { id: "flying", name: "ふきとばしの杖", type: "wand", effect: "knockback", charges: 0, x: 7, y: 5 };
+    const box = { id: "box", name: "大箱", kind, capacity: 3, contents: [], x: 9, y: 5 };
+    const wand = { id: "blast-wand", name: "ふきとばしの杖", type: "wand", effect: "knockback", charges: 4, x: 11, y: 5 };
+    const trap = { id: "landing", name: effect === "pitfall" ? "落とし穴" : "地雷", effect, x: kind === "nitro" ? 22 : 2, y: 5, permanent: true };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [caster, victim], items: kind === "nitro" ? [item, wand] : [item], bigboxes: [box], traps: [trap], rooms: [{ x: 1, y: 1, w: 26, h: 10 }] });
+    dungeon.map[5][23] = T.WALL;
+    const state = { player, dungeon, ident: new Set() };
+    const callbacks = moveEnemiesFor(state);
+    callbacks.moveMons(dungeon, player, [], "attackOnly");
+    if (effect === "pitfall") {
+      expect(callbacks.chgFloor).toHaveBeenCalledOnce();
+      expect(player.depth).toBe(2);
+      expect(state.dungeon).toBe(callbacks.destination);
+    } else {
+      expect(callbacks.chgFloor).not.toHaveBeenCalled();
+      expect(player.hp).toBe(48);
+      expect(dungeon._pendingMineExplosion).toBeUndefined();
+    }
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(caster.monLevel).toBe(2);
+    expect(dungeon.items).not.toContain(item);
+  });
+
+  it.each(["archer", "potionthrower"])("%sが直接放った道具が拡散箱に入った場合も射手の撃破になる", baseKind => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const caster = makeMonsterFromBase(MONS.find(mon => mon.baseKind === baseKind), 1, 5, 5);
+    Object.assign(caster, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 8, 6);
+    Object.assign(victim, { hp: 1, kind: "undead", _phaseActionCount: 0 });
+    const box = { id: "box", name: "拡散の大箱", kind: "scatter", capacity: 3, contents: [], x: 7, y: 5 };
+    const player = makePlayer({ x: 9, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [caster, victim], bigboxes: [box], rooms: [{ x: 1, y: 1, w: 15, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(caster.monLevel).toBe(2);
+    expect(box.contents).toEqual([]);
+    expect(box.capacity).toBe(2);
+  });
+
+  it.each(["nitro", "scatter"])("吹き飛ばした床道具が%sへ入った後も使用者を保持する", kind => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const caster = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(caster, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 6);
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0 });
+    const item = { id: "flying", name: "短剣", type: "weapon", atk: 3, x: 7, y: 5 };
+    const box = { id: "box", name: kind === "nitro" ? "ニトロ箱" : "拡散の大箱", kind, capacity: 3, contents: [], x: 9, y: 5 };
+    const player = makePlayer({ x: 13, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [caster, victim], items: [item], bigboxes: [box], rooms: [{ x: 1, y: 1, w: 22, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(caster.monLevel).toBe(2);
+    expect(dungeon.items).not.toContain(item);
   });
 });
 

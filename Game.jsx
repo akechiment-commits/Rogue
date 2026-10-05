@@ -4031,17 +4031,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     return false;
   }, []);
-  const breakBigbox = useCallback((bb, dg, ml) => {
+  const breakBigbox = useCallback((bb, dg, ml, context = {}) => {
     if (bb.kind === "nitro") {
-      detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+      detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, context.killerMon || null, context);
       return;
     }
     if (bb.kind === "monster") {
-      breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: sr.current.player, luFn: lu });
+      breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { ...context, player: sr.current.player, luFn: lu });
       return;
     }
     ml.push(`${bbDisplayName(bb, sr.current)}が壊れた！中身がばらまかれた！`);
-    breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: sr.current.player, luFn: lu });
+    breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { ...context, player: sr.current.player, luFn: lu });
   }, [lu]);
   const trySynthesize = useCallback(
     (bb, ml) => {
@@ -4429,7 +4429,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     [uid],
   );
   const bigboxAddItem = useCallback(
-    (bb, item, dg, ml) => {
+    (bb, item, dg, ml, context = {}) => {
+      const killerMon = context.killerMon || null;
+      const sourceIsPlayer = context.sourceIsPlayer ?? !killerMon;
+      const effectContext = { ...context, killerMon, sourceIsPlayer };
+      const initialDepth = sr.current.player.depth;
+      const floorChanged = () => sr.current.player.depth !== initialDepth;
       trackBigbox(bb);
       const wasFull = bb.contents.length >= bb.capacity;
       bb.contents.push(item);
@@ -4441,7 +4446,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         : `${_idn}を${_bbDN}に入れた。`,
       );
       if (bb.kind === "nitro") {
-        detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+        detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, killerMon, effectContext);
         return;
       } else if (bb.kind === "greed") {
         const _conv = convertGreedBoxItem(bb, item);
@@ -4656,12 +4661,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(`${_idn}が部屋中に拡散した！`);
           if (item.type === "potion") {
             for (const m of [..._scMons]) {
-              applyPotionEffect(item.effect, item.value || 0, "monster", m, dg, p, ml, lu, item.blessed || false, item.cursed || false);
-              if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
+              if (floorChanged()) break;
+              if (!dg.monsters.includes(m) || m.hp <= 0) continue;
+              applyPotionEffect(item.effect, item.value || 0, "monster", m, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
             }
-            if (_scPInRoom) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false);
+            if (_scPInRoom && !floorChanged()) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
           } else if (item.type === "wand") {
             for (const m of [..._scMons]) {
+              if (floorChanged()) break;
               const _sdx = Math.sign(m.x - bb.x), _sdy = Math.sign(m.y - bb.y);
               if (!dg.monsters.includes(m) || m.hp <= 0) continue;
               ml.push(`${_idn}が${m.name}に命中！`);
@@ -4669,6 +4676,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 type: "wand", effect: item.effect, charges: item.charges ?? 0,
                 blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
               }, m.x, m.y, dg, p, ml, lu, {
+                ...effectContext,
                 singleTargetKind: "monster", singleTarget: m,
                 effectDx: _sdx || 1, effectDy: _sdy,
                 identSet: sr.current?.ident,
@@ -4679,13 +4687,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 bigboxNameFn: (bx) => bbDisplayName(bx, sr.current),
               });
             }
-            if (_scPInRoom) {
+            if (_scPInRoom && !floorChanged()) {
               const _sdx = Math.sign(p.x - bb.x), _sdy = Math.sign(p.y - bb.y);
               ml.push(`${_idn}が${pl()}に命中！`);
               triggerWandBreakEffect({
                 type: "wand", effect: item.effect, charges: item.charges ?? 0,
                 blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
               }, p.x, p.y, dg, p, ml, lu, {
+                ...effectContext,
                 singleTargetKind: "player", singleTarget: p,
                 effectDx: -(_sdx || 1), effectDy: -_sdy,
                 identSet: sr.current?.ident,
@@ -4703,9 +4712,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               ml.push(`${_idn}が飛び散って各生き物のもとで爆発した！`);
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _gnMon of [..._scMons]) {
-                  doGunpowderExplosion(_gnMon.x, _gnMon.y, dg, p, ml, lu);
+                  if (floorChanged()) break;
+                  doGunpowderExplosion(_gnMon.x, _gnMon.y, dg, p, ml, lu, "火薬壺", killerMon, effectContext);
                 }
-                if (_scPInRoom) doGunpowderExplosion(p.x, p.y, dg, p, ml, lu);
+                if (_scPInRoom && !floorChanged()) doGunpowderExplosion(p.x, p.y, dg, p, ml, lu, "火薬壺", killerMon, effectContext);
               } else {
                 announceFireExplosionNullified(dg, p, ml, "爆発");
               }
@@ -4729,7 +4739,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 ml.push(`${m.name}は油まみれになった！(${_oilT}ターン)`);
                 _addOilArea(m.x, m.y);
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 const _oilT = statusTurns("oily", { kind: "player" });
                 p.oilyTurns = (p.oilyTurns || 0) + _oilT;
                 ml.push(`油を浴びた！炎ダメージが2倍になる！(${_oilT}ターン)`);
@@ -4752,6 +4762,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
               const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity ?? 3) - (item.contents?.length || 0)) * 100 : 0;
               for (const m of [..._scMons]) {
+                if (floorChanged()) break;
+                if (!dg.monsters.includes(m) || m.hp <= 0) continue;
                 if (consumeBarrier(m, ml)) continue;
                 const _itd = clampDmgFixed(m, _potDmg(m.def), true);
                 m.hp -= _itd;
@@ -4767,9 +4779,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     calmShopkeeperIfFullyHealed(m, dg, p, ml);
                   }
                 }
-                if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
+                if (m.hp <= 0) { killMonster(m, dg, p, ml, lu, false, killerMon); }
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPotPlayerDmg = _potDmg(0);
                 p.hp -= _scPotPlayerDmg;
@@ -4788,18 +4800,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 拡散の大箱：這いずり爆弾は対象マスに接触した扱いで即時爆発 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               for (const _cbMon of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(_cbMon) || _cbMon.hp <= 0) continue;
                 detonateCrawlingBomb(
                   { name: _idn, kind: "crawling_bomb", x: _cbMon.x, y: _cbMon.y, bundleCount: 1 },
                   dg, p, ml, lu,
                   `${_idn}が${_cbMon.name}に触れて爆発した！`,
+                  effectContext,
                 );
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 detonateCrawlingBomb(
                   { name: _idn, kind: "crawling_bomb", x: p.x, y: p.y, bundleCount: 1 },
                   dg, p, ml, lu,
                   `${_idn}が${pl()}に触れて爆発した！`,
+                  effectContext,
                 );
               }
               _bbExploded = true;
@@ -4807,16 +4822,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 拡散の大箱：魚雷は対象マスに着弾した扱いで即時爆発 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ着弾した！`);
               for (const _torMon of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(_torMon) || _torMon.hp <= 0) continue;
                 detonateTorpedo(
                   { name: _idn, kind: "torpedo", x: _torMon.x, y: _torMon.y, atk: item.atk || 1 },
-                  dg, p, ml, lu, _torMon,
+                  dg, p, ml, lu, _torMon, effectContext,
                 );
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 detonateTorpedo(
                   { name: _idn, kind: "torpedo", x: p.x, y: p.y, atk: item.atk || 1 },
-                  dg, p, ml, lu,
+                  dg, p, ml, lu, null, effectContext,
                 );
               }
               _bbExploded = true;
@@ -4825,18 +4841,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               for (const _baMon of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(_baMon) || _baMon.hp <= 0) continue;
                 applyThrownItemToMonster(item, _baMon, dg, p, ml, lu, {
+                  killerMon,
                   nameFn: _baNF,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
               }
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _baMon of [..._scMons]) {
-                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { projectileAtk: item.atk || 6 });
+                  if (floorChanged()) break;
+                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { ...effectContext, projectileAtk: item.atk || 6 });
                 }
-                if (_scPInRoom) {
-                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { projectileAtk: item.atk || 6 });
+                if (_scPInRoom && !floorChanged()) {
+                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { ...effectContext, projectileAtk: item.atk || 6 });
                 }
               } else {
                 announceFireExplosionNullified(dg, p, ml, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`);
@@ -4844,13 +4863,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               _bbExploded = true;
             } else {
               for (const m of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(m) || m.hp <= 0) continue;
                 applyThrownItemToMonster(item, m, dg, p, ml, lu, {
+                  killerMon,
                   nameFn: _scDnFn,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPDmg = calcProjectileDmg(p, thrownItemAttack(item), 0);
                 p.hp -= _scPDmg;
@@ -4889,11 +4910,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         }
         /* 爆発系は箱ごと破壊、それ以外は容量を1減らす */
-        if (_bbExploded) {
-          breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: p });
+        if (_bbExploded && dg.bigboxes.includes(bb) && !floorChanged()) {
+          breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { ...effectContext, player: p, luFn: lu });
           if (bb.contents?.length > 0) ml.push(`${bbDisplayName(bb, sr.current)}が壊れ中身が飛び出した！`);
           else ml.push(`${bbDisplayName(bb, sr.current)}が爆発で壊れた！`);
-        } else {
+        } else if (!_bbExploded) {
           bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
         }
       } else if (bb.kind === "trash") {
@@ -4903,7 +4924,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
         ml.push(`${_idn}は消えてしまった。`);
       }
-      if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);
+      if ((wasFull || bb.contents.length > bb.capacity) && dg.bigboxes.includes(bb) && !floorChanged()) breakBigbox(bb, dg, ml, effectContext);
     },
     [trySynthesize, breakBigbox, lu],
   );
