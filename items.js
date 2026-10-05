@@ -1512,7 +1512,7 @@ export function checkGachaShopTheft(machine, dg, p, ml) {
 }
 
 /** ニトロ箱の中身を消滅させ、半径2マスの爆発へ変換する。箱自身は先に除去して再帰爆発を防ぐ。 */
-export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = null, killerMon = null) {
+export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = null, killerMon = null, context = {}) {
   if (!bb || bb.kind !== "nitro" || !dg) return false;
   const x = center?.x ?? bb.x, y = center?.y ?? bb.y;
   const contents = [...(bb.contents || [])];
@@ -1522,7 +1522,7 @@ export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = nu
   for (const item of contents) {
     ml.push(`${resolveItemName(item, nameFn)}がニトロ箱の爆発で消滅した！`);
   }
-  doGunpowderExplosion(x, y, dg, p, ml, luFn, "ニトロ箱", killerMon);
+  doGunpowderExplosion(x, y, dg, p, ml, luFn, "ニトロ箱", killerMon, context);
   return true;
 }
 
@@ -1542,7 +1542,7 @@ export function convertGreedBoxItem(bb, item, uidFn = uid) {
 export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dropY = null, options = {}) {
   if (!bb || !dg) return;
   if (bb.kind === "nitro") {
-    detonateNitroBox(bb, dg, options.player || null, ml, options.luFn || null, nameFn, { x: dropX, y: dropY }, options.killerMon || null);
+    detonateNitroBox(bb, dg, options.player || null, ml, options.luFn || null, nameFn, { x: dropX, y: dropY }, options.killerMon || null, options);
     return;
   }
   const x = dropX ?? bb.x;
@@ -2221,10 +2221,12 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
 
 /** 火薬壺の爆発処理。中心から半径2マス（5×5=25マス）を対象にする。連鎖爆発あり。 */
 let _gunpowderDepth = 0;
-export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺", killerMon = null) {
+export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺", killerMon = null, context = {}) {
   if (_gunpowderDepth > 5) return;
   if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, `${srcLabel}の爆発`); return; }
   ensureItemMimicFloorItems(dg);
+  const initialDepth = p?.depth;
+  const floorChanged = () => p?.depth !== initialDepth;
   _gunpowderDepth++;
   try {
     pushExplosionAnim(cx, cy);
@@ -2289,6 +2291,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     /* 範囲内の床上アイテムへの爆発ダメージ（火薬壺以外） */
     const _blasted = new Set();
     for (const it of dg.items) {
+      if (floorChanged()) break;
       if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 2) continue;
       if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 火薬壺は後で連鎖処理 */
       if (it.type === "scroll" || it.type === "spellbook") {
@@ -2311,7 +2314,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         } else { ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`); }
       } else if (it.type === "wand") {
         _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted,
-          { killerMon, sourceIsPlayer: !killerMon });
+          { ...context, killerMon, sourceIsPlayer: context.sourceIsPlayer ?? !killerMon });
       } else if (it.type === "item_mimic") {
         _blasted.add(it);
         ml.push(`「${resolveItemName(it)}」が爆発で消えた！`);
@@ -2319,22 +2322,25 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     }
     for (const it of _blasted) destroyItemMimicFloorItem(dg, it);
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
+    if (floorChanged()) return;
     /* 範囲内の大箱を破壊 */
     const _gpBlastedBB = [];
-    for (let _gbbdx = -2; _gbbdx <= 2; _gbbdx++) {
-      for (let _gbbdy = -2; _gbbdy <= 2; _gbbdy++) {
+    for (let _gbbdx = -2; _gbbdx <= 2 && !floorChanged(); _gbbdx++) {
+      for (let _gbbdy = -2; _gbbdy <= 2 && !floorChanged(); _gbbdy++) {
         const _gbax = cx + _gbbdx, _gbay = cy + _gbbdy;
         if (_gbax < 0 || _gbax >= MW || _gbay < 0 || _gbay >= MH) continue;
         const _hitBBs = (dg.bigboxes || []).filter(b => b.x === _gbax && b.y === _gbay);
         for (const _hbb of _hitBBs) {
+          if (floorChanged()) break;
           if (_gpBlastedBB.includes(_hbb)) continue;
           _gpBlastedBB.push(_hbb);
           ml.push(`${_hbb.name}が爆発で壊れた！`);
-          breakBigboxContents(_hbb, dg, ml, null, null, null, { player: p, luFn, killerMon });
+          breakBigboxContents(_hbb, dg, ml, null, null, null, { ...context, player: p, luFn, killerMon });
         }
       }
     }
     if (_gpBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_gpBlastedBB.includes(b));
+    if (floorChanged()) return;
     breakGachaMachinesInRadius(dg, cx, cy, 2, ml, p);
     /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
     const _chainPots = dg.items.filter(it =>
@@ -2342,9 +2348,14 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= 2
     );
     if (_chainPots.length > 0) {
-      dg.items = dg.items.filter(i => !_chainPots.includes(i));
-      for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp), killerMon);
+      for (const _gp of _chainPots) {
+        if (floorChanged()) return;
+        if (!dg.items.includes(_gp)) continue;
+        removeFloorItem(dg, _gp);
+        doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp), killerMon, context);
+      }
     }
+    if (floorChanged()) return;
     /* 火薬壺も他の爆発と同じく、範囲内の地雷・時限爆弾を誘爆する */
     chainExplosionHazards(cx, cy, 2, dg, p, ml, luFn);
     /* 爆発範囲内の魔方陣を消滅 */

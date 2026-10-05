@@ -544,6 +544,54 @@ describe("敵が飛ばしたニトロ箱の爆風の撃破者", () => {
 });
 
 describe("ニトロ箱の爆風で壊れる杖", () => {
+  it.each(["direct", "nitro", "gunpowder", "dead-caster"].flatMap(route => ["pitfall", "explode"].map(effect => [route, effect])))("%sの爆風で壊れた杖が飛ばした先の%sを敵行動中に処理する", (route, effect) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const centerX = route === "dead-caster" ? 7 : 8;
+    const direct = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, centerX + 1, 5);
+    Object.assign(direct, { hp: 1, _phaseActionCount: 0 });
+    const box = { id: "nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: centerX - 1, y: 5 };
+    const wandX = route === "direct" || route === "dead-caster" ? centerX + 2 : centerX + 4;
+    const wand = { id: "blast-wand", type: "wand", name: "ふきとばしの杖", effect: "knockback", charges: 4, x: wandX, y: 5 };
+    const destroyedBefore = { id: "destroyed-before", type: "scroll", name: "地図の巻物", effect: "map", x: wandX, y: 6 };
+    const remaining = { id: "remaining-scroll", type: "scroll", name: "地図の巻物", effect: "map", x: wandX, y: 7 };
+    const trap = { id: "landing", name: effect === "pitfall" ? "落とし穴" : "地雷", effect, x: wandX + 11, y: 5, permanent: true };
+    const player = makePlayer({ x: wandX + 1, y: 5, depth: 1, exp: 0 });
+    const childBox = { id: "child-nitro", name: "ニトロ箱", kind: "nitro", capacity: 1, contents: [], x: centerX + 2, y: 6 };
+    const childPot = { id: "child-pot", name: "火薬壺", type: "pot", potEffect: "gunpowder", capacity: 3, contents: [], x: 10, y: 6 };
+    const sibling = route === "gunpowder"
+      ? { ...childPot, id: "remaining-pot", y: 7 }
+      : { ...childBox, id: "remaining-box", y: 7 };
+    const dungeon = makeEmptyDg({ monsters: [mage, direct], bigboxes: route === "nitro" ? [box, childBox] : [box],
+      items: route === "gunpowder" ? [childPot, destroyedBefore, wand, remaining] : [destroyedBefore, wand, remaining], traps: [trap], rooms: [{ x: 1, y: 1, w: 27, h: 12 }] });
+    if (route === "gunpowder") dungeon.items.push(sibling);
+    else dungeon.bigboxes.push(sibling);
+    dungeon.map[5][wandX + 12] = T.WALL;
+    const state = { player, dungeon, ident: new Set() };
+    const callbacks = moveEnemiesFor(state);
+    const messages = [];
+    callbacks.moveMons(dungeon, player, messages, "attackOnly");
+    if (effect === "pitfall") {
+      expect(callbacks.chgFloor).toHaveBeenCalledOnce();
+      expect(player.depth).toBe(2);
+      expect(state.dungeon).toBe(callbacks.destination);
+      expect(dungeon.items).toContain(remaining);
+      expect(route === "gunpowder" ? dungeon.items : dungeon.bigboxes).toContain(sibling);
+    } else {
+      expect(callbacks.chgFloor).not.toHaveBeenCalled();
+      expect(player.hp).toBe(48);
+      expect(dungeon._pendingMineExplosion).toBeUndefined();
+      expect(messages.filter(message => message === "地雷が発動！")).toHaveLength(1);
+      expect(dungeon.items).not.toContain(remaining);
+      expect(route === "gunpowder" ? dungeon.items : dungeon.bigboxes).not.toContain(sibling);
+    }
+    expect(dungeon.items).not.toContain(wand);
+    expect(dungeon.items).not.toContain(destroyedBefore);
+    expect(player.exp).toBe(0);
+    expect(dungeon.monsters.includes(mage)).toBe(route !== "dead-caster");
+  });
+
   it.each([false, true])("敵の箱の爆風で壊れた杖の撃破者を引き継ぐ（使用者死亡:%s）", casterDies => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
