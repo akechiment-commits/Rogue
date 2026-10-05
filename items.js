@@ -1934,6 +1934,26 @@ function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted, conte
   _triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn, { nameFn, ...context });
 }
 
+function _explosionBreakPot(pot, x, y, dg, p, ml, luFn, nameFn, blasted) {
+  if (!dg.items.includes(pot)) return;
+  blasted.add(pot);
+  // 中身が別の爆発を起こす前に、割れた壺と中身を切り離す。
+  const contents = [...(pot.contents || [])];
+  pot.contents = [];
+  removeFloorItem(dg, pot);
+  const name = resolveItemName(pot, nameFn);
+  if (pot.potEffect === "imprison") {
+    ml.push(`壺「${name}」が爆発で割れた！`);
+    releaseConfinedMonstersFromPot(pot, dg, x, y, p, ml);
+  } else if (contents.length > 0) {
+    ml.push(`壺「${name}」が爆発で割れ、中身が飛び出した！`);
+    const ft = new Set();
+    for (const item of contents) placeItemAt(dg, x, y, item, ml, ft, 0, p);
+  } else {
+    ml.push(`壺「${name}」が爆発で割れた！`);
+  }
+}
+
 function calcPlayerDefForProjectile(p) {
   const _misoDef = (p?.misoDefTurns || 0) > 0 ? 8 : 0;
   const _base = (p?.def || 0)
@@ -2148,17 +2168,12 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
-          blasted.add(it);
           if (it.potEffect === "gunpowder") {
             /* 火薬壺：後で連鎖爆発 */
-          } else if (it.potEffect === "imprison") {
-            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`);
-            releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
-          } else if (it.contents?.length > 0) {
-            const ft2 = new Set();
-            for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
-            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れ、中身が飛び出した！`);
-          } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
+            blasted.add(it);
+          } else {
+            _explosionBreakPot(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
+          }
         } else if (it.type === "wand") {
           _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         } else if (it.type === "item_mimic") {
@@ -2303,15 +2318,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); }
       } else if (it.type === "pot") {
-        _blasted.add(it);
-        if (it.potEffect === "imprison") {
-          ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
-          releaseConfinedMonstersFromPot(it, dg, it.x, it.y, p, ml);
-        } else if (it.contents?.length > 0) {
-          const _ft2 = new Set();
-          for (const ci of it.contents) placeItemAt(dg, it.x, it.y, ci, ml, _ft2);
-          ml.push(`壺「${resolveItemName(it)}」が爆発で割れ、中身が飛び出した！`);
-        } else { ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`); }
+        _explosionBreakPot(it, it.x, it.y, dg, p, ml, luFn, null, _blasted);
       } else if (it.type === "wand") {
         _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted,
           { ...context, killerMon, sourceIsPlayer: context.sourceIsPlayer ?? !killerMon });
@@ -2467,15 +2474,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
-          blasted.add(it);
-          if (it.potEffect === "imprison") {
-            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`);
-            releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
-          } else if (it.contents?.length > 0) {
-            const ft2 = new Set();
-            for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
-            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れ、中身が飛び出した！`);
-          } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
+          _explosionBreakPot(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         } else if (it.type === "wand") {
           _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         } else if (it.type === "item_mimic") {

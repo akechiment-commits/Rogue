@@ -230,6 +230,11 @@ GUIDE_DESC_OVERRIDES["火薬壺"] += ' ' + NITRO_ENEMY_KILL_NOTE + ' ' + EXPLOSI
 const BROKEN_WAND_FLOOR_NOTE = '敵行動中の杖の破壊効果から落とし穴などによる階移動が実行された場合、発動開始時の階と現在の階を比較し、元の階の残りの周囲効果と残回数に応じた追加発動を中止する。軟化の破壊効果が別の杖を壊し、その杖の吹き飛ばしで階移動した場合も、元の軟化効果による壁の食料化などを続けない。既に壊れた杖は消費済みのままとし、階移動前に完了した効果は取り消さない。移動先の座標を元の階の効果へ渡して処理しない。同じ階での吹き飛ばし・テレポート、地雷の爆発だけでは中止せず、残りの周囲効果・追加発動を維持する。';
 GUIDE_DESC_OVERRIDES["地雷"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE + ' ' + EXPLOSION_WAND_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["落とし穴"] += ' ' + ENEMY_BLOWBACK_TRAP_NOTE + ' ' + BROKEN_WAND_FLOOR_NOTE + ' ' + EXPLOSION_WAND_TRAP_NOTE;
+const EXPLOSION_POT_CONTENTS_NOTE = '通常の共通爆発・地雷、火薬壺／ニトロ箱、時限爆弾の爆風で床の壺を割る場合は、壺の中身を一時保存して壺側を空にし、壺を床から先に除去してから中身を配置する。中身が地雷を起動しても同じ壺を再び割らず、中身を二重放出しない。連鎖先で別の壺が先に割れた場合も、元の爆発が同じ壺を再処理しない。中身の配置にはプレイヤー情報を渡すため、起動した地雷の爆風内のプレイヤーにもHP半減・耐火軽減・所持品への炎の影響を適用する。範囲外ならダメージを与えない。とじこめの壺は先に床から除去して中の敵を放出する。空の壺も除去する。火薬壺自体は既存の誘爆処理を使い中身を消滅させる。爆風からの通常壺の中身放出では、油・回復・強欲などの投げて割った時の特殊効果は追加しない。';
+GUIDE_DESC_OVERRIDES["地雷"] += ' ' + EXPLOSION_POT_CONTENTS_NOTE;
+GUIDE_DESC_OVERRIDES["時限爆弾の罠"] = (GUIDE_DESC_OVERRIDES["時限爆弾の罠"] || '') + ' ' + EXPLOSION_POT_CONTENTS_NOTE;
+GUIDE_DESC_OVERRIDES["火薬壺"] += ' ' + EXPLOSION_POT_CONTENTS_NOTE;
+GUIDE_DESC_OVERRIDES["ニトロ箱"] += ' ' + EXPLOSION_POT_CONTENTS_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' ' + CONTAINER_TRAP_NOTE;
 GUIDE_DESC_OVERRIDES["吸い出しの巻物"] += ' 通常・祝福では、吸い出す中身を先に壺から切り離して空にし、その一覧を一度だけ床へ出す。途中で爆風の熱により元の壺が壊れても、同じ中身を再放出しない。油の飛散条件は吸い出す前の中身の数で判定する。呪いでは破壊する壺を所持品／床から先に除き、中身を散乱させる。';
 
@@ -621,6 +626,7 @@ const potInitialCapacityRange = (p) => POT_INITIAL_CAPACITY_RANGES[p.potEffect] 
 
 const potData = [['壺名', 'potEffect', 'テンプレート容量 / フロア・店 初期容量範囲', 'rarity', 'sellPrice', '説明']];
 potData.push(['【散乱した道具と地雷】', '', '', '', '', CONTAINER_TRAP_NOTE]);
+potData.push(['【爆風による壺の破壊と中身】', '', '', '', '', EXPLOSION_POT_CONTENTS_NOTE]);
 potData.push(['【飛翔中の罠による消費】', '', '', '', '', TRAP_CONSUMED_PROJECTILE_NOTE]);
 potData.push(['【呪いによる容量不足】', '', '', '', '', POT_CAPACITY_REDUCTION_NOTE]);
 potData.push(['【容量0の扱い】', '', '', '', '', ZERO_POT_CAPACITY_NOTE]);
