@@ -542,3 +542,203 @@ describe("敵が飛ばしたニトロ箱の爆風の撃破者", () => {
     expect(mage.monLevel).toBe(2);
   });
 });
+
+describe("敵が飛ばして壊した床の杖の使用者", () => {
+  it.each([["fire_wand", 0], ["fire_wand", 2], ["dig", 0], ["dig", 2]])("%sの残回数%sで敵を倒した場合も元の使用者の撃破になる", (effect, charges) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, 9, 5);
+    const stolen = { id: "stolen", name: "命の指輪", type: "ring", effect: "life", plus: 1 };
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0, heldItems: [stolen], _stealthrowerHeldItem: stolen });
+    const collateral = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 6);
+    Object.assign(collateral, { hp: 1, _phaseActionCount: 0 });
+    const wand = { id: "flying-wand", type: "wand", name: effect === "dig" ? "穴掘りの杖" : "炎の杖", effect, charges, x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim, collateral], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(effect === "fire_wand" && charges > 0 ? 3 : 2);
+    expect(dungeon.items.filter(item => item.id === stolen.id)).toHaveLength(1);
+    expect(dungeon.items).not.toContain(wand);
+    if (effect === "fire_wand" && charges > 0) expect(dungeon.monsters).not.toContain(collateral);
+    else expect(dungeon.monsters).toContain(collateral);
+  });
+
+  it.each([0, 2].flatMap(charges => ["bless_wand", "curse_wand", "godsparkwand", "vitality_swap"].map(effect => [effect, charges])))("飛ばした%sの残回数%sの特殊ダメージにも撃破者を渡す", (effect, charges) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0 });
+    if (effect === "bless_wand" || effect === "curse_wand") victim.kind = "undead";
+    if (effect === "vitality_swap") Object.assign(victim, { isBoss: true, bossTier: 1, y: charges > 0 ? 6 : 5 });
+    const center = charges > 0 && effect === "vitality_swap"
+      ? Object.assign(makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5), { _phaseActionCount: 0 })
+      : null;
+    const wand = { id: "flying-wand", type: "wand", name: "杖", effect, charges, cursed: effect === "curse_wand", x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim, ...(center ? [center] : [])], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+  });
+
+  it.each([0, 2].flatMap(charges => ["water", "sanctuary", "boss-sanctuary"].map(terrain => [terrain, charges])))("飛ばした場所替えの杖で%sへ移動した敵の撃破者を保持する（残回数%s）", (terrain, charges) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0 });
+    if (terrain === "boss-sanctuary") Object.assign(victim, { isBoss: true, bossTier: 1 });
+    const wand = { id: "flying-wand", type: "wand", name: "場所替えの杖", effect: "swap", charges, x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    if (terrain === "water") dungeon.map[5][12] = T.WATER;
+    else dungeon.pentacles.push({ kind: "sanctuary", x: 12, y: 5 });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+  });
+
+  it("飛ばした炎の杖がプレイヤーに当たった場合、周囲の敵の撃破も敵の使用者に帰属する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 10, 6);
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0 });
+    const wand = { id: "flying-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 2, x: 7, y: 5 };
+    const player = makePlayer({ x: 10, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(player.hp).toBe(70);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+    expect(dungeon.monsters).not.toContain(victim);
+  });
+
+  it.each(["pitfall", "explode"])("飛ばした吹き飛ばしの杖の破壊効果で%sへ着地しても、その場で解決する", effect => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const wand = { id: "flying-wand", type: "wand", name: "ふきとばしの杖", effect: "knockback", charges: 2, x: 7, y: 5 };
+    const trap = { id: "landing", name: effect === "pitfall" ? "落とし穴" : "地雷", effect, x: 8, y: 3, permanent: true };
+    const player = makePlayer({ x: 10, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage], items: [wand], traps: [trap], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    dungeon.map[2][7] = T.WALL;
+    const state = { player, dungeon, ident: new Set() };
+    const messages = [];
+    const callbacks = moveEnemiesFor(state);
+    callbacks.moveMons(dungeon, player, messages, "attackOnly");
+    if (effect === "pitfall") {
+      expect(callbacks.chgFloor).toHaveBeenCalledOnce();
+      expect(player.depth).toBe(2);
+      expect(state.dungeon).toBe(callbacks.destination);
+    } else {
+      expect(player.hp).toBe(45);
+      expect(dungeon._pendingMineExplosion).toBeUndefined();
+      expect(messages.filter(message => message === "地雷が発動！")).toHaveLength(1);
+    }
+  });
+
+  it.each([["fire_wand", 70], ["dig", 85]])("敵が飛ばした%sの効果をプレイヤーの武器で増幅しない", (effect, expectedHp) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(victim, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
+    const wand = { id: "flying-wand", type: "wand", name: "杖", effect, charges: 2, x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0,
+      weapon: { name: "アサメ", type: "weapon", atk: 2, ability: "magic_power" } });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(victim.hp).toBe(expectedHp);
+  });
+
+  it.each([0, 2])("プレイヤー自身が飛ばした残回数%sの杖の経験値は維持する", charges => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, 9, 5);
+    victim.hp = 1;
+    const collateral = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 6);
+    collateral.hp = 1;
+    const wand = { id: "flying-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges, x: 7, y: 5 };
+    const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [victim, collateral], items: [wand] });
+    fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
+    expect(player.exp).toBe(charges === 0 ? 45 : 55);
+  });
+
+  it.each(["soften", "dig"])("敵の%sで床の杖を直接壊した場合も破壊効果の撃破者を引き継ぐ", effect => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 8, 6);
+    victim.hp = 1;
+    const wand = { id: "broken-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 2, x: 8, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand] });
+    applyWandEffect(effect, "item", wand, 1, 0, dungeon, player, [], () => {}, null, 1, null, 0, mage, null, false, mage);
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+    expect(dungeon.items).not.toContain(wand);
+  });
+
+  it("飛ばした軟化の杖が隣の炎の杖を壊した場合も元の使用者を引き継ぐ", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const direct = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(direct, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 10, 6);
+    Object.assign(victim, { hp: 1, _phaseActionCount: 0 });
+    const flying = { id: "flying-wand", type: "wand", name: "軟化の杖", effect: "soften", charges: 2, x: 7, y: 5 };
+    const chained = { id: "chained-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 2, x: 9, y: 6 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, direct, victim], items: [flying, chained], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(dungeon.monsters).toContain(direct);
+    expect(dungeon.items).not.toContain(flying);
+    expect(dungeon.items).not.toContain(chained);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+  });
+
+  it.each(["dig", "soften"])("敵が飛ばした呪われた%sの壁生成ダメージにも撃破者を渡す", effect => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const direct = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 5);
+    Object.assign(direct, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
+    const collateral = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 9, 6);
+    Object.assign(collateral, { hp: 1, _phaseActionCount: 0 });
+    const wand = { id: "cursed-wand", type: "wand", name: "杖", effect, cursed: true, charges: 2, x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, direct, collateral], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.monsters).not.toContain(collateral);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+    expect(direct.hp).toBe(100);
+  });
+
+  it("残回数4の複数回の破壊効果も元の使用者の撃破として扱う", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const victim = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "stealthrower"), 1, 9, 5);
+    Object.assign(victim, { hp: 45, maxHp: 100, _phaseActionCount: 0 });
+    const wand = { id: "flying-wand", type: "wand", name: "炎の杖", effect: "fire_wand", charges: 4, x: 7, y: 5 };
+    const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
+    const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const messages = [];
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+    expect(dungeon.monsters).not.toContain(victim);
+    expect(player.exp).toBe(0);
+    expect(mage.monLevel).toBe(2);
+    expect(messages.filter(message => message.includes("はぐれ乱波に命中！30ダメージ"))).toHaveLength(2);
+  });
+});

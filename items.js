@@ -6047,7 +6047,10 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       const _twOpts = res.hitMonster
         ? { singleTargetKind: "monster", singleTarget: res.hitMonster, effectDx: _twDx, effectDy: _twDy }
         : { singleTargetKind: "player", singleTarget: p, effectDx: -_twDx, effectDy: -_twDy };
-      _triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, _twOpts);
+      _triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, {
+        ..._twOpts, killerMon, sourceIsPlayer: opts.sourceIsPlayer ?? !killerMon,
+        fireTrapFn: opts.fireTrapFn, nameFn,
+      });
     } else if (!res.hitStatue) {
       if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
       const ft = new Set();

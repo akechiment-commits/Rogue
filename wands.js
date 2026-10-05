@@ -652,7 +652,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 仮想射手（押し出し起点：アイテムの元位置） */
         const _shooter = { x: target.x, y: target.y, name: target.name };
         const res = throwItemAlongLine(_shooter, dg, target, dx, dy, d, ml, p, luFn, {
-          bbFn, nameFn, applyWandFn: applyWandEffect, killerMon,
+          bbFn, nameFn, applyWandFn: applyWandEffect, killerMon, sourceIsPlayer, fireTrapFn,
         });
         /* 店外へ出た／途中で消えた店商品は請求して値札を外す（placeItemAt でも処理されるが消費時の保険） */
         if (target.shopPrice) {
@@ -884,7 +884,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "item") {
         if (target.type === "wand") {
-          destroyFloorWand(dg, target, p, ml, luFn, `軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`);
+          destroyFloorWand(dg, target, p, ml, luFn, `軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`,
+            { killerMon, sourceIsPlayer, breaker, fireTrapFn, nameFn, bigboxNameFn });
           break;
         }
         removeFloorItem(dg, target);
@@ -946,14 +947,19 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.x = ox;  target.y = oy;
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
-        if (drownMonsterIfNeeded(target, dg, p, ml, luFn)) break;
+        if (drownMonsterIfNeeded(target, dg, p, ml, luFn, killerMon)) break;
         /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
           if (target.isBoss) {
             const _bd = bossInstantDeathDamage(target);
             target.hp -= _bd;
             ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
-            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+            if (target.hp <= 0) _defeat(target);
+            break;
+          }
+          if (killerMon) {
+            ml.push(`${target.name}は聖域に踏み込み消滅した！`);
+            _defeat(target);
             break;
           }
           { const _se2 = Math.floor(target.exp * ((p.soyExpTurns||0)>0?1.3:1));
@@ -1016,7 +1022,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         dmg = _magicDamage(dmg);
         target.hp -= dmg;
         ml.push(`穴掘りの魔法弾が${target.name}に命中！${dmg}ダメージ！`);
-        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        if (target.hp <= 0) _defeat(target);
       }
       if (kind === "player") {
         dmg = _magicDamage(dmg, p);
@@ -1026,7 +1032,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "item") {
         if (target.type === "wand") {
-          destroyFloorWand(dg, target, p, ml, luFn, `${target.name}は破壊された！`);
+          destroyFloorWand(dg, target, p, ml, luFn, `${target.name}は破壊された！`,
+            { killerMon, sourceIsPlayer, breaker, fireTrapFn, nameFn, bigboxNameFn });
           break;
         }
         removeFloorItem(dg, target);
@@ -1415,7 +1422,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _bh = _magicDamage(Math.round(rng(10, 20) * blMult));
           if (target.kind === "undead") {
             target.hp -= _bh; ml.push(`${target.name}はアンデッドのため${_bh}ダメージを受けた！`);
-            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+            if (target.hp <= 0) _defeat(target);
           } else {
             target.hp = Math.min(target.maxHp, target.hp + _bh);
             ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！${_bwBlessed ? "（祝福）" : ""}`);
@@ -1488,7 +1495,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _ch = _magicDamage(rng(10, 20));
           if (target.kind === "undead") {
             target.hp -= _ch; ml.push(`${target.name}はアンデッドのため${_ch}ダメージを受けた！`);
-            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+            if (target.hp <= 0) _defeat(target);
           } else {
             target.hp = Math.min(target.maxHp, target.hp + _ch);
             ml.push(`${target.name}は呪いの魔法で回復した！${_ch}HP【呪→回復】`);
@@ -1839,7 +1846,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         target.hp -= _gsDmg;
         ml.push(`ゴッドスパーク炸裂！${target.name}に${_gsDmg}ダメージ！${_gsBlessed ? "【祝】" : ""}`);
-        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        if (target.hp <= 0) _defeat(target);
         break;
       }
       if (kind === "player") {
@@ -1910,7 +1917,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _oldPlayerHp = p.hp;
           p.hp = Math.min(p.maxHp, _bossDmg);
           ml.push(`${target.name}は体力交換を跳ね返した！${_bossDmg}ダメージ！プレイヤーのHPが${_oldPlayerHp}→${p.hp}になった！`);
-          if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+          if (target.hp <= 0) _defeat(target);
           break;
         }
         const _pOldHp = p.hp;
@@ -2451,7 +2458,7 @@ function _pitfallBlockedAt(dg, cx, cy) {
     dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU;
 }
 
-function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, label) {
+function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, label, context = {}) {
   let dmg = baseDmg;
   if (p.x === cx && p.y === cy) {
     dmg = multiplyCursedMagicDamage(dmg, p, dg);
@@ -2467,10 +2474,12 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
       return;
     }
     if (consumeBarrier(mon, ml)) return;
-    dmg = multiplyMagicDamage(dmg, p?.weapon, mon, dg);
+    dmg = (context.sourceIsPlayer ?? !context.killerMon)
+      ? multiplyMagicDamage(dmg, p?.weapon, mon, dg)
+      : multiplyCursedMagicDamage(dmg, mon, dg);
     mon.hp -= dmg;
     ml.push(`${label}爆発で${mon.name}に${dmg}ダメージ！`);
-    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
+    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, context.killerMon || null);
   }
 }
 
@@ -2487,7 +2496,9 @@ export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {})
     }
     const _edx = effectDx || 1;
     const _edy = effectDy || 0;
-    applyWandEffect(wand.effect, singleTargetKind, singleTarget, _edx, _edy, dg, p, ml, luFn, null, blMult);
+    applyWandEffect(wand.effect, singleTargetKind, singleTarget, _edx, _edy, dg, p, ml, luFn, null, blMult,
+      opts.nameFn || null, 0, opts.killerMon || null, opts.bigboxNameFn || null,
+      opts.sourceIsPlayer ?? !opts.killerMon, opts.breaker || null, opts.fireTrapFn || null);
     return { triggered: true, zeroChargeSingle: true };
   }
   if (!skipSealCheck && inMagicSealRoom(cx, cy, dg)) {
@@ -2505,25 +2516,39 @@ export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {})
     bigboxNameFn: opts.bigboxNameFn,
     cursed: !!wand.cursed,
     blessed: !!wand.blessed,
+    killerMon: opts.killerMon,
+    sourceIsPlayer: opts.sourceIsPlayer,
+    breaker: opts.breaker,
+    fireTrapFn: opts.fireTrapFn,
   });
   return { triggered: true };
 }
 
 /** 床の杖を除去してから壊し効果を発動（applyWandEffect 等から呼ぶ） */
-export function destroyFloorWand(dg, wand, p, ml, luFn, destroyMsg = null) {
+export function destroyFloorWand(dg, wand, p, ml, luFn, destroyMsg = null, context = {}) {
   if (!wand || wand.type !== "wand") return false;
   const snap = _wandBreakSnapshot(wand);
   const cx = wand.x, cy = wand.y;
   removeFloorItem(dg, wand);
   chargeShopItem(wand, dg, ml);
   if (destroyMsg) ml.push(destroyMsg);
-  triggerWandBreakEffect(snap, cx, cy, dg, p, ml, luFn);
+  triggerWandBreakEffect(snap, cx, cy, dg, p, ml, luFn, context);
   return true;
 }
 
 export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sageContext = {}) {
   const cx = center?.x ?? p.x;
   const cy = center?.y ?? p.y;
+  const killerMon = sageContext.killerMon || null;
+  const sourceIsPlayer = sageContext.sourceIsPlayer ?? !killerMon;
+  const _applyBreakEffect = (effect, kind, target, dx, dy) =>
+    applyWandEffect(effect, kind, target, dx, dy, dg, p, ml, luFn, null, blMult,
+      sageContext.nameFn || null, 0, killerMon, sageContext.bigboxNameFn || null,
+      sourceIsPlayer, sageContext.breaker || (sourceIsPlayer ? p : killerMon), sageContext.fireTrapFn || null);
+  const _breakMagicDamage = (amount, monster) => sourceIsPlayer
+    ? multiplyMagicDamage(amount, p?.weapon, monster, dg)
+    : multiplyCursedMagicDamage(amount, monster, dg);
+  const _defeat = monster => killMonster(monster, dg, p, ml, luFn, false, killerMon);
   if (eff === "leap") { ml.push("杖が壊れたが何も起こらなかった。"); return; }
   if (eff === "dig") {
     if (blMult < 1) {
@@ -2535,10 +2560,10 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
           const _mon = monsterAt(dg, wx, wy);
           if (_mon) {
             if (!consumeBarrier(_mon, ml)) {
-              const _dmg = multiplyMagicDamage(rng(5, 15), p?.weapon, _mon, dg);
+              const _dmg = _breakMagicDamage(rng(5, 15), _mon);
               _mon.hp -= _dmg;
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-              if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+              if (_mon.hp <= 0) _defeat(_mon);
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
@@ -2552,7 +2577,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       return;
     }
     ml.push("穴掘りの杖が壊れた！");
-    _damageWandBreakCenter(dg, p, cx, cy, rng(8, 15), "穴掘りの杖の自壊爆発により", ml, luFn, "穴掘りの杖の");
+    _damageWandBreakCenter(dg, p, cx, cy, rng(8, 15), "穴掘りの杖の自壊爆発により", ml, luFn, "穴掘りの杖の", sageContext);
     for (const [adx, ady] of _BW_DIRS) {
       const wx = cx + adx, wy = cy + ady;
       if (wx > 0 && wx < MW - 1 && wy > 0 && wy < MH - 1 && (dg.map[wy][wx] === T.WALL || dg.map[wy][wx] === T.BWALL)) {
@@ -2577,10 +2602,10 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
           const _mon = monsterAt(dg, wx, wy);
           if (_mon) {
             if (!consumeBarrier(_mon, ml)) {
-              const _dmg = multiplyMagicDamage(rng(5, 15), p?.weapon, _mon, dg);
+              const _dmg = _breakMagicDamage(rng(5, 15), _mon);
               _mon.hp -= _dmg;
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-              if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+              if (_mon.hp <= 0) _defeat(_mon);
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
@@ -2600,13 +2625,13 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       p.defSoftenedTurns = (p.defSoftenedTurns || 0) + _ds;
       ml.push(`軟化の杖が壊れた！防御力が半減した！(${_ds}ターン)`);
     } else if (_sfcEnt?.kind === "monster") {
-      applyWandEffect("soften", "monster", _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult);
+      _applyBreakEffect("soften", "monster", _sfcEnt.t, 0, 0);
       ml.push("軟化の杖が壊れた！");
     } else if (_sfcEnt?.kind === "statue") {
-      applyWandEffect("soften", "statue", _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult);
+      _applyBreakEffect("soften", "statue", _sfcEnt.t, 0, 0);
       ml.push("軟化の杖が壊れた！");
     } else if (_sfcEnt?.kind === "gacha" || _sfcEnt?.kind === "altar") {
-      applyWandEffect("soften", _sfcEnt.kind, _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult, null, 0, null, null, true, p);
+      _applyBreakEffect("soften", _sfcEnt.kind, _sfcEnt.t, 0, 0);
       ml.push("軟化の杖が壊れた！");
     } else {
       ml.push("軟化の杖が壊れた！");
@@ -2627,21 +2652,21 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
         ml.push(`壁が溶けて${_sfbFood.name}が現れた！`);
         continue;
       }
-      if (p.x === ax && p.y === ay) { applyWandEffect("soften", "player", p, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      if (p.x === ax && p.y === ay) { _applyBreakEffect("soften", "player", p, adx, ady); continue; }
       const _sfbMon = monsterAt(dg, ax, ay);
-      if (_sfbMon) { applyWandEffect("soften", "monster", _sfbMon, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      if (_sfbMon) { _applyBreakEffect("soften", "monster", _sfbMon, adx, ady); continue; }
       const _sfbIt = itemAt(dg, ax, ay);
-      if (_sfbIt) { applyWandEffect("soften", "item", _sfbIt, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      if (_sfbIt) { _applyBreakEffect("soften", "item", _sfbIt, adx, ady); continue; }
       const _sfbTrap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
-      if (_sfbTrap) { _sfbTrap.revealed = true; trackTrap(_sfbTrap); applyWandEffect("soften", "trap", _sfbTrap, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      if (_sfbTrap) { _sfbTrap.revealed = true; trackTrap(_sfbTrap); _applyBreakEffect("soften", "trap", _sfbTrap, adx, ady); continue; }
       const _sfbBb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
-      if (_sfbBb) { applyWandEffect("soften", "bigbox", _sfbBb, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      if (_sfbBb) { _applyBreakEffect("soften", "bigbox", _sfbBb, adx, ady); continue; }
       const _sfbGacha = dg.gachaMachines?.find(g => g.x === ax && g.y === ay);
-      if (_sfbGacha) { applyWandEffect("soften", "gacha", _sfbGacha, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      if (_sfbGacha) { _applyBreakEffect("soften", "gacha", _sfbGacha, adx, ady); continue; }
       const _sfbAltar = dg.altars?.find(a => a.x === ax && a.y === ay);
-      if (_sfbAltar) { applyWandEffect("soften", "altar", _sfbAltar, adx, ady, dg, p, ml, luFn, null, blMult, null, 0, null, null, true, p); continue; }
+      if (_sfbAltar) { _applyBreakEffect("soften", "altar", _sfbAltar, adx, ady); continue; }
       const _sfbSt = statueAt(dg, ax, ay);
-      if (_sfbSt) applyWandEffect("soften", "statue", _sfbSt, adx, ady, dg, p, ml, luFn, null, blMult);
+      if (_sfbSt) _applyBreakEffect("soften", "statue", _sfbSt, adx, ady);
     }
     return;
   }
@@ -2656,9 +2681,9 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
   }
   if (eff === "warp") {
     const _wCenter = _centerWandTarget(dg, cx, cy, p);
-    if (_wCenter) applyWandEffect(eff, _wCenter.kind, _wCenter.t, 0, 0, dg, p, ml, luFn, null, blMult);
+    if (_wCenter) _applyBreakEffect(eff, _wCenter.kind, _wCenter.t, 0, 0);
     for (const { kind, t } of _collectBreakAdjacentTargets(dg, cx, cy, p)) {
-      applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn, null, blMult);
+      _applyBreakEffect(eff, kind, t, 0, 0);
     }
     return;
   }
@@ -2673,7 +2698,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     }
     if (_vsbMax) {
       if (!consumeBarrier(_vsbMax, ml)) {
-        applyWandEffect(eff, "monster", _vsbMax, 0, 0, dg, p, ml, luFn, null, blMult);
+        _applyBreakEffect(eff, "monster", _vsbMax, 0, 0);
       }
     } else {
       ml.push("杖が壊れたが周囲にモンスターがいなかった。");
@@ -2690,11 +2715,11 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
   }
   const rd = pick(_BW_DIRS);
   const _defCenter = _centerWandTarget(dg, cx, cy, p);
-  if (_defCenter) applyWandEffect(eff, _defCenter.kind, _defCenter.t, rd[0], rd[1], dg, p, ml, luFn, null, blMult);
+  if (_defCenter) _applyBreakEffect(eff, _defCenter.kind, _defCenter.t, rd[0], rd[1]);
   const targets = _collectBreakAdjacentTargets(dg, cx, cy, p);
   const _footBb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
   if (_footBb && !_defCenter) targets.push({ kind:"bigbox", t:_footBb, dx:rd[0], dy:rd[1] });
-  for (const { kind, t, dx, dy } of targets) applyWandEffect(eff, kind, t, dx, dy, dg, p, ml, luFn, null, blMult);
+  for (const { kind, t, dx, dy } of targets) _applyBreakEffect(eff, kind, t, dx, dy);
 }
 
 setWandBreakEffectHandler(triggerWandBreakEffect);

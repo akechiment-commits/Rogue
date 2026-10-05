@@ -1337,7 +1337,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
         const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx) =>
           applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
-            _wandBlMult, _wbItemNameFn, m.atk, m, _wbBbNameFn, false, m);
+            _wandBlMult, _wbItemNameFn, m.atk, m, _wbBbNameFn, false, m, opts.fireTrapFn);
         if (_we === "lightning") {
           ml.push(_wandBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
