@@ -5920,10 +5920,6 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   let _destroyedByTrap = false;
   const _trapFt = new Set();
   const _landOnTrap = (trap, lx, ly, mlx) => {
-    if (_isPotion) {
-      res.consumed = true; res.splash = true; res.x = lx; res.y = ly;
-      return "destroyed";
-    }
     trap.revealed = true;
     _trapFt.add(trap.id);
     const r = fireTrapItem(trap, item, dg, lx, ly, mlx, _trapFt, p);
@@ -6071,8 +6067,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     destroyItemMimicFloorItem(dg, item);
     dg.items = dg.items.filter(i => i !== item);
   }
-  /* 罠で消費された道具に着地後の効果を適用しない。薬瓶は onTrap で
-     薬液処理を予約するため、この消滅判定には含めない。 */
+  /* 薬瓶も含め、着地罠で消費された道具に破損・薬液などを重ねない。 */
   if (_destroyedByTrap) return res;
 
   /* 命中しなかった投擲物は薬液・破損・爆発を発動せずに落とす。

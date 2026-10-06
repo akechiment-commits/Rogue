@@ -44,15 +44,16 @@ describe("吹き飛ばされた道具の罠による消費", () => {
     expect(dg.items.map(item => item.id)).toEqual([remainingId]);
   });
 
-  it("薬瓶が罠のマスへ着地した時の薬液処理は続ける", () => {
+  it("薬瓶が消費されない罠へ着地した時の薬液処理は続ける", () => {
     const potion = { id: "potion", type: "potion", name: "回復薬", effect: "heal", value: 30, x: 6, y: 5 };
-    const mine = { id: "mine", name: "地雷", effect: "explode", x: 7, y: 5, permanent: true };
+    const mine = { id: "rust", name: "錆の罠", effect: "rust", x: 7, y: 5, permanent: true };
     const mon = { id: "patient", name: "スライム", hp: 10, maxHp: 100, x: 7, y: 4 };
     const dg = makeEmptyDg({ items: [potion], traps: [mine], monsters: [mon] });
     dg.map[5][8] = T.WALL;
     const ml = [];
     fireWandBolt(makePlayer(), dg, "knockback", 1, 0, ml, () => {});
     expect(mon.hp).toBe(40);
+    expect(ml.filter(message => message.includes("錆の罠が発動"))).toHaveLength(1);
     expect(ml.some(message => message.includes("瓶が割れて"))).toBe(true);
     expect(dg.items).toEqual([]);
   });
