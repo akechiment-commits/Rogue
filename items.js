@@ -5857,7 +5857,6 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
  * shooter: 投擲元 ({x, y, name, hp?, atk?})。hp未定義の場合は仮想射手扱いで反射時のダメージを適用しない（押し出し用）
  * item: 投げられるアイテム（type別に命中時挙動が分岐：potion→splash、pot→中身散乱、wand→効果発動、他→投擲ダメージ）
  * range: 飛距離（壁・敵・スプリング等で停止）
- * activatePathTraps: 床道具の吹き飛ばし用の経路罠判定。通常の投擲はfalseで、罠の上を通過する。
  * 戻り値: {x, y, consumed, splash?, spring?, bigbox?, gacha?, hitMonster?, hitPlayer?}
  *   shop chargeなどの post-processing は呼び出し側で行う
  *
@@ -5872,7 +5871,6 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   const {
     hitChance = 1,
     missLandFn = null,
-    activatePathTraps = false,
     bbFn = null,
     nameFn = null,
     applyWandFn = null,
@@ -6036,7 +6034,6 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     onEnemyProjectileHit: (projectile, lx, ly) => {
       res.consumed = true; res.hitEnemyProjectile = projectile; res.x = lx; res.y = ly;
     },
-    onTrap: activatePathTraps ? _landOnTrap : null,
     onWallStop: (lx, ly) => {
       _terminalStop = { x: lx, y: ly };
     },
@@ -6053,7 +6050,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   /* 空中で通過した罠は踏まず、壁・射程端で床に落ちる道具だけを判定する。
      落とし穴などで消費された壺・杖を、破損処理や再配置へ回さない。 */
   const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue && !res.hitEnemyProjectile;
-  if (!activatePathTraps && _noHit && !res.missedPlayer) {
+  if (_noHit && !res.missedPlayer) {
     const trap = dg.traps?.find(t => t.x === res.x && t.y === res.y);
     if (trap && (dg.timeStopTurns || 0) <= 0 && canActivateTrap(dg, trap)) _landOnTrap(trap, res.x, res.y, ml);
   }

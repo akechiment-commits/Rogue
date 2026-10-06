@@ -3,6 +3,7 @@ import { fireWandBolt } from "../wands.js";
 import { setPitfallBag, clearPitfallBag } from "../items.js";
 import { placeFallenEntities } from "../pitfallPlacement.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { T } from "../utils.js";
 
 afterEach(() => { vi.restoreAllMocks(); clearPitfallBag(); });
 
@@ -19,6 +20,7 @@ describe("吹き飛ばされた道具の罠による消費", () => {
     const mine = { id: "mine", name: "地雷", effect: "explode", x: 7, y: 5,
       revealed: true, permanent: true };
     const dg = makeEmptyDg({ items: [moved], traps: [mine] });
+    dg.map[5][8] = T.WALL; // 地雷は通過点ではなく壁の手前の着地点。
     const p = makePlayer({ x: 5, y: 5 });
     const ml = [];
 
@@ -42,11 +44,12 @@ describe("吹き飛ばされた道具の罠による消費", () => {
     expect(dg.items.map(item => item.id)).toEqual([remainingId]);
   });
 
-  it("薬瓶が罠に当たった時の薬液処理は続ける", () => {
+  it("薬瓶が罠のマスへ着地した時の薬液処理は続ける", () => {
     const potion = { id: "potion", type: "potion", name: "回復薬", effect: "heal", value: 30, x: 6, y: 5 };
     const mine = { id: "mine", name: "地雷", effect: "explode", x: 7, y: 5, permanent: true };
     const mon = { id: "patient", name: "スライム", hp: 10, maxHp: 100, x: 7, y: 4 };
     const dg = makeEmptyDg({ items: [potion], traps: [mine], monsters: [mon] });
+    dg.map[5][8] = T.WALL;
     const ml = [];
     fireWandBolt(makePlayer(), dg, "knockback", 1, 0, ml, () => {});
     expect(mon.hp).toBe(40);
@@ -63,6 +66,7 @@ describe("吹き飛ばされた道具の罠による消費", () => {
     const moved = { ...template, id: "moved-item", x: 6, y: 5 };
     const trap = { id: "pitfall", name: "落とし穴", effect: "pitfall", x: 7, y: 5, permanent: true };
     const dg = makeEmptyDg({ items: [moved], traps: [trap] });
+    dg.map[5][8] = T.WALL;
     const bag = [];
     setPitfallBag(bag);
     try {
