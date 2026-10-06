@@ -191,14 +191,30 @@ describe("水鉄砲・耐水", () => {
     expect(ml.some((m) => m.includes("耐水"))).toBe(true);
   });
 
-  it("投げた石が水鉄砲の罠を起動すると石も消える", () => {
-    const trap = { ...TRAPS.find((t) => t.effect === "watergun_trap"), x: 3, y: 2, id: "watergun-projectile" };
+  it("投げた石は途中の水鉄砲の罠を起動せず通過する", () => {
+    const trap = { ...TRAPS.find((t) => t.effect === "watergun_trap"), x: 3, y: 2, id: "watergun-path", revealed: false };
     const dg = makeEmptyDg({ traps: [trap] });
     const p = makePlayer({ x: 1, y: 2 });
     const stone = makeStone(1);
     const ml = [];
 
     const result = throwItemAlongLine(p, dg, stone, 1, 0, 5, ml, p, () => {});
+
+    expect(result.consumed).toBe(false);
+    expect(result.x).toBe(6);
+    expect(dg.items.some(item => item.id === stone.id && item.x === 6 && item.y === 2)).toBe(true);
+    expect(trap.revealed).toBe(false);
+    expect(ml.some(message => message.includes("水鉄砲の罠が発動"))).toBe(false);
+  });
+
+  it("投げた石が着地点の水鉄砲の罠を起動すると石も消える", () => {
+    const trap = { ...TRAPS.find((t) => t.effect === "watergun_trap"), x: 3, y: 2, id: "watergun-projectile" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const p = makePlayer({ x: 1, y: 2 });
+    const stone = makeStone(1);
+    const ml = [];
+
+    const result = throwItemAlongLine(p, dg, stone, 1, 0, 2, ml, p, () => {});
 
     expect(result.consumed).toBe(true);
     expect(dg.items).not.toContain(stone);
