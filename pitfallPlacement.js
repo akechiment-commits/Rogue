@@ -59,6 +59,8 @@ export function placeFallenEntities(dungeon, entries = [], { player = null, acti
     } else if (kind === "monster") {
       syncFallenMonster(entity, actionTime);
       dungeon.monsters.push(entity);
+    } else if (kind === "bigbox") {
+      (dungeon.bigboxes ||= []).push(entity);
     }
   }
 }

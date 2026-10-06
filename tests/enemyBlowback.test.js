@@ -271,6 +271,25 @@ describe("敵が飛ばした道具・大箱の撃破者", () => {
 });
 
 describe("吹き飛ばされた大箱のプレイヤー命中", () => {
+  it("敵の実際の杖処理でも、大箱は着地点の落とし穴から下階への移送へ渡る", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const stored = { id: "stored", type: "potion", name: "炎の薬", effect: "fire", value: 30 };
+    const box = { id: "falling-box", name: "合成の大箱", kind: "synthesis", x: 7, y: 5, capacity: 2, contents: [stored] };
+    const trap = { id: "landing", name: "落とし穴", effect: "pitfall", x: 8, y: 5, permanent: true };
+    const blocker = { id: "blocker", name: "床道具", type: "weapon", x: 9, y: 5 };
+    const player = makePlayer({ x: 10, y: 5, depth: 1 });
+    const dungeon = makeEmptyDg({ monsters: [mage], bigboxes: [box], items: [blocker], traps: [trap], rooms: [{ x: 1, y: 1, w: 25, h: 10 }] });
+    const bag = [];
+    setPitfallBag(bag);
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
+    expect(dungeon.bigboxes).toEqual([]);
+    expect(dungeon.items).toEqual([blocker]);
+    expect(bag).toEqual([{ kind: "bigbox", entity: box }]);
+    expect(box.contents).toEqual([stored]);
+    expect(player.depth).toBe(1);
+  });
   function hitPlayer({ level = 1, contents = false, hp = 100, sleepTurns = 0, blocked = false, diagonal = false, random = 0.1 } = {}) {
     vi.spyOn(Math, "random").mockReturnValue(random);
     const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), level, 5, 5);
@@ -316,13 +335,13 @@ describe("吹き飛ばされた大箱のプレイヤー命中", () => {
     expect(player.sleepTurns).toBe(0);
     expect(player.sleepInterruptedTurns).toBe(1);
   });
-  it("プレイヤーより手前の罠で止まった場合は当たらず箱も壊れない", () => {
+  it("プレイヤーより手前の罠を通過して箱が命中する", () => {
     const { player, dungeon, box, stored } = hitPlayer({ blocked: true, contents: true });
-    expect(player.hp).toBe(100);
-    expect(dungeon.bigboxes).toContain(box);
-    expect([box.x, box.y]).toEqual([7, 5]);
-    expect(box.contents).toEqual([stored]);
-    expect(dungeon.items).toEqual([]);
+    expect(player.hp).toBe(78);
+    expect(dungeon.bigboxes).not.toContain(box);
+    expect(box.contents).toEqual([]);
+    expect(dungeon.items.filter(item => item.id === stored.id)).toHaveLength(1);
+    expect(dungeon.traps[0].revealed).not.toBe(true);
   });
   it.each([[0, 20], [0.999, 40]])("衝突ダメージの下限・上限を適用する（乱数:%s、ダメージ:%s）", (random, damage) => {
     const { player, dungeon, box } = hitPlayer({ random });

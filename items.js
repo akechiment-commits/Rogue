@@ -806,6 +806,11 @@ export const WANDS = [
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
 ];
 
+/** 所持品ではなく床の大箱として配置・落下させるエンティティ。 */
+export function isBigboxEntity(entity) {
+  return !!entity && Array.isArray(entity.contents) && BB_TYPES.some(template => template.kind === entity.kind);
+}
+
 /** 大箱を巻物などで換金したときの容量1個あたりの基準額。 */
 export function bigboxSellBaseValue(bb) {
   return isRarityAtLeast(bb, "B") ? 3000 : 500;
@@ -3152,7 +3157,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       /* 重力の力など内部トリガーは落下アイテムにしない（拾えるとバグ） */
       if (item && !item._ephemeralTrapTrigger) {
         if (_pitfallBag) {
-          _pitfallBag.push({ kind: 'item', entity: item });
+          _pitfallBag.push({ kind: isBigboxEntity(item) ? 'bigbox' : 'item', entity: item });
           ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて次の階へ落下した！`);
         } else {
           ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて消えた！`);
@@ -5204,6 +5209,7 @@ function soakItem(item) {
 }
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false, _avoidOriginSpring = false) {
+  const _isBigbox = isBigboxEntity(item);
   if (item?._ephemeralTrapTrigger) return false;
   /* 帯電毛玉は所持品または箱・壺の中にだけ存在できる。破壊・散乱などで
      床へ出る経路は、罠や泉などの床効果を発生させず、その場で消滅させる。 */
@@ -5228,7 +5234,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
   /* アニメーション用の出発地点（null の場合は tx,ty を使う） */
   const _animOx = _ox ?? tx, _animOy = _oy ?? ty;
   /* 着地点が水タイルなら沈没（同マスに既存アイテムがない場合のみ、ある場合はDROで代替地を探す） */
-  if (dg.map[ty]?.[tx] === T.WATER) {
+  if (!_isBigbox && dg.map[ty]?.[tx] === T.WATER) {
     dg.waterItems = dg.waterItems || [];
     if (!dg.waterItems.some(wi => wi.x === tx && wi.y === ty)) {
       const sunk = soakItem({ ...item, x: tx, y: ty });
@@ -5247,6 +5253,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     if (_avoidOriginSpring && dx === 0 && dy === 0 && dg.springs?.some(s => s.x === cx && s.y === cy)) continue;
     /* 水タイルに落ちる場合：同マスに既に沈没アイテムがなければ沈没 */
     if (dg.map[cy][cx] === T.WATER) {
+      if (_isBigbox) continue;
       if (item.iceCream) {
         ml?.push(`${resolveItemName(item)}が水に落ちて溶けて消滅した！`);
         return false;
@@ -5280,6 +5287,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     }
     if (dg.traps.some(t => t.x === cx && t.y === cy)) continue;
     if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
+      if (_isBigbox) continue;
       const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
       soakItemIntoSpring(_spr, item, ml, dg, null);
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
@@ -5301,10 +5309,12 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       continue;
     }
     if (dg.items.some(i => i.x === cx && i.y === cy)) continue;
+    if (_isBigbox && isFloorOccupancyBlocked(dg, cx, cy, { ignore: item, p })) continue;
     item.x = cx;
     item.y = cy;
     markItemIdentifiedForDungeon(item, dg);
-    dg.items.push(item);
+    if (_isBigbox) (dg.bigboxes ||= []).push(item);
+    else dg.items.push(item);
     /* itemRef を渡すことで flyingItemsRef はこのアイテム固有オブジェクトのみ隠す */
     pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1, item);
     if (item.shopPrice) {

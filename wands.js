@@ -370,10 +370,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (p && p.x === nx && p.y === ny) { _bbHitPlayer = true; bbroke = true; break; }
         const _hm = monsterAt(dg, nx, ny);
         if (_hm) { _bbHitMon = _hm; bbroke = true; break; }
-        /* アイテム・罠・泉・魔方陣・階段と重ならないよう手前で止まる */
+        /* 罠は空中で通過し、着地時にだけ起動する。 */
         if (dg.map[ny][nx] === T.SD || dg.map[ny][nx] === T.SU ||
             dg.items.some(i => i.x === nx && i.y === ny) ||
-            dg.traps.some(t => t.x === nx && t.y === ny) ||
             dg.springs?.some(s => s.x === nx && s.y === ny) ||
             dg.pentacles?.some(pc => pc.x === nx && pc.y === ny)) break;
         bbx = nx; bby = ny;
@@ -404,7 +403,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push(`${target.name}は壁に叩きつけられて壊れた！`);
         }
       } else {
+        /* 罠による消滅・転送中に元の場所へ箱を残さない。
+           通常の物落下処理が、罠の発動後に大箱として再配置する。 */
+        dg.bigboxes = (dg.bigboxes || []).filter(box => box !== target);
         target.x = bbx; target.y = bby;
+        placeItemAt(dg, bbx, bby, target, ml, new Set(), 0, p);
         ml.push(`${target.name}が吹き飛んだ！`);
       }
       return;
