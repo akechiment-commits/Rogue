@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { monsterOccupiesCell } from '../monsterGeometry.js';
 import { describe, it, expect } from "vitest";
 import { declareFloorExitTheft } from "../items.js";
 import { suspendFloor, resumeFloor } from "../floorAbsence.js";
@@ -9,7 +10,7 @@ export function portalFor(state) {
   const source = fs.readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
   const start = source.indexOf("  const playerPortalWarp = useCallback(");
   const end = source.indexOf("  const chgFloor", start);
-  const deps = { sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor,
+  const deps = { sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor, monsterOccupiesCell,
     declareFloorExitTheft, synchronizeFloorArrival, refreshFOV: () => {}, pushPlayerTeleportAnim: () => {} };
   return new Function(...Object.keys(deps), `${source.slice(start, end)}; return playerPortalWarp;`)(...Object.values(deps));
 }

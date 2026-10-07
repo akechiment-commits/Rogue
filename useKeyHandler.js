@@ -1,3 +1,4 @@
+import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
 import { useCallback, useEffect, useRef } from "react";
@@ -904,7 +905,7 @@ export function useKeyHandler({
                           const _ct = dg2.map[_cy]?.[_cx];
                           if (_ct !== T.FLOOR && _ct !== T.SD && _ct !== T.SU) continue;
                           if (_cx === p2.x && _cy === p2.y) continue;
-                          if (dg2.monsters.some(o => o !== sk5 && o.x === _cx && o.y === _cy)) continue;
+                          if (dg2.monsters.some(o => o !== sk5 && monsterOccupiesCell(o, _cx, _cy))) continue;
                           _skCandidates.push({ x: _cx, y: _cy, d: Math.abs(_dx) + Math.abs(_dy) });
                         }
                       }

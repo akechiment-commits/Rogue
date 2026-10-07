@@ -1,3 +1,4 @@
+import { monsterBodySize, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
@@ -4208,14 +4209,15 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       const lvData = lv >= 2 ? (MON_LEVELS[base.baseKind]?.[lv - 2] || {}) : {};
       const canUseWater = !!(lvData.waterOnly ?? base.waterOnly) || !!(lvData.float ?? base.float);
       let placed = false;
-      for (const [ddx, ddy] of dirs) {
+      const summonDirs = monsterBodySize(base) > 1 ? [2, 3, 4].flatMap(r => dirs.map(([dx, dy]) => [dx * r, dy * r])) : dirs;
+      for (const [ddx, ddy] of summonDirs) {
         const nx = p.x + ddx, ny = p.y + ddy;
         if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
         const tile = dg.map[ny][nx];
         const normalTile = tile === "." || tile === "+" || tile === "<" || tile === ">";
         const waterTile = tile === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny);
         if (!normalTile && !(canUseWater && waterTile)) continue;
-        if (dg.monsters.some(m => m.x === nx && m.y === ny)) continue;
+        if (!canPlaceMonsterBody(dg, { ...base, ...lvData }, nx, ny, p)) continue;
         if (nx === p.x && ny === p.y) continue;
         const mon = {
           ...base, ...lvData, id: uid(), x: nx, y: ny,

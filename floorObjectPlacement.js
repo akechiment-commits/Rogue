@@ -2,6 +2,7 @@
  * 床上の「動かせる物体」（罠・魔方陣・風穴・階段など）の配置・重なり判定。
  */
 import { T, MW, MH, randomTeleportDest, TI } from "./utils.js";
+import { monsterOccupiesCell } from './monsterGeometry.js';
 import { statueAt } from "./fixtureQueries.js";
 
 export const STAIR_DOWN_DESC =
@@ -24,7 +25,7 @@ export function isFloorOccupancyBlocked(dg, x, y, opts = {}) {
   if (statueAt(dg, x, y)) return true;
   const ignore = opts.ignore;
   if (!opts.allowPlayer && opts.p && opts.p.x === x && opts.p.y === y) return true;
-  if (!opts.allowMonster && dg.monsters?.some((m) => m.x === x && m.y === y)) return true;
+  if (!opts.allowMonster && dg.monsters?.some((m) => monsterOccupiesCell(m, x, y))) return true;
   if (dg.items?.some((i) => i !== ignore && i.x === x && i.y === y && !i.wallEmbedded)) return true;
   if (dg.traps?.some((t) => t !== ignore && t.x === x && t.y === y)) return true;
   if (dg.springs?.some((s) => s !== ignore && s.x === x && s.y === y)) return true;

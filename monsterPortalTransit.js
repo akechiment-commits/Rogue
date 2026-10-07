@@ -1,3 +1,4 @@
+import { canPlaceMonsterBody } from "./monsterGeometry.js";
 /** 敵移動後、固定転送陣とポータルに乗ったモンスターを転送する。 */
 export function transitMonstersThroughPortals(state, player, messages, positionSnapshot, { randomTeleportDest }) {
   const dungeon = state.dungeon;
@@ -27,8 +28,7 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
         pentacle.kind === "fixed_portal" && pentacle.pairId === fixedPortal.pairId &&
         !(pentacle.x === fixedPortal.x && pentacle.y === fixedPortal.y)
       );
-      if (pair && !dungeon.monsters.some((other) => other !== monster && other.x === pair.x && other.y === pair.y) &&
-          !(pair.x === player.x && pair.y === player.y)) {
+      if (pair && canPlaceMonsterBody(dungeon, monster, pair.x, pair.y, player)) {
         monster.x = pair.x;
         monster.y = pair.y;
         messages.push(`${monster.name}が転送の魔法陣から対の陣へ抜けた！`);
@@ -44,9 +44,9 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
     if (before && before.x === portal.x && before.y === portal.y) continue;
 
     if (portal.cursed) {
-      const destination = randomTeleportDest(dungeon, monster.x, monster.y);
-      if (destination && !dungeon.monsters.some((other) => other !== monster && other.x === destination.x && other.y === destination.y) &&
-          !(player.x === destination.x && player.y === destination.y)) {
+      const destination = randomTeleportDest(dungeon, monster.x, monster.y,
+        (x, y) => canPlaceMonsterBody(dungeon, monster, x, y, player));
+      if (destination && canPlaceMonsterBody(dungeon, monster, destination.x, destination.y, player)) {
         monster.x = destination.x;
         monster.y = destination.y;
         messages.push(`${monster.name}が${portal.name}に飲まれてランダムに飛んだ！【呪】`);
@@ -76,8 +76,8 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
     let destination = null;
     for (let offset = 1; offset < cycle.length; offset++) {
       const candidate = cycle[(index + offset) % cycle.length];
-      if (candidate.dungeon.monsters?.some((other) => other !== monster && other.x === candidate.portal.x && other.y === candidate.portal.y)) continue;
-      if (candidate.dungeon === dungeon && candidate.portal.x === player.x && candidate.portal.y === player.y) continue;
+      if (!canPlaceMonsterBody(candidate.dungeon, monster, candidate.portal.x, candidate.portal.y,
+          candidate.dungeon === dungeon ? player : null)) continue;
       destination = candidate;
       break;
     }

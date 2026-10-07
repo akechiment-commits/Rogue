@@ -1,3 +1,4 @@
+import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
@@ -418,7 +419,7 @@ export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false 
         const _tx = rng(_tr.x, _tr.x + _tr.w - 1);
         const _ty = rng(_tr.y, _tr.y + _tr.h - 1);
         if (dg.map[_ty]?.[_tx] !== T.FLOOR) continue;
-        if (dg.monsters.some((m) => m.x === _tx && m.y === _ty)) continue;
+        if (dg.monsters.some((m) => monsterOccupiesCell(m, _tx, _ty))) continue;
         if (_tx === p.x && _ty === p.y) continue;
         _sm.x = _tx; _sm.y = _ty; _sm.aware = false;
         _teleportedCount++;
@@ -448,7 +449,7 @@ export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false 
         const tx = rng(dest.x, dest.x + dest.w - 1);
         const ty = rng(dest.y, dest.y + dest.h - 1);
         if (dg.map[ty]?.[tx] !== T.FLOOR) continue;
-        if (dg.monsters.some((m) => m.x === tx && m.y === ty)) continue;
+        if (dg.monsters.some((m) => monsterOccupiesCell(m, tx, ty))) continue;
         const _tpFromX = p.x, _tpFromY = p.y;
         p.x = tx; p.y = ty;
         pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
@@ -2428,7 +2429,7 @@ function genBossFloor(depth, dungeonType = null) {
   const minionCount = _minionSpec ? _minionSpec.length : (bt.bossTier || 1) + 1;
   const minionMonsters = [];
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-  const _occ = (x, y) => (x === bossX && y === bossY) || minionMonsters.some(mn => mn.x === x && mn.y === y);
+  const _occ = (x, y) => monsterOccupiesCell(boss, x, y) || minionMonsters.some(mn => monsterOccupiesCell(mn, x, y));
 
   if (_minionSpec) {
     /* 固定種取り巻き：spec1体ずつ配置 */
@@ -2460,7 +2461,7 @@ function genBossFloor(depth, dungeonType = null) {
 
   /* ── フロアポピュレーション ── */
   const allMons = [boss, ...minionMonsters];
-  const isOccMon = (x, y) => allMons.some(mn => mn.x === x && mn.y === y);
+  const isOccMon = (x, y) => allMons.some(mn => monsterOccupiesCell(mn, x, y));
   const isStair = (x, y) => (x === suX && y === suY) || (x === sdX && y === sdY);
   const inBossRoom = (x, y) => rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
   const rndBossFloor = (occ, roomOnly = false) => {

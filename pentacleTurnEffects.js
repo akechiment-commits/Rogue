@@ -1,3 +1,4 @@
+import { monsterOccupiesCell } from "./monsterGeometry.js";
 /*
  * 毎ターン解決する、移動・罠に関する魔方陣効果。
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
@@ -58,7 +59,7 @@ export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messag
     if (dungeon.map[y][x] !== T.FLOOR) continue;
     if (dungeon.traps.some(trap => trap.x === x && trap.y === y)) continue;
     if (dungeon.items.some(item => item.x === x && item.y === y)) continue;
-    if (dungeon.monsters.some(monster => monster.x === x && monster.y === y)) continue;
+    if (dungeon.monsters.some(monster => monsterOccupiesCell(monster, x, y))) continue;
     if (dungeon.springs?.some(spring => spring.x === x && spring.y === y)) continue;
     if (dungeon.bigboxes?.some(bigbox => bigbox.x === x && bigbox.y === y)) continue;
     if (dungeon.pentacles?.some(other => other.x === x && other.y === y)) continue;
@@ -268,7 +269,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
         if (dungeon.map[y][x] !== T.FLOOR) continue;
         if (x === player.x && y === player.y) continue;
         if (dungeon.items.some((item) => item.x === x && item.y === y)) continue;
-        if (dungeon.monsters.some((monster) => monster.x === x && monster.y === y)) continue;
+        if (dungeon.monsters.some((monster) => monsterOccupiesCell(monster, x, y))) continue;
         candidates.push([x, y]);
       }
     }

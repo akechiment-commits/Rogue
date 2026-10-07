@@ -1,6 +1,7 @@
 import { isFloorOccupancyBlocked } from "./floorObjectPlacement.js";
 import { markItemIdentifiedForDungeon } from "./items.js";
 import { uid } from "./utils.js";
+import { canPlaceMonsterBody } from './monsterGeometry.js';
 
 function syncFallenMonster(entity, actionTime) {
   entity.actionTime = actionTime;
@@ -27,9 +28,11 @@ export function placeFallenEntities(dungeon, entries = [], { player = null, acti
   }
   while (pending.length) {
     const entry = pending.shift();
-    if (!cells.length) { dungeon.pendingPitfalls.push(entry); continue; }
-    const roomCells = cells.filter(cell => cell.inRoom);
-    const pool = roomCells.length ? roomCells : cells;
+    const freeCells = cells.filter(cell => !isFloorOccupancyBlocked(dungeon, cell.x, cell.y, { p: player }) &&
+      (entry.kind !== 'monster' || canPlaceMonsterBody(dungeon, entry.entity, cell.x, cell.y, player)));
+    if (!freeCells.length) { dungeon.pendingPitfalls.push(entry); continue; }
+    const roomCells = freeCells.filter(cell => cell.inRoom);
+    const pool = roomCells.length ? roomCells : freeCells;
     const cell = pool[Math.floor(random() * pool.length)];
     cells.splice(cells.indexOf(cell), 1);
     const { kind, entity } = entry;

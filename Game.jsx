@@ -1,3 +1,4 @@
+import { monsterOccupiesCell, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
@@ -1527,7 +1528,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         } else if (_we === "teleport_wand") {
           const _tpRand = (exX, exY) =>
             randomTeleportDest(dg, exX, exY, (x, y) =>
-              !dg.monsters.some(o => o.x === x && o.y === y) &&
+              !dg.monsters.some(o => monsterOccupiesCell(o, x, y)) &&
               !(x === pl.x && y === pl.y));
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
@@ -1589,7 +1590,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _bbPts = [];
               for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
                 if (dg.map[_fy][_fx] === T.FLOOR &&
-                    !dg.monsters.some(o => o.x === _fx && o.y === _fy) &&
+                    !dg.monsters.some(o => monsterOccupiesCell(o, _fx, _fy)) &&
                     !dg.bigboxes.some(b => b !== bb && b.x === _fx && b.y === _fy) &&
                     !(_fx === pl.x && _fy === pl.y) && !(_fx === bb.x && _fy === bb.y))
                   _bbPts.push({ x: _fx, y: _fy });
@@ -1689,7 +1690,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         pc.kind === "fixed_portal" && pc.pairId === _fp.pairId &&
         !(pc.x === _fp.x && pc.y === _fp.y));
       if (!_pair) { ml.push(`${_fp.name}が反応したが、繋がる先がない…`); return false; }
-      if (dg.monsters.some(m => m.x === _pair.x && m.y === _pair.y)) {
+      if (dg.monsters.some(m => monsterOccupiesCell(m, _pair.x, _pair.y))) {
         ml.push("対の転送陣が塞がっていて出られなかった！");
         return false;
       }
@@ -1750,7 +1751,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     let _dest = null;
     for (let _off = 1; _off < _cycle.length; _off++) {
       const _cand = _cycle[(_idx + _off) % _cycle.length];
-      if (_cand.dg.monsters.some(m => m.x === _cand.portal.x && m.y === _cand.portal.y)) continue;
+      if (_cand.dg.monsters.some(m => monsterOccupiesCell(m, _cand.portal.x, _cand.portal.y))) continue;
       _dest = _cand; break;
     }
     if (!_dest) { ml.push("どのポータルも塞がっていて出られなかった！"); return false; }
@@ -2858,9 +2859,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   ky >= 0 &&
                   ky < MH &&
                   dg.map[ky][kx] !== T.WALL && dg.map[ky][kx] !== T.BWALL &&
-                  !dg.monsters.some(
-                    (m2) => m2 !== attackMon && m2.x === kx && m2.y === ky,
-                  )
+                  canPlaceMonsterBody(dg, attackMon, kx, ky, p)
                 ) {
                   attackMon.x = kx;
                   attackMon.y = ky;
@@ -2881,7 +2880,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       attackMon.hp -= 5; ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
                       break;
                     }
-                    if (dg.monsters.some(m2 => m2 !== attackMon && m2.x === _knx && m2.y === _kny)) {
+                    if (!canPlaceMonsterBody(dg, attackMon, _knx, _kny, p)) {
                       attackMon.hp -= 5; ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
                       break;
                     }
@@ -5141,7 +5140,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         let _placed = false;
         for (const [dy, dx] of DIRS8) {
           const nx = p.x + dx, ny = p.y + dy;
-          if ((dg.map[ny]?.[nx] === T.FLOOR) && !dg.monsters.some(m => m.x === nx && m.y === ny)) {
+          if ((dg.map[ny]?.[nx] === T.FLOOR) && !dg.monsters.some(m => monsterOccupiesCell(m, nx, ny))) {
             _wm.x = nx; _wm.y = ny;
             dg.monsters.push(_wm);
             _placed = true;

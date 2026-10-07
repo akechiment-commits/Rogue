@@ -1,3 +1,4 @@
+import { monsterOccupiesCell, monsterBodySize, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties } from "./equipmentEffects.js";
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
@@ -55,7 +56,7 @@ function changeInventoryPotCapacity(pot, delta, p, dg, ml, nameFn = null) {
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
 function statueTeleportDest(dg, ox, oy, p) {
   return randomTeleportDest(dg, ox, oy, (x, y) =>
-    !dg.monsters.some(m => m.x === x && m.y === y) &&
+    !dg.monsters.some(m => monsterOccupiesCell(m, x, y)) &&
     !(p && p.x === x && p.y === y) &&
     !dg.statues?.some(s => s.x === x && s.y === y) &&
     !dg.bigboxes?.some(b => b.x === x && b.y === y) &&
@@ -130,7 +131,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _leapX = target.x - dx, _leapY = target.y - dy;
         if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH &&
             dg.map[_leapY]?.[_leapX] !== T.WALL && dg.map[_leapY]?.[_leapX] !== T.BWALL &&
-            !dg.monsters.some(m2 => m2.x === _leapX && m2.y === _leapY) &&
+            !dg.monsters.some(m2 => monsterOccupiesCell(m2, _leapX, _leapY)) &&
             !(_leapX === p.x && _leapY === p.y) &&
             !dg.statues?.some(s => s !== target && s.x === _leapX && s.y === _leapY) &&
             !dg.bigboxes?.some(b => b.x === _leapX && b.y === _leapY)) {
@@ -174,7 +175,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _w1x = target.x + dx, _w1y = target.y + dy;
         if (_w1x >= 0 && _w1x < MW && _w1y >= 0 && _w1y < MH &&
             dg.map[_w1y]?.[_w1x] !== T.WALL && dg.map[_w1y]?.[_w1x] !== T.BWALL &&
-            !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
+            !dg.monsters.some(m => monsterOccupiesCell(m, _w1x, _w1y)) &&
             !(p.x === _w1x && p.y === _w1y) &&
             !dg.statues?.some(s => s !== target && s.x === _w1x && s.y === _w1y) &&
             !dg.bigboxes?.some(b => b.x === _w1x && b.y === _w1y) &&
@@ -199,7 +200,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const _nx = stairsX + _ax, _ny = stairsY + _ay;
             if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH && dg.map[_ny][_nx] === T.FLOOR &&
                 !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
-                !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                !dg.monsters.some(m => monsterOccupiesCell(m, _nx, _ny)) &&
                 !(p.x === _nx && p.y === _ny) &&
                 !dg.statues?.some(s => s !== target && s.x === _nx && s.y === _ny) &&
                 !dg.items?.some(i => i.x === _nx && i.y === _ny) &&
@@ -246,7 +247,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _lpx = target.x - dx, _lpy = target.y - dy;
         if (_lpx >= 0 && _lpx < MW && _lpy >= 0 && _lpy < MH &&
             dg.map[_lpy][_lpx] !== T.WALL && dg.map[_lpy][_lpx] !== T.BWALL &&
-            !dg.monsters.some(m => m.x === _lpx && m.y === _lpy)) {
+            !dg.monsters.some(m => monsterOccupiesCell(m, _lpx, _lpy))) {
           _knockbackPlayer(_lpx, _lpy);
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
           ml.push(`${target.name}に引き寄せられた！【呪】`);
@@ -274,7 +275,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             dg.map[_w1y][_w1x] !== T.WALL && dg.map[_w1y][_w1x] !== T.BWALL &&
             dg.map[_w1y][_w1x] !== T.SD && dg.map[_w1y][_w1x] !== T.SU &&
             !dg.bigboxes?.some(b => b !== target && b.x === _w1x && b.y === _w1y) &&
-            !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
+            !dg.monsters.some(m => monsterOccupiesCell(m, _w1x, _w1y)) &&
             !dg.items.some(i => i.x === _w1x && i.y === _w1y) &&
             !dg.traps.some(t => t.x === _w1x && t.y === _w1y) &&
             !dg.springs?.some(s => s.x === _w1x && s.y === _w1y) &&
@@ -298,7 +299,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const _nx = _stx + _ax, _ny = _sty + _ay;
             if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH && dg.map[_ny][_nx] === T.FLOOR &&
                 !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
-                !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                !dg.monsters.some(m => monsterOccupiesCell(m, _nx, _ny)) &&
                 !dg.items.some(i => i.x === _nx && i.y === _ny) &&
                 !dg.traps.some(t => t.x === _nx && t.y === _ny) &&
                 !dg.springs?.some(s => s.x === _nx && s.y === _ny) &&
@@ -420,7 +421,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           for (let fx = 0; fx < MW; fx++)
             if (dg.map[fy][fx] === T.FLOOR &&
                 !dg.bigboxes?.some(b => b.x === fx && b.y === fy) &&
-                !dg.monsters.some(m => m.x === fx && m.y === fy) &&
+                !dg.monsters.some(m => monsterOccupiesCell(m, fx, fy)) &&
                 !dg.items.some(i => i.x === fx && i.y === fy) &&
                 !dg.traps.some(t => t.x === fx && t.y === fy) &&
                 !dg.springs?.some(s => s.x === fx && s.y === fy) &&
@@ -578,7 +579,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _pullX = p.x + dx, _pullY = p.y + dy;
           if (_pullX >= 0 && _pullX < MW && _pullY >= 0 && _pullY < MH &&
               dg.map[_pullY][_pullX] !== T.WALL && dg.map[_pullY][_pullX] !== T.BWALL &&
-              !dg.monsters.some(m2 => m2 !== target && m2.x === _pullX && m2.y === _pullY)) {
+              !dg.monsters.some(m2 => m2 !== target && monsterOccupiesCell(m2, _pullX, _pullY))) {
             target.x = _pullX; target.y = _pullY;
             ml.push(`${target.name}を引き寄せた！【呪】`);
           } else {
@@ -918,15 +919,22 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "swap": {
+      if (kind === "monster" && blMult >= 1 && monsterBodySize(target) > 1 &&
+          !canPlaceMonsterBody(dg, target, p.x, p.y, { x: target.x, y: target.y })) {
+        ml.push("体が重なるため位置を入れ替えられなかった。");
+        break;
+      }
       const _swBless = blMult > 1, _swCurse = blMult < 1;
       if (_swCurse) {
         /* 呪い：飛びつきの杖と同じ効果（fireWandBolt内のleap処理で対応不可なのでここで実装） */
         /* 対象の1マス手前に移動 */
         if (kind === "monster") {
-          const _leapX = target.x - dx, _leapY = target.y - dy;
+          const _bounds = monsterBounds(target);
+          const _leapX = dx > 0 ? _bounds.x - 1 : dx < 0 ? _bounds.x + _bounds.width : p.x;
+          const _leapY = dy > 0 ? _bounds.y - 1 : dy < 0 ? _bounds.y + _bounds.height : p.y;
           if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH &&
               dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL &&
-              !dg.monsters.some(m2 => m2 !== target && m2.x === _leapX && m2.y === _leapY) &&
+              !dg.monsters.some(m2 => m2 !== target && monsterOccupiesCell(m2, _leapX, _leapY)) &&
               !(_leapX === p.x && _leapY === p.y)) {
             _knockbackPlayer(_leapX, _leapY, -dx, -dy);
             if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
@@ -1078,7 +1086,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push(`${floorMoveLabel(kind, target)}はどこかへ飛んだ！【呪】`);
           break;
         }
-        const _lpd = randomTeleportDest(dg, _lpOx, _lpOy, (x, y) => !dg.monsters.some(m => m.x === x && m.y === y));
+        const _lpd = randomTeleportDest(dg, _lpOx, _lpOy, (x, y) => kind === "monster" ? canPlaceMonsterBody(dg, target, x, y, p) : !monsterAt(dg, x, y));
         if (!_lpd) { ml.push("テレポートに失敗した。"); break; }
         if (kind === "monster") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへテレポートした！【呪】`); }
         else if (kind === "item") {
@@ -1117,7 +1125,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _w1y = (kind === "monster" ? target.y : p.y) + dy;
         if (_w1x >= 0 && _w1x < MW && _w1y >= 0 && _w1y < MH &&
             dg.map[_w1y][_w1x] !== T.WALL && dg.map[_w1y][_w1x] !== T.BWALL &&
-            !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
+            (kind === "monster" ? canPlaceMonsterBody(dg, target, _w1x, _w1y, p) : !monsterAt(dg, _w1x, _w1y)) &&
             !(kind === "monster" && p.x === _w1x && p.y === _w1y)) {
           if (kind === "monster") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少しだけテレポートした。`); }
           else if (kind === "player") { _teleportPlayer(_w1x, _w1y); ml.push("少しだけテレポートした。"); }
@@ -1139,11 +1147,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (dg.map[fy][fx] === T.SD) { stairsX = fx; stairsY = fy; }
         if (stairsX >= 0) {
           if (kind === "monster") {
+            if (!canPlaceMonsterBody(dg, target, stairsX, stairsY, p)) { ml.push("階段の周囲が塞がっていてテレポートできない！"); break; }
             target.x = stairsX; target.y = stairsY;
             const _pt = applyMonsterParalyze(target, { ml: null });
             ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！${target.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`);
           } else if (kind === "player") {
-            const _stOccupied = dg.monsters.some(m => m.x === stairsX && m.y === stairsY);
+            const _stOccupied = dg.monsters.some(m => monsterOccupiesCell(m, stairsX, stairsY));
             if (_stOccupied) {
               // 階段が塞がっている場合は隣の空きマスへ
               const _stAdj = [];
@@ -1151,7 +1160,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 const _nx = stairsX + _ax, _ny = stairsY + _ay;
                 if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH &&
                     dg.map[_ny][_nx] !== T.WALL && dg.map[_ny][_nx] !== T.BWALL &&
-                    !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                    !dg.monsters.some(m => monsterOccupiesCell(m, _nx, _ny)) &&
                     !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny))
                   _stAdj.push({ x: _nx, y: _ny });
               }
@@ -1164,7 +1173,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 for (let fy = 0; fy < MH; fy++)
                   for (let fx = 0; fx < MW; fx++)
                     if (dg.map[fy][fx] === T.FLOOR &&
-                        !dg.monsters.some(m => m.x === fx && m.y === fy) &&
+                        !dg.monsters.some(m => monsterOccupiesCell(m, fx, fy)) &&
                         !dg.bigboxes?.some(b => b.x === fx && b.y === fy))
                       _stAll.push({ x: fx, y: fy });
                 if (_stAll.length > 0) {
@@ -1192,7 +1201,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               if (canStepFloorObjectTo(dg, _nx, _ny, FLOOR_MOVE_KINDS.has(kind) ? target : null, p) ||
                   (kind === "item" && _nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH && dg.map[_ny][_nx] === T.FLOOR &&
                     !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
-                    !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                    !dg.monsters.some(m => monsterOccupiesCell(m, _nx, _ny)) &&
                     !dg.items.some(i => i !== target && i.x === _nx && i.y === _ny) &&
                     !dg.traps.some(t => t.x === _nx && t.y === _ny) &&
                     !dg.springs?.some(s => s.x === _nx && s.y === _ny) &&
@@ -1255,7 +1264,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${floorMoveLabel(kind, target)}はどこかへ飛んだ！`);
         break;
       }
-      const dest = randomTeleportDest(dg, _warpOx, _warpOy, (x, y) => !monsterAt(dg, x, y));
+      const dest = randomTeleportDest(dg, _warpOx, _warpOy, (x, y) => kind === "monster" ? canPlaceMonsterBody(dg, target, x, y, p) : !monsterAt(dg, x, y));
       if (!dest) { ml.push("テレポートに失敗した。"); break; }
       if (kind === "monster") { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへテレポートした！`); }
       if (kind === "player")  { _teleportPlayer(dest.x, dest.y); ml.push("テレポートした！"); }
@@ -2552,6 +2561,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
   const sourceIsPlayer = sageContext.sourceIsPlayer ?? !killerMon;
   const _applyBreakEffect = (effect, kind, target, dx, dy) => {
     if (floorChanged()) return;
+    if (kind === "monster" && (target.hp <= 0 || !dg.monsters.includes(target))) return;
     applyWandEffect(effect, kind, target, dx, dy, dg, p, ml, luFn, null, blMult,
       sageContext.nameFn || null, 0, killerMon, sageContext.bigboxNameFn || null,
       sourceIsPlayer, sageContext.breaker || (sourceIsPlayer ? p : killerMon), sageContext.fireTrapFn || null);

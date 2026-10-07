@@ -1,3 +1,4 @@
+import { monsterOccupiesCell, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
@@ -1182,8 +1183,8 @@ export function useItemActions({
         } else {
         // 祝福：フロア全モンスターに雷、通常：視界内のみ、呪い：視界内＋自分にも雷
         const _tTargets = it.blessed
-          ? [...dg.monsters]
-          : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          ? monsterAreaTargets(dg.monsters, () => true)
+          : monsterAreaTargets(dg.monsters, (x, y) => dg.visible?.[y]?.[x]);
         if (_tTargets.length === 0 && !it.cursed) {
           ml.push("雷が走るが、視界に敵はいない。");
         } else {
@@ -1192,6 +1193,7 @@ export function useItemActions({
           }
           for (const _m of _tTargets) {
             if (_m.hp <= 0) continue;
+            if (_m.hp <= 0 || !dg.monsters.includes(_m)) continue;
             if (skipDodgemoleScroll(_m, ml)) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
@@ -1230,7 +1232,8 @@ export function useItemActions({
           p.deathCause = "呪われた回復の巻物で";
           ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
           pushExplosionAnim(p.x, p.y);
-          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+          for (const _m of monsterAreaTargets(dg.monsters, (x, y) => dg.visible?.[y]?.[x])) {
+            if (_m.hp <= 0 || !dg.monsters.includes(_m)) continue;
             if (skipDodgemoleScroll(_m, ml, "呪いのエネルギー")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
@@ -1256,7 +1259,8 @@ export function useItemActions({
           p.hp += _ra;
           pushHealAnim(p.x, p.y);
           ml.push(`体が癒された！HP+${_ra}${it.blessed ? "【祝】" : ""}`);
-          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+          for (const _m of monsterAreaTargets(dg.monsters, (x, y) => dg.visible?.[y]?.[x])) {
+            if (_m.hp <= 0 || !dg.monsters.includes(_m)) continue;
             if (skipDodgemoleScroll(_m, ml, "回復の効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
@@ -1452,7 +1456,7 @@ export function useItemActions({
         }
       } else if (it.effect === "flame") {
         const _flOilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
-        const _flTgts = it.blessed ? [...dg.monsters] : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+        const _flTgts = monsterAreaTargets(dg.monsters, (x, y) => it.blessed || dg.visible?.[y]?.[x]);
         if (_flTgts.length === 0 && !it.cursed) { ml.push(it.blessed ? "炎が走るが、フロアに敵はいない。【祝】" : "炎が走るが、視界に敵はいない。"); }
         else {
           for (const _m of _flTgts) {
@@ -1769,7 +1773,7 @@ export function useItemActions({
               for (let _att = 0; _att < 20; _att++) {
                 const _tx = rng(_tr.x + 1, _tr.x + _tr.w - 2);
                 const _ty = rng(_tr.y + 1, _tr.y + _tr.h - 2);
-                if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.monsters.some((m) => m.x === _tx && m.y === _ty) && (_tx !== p.x || _ty !== p.y)) {
+                if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.monsters.some((m) => monsterOccupiesCell(m, _tx, _ty)) && (_tx !== p.x || _ty !== p.y)) {
                   _sm.x = _tx; _sm.y = _ty; _sm.aware = false; _teleportedCount++; break;
                 }
               }
@@ -1780,7 +1784,7 @@ export function useItemActions({
               for (let _att = 0; _att < 20; _att++) {
                 const _ptx = rng(_ptr.x + 1, _ptr.x + _ptr.w - 2);
                 const _pty = rng(_ptr.y + 1, _ptr.y + _ptr.h - 2);
-                if (dg.map[_pty]?.[_ptx] === T.FLOOR && !dg.monsters.some((m) => m.x === _ptx && m.y === _pty)) {
+                if (dg.map[_pty]?.[_ptx] === T.FLOOR && !dg.monsters.some((m) => monsterOccupiesCell(m, _ptx, _pty))) {
                   const _tpFromX = p.x, _tpFromY = p.y;
                   p.x = _ptx; p.y = _pty;
                   pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
@@ -1954,7 +1958,7 @@ export function useItemActions({
           for (const [_pdx, _pdy] of _dirs) {
             const _px = p.x + _pdx, _py = p.y + _pdy;
             if (_px >= 0 && _px < MW && _py >= 0 && _py < MH && dg.map[_py][_px] !== T.WALL && dg.map[_py][_px] !== T.BWALL &&
-                !dg.monsters.some(m => m.x === _px && m.y === _py) &&
+                !dg.monsters.some(m => monsterOccupiesCell(m, _px, _py)) &&
                 !dg.pentacles.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === _px && pc.y === _py)) {
               const _pushFromX = p.x, _pushFromY = p.y;
               p.x = _px; p.y = _py;
@@ -1999,7 +2003,7 @@ export function useItemActions({
                 if (_gx >= 0 && _gx < MW && _gy >= 0 && _gy < MH &&
                     dg.map[_gy][_gx] !== T.WALL && dg.map[_gy][_gx] !== T.BWALL &&
                     dg.map[_gy][_gx] !== T.WATER &&
-                    !dg.monsters.some(o => o !== _gm && o.x === _gx && o.y === _gy) &&
+                    !dg.monsters.some(o => o !== _gm && monsterOccupiesCell(o, _gx, _gy)) &&
                     !(_gx === p.x && _gy === p.y)) {
                   _gm.x = _gx; _gm.y = _gy;
                   ml.push(`重力の力で${_gm.name}が水上から弾き出された！`);
@@ -3537,7 +3541,7 @@ export function useItemActions({
                 _hitWall = true; _wallX = _tx; _wallY = _ty; break;
               }
               // 敵・罠 → 効果なし、停止
-              const _sageMon = dg.monsters.find(m => m.x === _tx && m.y === _ty);
+              const _sageMon = dg.monsters.find(m => monsterOccupiesCell(m, _tx, _ty));
               if (_sageMon) {
                 ml.push(`${_sageMon.name}　HP:${_sageMon.hp}/${_sageMon.maxHp}　攻撃:${_sageMon.atk}　防御:${_sageMon.def}`);
                 break;
@@ -3648,9 +3652,9 @@ export function useItemActions({
               }
               /* 周囲モンスター爆風（直撃対象は既にapplySpellEffectで処理済みなので除外） */
               const _fbHitPos = _fbLand.hitType === "monster" || _fbLand.hitType === "item";
-              for (const _fem of [...dg.monsters]) {
+              for (const _fem of monsterAreaTargets(dg.monsters, (x, y) => Math.max(Math.abs(x - _fbLand.x), Math.abs(y - _fbLand.y)) <= 1)) {
                 if (_fem.hp <= 0) continue;
-                if (Math.max(Math.abs(_fem.x - _fbLand.x), Math.abs(_fem.y - _fbLand.y)) > 1) continue;
+
                 /* 直撃タイルのモンスターは直撃ダメージ済み（爆弾矢と同様に爆風も当てる） */
                 if (consumeBarrier(_fem, ml)) continue;
                 const _fmd = multiplyMagicDamage(Math.round(rng(8, 14) * _fbLvF), p.weapon, _fem, dg);
@@ -4274,7 +4278,7 @@ export function useItemActions({
                     const _lx2 = st.x - _gFdx, _ly2 = st.y - _gFdy;
                     if (_lx2 >= 0 && _lx2 < MW && _ly2 >= 0 && _ly2 < MH &&
                         dg.map[_ly2]?.[_lx2] !== T.WALL && dg.map[_ly2]?.[_lx2] !== T.BWALL &&
-                        !dg.monsters.some(m => m.x === _lx2 && m.y === _ly2) &&
+                        !dg.monsters.some(m => monsterOccupiesCell(m, _lx2, _ly2)) &&
                         !dg.statues?.some(s => s.x === _lx2 && s.y === _ly2) &&
                         !dg.bigboxes?.some(b => b.x === _lx2 && b.y === _ly2)) {
                       const _leapFromX = p.x, _leapFromY = p.y;

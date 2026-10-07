@@ -1,5 +1,7 @@
 import { clearStatusEffectsOnHpZero } from "./statusDuration.js";
 
+import { monsterOccupiesCell } from "./monsterGeometry.js";
+
 export const MW = 60,
   MH = 30;
 
@@ -356,9 +358,9 @@ export function clearDimensionalVaultItemCounter(item) {
   delete item.dimensionalVaultId;
   return item;
 }
-export const monsterAt = (dg, x, y) => {
+export const monsterAt = (dg, x, y, exclude = null) => {
   ensureItemMimicFloorItems(dg);
-  return dg.monsters.find(m => !m.disguisedAsItem && m.x === x && m.y === y);
+  return dg.monsters.find(m => m !== exclude && !m.disguisedAsItem && monsterOccupiesCell(m, x, y));
 };
 export const itemAt = (dg, x, y) => {
   ensureItemMimicFloorItems(dg);

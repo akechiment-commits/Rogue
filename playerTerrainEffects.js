@@ -1,3 +1,4 @@
+import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { MH, MW, T } from "./utils.js";
 import { canPlayerWalkOnWater, hasWaterBreathRing } from "./items.js";
 
@@ -8,7 +9,7 @@ function isWall(tile) {
 }
 
 function hasMonsterAt(dungeon, x, y) {
-  return dungeon.monsters.some((monster) => monster.x === x && monster.y === y);
+  return dungeon.monsters.some((monster) => monsterOccupiesCell(monster, x, y));
 }
 
 /** 壁抜け解除、壁埋まり、深水・泉での地形ダメージをターンごとに解決する。 */

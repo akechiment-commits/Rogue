@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { T, TI, MW, MH, clamp, ensureItemMimicFloorItems } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
+import { monsterBodySize } from './monsterGeometry.js';
+import { monsterDrawBounds, monsterVisible, drawLargeMonster } from './monsterRendering.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
 const VENT_TILE_BY_DIR = {
@@ -34,6 +36,8 @@ function monsterTileForRender(mon, bewitched = false, x = 0, y = 0) {
 }
 
 function drawMonsterTile(ctx, ts, mon, tile, px, py, sz) {
+  const body = monsterDrawBounds(mon, px, py, sz);
+  px = body.x; py = body.y; sz = body.size;
   if (!mon.isPlayerClone) {
     drawTile(ctx, ts, tile, px, py, sz);
     return;
@@ -87,6 +91,8 @@ function drawFacingIndicator(ctx, px, py, sz, dx, dy) {
  * 状態異常：右上隅に小さなカラードット（下向きに積み重ね）
  * ─ 色凡例 ─  眠り=青  麻痺=白青  混乱=橙  移動封じ=氷青  毒=紫  封印=灰  暗闇=暗紫 */
 function drawMonsterOverlays(ctx, mon, px, py, sz) {
+  const body = monsterDrawBounds(mon, px, py, sz);
+  px = body.x; py = body.y; sz = body.size;
   /* ── バリア輝光 ── */
   if (mon.barrier) {
     const _p = Math.sin(performance.now() / 400) * 0.5 + 0.5;
@@ -1012,7 +1018,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             continue;
           }
           /* Monster — skip if animating */
-          const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker ? _m : undefined; })();
+          const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker && monsterBodySize(_m) === 1 ? _m : undefined; })();
           if (mon && !_movingEntities.has("mon_" + mon.id)) {
             const _monTile = monsterTileForRender(mon, (p.bewitchedTurns || 0) > 0, x, y);
             drawMonsterTile(ctx, ts, mon, _monTile, px2, py2, sz);
@@ -1067,6 +1073,22 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       }
     }
 
+    /* 巨大敵は床の描画完了後に一体として描き、後続の床で体が消えないようにする。 */
+    for (const mon of dg.monsters) {
+      if (monsterBodySize(mon) === 1 || mon.disguisedAsItem || _movingEntities.has("mon_" + mon.id)) continue;
+      drawLargeMonster(ctx, mon, dg, sx, sy, sz, (px, py) => {
+        drawMonsterTile(ctx, ts, mon, monsterTileForRender(mon, (p.bewitchedTurns || 0) > 0, mon.x, mon.y), px, py, sz);
+        const body = monsterDrawBounds(mon, px, py, sz);
+        if (mon.hp < mon.maxHp) {
+          const ratio = Math.max(0, mon.hp / mon.maxHp), width = body.size - 2;
+          ctx.fillStyle = "#300"; ctx.fillRect(body.x + 1, body.y, width, 3);
+          ctx.fillStyle = ratio > 0.5 ? "#0c0" : ratio > 0.25 ? "#cc0" : "#f22";
+          ctx.fillRect(body.x + 1, body.y, Math.max(1, width * ratio), 3);
+        }
+        drawMonsterOverlays(ctx, mon, px, py, sz);
+      });
+    }
+
     /* ===== Draw moving entities at interpolated positions ===== */
     for (const [key, mo] of moveOffsets) {
       const t2 = easeOutQuad(mo.progress);
@@ -1092,8 +1114,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const _movingMonRef = dg.monsters.find(m => m.id === key.slice(4));
         if (_movingMonRef?.subtype === "itemMimic" && _movingMonRef.disguisedAsItem !== false) continue;
         /* Skip if neither start nor end position is visible to the player */
-        const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];
-        const _toVis = dg.visible[Math.round(mo.toY)]?.[Math.round(mo.toX)];
+        const _fromVis = monsterVisible(dg, _movingMonRef || {}, Math.round(mo.fromX), Math.round(mo.fromY));
+        const _toVis = monsterVisible(dg, _movingMonRef || {}, Math.round(mo.toX), Math.round(mo.toY));
         if (!_fromVis && !_toVis) continue;
         const _monTile2 = _movingMonRef
           ? monsterTileForRender(_movingMonRef, (p.bewitchedTurns || 0) > 0, Math.floor(drawX), Math.floor(drawY))
@@ -1102,11 +1124,12 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         else drawTile(ctx, ts, _monTile2, dpx, dpy, sz);
         /* HP bar for moving monster */
         if (mo.hp != null && mo.maxHp != null && mo.hp < mo.maxHp) {
-          const bw = sz - 2, bh = 2, hpR = mo.hp / mo.maxHp;
+          const body = monsterDrawBounds(_movingMonRef, dpx, dpy, sz);
+          const bw = body.size - 2, bh = 2, hpR = mo.hp / mo.maxHp;
           ctx.fillStyle = "#300";
-          ctx.fillRect(dpx + 1, dpy, bw, bh);
+          ctx.fillRect(body.x + 1, body.y, bw, bh);
           ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
-          ctx.fillRect(dpx + 1, dpy, Math.max(1, bw * hpR), bh);
+          ctx.fillRect(body.x + 1, body.y, Math.max(1, bw * hpR), bh);
         }
         /* status overlays: look up live monster object by id */
         if (_movingMonRef) drawMonsterOverlays(ctx, _movingMonRef, dpx, dpy, sz);
@@ -1119,7 +1142,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       for (const _sm of dg.monsters) {
         if (_sm.wallWalker) continue;
         if (_sm.subtype === "itemMimic" && _sm.disguisedAsItem !== false) continue;
-        if (dg.visible[_sm.y]?.[_sm.x]) continue;
+        if (monsterVisible(dg, _sm)) continue;
         if (_sm.x < sx || _sm.x >= sx + vw || _sm.y < sy || _sm.y >= sy + vh) continue;
         if (_movingEntities.has("mon_" + _sm.id)) continue;
         const _spx = (_sm.x - sx) * sz, _spy = (_sm.y - sy) * sz;

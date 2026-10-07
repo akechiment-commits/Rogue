@@ -1,3 +1,4 @@
+import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -267,7 +268,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); _emitBreathAnim(); return; }
-    const _fBlock = dg.monsters.find(o => o !== m && o.x === _fx && o.y === _fy);
+    const _fBlock = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _fx, _fy));
     if (_fBlock) {
       if (monSubmergesProjectiles(_fBlock) && _fLvl <= 1) {
         ml.push(`${_fBlock.name}が潜って炎ブレスをかわした！`);
@@ -354,7 +355,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); _emitBreathAnim(); return; }
-    const _iBlock = dg.monsters.find(o => o !== m && o.x === _ix && o.y === _iy);
+    const _iBlock = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _ix, _iy));
     if (_iBlock) {
       if (monSubmergesProjectiles(_iBlock) && _iLvl <= 1) {
         ml.push(`${_iBlock.name}が潜って氷ブレスをかわした！`);
@@ -421,7 +422,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null) {
       return;
     }
     /* reflector（ミラーゴーレム等）：薬瓶を投擲元へ跳ね返す（飛沫は反射しない） */
-    const _mirrorMon = dg.monsters.find(o => o.x === _cx && o.y === _cy && monReflectsProjectiles(o));
+    const _mirrorMon = dg.monsters.find(o => monsterOccupiesCell(o, _cx, _cy) && monReflectsProjectiles(o));
     if (_mirrorMon) {
       ml.push(`薬瓶が${_mirrorMon.name}に弾き返された！`);
       const _rrdx = -_ptdx, _rrdy = -_ptdy;
@@ -445,13 +446,13 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null) {
         }
         _splX = _rrx; _splY = _rry;
         if (_rrx === m.x && _rry === m.y) break;
-        if (dg.monsters.find(o => o !== _mirrorMon && o.x === _rrx && o.y === _rry)) break;
+        if (dg.monsters.find(o => o !== _mirrorMon && monsterOccupiesCell(o, _rrx, _rry))) break;
         _rrx += _rrdx; _rry += _rrdy;
       }
       splashPotion(dg, _splX, _splY, _pot.effect, _pot.value, pl, ml, null, false, false, null, _mirrorMon);
       return;
     }
-    const _hitMon = dg.monsters.find(o => o !== m && o.x === _cx && o.y === _cy);
+    const _hitMon = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cx, _cy));
     if (_hitMon || (_cx === pl.x && _cy === pl.y)) {
       splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
       return;
@@ -556,7 +557,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
             ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
             break;
           }
-          if (dg.monsters.some(mn => mn !== m && mn.x === _nx && mn.y === _ny)) {
+          if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _nx, _ny))) {
             pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
             pl.hp -= 5;
             ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
@@ -689,7 +690,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
               pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
               break;
             }
-            if (dg.monsters.some(mon2 => mon2 !== m && mon2.x === _nx && mon2.y === _ny)) {
+            if (dg.monsters.some(mon2 => mon2 !== m && monsterOccupiesCell(mon2, _nx, _ny))) {
               pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
               break;
             }
@@ -1557,6 +1558,7 @@ const TRANSFORM_DEFINITION_KEYS = new Set(MONS.flatMap(base =>
 
 /** 定義にない元の固有特性を消し、座標・時計・状態異常など個体情報は保つ。 */
 export function applyMonsterTransformation(target, definition) {
+  if (!("bodySize" in definition)) delete target.bodySize;
   for (const key of TRANSFORM_DEFINITION_KEYS) {
     if (!(key in definition)) delete target[key];
   }
@@ -1714,7 +1716,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
   for (const [dy, dx] of DIRS8) {
     if (spawned >= count) break;
     const nx = centerX + dx, ny = centerY + dy;
-    if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => m.x === nx && m.y === ny) && (!p || nx !== p.x || ny !== p.y)) {
+    if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, nx, ny)) && (!p || nx !== p.x || ny !== p.y)) {
       dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
       spawned++;
     }
@@ -1726,7 +1728,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
       const room = dg.rooms[rng(0, dg.rooms.length - 1)];
       const sx = rng(room.x + 1, room.x + room.w - 2);
       const sy = rng(room.y + 1, room.y + room.h - 2);
-      if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => m.x === sx && m.y === sy) && (!p || sx !== p.x || sy !== p.y)) {
+      if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, sx, sy)) && (!p || sx !== p.x || sy !== p.y)) {
         dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
         spawned++;
         break;
@@ -1766,7 +1768,7 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
   if (sx === tx && sy === ty) return null;
   /* モンスター位置と聖域位置をSetに変換 (O(1)ルックアップ) */
   const monSet = new Set();
-  for (const m of mons) { if (m !== self) monSet.add(m.x + m.y * MW); }
+  for (const m of mons) { if (m !== self) for (const cell of monsterBodyCells(m)) monSet.add(cell.x + cell.y * MW); }
   const _noSanct = rooms ? inMagicSealRoom({ pentacles: pentacles || [], rooms }, sx, sy) : false;
   const sanctSet = new Set();
   if (pentacles && !_noSanct) for (const pc of pentacles) { if (pc.kind === "sanctuary") sanctSet.add(pc.x + pc.y * MW); }
@@ -1825,7 +1827,7 @@ export function findRoom(rooms, x, y) {
 }
 
 function chebyshevDistance(a, b) {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  return monsterDistance(a, b);
 }
 
 function livePlayerClone(dg) {
@@ -2418,7 +2420,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     }
 
     /* 他モンスター */
-    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
+    const hitMon = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, tx, ty));
     if (hitMon) {
       const _stBonus = isMagic ? 5 : 3;
       const dmg = calcAtkDefDmg(m.atk + _stBonus, hitMon.def || 0, { defWeight: 1 });
@@ -2503,7 +2505,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       ml.push(`水鉄砲が${_wgPc.name}を消し去った！`);
     }
     /* 途中のモンスターに当たった場合 */
-    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
+    const hitMon = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, tx, ty));
     if (hitMon) {
       if (monSubmergesProjectiles(hitMon)) {
         ml.push(`${hitMon.name}が潜って水鉄砲をかわした！`);
@@ -2699,7 +2701,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       return;
     }
     if (onMonHit) {
-      onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y);
+      onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y, _homingMon.x, _homingMon.y);
     } else {
       wakeIfDormant(_homingMon, ml);
       const _homingDmg = calcMonDmg(_homingMon);
@@ -2813,7 +2815,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (onPlHit) onPlHit(ml);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
-    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
+    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && monsterOccupiesCell(mn, _tx, _ty) && mn !== m);
     if (_mon) {
       if (monSubmergesProjectiles(_mon)) {
         ml.push(`${_mon.name}が潜って${boltName}をかわした！`);
@@ -2856,7 +2858,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
             _rrx = _rnx; _rry = _rny;
             break;
           }
-          const _rrMon = dg.monsters.find(o => o.x === _rnx && o.y === _rny && o !== m && o !== _mon);
+          const _rrMon = dg.monsters.find(o => monsterOccupiesCell(o, _rnx, _rny) && o !== m && o !== _mon);
           if (_rrMon) {
             wakeIfDormant(_rrMon, ml);
             const _rrdmg = calcMonDmg(_rrMon);
@@ -2872,7 +2874,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onFlyOff) onFlyOff(_rrx, _rry, ml);
         return;
       }
-      if (onMonHit) { onMonHit(_mon, ml, _lx, _ly); }
+      if (onMonHit) { onMonHit(_mon, ml, _lx, _ly, _tx, _ty); }
       else {
         wakeIfDormant(_mon, ml);
         const _mdmg = calcMonDmg(_mon);
@@ -3018,7 +3020,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
       _hit = true; break;
     }
     /* モンスター命中 */
-    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
+    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && monsterOccupiesCell(mn, _tx, _ty) && mn !== m);
     if (_mon) {
       if (monSubmergesProjectiles(_mon)) {
         ml.push(`${_mon.name}が潜って${wandLabel}の魔法弾をかわした！`);
@@ -3233,7 +3235,7 @@ function tryUnstickMove(m, dg, pl, float = false) {
         (map[ny]?.[nx] === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny));
       if (m.waterOnly ? !_waterOnlyDest : !canEnter(map, nx, ny, float, dg, m.waterWalker)) continue;
       if (nx === pl?.x && ny === pl?.y) continue;
-      if (dg.monsters.some(o => o !== m && o.x === nx && o.y === ny)) continue;
+      if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, nx, ny))) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
           dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
       if (preferNew && recent.has(nx + ny * MW)) continue;
@@ -3830,7 +3832,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
           break;
         }
-        const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+        const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
         if (_chOther) {
           const _chDmg = Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2));
           _chOther.hp -= _chDmg;
@@ -3911,7 +3913,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         const nx = _kx + _kdx, ny = _ky + _kdy;
         if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
         if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) break;
-        if (dg.monsters.some((o) => o.x === nx && o.y === ny)) break;
+        if (dg.monsters.some((o) => monsterOccupiesCell(o, nx, ny))) break;
         _kx = nx; _ky = ny;
       }
       const _knockFromX = pl.x, _knockFromY = pl.y;
@@ -4091,7 +4093,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   const _next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, _followTarget.x, _followTarget.y, m,
     40, dg.pentacles, false, null, false, dg.rooms, dg);
   if (!_next || (_next.x === pl.x && _next.y === pl.y) ||
-      dg.monsters.some((other) => other !== m && other.x === _next.x && other.y === _next.y)) return;
+      dg.monsters.some((other) => other !== m && monsterOccupiesCell(other, _next.x, _next.y))) return;
   m.dir = { x: _next.x - m.x, y: _next.y - m.y };
   m.x = _next.x;
   m.y = _next.y;
@@ -4107,9 +4109,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   let _attackOnly = opts.attackOnly || false;
   let _rangedAttackReady = false;
   const _luFn = opts.luFn || (() => {});
-  const _canMoveTo = (x, y) => m.waterOnly
+  const _canMoveTo = (x, y) => (monsterBodySize(m) === 1 || canPlaceMonsterBody(dg, m, x, y, pl)) && (m.waterOnly
     ? inBounds(x, y) && (dg.map[y]?.[x] === T.WATER || dg.springs?.some(s => s.x === x && s.y === y))
-    : canEnter(dg.map, x, y, _effFloat, dg, m.waterWalker);
+    : canEnter(dg.map, x, y, _effFloat, dg, m.waterWalker));
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
   const _plPotHidden = (pl.potConfinedTurns || 0) > 0;
@@ -4183,7 +4185,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       for (const [_pdx, _pdy] of _pshuf) {
         const _pnx = m.x + _pdx, _pny = m.y + _pdy;
         if (!_canMoveTo(_pnx, _pny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _pnx && o.y === _pny)) continue;
+        if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _pnx, _pny))) continue;
         if (_pnx === pl.x && _pny === pl.y) continue;
         if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _pnx && pc.y === _pny)) continue;
         m.dir = { x: _pdx, y: _pdy }; m.x = _pnx; m.y = _pny; m._movedThisTurn = true; break;
@@ -4292,7 +4294,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       for (const [_wdx, _wdy] of _warpDirs) {
         const _wx = pl.x + _wdx, _wy = pl.y + _wdy;
         if (dg.map[_wy]?.[_wx] !== T.FLOOR) continue;
-        if (dg.monsters.some(mn => mn !== m && mn.x === _wx && mn.y === _wy)) continue;
+        if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _wx, _wy))) continue;
         m.x = _wx; m.y = _wy;
         ml.push(`${m.name}が閃光とともに${plName(pl)}の目前に降り立った！`);
         _warped = true;
@@ -4342,7 +4344,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       for (const [_sdx, _sdy] of _shuffled) {
         const _sx = m.x + _sdx, _sy = m.y + _sdy;
         if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
-        if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+        if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 4) * 4);
         dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
@@ -4368,7 +4370,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (_summoned >= 2) break;
           const _sx = m.x + _sdx, _sy = m.y + _sdy;
           if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
-          if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+          if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
           if (pl.x === _sx && pl.y === _sy) continue;
           const _depth = Math.max(0, (m.bossTier || 6) * 4);
           dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
@@ -4446,7 +4448,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_summoned >= 2) break;
         const _sx = m.x + _sdx, _sy = m.y + _sdy;
         if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
-        if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+        if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 10) * 5);
         dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
@@ -4532,7 +4534,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           _onHit?.(_kiDmg, m);
           break;
         }
-        if (dg.monsters.find(mn => mn.x === _ktx && mn.y === _kty && mn !== m)) break;
+        if (dg.monsters.find(mn => monsterOccupiesCell(mn, _ktx, _kty) && mn !== m)) break;
       }
       m.turnAttacks++;
       return;
@@ -4593,7 +4595,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_cnx === pl.x && _cny === pl.y && !_plPotHidden) {
         if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
-        const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+        const _other = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
         if (_other) {
           if (!_moveOnly) {
             const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
@@ -4625,7 +4627,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_dnx === pl.x && _dny === pl.y) {
         if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
-        const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
+        const _dother = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _dnx, _dny));
         if (_dother) {
           if (!_moveOnly) {
             const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
@@ -4671,7 +4673,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _snx = m.x + _sdx, _sny = m.y + _sdy;
         if (!canEnter(dg.map, _snx, _sny, false, dg)) continue;
         if (_snx === pl.x && _sny === pl.y) continue;
-        if (dg.monsters.some(o => o.x === _snx && o.y === _sny)) continue;
+        if (dg.monsters.some(o => monsterOccupiesCell(o, _snx, _sny))) continue;
         const _child = { ...m, id: uid(), x: _snx, y: _sny,
           hp: m.maxHp, maxHp: m.maxHp,
           posHistory: [], turnAccum: 0, patrolTarget: null, _lastHp: m.maxHp };
@@ -4808,7 +4810,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         Math.hypot(it.x - m.x, it.y - m.y) < Math.hypot(best.x - m.x, best.y - m.y) ? it : best
       );
       const _gcNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _gcTarget.x, _gcTarget.y, m, 30, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
-      if (_gcNext && !dg.monsters.some(o => o !== m && o.x === _gcNext.x && o.y === _gcNext.y)) {
+      if (_gcNext && !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _gcNext.x, _gcNext.y))) {
         if (_gcNext.x === pl.x && _gcNext.y === pl.y) {
           if (!_plOnSanc &&
               !_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
@@ -4859,7 +4861,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         for (const [_dx, _dy] of _dirs4) {
           const _nx = m.x + _dx, _ny = m.y + _dy;
           if (dg.map[_ny]?.[_nx] === T.FLOOR &&
-              !dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny) &&
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _nx, _ny)) &&
               !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) {
             m.x = _nx; m.y = _ny; break;
           }
@@ -4877,7 +4879,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         for (const [_dx, _dy] of _dirs4) {
           const _nx = _bp.x + _dx, _ny = _bp.y + _dy;
           if (dg.map[_ny]?.[_nx] === T.FLOOR &&
-              !dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny) &&
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _nx, _ny)) &&
               !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) {
             m.x = _nx; m.y = _ny; return;
           }
@@ -4886,7 +4888,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (m.x !== _bp.x || m.y !== _bp.y) {
           /* プレイヤーや他のモンスターが既に同マスにいる場合は近傍の空きタイルへ */
           const _bpFree = (_bp.x !== pl.x || _bp.y !== pl.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _bp.x && o.y === _bp.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _bp.x, _bp.y)) &&
             (dg.map[_bp.y]?.[_bp.x] === T.FLOOR || dg.map[_bp.y]?.[_bp.x] === T.SD || dg.map[_bp.y]?.[_bp.x] === T.SU);
           if (_bpFree) {
             m.x = _bp.x; m.y = _bp.y;
@@ -4894,7 +4896,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             /* blockPos が塞がれていたらBFSで1歩近づく */
             const _bn = bfsNext(dg.map, dg.monsters, m.x, m.y, _bp.x, _bp.y, m, 10, null, _effFloat, null, false, dg.rooms, dg);
             if (_bn && (_bn.x !== pl.x || _bn.y !== pl.y) &&
-                !dg.monsters.some(o => o !== m && o.x === _bn.x && o.y === _bn.y)) {
+                !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _bn.x, _bn.y))) {
               m.x = _bn.x; m.y = _bn.y;
             }
           }
@@ -4946,8 +4948,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
    * hasLOS を落とすと canSee=false → 古い lastPx（画面右など）へ歩き続けた。
    * 遠くの暗闇の敵は FOV 外のままなので、認識しない挙動は維持される。
    */
-  const _inPlayerFov = !!(dg.visible?.[m.y]?.[m.x]);
-  const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+  const _inPlayerFov = monsterBodyCells(m).some(cell => dg.visible?.[cell.y]?.[cell.x]);
+  const _adjPl = monsterPointDistance(m, pl.x, pl.y) <= 1;
   const _cloneDecoy = recognizedDecoyForMonster(m, dg, pl);
   const _cloneTargeted = !!_cloneDecoy?.isPlayerClone;
   const canSee = (!_plInvis && (_sameRoom || _adjPl || _inPlayerFov)) || _cloneTargeted;
@@ -5026,7 +5028,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _wwOk = (nx, ny) =>
         _wwCan(nx, ny) &&
         !(nx === pl.x && ny === pl.y) &&
-        !dg.monsters.some(o => o !== m && o.x === nx && o.y === ny) &&
+        !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, nx, ny)) &&
         !(!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny));
       const _wn = bfsNext(
         dg.map, dg.monsters, m.x, m.y, pl.x, pl.y, m,
@@ -5070,7 +5072,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _wdnx = m.x + _wddx, _wdny = m.y + _wddy;
         if (_wdnx > 0 && _wdnx < MW - 1 && _wdny > 0 && _wdny < MH - 1 &&
             !(_wdnx === pl.x && _wdny === pl.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _wdnx && o.y === _wdny) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _wdnx, _wdny)) &&
             !(!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wdnx && pc.y === _wdny))) {
           if (dg.map[_wdny][_wdnx] === T.WALL) {
             dg.map[_wdny][_wdnx] = T.FLOOR;
@@ -5275,7 +5277,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               }
               return;
             }
-            const _occup = dg.monsters.find(o => o !== m && o.x === _dn.x && o.y === _dn.y);
+            const _occup = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _dn.x, _dn.y));
             if (_occup && !_moveOnly) {
               /* 次マスに別の敵: 囮の争奪戦 */
               const _ddmg = Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2));
@@ -5330,7 +5332,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_itTarget) {
           const _itNext = bfsNext(map, [], m.x, m.y, _itTarget.x, _itTarget.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
           if (_itNext && !(_itNext.x === pl.x && _itNext.y === pl.y) &&
-              !dg.monsters.some(o => o !== m && o.x === _itNext.x && o.y === _itNext.y)) {
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _itNext.x, _itNext.y))) {
             m.dir = { x: _itNext.x - m.x, y: _itNext.y - m.y };
             m.x = _itNext.x; m.y = _itNext.y;
             return;
@@ -5488,7 +5490,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               }
               break;
             }
-            const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+            const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
             if (_chOther) {
               m.turnAttacks++;
               const _chDmg = Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
@@ -5591,7 +5593,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _adjPl = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
             .filter(({ x, y }) => isWalkable(dg.map, x, y, dg) &&
-              !dg.monsters.some(o => o.x === x && o.y === y));
+              !dg.monsters.some(o => monsterOccupiesCell(o, x, y)));
           if (_adjMons.length > 0 && _adjPl.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
             const _thrown = pick(_adjMons);
             const _dest = pick(_adjPl);
@@ -5776,7 +5778,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               for (const [_ddx, _ddy] of _tdirs) {
                 const _cx = _tgt.x + _ddx, _cy = _tgt.y + _ddy;
                 if (isWalkable(dg.map, _cx, _cy, dg) &&
-                    !dg.monsters.some(o => o.x === _cx && o.y === _cy) &&
+                    !dg.monsters.some(o => monsterOccupiesCell(o, _cx, _cy)) &&
                     !(_cx === pl.x && _cy === pl.y)) {
                   _wx = _cx; _wy = _cy; _placed = true; break;
                 }
@@ -5992,7 +5994,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               _srPathBlocked = true; break;
             }
             if (statueAt(dg, _cx, _cy)) { _srHitStatue = true; break; }
-            const _midMon = dg.monsters.find(mo => mo.x === _cx && mo.y === _cy);
+            const _midMon = dg.monsters.find(mo => monsterOccupiesCell(mo, _cx, _cy));
             if (_midMon) { _srHitMon = _midMon; break; }
             _cx += _srDx; _cy += _srDy;
           }
@@ -6118,7 +6120,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         /* 傷ついた味方へ接近 */
         const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _hn.x && o.y === _hn.y)) {
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _hn.x, _hn.y))) {
           m.x = _hn.x; m.y = _hn.y;
           return;
         }
@@ -6227,7 +6229,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         } else {
           const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
           const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
-          if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
+          if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => monsterOccupiesCell(o, _pnx, _pny))) {
             const _pullFromX = pl.x, _pullFromY = pl.y;
             pl.x = _pnx; pl.y = _pny;
             pushPlayerKnockbackAnim(_pullFromX, _pullFromY, pl.x, pl.y, _puldx, _puldy);
@@ -6275,7 +6277,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _bNext = bfsNext(map, [], m.x, m.y, _bTx, _bTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_bNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bNext.x && pc.y === _bNext.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _bNext.x && o.y === _bNext.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _bNext.x, _bNext.y)) &&
             !(_bNext.x === pl.x && _bNext.y === pl.y)) {
           m.dir = { x: _bNext.x - m.x, y: _bNext.y - m.y };
           m.x = _bNext.x; m.y = _bNext.y;
@@ -6332,7 +6334,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _kpNext = bfsNext(map, [], m.x, m.y, _kpTx, _kpTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_kpNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _kpNext.x && pc.y === _kpNext.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _kpNext.x && o.y === _kpNext.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _kpNext.x, _kpNext.y)) &&
             !(_kpNext.x === pl.x && _kpNext.y === pl.y)) {
           m.dir = { x: _kpNext.x - m.x, y: _kpNext.y - m.y };
           m.x = _kpNext.x; m.y = _kpNext.y;
@@ -6385,7 +6387,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _ppNext = bfsNext(map, [], m.x, m.y, _ppTx, _ppTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_ppNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _ppNext.x && pc.y === _ppNext.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _ppNext.x && o.y === _ppNext.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _ppNext.x, _ppNext.y)) &&
             !(_ppNext.x === pl.x && _ppNext.y === pl.y)) {
           m.dir = { x: _ppNext.x - m.x, y: _ppNext.y - m.y };
           m.x = _ppNext.x; m.y = _ppNext.y;
@@ -6415,7 +6417,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _gaNext = bfsNext(map, [], m.x, m.y, _gaTx, _gaTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
           if (_gaNext &&
               !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _gaNext.x && pc.y === _gaNext.y) &&
-              !dg.monsters.some(o => o !== m && o.x === _gaNext.x && o.y === _gaNext.y) &&
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _gaNext.x, _gaNext.y)) &&
               !(_gaNext.x === pl.x && _gaNext.y === pl.y)) {
             m.dir = { x: _gaNext.x - m.x, y: _gaNext.y - m.y };
             m.x = _gaNext.x; m.y = _gaNext.y;
@@ -6444,7 +6446,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             if (!isWalkable(map, _anx, _any, dg)) continue;
           }
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _anx, _any))) continue;
           if (_anx === pl.x && _any === pl.y) continue;
           const _dx2 = pl.x - _anx, _dy2 = pl.y - _any;
           if (_dx2 === 0 || _dy2 === 0 || Math.abs(_dx2) === Math.abs(_dy2)) {
@@ -6473,7 +6475,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         for (const [_fdx, _fdy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
           const _fnx = m.x + _fdx, _fny = m.y + _fdy;
           if (!isWalkable(map, _fnx, _fny, dg)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
           if (_fnx === pl.x && _fny === pl.y) continue;
           _farCands.push({ x: _fnx, y: _fny, dist: Math.max(Math.abs(pl.x - _fnx), Math.abs(pl.y - _fny)) });
         }
@@ -6502,7 +6504,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           for (const [_amx, _amy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
             const _anx = m.x + _amx, _any = m.y + _amy;
             if (!isWalkable(map, _anx, _any, dg)) continue;
-            if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+            if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _anx, _any))) continue;
             if (_anx === pl.x && _any === pl.y) continue;
             const _d2x = pl.x - _anx, _d2y = pl.y - _any;
             const _newDist = Math.max(Math.abs(_d2x), Math.abs(_d2y));
@@ -6523,7 +6525,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _dbNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
       if (_dbNext) {
         const _newDist = Math.max(Math.abs(pl.x - _dbNext.x), Math.abs(pl.y - _dbNext.y));
-        if (_newDist >= 2 && !dg.monsters.some(o => o !== m && o.x === _dbNext.x && o.y === _dbNext.y)) {
+        if (_newDist >= 2 && !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _dbNext.x, _dbNext.y))) {
           m.dir = { x: _dbNext.x - m.x, y: _dbNext.y - m.y };
           m.x = _dbNext.x; m.y = _dbNext.y;
         }
@@ -6543,7 +6545,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _nx = m.x + _mx, _ny = m.y + _my;
           if (!isWalkable(map, _nx, _ny, dg)) continue;
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _nx, _ny))) continue;
           if (_nx === pl.x && _ny === pl.y) continue;
           const _ndx = pl.x - _nx, _ndy = pl.y - _ny;
           const _nd = Math.max(Math.abs(_ndx), Math.abs(_ndy));
@@ -6581,7 +6583,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _sNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
       if (_sNext) {
         const _newDist = Math.max(Math.abs(pl.x - _sNext.x), Math.abs(pl.y - _sNext.y));
-        if (_newDist >= _keep && !dg.monsters.some(o => o !== m && o.x === _sNext.x && o.y === _sNext.y)) {
+        if (_newDist >= _keep && !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _sNext.x, _sNext.y))) {
           m.dir = { x: _sNext.x - m.x, y: _sNext.y - m.y };
           m.x = _sNext.x; m.y = _sNext.y;
         }
@@ -6643,7 +6645,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       : m.waterWalker
         ? (nx, ny) => isWalkable(map, nx, ny, dg)
-        : null;
+        : monsterBodySize(m) > 1 ? _canMoveTo : null;
     /* fallbackNearest: 完全到達不可でもプレイヤー方向へ寄る */
     let next = bfsNext(map, [], m.x, m.y, tx, ty, m, 60, dg.pentacles, _effFloat, _wateriFilter, true, dg.rooms, dg);
     /* 認識中なのに距離が縮まない／経路なし → 転送陣経由で接近 */
@@ -6687,7 +6689,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         return;
       }
-      if (!dg.monsters.some((o) => o !== m && o.x === next.x && o.y === next.y)) {
+      if (canPlaceMonsterBody(dg, m, next.x, next.y, pl)) {
         m.dir = { x: next.x - m.x, y: next.y - m.y };
         m.x = next.x;
         m.y = next.y;
@@ -6698,8 +6700,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       /* 次マスが別モンスターに占有 */
       /* 対向（互いに相手のマスへ向かっている）なら位置を交換してデッドロック解消 */
-      const _blocker = dg.monsters.find(o => o !== m && o.x === next.x && o.y === next.y);
-      if (_blocker && !isStationaryGrabber(_blocker) && _blocker.type !== "shopkeeper") {
+      const _blocker = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, next.x, next.y));
+      if (_blocker && monsterBodySize(m) === 1 && monsterBodySize(_blocker) === 1 && !isStationaryGrabber(_blocker) && _blocker.type !== "shopkeeper") {
         const _bNext = bfsNext(map, [], _blocker.x, _blocker.y,
           (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
           (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
@@ -6729,7 +6731,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (!canEnter(map, _anx, _any, _effFloat, dg, m.waterWalker)) continue;
         }
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+        if (!canPlaceMonsterBody(dg, m, _anx, _any, pl)) continue;
         if (_adx !== 0 && _ady !== 0) {
           if (!canEnter(map, m.x + _adx, m.y, _effFloat, dg, m.waterWalker) &&
               !canEnter(map, m.x, m.y + _ady, _effFloat, dg, m.waterWalker)) continue;
@@ -6767,7 +6769,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         } else if (!canEnter(map, _fnx, _fny, _effFloat, dg, m.waterWalker)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+        if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
         if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
@@ -6872,7 +6874,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat, _patrolTileFilter, false, dg.rooms, dg);
       if (next && !(next.x === pl.x && next.y === pl.y) &&
           !((!inMagicSealRoom(m.x, m.y, dg)) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y))) {
-        if (!dg.monsters.some(o => o !== m && o.x === next.x && o.y === next.y)) {
+        if (!dg.monsters.some(o => o !== m && monsterOccupiesCell(o, next.x, next.y))) {
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
           return;
@@ -6886,7 +6888,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (!isWalkable(map, _anx, _any, dg)) continue;
           if (_anx === pl.x && _any === pl.y) continue;
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _anx, _any))) continue;
           m.dir = { x: _adx, y: _ady };
           m.x = _anx; m.y = _any;
           _sidestepped = true;
@@ -6908,7 +6910,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (!isWalkable(map, _fnx, _fny, dg)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+        if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
         m.posHistory = [];

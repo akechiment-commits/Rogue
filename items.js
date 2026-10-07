@@ -1,3 +1,4 @@
+import { monsterOccupiesCell, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets } from "./monsterGeometry.js";
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
@@ -1173,7 +1174,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
     const tile = dg.map[ny]?.[nx];
     if (tile === T.WALL || tile === T.BWALL || tile === T.WATER) continue;
-    if (dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny)) continue;
+    if (dg.monsters.some((o) => o !== m && monsterOccupiesCell(o, nx, ny))) continue;
     if (p && p.x === nx && p.y === ny) continue;
     m.x = nx;
     m.y = ny;
@@ -2108,11 +2109,11 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
         ml.push("爆風で壁が崩れた！");
         wallBreakDrop(dg, ax, ay);
-        continue; /* 壁タイルにキャラ・アイテムはいない */
+        if (!monsterAt(dg, ax, ay)) continue;
       }
       /* モンスターダメージ */
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
-      const _blastMonsters = dg.monsters.filter(m => !m.disguisedAsItem && m.x === ax && m.y === ay);
+      const _blastMonsters = dg.monsters.filter(m => !m.disguisedAsItem && monsterOccupiesCell(m, ax, ay));
       if (ddx === 0 && ddy === 0) {
         for (const forcedMonster of options.forcedMonsters || []) {
           if (forcedMonster && !(_blastMonsters.includes(forcedMonster)) && (forcedMonster.hp ?? 1) > 0) {
@@ -2131,7 +2132,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             const _nx = ax + _sx, _ny = ay + _sy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
             if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-            if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+            if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
             if (p && _nx === p.x && _ny === p.y) continue;
             dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
             break;
@@ -2293,7 +2294,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         }
         /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
-          if (m.x === ax && m.y === ay) {
+          if (monsterOccupiesCell(m, ax, ay)) {
             if (m.baseKind === "firedemon") {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
               const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -2301,7 +2302,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
                 const _nx = m.x + _sx, _ny = m.y + _sy;
                 if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
                 if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
                 if (p && _nx === p.x && _ny === p.y) continue;
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
@@ -2451,7 +2452,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
         }
       }
       /* モンスター：炎無効(火ダルマ)以外は消滅（ボスは現在HPの4分の1ダメージ） */
-      for (const m of [...dg.monsters.filter(mm => !mm.disguisedAsItem && mm.x === ax && mm.y === ay)]) {
+      for (const m of [...dg.monsters.filter(mm => !mm.disguisedAsItem && monsterOccupiesCell(mm, ax, ay))]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
         if (m.baseKind === "firedemon") {
@@ -2461,7 +2462,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
             const _nx = ax + _sx, _ny = ay + _sy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
             if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-            if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+            if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
             if (p && _nx === p.x && _ny === p.y) continue;
             dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
             break;
@@ -2709,7 +2710,7 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
       if (!tile || tile === T.WALL || tile === T.BWALL) continue;
       if (tile === T.WATER && !monEffectiveFloat(m) && !m.waterOnly && !m.waterWalker) continue;
       if (p && nx === p.x && ny === p.y) continue;
-      if (dg.monsters.some((o) => o.x === nx && o.y === ny)) continue;
+      if (dg.monsters.some((o) => monsterOccupiesCell(o, nx, ny))) continue;
       const child = {
         ...m,
         id: uid(),
@@ -3453,7 +3454,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           for (let i = 0; i < 10; i++) {
             const _bnx = _bbm.x + _bbdx, _bny = _bbm.y + _bbdy;
             if (_bnx < 0 || _bnx >= MW || _bny < 0 || _bny >= MH || dg.map[_bny][_bnx] === T.WALL || dg.map[_bny][_bnx] === T.BWALL) { _bbHitWall = true; break; }
-            const _bom = dg.monsters.find(o => o !== _bbm && o.x === _bnx && o.y === _bny);
+            const _bom = dg.monsters.find(o => o !== _bbm && monsterOccupiesCell(o, _bnx, _bny));
             if (_bom) { _bbHitOther = _bom; break; }
             _bbm.x = _bnx; _bbm.y = _bny;
           }
@@ -4944,7 +4945,8 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   for (let dy2 = -1; dy2 <= 1; dy2++)
     for (let dx2 = -1; dx2 <= 1; dx2++) {
       const tx = cx + dx2, ty = cy + dy2;
-      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL)
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH &&
+          ((dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL) || monsterAt(dg, tx, ty)))
         tiles.push({ x:tx, y:ty });
     }
   const _otherMons = killerMon ? (dg.monsters || []).filter((mon) => mon !== killerMon) : [];
@@ -5623,7 +5625,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         }
         /* モンスターへのダメージ（即死→連鎖爆発） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
-          if (m.x === ax && m.y === ay) {
+          if (monsterOccupiesCell(m, ax, ay)) {
             wakeIfDormant(m, ml);
             if (m.baseKind === "firedemon") {
               ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -5632,7 +5634,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 const _nx = ax + _sx, _ny = ay + _sy;
                 if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
                 if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
                 if (p && _nx === p.x && _ny === p.y) continue;
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
@@ -5947,18 +5949,18 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     onMiss: hitChance < 1 || missLandFn ? (lx, ly) => {
       res.x = lx; res.y = ly; res.missedPlayer = true;
     } : null,
-    onMonHit: (mon, mlx) => {
+    onMonHit: (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
       if (mon.isWanderingMerchant && mon.state !== "hostile") {
         declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
       }
       if (_isPotion) {
         if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
-        res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
+        res.consumed = true; res.splash = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
         return;
       }
       if (_isWand) {
         if (wandHitMsg) { const _m = wandHitMsg(mon); if (_m) mlx.push(_m); }
-        res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
+        res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
         return;
       }
       applyThrownItemToMonster(item, mon, dg, p, mlx, luFn, {
@@ -5966,7 +5968,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         killerMon,
         hitMessage: _isPot ? potHitMsg : monHitMsg,
       });
-      res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
+      res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
     },
     customPlHit: (mlx) => {
       if (_isPotion) {
@@ -6177,7 +6179,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     /* kind === "item" は throwItemAlongLine() に移行済み（呼び出し側で直接呼ぶ） */
     if (kind === "monster") {
       /* プレイヤーとの衝突 */
-      if (p && p.x === nx && p.y === ny) {
+      if (p && monsterOccupiesCell({ ...entity, x: nx, y: ny }, p.x, p.y)) {
         if (collisionAtk > 0) {
           entity.hp -= collisionAtk;
           p.deathCause = `${entity.name}との衝突により`;
@@ -6187,7 +6189,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
         break;
       }
       /* 別モンスターとの衝突 */
-      const _colM = dg.monsters.find(m => m !== entity && m.x === nx && m.y === ny);
+      const _colM = dg.monsters.find(m => m !== entity && monsterBodiesOverlap(entity, m, nx, ny));
       if (_colM) {
         if (collisionAtk > 0) {
           entity.hp -= collisionAtk;
@@ -6438,7 +6440,8 @@ function specialProjectilePathHitMonster(sp, next, dg, monsterSnapshots = null, 
     const _monsterPath = _before
       ? specialProjectileGridPath(_before.x, _before.y, monster.x, monster.y)
       : [{ x: monster.x, y: monster.y }];
-    const _impact = _monsterPath.find(({ x, y }) =>
+    const _bodyPath = _monsterPath.flatMap(({ x, y }) => monsterBodyCells(monster, x, y));
+    const _impact = _bodyPath.find(({ x, y }) =>
       _projectileCells.has(`${x},${y}`) && (!skipStart || x !== sp.x || y !== sp.y),
     );
     if (_impact) return { monster, x: _impact.x, y: _impact.y };
@@ -7268,7 +7271,7 @@ export function calmShopkeeperIfFullyHealed(m, dg, p, ml) {
 export function moveShopkeeperHome(sk, shop, dg) {
   sk.state = "friendly";
   const hp = sk.homePos;
-  const occ = (x, y) => dg.monsters.some(m => m !== sk && m.x === x && m.y === y);
+  const occ = (x, y) => dg.monsters.some(m => m !== sk && monsterOccupiesCell(m, x, y));
   if (!occ(hp.x, hp.y)) { sk.x = hp.x; sk.y = hp.y; return; }
   const r = shop.room;
   for (let ry = r.y; ry < r.y + r.h; ry++)
@@ -8139,7 +8142,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷の魔法を打ち消した！"); break; }
       if (kind === "self") {
         /* 視界内の全ての敵に雷ダメージ */
-        const _ltTargets = dg.monsters.filter(m => dg.visible?.[m.y]?.[m.x]);
+        const _ltTargets = monsterAreaTargets(dg.monsters, (x, y) => dg.visible?.[y]?.[x]);
         if (_ltTargets.length === 0) { ml.push("雷が走るが、視界に敵はいない。"); break; }
         for (const _lm of _ltTargets) {
           if (_lm.hp <= 0) continue;
@@ -8188,7 +8191,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         const _tof = [];
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)
-            if (dg.map[_ty][_tx] === T.FLOOR && !dg.monsters.some(m => m.x === _tx && m.y === _ty) && !(p.x === _tx && p.y === _ty))
+            if (dg.map[_ty][_tx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, _tx, _ty)) && !(p.x === _tx && p.y === _ty))
               _tof.push({ x: _tx, y: _ty });
         if (_tof.length === 0) { ml.push("テレポートに失敗した。"); break; }
         const _tod = pick(_tof);
@@ -8224,7 +8227,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)
             if (dg.map[_ty][_tx] === T.FLOOR && !(p.x === _tx && p.y === _ty) &&
-                !dg.monsters.some(m => m.x === _tx && m.y === _ty))
+                !dg.monsters.some(m => monsterOccupiesCell(m, _tx, _ty)))
               _tmf.push({ x: _tx, y: _ty });
         if (_tmf.length === 0) { ml.push("テレポートに失敗した。"); break; }
         const _tmd = pick(_tmf);
@@ -8386,7 +8389,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "teleport_other": {
             const _rtf = [];
             for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++)
-              if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty });
+              if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => monsterOccupiesCell(m, _rtx, _rty))) _rtf.push({ x: _rtx, y: _rty });
             if (_rtf.length > 0) {
               const _rtd = pick(_rtf);
               const _tpFromX = p.x, _tpFromY = p.y;
