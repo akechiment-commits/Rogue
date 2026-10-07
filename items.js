@@ -41,6 +41,7 @@ import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
 import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 
@@ -1201,6 +1202,8 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
  */
 export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
   if (!target) return null;
+  if (blockLargeMonsterStatus(target, "seal", ml)) return null;
+  startLargeMonsterStatusCooldown(target, "seal");
   const { blessed = false, sealedTurns = null, message = null } = opts;
   target.sealed = true;
   if (clearArmorBreathBuff(target) > 0) {
@@ -1619,8 +1622,7 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
           ml.push(`${mon.name}には暗闇が効かなかった！(状態防止中)`);
         } else {
           const _dt = statusTurns("darkness", { kind: "monster", target: mon });
-          applyMonsterDarkness(mon, _dt);
-          ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
+          if (applyMonsterDarkness(mon, _dt, ml) > 0) ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
         }
       }
     }
@@ -3301,11 +3303,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slwm = monsterAt(dg, tx, ty);
       if (_slwm) {
-        if (_slwm.isBoss && _slwm._preSlowSpeed === undefined) _slwm._preSlowSpeed = _slwm.speed;
-        _slwm.speed = Math.max(0.25, _slwm.speed * 0.5);
-        const _slowT = _slwm.isBoss ? statusTurns("bossSlow", { kind: "monster", target: _slwm }) : 0;
-        if (_slwm.isBoss) _slwm.bossSlowTurns = (_slwm.bossSlowTurns || 0) + _slowT;
-        ml.push(`${_slwm.name}が鈍足になった！${_slwm.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
+        if (!blockLargeMonsterStatus(_slwm, "slow", ml)) {
+          startLargeMonsterStatusCooldown(_slwm, "slow");
+          if (_slwm.isBoss && _slwm._preSlowSpeed === undefined) _slwm._preSlowSpeed = _slwm.speed;
+          _slwm.speed = Math.max(0.25, _slwm.speed * 0.5);
+          const _slowT = _slwm.isBoss ? statusTurns("bossSlow", { kind: "monster", target: _slwm }) : 0;
+          if (_slwm.isBoss) _slwm.bossSlowTurns = (_slwm.bossSlowTurns || 0) + _slowT;
+          ml.push(`${_slwm.name}が鈍足になった！${_slwm.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
@@ -3544,8 +3549,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_dktm.name}には暗闇が効かなかった！`);
         } else {
           const _dt = statusTurns("darkness", { kind: "monster", target: _dktm });
-          applyMonsterDarkness(_dktm, _dt);
-          ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
+          if (applyMonsterDarkness(_dktm, _dt, ml) > 0) ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
         }
       }
       if (p && p.x === tx && p.y === ty) {
@@ -4148,8 +4152,28 @@ function appendCuredAilments(ml, cured) {
   if (cured?.length && ml?.length) ml[ml.length - 1] += ` ${cured.join("・")}も解消！`;
 }
 
-export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false) {
+const POTION_MONSTER_STATUS_KEYS = {
+  poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
+  darkness: "darkness", bewitch: "bewitch", seal: "seal", paralyze: "paralyze",
+};
+const POTION_DIRECT_MONSTER_STATUS_KEYS = {
+  poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
+};
+
+export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false, skipLargeMonsterStatus = false) {
   if (kind === "monster") wakeIfDormant(target, ml);
+  let _skipLargeMonsterStatus = skipLargeMonsterStatus;
+  const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && !cursed && !_skipLargeMonsterStatus
+    ? POTION_DIRECT_MONSTER_STATUS_KEYS[eff]
+    : null;
+  if (_largeStatusKey && blockLargeMonsterStatus(target, _largeStatusKey, ml)) {
+    if (eff !== "poison") return;
+    _skipLargeMonsterStatus = true;
+  }
+  if (_largeStatusKey && !_skipLargeMonsterStatus) {
+    if (isStatusImmune(target, ml, target.name)) return;
+    startLargeMonsterStatusCooldown(target, _largeStatusKey);
+  }
   const _beforeMonsterHp = kind === "monster" ? target?.hp : null;
   const _monKill = (mon) => {
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon, false, false, skipKillerLevelUp);
@@ -4292,14 +4316,18 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const dmg = poisonContactAmount(val, { blessed });
           target.hp -= dmg;
-          const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
-          target.poisonedTurns = (target.poisonedTurns || 0) + _poisonTurns;
-          if (!target.poisonHalfAtk) {
-            target.poisonOrigAtk = target.atk;
-            target.atk = Math.max(1, Math.floor(target.atk / 2));
-            target.poisonHalfAtk = true;
+          if (_skipLargeMonsterStatus) {
+            ml.push(`${target.name}は毒の薬液で${dmg}ダメージ！`);
+          } else {
+            const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
+            target.poisonedTurns = (target.poisonedTurns || 0) + _poisonTurns;
+            if (!target.poisonHalfAtk) {
+              target.poisonOrigAtk = target.atk;
+              target.atk = Math.max(1, Math.floor(target.atk / 2));
+              target.poisonHalfAtk = true;
+            }
+            ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態(${_poisonTurns}ターン)になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
           }
-          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態(${_poisonTurns}ターン)になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
           _monKill(target);
         }
       }
@@ -4532,8 +4560,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           if (!isStatusImmune(target, ml, target.name)) {
             const _dt = statusTurns("darkness", { kind: "monster", blessed, target });
-            applyMonsterDarkness(target, _dt);
-            ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
+            if (applyMonsterDarkness(target, _dt, ml) > 0) {
+              ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
+            }
           }
         }
       }
@@ -4557,8 +4586,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`${target.name}の幻惑が解けた！【呪→解除】`);
         } else {
           const _bt = statusTurns("bewitch", { kind: "monster", blessed, target });
-          applyMonsterBewitch(target, _bt);
-          ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bt) ? "(永続)" : `(${_bt}ターン)`}`);
+          if (applyMonsterBewitch(target, _bt, ml) > 0) {
+            ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bt) ? "(永続)" : `(${_bt}ターン)`}`);
+          }
         }
       }
       break;
@@ -4941,6 +4971,8 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
 export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false, dnFn = null, killerMon = null) {
   ml.push("瓶が割れて中身が飛び散った！");
   pushSplashAnim(cx, cy, "#88ccff");
+  const _largeStatusTargets = new Set();
+  const _largeStatusKey = !cursed ? POTION_MONSTER_STATUS_KEYS[eff] : null;
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
     for (let dx2 = -1; dx2 <= 1; dx2++) {
@@ -4961,7 +4993,11 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     const mon = monsterAt(dg, x, y);
     if (mon) {
       weakenOrClearParalysis(mon, ml);
-      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon, true);
+      const _duplicateLargeStatusTile = _largeStatusKey && monsterBodySize(mon) > 1 && _largeStatusTargets.has(mon);
+      if (!_duplicateLargeStatusTile || eff === "poison") {
+        if (_largeStatusKey && monsterBodySize(mon) > 1) _largeStatusTargets.add(mon);
+        applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon, true, !!_duplicateLargeStatusTile);
+      }
       if (eff === "water") applySoakedStatusToMonster(mon, ml);
     }
     if (p && x === p.x && y === p.y) {

@@ -26,6 +26,7 @@ import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import {
   isFloorOccupancyBlocked,
   pickFreeFloorObjectCell,
@@ -77,6 +78,21 @@ function statueTeleportDest(dg, ox, oy, p) {
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null) {
+  const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && blMult >= 1
+    ? ({ slow: "slow", sleep: "sleep", confuse: "confuse", sleep_bolt: "sleep", poison_bolt: "poison", ice_wand: "immobile" })[eff]
+    : null;
+  let _skipLargeStatus = false;
+  if (_largeStatusKey && blockLargeMonsterStatus(target, _largeStatusKey, ml)) {
+    if (eff !== "ice_wand") return;
+    _skipLargeStatus = true;
+  }
+  if (_largeStatusKey && !_skipLargeStatus && isStatusImmune(target, ml, target.name)) {
+    if (eff !== "ice_wand") return;
+    _skipLargeStatus = true;
+  }
+  if (_largeStatusKey && !_skipLargeStatus) {
+    startLargeMonsterStatusCooldown(target, _largeStatusKey);
+  }
   // 敵行動中は Game の罠処理へ渡し、階移動と予約された地雷の即時解決まで行う。
   const _activatePlayerTrap = trap => fireTrapFn
     ? fireTrapFn(trap, p, dg, ml)
@@ -1609,8 +1625,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         const _dkBaseTurns = statusTurns("darkness", { kind: "monster", blessed: _dkBlessed, target });
-        applyMonsterDarkness(target, _dkBaseTurns);
-        ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dkBaseTurns) ? "(永続)" : `(${_dkBaseTurns}ターン)`}`);
+        if (applyMonsterDarkness(target, _dkBaseTurns, ml) > 0) {
+          ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dkBaseTurns) ? "(永続)" : `(${_dkBaseTurns}ターン)`}`);
+        }
         break;
       }
       if (kind === "player") {
@@ -1644,8 +1661,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "monster") {
         const _bwBaseTurns = statusTurns("bewitch", { kind: "monster", blessed: _bwBlessed, target });
-        applyMonsterBewitch(target, _bwBaseTurns);
-        ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bwBaseTurns) ? "(永続)" : `(${_bwBaseTurns}ターン)`}`);
+        if (applyMonsterBewitch(target, _bwBaseTurns, ml) > 0) {
+          ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bwBaseTurns) ? "(永続)" : `(${_bwBaseTurns}ターン)`}`);
+        }
         break;
       }
       if (kind === "player") {
@@ -1810,8 +1828,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwIceMult));
         _iwDmg = _magicDamage(_iwDmg);
         target.hp -= _iwDmg;
-        target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
-        ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
+        if (_skipLargeStatus) {
+          ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じは効かなかった！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
+        } else {
+          target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
+          ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
+        }
         if (target.hp <= 0) _defeat(target);
         break;
       }

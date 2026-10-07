@@ -1,4 +1,5 @@
 import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.js";
+import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 
 /** 攻撃後のモンスター回復・状態タイマー・雷の魔方陣効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
@@ -26,6 +27,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
   }
 
   for (const monster of dungeon.monsters) {
+    advanceLargeMonsterStatusCooldowns(monster);
     if (monster.isPlayerClone && monster.hp > 0 && (monster.cloneTurns || 0) > 0) {
       monster.cloneTurns = Math.max(0, monster.cloneTurns - 1);
       if (monster.cloneTurns <= 0) {

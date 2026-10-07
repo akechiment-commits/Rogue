@@ -1,3 +1,5 @@
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
+
 /**
  * 状態異常の継続ターン数を一元管理する。
  *
@@ -257,6 +259,8 @@ export function applyAttackSeal(entity, opts = {}) {
  */
 export function applyMonsterParalyze(target, { blessed = false, ml = null, name = null } = {}) {
   if (!target) return 0;
+  if (blockLargeMonsterStatus(target, "paralyze", ml)) return 0;
+  startLargeMonsterStatusCooldown(target, "paralyze");
   const nm = name || target.name || "敵";
   target.paralyzed = true;
   target._paralyzeHp = target.hp;
@@ -282,8 +286,10 @@ export function applyMonsterParalyze(target, { blessed = false, ml = null, name 
 }
 
 /** 敵の暗闇。再付与は持続を加算し、直進方向は維持する。 */
-export function applyMonsterDarkness(monster, turns) {
+export function applyMonsterDarkness(monster, turns, ml = null) {
   if (!monster || !(turns > 0)) return 0;
+  if (blockLargeMonsterStatus(monster, "darkness", ml)) return 0;
+  startLargeMonsterStatusCooldown(monster, "darkness");
   const wasDark = (monster.darknessTurns || 0) > 0;
   monster.darknessTurns = (monster.darknessTurns || 0) + turns;
   monster.aware = false;
@@ -292,8 +298,10 @@ export function applyMonsterDarkness(monster, turns) {
 }
 
 /** 敵の幻惑。再付与は逃走タイマーを加算する。 */
-export function applyMonsterBewitch(monster, turns) {
+export function applyMonsterBewitch(monster, turns, ml = null) {
   if (!monster || !(turns > 0)) return 0;
+  if (blockLargeMonsterStatus(monster, "bewitch", ml)) return 0;
+  startLargeMonsterStatusCooldown(monster, "bewitch");
   monster.fleeingTurns = (monster.fleeingTurns || 0) + turns;
   return monster.fleeingTurns;
 }

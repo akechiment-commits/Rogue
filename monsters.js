@@ -1353,7 +1353,7 @@ export const KING_BEHINMOS = {
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, bodySize: 3,
   meteorDamage: 60, meteorInterval: 4,
-  desc: "3×3マスの巨体。赤い予兆の3×3マスへ2ターン後にメテオを落とす。",
+  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。赤い予兆の3×3マスへ2ターン後にメテオを落とす。",
 };
 export const SPECIAL_BOSSES = [KING_BEHINMOS];
 

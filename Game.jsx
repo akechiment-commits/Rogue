@@ -103,6 +103,7 @@ import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { placeFallenEntities } from "./pitfallPlacement.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -1378,6 +1379,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => _applyMonsterWandEffect("curse_wand", "player", pl, dx, dy, mlx),
             onMonsterHit: (mon, mlx) => {
+              if (blockLargeMonsterStatus(mon, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(mon, "slow");
               if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
               mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
               const _slowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
@@ -1385,6 +1388,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(`呪いの魔法弾が${mon.name}に命中！鈍足になった！${mon.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onWallReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "slow");
               if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
               const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
@@ -1392,6 +1397,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(`呪いの魔法弾が壁に跳ね返り${m.name}に命中！鈍足になった！${m.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (blockLargeMonsterStatus(m, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "slow");
               if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
               const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
@@ -1399,6 +1406,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(`呪いが${m.name}に反射！鈍足になった！${m.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onPlayerReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "slow");
               if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
               const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
@@ -1477,19 +1486,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(_prev > 0 ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)` : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
+              if (blockLargeMonsterStatus(mon, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(mon, "confuse");
               const _prev = mon.confusedTurns || 0;
               mon.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: mon });
               mlx.push(_prev > 0 ? `混乱の魔法弾が${mon.name}に命中！混乱が延長された！(混乱${mon.confusedTurns}ターン)` : `混乱の魔法弾が${mon.name}に命中！混乱した！(混乱${mon.confusedTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "confuse");
               m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`混乱の魔法弾が壁に跳ね返り${m.name}に命中！混乱した！(混乱${m.confusedTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (blockLargeMonsterStatus(m, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "confuse");
               m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "confuse");
               const _prev = m.confusedTurns || 0;
               m.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(_prev > 0 ? `混乱が${m.name}に反射した！混乱が延長された！(混乱${m.confusedTurns}ターン)` : `混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
@@ -1507,19 +1524,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(_prev > 0 ? `眠りの魔法弾を受けた！眠りが延長された！(眠り${pl.sleepTurns}ターン)` : `眠りの魔法弾を受けた！眠ってしまった！(眠り${pl.sleepTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
+              if (blockLargeMonsterStatus(mon, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(mon, "sleep");
               const _prev = mon.sleepTurns || 0;
               mon.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: mon });
               mlx.push(_prev > 0 ? `眠りの魔法弾が${mon.name}に命中！眠りが延長された！(眠り${mon.sleepTurns}ターン)` : `眠りの魔法弾が${mon.name}に命中！眠ってしまった！(眠り${mon.sleepTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "sleep");
               m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`眠りの魔法弾が壁に跳ね返り${m.name}に命中！眠ってしまった！(眠り${m.sleepTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (blockLargeMonsterStatus(m, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "sleep");
               m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "sleep");
               const _prev = m.sleepTurns || 0;
               m.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(_prev > 0 ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)` : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
