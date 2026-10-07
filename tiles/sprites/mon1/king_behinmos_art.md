@@ -7,11 +7,5 @@
 使用した生成指示全文（組み込みツール、背景透過指定）：
 
 ```text
-Use case: stylized-concept
-Asset type: transparent PNG monster sprite for a Japanese top-down roguelike, a single giant boss named キングベヒんもス.
-Primary request: one imposing king behemoth, a bulky four-legged horned beast with deep purple hide, huge shoulders, a cream-colored mane, two massive curved ivory horns, heavy clawed paws and a thick tail. Its expression is fierce but appealing and slightly comical, suitable for a playful roguelike. Ready to cast Meteor, subtle orange glow in its eyes.
-Style/medium: clean polished retro RPG pixel sprite, thick dark outlines, restrained pixel clusters, crisp readable shading. Match the charming small retro RPG monster aesthetic in the recent example, with a much broader and heavier silhouette.
-Composition/framing: full body, facing downward toward the viewer in slight three-quarter perspective. Square image, body fills most of canvas, all horns, paws and tail inside bounds, minimal 4% padding. One monster only.
-Scene/backdrop: genuinely transparent background, no floor, no colored square, no cast shadow extending beyond silhouette.
-Constraints: no text, no UI, no frame, no additional creatures, no weapons or accessories, no background. Preserve transparency. Intended to be displayed across a 3-by-3-tile 96-pixel-wide area.
+Edit the existing King Behinmos sprite, using two existing monster tiles as style references. Keep the recognizable purple four-legged beast, huge ivory horns, pale mane, orange eyes, claws, and thick tail. Redraw it as a compact retro pixel-art sprite that belongs beside the reference monsters: low-resolution pixel clusters, crisp stepped edges, limited palette, bold dark outline, simple readable shapes, restrained highlights, and no smooth digital painting, antialiasing, or 3D rendering. Use a slightly elevated three-quarter game-sprite view, facing forward, centered, with the full creature visible and a strong silhouette. Preserve the transparent background. No ground, text, frame, or extra objects. Make it legible across a 3×3 dungeon footprint; do not crop its horns, claws, mane, or tail.
 ```
