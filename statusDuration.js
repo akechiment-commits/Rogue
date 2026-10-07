@@ -246,6 +246,8 @@ export function isAttackSealed(entity) {
 export function applyAttackSeal(entity, opts = {}) {
   const { kind = "player", target = entity } = opts;
   if (!entity) return 0;
+  if (kind === "monster" && blockLargeMonsterStatus(target, "attackSeal", opts.ml)) return 0;
+  if (kind === "monster") startLargeMonsterStatusCooldown(target, "attackSeal");
   const turns = statusTurns("attackSeal", { kind, target: kind === "monster" ? target : null });
   entity.attackSealTurns = (entity.attackSealTurns || 0) + turns;
   return turns;

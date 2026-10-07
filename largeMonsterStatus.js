@@ -5,6 +5,7 @@ export const LARGE_MONSTER_STATUS_COOLDOWN_TURNS = 10;
 const STATUS_LABELS = {
   poison: "毒", sleep: "眠り", slow: "鈍足", confuse: "混乱", darkness: "暗闇",
   bewitch: "幻惑", seal: "封印", paralyze: "金縛り", immobile: "移動封じ", frozen: "凍結",
+  attackSeal: "攻撃封印", knockdown: "転倒", oily: "油まみれ", soaked: "ずぶ濡れ", float: "浮遊",
 };
 
 export function largeMonsterStatusCooldown(monster, status) {

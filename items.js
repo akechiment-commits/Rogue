@@ -1487,16 +1487,36 @@ export function breakAltar(altar, dg, ml, p = null, breaker = null, luFn = null)
   const sleepTurns = statusTurns("sleep", { kind: statusKind, target: victim });
   const confuseTurns = statusTurns("confuse", { kind: statusKind, target: victim });
   const slowTurns = statusTurns("slow", { kind: statusKind, target: victim });
-  victim.sleepTurns = Math.max(victim.sleepTurns || 0, sleepTurns);
-  victim.confusedTurns = Math.max(victim.confusedTurns || 0, confuseTurns);
-  victim.slowTurns = Math.max(victim.slowTurns || 0, slowTurns);
+  const _monsterVictim = victim !== p;
+  const _allowSleep = !_monsterVictim || !blockLargeMonsterStatus(victim, "sleep", ml);
+  const _allowConfuse = !_monsterVictim || !blockLargeMonsterStatus(victim, "confuse", ml);
+  const _allowSlow = !_monsterVictim || !blockLargeMonsterStatus(victim, "slow", ml);
+  if (_allowSleep) {
+    if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "sleep");
+    victim.sleepTurns = Math.max(victim.sleepTurns || 0, sleepTurns);
+  }
+  if (_allowConfuse) {
+    if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "confuse");
+    victim.confusedTurns = Math.max(victim.confusedTurns || 0, confuseTurns);
+  }
+  if (_allowSlow) {
+    if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "slow");
+    victim.slowTurns = Math.max(victim.slowTurns || 0, slowTurns);
+  }
   if (victim === p) {
     const paralyzeTurns = statusTurns("paralyze", { kind: "player" });
     victim.paralyzeTurns = Math.max(victim.paralyzeTurns || 0, paralyzeTurns);
     ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns}/${slowTurns}ターン)`);
   } else {
-    const paralyzeTurns = applyMonsterParalyze(victim, { ml: null });
-    ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns >= PERMANENT_TURNS ? "永続" : `${paralyzeTurns}ターン`}/${slowTurns}ターン)`);
+    const _allowParalyze = !blockLargeMonsterStatus(victim, "paralyze", ml);
+    const paralyzeTurns = _allowParalyze ? applyMonsterParalyze(victim, { ml: null }) : 0;
+    const _applied = [
+      _allowSleep && `眠り(${sleepTurns})`,
+      _allowConfuse && `混乱(${confuseTurns})`,
+      _allowParalyze && `金縛り(${paralyzeTurns >= PERMANENT_TURNS ? "永続" : `${paralyzeTurns}ターン`})`,
+      _allowSlow && `鈍足(${slowTurns})`,
+    ].filter(Boolean);
+    ml.push(_applied.length ? `${victimName}は${_applied.join("・")}になった！` : `${victimName}は状態異常耐性中で影響を受けなかった！`);
   }
   if (victim.hp <= 0 && victim !== p) {
     killMonster(victim, dg, p, ml, luFn, true);
@@ -1709,6 +1729,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
     ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
+    const _largeOilTargets = new Set();
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const tx = px + dx, ty = py + dy;
@@ -1719,9 +1740,15 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
           dg.oilyTiles.push({ x: tx, y: ty });
         const mon = monsterAt(dg, tx, ty);
         if (mon) {
-          const _ot = statusTurns("oily", { kind: "monster", target: mon });
-          mon.oilyTurns = (mon.oilyTurns || 0) + _ot;
-          ml.push(`${mon.name}は油まみれになった！(${_ot}ターン)`);
+          const _largeOilTarget = monsterBodySize(mon) > 1;
+          const _duplicateLargeOilTile = _largeOilTarget && _largeOilTargets.has(mon);
+          if (_largeOilTarget) _largeOilTargets.add(mon);
+          if (!_duplicateLargeOilTile && !blockLargeMonsterStatus(mon, "oily", ml)) {
+            startLargeMonsterStatusCooldown(mon, "oily");
+            const _ot = statusTurns("oily", { kind: "monster", target: mon });
+            mon.oilyTurns = (mon.oilyTurns || 0) + _ot;
+            ml.push(`${mon.name}は油まみれになった！(${_ot}ターン)`);
+          }
         }
         if (tx === p.x && ty === p.y) {
           const _ot = statusTurns("oily", { kind: "player" });
@@ -1784,6 +1811,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     ml.push(`${resolveItemName(pot)}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
+    const _largeOilTargets = new Set();
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const tx = px + dx, ty = py + dy;
@@ -1793,9 +1821,15 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
         if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty)) dg.oilyTiles.push({ x: tx, y: ty });
         const _om = monsterAt(dg, tx, ty);
         if (_om) {
-          const _ot = statusTurns("oily", { kind: "monster", target: _om });
-          _om.oilyTurns = (_om.oilyTurns || 0) + _ot;
-          ml.push(`${_om.name}は油まみれになった！(${_ot}ターン)`);
+          const _largeOilTarget = monsterBodySize(_om) > 1;
+          const _duplicateLargeOilTile = _largeOilTarget && _largeOilTargets.has(_om);
+          if (_largeOilTarget) _largeOilTargets.add(_om);
+          if (!_duplicateLargeOilTile && !blockLargeMonsterStatus(_om, "oily", ml)) {
+            startLargeMonsterStatusCooldown(_om, "oily");
+            const _ot = statusTurns("oily", { kind: "monster", target: _om });
+            _om.oilyTurns = (_om.oilyTurns || 0) + _ot;
+            ml.push(`${_om.name}は油まみれになった！(${_ot}ターン)`);
+          }
         }
         if (tx === p.x && ty === p.y) {
           const _ot = statusTurns("oily", { kind: "player" });
@@ -3265,9 +3299,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slm = monsterAt(dg, tx, ty);
       if (_slm) {
-        const _mst = statusTurns("sleep", { kind: "monster", target: _slm });
-        _slm.sleepTurns = (_slm.sleepTurns || 0) + _mst;
-        ml.push(`${_slm.name}が眠りに落ちた！(${_mst}ターン)`);
+        if (!blockLargeMonsterStatus(_slm, "sleep", ml)) {
+          startLargeMonsterStatusCooldown(_slm, "sleep");
+          const _mst = statusTurns("sleep", { kind: "monster", target: _slm });
+          _slm.sleepTurns = (_slm.sleepTurns || 0) + _mst;
+          ml.push(`${_slm.name}が眠りに落ちた！(${_mst}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (blockPlayerStatus(p, ml, { proofAbility: "sleep_proof", proofMsg: "しかし眠れなかった！(耐眠)" })) {
@@ -3396,8 +3433,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_trm) {
         const _td = rng(3, 8);
         _trm.hp -= _td;
-        _trm.knockdownTurns = Math.max(_trm.knockdownTurns || 0, 2);
-        ml.push(`${_trm.name}が転んだ！${_td}ダメージ！(2ターン行動不能)`);
+        if (blockLargeMonsterStatus(_trm, "knockdown", ml)) {
+          ml.push(`${_trm.name}は転倒耐性で踏みとどまった！${_td}ダメージ！`);
+        } else {
+          startLargeMonsterStatusCooldown(_trm, "knockdown");
+          _trm.knockdownTurns = Math.max(_trm.knockdownTurns || 0, 2);
+          ml.push(`${_trm.name}が転んだ！${_td}ダメージ！(2ターン行動不能)`);
+        }
         if (_trm.hp <= 0) killMonster(_trm, dg, p, ml, luFn);
       }
       if (p && p.x === tx && p.y === ty) {
@@ -3422,9 +3464,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _ssm = monsterAt(dg, tx, ty);
       if (_ssm) {
-        const _it = statusTurns("immobile", { kind: "monster", target: _ssm });
-        _ssm.immobileTurns = (_ssm.immobileTurns || 0) + _it;
-        ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(${_it}ターン移動封じ)`);
+        if (!blockLargeMonsterStatus(_ssm, "immobile", ml)) {
+          startLargeMonsterStatusCooldown(_ssm, "immobile");
+          const _it = statusTurns("immobile", { kind: "monster", target: _ssm });
+          _ssm.immobileTurns = (_ssm.immobileTurns || 0) + _it;
+          ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(${_it}ターン移動封じ)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml)) {
@@ -3511,9 +3556,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _cfm = monsterAt(dg, tx, ty);
       if (_cfm) {
-        const _ct = statusTurns("confuse", { kind: "monster", target: _cfm });
-        _cfm.confusedTurns = (_cfm.confusedTurns || 0) + _ct;
-        ml.push(`${_cfm.name}は混乱した！(${_ct}ターン)`);
+        if (!blockLargeMonsterStatus(_cfm, "confuse", ml)) {
+          startLargeMonsterStatusCooldown(_cfm, "confuse");
+          const _ct = statusTurns("confuse", { kind: "monster", target: _cfm });
+          _cfm.confusedTurns = (_cfm.confusedTurns || 0) + _ct;
+          ml.push(`${_cfm.name}は混乱した！(${_ct}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) {
@@ -3529,8 +3577,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       const _bwtm = monsterAt(dg, tx, ty);
       if (_bwtm) {
         const _bt = statusTurns("bewitch", { kind: "monster", target: _bwtm });
-        _bwtm.fleeingTurns = (_bwtm.fleeingTurns || 0) + _bt;
-        ml.push(`${_bwtm.name}が幻惑された！(${_bt}ターン)`);
+        if (applyMonsterBewitch(_bwtm, _bt, ml) > 0) ml.push(`${_bwtm.name}が幻惑された！(${_bt}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "しかし防具が幻惑を防いだ！(耐惑わし)" })) {
@@ -3583,9 +3630,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _flm = monsterAt(dg, tx, ty);
       if (_flm) {
-        const _ft = statusTurns("float", { kind: "monster", target: _flm });
-        _flm.floatTurns = Math.max(_flm.floatTurns || 0, _ft);
-        ml.push(`${_flm.name}がふわっと浮いた！(浮遊${_ft}ターン)`);
+        if (!blockLargeMonsterStatus(_flm, "float", ml)) {
+          startLargeMonsterStatusCooldown(_flm, "float");
+          const _ft = statusTurns("float", { kind: "monster", target: _flm });
+          _flm.floatTurns = Math.max(_flm.floatTurns || 0, _ft);
+          ml.push(`${_flm.name}がふわっと浮いた！(浮遊${_ft}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         const _ft = statusTurns("float", { kind: "player" });
@@ -3598,9 +3648,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _olm = monsterAt(dg, tx, ty);
       if (_olm) {
-        const _ot = statusTurns("oily", { kind: "monster", target: _olm });
-        _olm.oilyTurns = (_olm.oilyTurns || 0) + _ot;
-        ml.push(`${_olm.name}は油まみれになった！(${_ot}ターン)`);
+        if (!blockLargeMonsterStatus(_olm, "oily", ml)) {
+          startLargeMonsterStatusCooldown(_olm, "oily");
+          const _ot = statusTurns("oily", { kind: "monster", target: _olm });
+          _olm.oilyTurns = (_olm.oilyTurns || 0) + _ot;
+          ml.push(`${_olm.name}は油まみれになった！(${_ot}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         const _ot = statusTurns("oily", { kind: "player" });
@@ -3613,9 +3666,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _uim = monsterAt(dg, tx, ty);
       if (_uim) {
-        const _ct = statusTurns("confuse", { kind: "monster", target: _uim });
-        _uim.confusedTurns = (_uim.confusedTurns || 0) + _ct;
-        ml.push(`${_uim.name}は混乱した！(${_ct}ターン)`);
+        if (!blockLargeMonsterStatus(_uim, "confuse", ml)) {
+          startLargeMonsterStatusCooldown(_uim, "confuse");
+          const _ct = statusTurns("confuse", { kind: "monster", target: _uim });
+          _uim.confusedTurns = (_uim.confusedTurns || 0) + _ct;
+          ml.push(`${_uim.name}は混乱した！(${_ct}ターン)`);
+        }
       }
       /* 落ちてきた／作動させたアイテム自体を未識別に */
       const _idSet = identSet || getTrapIdentSet();
@@ -3934,8 +3990,9 @@ export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリ�
   if (alreadyProtected) {
     const canConfuse = isPlayer
       ? (target.statusImmune || 0) <= 0 && !hasAbility(target.armor, "confuse_proof")
-      : (target.statusImmune || 0) <= 0;
+      : (target.statusImmune || 0) <= 0 && !blockLargeMonsterStatus(target, "confuse", ml);
     if (canConfuse) {
+      if (!isPlayer) startLargeMonsterStatusCooldown(target, "confuse");
       const turns = statusTurns("confuse", { kind, target });
       target.confusedTurns = (target.confusedTurns || 0) + turns;
       ml?.push(`${name}の冷たさで頭がキーンと痛くなり、${isPlayer ? "混乱した" : `${target.name || "敵"}は混乱した`}！(${turns}ターン)`);
@@ -3991,16 +4048,34 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     mon.hp -= _yDmg;
     ml.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
     if (mon.hp > 0) {
-      const _yPoison = applyYabaiPoison(mon, "monster");
-      const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
-      const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
-      mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
-      mon.fleeingTurns = (mon.fleeingTurns || 0) + _yBewitchT;
-      if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
-      mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
-      const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
-      if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
-      ml.push(`${mon.name}は毒(${_yPoison.turns}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`);
+      const _ailments = [];
+      let _yPoison = { turns: 0, atkLoss: 0 };
+      if (!blockLargeMonsterStatus(mon, "poison", ml)) {
+        startLargeMonsterStatusCooldown(mon, "poison");
+        _yPoison = applyYabaiPoison(mon, "monster");
+        _ailments.push(`毒(${_yPoison.turns}ターン)`);
+      }
+      if (!blockLargeMonsterStatus(mon, "confuse", ml)) {
+        startLargeMonsterStatusCooldown(mon, "confuse");
+        const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
+        mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
+        _ailments.push(`混乱(${_yConfuseT}ターン)`);
+      }
+      if (!blockLargeMonsterStatus(mon, "bewitch", ml)) {
+        const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
+        if (applyMonsterBewitch(mon, _yBewitchT, ml) > 0) _ailments.push(`幻惑(${_yBewitchT}ターン)`);
+      }
+      if (!blockLargeMonsterStatus(mon, "slow", ml)) {
+        startLargeMonsterStatusCooldown(mon, "slow");
+        if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
+        mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
+        const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
+        if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
+        _ailments.push(`鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}`);
+      }
+      ml.push(_ailments.length
+        ? `${mon.name}は${_ailments.join("・")}状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`
+        : `${mon.name}は状態異常耐性中で影響を受けなかった！`);
     }
   }
 
@@ -4716,23 +4791,47 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       } else if (kind === "monster") {
         if (cursed) {
-          target.poisoned = true;
-          target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
-          if (!target.poisonHalfAtk) {
-            target.poisonOrigAtk = target.atk;
-            target.atk = Math.max(1, Math.floor(target.atk / 2));
-            target.poisonHalfAtk = true;
+          const _panaceaAilments = [];
+          if (!blockLargeMonsterStatus(target, "poison", ml)) {
+            startLargeMonsterStatusCooldown(target, "poison");
+            target.poisoned = true;
+            target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
+            if (!target.poisonHalfAtk) {
+              target.poisonOrigAtk = target.atk;
+              target.atk = Math.max(1, Math.floor(target.atk / 2));
+              target.poisonHalfAtk = true;
+            }
+            _panaceaAilments.push("毒");
           }
-          target.sleepTurns = (target.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target });
-          target.confusedTurns = (target.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target });
-          target.slowTurns = (target.slowTurns || 0) + statusTurns("slow", { kind: "monster", target });
-          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
-          target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
-          target.darknessTurns = (target.darknessTurns || 0) + statusTurns("darkness", { kind: "monster", target });
-          target.fleeingTurns = (target.fleeingTurns || 0) + statusTurns("bewitch", { kind: "monster", target });
-          applyMonsterSeal(target, dg, p, ml, luFn);
-          ml.push(`${target.name}は万能薬の呪いで毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！【呪】`);
+          if (!blockLargeMonsterStatus(target, "sleep", ml)) {
+            startLargeMonsterStatusCooldown(target, "sleep");
+            target.sleepTurns = (target.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target });
+            _panaceaAilments.push("眠り");
+          }
+          if (!blockLargeMonsterStatus(target, "confuse", ml)) {
+            startLargeMonsterStatusCooldown(target, "confuse");
+            target.confusedTurns = (target.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target });
+            _panaceaAilments.push("混乱");
+          }
+          if (!blockLargeMonsterStatus(target, "slow", ml)) {
+            startLargeMonsterStatusCooldown(target, "slow");
+            target.slowTurns = (target.slowTurns || 0) + statusTurns("slow", { kind: "monster", target });
+            if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
+            target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
+            _panaceaAilments.push("鈍足");
+          }
+          const _panaceaDark = statusTurns("darkness", { kind: "monster", target });
+          if (applyMonsterDarkness(target, _panaceaDark, ml) > 0) _panaceaAilments.push("暗闇");
+          const _panaceaBewitch = statusTurns("bewitch", { kind: "monster", target });
+          if (applyMonsterBewitch(target, _panaceaBewitch, ml) > 0) _panaceaAilments.push("幻惑");
+          if (!blockLargeMonsterStatus(target, "seal", ml)) {
+            applyMonsterSeal(target, dg, p, ml, luFn);
+            _panaceaAilments.push("封印");
+          }
+          ml.push(_panaceaAilments.length
+            ? `${target.name}は万能薬の呪いで${_panaceaAilments.join("・")}になった！【呪】`
+            : `${target.name}は状態異常耐性中で万能薬の呪いが効かなかった！`);
         } else {
           const _wasStatus = clearStatusEffectsOnHpZero(target);
           if (blessed) {
@@ -4761,14 +4860,19 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`牛乳を飲んだ。満腹度+${_delta}${blessed ? "【祝福】" : ""}`);
         }
       } else if (kind === "monster" && cursed) {
-        target.poisoned = true;
-        target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
-        if (!target.poisonHalfAtk) {
-          target.poisonOrigAtk = target.atk;
-          target.atk = Math.max(1, Math.floor(target.atk / 2));
-          target.poisonHalfAtk = true;
+        if (blockLargeMonsterStatus(target, "poison", ml)) {
+          ml.push(`${target.name}は牛乳でお腹を壊したが、毒への耐性で毒にならなかった！`);
+        } else {
+          startLargeMonsterStatusCooldown(target, "poison");
+          target.poisoned = true;
+          target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
+          if (!target.poisonHalfAtk) {
+            target.poisonOrigAtk = target.atk;
+            target.atk = Math.max(1, Math.floor(target.atk / 2));
+            target.poisonHalfAtk = true;
+          }
+          ml.push(`${target.name}は牛乳でお腹を壊し、毒になった！`);
         }
-        ml.push(`${target.name}は牛乳でお腹を壊し、毒になった！`);
       }
       break;
     }
@@ -4972,6 +5076,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   ml.push("瓶が割れて中身が飛び散った！");
   pushSplashAnim(cx, cy, "#88ccff");
   const _largeStatusTargets = new Set();
+  const _largeSoakedTargets = new Set();
   const _largeStatusKey = !cursed ? POTION_MONSTER_STATUS_KEYS[eff] : null;
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
@@ -4998,7 +5103,13 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
         if (_largeStatusKey && monsterBodySize(mon) > 1) _largeStatusTargets.add(mon);
         applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon, true, !!_duplicateLargeStatusTile);
       }
-      if (eff === "water") applySoakedStatusToMonster(mon, ml);
+      if (eff === "water") {
+        const _largeSoakedTarget = monsterBodySize(mon) > 1;
+        if (!_largeSoakedTarget || !_largeSoakedTargets.has(mon)) {
+          if (_largeSoakedTarget) _largeSoakedTargets.add(mon);
+          applySoakedStatusToMonster(mon, ml);
+        }
+      }
     }
     if (p && x === p.x && y === p.y) {
       applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
@@ -5766,6 +5877,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
       continue;
     }
     if (isStatusImmune(target, ml, target === p ? null : target.name)) continue;
+    if (target !== p && blockLargeMonsterStatus(target, "sleep", ml)) continue;
     if (target === p && hasAbility(p.armor, "sleep_proof")) {
       ml.push("防具が眠りの花粉を防いだ！");
       continue;
@@ -5774,6 +5886,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
       kind: target === p ? "player" : "monster",
       target: target === p ? null : target,
     });
+    if (target !== p) startLargeMonsterStatusCooldown(target, "sleep");
     target.sleepTurns = (target.sleepTurns || 0) + turns;
     ml.push(`${target === p ? "プレイヤー" : target.name}が眠りに落ちた！(${turns}ターン)`);
   }
@@ -8166,11 +8279,17 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       let dmg = Math.round(rng(15, 22) * _lvF);
       const _iceFreeze = statusTurns("immobile", { kind: "monster", target });
       if (kind === "monster") {
+        const _iceStatusBlocked = monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "immobile", ml);
+        if (!_iceStatusBlocked && monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "immobile");
         if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
         dmg = _enemyMagicDamage(dmg);
         target.hp -= dmg;
-        target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
-        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
+        if (_iceStatusBlocked) {
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！移動封じは効かなかった！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
+        } else {
+          target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
+        }
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
     }
@@ -8206,6 +8325,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "sleep_bolt": {
       if (kind === "monster") {
+        if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "sleep", ml)) break;
+        if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "sleep");
         const t = statusTurns("sleep", { kind: "monster", target });
         target.sleepTurns = (target.sleepTurns || 0) + t;
         ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`);
@@ -8237,6 +8358,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "poison_bolt": {
       if (kind === "monster") {
+        if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "poison", ml)) break;
+        if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "poison");
         const _pt = statusTurns("poison", { kind: "monster", target });
         target.poisonedTurns = (target.poisonedTurns || 0) + _pt;
         ml.push(`毒の魔法が${target.name}に命中！毒に侵された！(${_pt}ターン)`);
@@ -9059,6 +9182,8 @@ export function applySoakedStatus(p, ml, turns = null, msg = null) {
 /** 水の飛沫で敵をずぶ濡れにする。 */
 export function applySoakedStatusToMonster(monster, ml, turns = null) {
   if (!monster) return false;
+  if (blockLargeMonsterStatus(monster, "soaked", ml)) return false;
+  startLargeMonsterStatusCooldown(monster, "soaked");
   if (turns == null) turns = statusTurns("soaked", { kind: "monster", target: monster });
   const was = monster.soakedTurns || 0;
   monster.soakedTurns = Math.max(was, turns);

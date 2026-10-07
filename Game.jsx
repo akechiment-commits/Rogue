@@ -102,7 +102,7 @@ import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { placeFallenEntities } from "./pitfallPlacement.js";
-import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed, applyMonsterParalyze, applyMonsterBewitch } from "./statusDuration.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
@@ -2919,12 +2919,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 武器の状態異常付与（10%） */
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
-                  ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); const _st = attackMon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.bossSlowTurns = Math.max(attackMon.bossSlowTurns || 0, _st); ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? `(${_st}ターン)` : "(永続)"}`); }],
-                  ["inflict_paralyze", () => { attackMon.paralyzed = true; const _pt = attackMon.isBoss ? statusTurns("paralyze", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns || 0, _pt); attackMon._paralyzeHp = attackMon.hp; ml.push(`${attackMon.name}は金縛りになった！${attackMon.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`); }],
-                  ["inflict_sleep",    () => { const _st = statusTurns("sleep", { kind: "monster", target: attackMon }); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _st; ml.push(`${attackMon.name}は眠りに落ちた！(${_st}ターン)`); }],
-                  ["inflict_darkness", () => { const _dt = statusTurns("darkness", { kind: "monster", target: attackMon }); attackMon.blind = true; attackMon.blindTurns = Math.max(attackMon.blindTurns || 0, _dt); ml.push(`${attackMon.name}は暗闇になった！(${_dt}ターン)`); }],
-                  ["inflict_confuse",  () => { const _ct = statusTurns("confuse", { kind: "monster", target: attackMon }); attackMon.confusedTurns = (attackMon.confusedTurns || 0) + _ct; ml.push(`${attackMon.name}は混乱した！(${_ct}ターン)`); }],
-                  ["inflict_bewitch",  () => { const _bt = statusTurns("bewitch", { kind: "monster", target: attackMon }); attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + _bt; ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${_bt}ターン)`); }],
+                  ["inflict_slow",     () => { if (blockLargeMonsterStatus(attackMon, "slow", ml)) return; startLargeMonsterStatusCooldown(attackMon, "slow"); if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); const _st = attackMon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.bossSlowTurns = Math.max(attackMon.bossSlowTurns || 0, _st); ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? `(${_st}ターン)` : "(永続)"}`); }],
+                  ["inflict_paralyze", () => { applyMonsterParalyze(attackMon, { ml }); }],
+                  ["inflict_sleep",    () => { if (blockLargeMonsterStatus(attackMon, "sleep", ml)) return; startLargeMonsterStatusCooldown(attackMon, "sleep"); const _st = statusTurns("sleep", { kind: "monster", target: attackMon }); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _st; ml.push(`${attackMon.name}は眠りに落ちた！(${_st}ターン)`); }],
+                  ["inflict_darkness", () => { if (blockLargeMonsterStatus(attackMon, "darkness", ml)) return; startLargeMonsterStatusCooldown(attackMon, "darkness"); const _dt = statusTurns("darkness", { kind: "monster", target: attackMon }); attackMon.blind = true; attackMon.blindTurns = Math.max(attackMon.blindTurns || 0, _dt); ml.push(`${attackMon.name}は暗闇になった！(${_dt}ターン)`); }],
+                  ["inflict_confuse",  () => { if (blockLargeMonsterStatus(attackMon, "confuse", ml)) return; startLargeMonsterStatusCooldown(attackMon, "confuse"); const _ct = statusTurns("confuse", { kind: "monster", target: attackMon }); attackMon.confusedTurns = (attackMon.confusedTurns || 0) + _ct; ml.push(`${attackMon.name}は混乱した！(${_ct}ターン)`); }],
+                  ["inflict_bewitch",  () => { const _bt = statusTurns("bewitch", { kind: "monster", target: attackMon }); if (applyMonsterBewitch(attackMon, _bt, ml) > 0) ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${_bt}ターン)`); }],
                   ["inflict_seal",     () => { applyMonsterSeal(attackMon, dg, p, ml, lu); }],
                 ];
                 for (const [abId, fn] of _inflicts) {
@@ -2932,9 +2932,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
                 /* 影縫い：25%の確率で移動封じ3ターン */
                 if (attackMon.hp > 0 && wabHas("inflict_immobile") && Math.random() < 0.25) {
-                  const _it = statusTurns("immobile", { kind: "monster", target: attackMon });
-                  attackMon.immobileTurns = (attackMon.immobileTurns || 0) + _it;
-                  ml.push(`${attackMon.name}は影に縫い止められた！(${_it}ターン)`);
+                  if (!blockLargeMonsterStatus(attackMon, "immobile", ml)) {
+                    startLargeMonsterStatusCooldown(attackMon, "immobile");
+                    const _it = statusTurns("immobile", { kind: "monster", target: attackMon });
+                    attackMon.immobileTurns = (attackMon.immobileTurns || 0) + _it;
+                    ml.push(`${attackMon.name}は影に縫い止められた！(${_it}ターン)`);
+                  }
                 }
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { killMonster(attackMon, dg, p, ml, lu); }
