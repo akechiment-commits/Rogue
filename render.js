@@ -148,6 +148,7 @@ export const TILE_NAMES = {
   221: "giant_eel",
   222: "sea_devil",
   224: "king_behinmos",
+  225: "haunted_willow",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -351,6 +352,7 @@ export const TILE_RENDER = {
   180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
   223: { bg: null, fg: "#b5b867", ch: "魚" }, /* まずい魚系 */
   224: { bg: null, fg: "#c288e8", ch: "獣" }, /* キングベヒんもス */
+  225: { bg: null, fg: "#70a060", ch: "柳" }, /* お化け柳 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
   214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */

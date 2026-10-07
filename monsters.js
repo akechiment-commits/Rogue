@@ -1,7 +1,7 @@
-import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
@@ -1129,6 +1129,9 @@ export const MONS = [
       { name: "水中サボテン", hp: 70,  atk: 31, def: 9,  exp: 95  },
       { name: "水中巾着",   hp: 112, atk: 43, def: 14, exp: 155 },
     ],
+  },
+  { name: "お化け柳", hp: 78, atk: 27, def: 8, exp: 108, speed: 1, tile: 225, kind: "beast", baseKind: "hauntedWillow", monLevel: 1, minFloor: 20, maxFloor: 50, stationary: true, forcedMoveImmune: true, bodySize: 2, subtype: "hauntedWillow", desc: "2×2マスを占め、その場から動かない。強制移動を受けず、同じ部屋に烈風を吹かせ、隣接者へ枝払いを行う。", dungeonFloors: { beginner: null, intermediate: { min: 20, max: 24 }, advanced: { min: 18, max: 29 } },
+    levels: [],
   },
   { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 28 } },
     levels: [
@@ -5364,6 +5367,22 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
+    if (_moveOnly && m.subtype === "hauntedWillow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      const room = findRoom(dg.rooms, m.x, m.y);
+      const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
+      const adjacent = monsterPointDistance(m, pl.x, pl.y) <= 1;
+      if (adjacent && Math.random() < MONSTER_SPECIAL_RATE.status) {
+        m._willowAttackType = "branch";
+        m._rangedAttackThisTurn = true;
+        return;
+      }
+      if (sameRoom && Math.random() < MONSTER_SPECIAL_RATE.room) {
+        m._willowAttackType = "gale";
+        m._rangedAttackThisTurn = true;
+        return;
+      }
+    }
+
     /* 囮の経路が開いている間は、予約済み／先行分岐の遠距離特技も
        プレイヤーへ向けて実行しない。囮判定より先に走るボス特技との混線を防ぐ。 */
     const _recognizedDecoy = recognizedDecoyForMonster(m, dg, pl);
@@ -5454,6 +5473,48 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _dfDist3 = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       if (_dfDist3 >= 2 && m.turnAttacks < monEffectiveMaxAttacks(m) && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.floor)) {
         m._rangedAttackThisTurn = true;
+        return;
+      }
+    }
+
+    if (!_moveOnly && m.subtype === "hauntedWillow" && m._willowAttackType) {
+      const action = m._willowAttackType;
+      delete m._willowAttackType;
+      delete m._rangedAttackThisTurn;
+      const room = findRoom(dg.rooms, m.x, m.y);
+      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "branch" && monsterPointDistance(m, pl.x, pl.y) <= 1) {
+        m.turnAttacks++;
+        const bounds = monsterBounds(m);
+        const nearX = Math.max(bounds.x, Math.min(pl.x, bounds.x + bounds.width - 1));
+        const nearY = Math.max(bounds.y, Math.min(pl.y, bounds.y + bounds.height - 1));
+        let shoveX = Math.sign(pl.x - nearX), shoveY = Math.sign(pl.y - nearY);
+        if (shoveX === 0 && shoveY === 0) { shoveX = Math.sign(pl.x - (m.x + 0.5)); shoveY = Math.sign(pl.y - (m.y + 0.5)); }
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の枝払い！${d}ダメージ！`, {
+          onPlayerHit: damage => {
+            _onHit?.(damage, m);
+            if (pl.hp <= 0) return;
+            const fromX = pl.x, fromY = pl.y;
+            pushEntity(dg, pl.x, pl.y, shoveX, shoveY, 1, ml, "player", pl, pl, _luFn, 0, m);
+            if (pl.x !== fromX || pl.y !== fromY) pushPlayerKnockbackAnim(fromX, fromY, pl.x, pl.y);
+            const landingTrap = (dg.traps || []).find(trap => trap.x === pl.x && trap.y === pl.y);
+            if (landingTrap) opts.fireTrapFn?.(landingTrap, pl, dg, ml);
+          },
+          onPlayerMiss: _onMiss,
+          luFn: _luFn,
+        });
+        return;
+      }
+      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "gale" && room && findRoom(dg.rooms, pl.x, pl.y) === room) {
+        m.turnAttacks++;
+        ml.push(`${m.name}が烈風を巻き起こした！`);
+        monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        for (const victim of [...dg.monsters]) {
+          if (victim === m || victim.hp <= 0 || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;
+          const damage = Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+          victim.hp -= damage;
+          ml.push(`烈風が${victim.name}を襲う！${damage}ダメージ！`);
+          if (victim.hp <= 0) killMonster(victim, dg, pl, ml, _luFn, false, m);
+        }
         return;
       }
     }
@@ -5611,7 +5672,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _mtRange = _mtLvl >= 3 ? 10 : _mtLvl >= 2 ? 5 : 3;
         const _mtDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_mtDist <= _mtRange) {
-          const _adjMons = dg.monsters.filter(o => o !== m &&
+          const _adjMons = dg.monsters.filter(o => o !== m && !o.forcedMoveImmune &&
             Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
           const _adjPl = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))

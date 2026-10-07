@@ -78,6 +78,10 @@ function statueTeleportDest(dg, ox, oy, p) {
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null) {
+  if (kind === "monster" && target?.forcedMoveImmune && ["swap", "leap", "warp", "teleport_wand"].includes(eff)) {
+    ml.push(`${target.name}は強制移動を受けない！`);
+    return;
+  }
   const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && blMult >= 1
     ? ({ slow: "slow", sleep: "sleep", confuse: "confuse", sleep_bolt: "sleep", poison_bolt: "poison", ice_wand: "immobile" })[eff]
     : null;
@@ -592,6 +596,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (_cursed) {
         /* 呪い：引き寄せ（方向を逆にして目の前まで引っ張る） */
         if (kind === "monster") {
+          if (target.forcedMoveImmune) { ml.push(`${target.name}は強制移動を受けない！【呪】`); break; }
           const _pullX = p.x + dx, _pullY = p.y + dy;
           if (_pullX >= 0 && _pullX < MW && _pullY >= 0 && _pullY < MH &&
               dg.map[_pullY][_pullX] !== T.WALL && dg.map[_pullY][_pullX] !== T.BWALL &&

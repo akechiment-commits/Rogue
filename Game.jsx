@@ -1577,6 +1577,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               else mlx.push("テレポートに失敗した。");
             },
             onMonsterHit: (mon, mlx) => {
+              if (mon.forcedMoveImmune) { mlx.push(`${mon.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", mon, dx, dy, mlx);
                 return;
@@ -1586,6 +1587,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               else mlx.push("テレポートに失敗した。");
             },
             onWallReflect: (mlx) => {
+              if (m.forcedMoveImmune) { mlx.push(`${m.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;

@@ -3271,7 +3271,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         placeItemAt(dg, nx, ny, item, ml, ft);
         const _spinTpBlock = hasCursedTeleportPentacle(dg);
         const _spm = monsterAt(dg, tx, ty);
-        if (_spm) {
+        if (_spm && !_spm.forcedMoveImmune) {
           if (_spinTpBlock) { ml.push(`呪われたテレポートの魔方陣に阻まれて${_spm.name}は吹き飛ばなかった！`); }
           else {
             const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
@@ -3279,7 +3279,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
             ml.push(`${_spm.name}も吹き飛ばされた！`);
           }
-        }
+        } else if (_spm) ml.push(`${_spm.name}は強制移動を受けない！`);
         if (p && p.x === tx && p.y === ty) {
           if (_spinTpBlock) { ml.push("呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！"); }
           else {
@@ -6285,6 +6285,10 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 }
 
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0, killerMon = null) {
+  if (kind === "monster" && entity?.forcedMoveImmune) {
+    if (ml) ml.push(`${entity.name}は強制移動を受けない！`);
+    return { x, y, consumed: false, blocked: true };
+  }
   if (kind === "player" && resistsForcedMove(p)) {
     if (ml) ml.push("体幹の指輪のおかげで踏ん張った！強制移動を防いだ！");
     return { x, y, consumed: false, blocked: true };
@@ -8344,6 +8348,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "teleport_other": {
       if (kind === "monster") {
+        if (target.forcedMoveImmune) { ml.push(`${target.name}は強制移動を受けない！`); break; }
         if (hasCursedTeleportPentacle(dg)) { ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！"); break; }
         const _tof = [];
         for (let _ty = 0; _ty < MH; _ty++)

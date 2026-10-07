@@ -6,6 +6,7 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
 
   const hasGoal = player.inventory?.some((item) => item.type === "goal");
   for (const monster of [...dungeon.monsters]) {
+    if (monster.forcedMoveImmune) continue;
     if (monster.isPlayerClone) {
       const portal = dungeon.pentacles.find((pentacle) =>
         (pentacle.kind === "portal" || pentacle.kind === "fixed_portal") &&
