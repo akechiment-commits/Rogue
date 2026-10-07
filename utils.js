@@ -118,6 +118,19 @@ export function playerDopingMultiplier(player) {
   return 1;
 }
 
+/** プレイヤーの実効防御力。敵の通常攻撃・防御参照型範囲攻撃で共有する。 */
+export function calcPlayerDefense(player) {
+  const misoDef = (player?.misoDefTurns || 0) > 0 ? 8 : 0;
+  const base = (player?.def || 0) + (player?.armor?.def || 0) + (player?.armor?.plus || 0)
+    + (player?.rings || []).reduce((sum, ring) => ring.effect === "defense_ring" ? sum + (ring.plus || 0) : sum, 0)
+    + (hasAbility(player?.weapon, "def_bonus") ? 5 : 0) + misoDef;
+  const slowTurtleMult = (player?.rings || []).some(ring => ring.effect === "slow_ring") ? 2 : 1;
+  return Math.floor(base * slowTurtleMult
+    * ((player?.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
+    * ((player?.defDebuffTurns || 0) > 0 ? 0.5 : 1)
+    * playerDopingMultiplier(player));
+}
+
 /** 敵に付与されたドーピングの実効攻防値を更新する。元値は効果終了時に復元する。 */
 export function applyMonsterDopingStats(monster, multiplier) {
   if (!monster) return;

@@ -1,13 +1,13 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
-import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity } from "./items.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns, applyPlayerPoison, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, applyPlayerPoison, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
@@ -176,15 +176,7 @@ export function scaleMonFireDmg(m, dmg) {
 }
 
 function calcPlayerDef(pl) {
-  const _misoDef = (pl.misoDefTurns || 0) > 0 ? 8 : 0;
-  const _base = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0)
-    + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)
-    + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0) + _misoDef;
-  const _slowTurtleMult = (pl.rings || []).some((r) => r.effect === "slow_ring") ? 2 : 1;
-  return Math.floor(_base * _slowTurtleMult
-    * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
-    * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1)
-    * playerDopingMultiplier(pl));
+  return calcPlayerDefense(pl);
 }
 
 /* ===== ドラゴン炎ブレス（風で曲がる物理ブレス） ===== */
@@ -706,6 +698,49 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         }
       }
     }
+  }
+}
+
+function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
+  ml.push(`${m.name}がダストストームを放った！`);
+  pushSplashAnim(m.x, m.y, "#b8a777");
+  const inStorm = (x, y) => monsterPointDistance(m, x, y) <= 1;
+  if (inStorm(pl.x, pl.y)) {
+    monsterAttackPlayer(m, dg, pl, ml, damage => `ダストストームが${plName(pl)}を襲う！${damage}ダメージ！`, {
+      damageMultiplier: 0.5,
+      onPlayerHit: damage => {
+        onPlayerHit?.(damage, m);
+        if (!blockPlayerStatus(pl, ml, { proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)" })) {
+          const turns = statusTurns("darkness", { kind: "player" });
+          pl.darknessTurns = (pl.darknessTurns || 0) + turns;
+          ml.push(`ダストストームで暗闇になった！(${turns}ターン)`);
+        }
+      },
+      onPlayerMiss,
+      luFn,
+    });
+  }
+
+  for (const victim of [...dg.monsters]) {
+    if (victim.hp <= 0 || !dg.monsters.includes(victim) || victim.disguisedAsItem) continue;
+    if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
+    const normalDamage = calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1);
+    const damage = Math.max(1, Math.floor(normalDamage * 0.5));
+    victim.hp -= damage;
+    ml.push(`ダストストームが${victim.name}に命中！${damage}ダメージ！`);
+    if (victim.hp > 0) {
+      if (victim.type === "guard") {
+        ml.push(`${victim.name}には暗闇が効かなかった！`);
+      } else if ((victim.statusImmune || 0) > 0) {
+        ml.push(`${victim.name}には暗闇が効かなかった！(状態防止中)`);
+      } else {
+        const turns = statusTurns("darkness", { kind: "monster", target: victim });
+        if (applyMonsterDarkness(victim, turns, ml) > 0) {
+          ml.push(`${victim.name}はダストストームで暗闇になった！(${turns}ターン)`);
+        }
+      }
+    }
+    if (victim.hp <= 0) killMonster(victim, dg, pl, ml, luFn, false, m, false, false, victim === m);
   }
 }
 
@@ -1355,8 +1390,8 @@ export const KING_BEHINMOS = {
   name: "キングベヒんもス", hp: 1200, atk: 96, def: 55, exp: 9000,
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, bodySize: 3,
-  meteorDamage: 60, meteorInterval: 4,
-  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。赤い予兆の3×3マスへ2ターン後にメテオを落とす。",
+  meteorDamage: 100, meteorImmune: true, meteorInterval: 4,
+  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。赤い予兆の3×3マスへ2ターン後に防御力で軽減されるメテオを落とす。隣接時は自身と外周1マスに半威力のダストストームを放ち、暗闇にする。",
 };
 export const SPECIAL_BOSSES = [KING_BEHINMOS];
 
@@ -4989,6 +5024,21 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.lastPy = _cloneTargeted ? _cloneDecoy.y : pl.y;
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
+  }
+  if (m.baseKind === "boss_kingbehinmos" && _moveOnly) delete m._kingDustStormReady;
+  if (m.baseKind === "boss_kingbehinmos" && !m.sealed && !(m.attackSealTurns > 0) && !m.blind &&
+      !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
+      monsterPointDistance(m, pl.x, pl.y) <= 1 && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      m._kingDustStormReady = true;
+      return;
+    }
+    if (m._kingDustStormReady) {
+      delete m._kingDustStormReady;
+      m.turnAttacks++;
+      kingDustStorm(m, dg, pl, ml, _onHit, _onMiss, _luFn);
+      return;
+    }
   }
   if (m.baseKind === "boss_kingbehinmos" && !m.sealed &&
       !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&

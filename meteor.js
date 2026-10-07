@@ -1,4 +1,4 @@
-import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext } from './utils.js';
+import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext, calcAtkDefDmg, calcPlayerDefense } from './utils.js';
 import { monsterAreaTargets, monsterOccupiesCell } from './monsterGeometry.js';
 import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, weakenOrClearParalysis } from './items.js';
 import { monEffectiveMagicImmune } from './monTraits.js';
@@ -38,18 +38,28 @@ export function advanceMeteors(dungeon, player, messages, lu, worldTicks = 1) {
     const inArea = (x, y) => Math.abs(x - meteor.x) <= 1 && Math.abs(y - meteor.y) <= 1 &&
       !inMagicSealRoom(x, y, dungeon);
     if (inArea(player.x, player.y) && !consumeBarrier(player, messages)) {
-      const damage = multiplyCursedMagicDamage(meteor.damage, player, dungeon);
+      const mitigatedDamage = calcAtkDefDmg(meteor.damage, calcPlayerDefense(player), { defWeight: 1.5, variance: false });
+      const damage = multiplyCursedMagicDamage(mitigatedDamage, player, dungeon);
       player.deathCause = `${meteor.sourceName}のメテオにより`;
       withEnemyDamageContext(player, () => { player.hp -= damage; });
       messages.push(`メテオを受けた！${playerHpEffectLabel(player, damage)}！`);
     }
     const targets = monsterAreaTargets(dungeon.monsters || [], inArea);
+    const reportedMeteorImmunity = new Set();
     for (const monster of targets) {
       if (monster.hp <= 0 || !dungeon.monsters.includes(monster) || monster.disguisedAsItem) continue;
+      if (monster.meteorImmune || monster.baseKind === 'boss_kingbehinmos') {
+        if (!reportedMeteorImmunity.has(monster)) {
+          messages.push(`${monster.name}にはメテオが効かなかった！`);
+          reportedMeteorImmunity.add(monster);
+        }
+        continue;
+      }
       if (monEffectiveMagicImmune(monster)) continue;
       if (consumeBarrier(monster, messages)) continue;
       weakenOrClearParalysis(monster, messages);
-      const damage = multiplyCursedMagicDamage(meteor.damage, monster, dungeon);
+      const mitigatedDamage = calcAtkDefDmg(meteor.damage, monster.def || 0, { defWeight: 1, variance: false });
+      const damage = multiplyCursedMagicDamage(mitigatedDamage, monster, dungeon);
       monster.hp -= damage;
       messages.push(`メテオが${monster.name}に命中！${damage}ダメージ！`);
       if (monster.hp <= 0) killMonster(monster, dungeon, player, messages, lu, false, source);
