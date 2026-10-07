@@ -1,4 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { castMeteor, canCastMeteor } from './meteor.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -1346,6 +1347,16 @@ export const BOSSES = [
     isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
 ];
 
+/* 上級25階専用。通常ボス一覧を置換しないため、ほかのダンジョンの魔将軍は維持する。 */
+export const KING_BEHINMOS = {
+  name: "キングベヒんもス", hp: 1200, atk: 96, def: 55, exp: 9000,
+  speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
+  isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, bodySize: 3,
+  meteorDamage: 60, meteorInterval: 4,
+  desc: "3×3マスの巨体。赤い予兆の3×3マスへ2ターン後にメテオを落とす。",
+};
+export const SPECIAL_BOSSES = [KING_BEHINMOS];
+
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
   /* B5F (depth=4) 直線炎ブレス */
@@ -1675,7 +1686,7 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
   let mx = statue.x, my = statue.y;
   const blocked = (x, y) =>
     (p && p.x === x && p.y === y) ||
-    (dg.monsters || []).some((m) => m.x === x && m.y === y) ||
+    (dg.monsters || []).some((m) => monsterOccupiesCell(m, x, y)) ||
     dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL;
   if (blocked(mx, my)) {
     for (const [ox, oy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
@@ -1937,7 +1948,7 @@ const MERCHANT_PATROL_DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 function merchantTargetIsFree(x, y, m, dg, pl) {
   if (!canEnter(dg.map, x, y, false, dg)) return false;
   if (pl && pl.x === x && pl.y === y) return false;
-  if (dg.monsters?.some((other) => other !== m && other.x === x && other.y === y)) return false;
+  if (!canPlaceMonsterBody(dg, m, x, y, pl)) return false;
   if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some((pc) => pc.kind === "sanctuary" && pc.x === x && pc.y === y)) return false;
   return true;
 }
@@ -3235,7 +3246,7 @@ function tryUnstickMove(m, dg, pl, float = false) {
         (map[ny]?.[nx] === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny));
       if (m.waterOnly ? !_waterOnlyDest : !canEnter(map, nx, ny, float, dg, m.waterWalker)) continue;
       if (nx === pl?.x && ny === pl?.y) continue;
-      if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, nx, ny))) continue;
+      if (!canPlaceMonsterBody(dg, m, nx, ny, pl)) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
           dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
       if (preferNew && recent.has(nx + ny * MW)) continue;
@@ -4020,7 +4031,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
-      const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
+      const _adjPl = pl && monsterPointDistance(m, pl.x, pl.y) <= 1 &&
         (pl.potConfinedTurns || 0) <= 0;
       if (_adjPl) {
         m._idleStuck = 0;
@@ -4975,6 +4986,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.lastPy = _cloneTargeted ? _cloneDecoy.y : pl.y;
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
+  }
+  if (m.baseKind === "boss_kingbehinmos" && !m.sealed &&
+      !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&
+      canSee && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
+      !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg) &&
+      canCastMeteor(m, dg)) {
+    // 等速敵は移動するとそのターン攻撃できない。詠唱可能なら移動に行動を使わない。
+    if (_moveOnly) return;
+    if (m.turnAttacks < monEffectiveMaxAttacks(m) && castMeteor(m, dg, pl, ml)) {
+      m.turnAttacks++;
+      return;
+    }
   }
   /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡（魔封じで無効） */
   if (!_plPotHidden && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {

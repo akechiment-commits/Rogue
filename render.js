@@ -147,6 +147,7 @@ export const TILE_NAMES = {
   220: "homing_projectile_enemy",
   221: "giant_eel",
   222: "sea_devil",
+  224: "king_behinmos",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -349,6 +350,7 @@ export const TILE_RENDER = {
   179: { bg: null, fg: "#a0a0a0", ch: "G" }, /* ガーゴイル */
   180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
   223: { bg: null, fg: "#b5b867", ch: "魚" }, /* まずい魚系 */
+  224: { bg: null, fg: "#c288e8", ch: "獣" }, /* キングベヒんもス */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
   214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */

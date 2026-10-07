@@ -1,4 +1,4 @@
-import { monsterOccupiesCell, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets } from "./monsterGeometry.js";
+import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets } from "./monsterGeometry.js";
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
@@ -98,7 +98,7 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
   if (portal.kind === "fixed_portal") {
     const _pair = findFixedPortalPair(dg, portal);
     if (!_pair) return null;
-    if (dg.monsters?.some(m => m.x === _pair.x && m.y === _pair.y)) return null;
+    if (dg.monsters?.some(m => monsterOccupiesCell(m, _pair.x, _pair.y))) return null;
     ml.push(`${resolveItemName(item)}が${portal.name}に吸い込まれて対の転送陣から出てきた！`);
     return placeItemAt(dg, _pair.x, _pair.y, item, ml, ft, dep + 1, p, _pair.x, _pair.y, true);
   }
@@ -133,7 +133,7 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
   const _idx = _cycle.findIndex(e => e.portal === portal);
   for (let _off = 1; _off < _cycle.length; _off++) {
     const _next = _cycle[(_idx + _off) % _cycle.length];
-    if (_next.dg.monsters?.some(m => m.x === _next.portal.x && m.y === _next.portal.y)) continue;
+    if (_next.dg.monsters?.some(m => monsterOccupiesCell(m, _next.portal.x, _next.portal.y))) continue;
     const _crossFloor = _next.dg !== dg;
     ml.push(_crossFloor
       ? `${resolveItemName(item)}が${portal.name}に吸い込まれて地下${_next.depth}階の${_next.portal.name}から出てきた！`
@@ -2109,7 +2109,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
         ml.push("爆風で壁が崩れた！");
         wallBreakDrop(dg, ax, ay);
-        if (!monsterAt(dg, ax, ay)) continue;
+        if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
       }
       /* モンスターダメージ */
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
@@ -2279,7 +2279,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
           ml.push("爆風で壁が崩れた！");
           wallBreakDrop(dg, ax, ay);
-          continue;
+          if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
         }
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
@@ -2429,7 +2429,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
         if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
         ml.push("爆風で壁が崩れた！");
         wallBreakDrop(dg, ax, ay);
-        continue;
+        if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
       }
       /* プレイヤー：HPが1になる＋炎アイテム損傷（耐火時は半減ダメージのみ） */
       if (p && p.x === ax && p.y === ay) {
@@ -2828,7 +2828,7 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
     let mx = it.x, my = it.y;
     const blocked = (x, y) =>
       (p && p.x === x && p.y === y) ||
-      (dg.monsters || []).some((m) => m.x === x && m.y === y);
+      (dg.monsters || []).some((m) => monsterOccupiesCell(m, x, y));
     if (blocked(mx, my)) {
       let found = false;
       for (const [ox, oy] of [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
@@ -4946,7 +4946,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     for (let dx2 = -1; dx2 <= 1; dx2++) {
       const tx = cx + dx2, ty = cy + dy2;
       if (tx >= 0 && tx < MW && ty >= 0 && ty < MH &&
-          ((dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL) || monsterAt(dg, tx, ty)))
+          ((dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL) || monsterBodySize(monsterAt(dg, tx, ty)) > 1))
         tiles.push({ x:tx, y:ty });
     }
   const _otherMons = killerMon ? (dg.monsters || []).filter((mon) => mon !== killerMon) : [];
@@ -5621,7 +5621,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
           ml.push("爆発で壁が崩れた！");
           wallBreakDrop(dg, ax, ay);
-          continue;
+          if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
         }
         /* モンスターへのダメージ（即死→連鎖爆発） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
@@ -6373,7 +6373,7 @@ function specialProjectileColor(kind, owner = null) {
 }
 
 function specialProjectileMonsterAt(dg, x, y) {
-  return (dg.monsters || []).find(m => m.x === x && m.y === y && (m.hp ?? 1) > 0) || null;
+  return (dg.monsters || []).find(m => monsterOccupiesCell(m, x, y) && (m.hp ?? 1) > 0) || null;
 }
 
 function isEnemyHomingProjectile(sp) {
@@ -6507,7 +6507,7 @@ function chooseSpecialProjectileFloor(dg, p, sp) {
     const y = rng(_room.y, _room.y + _room.h - 1);
     if (!specialProjectileCellOpen(dg, x, y)) continue;
     if (p && p.x === x && p.y === y) continue;
-    if (dg.monsters?.some(m => m.x === x && m.y === y && (m.hp ?? 1) > 0)) continue;
+    if (dg.monsters?.some(m => monsterOccupiesCell(m, x, y) && (m.hp ?? 1) > 0)) continue;
     if (dg.bigboxes?.some(b => b.x === x && b.y === y)) continue;
     if (dg.traps?.some(t => t.x === x && t.y === y)) continue;
     if (statueAt(dg, x, y)) continue;
@@ -7959,7 +7959,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           .filter(({ x, y }) =>
             dg.map[y]?.[x] === T.FLOOR &&
             !(x === p.x && y === p.y) &&
-            !dg.monsters?.some((m) => m.x === x && m.y === y) &&
+            !dg.monsters?.some((m) => monsterOccupiesCell(m, x, y)) &&
             !dg.items?.some((it) => !it.wallEmbedded && it.x === x && it.y === y) &&
             !dg.traps?.some((trap) => trap.x === x && trap.y === y) &&
             !dg.springs?.some((spring) => spring.x === x && spring.y === y) &&

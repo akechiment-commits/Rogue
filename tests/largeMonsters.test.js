@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { monsterAt, T, MW, MH } from '../utils.js';
 import { monsterAI } from '../monsters.js';
-import { splashPotion, throwItemAlongLine, applySpellEffect, pushEntity } from '../items.js';
+import { splashPotion, throwItemAlongLine, applySpellEffect, pushEntity, doExplosion, doGunpowderExplosion, doTimeBombExplosion } from '../items.js';
 import { applyWandEffect, fireWandBolt, triggerWandBreakEffect } from '../wands.js';
 import { monsterAreaHitCount, monsterBodyCells, canPlaceMonsterBody } from '../monsterGeometry.js';
 import { monsterDrawBounds, drawLargeMonster } from '../monsterRendering.js';
@@ -62,6 +62,15 @@ describe('巨大敵の体の命中判定', () => {
     triggerWandBreakEffect({type:'wand',effect:'lightning',charges:1},10,10,dg,p,[],lu);
     expect(dg.monsters).toEqual([]); expect(p.exp).toBe(10); expect(lu).toHaveBeenCalledTimes(1);
   });
+  it.each([doExplosion,doGunpowderExplosion,doTimeBombExplosion])('通路の壁にまたがった体にも同じ爆風が当たる: %s', blast => {
+    vi.spyOn(Math,'random').mockReturnValue(0.9);
+    const p=makePlayer({x:2,y:2}), floorMon=giant(3,{isBoss:true}), wallMon=giant(3,{isBoss:true});
+    const floor=makeEmptyDg({monsters:[floorMon]}), walls=makeEmptyDg({monsters:[wallMon]});
+    for(let y=9;y<=11;y++) for(let x=9;x<=11;x++) if(y!==10) walls.map[y][x]=T.WALL;
+    if(blast===doExplosion) { blast(10,10,floor,p,[],null,'爆風'); blast(10,10,walls,p,[],null,'爆風'); }
+    else { blast(10,10,floor,p,[],()=>{}); blast(10,10,walls,p,[],()=>{}); }
+    expect(wallMon.hp).toBe(floorMon.hp); expect(wallMon.hp).toBeLessThan(2000);
+  });
 });
 
 describe('巨大敵の移動と表示', () => {
@@ -75,6 +84,8 @@ describe('巨大敵の移動と表示', () => {
     monsterAI(m,dg,p,[],{moveOnly:true}); expect(m.x).toBe(8);
     monsterAI(m,dg,p,[],{moveOnly:true}); expect(m.x).toBe(7);
     monsterAI(m,dg,p,[],{moveOnly:true}); expect(m.x).toBe(7);
+    for(let i=0;i<12;i++) monsterAI(m,dg,p,[],{moveOnly:true});
+    expect(m.x).toBe(7); expect(m._idleStuck).toBe(0);
     monsterAI(m,dg,p,[],{attackOnly:true}); expect(p.hp).toBeLessThan(100);
   });
   it('吹き飛ばされた体の端でもプレイヤーとの衝突を検出する', () => {

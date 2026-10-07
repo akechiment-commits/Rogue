@@ -1,5 +1,6 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { T } from "./utils.js";
+import { meteorAt } from './meteor.js';
 
 /**
  * 調べるモードで 1 マスに表示する説明を組み立てる。
@@ -57,6 +58,9 @@ export function describeLookCell({
   }
 
   const parts = [];
+  for (const meteor of meteorAt(dungeon, x, y)) {
+    parts.push(`メテオの予兆（あと${meteor.turnsLeft}ターン）`);
+  }
   if (tile === T.SD) parts.push("下り階段");
   else if (tile === T.SU) parts.push("上り階段");
   else {

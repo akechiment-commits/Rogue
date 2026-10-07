@@ -3,6 +3,7 @@ import { T, TI, MW, MH, clamp, ensureItemMimicFloorItems } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
 import { monsterBodySize } from './monsterGeometry.js';
 import { monsterDrawBounds, monsterVisible, drawLargeMonster } from './monsterRendering.js';
+import { drawMeteorWarnings } from './meteor.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
 const VENT_TILE_BY_DIR = {
@@ -1188,6 +1189,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       }
       drawMonsterOverlays(ctx, _wm, _wpx, _wpy, sz);
     }
+
+    /* 予兆はキャラクター描画の後にも見えるよう重ね、各マスに残りターンを示す。 */
+    drawMeteorWarnings(ctx, dg, sx, sy, sz);
 
     /* ===== lookMode cursor ===== */
     if (lookMode) {

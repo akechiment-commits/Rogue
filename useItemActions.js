@@ -67,7 +67,7 @@ function applyLuckFoodGold(player, foodTier, messages) {
 function findBigboxSummonPosition(dg, p) {
   const blocked = (x, y) =>
     dg.map[y]?.[x] !== T.FLOOR ||
-    dg.monsters?.some((m) => m.x === x && m.y === y) ||
+    dg.monsters?.some((m) => monsterOccupiesCell(m, x, y)) ||
     dg.items?.some((it) => it.x === x && it.y === y) ||
     dg.traps?.some((trap) => trap.x === x && trap.y === y) ||
     dg.springs?.some((spring) => spring.x === x && spring.y === y) ||

@@ -1884,7 +1884,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       for (let x = 0; x < MW; x++) {
         if (dg.map[y]?.[x] !== T.FLOOR) continue;
         if (x === p.x && y === p.y) continue;
-        if (dg.monsters?.some((monster) => monster.x === x && monster.y === y)) continue;
+        if (dg.monsters?.some((monster) => monsterOccupiesCell(monster, x, y))) continue;
         candidates.push([x, y]);
       }
     }
@@ -1990,6 +1990,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             lu,
             ident: sr.current?.ident,
             tickTimedEffects: _worldTick,
+            worldTicks: _clock.worldTicks,
           });
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _attackPhase = runMonsterAttackPhase(st.dungeon, p, ml, {

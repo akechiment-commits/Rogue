@@ -1,4 +1,4 @@
-import { BOSSES, INTERMEDIATE_BOSSES, MONS } from "./monsters.js";
+import { BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES, MONS } from "./monsters.js";
 import { NO_ENCYCLOPEDIA_INFO } from "./encyclopediaData.js";
 
 /* 基本種の解説。上位種は同じ生態に、能力値とレベル情報を添えて表示する。 */
@@ -81,6 +81,7 @@ const DESCRIPTION_BY_KIND = Object.freeze({
   boss_guardian: "B15Fのボス。毎ターン傷を再生し、3回攻撃で迫る。回復量を上回る火力で短期決戦を狙いたい。",
   boss_demonking: "B20Fのボス。倍速・3回攻撃で戦い、5ターンごとに手下を召喚する。取り巻きを抑えつつ本体を攻めよう。",
   boss_warlord: "B25Fのボス。攻撃を受けると30%で防御力を半減させる。長期戦を避け、被弾を減らして戦いたい。",
+  boss_kingbehinmos: "上級25階のボス。3×3マスの巨体で、1マス幅の通路も通る。範囲攻撃は体のマス数だけ命中する。赤い3×3マスの予兆から2ターン後に60ダメージのメテオが落ちる。予兆は動かず、詠唱後は倒しても落ちるため、範囲の外へ逃げよう。",
   boss_skullking: "B30Fのボス。3ターンごとに手下を2体呼び、攻撃の35%でHPを吸収する。狭い場所で召喚を制限したい。",
   boss_flamedragon: "B35Fのボス。倍速・3回攻撃で、視界内なら毎ターン40%で油まみれにする。油を落とすか炎耐性で対抗しよう。",
   boss_voidmonk: "B40Fのボス。毎ターン回復し、5ターンごとに鈍足・混乱・封印のいずれかを使う。回復量を超える火力が必要。",
@@ -97,6 +98,7 @@ for (const base of MONS) {
 }
 for (const boss of BOSSES) MONSTER_CATALOG.push(boss);
 for (const boss of INTERMEDIATE_BOSSES) MONSTER_CATALOG.push(boss);
+for (const boss of SPECIAL_BOSSES) MONSTER_CATALOG.push(boss);
 
 const MONSTER_BY_NAME = new Map(MONSTER_CATALOG.map((monster) => [monster.name, monster]));
 
