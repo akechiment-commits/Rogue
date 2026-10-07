@@ -704,7 +704,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
 function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
   ml.push(`${m.name}がダストストームを放った！`);
   pushSplashAnim(m.x, m.y, "#b8a777");
-  const inStorm = (x, y) => monsterPointDistance(m, x, y) <= 1;
+  const inStorm = (x, y) => monsterPointDistance(m, x, y) === 1;
   if (inStorm(pl.x, pl.y)) {
     monsterAttackPlayer(m, dg, pl, ml, damage => `ダストストームが${plName(pl)}を襲う！${damage}ダメージ！`, {
       damageMultiplier: 0.5,
@@ -722,6 +722,7 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
   }
 
   for (const victim of [...dg.monsters]) {
+    if (victim === m) continue;
     if (victim.hp <= 0 || !dg.monsters.includes(victim) || victim.disguisedAsItem) continue;
     if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
     const normalDamage = calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1);
@@ -740,7 +741,7 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
         }
       }
     }
-    if (victim.hp <= 0) killMonster(victim, dg, pl, ml, luFn, false, m, false, false, victim === m);
+    if (victim.hp <= 0) killMonster(victim, dg, pl, ml, luFn, false, m);
   }
 }
 
@@ -1391,7 +1392,7 @@ export const KING_BEHINMOS = {
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, bodySize: 3,
   meteorDamage: 100, meteorImmune: true, meteorInterval: 4,
-  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。赤い予兆の3×3マスへ2ターン後に防御力で軽減されるメテオを落とす。隣接時は自身と外周1マスに半威力のダストストームを放ち、暗闇にする。",
+  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。赤い予兆の3×3マスへ2ターン後に防御力で軽減されるメテオを落とす。隣接時は本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
 };
 export const SPECIAL_BOSSES = [KING_BEHINMOS];
 
