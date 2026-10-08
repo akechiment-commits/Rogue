@@ -1,6 +1,7 @@
 import { ACTION_TIME_BASE, syncActorsToClock } from "./actionClock.js";
 import { T, hasGravityPentacle } from "./utils.js";
 import { monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monEffectiveSpeed } from "./monTraits.js";
+import { monsterBodyCells, monsterPointDistance, monsterOccupiesCell } from './monsterGeometry.js';
 
 export const ABSENCE_PATROL_INTERVAL = 4;
 export const ABSENCE_PATROL_MAX_DISTANCE = 48;
@@ -15,8 +16,8 @@ function recognizesPlayer(monster, dungeon, player) {
   const sameRoom = dungeon.rooms?.some(room =>
     [monster, player].every(pos => pos.x >= room.x && pos.x < room.x + room.w &&
       pos.y >= room.y && pos.y < room.y + room.h));
-  return !!(sameRoom || dungeon.visible?.[monster.y]?.[monster.x] ||
-    Math.max(Math.abs(monster.x - player.x), Math.abs(monster.y - player.y)) <= 1);
+  return !!(sameRoom || monsterBodyCells(monster).some(cell => dungeon.visible?.[cell.y]?.[cell.x]) ||
+    monsterPointDistance(monster, player.x, player.y) <= 1);
 }
 
 /** 不在フロアは更新せず、離脱時刻と待ち伏せする敵だけを保存する。 */
@@ -38,7 +39,7 @@ function canPatrol(monster, dungeon) {
     !["sleepTurns", "frozenTurns", "immobileTurns", "knockdownTurns"].some(k => monster[k] > 0);
 }
 
-function patrolDestination(monster, dungeon, occupied, blocked, distance, random) {
+function patrolDestination(monster, dungeon, occupied, blocked, player, distance, random) {
   const map = dungeon.map;
   const wallWalker = monEffectiveWallWalker(monster);
   const canFloat = monEffectiveFloat(monster);
@@ -46,7 +47,9 @@ function patrolDestination(monster, dungeon, occupied, blocked, distance, random
     if (y <= 0 || y >= map.length - 1 || x <= 0 || x >= map[y].length - 1) return false;
     const tile = map[y][x];
     if (!tile || tile === T.BWALL || (tile === T.WALL && !wallWalker)) return false;
-    if (blocked.has(key(x, y)) || occupied.has(key(x, y))) return false;
+    if (blocked.has(key(x, y))) return false;
+    if (monsterOccupiesCell({ ...monster, x, y }, player.x, player.y)) return false;
+    if (monsterBodyCells(monster, x, y).some(cell => occupied.has(key(cell.x, cell.y)))) return false;
     return tile !== T.WATER || monster.waterWalker ||
       (canFloat && (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, x, y)));
   };
@@ -78,7 +81,17 @@ function patrolDestination(monster, dungeon, occupied, blocked, distance, random
 export function resumeFloor(dungeon, player, { random = Math.random } = {}) {
   const now = player.actionTime || 0;
   const monsters = dungeon.monsters || [];
-  const occupied = new Set(monsters.filter(m => m.hp > 0).map(m => key(m.x, m.y)));
+  // マスごとの占有数を保持し、巡回する本人だけを一時的に除外する。
+  // 自分の元の体との重なりは許可し、ほかの体と既存の重複は消さない。
+  const occupied = new Map();
+  const markBody = (monster, delta) => {
+    for (const cell of monsterBodyCells(monster)) {
+      const id = key(cell.x, cell.y), count = (occupied.get(id) || 0) + delta;
+      if (count > 0) occupied.set(id, count);
+      else occupied.delete(id);
+    }
+  };
+  for (const monster of monsters) if (monster.hp > 0) markBody(monster, 1);
   const blocked = new Set([key(player.x, player.y)]);
   for (const pos of [dungeon.stairUp, dungeon.stairDown,
     ...(dungeon.statues || []), ...(dungeon.traps || []), ...(dungeon.pentacles || []),
@@ -93,9 +106,9 @@ export function resumeFloor(dungeon, player, { random = Math.random } = {}) {
     const distance = Math.min(ABSENCE_PATROL_MAX_DISTANCE,
       Math.floor(beats * monEffectiveSpeed(monster) / ABSENCE_PATROL_INTERVAL));
     if (distance > 0 && canPatrol(monster, dungeon)) {
-      const destination = patrolDestination(monster, dungeon, occupied, blocked, distance, random);
+      markBody(monster, -1);
+      const destination = patrolDestination(monster, dungeon, occupied, blocked, player, distance, random);
       if (destination) {
-        occupied.delete(key(monster.x, monster.y));
         monster.x = destination.x;
         monster.y = destination.y;
         monster.dir = { x: destination.dx, y: destination.dy };
@@ -105,9 +118,9 @@ export function resumeFloor(dungeon, player, { random = Math.random } = {}) {
         monster.patrolTarget = null;
         monster.posHistory = [];
         monster._idleStuck = 0;
-        occupied.add(key(monster.x, monster.y));
         moved++;
       }
+      markBody(monster, 1);
     }
     delete monster.absentSince;
     delete monster.waitDuringAbsence;

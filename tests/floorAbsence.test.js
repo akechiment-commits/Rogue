@@ -3,6 +3,7 @@ import { suspendFloor, resumeFloor, ABSENCE_PATROL_MAX_DISTANCE } from "../floor
 import { beginPlayerTurnClock, takeDueActions } from "../actionClock.js";
 import { T, createSeededRng } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { monsterBodiesOverlap, monsterOccupiesCell } from '../monsterGeometry.js';
 
 function setup(extra = {}) {
   const monster = { id: "patrol", x: 5, y: 5, hp: 30, speed: 1, actionTime: 120, ...extra };
@@ -12,6 +13,45 @@ function setup(extra = {}) {
 }
 
 describe("不在フロアの巡回と復帰", () => {
+  it('巨大敵も自分の元の体には妨げられず1マス幅の通路を巡回する', () => {
+    const {monster,dungeon,player}=setup({x:10,y:10,bodySize:3});
+    dungeon.map=dungeon.map.map(row=>row.map(()=>T.WALL));
+    for(let x=9;x<=13;x++) dungeon.map[10][x]=T.FLOOR;
+    suspendFloor(dungeon,player); player.actionTime+=48;
+    expect(resumeFloor(dungeon,player,{random:()=>0})).toBe(1);
+    expect([monster.x,monster.y]).toEqual([11,10]);
+  });
+  it('階段離脱時は巨大敵の体の端が隣接していても待ち伏せ対象にする', () => {
+    const {monster,dungeon,player}=setup({bodySize:3});
+    player.x=3; player.y=3;
+    suspendFloor(dungeon,player,{stairs:true});
+    expect(monster.waitDuringAbsence).toBe(true);
+    player.actionTime+=480;
+    resumeFloor(dungeon,player,{random:()=>0});
+    expect([monster.x,monster.y]).toEqual([5,5]);
+  });
+  it('巡回する通常敵が静止中の2×2の柳の体へ入り込まない', () => {
+    const {monster,dungeon,player}=setup();
+    const willow={id:'willow',x:4,y:3,hp:78,bodySize:2,stationary:true,speed:1};
+    dungeon.monsters.push(willow);
+    dungeon.map=dungeon.map.map(row=>row.map(()=>T.WALL));
+    for(const [x,y] of [[5,5],[5,4],[4,3],[2,2]]) dungeon.map[y][x]=T.FLOOR;
+    suspendFloor(dungeon,player); player.actionTime+=48;
+    resumeFloor(dungeon,player,{random:()=>0});
+    expect(monsterBodiesOverlap(monster,willow)).toBe(false);
+    expect([monster.x,monster.y]).toEqual([5,5]);
+  });
+  it('巡回する3×3のキングが体の端をプレイヤーの到着マスへ重ねない', () => {
+    const {monster,dungeon,player}=setup({x:10,y:10,bodySize:3,isBoss:true});
+    dungeon.map=dungeon.map.map(row=>row.map(()=>T.WALL));
+    for(const [x,y] of [[10,10],[10,9],[9,8]]) dungeon.map[y][x]=T.FLOOR;
+    player.x=9; player.y=8;
+    expect(monsterOccupiesCell(monster,player.x,player.y)).toBe(false);
+    suspendFloor(dungeon,player); player.actionTime+=48;
+    resumeFloor(dungeon,player,{random:()=>0});
+    expect(monsterOccupiesCell(monster,player.x,player.y)).toBe(false);
+    expect([monster.x,monster.y]).toEqual([10,10]);
+  });
   it("長期不在でも復帰直後に敵が行動をまとめて消化しない", () => {
     const { monster, dungeon, player } = setup({ aware: true });
     suspendFloor(dungeon, player, { stairs: true });
