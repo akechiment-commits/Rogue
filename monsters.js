@@ -1392,7 +1392,7 @@ export const KING_BEHINMOS = {
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, bodySize: 3,
   meteorDamage: 100, meteorImmune: true, meteorInterval: 4,
-  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。赤い予兆の3×3マスへ2ターン後に防御力で軽減されるメテオを落とす。隣接時は本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
+  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。赤い予兆の3×3マスへ2ターン後に防御力で軽減されるメテオを落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
 };
 export const SPECIAL_BOSSES = [KING_BEHINMOS];
 
@@ -5031,8 +5031,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
       monsterPointDistance(m, pl.x, pl.y) <= 1 && m.turnAttacks < monEffectiveMaxAttacks(m)) {
     if (_moveOnly) {
-      m._kingDustStormReady = true;
-      return;
+      if (Math.random() < MONSTER_SPECIAL_RATE.status) {
+        m._kingDustStormReady = true;
+        return;
+      }
     }
     if (m._kingDustStormReady) {
       delete m._kingDustStormReady;
