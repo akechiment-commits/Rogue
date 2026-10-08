@@ -440,9 +440,9 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions
   const _aim = throwOptions?.aim || _target;
   const _wind = throwOptions?.wind !== false;
   const dx = Math.sign(_aim.x - m.x), dy = Math.sign(_aim.y - m.y);
-  ml.push(throwOptions?.target
+  ml.push(throwOptions?.message || (throwOptions?.target
     ? `${m.name}は${_target.name}に${_pot.name}を投げた！`
-    : `${m.name}が謎の薬を投げた！`);
+    : `${m.name}が謎の薬を投げた！`));
   const item = {
     name: _pot.name,
     type: "potion",
@@ -3932,9 +3932,11 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     }
     if (m.type === "guard" && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8) {
       m.turnAttacks++;
-      ml.push(`${m.name}が暗闇の薬を投げた！`);
-      pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
-      splashPotion(dg, pl.x, pl.y, "darkness", 20, pl, ml, null, false, false);
+      monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+        potion: { name: "暗闇の薬", effect: "darkness", value: 20, tile: 16 },
+        message: `${m.name}が暗闇の薬を投げた！`,
+        color: "#334466",
+      });
       return true;
     }
   }
@@ -5782,9 +5784,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* ── 警備員：縦・横の直線上で暗闇の薬投げ ── */
       if (m.type === "guard" && !m.sealed && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
         m.turnAttacks++;
-        ml.push(`${m.name}が暗闇の薬を投げた！`);
-        pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
-        splashPotion(dg, pl.x, pl.y, "darkness", 20, pl, ml, null, false, false);
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+          potion: { name: "暗闇の薬", effect: "darkness", value: 20, tile: 16 },
+          message: `${m.name}が暗闇の薬を投げた！`,
+          color: "#334466",
+        });
         return;
       }
 
