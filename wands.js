@@ -863,8 +863,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const levelOffset = blMult > 1 ? -1 : blMult < 1 ? 1 : 0;
         const _tfPool = resolveRuntimeSpawnPoolFloor(dg, p.depth);
         const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, levelOffset, { poolFloor: _tfPool });
-        ml.push(`${target.name}は${nt.name}に変化した！`);
-        applyMonsterTransformation(target, nt);
+        const prevName = target.name;
+        if (!applyMonsterTransformation(target, nt, dg, p)) {
+          ml.push("体を広げる場所がなく、変化できなかった。");
+          break;
+        }
+        ml.push(`${prevName}は${nt.name}に変化した！`);
         break;
       }
       if (kind === "player") {

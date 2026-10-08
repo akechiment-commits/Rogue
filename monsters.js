@@ -1609,7 +1609,12 @@ const TRANSFORM_DEFINITION_KEYS = new Set(MONS.flatMap(base =>
 ));
 
 /** 定義にない元の固有特性を消し、座標・時計・状態異常など個体情報は保つ。 */
-export function applyMonsterTransformation(target, definition) {
+export function applyMonsterTransformation(target, definition, dungeon = null, player = null) {
+  if (dungeon && monsterBodySize(definition) > 1) {
+    const candidate = { ...definition, x: target.x, y: target.y };
+    const others = { monsters: (dungeon.monsters || []).filter(monster => monster !== target) };
+    if (!canPlaceMonsterBody(others, candidate, target.x, target.y, player)) return false;
+  }
   if (!("bodySize" in definition)) delete target.bodySize;
   for (const key of TRANSFORM_DEFINITION_KEYS) {
     if (!(key in definition)) delete target[key];
@@ -1620,6 +1625,7 @@ export function applyMonsterTransformation(target, definition) {
   const ammo = createMonsterProjectileAmmo(target);
   if (ammo) target.projectileAmmo = ammo;
   else delete target.projectileAmmo;
+  return true;
 }
 
 /** depth/spawnLevel からモンスターのステータスオブジェクトを作る */

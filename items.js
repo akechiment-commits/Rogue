@@ -8394,7 +8394,10 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
         const _tfPool = resolveRuntimeSpawnPoolFloor(dg, p.depth);
         const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, 0, { poolFloor: _tfPool }); const prevName = target.name;
-        applyMonsterTransformation(target, nt);
+        if (!applyMonsterTransformation(target, nt, dg, p)) {
+          ml.push("体を広げる場所がなく、変化できなかった。");
+          break;
+        }
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;
     }
