@@ -5,6 +5,7 @@
  *
  * Event types:
  *   projectile: { type, fromX, fromY, toX, toY, color }
+ *   monProjectile: same path data; flightArc draws an elevated parabolic flight
  *   explosion:  { type, x, y }
  *   damage:     { type, x, y, value, color }
  *   flash:      { type, x, y, color }

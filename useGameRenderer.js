@@ -300,10 +300,23 @@ function _posOnOverlayPath(o, t, sx, sy, sz) {
 
 function drawProjectile(ctx, o, sx, sy, sz, t) {
   const pos = _posOnOverlayPath(o, t, sx, sy, sz);
-  const trail = _posOnOverlayPath(o, Math.max(0, t - 0.12), sx, sy, sz);
-  const cx = pos.cx, cy = pos.cy;
+  const trailT = Math.max(0, t - 0.12);
+  const trail = _posOnOverlayPath(o, trailT, sx, sy, sz);
+  const progress = Math.max(0, Math.min(1, t));
+  const trailProgress = Math.max(0, Math.min(1, trailT));
+  const arcHeight = o.flightArc ? sz * (o.flightArcHeight ?? 0.9) : 0;
+  const cy = pos.cy - Math.sin(Math.PI * progress) * arcHeight;
+  const trailY = trail.cy - Math.sin(Math.PI * trailProgress) * arcHeight;
+  const cx = pos.cx;
   const alpha = t > 0.9 ? (1 - t) * 10 : 1;
   ctx.save();
+  if (o.flightArc) {
+    ctx.globalAlpha = alpha * 0.24;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(pos.cx, pos.cy + sz * 0.24, sz * 0.18, sz * 0.06, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.globalAlpha = alpha;
   /* Draw projectile dot/trail */
   ctx.fillStyle = o.color || "#ffcc44";
@@ -315,7 +328,7 @@ function drawProjectile(ctx, o, sx, sy, sz, t) {
   ctx.strokeStyle = o.color || "#ffcc44";
   ctx.lineWidth = Math.max(1, sz * 0.08);
   ctx.beginPath();
-  ctx.moveTo(trail.cx, trail.cy);
+  ctx.moveTo(trail.cx, trailY);
   ctx.lineTo(cx, cy);
   ctx.stroke();
   ctx.restore();

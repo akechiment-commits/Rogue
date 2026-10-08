@@ -2376,7 +2376,7 @@ function monsterThrowChargedFuzzball(m, dg, pl, ml, luFn) {
   });
 }
 
-/* ===== MONSTER STONE THROW (ワッカ) — ホーミング。風は本来の着弾点にあるときだけ曲がる ===== */
+/* ===== MONSTER STONE THROW (ワッカ) — 放物線で敵や床オブジェクトを越えるホーミング投げ ===== */
 function monsterThrowStone(m, dg, pl, ml) {
   const ammo = ensureMonsterProjectileAmmo(m);
   if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
@@ -2440,6 +2440,20 @@ function monsterThrowStone(m, dg, pl, ml) {
   let windMsg = false;
   const path = [{ x: m.x, y: m.y }];
   const maxSteps = MW + MH;
+  const pushStoneArcAnim = (toX = lx, toY = ly) => {
+    if (path.length <= 1) return;
+    pushAnim({
+      type: "monProjectile",
+      fromX: m.x,
+      fromY: m.y,
+      toX,
+      toY,
+      color,
+      path: [...path],
+      flightArc: true,
+      flightArcHeight: 0.9,
+    });
+  };
 
   for (let d = 1; d <= maxSteps; d++) {
     if (!deflected) {
@@ -2449,9 +2463,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       if (fdx === 0 && fdy === 0) {
         /* 同一マス＝既に重なっている扱いで命中処理 */
         _hitPlayer();
-        if (path.length > 1) {
-          pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: cx, toY: cy, color, path });
-        }
+        pushStoneArcAnim(cx, cy);
         return;
       }
     }
@@ -2460,9 +2472,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       const _sd = safeArrowDrop(lx, ly, dg);
       _monDropWithSpring(_sd, dropStone(), dg, ml);
       ml.push(`${stoneName}は壁に当たって落ちた。`);
-      if (path.length > 1) {
-        pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: lx, toY: ly, color, path });
-      }
+      pushStoneArcAnim(lx, ly);
       return;
     }
     cx = tx; cy = ty; lx = tx; ly = ty;
@@ -2475,30 +2485,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       m.hp -= dmg;
       ml.push(`風に煽られた${stoneName}が${m.name}自身に当たった！${dmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, m);
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
-      return;
-    }
-
-    /* 石像 */
-    if (statueAt(dg, tx, ty)) {
-      ml.push(`${m.name}の${stoneName}が石像に命中！`);
-      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, {
-        breaks: true,
-        itemDeps: getFixtureItemDeps(),
-      });
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
-      return;
-    }
-
-    /* 他モンスター */
-    const hitMon = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, tx, ty));
-    if (hitMon) {
-      const _stBonus = isMagic ? 5 : 3;
-      const dmg = calcAtkDefDmg(m.atk + _stBonus, hitMon.def || 0, { defWeight: 1 });
-      hitMon.hp -= dmg;
-      ml.push(`${m.name}の${stoneName}が${hitMon.name}に命中！${dmg}ダメージ！`);
-      if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, null, false, m);
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
+      pushStoneArcAnim(tx, ty);
       return;
     }
 
@@ -2512,7 +2499,7 @@ function monsterThrowStone(m, dg, pl, ml) {
         /* プレイヤーが着弾点にいれば風より先に命中 */
         if (tx === pl.x && ty === pl.y) {
           _hitPlayer();
-          pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
+          pushStoneArcAnim(tx, ty);
           return;
         }
         continue;
@@ -2522,7 +2509,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     /* プレイヤー命中（ホーミング中／偏向後） */
     if (tx === pl.x && ty === pl.y) {
       _hitPlayer();
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
+      pushStoneArcAnim(tx, ty);
       return;
     }
 
@@ -2533,9 +2520,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   const _sd = safeArrowDrop(lx, ly, dg);
   _monDropWithSpring(_sd, dropStone(), dg, ml);
   ml.push(`${stoneName}はどこかへ落ちた。`);
-  if (path.length > 1) {
-    pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: lx, toY: ly, color, path });
-  }
+  pushStoneArcAnim(lx, ly);
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
