@@ -33,6 +33,7 @@ import {
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
+import { isWanderingNpc } from './wanderingAdventurer.js';
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
@@ -5536,7 +5537,7 @@ export function monsterItemDropsSuppressed(m, p = null) {
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
-  if (monsterItemDropsSuppressed(m, p)) {
+  if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, p)) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
     return;
   }
@@ -5642,6 +5643,20 @@ export function monsterDrop(m, dg, ml, p = null) {
         placeItemAt(dg, m.x, m.y, _dropItem, ml, _ft, 0, p);
       }
       ml.push(`${m.name}が売っていた${resolveItemName(_dropItem)}を落とした！`);
+    }
+    return;
+  }
+  /* さすらいの冒険者：撃破時に通常抽選から必ず1個だけ落とす。 */
+  if (m.isWanderingAdventurer) {
+    const _pool = [...ITEMS.filter(i => i.type !== "gold" && i.type !== "goal"), ...WANDS, ...RINGS];
+    const _t = _pickDrop(_pool) || pick(_pool);
+    if (_t) {
+      const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
+      if (_di.type === "pen") _di.charges = penInitialCharges(_di);
+      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      placeItemAt(dg, m.x, m.y, _di, ml, new Set(), 0, p);
+      ml.push(`${m.name}は${resolveItemName(_di)}を落とした！`);
     }
     return;
   }
@@ -6135,8 +6150,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       res.x = lx; res.y = ly; res.missedPlayer = true;
     } : null,
     onMonHit: (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
-      if (mon.isWanderingMerchant && mon.state !== "hostile") {
-        declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
+      if (isWanderingNpc(mon) && mon.state !== "hostile") {
+        declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: `${mon.name}が怒った！` });
       }
       if (_isPotion) {
         if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
@@ -6799,8 +6814,8 @@ function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
     ? Math.max(1, calcAtkDefDmg(sp.atk || 1, monster.def || 0, { defWeight: 1.5 }))
     : clampDmgFixed(monster, calcProjectileDmg(p, sp.atk || 1, monster.def), true);
   monster.hp -= _dmg;
-  if (monster.isWanderingMerchant && monster.state !== "hostile") {
-    declareShopTheft(p, dg, ml, { merchantId: monster.id, angerOnly: true, message: "行商人が怒った！" });
+  if (isWanderingNpc(monster) && monster.state !== "hostile") {
+    declareShopTheft(p, dg, ml, { merchantId: monster.id, angerOnly: true, message: `${monster.name}が怒った！` });
   }
   ml.push(`${_enemyOwned ? `${sp.sourceName || "敵"}の` : ""}${sp.name}が${monster.name}に命中！${_dmg}ダメージ！`);
   if (monster.hp <= 0) {
@@ -7353,18 +7368,18 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
  */
 export function declareShopTheft(p, dg, ml, opts = {}) {
   if (!dg || !p) return false;
-  /* 行商人への攻撃は、撃破されるまでは店泥棒にしない。店主と同じく
-     いったん怒るだけに留め、HP全快で友好へ戻せる。 */
+  /* 友好的な行商人・冒険者への攻撃は、撃破されるまでは店泥棒にしない。
+     店主と同じくいったん敵対するだけに留め、HP全快で友好へ戻せる。 */
   if (opts.angerOnly && opts.merchantId) {
-    const merchant = dg.monsters?.find((monster) => monster.id === opts.merchantId && monster.isWanderingMerchant);
-    if (merchant) {
-      const wasHostile = merchant.state === "hostile";
-      merchant.state = "hostile";
-      merchant.speed = 1;
-      merchant.aware = true;
-      merchant.lastPx = p.x;
-      merchant.lastPy = p.y;
-      if (!wasHostile && ml && opts.message !== null) ml.push(opts.message || "行商人が怒った！");
+    const wanderer = dg.monsters?.find((monster) => monster.id === opts.merchantId && isWanderingNpc(monster));
+    if (wanderer) {
+      const wasHostile = wanderer.state === "hostile";
+      wanderer.state = "hostile";
+      wanderer.speed = 1;
+      wanderer.aware = true;
+      wanderer.lastPx = p.x;
+      wanderer.lastPy = p.y;
+      if (!wasHostile && ml && opts.message !== null) ml.push(opts.message || `${wanderer.name}が怒った！`);
       return false;
     }
   }
@@ -7372,14 +7387,14 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
   dg.shopTheft = true;
   p.isThief = true;
   if (opts.merchantId) {
-    const merchant = dg.monsters?.find((monster) => monster.id === opts.merchantId && monster.isWanderingMerchant);
-    if (merchant) {
-      merchant.state = "hostile";
-      /* 行商人は平時だけ半速。敵対した瞬間から店主と同じ等速へ戻る。 */
-      merchant.speed = 1;
-      merchant.aware = true;
-      merchant.lastPx = p.x;
-      merchant.lastPy = p.y;
+    const wanderer = dg.monsters?.find((monster) => monster.id === opts.merchantId && isWanderingNpc(monster));
+    if (wanderer) {
+      wanderer.state = "hostile";
+      /* 友好的な巡回者は平時だけ半速。敵対した瞬間から等速へ戻る。 */
+      wanderer.speed = 1;
+      wanderer.aware = true;
+      wanderer.lastPx = p.x;
+      wanderer.lastPy = p.y;
     }
   }
   /* 未払い商品の値札を外す（支払い対象は unpaidTotal 側に残る） */
@@ -7447,12 +7462,13 @@ export function canCalmShopkeeper(m, dg, p) {
   return m.hp >= m.maxHp;
 }
 
-/** 店主・行商人をHP全快で友好状態へ戻す共通処理。 */
+/** 店主・行商人・冒険者をHP全快で友好状態へ戻す共通処理。 */
 export function calmShopkeeperIfFullyHealed(m, dg, p, ml) {
   if (!canCalmShopkeeper(m, dg, p)) return false;
   m.state = "friendly";
-  if (m.isWanderingMerchant) m.speed = m.baseSpeed ?? 0.5;
-  if (ml) ml.push(`${m.isWanderingMerchant ? "行商人" : "店主"}のHPが全快した！敵対状態が解除された。`);
+  if (isWanderingNpc(m)) m.speed = m.baseSpeed ?? 0.5;
+  const name = m.isWanderingMerchant ? "行商人" : m.isWanderingAdventurer ? m.name : "店主";
+  if (ml) ml.push(`${name}のHPが全快した！敵対状態が解除された。`);
   return true;
 }
 
@@ -8604,8 +8620,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
       } else {
-        if (mon.isWanderingMerchant && mon.state !== "hostile") {
-          declareShopTheft(p, dg, ml, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
+        if (isWanderingNpc(mon) && mon.state !== "hostile") {
+          declareShopTheft(p, dg, ml, { merchantId: mon.id, angerOnly: true, message: `${mon.name}が怒った！` });
         }
         applySpellEffect(spell.effect, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, lv);
       }

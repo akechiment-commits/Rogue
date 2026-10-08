@@ -14,6 +14,7 @@ import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { advancedMonsterAllowed, advancedMonsterSpawnLevel } from "./advancedMonsterRules.js";
 import { legendMonsterAllowed, legendMonsterSpawnLevel } from "./legendMonsterRules.js";
+import { isWanderingNpc } from "./wanderingAdventurer.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
@@ -4068,7 +4069,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.posHistory = [];
     }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
+    if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || isWanderingNpc(m)) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && monsterPointDistance(m, pl.x, pl.y) <= 1 &&
@@ -4904,8 +4905,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* プレイヤーに隣接していれば詰まり扱いしない（攻撃ターンは正常） */
   if (_forceAlt && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) _forceAlt = false;
 
-  /* shopkeeper（行商人は友好的な間も徘徊するため通常AIへ流す） */
-  if (m.type === "shopkeeper" && !m.isWanderingMerchant) {
+  /* 通常店主は固定。行商人・冒険者は友好的な間も巡回する。 */
+  if (m.type === "shopkeeper" && !isWanderingNpc(m)) {
     if (m.state === "friendly") {
       /* 聖域の魔法陣の上にいる場合は隣接フロアタイルに退く（魔封じで無効） */
       const _skSanctSupp = inMagicSealRoom(m.x, m.y, dg);
@@ -4959,8 +4960,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* 行商人：友好的な間はプレイヤーを攻撃せず、部屋を順番に巡回する。 */
-  if (m.isWanderingMerchant && m.state === "friendly") {
+  /* 友好的な巡回者はプレイヤーを攻撃せず、部屋を順番に巡回する。 */
+  if (isWanderingNpc(m) && m.state === "friendly") {
     if (opts.attackOnly) return;
     const _arrived = m.patrolTarget && m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;
     if (_arrived) {

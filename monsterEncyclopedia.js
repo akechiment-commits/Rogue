@@ -1,8 +1,10 @@
 import { BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES, MONS } from "./monsters.js";
 import { NO_ENCYCLOPEDIA_INFO } from "./encyclopediaData.js";
+import { isWanderingAdventurerName } from "./wanderingAdventurer.js";
 
 /* 基本種の解説。上位種は同じ生態に、能力値とレベル情報を添えて表示する。 */
 const DESCRIPTION_BY_KIND = Object.freeze({
+  wandering_adventurer: "名前も能力値も出会うたびに異なる冒険者。友好的な間は鈍足でフロアを巡回し、話しかけると特殊合成のヒントを一つ教える。攻撃などを受けると等速で襲ってくるが、撃破前にHPを全快させると敵対が解除される。倒すと出現制限内のアイテムを1個落とす。",
   rat: "小さく弱いが、序盤から群れで現れる身近な敵。まずは武器の使い方を覚える相手。",
   bat: "浮遊しているため床の罠を避ける。通路で追い詰めるより、矢や特効武器で仕留めたい。",
   centipede: "防御力がやや高い小型の虫。序盤の武器では倒し損ねに注意。",
@@ -99,22 +101,29 @@ for (const base of MONS) {
 for (const boss of BOSSES) MONSTER_CATALOG.push(boss);
 for (const boss of INTERMEDIATE_BOSSES) MONSTER_CATALOG.push(boss);
 for (const boss of SPECIAL_BOSSES) MONSTER_CATALOG.push(boss);
+const WANDERING_ADVENTURER_ENTRY = Object.freeze({
+  name: "さすらいの冒険者", hp: null, atk: null, def: null, exp: null, speed: 0.5,
+  baseKind: "wandering_adventurer", monLevel: 1, tile: 148,
+});
+MONSTER_CATALOG.push(WANDERING_ADVENTURER_ENTRY);
 
 const MONSTER_BY_NAME = new Map(MONSTER_CATALOG.map((monster) => [monster.name, monster]));
 
 export function getMonsterNumber(name) {
+  if (isWanderingAdventurerName(name)) return MONSTER_CATALOG.indexOf(WANDERING_ADVENTURER_ENTRY) + 1;
   const index = MONSTER_CATALOG.findIndex((monster) => monster.name === name);
   return index < 0 ? null : index + 1;
 }
 
 export function getMonsterEncyclopediaEntry(name) {
-  return MONSTER_BY_NAME.get(name) || null;
+  return MONSTER_BY_NAME.get(name) || (isWanderingAdventurerName(name) ? WANDERING_ADVENTURER_ENTRY : null);
 }
 
 export function getMonsterDescription(name) {
   const monster = getMonsterEncyclopediaEntry(name);
   if (!monster) return null;
   const body = DESCRIPTION_BY_KIND[monster.baseKind] || monster.desc || NO_ENCYCLOPEDIA_INFO;
+  if (monster.baseKind === "wandering_adventurer") return `${body}\n\n【記録】名前と能力値は個体ごとに変化する。`;
   const rank = monster.isBoss
     ? "ボス"
     : monster.monLevel > 1

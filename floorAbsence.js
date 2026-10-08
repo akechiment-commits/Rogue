@@ -2,6 +2,7 @@ import { ACTION_TIME_BASE, syncActorsToClock } from "./actionClock.js";
 import { T, hasGravityPentacle } from "./utils.js";
 import { monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monEffectiveSpeed } from "./monTraits.js";
 import { monsterBodyCells, monsterPointDistance, monsterOccupiesCell } from './monsterGeometry.js';
+import { isWanderingNpc } from './wanderingAdventurer.js';
 
 export const ABSENCE_PATROL_INTERVAL = 4;
 export const ABSENCE_PATROL_MAX_DISTANCE = 48;
@@ -9,7 +10,7 @@ const DIRECTIONS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const key = (x, y) => `${x},${y}`;
 
 function recognizesPlayer(monster, dungeon, player) {
-  if (monster.isWanderingMerchant && monster.state === "friendly") return false;
+  if (isWanderingNpc(monster) && monster.state === "friendly") return false;
   if (monster.aware) return true;
   if (monster.dormant || monster.sleepTurns > 0 || monster.darknessTurns > 0 ||
       player.invisibleTurns > 0 || player.potConfinedTurns > 0) return false;
@@ -35,7 +36,7 @@ function canPatrol(monster, dungeon) {
     !(monster.flightOnly && !monEffectiveMagicImmune(monster) && hasGravityPentacle(dungeon, monster.x, monster.y)) &&
     monster.subtype !== "grabber" && monster.baseKind !== "grabber" &&
     !(monster.subtype === "itemMimic" && monster.disguisedAsItem !== false) &&
-    !(monster.type === "shopkeeper" && !monster.isWanderingMerchant) &&
+    !(monster.type === "shopkeeper" && !isWanderingNpc(monster)) &&
     !["sleepTurns", "frozenTurns", "immobileTurns", "knockdownTurns"].some(k => monster[k] > 0);
 }
 

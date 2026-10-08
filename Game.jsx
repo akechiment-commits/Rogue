@@ -51,6 +51,7 @@ import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
 import SoundModal from "./SoundModal.jsx";
 import { updateDungeonBgm, createMessageSoundObserver, queueAnimationSounds, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
 import { useInterfaceSounds } from "./useInterfaceSounds.js";
+import { isWanderingNpc, nextWanderingAdventurerHint } from "./wanderingAdventurer.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -62,12 +63,12 @@ const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213, 216];
 const PUBLIC_SPECIAL_PROJECTILE_TILE_IDS = [218, 219, 220];
 const HYPNOSIS_ACTION_DELAY_MS = 600;
 
-function markWanderingMerchantHostile(monster, dungeon, player, messages) {
-  if (!monster?.isWanderingMerchant || monster.state === "hostile") return false;
+function markWanderingNpcHostile(monster, dungeon, player, messages) {
+  if (!isWanderingNpc(monster) || monster.state === "hostile") return false;
   declareShopTheft(player, dungeon, messages, {
     merchantId: monster.id,
     angerOnly: true,
-    message: "行商人が怒った！",
+    message: `${monster.name}が怒った！`,
   });
   return true;
 }
@@ -2682,21 +2683,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               attackMon.type === "shopkeeper" &&
               attackMon.state !== "hostile"
             ) {
-              if (attackMon.isWanderingMerchant) {
-                /* 体当たりでは会話せず、行商人と位置を入れ替えて進む。 */
+              if (isWanderingNpc(attackMon)) {
+                /* 体当たりでは会話せず、友好的な巡回者と位置を入れ替えて進む。 */
                 if (Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
                   attackMon.x = p.x;
                   attackMon.y = p.y;
                   p.x = nx;
                   p.y = ny;
                   _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
-                  ml.push("行商人と場所を入れ替えた。");
+                  ml.push(`${attackMon.name}と場所を入れ替えた。`);
                 } else {
-                  ml.push("行商人には体当たりできない。前を調べて話しかけよう。");
+                  ml.push(`${attackMon.name}には体当たりできない。前を調べて話しかけよう。`);
                 }
                 acted = true;
               }
-              const _bumpShop = !attackMon.isWanderingMerchant && getShops(dg).find(s => s.shopkeeperId === attackMon.id);
+              const _bumpShop = !isWanderingNpc(attackMon) && getShops(dg).find(s => s.shopkeeperId === attackMon.id);
               if (_bumpShop) {
                 const _bumpFis = dg.items.filter(
                   (i) => !i.shopPrice && i.x >= _bumpShop.room.x && i.x < _bumpShop.room.x + _bumpShop.room.w &&
@@ -2834,7 +2835,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               }
               attackMon.hp -= d;
               if (attackMon.type === "shopkeeper" && attackMon.state !== "hostile") {
-                if (!markWanderingMerchantHostile(attackMon, dg, p, ml)) {
+                if (!markWanderingNpcHostile(attackMon, dg, p, ml)) {
                   attackMon.state = "hostile";
                   ml.push("店主が怒った！");
                 }
@@ -3033,7 +3034,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     } else if (_stM && !_srForceMiss && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                      if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { if (!markWanderingMerchantHostile(_stM, dg, p, ml)) { _stM.state = "hostile"; ml.push("店主が怒った！"); } }
+                      if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { if (!markWanderingNpcHostile(_stM, dg, p, ml)) { _stM.state = "hostile"; ml.push("店主が怒った！"); } }
                       _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                       if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
                       _srPeel();
@@ -3083,7 +3084,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         if (_baM && !_srForceMiss) {
                           const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                          if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { if (!markWanderingMerchantHostile(_baM, dg, p, ml)) { _baM.state = "hostile"; ml.push("店主が怒った！"); } }
+                          if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { if (!markWanderingNpcHostile(_baM, dg, p, ml)) { _baM.state = "hostile"; ml.push("店主が怒った！"); } }
                           _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
                           if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
                           _baLx = _tx; _baLy = _ty; break;
@@ -3134,7 +3135,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         }
                         const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
                         mon.hp -= _srDmg;
-                        if (mon.type === "shopkeeper" && mon.state !== "hostile") { if (!markWanderingMerchantHostile(mon, dg, p, mlx)) { mon.state = "hostile"; mlx.push("店主が怒った！"); } }
+                        if (mon.type === "shopkeeper" && mon.state !== "hostile") { if (!markWanderingNpcHostile(mon, dg, p, mlx)) { mon.state = "hostile"; mlx.push("店主が怒った！"); } }
                         let _poisonT = 0;
                         if (_isPoison) {
                           if (mon.isBoss) {
@@ -3586,6 +3587,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setMerchantMenuSel(0);
           showFirstEncounterTip("wandering_merchant");
           setMsgs((prev) => [...prev.slice(-80), "行商人：「何かお探しかい？」"]);
+          return;
+        }
+        if (mon.isWanderingAdventurer) {
+          const hint = nextWanderingAdventurerHint(mon);
+          setMsgs((prev) => [...prev.slice(-80), `${mon.name}：「${hint}」`]);
           return;
         }
         const dg6 = sr.current.dungeon;

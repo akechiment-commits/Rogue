@@ -13,6 +13,7 @@ import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
 import { specialFixtureRate } from './specialFixtures.js';
+import { createWanderingAdventurerName, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -3099,6 +3100,66 @@ export function placeWanderingMerchant(dg, depth, randomFn = Math.random) {
   return merchant;
 }
 
+/** 友好的な冒険者を部屋へ配置する。話しかけると特殊合成のヒントを教える。 */
+export function placeWanderingAdventurer(dg, depth, randomFn = Math.random) {
+  if (!dg?.map || dg.dungeonType === "tutorial" || dg.isTreasureRoom) return null;
+  if (dg.monsters?.some((monster) => monster.isWanderingAdventurer) ||
+      randomFn() >= specialFixtureRate("wanderingAdventurer", dg)) return null;
+  const shops = getShops(dg);
+  const rooms = (dg.rooms || []).filter((room) => room && !room.isDimensionalVault &&
+    !shops.some((shop) => isInsideRoom(shop.room, room.cx, room.cy)));
+  const allCells = [];
+  for (const room of rooms.length ? rooms : [{ x: 1, y: 1, w: MW - 2, h: MH - 2 }]) {
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (dg.map[y]?.[x] !== T.FLOOR) continue;
+        if (dg.monsters?.some((monster) => monsterOccupiesCell(monster, x, y))) continue;
+        if (dg.items?.some((item) => item.x === x && item.y === y)) continue;
+        if (dg.traps?.some((trap) => trap.x === x && trap.y === y)) continue;
+        if (dg.springs?.some((spring) => spring.x === x && spring.y === y)) continue;
+        if (dg.bigboxes?.some((box) => box.x === x && box.y === y)) continue;
+        if (dg.altars?.some((altar) => altar.x === x && altar.y === y)) continue;
+        if (dg.gachaMachines?.some((machine) => machine.x === x && machine.y === y)) continue;
+        if (dg.pentacles?.some((pentacle) => pentacle.x === x && pentacle.y === y)) continue;
+        if (dg.statues?.some((statue) => statue.x === x && statue.y === y)) continue;
+        if (dg.vents?.some((vent) => vent.x === x && vent.y === y)) continue;
+        if (dg.stairUp?.x === x && dg.stairUp?.y === y) continue;
+        if (dg.stairDown?.x === x && dg.stairDown?.y === y) continue;
+        allCells.push({ x, y });
+      }
+    }
+  }
+  if (!allCells.length) return null;
+  const cell = pick(allCells, randomFn);
+  const stats = rollWanderingAdventurerStats(depth, randomFn);
+  const adventurer = {
+    id: uid(),
+    name: createWanderingAdventurerName(randomFn),
+    ...stats,
+    maxHp: stats.hp,
+    speed: 0.5,
+    baseSpeed: 0.5,
+    tile: 148,
+    kind: "humanoid",
+    baseKind: "wandering_adventurer",
+    type: "shopkeeper",
+    state: "friendly",
+    isWanderingAdventurer: true,
+    desc: "フロアを巡回する冒険者。話しかけると隠し合成のヒントを教えてくれる。",
+    x: cell.x,
+    y: cell.y,
+    turnAccum: 0,
+    aware: false,
+    dir: { x: 0, y: 1 },
+    lastPx: cell.x,
+    lastPy: cell.y,
+    patrolTarget: null,
+    sleepTurns: 0,
+  };
+  dg.monsters.push(adventurer);
+  return adventurer;
+}
+
 /** デバッグダンジョン用に祭壇を1つ配置する（通常の他ギミック抽選は増やさない）。 */
 function placeDebugAltar(dg, randomFn = Math.random) {
   if (!dg?.map || !dg.isDebugDungeon || dg.isTreasureRoom) return null;
@@ -3130,7 +3191,7 @@ function placeDebugAltar(dg, randomFn = Math.random) {
   return altar;
 }
 
-/** デバッグダンジョンの固定テストフロアにも、対象の3ギミックだけを高確率で追加する。 */
+/** デバッグダンジョンの固定テストフロアにも、対象の特殊要素を高確率で追加する。 */
 function attachDebugSpecialFixtures(dg, depth) {
   if (!dg) return dg;
   dg.isDebugDungeon = true;
@@ -3140,6 +3201,7 @@ function attachDebugSpecialFixtures(dg, depth) {
   placeDebugAltar(dg, Math.random);
   placeDimensionalVault(dg, depth, Math.random);
   placeWanderingMerchant(dg, depth, Math.random);
+  placeWanderingAdventurer(dg, depth, Math.random);
   return dg;
 }
 
@@ -3174,6 +3236,7 @@ function attachFloorGimmicks(dg, depth) {
   if (g.altars?.length) dg.altars.push(...g.altars);
   placeDimensionalVault(dg, depth);
   placeWanderingMerchant(dg, depth);
+  placeWanderingAdventurer(dg, depth);
   placeGachaMachine(dg);
   return dg;
 }
