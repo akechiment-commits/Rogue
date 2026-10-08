@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
-import { throwItemAlongLine } from "../items.js";
+import { throwItemAlongLine, clearPitfallBag, setPitfallBag } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { runMonsterAttackPhase } from "../monsterAttackPhase.js";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); clearPitfallBag(); });
 const sword = { id: "held", name: "短剣", type: "weapon", atk: 3 };
 function setup(item = sword, level = 1) {
   const enemy = makeMonsterFromBase(MONS.find(m => m.baseKind === "itemThrower"), level, 5, 5, { aware: true });
@@ -39,7 +39,6 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
   }
 
   it.each([
-    { name: "火薬の壺", type: "pot", potEffect: "gunpowder", capacity: 3, contents: [{ id: "inside", name: "パン", type: "food" }] },
     { name: "雷の杖", type: "wand", effect: "lightning", charges: 3 },
     { name: "ヤバイパン", type: "food", yabai: true },
     { name: "爆弾矢", type: "arrow", bombArrow: true, atk: 6 },
@@ -91,14 +90,16 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
     expect(random).not.toHaveBeenCalled();
   });
 
-  it("外れた壺は足元の罠を避けて空き床へ落ちる", () => {
+  it("外れた壺が地雷で消費された場合は、その後に壺の破壊効果を重ねない", () => {
     const s = setup({ id: "held", name: "火薬の壺", type: "pot", potEffect: "gunpowder", contents: [] });
     s.dungeon.traps = [{ id: "mine", name: "地雷", x: 5, y: 8, effect: "explode" }];
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     s.attack();
-    expect(s.player.hp).toBe(100);
+    expect(s.player.hp).toBe(50);
     expect(s.dungeon.traps).toHaveLength(1);
-    expect(s.dungeon.items).toEqual([expect.objectContaining({ id: "held", x: 5, y: 7 })]);
+    expect(s.dungeon.items).toEqual([]);
+    expect(s.messages.filter(line => line.includes('が発動！'))).toHaveLength(1);
+    expect(s.messages.join(' ')).not.toContain('火薬の壺が割れた');
   });
 
   it.each(["sleepTurns", "slowTurns", "paralyzeTurns", "frozenTurns"])("%s 中は既存の回避不可を維持する", (status) => {
@@ -167,5 +168,41 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
     expect(s.hit).toHaveBeenCalledWith(100 - s.player.hp, s.enemy);
     expect(s.dungeon.items).toEqual([]);
     expect(s.messages.join(' ')).toContain('外れた');
+  });
+
+  it.each(['外れ', '防具で回避'])('%sた保存の壺も着地点で割れ、中身だけを1回散らす', mode => {
+    const content = { id: 'inside', name: '短剣', type: 'weapon', atk: 3 };
+    const s = setup({ id: 'held', name: '保存の壺', type: 'pot', potEffect: 'storage', contents: [content] });
+    if (mode === '防具で回避') s.player.armor = { abilities: ['dodge'] };
+    vi.spyOn(Math, 'random').mockReturnValue(mode === '外れ' ? 0.99 : 0.01);
+    s.attack();
+    expect(s.player.hp).toBe(100);
+    expect(s.dungeon.items.some(item => item.id === 'held')).toBe(false);
+    expect(s.dungeon.items.filter(item => item.id === 'inside')).toHaveLength(1);
+    expect(s.messages.join(' ')).toContain('割れ');
+  });
+
+  it('外れた火薬の壺も着地点で割れて爆発し、爆発ダメージを通知する', () => {
+    const s = setup({ id: 'held', name: '火薬の壺', type: 'pot', potEffect: 'gunpowder', contents: [] });
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    s.attack();
+    expect(s.player.hp).toBe(25);
+    expect(s.hit).toHaveBeenCalledWith(75, s.enemy);
+    expect(s.dungeon.items).toEqual([]);
+    expect(s.messages.join(' ')).toContain('爆発');
+  });
+
+  it('外れた壺が落とし穴へ落ちた場合は、その階で割らず中身ごと下階へ渡す', () => {
+    const content = { id: 'inside', name: '短剣', type: 'weapon', atk: 3 };
+    const s = setup({ id: 'held', name: '保存の壺', type: 'pot', potEffect: 'storage', contents: [content] });
+    s.dungeon.traps = [{ id: 'pit', name: '落とし穴', x: 5, y: 8, effect: 'pitfall', permanent: true }];
+    const bag = [];
+    setPitfallBag(bag);
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    s.attack();
+    expect(s.player.hp).toBe(100);
+    expect(s.dungeon.items).toEqual([]);
+    expect(bag).toEqual([{ kind: 'item', entity: expect.objectContaining({ id: 'held', contents: [content] }) }]);
+    expect(s.messages.join(' ')).not.toContain('割れ');
   });
 });
