@@ -414,9 +414,9 @@ export const FAKE_GOLD_NUGGET_T = {
 };
 
 export const ITEMS = [
-  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
-  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
-  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。", tile:17 },
+  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。呪われた薬をアンデッドに投げると回復する。",                                               tile:16 },
+  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。呪われた薬をアンデッドに投げると回復する。",                                               tile:17 },
+  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。呪われた薬をアンデッドに投げると回復する。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n投げると毒液が飛散する。\n呪い：解毒＋攻撃力回復。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:50, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと45〜55の炎ダメージを受ける。祝福：ダメージ2倍。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：45〜55回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
@@ -4334,7 +4334,17 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 反転→ダメージ（通常の回復量と同じ）
         const d = Math.max(1, Math.round(val));
-        if (kind === "monster") { if (!consumeBarrier(target, ml)) { target.hp -= d; ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`); _monKill(target); } }
+        if (kind === "monster") {
+          if (target.kind === "undead") {
+            const h = Math.min(d, Math.max(0, target.maxHp - target.hp));
+            if (h > 0) { target.hp += h; ml.push(`${target.name}は呪われた回復薬で${h}HP回復した！`); pushHealAnim(target.x, target.y); }
+            else ml.push(`${target.name}はHPが満タンで回復しなかった！`);
+          } else if (!consumeBarrier(target, ml)) {
+            target.hp -= d;
+            ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`);
+            _monKill(target);
+          }
+        }
         if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
       } else {
         const _mult = blessed ? 2 : 1;
@@ -4373,7 +4383,17 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 呪い：回復量と同じ値のダメージ
         const _shd = Math.max(1, Math.round(val));
-        if (kind === "monster") { target.hp -= _shd; ml.push(`${target.name}は変な薬を浴びた！${_shd}ダメージ！`); _monKill(target); }
+        if (kind === "monster") {
+          if (target.kind === "undead") {
+            const _shh = Math.min(_shd, Math.max(0, target.maxHp - target.hp));
+            if (_shh > 0) { target.hp += _shh; ml.push(`${target.name}は呪われた超回復薬で${_shh}HP回復した！`); pushHealAnim(target.x, target.y); }
+            else ml.push(`${target.name}はHPが満タンで回復しなかった！`);
+          } else {
+            target.hp -= _shd;
+            ml.push(`${target.name}は変な薬を浴びた！${_shd}ダメージ！`);
+            _monKill(target);
+          }
+        }
         if (kind === "player") { p.deathCause = "呪われた超回復薬の飛散により"; p.hp -= _shd; ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`); }
       } else if (kind === "monster") {
         if (target.kind === "undead") {
