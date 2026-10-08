@@ -2362,8 +2362,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               }
               continue;
             }
+            if (blockLargeMonsterDamage(m, p, ml)) continue;
             if (m.isBoss) {
-              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
@@ -2528,8 +2528,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           }
           continue;
         }
+        if (blockLargeMonsterDamage(m, p, ml)) continue;
         if (m.isBoss) {
-          if (blockLargeMonsterDamage(m, p, ml)) continue;
           const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
@@ -5836,8 +5836,9 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
               }
+            } else if (blockLargeMonsterDamage(m, p, ml)) {
+              continue;
             } else if (m.isBoss) {
-              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
