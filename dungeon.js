@@ -13,7 +13,7 @@ import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
 import { specialFixtureRate } from './specialFixtures.js';
-import { assignWanderingAdventurerKnowledge, assignWanderingAdventurerPersonality, createWanderingAdventurerName, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
+import { assignWanderingAdventurerKnowledge, assignWanderingAdventurerPersonality, createWanderingAdventurerIdentity, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -3132,14 +3132,14 @@ export function placeWanderingAdventurer(dg, depth, randomFn = Math.random) {
   if (!allCells.length) return null;
   const cell = pick(allCells, randomFn);
   const stats = rollWanderingAdventurerStats(depth, randomFn);
+  const identity = createWanderingAdventurerIdentity(randomFn);
   const adventurer = {
     id: uid(),
-    name: createWanderingAdventurerName(randomFn),
+    ...identity,
     ...stats,
     maxHp: stats.hp,
     speed: 0.5,
     baseSpeed: 0.5,
-    tile: 148,
     kind: "humanoid",
     baseKind: "wandering_adventurer",
     type: "shopkeeper",

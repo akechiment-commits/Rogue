@@ -1,7 +1,16 @@
+const ADVENTURER_FEMALE_GIVEN_NAMES = Object.freeze([
+  "リーナ", "ミレイユ", "エミリア", "マリエル", "クロエ", "エステル", "サーシャ", "ニーナ",
+  "アイリス", "フィオナ", "セリア", "リゼット", "ユノ", "カレン", "ミナ", "エルザ",
+]);
+
+const ADVENTURER_MALE_GIVEN_NAMES = Object.freeze([
+  "アレン", "カイル", "フェリクス", "セシル", "ノエル", "レオン", "ロラン", "ユリアン",
+  "ガイ", "ルカ", "フィン", "エドガー", "シオン", "テオ", "オスカー", "リオ",
+]);
+
 const ADVENTURER_GIVEN_NAMES = Object.freeze([
-  "アレン", "リーナ", "カイル", "ミレイユ", "フェリクス", "セシル", "ノエル", "レオン",
-  "エミリア", "ロラン", "マリエル", "ユリアン", "クロエ", "ガイ", "エステル", "ルカ",
-  "フィン", "サーシャ", "エドガー", "ニーナ", "シオン", "テオ", "アイリス", "オスカー",
+  ...ADVENTURER_FEMALE_GIVEN_NAMES,
+  ...ADVENTURER_MALE_GIVEN_NAMES,
 ]);
 
 const ADVENTURER_FAMILY_NAMES = Object.freeze([
@@ -9,6 +18,13 @@ const ADVENTURER_FAMILY_NAMES = Object.freeze([
   "フェルン", "ハイランド", "ベルモント", "シルヴァ", "レイヴン", "ブランシェ",
   "カーディナル", "ミスト", "ロックウェル", "アルベルト", "ウィンザー", "オルブライト",
   "リンドバーグ", "フロスト", "サザーランド", "ラングレー", "ヴェイル", "モーガン",
+]);
+
+export const WANDERING_ADVENTURER_SPRITES = Object.freeze([
+  Object.freeze({ tile: 226, gender: "female", style: "green-cloaked swordswoman" }),
+  Object.freeze({ tile: 227, gender: "female", style: "blue-coated staff user" }),
+  Object.freeze({ tile: 228, gender: "male", style: "red-scarfed swordsman" }),
+  Object.freeze({ tile: 229, gender: "male", style: "teal-vested archer" }),
 ]);
 
 export const WANDERING_ADVENTURER_KNOWLEDGE = Object.freeze([
@@ -31,6 +47,7 @@ export const WANDERING_ADVENTURER_KNOWLEDGE = Object.freeze([
 const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "rumor_monger",
+    label: "噂好き",
     infoLine: (fact, variant) => [
       `ねえ、聞いた話なんだけどさ、${fact.recipe}『${fact.result}』になるらしいよ。`,
       `酒場で耳にしたんだ。${fact.recipe}『${fact.result}』になるってさ。`,
@@ -45,6 +62,7 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   }),
   Object.freeze({
     key: "excited_discoverer",
+    label: "発見に興奮する",
     infoLine: (fact, variant) => [
       `聞いてくれ！${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだ。自分で見つけた時は声が出たよ！`,
       `やったぞ！${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだ！初めて知った時は興奮したなあ。`,
@@ -59,6 +77,7 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   }),
   Object.freeze({
     key: "practical",
+    label: "実務的",
     infoLine: (fact, variant) => [
       `要点だけだ。${fact.recipe}『${fact.result}』になる。覚えておけよ。`,
       `無駄話は苦手なんだが、これは役立つ。${fact.recipe}『${fact.result}』だ。`,
@@ -71,11 +90,131 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
       "休憩は大事だ。俺はもう少し歩いてからにする。",
     ]),
   }),
+  Object.freeze({
+    key: "cautious",
+    label: "慎重派",
+    infoLine: (fact, variant) => [
+      `間違っていたらごめんね。${fact.recipe}『${fact.result}』らしいよ。私はまだ試せていないけど。`,
+      `確かな話かは分からないんだけど……${fact.recipe}『${fact.result}』になるって聞いたの。`,
+      `役に立つか分からないけど、${fact.recipe}『${fact.result}』みたい。念のため覚えておいて。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "この先、床が崩れたりしないよね……？一応、端を歩こうかな。",
+      "さっき何か聞こえた気がするの。気のせいだといいんだけど。",
+      "地図を何度も確かめちゃうんだ。迷うよりはいいよね。",
+      "ここで一息ついてから進もうよ。急いで転んだら大変だし。",
+    ]),
+  }),
+  Object.freeze({
+    key: "proud",
+    label: "自信家",
+    infoLine: (fact, variant) => [
+      `ふふん、私が自分で確かめたよ。${fact.recipe}『${fact.result}』だ。`,
+      `これを見つけるのに苦労したんだ。${fact.recipe}『${fact.result}』、覚えておくといい。`,
+      `聞いて驚け。${fact.recipe}『${fact.result}』になる。私の調査に間違いはないよ。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "この装備、なかなか似合ってると思わない？見る目があるね。",
+      "さっきの魔物？軽くあしらってやったよ。……まあ、少し追いかけられたけど。",
+      "道に迷ったことはないよ。迷ったんじゃなくて、寄り道してるだけさ。",
+      "私の勘はよく当たるんだ。今は何も思いつかないけどね。",
+    ]),
+  }),
+  Object.freeze({
+    key: "scholar",
+    label: "研究熱心",
+    infoLine: (fact, variant) => [
+      `記録によれば、${fact.recipe}『${fact.result}』となる。材料の数を間違えないように。`,
+      `確認済みの手順だ。${fact.recipe}『${fact.result}』になる。`,
+      `手帳にも書いておいたよ。${fact.recipe}『${fact.result}』だ。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "この床の模様、区画ごとに少し違うんだ。記録しておこう。",
+      "足音の間隔を数えてたんだけど、途中で自分の足音と混ざっちゃった。",
+      "壁の傷が気になるなあ。誰が、何回くらい通った跡なんだろう。",
+      "休憩の前に、今の発見を手帳へ書き留めておかなくちゃ。",
+    ]),
+  }),
+  Object.freeze({
+    key: "sleepy",
+    label: "眠たがり",
+    infoLine: (fact, variant) => [
+      `ふあぁ……たしか、${fact.recipe}『${fact.result}』だったよ。たぶんね。`,
+      `ん……起きてるよ。${fact.recipe}『${fact.result}』、それだけ伝えたかったんだ……。`,
+      `眠くて頭が回らないけど……${fact.recipe}『${fact.result}』。忘れないうちに言えた……。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "歩きながら寝る方法、誰か知らないかな……。",
+      "この壁、背中を預けたら気持ちよさそう……いや、やっぱりやめとこう。",
+      "さっきの魔物、夢に出てきそうだなあ……。",
+      "あと少し歩いたら休もう……その『あと少し』が長いんだけど。",
+    ]),
+  }),
+  Object.freeze({
+    key: "optimistic",
+    label: "楽天家",
+    infoLine: (fact, variant) => [
+      `いいこと教えるね！${fact.recipe}『${fact.result}』になるんだって。試すのが楽しみ！`,
+      `これを知ったら冒険がもっと楽しくなるよ。${fact.recipe}『${fact.result}』だって！`,
+      `大丈夫、きっと役に立つよ！${fact.recipe}『${fact.result}』になるんだ。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "お腹が空いてきたけど、きっとこの先にいい食べ物があるよ！",
+      "転んでも大丈夫！起き上がれば冒険の続きだもんね。",
+      "ここ、なんだか運がよさそう！根拠はないけど、そういう日もあるよ。",
+      "知らない道ってわくわくするね。帰り道はあとで考えよう！",
+    ]),
+  }),
+  Object.freeze({
+    key: "veteran",
+    label: "ベテラン",
+    infoLine: (fact, variant) => [
+      `長く潜ってりゃ分かる。${fact.recipe}『${fact.result}』になるそうだ。準備は怠るなよ。`,
+      `若い頃に聞いた話だが、${fact.recipe}『${fact.result}』になる。覚えておいて損はない。`,
+      `焦らず試せ。${fact.recipe}『${fact.result}』だ。急ぐと素材を無駄にするぞ。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "昔は今より暗い洞窟もあった。慣れたつもりでも油断は禁物だ。",
+      "道具は手入れが大事だぞ。壊れてからじゃ遅いからな。",
+      "若い冒険者は歩くのが速いな。こっちは景色も見てるんだ。",
+      "経験を積んでも、腹が減るのだけはどうにもならん。",
+    ]),
+  }),
+  Object.freeze({
+    key: "poetic",
+    label: "詩人気質",
+    infoLine: (fact, variant) => [
+      `風の便りに聞いたよ。${discoveredRecipePhrase(fact.recipe)}『${fact.result}』と。`,
+      `素材が出会うと姿を変える。${fact.recipe}『${fact.result}』になるんだ。`,
+      `剣にも鎧にも縁がある。${fact.recipe}『${fact.result}』と、私は覚えているよ。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "松明のゆらぎを見ていると、炎も旅をしているように思えるね。",
+      "足音が石の上で小さな歌になってる。君にも聞こえるかな。",
+      "迷宮の風は、どこから来てどこへ行くんだろう。",
+      "静かな部屋だね。言葉を使うのが少し惜しくなるよ。",
+    ]),
+  }),
+  Object.freeze({
+    key: "timid",
+    label: "怖がり",
+    infoLine: (fact, variant) => [
+      `あ、あのね……${fact.recipe}『${fact.result}』になるらしいんだ。怖いけど、試す価値はあると思う。`,
+      `小声で言うね。${fact.recipe}『${fact.result}』だって。魔物に聞かれないように……。`,
+      `誰かに聞いたんだけど、${fact.recipe}『${fact.result}』になるそうだよ。たぶん大丈夫……だよね。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "今の物音、君も聞いた？聞こえたよね……？",
+      "背中を壁につけて歩くと、少し安心するんだ。",
+      "ここに魔物はいないよね……いたら、すぐ教えてね。",
+      "一緒にいると心強いな。はぐれないようにしよう。",
+    ]),
+  }),
 ]);
 
 function discoveredRecipePhrase(recipe) {
   if (recipe.endsWith("すると")) return `${recipe.slice(0, -3)}したら`;
-  if (recipe.endsWith("ると")) return `${recipe.slice(0, -2)}えたら`;
+  if (recipe.endsWith("ると")) return `${recipe.slice(0, -2)}れば`;
   return recipe;
 }
 
@@ -83,9 +222,26 @@ export function isWanderingNpc(monster) {
   return !!(monster?.isWanderingMerchant || monster?.isWanderingAdventurer);
 }
 
-export function createWanderingAdventurerName(randomFn = Math.random) {
+export function createWanderingAdventurerName(randomFn = Math.random, gender = null) {
   const pick = (values) => values[Math.min(values.length - 1, Math.floor(Math.max(0, randomFn()) * values.length))];
-  return `${pick(ADVENTURER_GIVEN_NAMES)}・${pick(ADVENTURER_FAMILY_NAMES)}`;
+  const givenNames = gender === "female"
+    ? ADVENTURER_FEMALE_GIVEN_NAMES
+    : gender === "male"
+      ? ADVENTURER_MALE_GIVEN_NAMES
+      : ADVENTURER_GIVEN_NAMES;
+  return `${pick(givenNames)}・${pick(ADVENTURER_FAMILY_NAMES)}`;
+}
+
+export function createWanderingAdventurerIdentity(randomFn = Math.random) {
+  const index = Math.min(WANDERING_ADVENTURER_SPRITES.length - 1,
+    Math.floor(Math.max(0, randomFn()) * WANDERING_ADVENTURER_SPRITES.length));
+  const sprite = WANDERING_ADVENTURER_SPRITES[index];
+  return {
+    name: createWanderingAdventurerName(randomFn, sprite.gender),
+    tile: sprite.tile,
+    adventurerSpriteIndex: index,
+    adventurerGender: sprite.gender,
+  };
 }
 
 export function isWanderingAdventurerName(name) {
