@@ -2734,6 +2734,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     customPlHit = null,
     homingTarget = null,
     bypassDodgemole = false,
+    skipProjectileAnim = false,
   } = opts;
   /* 風穴で方向が変わるため let で保持（opts から分割代入した dx,dy） */
   dx = Math.sign(dx || 0);
@@ -2761,14 +2762,16 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (onFlyOff) onFlyOff(m.x, m.y, ml);
       return;
     }
-    pushAnim({
-      type: isPlayerShooter ? "projectile" : "monProjectile",
-      fromX: m.x,
-      fromY: m.y,
-      toX: _homingMon.x,
-      toY: _homingMon.y,
-      color: animColor,
-    });
+    if (!skipProjectileAnim) {
+      pushAnim({
+        type: isPlayerShooter ? "projectile" : "monProjectile",
+        fromX: m.x,
+        fromY: m.y,
+        toX: _homingMon.x,
+        toY: _homingMon.y,
+        color: animColor,
+      });
+    }
     if (monSubmergesProjectiles(_homingMon) && !bypassDodgemole) {
       ml.push(`${_homingMon.name}が潜って${boltName}をかわした！`);
       return;
@@ -2794,8 +2797,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     stopAtSpring: !!onSpring,
     stopAtGacha: !!onGacha,
   };
-  if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, animOpts);
-  else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, animOpts);
+  if (!skipProjectileAnim) {
+    if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, animOpts);
+    else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, animOpts);
+  }
 
   let _plHit = false;
   let _lx = m.x, _ly = m.y;

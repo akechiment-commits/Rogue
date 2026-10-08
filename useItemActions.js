@@ -3112,7 +3112,9 @@ export function useItemActions({
             const _msTarget = [...dg.monsters]
               .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
               .sort((a, b) => _msDist(a) - _msDist(b))[0];
-            if (_msTarget) pushProjectileAnim(p.x, p.y, _msTarget.x, _msTarget.y, "#cc88ff");
+            if (_msTarget) {
+              pushItemFlyAnim(p.x, p.y, _msTarget.x, _msTarget.y, _arItem.tile, null, { flightArc: true });
+            }
             ml.push(`${_stName}を投げた！`);
             if (!_msTarget) {
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
@@ -3148,7 +3150,6 @@ export function useItemActions({
             }
           } else {
             /* 通常の石：必ず3マス先（呪い遠投は1マス先）に着弾 */
-            pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
             const _stRange = _isCursedFc ? 1 : 3;
             let _stLx = p.x, _stLy = p.y;
             let _stHitStatue = false;
@@ -3161,6 +3162,7 @@ export function useItemActions({
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
               if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
             }
+            pushItemFlyAnim(p.x, p.y, _stLx, _stLy, _arItem.tile, null, { flightArc: true });
             const _stM = monsterAt(dg, _stLx, _stLy);
             const _stBB = dg.bigboxes?.find(b => b.x === _stLx && b.y === _stLy);
             const _stSpr = dg.springs?.find(s => s.x === _stLx && s.y === _stLy);
@@ -3691,6 +3693,9 @@ export function useItemActions({
             .filter(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
               Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
             .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+          if (!_isFarcast && _wakkaTarget) {
+            pushItemFlyAnim(p.x, p.y, _wakkaTarget.x, _wakkaTarget.y, it.tile, null, { flightArc: true });
+          }
           p.inventory.splice(idx, 1);
           ml.push(_wakkaName + "を投げた！");
           if (_isFarcast) {
@@ -3712,6 +3717,7 @@ export function useItemActions({
                 throwItemAlongLine(p, dg, it, 0, 0, 10, ml, p, lu, {
                   homingTarget: _wakkaTarget,
                   bypassDodgemole: true,
+                  skipProjectileAnim: true,
                   nameFn: dnameRef,
                   bbFn: bigboxAddItem,
                   animColor: "#cc88ff",
@@ -3770,6 +3776,9 @@ export function useItemActions({
             const _msTarget2 = [...dg.monsters]
               .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
               .sort((a, b) => _msDist2(a) - _msDist2(b))[0];
+            if (_msTarget2) {
+              pushItemFlyAnim(p.x, p.y, _msTarget2.x, _msTarget2.y, it.tile, null, { flightArc: true });
+            }
             ml.push(`${_invStName}を投げた！`);
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は消えた。`);
@@ -3812,6 +3821,9 @@ export function useItemActions({
               if (statueAt(dg, tx, ty)) { _stHitStatue2 = true; break; }
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
               if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
+            }
+            if (!_isGoldNugget) {
+              pushItemFlyAnim(p.x, p.y, _stLx2, _stLy2, it.tile, null, { flightArc: true });
             }
             const _stM2 = monsterAt(dg, _stLx2, _stLy2);
             const _stBB2 = dg.bigboxes?.find(b => b.x === _stLx2 && b.y === _stLy2);

@@ -71,17 +71,21 @@ const _itemArcQueue = [];
  * path: [{x,y},...] があれば折れ線飛行。なければ from→to 直線。
  * seq=0 ensures it plays before any scatter arcs.
  */
-export function pushItemFlyAnim(fromX, fromY, toX, toY, tile, path = null) {
+export function pushItemFlyAnim(fromX, fromY, toX, toY, tile, path = null, options = {}) {
+  const flightArc = options.flightArc ? {
+    flightArc: true,
+    flightArcHeight: options.flightArcHeight ?? 0.9,
+  } : {};
   if (path?.length > 1) {
     const end = path[path.length - 1];
     _itemArcQueue.push({
       type: "itemArc", fromX: path[0].x, fromY: path[0].y,
-      toX: end.x, toY: end.y, tile, seq: 0, straight: true, path,
+      toX: end.x, toY: end.y, tile, seq: 0, straight: true, path, ...flightArc,
     });
     return;
   }
   if (fromX === toX && fromY === toY) return;
-  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq: 0, straight: true });
+  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq: 0, straight: true, ...flightArc });
 }
 
 /** 風を含む経路で投擲アニメを登録 */
@@ -92,7 +96,7 @@ export function pushItemFlyAnimAlongWind(dg, fromX, fromY, dx, dy, maxRange, til
     stopAtContainers: !!opts.stopAtContainers,
     passWall: !!opts.passWall,
   });
-  pushItemFlyAnim(fromX, fromY, tr.endX, tr.endY, tile, tr.path);
+  pushItemFlyAnim(fromX, fromY, tr.endX, tr.endY, tile, tr.path, opts);
   return tr;
 }
 

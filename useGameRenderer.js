@@ -485,16 +485,17 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
     const mx = a.x + (b.x - a.x) * f;
     const my = a.y + (b.y - a.y) * f;
     const curX = (mx - sx) * sz + sz / 2;
-    const curY = (my - sy) * sz + sz / 2;
+    const groundY = (my - sy) * sz + sz / 2;
+    const curY = groundY - (o.flightArc ? Math.sin(Math.PI * t) * sz * (o.flightArcHeight ?? 0.9) : 0);
     const angle = Math.atan2(b.y - a.y, b.x - a.x);
     const spinAngle = angle + t * Math.PI * 1.5;
     const drawSz = sz * 0.95;
     ctx.save();
     /* 影 */
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = o.flightArc ? 0.24 : 0.3;
     ctx.fillStyle = "#000";
     ctx.beginPath();
-    ctx.ellipse(curX, curY + sz * 0.35, sz * 0.18, sz * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(curX, groundY + sz * (o.flightArc ? 0.24 : 0.35), sz * 0.18, sz * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.translate(curX, curY);
@@ -516,9 +517,11 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
   const dist = Math.hypot(tx2 - fx, ty2 - fy);
 
   /* 弧の高さ：投擲(straight)は浅め、散乱は高め */
-  const arcH = o.straight
-    ? Math.max(sz * 0.25, dist * 0.12)   // 投擲：緩い弧
-    : Math.max(sz * 0.9, dist * 0.55);   // 散乱：高い放物線
+  const arcH = o.flightArc
+    ? sz * (o.flightArcHeight ?? 0.9) * 2
+    : o.straight
+      ? Math.max(sz * 0.25, dist * 0.12)   // 投擲：緩い弧
+      : Math.max(sz * 0.9, dist * 0.55);   // 散乱：高い放物線
 
   const midX = (fx + tx2) / 2;
   const midY = (fy + ty2) / 2 - arcH;
@@ -529,7 +532,7 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
 
   /* 地面の影（投擲は小さめ） */
   const shadowX = fx + (tx2 - fx) * t;
-  const shadowY = fy + (ty2 - fy) * t + sz * 0.45;
+  const shadowY = fy + (ty2 - fy) * t + sz * (o.flightArc ? 0.24 : 0.45);
   const heightFrac = Math.max(0, 1 - Math.abs(curY - shadowY) / (arcH + 1));
   const shadowScale = o.straight ? 0.6 : 1.0;
   const shadowRx = sz * 0.22 * shadowScale * (0.4 + heightFrac * 0.6);

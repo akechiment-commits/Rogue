@@ -6121,6 +6121,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     reflectorRange = range,
     homingTarget = null,
     bypassDodgemole = false,
+    skipProjectileAnim = false,
     wind = true,
     animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
     monHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
@@ -6253,6 +6254,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     },
     homingTarget,
     bypassDodgemole,
+    skipProjectileAnim,
     onSpring: (spr, lx, ly, mlx) => {
       if (springLandMsg) { const _m = springLandMsg(spr, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
