@@ -80,7 +80,13 @@ function isDuplicateDirectionEvent(e) {
   }
   /* Numpad由来とArrow由来でコードが異なる連続イベントだけ重複として捨てる。 */
   if (fam === _dirGateFamily && now - _dirGateT < 150 && code !== _dirGateCode &&
-      (isNumpad || _dirGateWasNumpad)) return true;
+      (isNumpad || _dirGateWasNumpad)) {
+    /* 3連以上の別コード重複も同じバーストとして閉じる */
+    _dirGateT = now;
+    _dirGateCode = code;
+    _dirGateWasNumpad ||= isNumpad;
+    return true;
+  }
   _dirGateFamily = fam;
   _dirGateT = now;
   _dirGateCode = code;
