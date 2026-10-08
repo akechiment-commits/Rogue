@@ -2187,8 +2187,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (_hasExPentacle || ringExplosion || mineExplosion || _instantMonsterKill) {
           /* 即死系爆発：炎無効でない通常敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
-          if (blockLargeMonsterDamage(m, p, ml)) continue;
           if (m.isBoss) {
+            if (blockLargeMonsterDamage(m, p, ml)) continue;
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
             _bd = scaleMonFireDmg(m, _bd);
             m.hp -= _bd;
@@ -2362,8 +2362,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               }
               continue;
             }
-            if (blockLargeMonsterDamage(m, p, ml)) continue;
             if (m.isBoss) {
+              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
@@ -2528,8 +2528,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           }
           continue;
         }
-        if (blockLargeMonsterDamage(m, p, ml)) continue;
         if (m.isBoss) {
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
           const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
@@ -5836,9 +5836,8 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
               }
-            } else if (blockLargeMonsterDamage(m, p, ml)) {
-              continue;
             } else if (m.isBoss) {
+              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
