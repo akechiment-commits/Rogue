@@ -63,7 +63,8 @@ describe("超上級ダンジョンの敵分布", () => {
   it("各階の候補数を抑え、同じ種族のLv帯は空ける", () => {
     for (let floor = 1; floor <= 50; floor++) {
       expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(floor <= 4 ? 3 : 6);
-      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(12);
+      const extraGiant = LEGEND_MONSTER_FLOOR_POOLS[floor].includes('hauntedWillow') ? 1 : 0;
+      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(12 + extraGiant);
     }
     const byKind = new Map();
     for (const band of LEGEND_MONSTER_BANDS) {

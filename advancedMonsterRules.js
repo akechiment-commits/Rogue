@@ -45,7 +45,7 @@ for (const [startText, kinds] of Object.entries(ADVANCED_MONSTER_STARTS)) {
 /*
  * 再登場帯。序盤の単純敵は中盤にLv2として戻し、後半の候補には
  * 「能力は厄介だが数値は低め」の敵をもう一度入れる。
- * 追加分は通常帯と重複するため、後半の種類数は最大13種になる。
+ * 追加分は通常帯と重複するため、後半は柳を除いて最大13種になる。
  */
 const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   10: ["rat", "bat", "centipede"],
@@ -67,6 +67,11 @@ const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
 for (const [floorText, kinds] of Object.entries(ADVANCED_MONSTER_REINFORCEMENTS)) {
   const floor = Number(floorText);
   _ADVANCED_MONSTER_FLOOR_POOLS[floor].push(...kinds);
+}
+
+/* 単一形態の巨大敵は、MONSで宣言した上級18〜29階の帯へ登録する。 */
+for (let floor = 18; floor <= 29; floor++) {
+  _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("hauntedWillow");
 }
 
 /* 28〜30階は上級の締めとして、最終系の候補を少し厚く残す。 */

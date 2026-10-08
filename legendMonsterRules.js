@@ -5,6 +5,7 @@
  * 同じ種族のLv違いは最低4階空ける。初登場は必ずLv1。
  */
 export const LEGEND_MONSTER_BANDS = Object.freeze([
+  { min: 20, max: 50, level: 1, kinds: ["hauntedWillow"] },
   /* 1〜4 だけ薄く、5階から帯を重ねて6種以上にする */
   { min: 1, max: 6, level: 1, kinds: ["rat", "bat", "centipede"] },
   { min: 3, max: 8, level: 1, kinds: ["kobold", "goblin"] },

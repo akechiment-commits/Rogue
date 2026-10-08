@@ -54,7 +54,8 @@ describe("上級ダンジョンの敵分布", () => {
     expect(ADVANCED_MONSTER_FLOOR_POOLS[1]).toEqual(["rat", "bat", "centipede"]);
     for (let floor = 1; floor <= 30; floor++) {
       expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
-      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13);
+      const extraGiant = ADVANCED_MONSTER_FLOOR_POOLS[floor].includes('hauntedWillow') ? 1 : 0;
+      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiant);
     }
     expect(ADVANCED_MONSTER_FLOOR_POOLS[30]).toEqual(expect.arrayContaining([
       "dragon", "icedragon", "gargoyle", "vampire", "golem", "daemon", "darkness",
@@ -114,7 +115,7 @@ describe("上級ダンジョンの敵分布", () => {
     }
   });
 
-  it("上級で通常出現する全72種は最低3階に候補になる", () => {
+  it("上級で通常出現する全73種は最低3階に候補になる", () => {
     const counts = new Map();
     for (const kinds of ADVANCED_MONSTER_FLOOR_POOLS) {
       for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
@@ -122,7 +123,7 @@ describe("上級ダンジョンの敵分布", () => {
     const advancedKinds = MONS
       .filter((monster) => !monster.penaltyOnly && !monster.floodedOnly && !(monster.dungeons && !monster.dungeons.includes("advanced")))
       .map((monster) => monster.baseKind);
-    expect(new Set(advancedKinds).size).toBe(72);
+    expect(new Set(advancedKinds).size).toBe(73);
     for (const kind of advancedKinds) expect(counts.get(kind)).toBeGreaterThanOrEqual(3);
   });
 
