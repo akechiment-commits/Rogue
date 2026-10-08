@@ -15,6 +15,7 @@
 
 import { MW, MH, T, monsterAt, itemAt, stepProjectile, traceProjectilePath } from './utils.js';
 import { statueAt } from './fixtureQueries.js';
+import { monSubmergesProjectiles } from './monTraits.js';
 
 const animEvents = [];
 
@@ -141,25 +142,38 @@ const WAND_COLORS = {
  * Call BEFORE the actual game logic (which may modify state).
  */
 /**
- * @param {boolean|object} [windOrOpts] true/false または { wind?: boolean }
+ * @param {boolean|object} [windOrOpts] true/false または { wind?, range?, passThrough?, passThroughDodgemole?, stopAtBigbox?, stopAtSpring?, stopAtGacha? }
  *   既定 false（杖・魔法弾）。物理弾（矢・石）は true を渡す。
  */
 export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0", windOrOpts = false) {
   const color = WAND_COLORS[effectOrColor] || effectOrColor;
   const wind = typeof windOrOpts === "object" ? !!windOrOpts.wind : !!windOrOpts;
-  const tr = traceProjectilePath(dg, sx, sy, dx, dy, MW + MH, {
-    stopAtMon: true,
+  const opts = typeof windOrOpts === "object" ? windOrOpts : {};
+  const maxRange = Number.isFinite(opts.range) ? opts.range : MW + MH;
+  const passThrough = !!opts.passThrough;
+  const passThroughDodgemole = !!opts.passThroughDodgemole;
+  const stopAtBigbox = opts.stopAtBigbox ?? true;
+  const stopAtSpring = opts.stopAtSpring ?? true;
+  const stopAtGacha = !!opts.stopAtGacha;
+  const tr = traceProjectilePath(dg, sx, sy, dx, dy, maxRange, {
+    stopAtWall: !passThrough,
+    passWall: passThrough,
+    stopAtMon: false,
     stopAtPlayer: null,
-    stopAtContainers: true,
+    stopAtContainers: false,
     wind,
   });
-  /* 罠・アイテムでも止める追加チェックは path 上で実施 */
   let path = tr.path;
   let endX = tr.endX, endY = tr.endY;
   for (let i = 1; i < path.length; i++) {
     const { x: tx, y: ty } = path[i];
-    if (itemAt(dg, tx, ty) || dg.traps?.find(t => t.x === tx && t.y === ty) ||
-        dg.bigboxes?.find(b => b.x === tx && b.y === ty) || statueAt(dg, tx, ty)) {
+    if (passThrough) continue;
+    const mon = monsterAt(dg, tx, ty);
+    const stopsAtMonster = mon && !(passThroughDodgemole && monSubmergesProjectiles(mon));
+    if (stopsAtMonster || itemAt(dg, tx, ty) || dg.traps?.find(t => t.x === tx && t.y === ty) ||
+        (stopAtBigbox && dg.bigboxes?.find(b => b.x === tx && b.y === ty)) ||
+        (stopAtSpring && dg.springs?.find(s => s.x === tx && s.y === ty)) ||
+        (stopAtGacha && dg.gachaMachines?.find(g => g.x === tx && g.y === ty)) || statueAt(dg, tx, ty)) {
       path = path.slice(0, i + 1);
       endX = tx; endY = ty;
       break;
@@ -178,26 +192,41 @@ export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0", wind
  * Emits "monProjectile" so it plays in the monster-animation phase.
  */
 /**
- * @param {boolean|object} [windOrOpts] true/false または { wind?: boolean }
+ * @param {boolean|object} [windOrOpts] true/false または { wind?, range?, passThrough?, passThroughDodgemole?, stopAtBigbox?, stopAtSpring?, stopAtGacha? }
  *   物理弾（石・矢・ブレス）は wind:true、杖魔法は wind:false
  */
 export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a050f0", windOrOpts = true) {
   const color = WAND_COLORS[effectOrColor] || effectOrColor;
   const wind = typeof windOrOpts === "object" ? (windOrOpts.wind !== false) : !!windOrOpts;
-  const maxRange = typeof windOrOpts === "object" && Number.isFinite(windOrOpts.range) ? windOrOpts.range : MW + MH;
+  const opts = typeof windOrOpts === "object" ? windOrOpts : {};
+  const maxRange = Number.isFinite(opts.range) ? opts.range : MW + MH;
+  const passThrough = !!opts.passThrough;
+  const passThroughDodgemole = !!opts.passThroughDodgemole;
+  const stopAtBigbox = opts.stopAtBigbox ?? true;
+  const stopAtSpring = !!opts.stopAtSpring;
+  const stopAtGacha = !!opts.stopAtGacha;
   const tr = traceProjectilePath(dg, sx, sy, dx, dy, maxRange, {
-    stopAtMon: true,
-    stopAtPlayer: pl ? { x: pl.x, y: pl.y } : null,
+    stopAtWall: !passThrough,
+    passWall: passThrough,
+    stopAtMon: false,
+    stopAtPlayer: pl && !passThrough ? { x: pl.x, y: pl.y } : null,
+    stopAtContainers: false,
     wind,
   });
   let path = tr.path;
   let lx = tr.endX, ly = tr.endY;
   for (let i = 1; i < path.length; i++) {
     const { x: tx, y: ty } = path[i];
+    if (passThrough) continue;
     if (pl && tx === pl.x && ty === pl.y) { lx = tx; ly = ty; path = path.slice(0, i + 1); break; }
-    if (monsterAt(dg, tx, ty) || itemAt(dg, tx, ty) ||
+    const mon = monsterAt(dg, tx, ty);
+    const stopsAtMonster = mon && !(passThroughDodgemole && monSubmergesProjectiles(mon));
+    if (stopsAtMonster || itemAt(dg, tx, ty) ||
         dg.traps?.find(t => t.x === tx && t.y === ty) ||
-        dg.bigboxes?.find(b => b.x === tx && b.y === ty)) {
+        (stopAtBigbox && dg.bigboxes?.find(b => b.x === tx && b.y === ty)) ||
+        (stopAtSpring && dg.springs?.find(s => s.x === tx && s.y === ty)) ||
+        (stopAtGacha && dg.gachaMachines?.find(g => g.x === tx && g.y === ty)) ||
+        statueAt(dg, tx, ty)) {
       lx = tx; ly = ty; path = path.slice(0, i + 1); break;
     }
   }

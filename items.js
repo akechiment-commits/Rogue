@@ -6110,6 +6110,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     reflectorRange = range,
     homingTarget = null,
     bypassDodgemole = false,
+    wind = true,
     animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
     monHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
     plHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}が${pl()}に命中！${dmg}ダメージ！`,
@@ -6165,12 +6166,13 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     boltName: _itemName,
     hitChance,
     animColor,
+    wind,
     pierce: _isPierceArrow,
     onMiss: hitChance < 1 || missLandFn ? (lx, ly) => {
       res.x = lx; res.y = ly; res.missedPlayer = true;
     } : null,
     onMonHit: (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
-      if (isWanderingNpc(mon) && mon.state !== "hostile") {
+      if (shooter === p && isWanderingNpc(mon) && mon.state !== "hostile") {
         declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: `${mon.name}が怒った！` });
       }
       if (_isPotion) {

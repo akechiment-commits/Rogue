@@ -377,8 +377,8 @@ const _POTION_THROW_POOL = [
   { name: "大回復薬",   effect: "heal_big", value: 60, tile: 17 },
 ];
 function findPotionHealerTarget(m, dg, pl, preferredTarget = null) {
-  const level = m.monLevel || 1;
-  const range = level >= 3 ? 10 : level >= 2 ? 7 : 5;
+  const range = potionThrowRange(m, dg, pl);
+  const farcast = getFarcastMode(pl.x, pl.y, dg) === "farcast";
   const injured = (dg.monsters || []).filter(target =>
     target !== m && (!preferredTarget || target === preferredTarget) &&
     target.state !== "friendly" &&
@@ -397,15 +397,19 @@ function findPotionHealerTarget(m, dg, pl, preferredTarget = null) {
       for (let step = 0; step < aim.distance; step++) {
         const next = stepProjectile(dg, x, y, dx, dy, { wind: false });
         x = next.x; y = next.y;
-        if (x < 0 || x >= MW || y < 0 || y >= MH ||
-            dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL ||
+        if (x < 0 || x >= MW || y < 0 || y >= MH) break;
+        if (!farcast && (dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL ||
             statueAt(dg, x, y) || dg.springs?.some(spring => spring.x === x && spring.y === y) ||
-            dg.bigboxes?.some(box => box.x === x && box.y === y)) break;
-        if (pl && x === pl.x && y === pl.y) break;
+            dg.bigboxes?.some(box => box.x === x && box.y === y) ||
+            dg.gachaMachines?.some(machine => machine.x === x && machine.y === y))) break;
+        if (!farcast && pl && x === pl.x && y === pl.y) break;
         const blocker = dg.monsters.find(other => other !== m && monsterOccupiesCell(other, x, y));
         if (blocker) {
-          clear = blocker === target;
-          break;
+          if (blocker === target) {
+            clear = true;
+            break;
+          }
+          if (!farcast && !monSubmergesProjectiles(blocker)) break;
         }
       }
       if (clear) {
@@ -422,89 +426,41 @@ function findPotionHealerTarget(m, dg, pl, preferredTarget = null) {
   return candidates[0] || null;
 }
 
+function potionThrowRange(m, dg, pl) {
+  const farcastMode = pl && dg ? getFarcastMode(pl.x, pl.y, dg) : false;
+  if (farcastMode === "farcast") return 50;
+  if (farcastMode === "cursed") return 1;
+  const level = m?.monLevel || 1;
+  return level >= 3 ? 10 : level >= 2 ? 7 : 5;
+}
+
 function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions = null) {
   const _pot = throwOptions?.potion || pick(_POTION_THROW_POOL);
   const _target = throwOptions?.target || pl;
   const _aim = throwOptions?.aim || _target;
   const _wind = throwOptions?.wind !== false;
-  let _ptdx = Math.sign(_aim.x - m.x), _ptdy = Math.sign(_aim.y - m.y);
+  const dx = Math.sign(_aim.x - m.x), dy = Math.sign(_aim.y - m.y);
   ml.push(throwOptions?.target
     ? `${m.name}は${_target.name}に${_pot.name}を投げた！`
     : `${m.name}が謎の薬を投げた！`);
-  pushMonsterBoltAnim(m.x, m.y, _ptdx, _ptdy, dg, pl, throwOptions?.color || "#ff88ff", _wind);
-  /* 経路上の泉・大箱チェック */
-  let _cx = m.x, _cy = m.y;
-  let _lastX = m.x, _lastY = m.y;
-  for (let _step = 0; _step < MW + MH; _step++) {
-    const _st = stepProjectile(dg, _cx, _cy, _ptdx, _ptdy, { wind: _wind });
-    _ptdx = _st.dx; _ptdy = _st.dy;
-    _cx = _st.x; _cy = _st.y;
-    if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
-        dg.map[_cy]?.[_cx] === T.WALL || dg.map[_cy]?.[_cx] === T.BWALL) {
-      splashPotion(dg, _lastX, _lastY, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
-      return;
-    }
-    _lastX = _cx; _lastY = _cy;
-    if (statueAt(dg, _cx, _cy)) {
-      ml.push(`${m.name}の薬瓶が石像に命中！`);
-      hitStatueWithAction(dg, _cx, _cy, pl, ml, null, pl?.depth, {
-        breaks: true,
-        itemDeps: getFixtureItemDeps(),
-      });
-      splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
-      return;
-    }
-    const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
-    if (_spr) {
-      const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-      soakItemIntoSpring(_spr, { ..._potItem, x: _cx, y: _cy }, ml, dg, null);
-      return;
-    }
-    const _bb = dg.bigboxes?.find(b => b.x === _cx && b.y === _cy);
-    if (_bb) {
-      const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-      if (bbFn) bbFn(_bb, _potItem, dg, ml, { killerMon: m, sourceIsPlayer: false, fireTrapFn });
-      else dg.items.push({ ..._potItem, x: _cx, y: _cy });
-      return;
-    }
-    /* reflector（ミラーゴーレム等）：薬瓶を投擲元へ跳ね返す（飛沫は反射しない） */
-    const _mirrorMon = dg.monsters.find(o => monsterOccupiesCell(o, _cx, _cy) && monReflectsProjectiles(o));
-    if (_mirrorMon) {
-      ml.push(`薬瓶が${_mirrorMon.name}に弾き返された！`);
-      const _rrdx = -_ptdx, _rrdy = -_ptdy;
-      let _rrx = _cx + _rrdx, _rry = _cy + _rrdy;
-      let _splX = _cx, _splY = _cy;
-      for (let _ri = 0; _ri < 20; _ri++) {
-        if (_rrx < 0 || _rrx >= MW || _rry < 0 || _rry >= MH) break;
-        if (dg.map[_rry][_rrx] === T.WALL || dg.map[_rry][_rrx] === T.BWALL) break;
-        const _rrSpr = dg.springs?.find(s => s.x === _rrx && s.y === _rry);
-        if (_rrSpr) {
-          const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-          soakItemIntoSpring(_rrSpr, { ..._potItem, x: _rrx, y: _rry }, ml, dg, null);
-          return;
-        }
-        const _rrBb = dg.bigboxes?.find(b => b.x === _rrx && b.y === _rry);
-        if (_rrBb) {
-          const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-          if (bbFn) bbFn(_rrBb, _potItem, dg, ml, { killerMon: m, sourceIsPlayer: false, fireTrapFn });
-          else dg.items.push({ ..._potItem, x: _rrx, y: _rry });
-          return;
-        }
-        _splX = _rrx; _splY = _rry;
-        if (_rrx === m.x && _rry === m.y) break;
-        if (dg.monsters.find(o => o !== _mirrorMon && monsterOccupiesCell(o, _rrx, _rry))) break;
-        _rrx += _rrdx; _rry += _rrdy;
-      }
-      splashPotion(dg, _splX, _splY, _pot.effect, _pot.value, pl, ml, null, false, false, null, _mirrorMon);
-      return;
-    }
-    const _hitMon = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cx, _cy));
-    if (_hitMon || (_cx === pl.x && _cy === pl.y)) {
-      splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
-      return;
-    }
-  }
-  splashPotion(dg, _lastX, _lastY, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
+  const item = {
+    name: _pot.name,
+    type: "potion",
+    effect: _pot.effect,
+    value: _pot.value || 0,
+    tile: _pot.tile,
+    blessed: false,
+    cursed: false,
+    id: uid(),
+  };
+  throwItemAlongLine(m, dg, item, dx, dy, MW + MH, ml, pl, null, {
+    killerMon: m,
+    sourceIsPlayer: false,
+    bbFn,
+    fireTrapFn,
+    animColor: throwOptions?.color || "#ff88ff",
+    wind: _wind,
+  });
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
@@ -2764,6 +2720,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     hitChance = 1.0,
     applyVulnPentacle = false,
     wakeParalyze = false,
+    wind = true,
     pierce = false,
     isPlayerShooter = false,
     reflectorRange = 20,
@@ -2827,8 +2784,17 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     return;
   }
   /* 矢・石など物理弾：風で曲がる */
-  if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, true);
-  else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, true);
+  const animOpts = {
+    wind,
+    range: maxRange,
+    passThrough: _passthrough,
+    passThroughDodgemole: true,
+    stopAtBigbox: !!onBigbox,
+    stopAtSpring: !!onSpring,
+    stopAtGacha: !!onGacha,
+  };
+  if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, animOpts);
+  else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, animOpts);
 
   let _plHit = false;
   let _lx = m.x, _ly = m.y;
@@ -2836,7 +2802,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   let _windAnnounced = false;
   for (let _d = 1; _d <= maxRange; _d++) {
     /* 風穴：現在マス／進入先で進行方向を上書きしてから1マス進む */
-    const _step = stepProjectile(dg, _cx, _cy, dx, dy);
+    const _step = stepProjectile(dg, _cx, _cy, dx, dy, { wind });
     if (_step.bent) {
       dx = _step.dx; dy = _step.dy;
       if (!_windAnnounced) { ml.push("風穴の風が飛び道具を曲げた！"); _windAnnounced = true; }
@@ -3609,7 +3575,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
 
   /* 薬投げ：一直線＋射程 */
   if (subtype === "potionthrow") {
-    const range = monLevel >= 3 ? 10 : monLevel >= 2 ? 7 : 5;
+    const range = potionThrowRange(src, dg, pl);
     return canSee && !plOnBlessedSanc && inLine && lineLen <= range;
   }
 
@@ -3913,8 +3879,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       }
     }
     if (m.subtype === "potionthrow" && !_plOnBlessedSanc) {
-      const _ptLvl = m.monLevel || 1;
-      const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
+      const _ptRange = potionThrowRange(m, dg, pl);
       if (inLine && lineLen <= _ptRange) {
         m.turnAttacks++;
         monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn);
@@ -5560,8 +5525,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _chargerRdy = m.subtype === "charger" && !m.sealed && _rAtks && _rLine && _rLen >= 2;
       /* わてり：水鉄砲 */
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
-      const _ptLvl0 = m.monLevel || 1;
-      const _ptRange0 = _ptLvl0 >= 3 ? 10 : _ptLvl0 >= 2 ? 7 : 5;
+      const _ptRange0 = potionThrowRange(m, dg, pl);
       const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
@@ -5805,8 +5769,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
 
       if (m.subtype === "potionthrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-        const _ptLvl = m.monLevel || 1;
-        const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
+        const _ptRange = potionThrowRange(m, dg, pl);
         const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
         if (_ptStraight && _ptDist <= _ptRange && canSee && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {

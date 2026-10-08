@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { monSubmergesProjectiles } from "../monTraits.js";
 import { MONS, makeMonsterFromBase, monsterAI, _resolveBolt } from "../monsters.js";
-import { castSpellBolt, fireTrapArrowFromFacing, shootArrow } from "../items.js";
+import { castSpellBolt, fireTrapArrowFromFacing, shootArrow, throwItemAlongLine } from "../items.js";
 import { fireWandBolt } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { T } from "../utils.js";
+import { MW, T } from "../utils.js";
 import { drainAnims } from "../animEvents.js";
 
 const noop = () => {};
@@ -135,6 +135,136 @@ describe("かわしモグラ", () => {
 
     expect(mole.hp).toBe(80);
     expect(target.hp).toBe(70);
+  });
+
+  it("ロキソ忍の薬瓶はかわしモグラを通過して負傷した味方へ届く", () => {
+    drainAnims();
+    const healer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, 3, 5, { aware: true });
+    healer.alwaysUseSpecial = true;
+    const mole = makeTarget("かわしモグラ", 5, 5, 40);
+    mole.baseKind = "dodgemole";
+    const ally = makeTarget("負傷した味方", 7, 5, 40);
+    ally.maxHp = 100;
+    const player = makePlayer({ x: 10, y: 5 });
+    const dg = makeEmptyDg({ monsters: [healer, mole, ally], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const messages = [];
+
+    monsterAI(healer, dg, player, messages, { moveOnly: true });
+    expect(healer._potionHealerTarget).toBe(ally);
+    monsterAI(healer, dg, player, messages, { attackOnly: true });
+
+    expect(mole.hp).toBe(40);
+    expect(ally.hp).toBe(70);
+    expect(messages.some((message) => message.includes("かわしモグラが潜って回復薬をかわした"))).toBe(true);
+    const potionAnim = drainAnims().find((event) => event.type === "monProjectile");
+    expect(potionAnim?.path.some((point) => point.x === mole.x && point.y === mole.y)).toBe(true);
+    expect(potionAnim?.path.some((point) => point.x === ally.x && point.y === ally.y)).toBe(true);
+  });
+
+  it("薬投げは壁と大箱を共通投擲ルールで処理する", () => {
+    const player = makePlayer({ x: 10, y: 10 });
+    const wallTarget = makeTarget("壁の向こうの味方", 6, 5, 40);
+    wallTarget.maxHp = 100;
+    const wallDg = makeEmptyDg({ monsters: [wallTarget] });
+    wallDg.map[5][4] = T.WALL;
+    throwItemAlongLine(
+      { name: "ロキソ忍", x: 2, y: 5, hp: 30, atk: 1 },
+      wallDg,
+      { name: "回復薬", type: "potion", effect: "heal", value: 30, tile: 16, id: "wall-potion" },
+      1, 0, MW + 1, [], player, noop,
+      { killerMon: { name: "ロキソ忍" }, sourceIsPlayer: false, wind: false },
+    );
+    expect(wallTarget.hp).toBe(40);
+
+    const boxTarget = makeTarget("大箱の向こうの味方", 6, 5, 40);
+    boxTarget.maxHp = 100;
+    const box = { id: "box-1", x: 4, y: 5, name: "大箱", items: [] };
+    const boxDg = makeEmptyDg({ monsters: [boxTarget], bigboxes: [box] });
+    const caught = [];
+    throwItemAlongLine(
+      { name: "ロキソ忍", x: 2, y: 5, hp: 30, atk: 1 },
+      boxDg,
+      { name: "回復薬", type: "potion", effect: "heal", value: 30, tile: 16, id: "box-potion" },
+      1, 0, MW + 1, [], player, noop,
+      { killerMon: { name: "ロキソ忍" }, sourceIsPlayer: false, bbFn: (_box, item) => caught.push(item), wind: false },
+    );
+    expect(caught).toHaveLength(1);
+    expect(caught[0].name).toBe("回復薬");
+    expect(boxTarget.hp).toBe(40);
+  });
+
+  it("敵の薬瓶は反射敵に跳ね返される", () => {
+    const shooter = { name: "薬師", x: 2, y: 5, hp: 100, atk: 1, def: 0 };
+    const reflector = makeMonsterFromBase(MONS.find((m) => m.subtype === "reflector"), 1, 4, 5);
+    const player = makePlayer({ x: 10, y: 10 });
+    const dg = makeEmptyDg({ monsters: [shooter, reflector] });
+    const messages = [];
+
+    throwItemAlongLine(
+      shooter, dg,
+      { name: "炎の薬", type: "potion", effect: "fire", value: 20, tile: 17, id: "reflected-potion" },
+      1, 0, MW + 1, messages, player, noop,
+      { killerMon: shooter, sourceIsPlayer: false, wind: false },
+    );
+
+    expect(messages.some((message) => message.includes("弾き返された"))).toBe(true);
+    expect(shooter.hp).toBeLessThan(100);
+  });
+
+  it("敵の薬瓶が冒険者に当たっても敵対させない", () => {
+    const shooter = { name: "薬師", x: 2, y: 5, hp: 100, atk: 1, def: 0 };
+    const adventurer = makeTarget("冒険者", 4, 5, 40);
+    adventurer.maxHp = 100;
+    adventurer.isWanderingAdventurer = true;
+    adventurer.state = "friendly";
+    const player = makePlayer({ x: 10, y: 10 });
+    const dg = makeEmptyDg({ monsters: [shooter, adventurer] });
+
+    throwItemAlongLine(
+      shooter, dg,
+      { name: "回復薬", type: "potion", effect: "heal", value: 30, tile: 16, id: "npc-potion" },
+      1, 0, MW + 1, [], player, noop,
+      { killerMon: shooter, sourceIsPlayer: false, wind: false },
+    );
+
+    expect(adventurer.hp).toBe(70);
+    expect(adventurer.state).toBe("friendly");
+  });
+
+  it("遠投中のロキソ忍は壁を越え、呪いの遠投では射程1になる", () => {
+    drainAnims();
+    const healer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, MW - 4, 5, { aware: true });
+    healer.alwaysUseSpecial = true;
+    const ally = makeTarget("遠方の味方", MW - 2, 5, 40);
+    ally.maxHp = 100;
+    const player = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg({
+      monsters: [healer, ally],
+      rooms: [{ x: 1, y: 1, w: MW, h: 10 }],
+      pentacles: [{ kind: "farcast", x: 5, y: 5, blessed: true }],
+    });
+    dg.map[5][MW - 3] = T.WALL;
+    const messages = [];
+
+    monsterAI(healer, dg, player, messages, { moveOnly: true });
+    expect(healer._potionHealerTarget).toBe(ally);
+    monsterAI(healer, dg, player, messages, { attackOnly: true });
+    expect(ally.hp).toBe(70);
+    const potionAnim = drainAnims().find((event) => event.type === "monProjectile");
+    expect(potionAnim?.path.some((point) => point.x === MW - 3 && point.y === 5)).toBe(true);
+    expect(potionAnim?.path.some((point) => point.x === ally.x && point.y === ally.y)).toBe(true);
+
+    const cursedHealer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, 2, 5, { aware: true });
+    cursedHealer.alwaysUseSpecial = true;
+    const outOfRangeAlly = makeTarget("射程外の味方", 4, 5, 40);
+    outOfRangeAlly.maxHp = 100;
+    const cursedDg = makeEmptyDg({
+      monsters: [cursedHealer, outOfRangeAlly],
+      rooms: [{ x: 1, y: 1, w: 10, h: 10 }],
+      pentacles: [{ kind: "farcast", x: 4, y: 5, blessed: false, cursed: true }],
+    });
+    monsterAI(cursedHealer, cursedDg, makePlayer({ x: 5, y: 5 }), [], { moveOnly: true });
+    expect(cursedHealer._potionHealerTarget).toBeUndefined();
   });
 
   it("矢罠と水鉄砲はモグラを通過して後ろへ進む", () => {
