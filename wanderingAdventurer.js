@@ -12,90 +12,72 @@ const ADVENTURER_FAMILY_NAMES = Object.freeze([
 ]);
 
 export const WANDERING_ADVENTURER_KNOWLEDGE = Object.freeze([
-  Object.freeze({ lines: Object.freeze([
-    "革の鎧を3枚まとめると『腹持ちの胴』になるんだってさ。師匠から聞いた話だけど。",
-    "やった！革の鎧を3枚合成したら『腹持ちの胴』になったんだ。空腹の進みが少し遅くなるぞ！",
-    "そういえば、革の鎧3枚で『腹持ちの胴』ができるらしいよ。試すなら合成の大箱だね。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "鎖帷子は3枚まとめて合成すると『ミスリルの胴着』になるらしい。聞いた話だけどね。",
-    "見てくれよ！鎖帷子を3枚合成したら『ミスリルの胴着』になったんだ。",
-    "鎖帷子を集めてるなら捨てないほうがいいよ。3枚で『ミスリルの胴着』になるからさ。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "短剣を3本合成すると『猫の爪』になるんだって。昔、酒場で聞いた話だけど。",
-    "短剣3本で『猫の爪』！　初めてできた時は思わず声が出たよ。",
-    "あ、短剣を3本持ってたら合成してみなよ。『猫の爪』に変わるから。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "ゴブリンバットを3本合わせると『鬼棍棒』になるって聞いたよ。",
-    "やったぞ！ゴブリンバット3本から『鬼棍棒』ができたんだ。",
-    "ゴブリンバットって侮れないよ。3本合成すれば『鬼棍棒』になるんだ。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "ゾンビキラーは3本合成で『エクスカリバー』になるらしい。仲間から聞いた話だけど。",
-    "ゾンビキラー3本で『エクスカリバー』！　あれは本当に驚いたなあ。",
-    "もしゾンビキラーが3本そろったら、合成してみるといいよ。『エクスカリバー』になる。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "ドラゴンキラーを3本合成すると『鉄塊』になるってさ。信じるかは君次第だけど。",
-    "本当だったよ！ドラゴンキラー3本が『鉄塊』になったんだ。",
-    "ドラゴンキラーは3本残しておくといい。合成すれば『鉄塊』になるから。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "バードキラーを3本合成すると『スナイパー』になるらしいよ。",
-    "バードキラー3本で『スナイパー』ができた時は、思わず拍手しちゃった。",
-    "浮いてる敵に困ってるなら、バードキラーを3本合成して『スナイパー』にするといいよ。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "炎の剣を3本合成すると『フランベルジュ』になる、と古い冒険譚で読んだよ。",
-    "炎の剣を3本集めて合成したら『フランベルジュ』になった！すごいだろ？",
-    "炎の剣は3本そろえて合成。『フランベルジュ』になるからね。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "氷の剣を3本集めると『アイスソード』になるって聞いたことがある。",
-    "氷の剣3本が『アイスソード』になったんだ。ひんやりしてて、いかにもって感じだよね。",
-    "氷の剣が余ったら3本合成してみなよ。『アイスソード』になるよ。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "雷の剣を3本合成すると『千鳥』になるらしい。名前が格好いいよね。",
-    "雷の剣を3本合成したら『千鳥』ができたんだ！あの時は興奮したなあ。",
-    "雷の剣は3本まとめて合成。『千鳥』に変わるよ。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "三元の刃を3本集めると『アルテマソード』になるって、誰かが言ってたな。",
-    "三元の刃3本で『アルテマソード』！　自分で見つけた時は鳥肌が立ったよ。",
-    "三元の刃は3本まで取っておきな。合成すれば『アルテマソード』になるから。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "『万能キラー』を3本合成すると『全能キラー』になるらしい。名前からして強そうだね。",
-    "本当にできたよ、『万能キラー』3本から『全能キラー』！　夢があるだろ？",
-    "万能キラーが3本そろったら、合成して『全能キラー』を狙ってみるといい。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "『アサメ』を3本合成すると『マジックベーン』になるんだって。魔法使いの友人から聞いた。",
-    "アサメ3本が『マジックベーン』に！　魔法の威力が上がって、あれは嬉しかったなあ。",
-    "アサメを3本集めて合成すると『マジックベーン』。覚えておいて損はないよ。",
-  ]) }),
-  Object.freeze({ lines: Object.freeze([
-    "ドラゴンメイルをベースに三属性の耐性をそろえると『元素王の鎧』になるらしいよ。",
-    "氷竜のウロコをベースに炎・氷・雷の耐性を集めたら、『元素王の鎧』になったんだ！",
-    "ドラゴンメイル・氷竜のウロコ・ゴムゴムの胴のどれかをベースにして、三属性の耐性をそろえると『元素王の鎧』だ。",
-  ]) }),
+  Object.freeze({ recipe: "革の鎧3枚を合成すると", result: "腹持ちの胴" }),
+  Object.freeze({ recipe: "鎖帷子3枚を合成すると", result: "ミスリルの胴着" }),
+  Object.freeze({ recipe: "短剣3本を合成すると", result: "猫の爪" }),
+  Object.freeze({ recipe: "ゴブリンバット3本を合成すると", result: "鬼棍棒" }),
+  Object.freeze({ recipe: "ゾンビキラー3本を合成すると", result: "エクスカリバー" }),
+  Object.freeze({ recipe: "ドラゴンキラー3本を合成すると", result: "鉄塊" }),
+  Object.freeze({ recipe: "バードキラー3本を合成すると", result: "スナイパー" }),
+  Object.freeze({ recipe: "炎の剣3本を合成すると", result: "フランベルジュ" }),
+  Object.freeze({ recipe: "氷の剣3本を合成すると", result: "アイスソード" }),
+  Object.freeze({ recipe: "雷の剣3本を合成すると", result: "千鳥" }),
+  Object.freeze({ recipe: "三元の刃3本を合成すると", result: "アルテマソード" }),
+  Object.freeze({ recipe: "万能キラー3本を合成すると", result: "全能キラー" }),
+  Object.freeze({ recipe: "アサメ3本を合成すると", result: "マジックベーン" }),
+  Object.freeze({ recipe: "ドラゴンメイル・氷竜のウロコ・ゴムゴムの胴のいずれかをベースに三属性の耐性をそろえると", result: "元素王の鎧" }),
 ]);
 
-const WANDERING_ADVENTURER_SMALL_TALK = Object.freeze([
-  "ああ、誰かと話すの久しぶりだなあ。魔物相手だと返事がないからね。",
-  "この床、さっきから同じところを歩いてる気がするんだよね……気のせいかな。",
-  "お腹すいたなあ。さっき食べたばかりなのに。",
-  "靴に小石が入ってる気がする。ずっと気になってるんだ。",
-  "この部屋、静かだね。こういう時のほうが、逆に落ち着かないな。",
-  "いい匂いがする……いや、何も持ってなかった。気のせいか。",
-  "独り言が多い？　誰かと話すのが久しぶりでさ。",
-  "冒険者って普段なに食べてると思う？　今日の夕飯を考えてたんだ。",
-  "髪が顔にかかって邪魔なんだ。戦う前に結んでおけばよかったよ。",
-  "休憩って大事だね。あと一歩で倒れそうだったよ。……いや、今は大丈夫。",
+const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
+  Object.freeze({
+    key: "rumor_monger",
+    infoLine: (fact, variant) => [
+      `ねえ、聞いた話なんだけどさ、${fact.recipe}『${fact.result}』になるらしいよ。`,
+      `酒場で耳にしたんだ。${fact.recipe}『${fact.result}』になるってさ。`,
+      `師匠から聞いたんだけど、${fact.recipe}『${fact.result}』になるんだって。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "この辺の石畳、昔はもっと白かったらしいよ。誰から聞いたかは忘れたけど。",
+      "この部屋の隅、風が通るって噂だよ。……まあ、今は感じないけどさ。",
+      "地下の食堂はスープがおいしいって聞いたんだ。どこにあるのかは知らないけど。",
+      "この辺、静かだね。魔物も今日はおとなしいって話だよ。たぶんね。",
+    ]),
+  }),
+  Object.freeze({
+    key: "excited_discoverer",
+    infoLine: (fact, variant) => [
+      `聞いてくれ！${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだ。自分で見つけた時は声が出たよ！`,
+      `やったぞ！${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだ！初めて知った時は興奮したなあ。`,
+      `この発見、君にも伝えたかったんだ。${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだよ！`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "ああ、やっと人に会えた！魔物相手だと返事がないから、ちょっと嬉しいな。",
+      "この部屋、なんだかいい感じだ！根拠はないけど、宝箱がありそうな気がする！",
+      "さっきの足音、僕のじゃないと思うんだ。……えっ、君でもない？",
+      "冒険って最高だよな！お腹が空くこと以外は、ほんとに最高！",
+    ]),
+  }),
+  Object.freeze({
+    key: "practical",
+    infoLine: (fact, variant) => [
+      `要点だけだ。${fact.recipe}『${fact.result}』になる。覚えておけよ。`,
+      `無駄話は苦手なんだが、これは役立つ。${fact.recipe}『${fact.result}』だ。`,
+      `忘れるな。${fact.recipe}『${fact.result}』になる。以上だ。`,
+    ][variant],
+    smallTalk: Object.freeze([
+      "靴の紐がほどけてる。……ああ、俺のじゃない。君のだ。",
+      "腹が減る前に何か食べておけよ。……いや、装備の話じゃない。夕飯の話だ。",
+      "ここで立ち話をしてると冷えるな。先に進むぞ。",
+      "休憩は大事だ。俺はもう少し歩いてからにする。",
+    ]),
+  }),
 ]);
+
+function discoveredRecipePhrase(recipe) {
+  if (recipe.endsWith("すると")) return `${recipe.slice(0, -3)}したら`;
+  if (recipe.endsWith("ると")) return `${recipe.slice(0, -2)}えたら`;
+  return recipe;
+}
 
 export function isWanderingNpc(monster) {
   return !!(monster?.isWanderingMerchant || monster?.isWanderingAdventurer);
@@ -122,6 +104,17 @@ export function assignWanderingAdventurerKnowledge(monster, randomFn = Math.rand
   return WANDERING_ADVENTURER_KNOWLEDGE[monster.adventurerInfoIndex];
 }
 
+/** 個体ごとに話し方を固定し、雑談にも同じ性格を反映する。 */
+export function assignWanderingAdventurerPersonality(monster, randomFn = Math.random) {
+  if (!monster) return null;
+  if (!Number.isInteger(monster.adventurerPersonalityIndex) ||
+      monster.adventurerPersonalityIndex < 0 || monster.adventurerPersonalityIndex >= WANDERING_ADVENTURER_PERSONALITIES.length) {
+    monster.adventurerPersonalityIndex = Math.min(WANDERING_ADVENTURER_PERSONALITIES.length - 1,
+      Math.floor(Math.max(0, randomFn()) * WANDERING_ADVENTURER_PERSONALITIES.length));
+  }
+  return WANDERING_ADVENTURER_PERSONALITIES[monster.adventurerPersonalityIndex];
+}
+
 /** 階層と3段階の実力抽選から、毎回少し異なる冒険者の能力値を作る。 */
 export function rollWanderingAdventurerStats(depth = 0, randomFn = Math.random) {
   const randomInt = (min, max) => min + Math.min(max - min, Math.floor(Math.max(0, randomFn()) * (max - min + 1)));
@@ -136,26 +129,28 @@ export function rollWanderingAdventurerStats(depth = 0, randomFn = Math.random) 
 
 /** 一人一つの知識を、伝聞・発見談・雑談まじりの口調で返す。 */
 export function nextWanderingAdventurerDialogue(monster, randomFn = Math.random) {
+  const personality = assignWanderingAdventurerPersonality(monster, randomFn);
+  if (!personality) return "……。";
   if (randomFn() < 0.20) {
     const previousChatter = monster?.lastAdventurerSmallTalkIndex;
-    const chatterCandidates = WANDERING_ADVENTURER_SMALL_TALK
+    const chatterCandidates = personality.smallTalk
       .map((line, index) => ({ line, index }))
       .filter((entry) => entry.index !== previousChatter);
     const chatter = chatterCandidates[Math.min(chatterCandidates.length - 1,
       Math.floor(Math.max(0, randomFn()) * chatterCandidates.length))]
-      || { line: WANDERING_ADVENTURER_SMALL_TALK[0], index: 0 };
+      || { line: personality.smallTalk[0], index: 0 };
     if (monster) monster.lastAdventurerSmallTalkIndex = chatter.index;
     return chatter.line;
   }
 
   const knowledge = assignWanderingAdventurerKnowledge(monster, randomFn);
   const previousLine = monster?.lastAdventurerLineIndex;
-  const lineCandidates = knowledge.lines
-    .map((line, index) => ({ line, index }))
+  const lineCandidates = [0, 1, 2]
+    .map((index) => ({ index }))
     .filter((entry) => entry.index !== previousLine);
   const selected = lineCandidates[Math.min(lineCandidates.length - 1,
     Math.floor(Math.max(0, randomFn()) * lineCandidates.length))]
-    || { line: knowledge.lines[0], index: 0 };
+    || { index: 0 };
   if (monster) monster.lastAdventurerLineIndex = selected.index;
-  return selected.line;
+  return personality.infoLine(knowledge, selected.index);
 }
