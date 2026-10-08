@@ -120,7 +120,7 @@ export { isDuplicateDirectionEvent, directionFamily, isRepeatBlockedKey };
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+  sr, shiftRef, aRef, keyboardShiftRef = null, keyboardDashRef = null, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showEnding, showScores, showSound = false, gameOverSel, gameOverView, endingSel = 0, endingView,
   facingMode,
@@ -1311,9 +1311,11 @@ export function useKeyHandler({
         return;
       }
       if (k === "shift") {
+        if (keyboardShiftRef) keyboardShiftRef.current = true;
         shiftRef.current = true;
       }
       if (isDashModifierKey(e)) {
+        if (keyboardDashRef) keyboardDashRef.current = true;
         aRef.current = true;
       }
       /* テンキー多重 keydown をここで落とす（見渡す・メニュー・歩行すべて） */

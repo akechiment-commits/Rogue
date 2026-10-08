@@ -5360,7 +5360,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setGs({ ...sr.current });
   }, []);
   const shiftRef = useRef(false);
+  const keyboardShiftRef = useRef(false);
+  const gamepadShiftRef = useRef(false);
   const aRef = useRef(false);
+  const keyboardDashRef = useRef(false);
+  const gamepadDashRef = useRef(false);
   const arrowHeldRef = useRef({});
   const floorPenDropRef = useRef(null);
   const floorWandRef = useRef(null);
@@ -5375,13 +5379,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const doMerchantSellProxy = useCallback((...args) => doMerchantSellRef.current?.(...args), []);
   useEffect(() => {
     const clearHeldKeys = () => {
-      shiftRef.current = false;
-      aRef.current = false;
+      keyboardShiftRef.current = false;
+      keyboardDashRef.current = false;
+      shiftRef.current = gamepadShiftRef.current;
+      aRef.current = gamepadDashRef.current;
       arrowHeldRef.current = {};
     };
     const onUp = (e) => {
-      if (e.key === "Shift") { shiftRef.current = false; arrowHeldRef.current = {}; }
-      if (isDashModifierKey(e)) aRef.current = false;
+      if (e.key === "Shift") {
+        keyboardShiftRef.current = false;
+        shiftRef.current = gamepadShiftRef.current;
+        arrowHeldRef.current = {};
+      }
+      if (isDashModifierKey(e)) {
+        keyboardDashRef.current = false;
+        aRef.current = gamepadDashRef.current;
+      }
       const _arDir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
       if (_arDir[e.key]) arrowHeldRef.current[_arDir[e.key]] = false;
       const _npmDir = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
@@ -5469,7 +5482,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   };
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+    sr, shiftRef, aRef, keyboardShiftRef, keyboardDashRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
     // state values
     gs, dead, showEnding, showScores, showSound, gameOverSel, gameOverView, endingSel, endingView,
     facingMode,
@@ -5497,6 +5510,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     enabled: true,
     aRef,
     shiftRef,
+    keyboardDashRef,
+    gamepadDashRef,
+    keyboardShiftRef,
+    gamepadShiftRef,
     arrowHeldRef,
     sr,
     invActRef,

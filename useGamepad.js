@@ -19,6 +19,11 @@ import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 const QUICK_MENU_COLS = 2;
 const WAIT_REPEAT_MS = 130;
 
+function setGamepadModifier(aggregateRef, keyboardRef, gamepadRef, pressed) {
+  if (gamepadRef) gamepadRef.current = pressed;
+  if (aggregateRef) aggregateRef.current = !!keyboardRef?.current || pressed;
+}
+
 function fireKey(key, code, type = "keydown") {
   if (typeof window === "undefined") return;
   const ev = new KeyboardEvent(type, {
@@ -100,6 +105,10 @@ export function useGamepad({
   enabled = true,
   aRef,
   shiftRef,
+  keyboardDashRef,
+  gamepadDashRef,
+  keyboardShiftRef,
+  gamepadShiftRef,
   arrowHeldRef,
   sr,
   invActRef,
@@ -326,14 +335,14 @@ export function useGamepad({
         return;
       }
       if (dash || aRef?.current) {
-        if (aRef) aRef.current = true;
+        if (dash) setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, true);
         aUsedDashRef.current = true;
         doDash?.(dx, dy);
         return;
       }
       act?.("move", dx, dy);
     },
-    [dead, doDash, act, aRef],
+    [dead, doDash, act, aRef, keyboardDashRef, gamepadDashRef],
   );
 
   const cancelModal = useCallback(() => {
@@ -369,7 +378,8 @@ export function useGamepad({
       raf = requestAnimationFrame(tick);
       const gp = pickFirstGamepad(navigator.getGamepads?.() || []);
       if (!gp) {
-        if (shiftRef) shiftRef.current = false;
+        setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
+        setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
         waitHeldRef.current = false;
         waitStoppedRef.current = false;
         if (rbHeldUiRef.current) {
@@ -384,8 +394,8 @@ export function useGamepad({
       const prev = prevBtnRef.current;
 
       if (showSoundRef.current) {
-        if (aRef) aRef.current = false;
-        if (shiftRef) shiftRef.current = false;
+        setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
+        setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
         waitHeldRef.current = false;
         setQuickOpen(false);
         for (const [button, key] of [[BTN.UP, "ArrowUp"], [BTN.DOWN, "ArrowDown"], [BTN.LEFT, "ArrowLeft"], [BTN.RIGHT, "ArrowRight"]]) {
@@ -405,7 +415,7 @@ export function useGamepad({
       }
 
       const _rbNow = buttonPressed(gp, BTN.RB);
-      if (shiftRef) shiftRef.current = _rbNow;
+      setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, _rbNow);
       if (_rbNow !== rbHeldUiRef.current) {
         rbHeldUiRef.current = _rbNow;
         setRbHeld(_rbNow);
@@ -533,11 +543,13 @@ export function useGamepad({
         }
       }
       if (aHeld && !lt && !anyModalUi() && !facingModeRef.current) {
-        if (aRef && now - aDownAtRef.current >= A_TAP_MS) aRef.current = true;
+        if (now - aDownAtRef.current >= A_TAP_MS) {
+          setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, true);
+        }
       }
       if (edgeUp(prev, next, BTN.A) && !lt) {
         const dur = now - aDownAtRef.current;
-        if (aRef) aRef.current = false;
+        setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
         if (
           !aUsedDashRef.current &&
           dur > 0 &&
@@ -758,8 +770,8 @@ export function useGamepad({
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
-      if (aRef) aRef.current = false;
-      if (shiftRef) shiftRef.current = false;
+      setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
+      setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
       waitHeldRef.current = false;
       waitStoppedRef.current = false;
     };
@@ -767,6 +779,10 @@ export function useGamepad({
     enabled,
     aRef,
     shiftRef,
+    keyboardDashRef,
+    gamepadDashRef,
+    keyboardShiftRef,
+    gamepadShiftRef,
     arrowHeldRef,
     act,
     doDash,
