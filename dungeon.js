@@ -1,4 +1,5 @@
-import { monsterOccupiesCell } from "./monsterGeometry.js";
+import { monsterOccupiesCell, monsterBodyCells } from "./monsterGeometry.js";
+import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
@@ -203,7 +204,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     bigboxes.some((b) => b.x === x && b.y === y) ||
     springs.some((s) => s.x === x && s.y === y) ||
     statues.some((s) => s.x === x && s.y === y);
-  const monOcc = (x, y) => mons.some((m) => m.x === x && m.y === y);
+  const monOcc = (x, y) => mons.some((m) => monsterOccupiesCell(m, x, y));
   const allOcc = (x, y) => monOcc(x, y) || fixtureOcc(x, y);
 
   /* 既存モンスターは残す。空きマスに新規を追加（既存マスには重ねない） */
@@ -224,6 +225,8 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   for (let i = 0; i < monPlace; i++) {
     const [mx, my] = roomFloorTiles[i];
     const _mh = mkMon(depth, mx, my, 0, map, springs, dungeonType);
+    if (!canSpawnLargeMonsterAt({ map, monsters: mons, stairUp: su, stairDown: sd }, _mh, mx, my) ||
+        monsterBodyCells(_mh).some(cell => fixtureOcc(cell.x, cell.y))) continue;
     if (awake) {
       _mh.dormantHouse = false;
       _mh.aware = true;
@@ -3143,6 +3146,7 @@ function attachDebugSpecialFixtures(dg, depth) {
 /** 偽階段・風穴・石像・固定転送・ガチャマシーンをフロアにばら撒く */
 function attachFloorGimmicks(dg, depth) {
   if (!dg) return dg;
+  settleLargeMonsterSpawns(dg);
   dg.vents = dg.vents || [];
   dg.statues = dg.statues || [];
   dg.pentacles = dg.pentacles || [];
