@@ -115,7 +115,7 @@ describe("上級ダンジョンの敵分布", () => {
     }
   });
 
-  it("上級で通常出現する全73種は最低3階に候補になる", () => {
+  it("ロキソ忍を含む上級の全74種は最低3階に候補になる", () => {
     const counts = new Map();
     for (const kinds of ADVANCED_MONSTER_FLOOR_POOLS) {
       for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
@@ -123,7 +123,8 @@ describe("上級ダンジョンの敵分布", () => {
     const advancedKinds = MONS
       .filter((monster) => !monster.penaltyOnly && !monster.floodedOnly && !(monster.dungeons && !monster.dungeons.includes("advanced")))
       .map((monster) => monster.baseKind);
-    expect(new Set(advancedKinds).size).toBe(73);
+    expect(new Set(advancedKinds).size).toBe(74);
+    expect(advancedKinds).toContain('potionhealer');
     for (const kind of advancedKinds) expect(counts.get(kind)).toBeGreaterThanOrEqual(3);
   });
 

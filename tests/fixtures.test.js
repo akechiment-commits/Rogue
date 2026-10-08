@@ -418,7 +418,12 @@ describe("石像", () => {
     expect(dg.statues).toEqual([]);
     expect(dg.items.length).toBeGreaterThanOrEqual(1);
     expect(p.hp).toBe(100);
-    expect(ml.some(m => m.includes(`${attackName}が石像に命中`))).toBe(true);
+    if (subtype === 'potionthrow') {
+      // 薬投げは共通投擲の石像破壊ログを使う。
+      expect(ml.some(m => m.includes('砕け散った！'))).toBe(true);
+    } else {
+      expect(ml.some(m => m.includes(`${attackName}が石像に命中`))).toBe(true);
+    }
     expect(ml.some(m => m.includes("飛び出した"))).toBe(true);
     expect(ml.some(m => m.includes("が現れた"))).toBe(true);
   });

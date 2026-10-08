@@ -154,7 +154,8 @@ describe("中級ダンジョンの敵", () => {
     for (let floor = 1; floor <= 20; floor++) {
       const kinds = intermediateMonsterKinds(floor);
       const extraGiant = kinds.includes('hauntedWillow') ? 1 : 0;
-      expect(kinds.length).toBeLessThanOrEqual(14 + extraGiant);
+      const extraHealer = kinds.includes('potionhealer') ? 1 : 0;
+      expect(kinds.length).toBeLessThanOrEqual(14 + extraGiant + extraHealer);
       for (const banned of INTERMEDIATE_MONSTER_BAN) {
         expect(kinds).not.toContain(banned);
       }
@@ -181,10 +182,12 @@ describe("中級ダンジョンの敵", () => {
     expect(intermediateMonsterKinds(16)).toHaveLength(9);
     expect(intermediateMonsterKinds(16)).toContain("lizardman");
     expect(intermediateMonsterKinds(16)).not.toContain("dragonknight");
-    expect(intermediateMonsterKinds(17)).toHaveLength(10);
+    expect(intermediateMonsterKinds(17)).toHaveLength(11);
     expect(intermediateMonsterKinds(17)).toEqual(expect.arrayContaining(["lizardman", "dragonknight"]));
-    expect(intermediateMonsterKinds(18)).toHaveLength(15);
-    expect(intermediateMonsterKinds(19)).toHaveLength(13);
+    expect(intermediateMonsterKinds(18)).toHaveLength(16);
+    expect(intermediateMonsterKinds(19)).toHaveLength(14);
+    for (const floor of [8, 9, 10, 17, 18, 19, 20]) expect(intermediateMonsterKinds(floor)).toContain('potionhealer');
+    for (const floor of [7, 11, 16]) expect(intermediateMonsterKinds(floor)).not.toContain('potionhealer');
     for (const floor of [18, 19, 20]) expect(intermediateMonsterKinds(floor)).toContain('hauntedWillow');
     expect(intermediateMonsterKinds(17)).not.toContain('hauntedWillow');
   });
