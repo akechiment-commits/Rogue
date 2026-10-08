@@ -153,7 +153,8 @@ describe("中級ダンジョンの敵", () => {
     const f20 = intermediateMonsterKinds(20);
     for (let floor = 1; floor <= 20; floor++) {
       const kinds = intermediateMonsterKinds(floor);
-      expect(kinds.length).toBeLessThanOrEqual(14);
+      const extraGiant = kinds.includes('hauntedWillow') ? 1 : 0;
+      expect(kinds.length).toBeLessThanOrEqual(14 + extraGiant);
       for (const banned of INTERMEDIATE_MONSTER_BAN) {
         expect(kinds).not.toContain(banned);
       }
@@ -182,8 +183,10 @@ describe("中級ダンジョンの敵", () => {
     expect(intermediateMonsterKinds(16)).not.toContain("dragonknight");
     expect(intermediateMonsterKinds(17)).toHaveLength(10);
     expect(intermediateMonsterKinds(17)).toEqual(expect.arrayContaining(["lizardman", "dragonknight"]));
-    expect(intermediateMonsterKinds(18)).toHaveLength(14);
-    expect(intermediateMonsterKinds(19)).toHaveLength(12);
+    expect(intermediateMonsterKinds(18)).toHaveLength(15);
+    expect(intermediateMonsterKinds(19)).toHaveLength(13);
+    for (const floor of [18, 19, 20]) expect(intermediateMonsterKinds(floor)).toContain('hauntedWillow');
+    expect(intermediateMonsterKinds(17)).not.toContain('hauntedWillow');
   });
 
   it("中級の出現対象はすべて最低3階に出る", () => {
