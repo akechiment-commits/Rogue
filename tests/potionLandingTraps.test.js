@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyWandEffect } from "../wands.js";
 import { clearPitfallBag, setPitfallBag, throwItemAlongLine } from "../items.js";
 import { placeFallenEntities } from "../pitfallPlacement.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
-afterEach(() => clearPitfallBag());
+afterEach(() => { clearPitfallBag(); vi.restoreAllMocks(); });
 function setup(effect, route) {
   const potion = { id: "potion", type: "potion", name: "回復薬", effect: "heal", value: 30, x: 5, y: 5 };
   const path = { id: "path", name: "途中の落とし穴", effect: "pitfall", x: 5, y: 8, permanent: true, revealed: false };
@@ -19,6 +19,24 @@ function setup(effect, route) {
 }
 
 describe("薬瓶の着地罠を薬液より先に処理する", () => {
+  it.each(['pitfall', 'explode', 'watergun_trap'])('瓶が外れた着地点の%sで消費された薬は飛沫を出さない', effect => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const potion = { id: 'missed-potion', name: '回復薬', type: 'potion', effect: 'heal', value: 30 };
+    const player = makePlayer({ x: 5, y: 8, hp: 60, maxHp: 100 });
+    const trap = { id: 'landing-trap', name: '着地罠', x: 5, y: 8, effect, permanent: true };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const bag = [];
+    setPitfallBag(bag);
+    const logs = [];
+    const result = throwItemAlongLine({ x: 5, y: 5, hp: 50, name: '投げる敵' }, dg, potion, 0, 1, 3, logs, player, () => {}, { hitChance: 0.75 });
+    expect(result.missedPlayer).toBe(true);
+    expect(trap.revealed).toBe(true);
+    expect(dg.items).toEqual([]);
+    expect(logs.join(' ')).not.toContain('瓶が割れて');
+    expect(player.hp).toBeLessThanOrEqual(60);
+    if (effect === 'pitfall') expect(bag).toContainEqual({ kind: 'item', entity: potion });
+  });
+
   for (const route of ["throw", "wand"]) {
     it(`${route}: 落とし穴への落下は薬効を出さず、下階で簡素に消滅する`, () => {
       const s = setup("pitfall", route);

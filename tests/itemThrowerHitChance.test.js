@@ -39,7 +39,6 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
   }
 
   it.each([
-    { name: "毒薬", type: "potion", effect: "poison", value: 5 },
     { name: "火薬の壺", type: "pot", potEffect: "gunpowder", capacity: 3, contents: [{ id: "inside", name: "パン", type: "food" }] },
     { name: "雷の杖", type: "wand", effect: "lightning", charges: 3 },
     { name: "ヤバイパン", type: "food", yabai: true },
@@ -49,7 +48,7 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     s.attack();
     expect(s.player.hp).toBe(100);
-    expect(s.player.poisonTurns || 0).toBe(0);
+    expect(s.player.poisonedTurns || 0).toBe(0);
     expect(s.player.confusedTurns || 0).toBe(0);
     expect(s.hit).not.toHaveBeenCalled();
     expect(s.dungeon.items).toEqual([{ id: "held", ...item, x: 5, y: 8 }]);
@@ -139,14 +138,34 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
     expect(result.lunges[0].id).toBe(s.enemy.id);
   });
 
-  it("みかわし防具でかわした薬も薬効を発動せず落ちる", () => {
+  it("みかわし防具で瓶をかわしても、その場で割れた毒薬の飛沫がかかる", () => {
     const s = setup({ id: "held", name: "毒薬", type: "potion", effect: "poison" });
     s.player.armor = { abilities: ["dodge"] };
     vi.spyOn(Math, "random").mockReturnValue(0.01);
     s.attack();
-    expect(s.player.hp).toBe(100);
-    expect(s.player.poisonTurns || 0).toBe(0);
+    expect(s.player.poisonedTurns).toBeGreaterThan(0);
     expect(s.messages.join(" ")).toContain("かわした");
-    expect(s.dungeon.items[0]).toMatchObject({ id: "held", type: "potion", x: 5, y: 8 });
+    expect(s.dungeon.items).toEqual([]);
+    expect(s.messages.join(" ")).toContain("瓶が割れて中身が飛び散った！");
+  });
+
+  it("75%の命中抽選で外れた毒薬も、その場で割れて薬効を出す", () => {
+    const s = setup({ id: 'held', name: '毒薬', type: 'potion', effect: 'poison', value: 5 });
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    s.attack();
+    expect(s.player.poisonedTurns).toBeGreaterThan(0);
+    expect(s.dungeon.items).toEqual([]);
+    expect(s.messages.join(' ')).toContain('外れた');
+    expect(s.messages.join(' ')).toContain('瓶が割れて中身が飛び散った！');
+  });
+
+  it('瓶が外れても炎の飛沫で減ったHPは命中表示へ通知する', () => {
+    const s = setup({ id: 'held', name: '炎の薬', type: 'potion', effect: 'fire', value: 50 });
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    s.attack();
+    expect(s.player.hp).toBeLessThan(100);
+    expect(s.hit).toHaveBeenCalledWith(100 - s.player.hp, s.enemy);
+    expect(s.dungeon.items).toEqual([]);
+    expect(s.messages.join(' ')).toContain('外れた');
   });
 });

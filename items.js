@@ -6149,7 +6149,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
       removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft: _trapFt, p });
     }
-    if (r === "destroyed") { res.consumed = true; _destroyedByTrap = true; return "destroyed"; }
+    if (r === "destroyed" || r === "pitfall_player") { res.consumed = true; _destroyedByTrap = true; return "destroyed"; }
     res.x = lx; res.y = ly; res.consumed = false;
   };
 
@@ -6281,7 +6281,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   /* 空中で通過した罠は踏まず、壁・射程端で床に落ちる道具だけを判定する。
      落とし穴などで消費された壺・杖を、破損処理や再配置へ回さない。 */
   const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue && !res.hitEnemyProjectile;
-  if (_noHit && !res.missedPlayer) {
+  if (_noHit && (!res.missedPlayer || _isPotion)) {
     const trap = dg.traps?.find(t => t.x === res.x && t.y === res.y);
     if (trap && (dg.timeStopTurns || 0) <= 0 && canActivateTrap(dg, trap)) _landOnTrap(trap, res.x, res.y, ml);
   }
@@ -6295,9 +6295,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   /* 薬瓶も含め、着地罠で消費された道具に破損・薬液などを重ねない。 */
   if (_destroyedByTrap) return res;
 
-  /* 命中しなかった投擲物は薬液・破損・爆発を発動せずに落とす。
+  /* 薬瓶は外れても着地点で割れる。他の外れた投擲物は破損・爆発せず落とす。
      貫通中に別の対象へ命中した場合は、その着弾処理を優先する。 */
-  if (res.missedPlayer && !res.consumed) {
+  if (res.missedPlayer && !res.consumed && !_isPotion) {
     if (missLandFn) missLandFn(res.x, res.y, item, ml);
     else placeItemAt(dg, res.x, res.y, item, ml, new Set(), 0, p);
     return res;
@@ -6317,7 +6317,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
   } else if (_isPotion) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
+    const hpBeforeSplash = p?.hp;
+    res.consumed = true;
+    res.splash = true;
     splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
+    // 瓶は外れていても、飛沫の実ダメージは敵攻撃の表示へ通知する。
+    if (res.missedPlayer && p && p.hp < hpBeforeSplash) res.hitPlayer = true;
   } else if (_isPot) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
     scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn, {

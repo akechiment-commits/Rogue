@@ -50,14 +50,14 @@ describe('プレイヤーのみかわしは飛び道具が本人に届いた時�
     expect(logs.some(line => line.includes('みかわし'))).toBe(true);
   });
 
-  it('命中率100%の薬でも絶対回避された瓶は着弾位置へ落ち、射手に薬効を出さない', () => {
+  it('絶対回避された薬瓶は着地点で割れ、飛沫は射手の位置ではなく着地点へ出る', () => {
     const shooter = { id: 'shooter', name: '投薬する敵', x: 3, y: 5, hp: 100, maxHp: 100, atk: 10 };
     const { p, dg, logs } = setup([shooter]);
     const potion = { id: 'potion', name: '暗闇の薬', type: 'potion', effect: 'darkness', value: 10 };
     throwItemAlongLine(shooter, dg, potion, 1, 0, 20, logs, p, () => {}, { killerMon: shooter, hitChance: 1 });
     expect(shooter.darknessTurns || 0).toBe(0);
-    expect(p.darknessTurns || 0).toBe(0);
-    expect(dg.items).toContain(potion);
-    expect(Math.max(Math.abs(potion.x - p.x), Math.abs(potion.y - p.y))).toBeLessThanOrEqual(1);
+    expect(p.darknessTurns).toBeGreaterThan(0);
+    expect(dg.items).toEqual([]);
+    expect(logs).toContain('瓶が割れて中身が飛び散った！');
   });
 });
