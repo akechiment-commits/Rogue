@@ -2377,7 +2377,7 @@ function monsterThrowChargedFuzzball(m, dg, pl, ml, luFn) {
 }
 
 /* ===== MONSTER STONE THROW (ワッカ) — 放物線で敵や床オブジェクトを越えるホーミング投げ ===== */
-function monsterThrowStone(m, dg, pl, ml) {
+function monsterThrowStone(m, dg, pl, ml, opts = {}) {
   const ammo = ensureMonsterProjectileAmmo(m);
   if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
   ammo.count--;
@@ -2391,33 +2391,55 @@ function monsterThrowStone(m, dg, pl, ml) {
   const windAtAim = getWindAt(dg, aimX, aimY);
   ml.push(`${m.name}が${stoneName}を投げた！`);
 
+  const dropMissedStoneAtPlayer = () => {
+    const x = pl.x, y = pl.y;
+    const stone = dropStone();
+    /* 直撃を免れた石は足元へ落とし、そこにある床効果へ渡す。 */
+    if (dg.traps?.some(t => t.x === x && t.y === y)) {
+      placeItemAt(dg, x, y, stone, ml, new Set(), 0, pl, x, y);
+      return;
+    }
+    const spring = dg.springs?.find(s => s.x === x && s.y === y);
+    if (spring) {
+      soakItemIntoSpring(spring, { ...stone, x, y }, ml, dg, null);
+      return;
+    }
+    const bigbox = dg.bigboxes?.find(b => b.x === x && b.y === y);
+    if (bigbox) {
+      if (opts.bbFn) {
+        opts.bbFn(bigbox, stone, dg, ml, { killerMon: m, sourceIsPlayer: false });
+      } else {
+        (bigbox.contents ||= []).push(stone);
+        ml.push(`${stoneName}が${bigbox.name || "大箱"}に入った。`);
+      }
+      return;
+    }
+    placeItemAt(dg, x, y, stone, ml, new Set(), 0, pl, x, y);
+  };
+
   const _hitPlayer = () => {
     const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
     if (_stDodgePcMode === "dodge") {
       ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       return;
     }
     const _stSanc = !inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
     if (_stSanc) {
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
       return;
     }
     const dodged = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
     if (dodged) {
       ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       return;
     }
     const miss = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && Math.random() >= hitChance;
     if (miss) {
       ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       return;
     }
     const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -3860,7 +3882,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
       if (lineLen <= _stRange) {
         m.turnAttacks++;
-        monsterThrowStone(m, dg, pl, ml);
+        monsterThrowStone(m, dg, pl, ml, opts);
         return true;
       }
     }
@@ -5699,7 +5721,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_stDist <= _stRange && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
-          monsterThrowStone(m, dg, pl, ml);
+          monsterThrowStone(m, dg, pl, ml, opts);
           return;
         }
       }
