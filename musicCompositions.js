@@ -11,7 +11,8 @@ const CHORDS = {
   Fm: ["F3", "Ab3", "C4", "Eb4"], Bm: ["B3", "D4", "F#4", "A4"],
   E7: ["E3", "G#3", "B3", "D4"], Bbm: ["Bb3", "Db4", "F4", "Ab4"],
   Gb: ["Gb3", "Bb3", "Db4", "F4"], Ebm: ["Eb3", "Gb3", "Bb3", "Db4"],
-  CsharpDim: ["C#4", "E4", "G4", "Bb4"],
+  CsharpDim: ["C#4", "E4", "G4", "Bb4"], DsharpDim: ["D#4", "F#4", "A4", "C5"],
+  C7: ["C4", "E4", "G4", "Bb4"],
 };
 const octave = (note, value) => note.replace(/\d+$/, String(value));
 const parseBar = (score) => {
@@ -443,22 +444,310 @@ function abyssExploration() {
 }
 export const BGM_DUNGEON_ABYSS = abyssExploration();
 
-const BATTLE_A = [
-  "E5:3 -:1 E5:2 G5:2 B5:4 A5:2 G5:2", "D5:2 G5:2 B5:3 A5:1 G5:2 D5:2 B4:4",
-  "C5:2 E5:2 A5:4 G5:2 E5:2 C5:4", "F#5:3 E5:1 D5:2 A4:2 F#5:4 -:2 A5:2",
-  "G5:2 E5:2 B4:2 E5:2 G5:4 B5:2 A5:2", "G5:4 E5:2 C5:2 D5:2 E5:2 G5:4",
-  "F#5:2 D#5:2 B4:2 F#5:2 A5:4 F#5:2 D#5:2", "B4:2 D#5:2 F#5:2 A5:2 B5:4 -:4",
-];
-export const BGM_MONSTER_HOUSE = arrange({
-  name: "monster_house", title: "突破口", tempo: 160, style: "battle",
-  desc: "E短調。16小節。警報の短い動機、跳躍する応答、細かいキックで包囲の緊張を作る。",
-  chords: ["Em","G","Am","D","Em","C","B","B", "C","D","Em","G","Am","C","B","B"],
-  melody: [...BATTLE_A,
-    "G5:2 E5:2 C5:4 E5:2 G5:2 B5:4", "A5:3 F#5:1 D5:4 F#5:2 A5:2 C6:4",
-    "B5:2 G5:2 E5:4 G5:2 F#5:2 E5:4", "D5:2 G5:2 B5:4 A5:2 G5:2 D5:4",
-    "C6:2 B5:2 A5:2 G5:2 E5:4 C5:4", "E5:2 G5:2 C6:4 B5:2 G5:2 E5:4",
-    "F#5:1 G5:1 A5:2 F#5:2 D#5:2 B4:2 D#5:2 F#5:4", "A5:2 F#5:2 D#5:4 B4:4 -:4"],
-});
+// モンスターハウス（MH）テーマ。E短調・162 BPM。警報サイレン動機から雪崩れ込む超高速サバイバル戦闘アンサンブル。
+function monsterHouseTheme() {
+  const chords = [
+    // 1-4: 【開幕警報・サイレン＆狂乱パニック】
+    "Em", "Em", "Em", "B",
+    // 5-12: 【第1主題：四面楚歌・包囲網のスラッシュリフ】
+    "Em", "C", "Am", "B", "Em", "G", "C", "B",
+    // 13-20: 【第2主題：半音転調・退路遮断の危機（Fmへ突入）】
+    "Fm", "Db", "Bbm", "C7", "Fm", "Ab", "Db", "B",
+    // 21-28: 【サビ：逆転殲滅・怒涛のブレイクスルー】
+    "Em", "D", "C", "B", "Em", "G", "Am", "B",
+    // 29-32: 【ループブリッジ：極限緊張D#dim〜全パート一斉ブレイク】
+    "C", "D", "DsharpDim", "B",
+  ];
+
+  const riff = [
+    // 1-4: 警報サイレン＆開幕パニック
+    "E5:1 F5:1 E5:1 F5:1 E5:1 F5:1 E5:1 F5:1 B5:4 -:4",
+    "E5:1 F5:1 E5:1 F5:1 E5:1 F5:1 E5:1 F5:1 B5:4 -:4",
+    "E5:2 G5:2 Bb5:2 B5:4 E6:4 D#6:2",
+    "E6:4 B5:4 F#5:4 -:4",
+
+    // 5-12: 第1主題（四面楚歌・包囲網）
+    "E5:2 E5:1 -:1 G5:2 A5:2 B5:4 E6:4",
+    "C6:3 B5:1 A5:2 G5:2 F#5:4 A5:4",
+    "A5:2 B5:2 C6:4 B5:2 A5:2 G5:4",
+    "F#5:4 A5:4 D#5:4 -:4",
+    "E5:2 E5:1 -:1 G5:2 A5:2 B5:3 C6:1 B5:2 A5:2",
+    "D6:3 B5:1 G5:2 B5:2 D6:4 G6:4",
+    "E6:2 D6:2 C6:4 B5:2 A5:2 G5:4",
+    "F#5:4 D#5:4 B4:4 -:4",
+
+    // 13-20: 第2主題（Fm半音跳躍転調・退路遮断）
+    "F5:2 F5:1 -:1 Ab5:2 Bb5:2 C6:4 F6:4",
+    "Db6:3 C6:1 Bb5:2 Ab5:2 G5:4 Bb5:4",
+    "Bb5:2 C6:2 Db6:4 C6:2 Bb5:2 Ab5:4",
+    "G5:4 Bb5:4 E5:4 -:4",
+    "F5:2 Ab5:2 C6:4 Db6:2 C6:2 Bb5:2 Ab5:2",
+    "Eb6:3 C6:1 Ab5:2 C6:2 Eb6:4 Ab6:4",
+    "Db6:2 C6:2 Bb5:4 Ab5:2 G5:2 F5:4",
+    "D#5:4 F#5:4 B5:4 -:4",
+
+    // 21-28: サビ（逆転殲滅・ブレイクスルー）
+    "E6:6 B5:2 G5:4 E5:4",
+    "F#6:4 D6:2 A5:2 F#5:4 A5:4",
+    "G6:6 E6:2 C6:4 G5:4",
+    "B6:4 F#6:2 D#6:2 B5:4 -:4",
+    "E6:3 F#6:1 G6:4 F#6:2 E6:2 D6:4",
+    "B5:3 C6:1 D6:4 C6:2 B5:2 A5:4",
+    "C6:2 E6:2 A6:4 G6:2 F#6:2 E6:4",
+    "D#6:4 F#6:4 B6:4 -:4",
+
+    // 29-32: ループブリッジ（減七極限緊張〜ブレイク）
+    "E6:3 D6:1 C6:2 B5:2 C6:4 E6:4",
+    "F#6:3 E6:1 D6:2 C#6:2 D6:4 F#6:4",
+    "A6:2 G6:2 F#6:2 E6:2 D#6:2 E6:2 F#6:2 A6:2",
+    "B6:4 -:4 B5:4 -:4",
+  ];
+
+  const guitarScore = [
+    // 1-4: イントロ
+    "E4:2 -:2 E4:1 E4:1 G4:2 E4:1 E4:1 Bb4:2 E4:1 E4:1 B4:2",
+    "E4:2 -:2 E4:1 E4:1 G4:2 E4:1 E4:1 Bb4:2 E4:1 E4:1 B4:2",
+    "E4:1 E4:1 G4:2 E4:1 E4:1 Bb4:2 E4:1 E4:1 B4:2 E5:2 D#5:2",
+    "E5:4 B4:4 F#4:4 -:4",
+
+    // 5-12: Aメロ
+    "E4:2 E4:1 -:1 G4:2 A4:2 B4:4 E5:4",
+    "C5:2 C5:1 -:1 E5:2 F#5:2 G5:4 C6:4",
+    "A4:2 A4:1 -:1 C5:2 D5:2 E5:4 A5:4",
+    "F#4:4 A4:4 D#4:4 -:4",
+    "E4:2 E4:1 -:1 G4:2 A4:2 B4:2 C5:2 B4:2 A4:2",
+    "G4:2 G4:1 -:1 B4:2 D5:2 G5:4 B5:4",
+    "C5:2 C5:1 -:1 E5:2 G5:2 C6:4 E6:4",
+    "B4:4 D#5:4 F#5:4 -:4",
+
+    // 13-20: Bメロ
+    "F4:2 F4:1 -:1 Ab4:2 Bb4:2 C5:4 F5:4",
+    "Db5:2 Db5:1 -:1 F5:2 Ab5:2 Db6:4 F6:4",
+    "Bb4:2 Bb4:1 -:1 Db5:2 F5:2 Bb5:4 Db6:4",
+    "G4:4 Bb4:4 E4:4 -:4",
+    "F4:2 Ab4:2 C5:4 Db5:2 C5:2 Bb4:2 Ab4:2",
+    "Ab4:2 C5:2 Eb5:4 Ab5:2 G5:2 F5:2 Eb5:2",
+    "Db5:2 F5:2 Ab5:4 G5:2 F5:2 Eb5:2 Db5:2",
+    "D#4:4 F#4:4 B4:4 -:4",
+
+    // 21-28: サビ
+    "E5:2 G5:2 B5:2 E6:2 B5:2 G5:2 E5:2 G5:2",
+    "D5:2 F#5:2 A5:2 D6:2 A5:2 F#5:2 D5:2 F#5:2",
+    "C5:2 E5:2 G5:2 C6:2 G5:2 E5:2 C5:2 E5:2",
+    "B4:2 D#5:2 F#5:2 B5:2 F#5:2 D#5:2 B4:4",
+    "E5:2 G5:2 B5:4 A5:2 G5:2 F#5:2 E5:2",
+    "G5:2 B5:2 D6:4 C6:2 B5:2 A5:2 G5:2",
+    "A5:2 C6:2 E6:4 D6:2 C6:2 B5:2 A5:2",
+    "B5:4 D#6:4 F#6:4 -:4",
+
+    // 29-32: ループブリッジ
+    "C5:4 E5:4 G5:4 C6:4",
+    "D5:4 F#5:4 A5:4 D6:4",
+    "D#4:2 F#4:2 A4:2 C5:2 D#5:2 F#5:2 A5:2 C6:2",
+    "B5:4 -:4 B4:4 -:4",
+  ];
+
+  const stringsScore = [
+    // 1-4: イントロ
+    "B4:1 C5:1 B4:1 C5:1 B4:1 C5:1 B4:1 C5:1 G4:4 -:4",
+    "B4:1 C5:1 B4:1 C5:1 B4:1 C5:1 B4:1 C5:1 G4:4 -:4",
+    "G4:2 Bb4:2 D#5:2 E5:4 G5:4 F#5:2",
+    "G5:4 D#5:4 B4:4 -:4",
+
+    // 5-12: Aメロ
+    "-:6 E4:2 G4:2 B4:2 E5:2 G5:2",
+    "A5:2 G5:2 E5:2 C5:2 A4:4 C5:4",
+    "F#5:2 E5:2 C5:2 A4:2 F#4:4 A4:4",
+    "B4:4 D#4:4 F#4:4 -:4",
+    "G4:4 B4:4 D5:2 C5:2 B4:2 A4:2",
+    "B4:4 D5:4 G5:2 F#5:2 E5:2 D5:2",
+    "E5:4 G5:4 C6:2 B5:2 A5:2 G5:2",
+    "F#5:4 D#5:4 B4:4 -:4",
+
+    // 13-20: Bメロ
+    "-:4 F4:4 Ab4:4 C5:4",
+    "Db5:4 F4:4 Ab4:4 -:4",
+    "-:4 Bb4:4 Db5:4 F5:4",
+    "E5:4 C5:4 G4:4 -:4",
+    "-:4 F4:4 Ab4:4 C5:4",
+    "Eb5:4 C5:4 Ab4:4 -:4",
+    "Db5:2 C5:2 Bb4:4 Ab4:2 G4:2 F4:4",
+    "F#5:4 D#5:4 B4:4 -:4",
+
+    // 21-28: サビ
+    "G5:6 E5:2 B4:4 G4:4",
+    "A5:4 F#5:2 D5:2 A4:4 D5:4",
+    "E5:6 G5:2 E5:4 C5:4",
+    "F#5:4 D#5:2 B4:2 F#4:4 -:4",
+    "G5:3 A5:1 B5:4 A5:2 G5:2 F#5:4",
+    "D5:3 E5:1 F#5:4 E5:2 D5:2 C5:4",
+    "E5:2 G5:2 C6:4 B5:2 A5:2 G5:4",
+    "F#5:4 D#5:4 B4:4 -:4",
+
+    // 29-32: ループブリッジ
+    "E5:4 G5:4 C6:4 E6:4",
+    "F#5:4 A5:4 D6:4 F#6:4",
+    "D#5:4 F#5:4 A5:4 C6:4",
+    "B5:4 -:4 B4:4 -:4",
+  ];
+
+  const bassScore = [
+    // 1-4: イントロ
+    "E2:2 -:2 E2:1 E2:1 E3:2 E2:1 E2:1 D3:2 E2:1 E2:1 C3:2",
+    "E2:1 E2:1 B2:2 E2:1 E2:1 A2:2 E2:1 E2:1 G2:2 F#2:2 D#2:2",
+    "E2:1 E2:1 E3:2 E2:1 E2:1 E3:2 E2:1 E2:1 D3:2 E2:1 E2:1 C3:2",
+    "B2:4 F#2:4 D#2:4 -:4",
+
+    // 5-12: Aメロ
+    "E2:1 E2:1 E3:2 E2:1 E2:1 B2:2 E2:1 E2:1 E3:2 B2:2 E2:2",
+    "C2:1 C2:1 C3:2 C2:1 C2:1 G2:2 C2:1 C2:1 C3:2 G2:2 C2:2",
+    "A2:1 A2:1 A3:2 A2:1 A2:1 E2:2 A2:1 A2:1 A3:2 E2:2 A2:2",
+    "B2:1 B2:1 B3:2 B2:1 B2:1 F#2:2 B2:1 B2:1 B3:2 F#2:2 B2:2",
+    "E2:1 E2:1 E3:2 E2:1 E2:1 B2:2 E2:1 E2:1 E3:2 B2:2 E2:2",
+    "G2:1 G2:1 G3:2 G2:1 G2:1 D3:2 G2:1 G2:1 G3:2 D3:2 G2:2",
+    "C2:1 C2:1 C3:2 C2:1 C2:1 G2:2 C2:1 C2:1 C3:2 G2:2 C2:2",
+    "B2:4 F#2:4 D#2:4 -:4",
+
+    // 13-20: Bメロ
+    "F2:1 F2:1 F3:2 F2:1 F2:1 C3:2 F2:1 F2:1 F3:2 C3:2 F2:2",
+    "Db2:1 Db2:1 Db3:2 Db2:1 Db2:1 Ab2:2 Db2:1 Db2:1 Db3:2 Ab2:2 Db2:2",
+    "Bb2:1 Bb2:1 Bb3:2 Bb2:1 Bb2:1 F2:2 Bb2:1 Bb2:1 Bb3:2 F2:2 Bb2:2",
+    "C2:1 C2:1 C3:2 C2:1 C2:1 G2:2 C2:1 C2:1 C3:2 G2:2 C2:2",
+    "F2:1 F2:1 F3:2 F2:1 F2:1 C3:2 F2:1 F2:1 F3:2 C3:2 F2:2",
+    "Ab2:1 Ab2:1 Ab3:2 Ab2:1 Ab2:1 Eb3:2 Ab2:1 Ab2:1 Ab3:2 Eb3:2 Ab2:2",
+    "Db2:1 Db2:1 Db3:2 Db2:1 Db2:1 Ab2:2 Db2:1 Db2:1 Db3:2 Ab2:2 Db2:2",
+    "B2:4 F#2:4 D#2:4 -:4",
+
+    // 21-28: サビ
+    "E2:1 E2:1 E3:2 E2:1 E2:1 E3:2 E2:1 E2:1 B2:2 D3:2 E3:2",
+    "D2:1 D2:1 D3:2 D2:1 D2:1 D3:2 D2:1 D2:1 A2:2 C3:2 D3:2",
+    "C2:1 C2:1 C3:2 C2:1 C2:1 C3:2 C2:1 C2:1 G2:2 B2:2 C3:2",
+    "B2:1 B2:1 B3:2 B2:1 B2:1 B3:2 B2:1 B2:1 F#2:2 A2:2 B2:2",
+    "E2:1 E2:1 E3:2 E2:1 E2:1 B2:2 E2:1 E2:1 E3:2 B2:2 E2:2",
+    "G2:1 G2:1 G3:2 G2:1 G2:1 D3:2 G2:1 G2:1 G3:2 D3:2 G2:2",
+    "A2:1 A2:1 A3:2 A2:1 A2:1 E2:2 A2:1 A2:1 A3:2 E2:2 A2:2",
+    "B2:4 F#2:4 D#2:4 -:4",
+
+    // 29-32: ループブリッジ
+    "C2:2 C2:2 E3:2 G3:2 C2:2 C2:2 E3:2 G3:2",
+    "D2:2 D2:2 F#3:2 A3:2 D2:2 D2:2 F#3:2 A3:2",
+    "D#2:2 F#2:2 A2:2 C3:2 D#3:2 F#3:2 A3:2 C4:2",
+    "B2:4 -:4 B1:4 -:4",
+  ];
+
+  const lead = [], guitar = [], strings = [], bass = [], piano = [];
+  const kick = [], snare = [], hats = [];
+
+  for (let bar = 0; bar < chords.length; bar++) {
+    const c = CHORDS[chords[bar]];
+    const climax = bar >= 20 && bar < 28;
+    const lift = climax ? 1.0 : 0.94;
+
+    // 1. リードブラス（警報サイレン＆主題）
+    lead.push(...parseBar(riff[bar]).map(([n, l], i) => [n, l, lift * (i % 2 === 0 ? 1 : 0.9)]));
+
+    // 2. スティールギター（鋭利なヘヴィリフ＆アルペジオ）
+    guitar.push(...parseBar(guitarScore[bar]).map(([n, l], i) => [n, l, lift * 0.92]));
+
+    // 3. ストリングス（包囲網カウンター）
+    strings.push(...parseBar(stringsScore[bar]).map(([n, l], i) => [n, l, lift * 0.88]));
+
+    // 4. スラップベース（16分暴走チョッパー）
+    bass.push(...parseBar(bassScore[bar]));
+
+    // 5. ピアノ（不穏なクラスター打鍵＆スタッカート）
+    if (bar === 0) {
+      piano.push(...parseBar("E3:2 -:14"));
+    } else if (bar === 1) {
+      piano.push(...parseBar("-:8 E4:2 G4:2 Bb4:2 B4:2"));
+    } else if (bar === 2) {
+      piano.push(...parseBar("G4:2 Bb4:2 B4:2 E5:2 G5:2 F#5:2 E5:2 D#5:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      piano.push(...parseBar(`${c[0]}:4 ${c[1]}:4 ${c[2]}:4 -:4`));
+    } else if (bar === 28) {
+      piano.push(...parseBar("C4:2 E4:2 G4:2 C5:2 C4:2 E4:2 G4:2 C5:2"));
+    } else if (bar === 29) {
+      piano.push(...parseBar("D4:2 F#4:2 A4:2 D5:2 D4:2 F#4:2 A4:2 D5:2"));
+    } else if (bar === 30) {
+      piano.push(...parseBar("D#4:2 F#4:2 A4:2 C5:2 D#5:2 F#5:2 A5:2 C6:2"));
+    } else if (bar === 31) {
+      piano.push(...parseBar("B4:4 -:4 B3:4 -:4"));
+    } else if (climax) {
+      piano.push(...parseBar(`${c[0]}:1 ${c[1]}:1 ${c[2]}:1 ${c[3] || c[0]}:1 ${octave(c[0], 5)}:1 ${c[2]}:1 ${c[1]}:1 ${c[0]}:1 ${c[0]}:1 ${c[1]}:1 ${c[2]}:1 ${c[3] || c[0]}:1 ${octave(c[0], 5)}:1 ${c[2]}:1 ${c[1]}:1 ${c[0]}:1`));
+    } else {
+      piano.push(...parseBar(`${c[0]}:2 -:1 ${c[2]}:1 ${c[1]}:2 -:1 ${c[2]}:1 ${c[0]}:2 -:1 ${c[2]}:1 ${c[1]}:2 -:2`));
+    }
+
+    // 6. キック
+    if (bar === 0) {
+      kick.push(...parseBar("C2:2 -:14"));
+    } else if (bar === 1) {
+      kick.push(...parseBar("-:8 C2:2 -:2 C2:2 C2:2"));
+    } else if (bar === 2) {
+      kick.push(...parseBar("C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 -:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      kick.push(...parseBar("C2:4 C2:4 C2:4 -:4"));
+    } else if (bar === 28 || bar === 29) {
+      kick.push(...parseBar("C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2"));
+    } else if (bar === 30) {
+      kick.push(...parseBar("C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1"));
+    } else if (bar === 31) {
+      kick.push(...parseBar("C2:4 -:4 C2:4 -:4"));
+    } else {
+      kick.push(...parseBar("C2:2 -:2 C2:2 C2:1 C2:1 C2:2 -:2 C2:2 C2:2"));
+    }
+
+    // 7. スネア
+    if (bar === 0) {
+      snare.push(...parseBar("C2:2 -:14"));
+    } else if (bar === 1) {
+      snare.push(...parseBar("-:16"));
+    } else if (bar === 2) {
+      snare.push(...parseBar("-:8 C2:2 C2:2 C2:2 C2:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      snare.push(...parseBar("C2:4 C2:4 C2:4 -:4"));
+    } else if (bar === 29) {
+      snare.push(...parseBar("C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2 C2:2"));
+    } else if (bar === 30) {
+      snare.push(...parseBar("C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1 C2:1"));
+    } else if (bar === 31) {
+      snare.push(...parseBar("C2:4 -:4 C2:4 -:4"));
+    } else {
+      snare.push(...parseBar("-:4 C2:4 -:4 C2:4"));
+    }
+
+    // 8. ハット
+    if (bar === 0) {
+      hats.push(...parseBar("-:16"));
+    } else if (bar === 1) {
+      hats.push(...parseBar("-:8 C5:2 C5:2 C5:2 C5:2"));
+    } else if (bar === 3 || bar === 11 || bar === 19 || bar === 27) {
+      hats.push(...parseBar("C5:4 C5:4 C5:4 -:4"));
+    } else if (bar === 30) {
+      hats.push(...parseBar("C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1 C5:1"));
+    } else if (bar === 31) {
+      hats.push(...parseBar("C5:4 -:4 C5:4 -:4"));
+    } else {
+      hats.push(...parseBar("C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2"));
+    }
+  }
+
+  return {
+    name: "monster_house", title: "突破口", tempo: 162, loop: true, bars: 32,
+    desc: "E短調。32小節・約47秒。モンスターハウス（MH）テーマ。部屋に突入した瞬間のけたたましい警報サイレン動機から雪崩れ込む、超高速162 BPMのサバイバル戦闘アンサンブル。唸るスラップベースの暴走チョッパー、スティールギターとブラスリードが切り裂くヘヴィメタル・ユニゾン、Fマイナーへの半音跳躍転調による逃げ場なき切迫感、そして包囲網をなぎ倒す怒涛のサビと全パート一斉ブレイク。",
+    tracks: [
+      { type: "sine", instrument: "brassLead", volume: 0.30, gate: 0.88, pan: -0.08, cutoff: 4800, roomSend: 0.22, notes: lead },
+      { type: "sine", instrument: "steelGuitar", volume: 0.28, gate: 0.82, pan: 0.25, cutoff: 4600, roomSend: 0.18, notes: guitar },
+      { type: "sine", instrument: "feltPiano", volume: 0.20, gate: 0.68, pan: -0.26, cutoff: 3600, roomSend: 0.16, notes: piano },
+      { type: "sine", instrument: "softStrings", volume: 0.16, gate: 0.90, pan: 0.40, cutoff: 3200, roomSend: 0.28, notes: strings },
+      { type: "sine", instrument: "slapBass", volume: 0.40, gate: 0.74, pan: 0, cutoff: 880, notes: bass },
+      { type: "sine", instrument: "drumKick", volume: 0.32, pan: 0, cutoff: 1200, notes: kick },
+      { type: "sine", instrument: "drumSnare", volume: 0.26, pan: 0.06, cutoff: 5000, roomSend: 0.10, notes: snare },
+      { type: "sine", instrument: "drumHat", volume: 0.14, pan: 0.28, cutoff: 7500, notes: hats },
+    ],
+  };
+}
+export const BGM_MONSTER_HOUSE = monsterHouseTheme();
 
 // 店・行商人テーマ。G長調・116 BPM。ドラムレスのアコーディオン・マリンバ・ピチカートによるミュゼット風アンサンブル。
 function shopTheme() {
