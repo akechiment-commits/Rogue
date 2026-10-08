@@ -5568,6 +5568,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         for (const victim of [...dg.monsters]) {
           if (victim === m || victim.hp <= 0 || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;
+          if (consumeBarrier(victim, ml)) continue;
           const damage = Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
           victim.hp -= damage;
           ml.push(`烈風が${victim.name}を襲う！${damage}ダメージ！`);
