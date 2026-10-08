@@ -45,6 +45,7 @@ import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
+import { isDashModifierKey } from "./inputKeys.js";
 import { PEN_ITEM_ASSET_NAMES, POTION_ITEM_ASSET_NAMES } from "./gameAssetManifest.js";
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
 import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
@@ -5373,16 +5374,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const doMerchantBuyProxy = useCallback((...args) => doMerchantBuyRef.current?.(...args), []);
   const doMerchantSellProxy = useCallback((...args) => doMerchantSellRef.current?.(...args), []);
   useEffect(() => {
+    const clearHeldKeys = () => {
+      shiftRef.current = false;
+      aRef.current = false;
+      arrowHeldRef.current = {};
+    };
     const onUp = (e) => {
       if (e.key === "Shift") { shiftRef.current = false; arrowHeldRef.current = {}; }
-      if (e.key === "a" || e.key === "A") aRef.current = false;
+      if (isDashModifierKey(e)) aRef.current = false;
       const _arDir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
       if (_arDir[e.key]) arrowHeldRef.current[_arDir[e.key]] = false;
       const _npmDir = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
       if (_npmDir[e.code]) arrowHeldRef.current[_npmDir[e.code]] = false;
     };
     window.addEventListener("keyup", onUp);
-    return () => window.removeEventListener("keyup", onUp);
+    window.addEventListener("blur", clearHeldKeys);
+    return () => {
+      window.removeEventListener("keyup", onUp);
+      window.removeEventListener("blur", clearHeldKeys);
+    };
   }, []);
   /* 足元矢/杖の射撃・振りキャンセル時にアイテムを足元に戻す
      成功時は execDirection 内で既に ref が null 化されているので no-op */

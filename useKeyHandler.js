@@ -18,7 +18,7 @@ import {
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { prepareLastFloor, DEBUG_SPECIAL_FLOORS } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
-import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight, getDigitNumber } from "./inputKeys.js";
+import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight, getDigitNumber, isDashModifierKey } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
@@ -1298,7 +1298,7 @@ export function useKeyHandler({
       if (k === "shift") {
         shiftRef.current = true;
       }
-      if (k === "a") {
+      if (isDashModifierKey(e)) {
         aRef.current = true;
       }
       /* テンキー多重 keydown をここで落とす（見渡す・メニュー・歩行すべて） */
@@ -2052,7 +2052,9 @@ export function useKeyHandler({
           if (npmCode && npm[npmCode] !== undefined) {
             e.preventDefault();
             /* Shift+テンキー縦横：2方向同時押しでのみ斜め */
-            if (shiftRef?.current && npmCode in _npmCardinal) {
+            if (aRef?.current) {
+              [dx, dy] = npm[npmCode];
+            } else if (shiftRef?.current && npmCode in _npmCardinal) {
               if (arrowHeldRef) arrowHeldRef.current[_npmCardinal[npmCode]] = true;
               const _h = arrowHeldRef?.current || {};
               const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
@@ -2065,7 +2067,9 @@ export function useKeyHandler({
           }
         } else if (km[k]) {
           e.preventDefault();
-          if (shiftRef?.current) {
+          if (aRef?.current) {
+            [dx, dy] = km[k];
+          } else if (shiftRef?.current) {
             const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
             if (arrowHeldRef) arrowHeldRef.current[_dmap[k]] = true;
             const _h = arrowHeldRef?.current || {};
