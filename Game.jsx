@@ -45,6 +45,7 @@ import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
+import { PEN_ITEM_ASSET_NAMES, POTION_ITEM_ASSET_NAMES } from "./gameAssetManifest.js";
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
 import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
 import SoundModal from "./SoundModal.jsx";
@@ -468,24 +469,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* mon1タイルセット使用時、全9種のペンスプライトを customTileImages[2001..2009] にロード */
   useEffect(() => {
     if (currentTileset !== 'mon1') return;
-    for (let i = 1; i <= 9; i++) {
-      const col = String(i).padStart(2, '0');
+    PEN_ITEM_ASSET_NAMES.forEach((name, i) => {
       const img = new Image();
-      const idx = 2000 + i;
+      const idx = 2001 + i;
       img.onload = () => { customTileImages[idx] = img; setCtLoaded(c => c + 1); };
-      img.src = `/tiles/items/item_r01_c${col}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
-    }
+      img.src = `/tiles/items/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
+    });
     /* 薬スプライト25種を customTileImages[3001..3025] にロード */
-    const POTION_POOL = [
-      'item_r04_c07','item_r04_c10','item_r04_c11','item_r04_c14',
-      'item_r05_c01','item_r05_c02','item_r05_c03','item_r05_c04',
-      'item_r05_c05','item_r05_c06','item_r05_c08','item_r05_c12','item_r05_c14',
-      'item_r03_c01','item_r03_c02','item_r03_c03','item_r03_c04',
-      'item_r03_c05','item_r03_c15',
-      'item_r04_c01','item_r04_c02','item_r04_c03','item_r04_c04',
-      'item_r04_c05','item_r04_c06',
-    ];
-    POTION_POOL.forEach((name, i) => {
+    POTION_ITEM_ASSET_NAMES.forEach((name, i) => {
       const img = new Image();
       const idx = 3001 + i;
       img.onload = () => { customTileImages[idx] = img; setCtLoaded(c => c + 1); };
