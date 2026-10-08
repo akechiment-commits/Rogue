@@ -1665,7 +1665,7 @@ function PlayerNameModal({ onConfirm }) {
           placeholder="例: しろがね"
           onChange={(e) => { setValue(e.target.value); setError(""); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); submit(); }
+            if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) { e.preventDefault(); submit(); }
           }}
           style={{
             width:"100%", boxSizing:"border-box", padding:"10px 12px",
@@ -1733,7 +1733,7 @@ function FavoriteFoodModal({ onConfirm }) {
           placeholder=""
           onChange={(e) => { setValue(e.target.value); setError(""); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); submit(); }
+            if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) { e.preventDefault(); submit(); }
           }}
           style={{
             width:"100%", boxSizing:"border-box", padding:"10px 12px",
@@ -1896,7 +1896,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
         if (k === "escape") {
           e.preventDefault();
           r.cancelEdit();
-        } else if ((k === "enter" || k === "z") && !e.nativeEvent?.isComposing) {
+        } else if ((k === "enter" || k === "z") && !e.isComposing && e.keyCode !== 229) {
           /* 入力中の Z は文字として扱う。Enter のみ決定 */
           if (k === "enter") {
             e.preventDefault();
@@ -1990,7 +1990,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
               maxLength={PLAYER_NAME_MAX * 2}
               onChange={(e) => { setNameDraft(e.target.value); setEditError(""); }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) {
                   e.preventDefault();
                   applyEdit();
                 } else if (e.key === "Escape") {
@@ -2026,7 +2026,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
               maxLength={FAVORITE_FOOD_MAX * 2}
               onChange={(e) => { setFoodDraft(e.target.value); setEditError(""); }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) {
                   e.preventDefault();
                   applyEdit();
                 } else if (e.key === "Escape") {
