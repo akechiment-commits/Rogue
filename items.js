@@ -6168,9 +6168,10 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     animColor,
     wind,
     pierce: _isPierceArrow,
-    onMiss: hitChance < 1 || missLandFn ? (lx, ly) => {
+    // 命中率100%でも魔方陣・防具・聖域で回避されるため、常に着地点を記録する。
+    onMiss: (lx, ly) => {
       res.x = lx; res.y = ly; res.missedPlayer = true;
-    } : null,
+    },
     onMonHit: (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
       if (shooter === p && isWanderingNpc(mon) && mon.state !== "hostile") {
         declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: `${mon.name}が怒った！` });

@@ -2728,12 +2728,6 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   const maxRange = _isCursedFc ? 1 : _passthrough ? 50 : baseRange;
 
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-  /* モンスター射手のみ：プレイヤーがdodge魔方陣にいたら発射前に不発（仮想射手＝hp未定義は除外） */
-  if (!isPlayerShooter && m.hp != null && _dodgePcMode === "dodge") {
-    ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
-    if (onMiss) onMiss(pl.x, pl.y, ml);
-    return;
-  }
 
   if (fireMsg) ml.push(fireMsg);
   /* 魔法の石式ホーミング：壁や途中の対象を無視して指定敵へ直撃させる。 */
@@ -2846,6 +2840,13 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         }
         if (onPlHit) onPlHit(ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
+      }
+      // 本人への到達時だけ回避する。味方への投擲や途中の衝突は妨げない。
+      if (m.hp != null && _dodgePcMode === "dodge") {
+        ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
+        if (onMiss) onMiss(_tx, _ty, ml);
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
+        return;
       }
       const _armDodge = _dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
       if (_armDodge) {
