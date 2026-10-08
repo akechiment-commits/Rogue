@@ -5552,7 +5552,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             if (pl.hp <= 0) return;
             const fromX = pl.x, fromY = pl.y;
             pushEntity(dg, pl.x, pl.y, shoveX, shoveY, 1, ml, "player", pl, pl, _luFn, 0, m);
-            if (pl.x !== fromX || pl.y !== fromY) pushPlayerKnockbackAnim(fromX, fromY, pl.x, pl.y);
+            if (pl.x === fromX && pl.y === fromY) return;
+            // 押し出しアニメーションはpushEntityが1回だけ発行する。
             const landingTrap = (dg.traps || []).find(trap => trap.x === pl.x && trap.y === pl.y);
             if (landingTrap) opts.fireTrapFn?.(landingTrap, pl, dg, ml);
           },
