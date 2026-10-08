@@ -51,7 +51,7 @@ import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
 import SoundModal from "./SoundModal.jsx";
 import { updateDungeonBgm, createMessageSoundObserver, queueAnimationSounds, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
 import { useInterfaceSounds } from "./useInterfaceSounds.js";
-import { isWanderingNpc, nextWanderingAdventurerHint } from "./wanderingAdventurer.js";
+import { isWanderingNpc, nextWanderingAdventurerDialogue } from "./wanderingAdventurer.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
@@ -3590,8 +3590,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           return;
         }
         if (mon.isWanderingAdventurer) {
-          const hint = nextWanderingAdventurerHint(mon);
-          setMsgs((prev) => [...prev.slice(-80), `${mon.name}：「${hint}」`]);
+          const dialogue = nextWanderingAdventurerDialogue(mon);
+          setMsgs((prev) => [...prev.slice(-80), `${mon.name}：「${dialogue}」`]);
           return;
         }
         const dg6 = sr.current.dungeon;

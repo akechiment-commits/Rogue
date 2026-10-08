@@ -13,7 +13,7 @@ import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
 import { specialFixtureRate } from './specialFixtures.js';
-import { createWanderingAdventurerName, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
+import { assignWanderingAdventurerKnowledge, createWanderingAdventurerName, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -3156,6 +3156,7 @@ export function placeWanderingAdventurer(dg, depth, randomFn = Math.random) {
     patrolTarget: null,
     sleepTurns: 0,
   };
+  assignWanderingAdventurerKnowledge(adventurer, randomFn);
   dg.monsters.push(adventurer);
   return adventurer;
 }
