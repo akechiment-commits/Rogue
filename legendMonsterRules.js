@@ -14,7 +14,7 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 9, max: 14, level: 1, kinds: ["archer", "wokka", "slime"] },
   { min: 11, max: 16, level: 1, kinds: ["grabber", "tripper"] },
   /* 13〜22 薬と魔方陣、化ける、突進。盗賊・錆は装備が付いてから */
-  { min: 13, max: 17, level: 1, kinds: ["potionthrower", "rakugakima"] },
+  { min: 13, max: 17, level: 1, kinds: ["potionthrower", "potionhealer", "rakugakima"] },
   { min: 15, max: 18, level: 1, kinds: ["itemMimic", "charger"] },
   { min: 17, max: 20, level: 1, kinds: ["thief", "tattoobird", "wolf"] },
   { min: 18, max: 21, level: 2, kinds: ["rat", "bat", "centipede"] },
@@ -36,11 +36,11 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 38, max: 41, level: 2, kinds: ["dragon"] },
   /* 40〜47 デーモンLv1。薬・爆発・水中花のLv2。催眠は花びらが終わってから */
   { min: 40, max: 43, level: 1, kinds: ["daemon", "puller", "witchdoc", "berserker"] },
-  { min: 40, max: 43, level: 2, kinds: ["potionthrower", "bombgoblin", "waterFlower", "hypnotist"] },
+  { min: 40, max: 43, level: 2, kinds: ["potionthrower", "potionhealer", "bombgoblin", "waterFlower", "hypnotist"] },
   { min: 44, max: 47, level: 1, kinds: ["seaDevil", "disarmer", "lizardman"] },
   { min: 44, max: 47, level: 2, kinds: ["vampire", "golem", "troll", "killplaster", "itemThrower", "trapmaster"] },
   /* 48〜50 Lv3は竜と催眠。睡眠とは重ねない。他はLv2で厚くする */
-  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "rakugakima"] },
+  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "potionhealer", "rakugakima"] },
   { min: 48, max: 50, level: 2, kinds: ["darkness", "daemon", "mimic", "knocker", "dodgemole"] },
 ]);
 

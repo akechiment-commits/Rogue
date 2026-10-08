@@ -11,7 +11,7 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   4: ["runner", "zombie"],
   5: ["archer", "wokka", "slime"],
   6: ["grabber", "tripper"],
-  7: ["potionthrower", "rakugakima"],
+  7: ["potionthrower", "potionhealer", "rakugakima"],
   8: ["itemMimic", "charger"],
   9: ["tattoobird", "thief"],
   10: ["wolf", "rustbug", "wizard"],
@@ -55,7 +55,9 @@ const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   19: ["hypnotist", "giantEel"],
   20: ["hypnotist", "giantEel", "seaDevil"],
   21: ["giantEel", "seaDevil"],
-  22: ["seaDevil"],
+  22: ["seaDevil", "potionhealer"],
+  23: ["potionhealer"],
+  24: ["potionhealer"],
   25: ["dangerousPetal", "dreamEater", "hypnotist"],
   26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel"],
   27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel"],
@@ -99,6 +101,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   hypnotist: { min: 25, max: 30 },
   giantEel: { min: 26, max: 30 },
   seaDevil: { min: 26, max: 30 },
+  potionhealer: { min: 22, max: 24 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {

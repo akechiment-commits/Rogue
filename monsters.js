@@ -376,16 +376,67 @@ const _POTION_THROW_POOL = [
   { name: "回復薬",     effect: "heal",     value: 30, tile: 16 },
   { name: "大回復薬",   effect: "heal_big", value: 60, tile: 17 },
 ];
-function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null) {
-  const _pot = pick(_POTION_THROW_POOL);
-  let _ptdx = Math.sign(pl.x - m.x), _ptdy = Math.sign(pl.y - m.y);
-  ml.push(`${m.name}が謎の薬を投げた！`);
-  pushMonsterBoltAnim(m.x, m.y, _ptdx, _ptdy, dg, pl, "#ff88ff");
+function findPotionHealerTarget(m, dg, pl, preferredTarget = null) {
+  const level = m.monLevel || 1;
+  const range = level >= 3 ? 10 : level >= 2 ? 7 : 5;
+  const injured = (dg.monsters || []).filter(target =>
+    target !== m && (!preferredTarget || target === preferredTarget) &&
+    target.state !== "friendly" &&
+    target.hp > 0 && target.maxHp > target.hp
+  );
+  const candidates = [];
+  for (const target of injured) {
+    const aimCells = monsterBodyCells(target)
+      .map(aim => ({ ...aim, distance: Math.max(Math.abs(aim.x - m.x), Math.abs(aim.y - m.y)) }))
+      .filter(aim => aim.distance > 0 && aim.distance <= range &&
+        (aim.x === m.x || aim.y === m.y || Math.abs(aim.x - m.x) === Math.abs(aim.y - m.y)))
+      .sort((a, b) => a.distance - b.distance);
+    for (const aim of aimCells) {
+      const dx = Math.sign(aim.x - m.x), dy = Math.sign(aim.y - m.y);
+      let x = m.x, y = m.y, clear = false;
+      for (let step = 0; step < aim.distance; step++) {
+        const next = stepProjectile(dg, x, y, dx, dy, { wind: false });
+        x = next.x; y = next.y;
+        if (x < 0 || x >= MW || y < 0 || y >= MH ||
+            dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL ||
+            statueAt(dg, x, y) || dg.springs?.some(spring => spring.x === x && spring.y === y) ||
+            dg.bigboxes?.some(box => box.x === x && box.y === y)) break;
+        if (pl && x === pl.x && y === pl.y) break;
+        const blocker = dg.monsters.find(other => other !== m && monsterOccupiesCell(other, x, y));
+        if (blocker) {
+          clear = blocker === target;
+          break;
+        }
+      }
+      if (clear) {
+        candidates.push({
+          target,
+          aim: { x: aim.x, y: aim.y },
+          distance: aim.distance,
+        });
+        break;
+      }
+    }
+  }
+  candidates.sort((a, b) => a.distance - b.distance);
+  return candidates[0] || null;
+}
+
+function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions = null) {
+  const _pot = throwOptions?.potion || pick(_POTION_THROW_POOL);
+  const _target = throwOptions?.target || pl;
+  const _aim = throwOptions?.aim || _target;
+  const _wind = throwOptions?.wind !== false;
+  let _ptdx = Math.sign(_aim.x - m.x), _ptdy = Math.sign(_aim.y - m.y);
+  ml.push(throwOptions?.target
+    ? `${m.name}は${_target.name}に${_pot.name}を投げた！`
+    : `${m.name}が謎の薬を投げた！`);
+  pushMonsterBoltAnim(m.x, m.y, _ptdx, _ptdy, dg, pl, throwOptions?.color || "#ff88ff", _wind);
   /* 経路上の泉・大箱チェック */
   let _cx = m.x, _cy = m.y;
   let _lastX = m.x, _lastY = m.y;
   for (let _step = 0; _step < MW + MH; _step++) {
-    const _st = stepProjectile(dg, _cx, _cy, _ptdx, _ptdy, { wind: true });
+    const _st = stepProjectile(dg, _cx, _cy, _ptdx, _ptdy, { wind: _wind });
     _ptdx = _st.dx; _ptdy = _st.dy;
     _cx = _st.x; _cy = _st.y;
     if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
@@ -1129,6 +1180,12 @@ export const MONS = [
     levels: [
       { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
+    ],
+  },
+  { name: "ロキソ忍",       hp: 30,  atk: 13, def: 3,  exp: 38,  speed: 1,   tile: 230, kind: "humanoid", baseKind: "potionhealer", monLevel: 1, minFloor: 8, maxFloor: 50, subtype: "potionhealer", desc: "射線内で一番近いHPの減った味方へ、確率で回復薬を投げる。Lv2は大回復薬、Lv3は超回復薬。", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 } },
+    levels: [
+      { name: "セロト忍", hp: 52,  atk: 21, def: 6,  exp: 78, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 22, max: 24 } } },
+      { name: "アルギ忍", hp: 84,  atk: 30, def: 9,  exp: 130, dungeonFloors: { intermediate: { min: 28, max: 30 } } },
     ],
   },
   { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 180, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
@@ -5456,6 +5513,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
     /* ── ranged special attacks ── */
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
+    if (_moveOnly && m.subtype === "potionhealer") {
+      delete m._potionHealerTarget;
+      delete m._rangedAttackThisTurn;
+      if (m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        const target = findPotionHealerTarget(m, dg, pl);
+        if (target && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+          m._potionHealerTarget = target.target;
+          m._rangedAttackThisTurn = true;
+          return;
+        }
+      }
+    }
+
     if (_moveOnly && canSee) {
       const _radx = pl.x - m.x, _rady = pl.y - m.y;
       const _rLen = Math.max(Math.abs(_radx), Math.abs(_rady));
@@ -5709,6 +5779,29 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           opts.fireTrapFn(_ttTrap, pl, dg, ml);
           return;
         }
+      }
+
+      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget) {
+        const preferredTarget = m._potionHealerTarget;
+        delete m._potionHealerTarget;
+        if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+        const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
+        if (!healTarget) return;
+        m.turnAttacks++;
+        const level = m.monLevel || 1;
+        const potion = level >= 3
+          ? { name: "超回復薬", effect: "superheal", value: 100, tile: 17 }
+          : level >= 2
+            ? { name: "大回復薬", effect: "heal_big", value: 60, tile: 17 }
+            : { name: "回復薬", effect: "heal", value: 30, tile: 16 };
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+          target: healTarget.target,
+          aim: healTarget.aim,
+          potion,
+          wind: false,
+          color: "#7bff96",
+        });
+        return;
       }
 
       if (m.subtype === "potionthrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
