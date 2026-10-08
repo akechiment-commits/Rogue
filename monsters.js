@@ -4,6 +4,7 @@ import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultI
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
+import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
@@ -4246,10 +4247,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* 毒状態：毎ターン現HP×10%+5ダメージ */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
     m.poisonedTurns = Math.max(0, m.poisonedTurns - 1);
-    const _pdmg = Math.floor(m.hp * 0.1) + 5;
-    m.hp -= _pdmg;
-    ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
-    if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
+    if (!blockLargeMonsterDamage(m, pl, ml)) {
+      const _pdmg = Math.floor(m.hp * 0.1) + 5;
+      m.hp -= _pdmg;
+      ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
+      if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
+    }
     if (m.poisonedTurns <= 0) {
       ml.push(`${m.name}の毒が切れた。`);
       if (m.poisonHalfAtk) { m.atk = m.poisonOrigAtk ?? m.atk; delete m.poisonHalfAtk; delete m.poisonOrigAtk; }

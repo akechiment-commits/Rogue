@@ -42,6 +42,7 @@ import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRul
 import { convertToIceCream } from './iceCreamData.js';
 import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
+import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 
@@ -803,7 +804,7 @@ export const WANDS = [
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
   { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
-  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。ボスには現在HPの1/4ダメージを与え、プレイヤーHPをそのダメージと同値にする。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
+  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。ボスには現在HPの1/4ダメージを与え、プレイヤーHPをそのダメージと同値にする。巨大敵への爆発・割合ダメージは合計で1ターン1回まで。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別（祝福は2個）。\n壊すと周囲のアイテム・大箱にも効果。\n呪い：対象が未識別に戻る。", tile:24 },
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
 ];
@@ -1145,6 +1146,7 @@ export function drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon = null) {
   if (!mon || !dg?.map || !dg.monsters?.includes(mon)) return false;
   if (canMonsterSurviveOnWater(mon, dg, mon.x, mon.y)) return false;
   if (mon.isBoss) {
+    if (blockLargeMonsterDamage(mon, p, ml)) return true;
     const _bd = bossInstantDeathDamage(mon);
     mon.hp -= _bd;
     ml.push(`${mon.name}は水没に耐えたが${_bd}ダメージを受けた！`);
@@ -1183,6 +1185,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
     return "ejected";
   }
   if (m.isBoss) {
+    if (blockLargeMonsterDamage(m, p, ml)) return "damaged";
     const _bd = bossInstantDeathDamage(m);
     m.hp -= _bd;
     ml.push(`封印で浮遊が解け、${m.name}は水没に耐えたが${_bd}ダメージを受けた！`);
@@ -2131,6 +2134,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     if (blasted.size > 0) dg.items = dg.items.filter(item => !blasted.has(item));
   };
   const _killed = new Set();
+  const _largeMonstersHit = new Set();
   for (let ddx = -_blastRadius; ddx <= _blastRadius && !floorChanged(); ddx++) {
     for (let ddy = -_blastRadius; ddy <= _blastRadius && !floorChanged(); ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
@@ -2159,6 +2163,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
       for (const m of [..._blastMonsters]) {
         if (_killed.has(m)) continue;
+        if (monsterBodySize(m) > 1) {
+          if (_largeMonstersHit.has(m)) continue;
+          _largeMonstersHit.add(m);
+        }
         wakeIfDormant(m, ml);
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
         if (m.baseKind === "firedemon" && !m.sealed) {
@@ -2178,6 +2186,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (_hasExPentacle || ringExplosion || mineExplosion || _instantMonsterKill) {
           /* 即死系爆発：炎無効でない通常敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
           if (m.isBoss) {
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
             _bd = scaleMonFireDmg(m, _bd);
@@ -2191,12 +2200,14 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         } else if (options.projectileAtk != null) {
           /* 特殊弾の爆発：通常命中と同じ攻撃力計算を、爆心地を含む各敵へ一度だけ適用する。 */
           if (consumeBarrier(m, ml)) continue;
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
           const md = clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true);
           m.hp -= md;
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills, killerMon); }
         } else {
           if (consumeBarrier(m, ml)) continue;
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
           md = scaleMonFireDmg(m, md);
           m.hp -= md;
@@ -2301,6 +2312,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
   try {
     pushExplosionAnim(cx, cy);
     ml.push(`${srcLabel}が爆発した！5×5マスに爆風！`);
+    const _largeMonstersHit = new Set();
     for (let ddx = -2; ddx <= 2; ddx++) {
       for (let ddy = -2; ddy <= 2; ddy++) {
         const ax = cx + ddx, ay = cy + ddy;
@@ -2331,6 +2343,10 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
           if (monsterOccupiesCell(m, ax, ay)) {
+            if (monsterBodySize(m) > 1) {
+              if (_largeMonstersHit.has(m)) continue;
+              _largeMonstersHit.add(m);
+            }
             if (m.baseKind === "firedemon") {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
               const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -2346,6 +2362,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               continue;
             }
             if (m.isBoss) {
+              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
@@ -2451,6 +2468,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
   ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
   const blasted = new Set();
   const _killed = new Set();
+  const _largeMonstersHit = new Set();
   for (let ddx = -R; ddx <= R; ddx++) {
     for (let ddy = -R; ddy <= R; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
@@ -2490,6 +2508,10 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
       /* モンスター：炎無効(火ダルマ)以外は消滅（ボスは現在HPの4分の1ダメージ） */
       for (const m of [...dg.monsters.filter(mm => !mm.disguisedAsItem && monsterOccupiesCell(mm, ax, ay))]) {
         if (_killed.has(m)) continue;
+        if (monsterBodySize(m) > 1) {
+          if (_largeMonstersHit.has(m)) continue;
+          _largeMonstersHit.add(m);
+        }
         wakeIfDormant(m, ml);
         if (m.baseKind === "firedemon") {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -2506,6 +2528,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           continue;
         }
         if (m.isBoss) {
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
           const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
@@ -3177,10 +3200,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_pfm) {
         if (_pfm.isBoss) {
           /* ボス：落とし穴は無効、現在HPの4分の1ダメージ */
-          const _bd = bossInstantDeathDamage(_pfm);
-          _pfm.hp -= _bd;
-          ml.push(`${_pfm.name}は落とし穴をものともしなかった！${_bd}ダメージ！`);
-          if (_pfm.hp <= 0) killMonster(_pfm, dg, p, ml, luFn);
+          if (!blockLargeMonsterDamage(_pfm, p, ml)) {
+            const _bd = bossInstantDeathDamage(_pfm);
+            _pfm.hp -= _bd;
+            ml.push(`${_pfm.name}は落とし穴をものともしなかった！${_bd}ダメージ！`);
+            if (_pfm.hp <= 0) killMonster(_pfm, dg, p, ml, luFn);
+          }
         } else {
           removeMonster(dg, _pfm);
           if (_pitfallBag) {
@@ -3712,10 +3737,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       const _rtm = monsterAt(dg, tx, ty);
       if (_rtm) {
         if (_rtm.isBoss) {
-          const _bd = bossInstantDeathDamage(_rtm);
-          _rtm.hp -= _bd;
-          ml.push(`${_rtm.name}は腐敗に耐えたが${_bd}ダメージを受けた！`);
-          if (_rtm.hp <= 0) killMonster(_rtm, dg, p, ml, luFn);
+          if (!blockLargeMonsterDamage(_rtm, p, ml)) {
+            const _bd = bossInstantDeathDamage(_rtm);
+            _rtm.hp -= _bd;
+            ml.push(`${_rtm.name}は腐敗に耐えたが${_bd}ダメージを受けた！`);
+            if (_rtm.hp <= 0) killMonster(_rtm, dg, p, ml, luFn);
+          }
         } else {
           trackMonster(_rtm);
           dg.monsters = dg.monsters.filter(m => m !== _rtm);
@@ -5757,6 +5784,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     if (!exPc) return;
     ml.push(`${exPc.name}の力で爆発した！`);
     const blasted = new Set();
+    const largeMonstersHit = new Set();
     for (let ddx = -1; ddx <= 1; ddx++) {
       for (let ddy = -1; ddy <= 1; ddy++) {
         const ax = mx + ddx, ay = my + ddy;
@@ -5773,6 +5801,10 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         /* モンスターへのダメージ（即死→連鎖爆発） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
           if (monsterOccupiesCell(m, ax, ay)) {
+            if (monsterBodySize(m) > 1) {
+              if (largeMonstersHit.has(m)) continue;
+              largeMonstersHit.add(m);
+            }
             wakeIfDormant(m, ml);
             if (m.baseKind === "firedemon") {
               ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -5787,6 +5819,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 break;
               }
             } else if (m.isBoss) {
+              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);

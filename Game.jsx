@@ -105,6 +105,7 @@ import { synchronizeFloorArrival } from "./floorArrival.js";
 import { placeFallenEntities } from "./pitfallPlacement.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed, applyMonsterParalyze, applyMonsterBewitch } from "./statusDuration.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
+import { withLargeMonsterDamageTurn } from "./largeMonsterDamage.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -1915,7 +1916,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     return true;
   }, []);
   const endTurn = useCallback(
-    (st, p, ml, extraOpts = {}) => {
+    (st, p, ml, extraOpts = {}) => withLargeMonsterDamageTurn(p, () => {
       installPlayerHpMessageHook(ml, p);
       placeFallenEntities(st.dungeon, [], { player: p, actionTime: p.actionTime || 0 });
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
@@ -2304,7 +2305,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
       finishTrapActivationTurn(st);
-    },
+    }),
     [moveMons, lu, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
   );
 

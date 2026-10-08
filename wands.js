@@ -27,6 +27,7 @@ import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } fr
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
+import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
 import {
   isFloorOccupancyBlocked,
   pickFreeFloorObjectCell,
@@ -637,6 +638,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (dg.monsters.includes(target) &&
             dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
           if (target.isBoss) {
+            if (blockLargeMonsterDamage(target, p, ml)) break;
             const _bd = bossInstantDeathDamage(target);
             target.hp -= _bd;
             ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
@@ -983,6 +985,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
           if (target.isBoss) {
+            if (blockLargeMonsterDamage(target, p, ml)) break;
             const _bd = bossInstantDeathDamage(target);
             target.hp -= _bd;
             ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
@@ -1951,6 +1954,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         if (target.isBoss) {
           /* ボス：HP交換は無効、現在HPの4分の1ダメージだけ与える */
+          if (blockLargeMonsterDamage(target, p, ml)) break;
           const _bossDmg = _magicDamage(bossInstantDeathDamage(target));
           target.hp -= _bossDmg;
           const _oldPlayerHp = p.hp;
