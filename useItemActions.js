@@ -1347,7 +1347,7 @@ export function useItemActions({
                   _gft.add(_gt.id);
                   _gt.revealed = true;
                   const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
-                  if (_gr !== "already_activated" && _gr !== "time_stopped" && _gt.effect !== "explode" && !_gt.permanent && Math.random() < trapStepBreakChance(_gt)) removeTrap(dg, _gt, ml, { message: `${_gt.name}は壊れた。`, ft: _gft, p });
+                  if (_gr !== "already_activated" && _gr !== "time_stopped" && _gt.effect !== "explode" && !_gt.permanent && Math.random() < trapStepBreakChance(_gt)) removeTrap(dg, _gt, ml, { activated: true, message: `${_gt.name}は壊れた。`, ft: _gft, p });
                   if (_gr === "destroyed") { _placed = true; break; }
                   if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
                   continue;

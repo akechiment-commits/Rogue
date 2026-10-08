@@ -17,7 +17,7 @@ import {
   spawnMonsters,
   wakeIfDormant,
 } from './monsterRuntime.js';
-import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
+import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushItemFlyAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
@@ -2603,7 +2603,7 @@ export function wallBreakDrop(dg, x, y) {
   dg.items.push(drop);
 }
 
-/** 踏む以外で壊れた矢/毒矢/落石罠から対応アイテムをばらまく */
+/** 効果で壊れた矢/毒矢/強矢/落石罠から対応アイテムをばらまく */
 export function dropTrapBreakLoot(dg, trap, ml, ft = new Set(), p = null) {
   if (!trap || !dg) return;
   let item = null;
@@ -2615,12 +2615,12 @@ export function dropTrapBreakLoot(dg, trap, ml, ft = new Set(), p = null) {
   placeItemAt(dg, trap.x, trap.y, item, ml, new Set(ft), 0, p, trap.x, trap.y);
 }
 
-/** 罠を除去。fromStep / skipLoot 以外の破壊時は dropTrapBreakLoot を呼ぶ */
+/** 罠を除去。踏んだ／起動した結果の破壊では矢などを落とさず、効果破壊時だけ戦利品を残す */
 export function removeTrap(dg, trap, ml, opts = {}) {
-  const { fromStep = false, skipLoot = false, message, ft, p } = opts;
+  const { fromStep = false, activated = false, skipLoot = false, message, ft, p } = opts;
   dg.traps = (dg.traps || []).filter(t => t !== trap);
   if (message) ml.push(message);
-  if (!fromStep && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
+  if (!fromStep && !activated && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
 }
 
 /** 踏んだ後に罠が壊れる確率（罠の罠・道具魔物化は必ず、盗み・召喚・増殖は50%、それ以外25%） */
@@ -3072,11 +3072,17 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
   let lastX = originX, lastY = originY;
 
   let cx = ox + flyDx, cy = oy + flyDy;
+  const flightPath = [{ x: cx, y: cy }];
+  const appendFlightPoint = (x, y) => {
+    const last = flightPath[flightPath.length - 1];
+    if (last.x !== x || last.y !== y) flightPath.push({ x, y });
+  };
   for (let step = 0; step < Math.max(MW, MH) + 2; step++) {
     if (cx < 0 || cy < 0 || cx >= MW || cy >= MH) break;
     const tile = dg.map[cy]?.[cx];
     if (tile === T.WALL || tile === T.BWALL) break;
     lastX = cx; lastY = cy;
+    appendFlightPoint(cx, cy);
 
     if (p && p.x === cx && p.y === cy) {
       if (getDodgePentacleMode(dg, p.x, p.y) === "dodge") {
@@ -3116,6 +3122,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           if (rx < 0 || ry < 0 || rx >= MW || ry >= MH) break;
           if (dg.map[ry]?.[rx] === T.WALL || dg.map[ry]?.[rx] === T.BWALL) break;
           rLastX = rx; rLastY = ry;
+          appendFlightPoint(rx, ry);
           if (p && p.x === rx && p.y === ry) {
             rHit = true;
             const d = dmgPlayer();
@@ -3166,6 +3173,10 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
     cy += flyDy;
   }
 
+  if (flightPath.length > 1) {
+    const from = flightPath[0], to = flightPath[flightPath.length - 1];
+    pushItemFlyAnim(from.x, from.y, to.x, to.y, arrow.tile, flightPath);
+  }
   if (!hit) placeItemAt(dg, lastX, lastY, arrow, ml, _ft);
   return hit;
 }
@@ -5473,7 +5484,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
       if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
-        removeTrap(dg, trap, ml, { message: `${trap.name}は壊れた。`, ft, p });
+        removeTrap(dg, trap, ml, { activated: true, message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") return false;
       if (r === "pitfall_player") return "pitfall_player";
@@ -6147,7 +6158,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     _trapFt.add(trap.id);
     const r = fireTrapItem(trap, item, dg, lx, ly, mlx, _trapFt, p);
     if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
-      removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft: _trapFt, p });
+      removeTrap(dg, trap, mlx, { activated: true, message: `${trap.name}は壊れた。`, ft: _trapFt, p });
     }
     if (r === "destroyed" || r === "pitfall_player") { res.consumed = true; _destroyedByTrap = true; return "destroyed"; }
     res.x = lx; res.y = ly; res.consumed = false;
@@ -6767,7 +6778,7 @@ function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   const _result = fireTrapItem(_trap, _trigger, dg, x, y, ml, _ft, p, null, luFn);
   if (_result === "already_activated" || _result === "time_stopped") return { action: "continue" };
   if (_trap.effect !== "explode" && !_trap.permanent && Math.random() < trapStepBreakChance(_trap)) {
-    removeTrap(dg, _trap, ml, { message: `${_trap.name}は壊れた。`, ft: _ft, p });
+    removeTrap(dg, _trap, ml, { activated: true, message: `${_trap.name}は壊れた。`, ft: _ft, p });
   }
   /* spin 等が内部トリガーを床へ置こうとしても、特殊弾は残さない。 */
   if (Array.isArray(dg.items)) dg.items = dg.items.filter(it => it !== _trigger);
