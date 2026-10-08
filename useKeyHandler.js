@@ -39,11 +39,13 @@ function isNumpadEvent(e) {
 }
 
 /**
- * テンキー1押しで OS/ブラウザが Numpad* と Arrow* など複数 keydown を飛ばすことがある。
- * 同一方向の連続イベントを 1 回に潰す（見渡す・インベントリ・ダンジョン移動すべて共通）。
+ * テンキー1押しで OS/ブラウザが Numpad* と Arrow* の別コードで重複 keydown を飛ばす場合だけ除外する。
+ * 同じ物理キーを素早く押し直した通常入力は、別の行動として通す。
  */
 let _dirGateT = 0;
 let _dirGateFamily = "";
+let _dirGateCode = "";
+let _dirGateWasNumpad = false;
 
 function directionFamily(e) {
   const c = e.code || "";
@@ -65,17 +67,24 @@ function isDuplicateDirectionEvent(e) {
   const fam = directionFamily(e);
   if (!fam) return false;
   const now = performance.now();
+  const code = e.code || "";
+  const isNumpad = isNumpadEvent(e);
   /* 押しっぱなしの key repeat は歩行用に通す（極端な連打だけ間引き） */
   if (e.repeat) {
     if (now - _dirGateT < 50) return true;
     _dirGateFamily = fam;
     _dirGateT = now;
+    _dirGateCode = code;
+    _dirGateWasNumpad = isNumpad;
     return false;
   }
-  /* 同一方向の非リピートが 150ms 以内に複数 = テンキーの多重 keydown */
-  if (fam === _dirGateFamily && now - _dirGateT < 150) return true;
+  /* Numpad由来とArrow由来でコードが異なる連続イベントだけ重複として捨てる。 */
+  if (fam === _dirGateFamily && now - _dirGateT < 150 && code !== _dirGateCode &&
+      (isNumpad || _dirGateWasNumpad)) return true;
   _dirGateFamily = fam;
   _dirGateT = now;
+  _dirGateCode = code;
+  _dirGateWasNumpad = isNumpad;
   return false;
 }
 
