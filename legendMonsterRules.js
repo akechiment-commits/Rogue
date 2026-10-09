@@ -6,6 +6,9 @@
  */
 export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 20, max: 50, level: 1, kinds: ["hauntedWillow"] },
+  { min: 26, max: 30, level: 1, kinds: ["sleepingLion"] },
+  { min: 35, max: 39, level: 2, kinds: ["sleepingLion"] },
+  { min: 44, max: 50, level: 3, kinds: ["sleepingLion"] },
   /* 1〜4 だけ薄く、5階から帯を重ねて6種以上にする */
   { min: 1, max: 6, level: 1, kinds: ["rat", "bat", "centipede"] },
   { min: 3, max: 8, level: 1, kinds: ["kobold", "goblin"] },

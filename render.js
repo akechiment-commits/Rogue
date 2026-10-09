@@ -150,6 +150,7 @@ export const TILE_NAMES = {
   224: "king_behinmos",
   225: "haunted_willow",
   230: "loxonin",
+  231: "sleeping_lion",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -359,6 +360,7 @@ export const TILE_RENDER = {
   228: { bg: null, fg: "#d07050", ch: "旅" }, /* 冒険者・男性剣士 */
   229: { bg: null, fg: "#c0a050", ch: "旅" }, /* 冒険者・男性弓使い */
   230: { bg: null, fg: "#40d0a0", ch: "忍" }, /* ロキソ忍系 */
+  231: { bg: null, fg: "#e8c060", ch: "獅" }, /* 眠れる獅子系 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
   214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */

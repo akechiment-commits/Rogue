@@ -1184,6 +1184,12 @@ export const MONS = [
   { name: "お化け柳", hp: 78, atk: 27, def: 8, exp: 108, speed: 1, tile: 225, kind: "beast", baseKind: "hauntedWillow", monLevel: 1, minFloor: 20, maxFloor: 50, stationary: true, forcedMoveImmune: true, bodySize: 2, subtype: "hauntedWillow", desc: "2×2マスを占め、その場から動かない。強制移動を受けず、同じ部屋に烈風を吹かせ、隣接者へ枝払いを行う。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 18, max: 29 } },
     levels: [],
   },
+  { name: "眠れる獅子", hp: 128, atk: 36, def: 10, exp: 145, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 100, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、隣接または攻撃されるまで目覚めない。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
+    levels: [
+      { name: "眠れる大獅子", hp: 205, atk: 48, def: 15, exp: 250, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } } },
+      { name: "眠れる赤獅子", hp: 320, atk: 60, def: 20, exp: 390, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
+    ],
+  },
   { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 28 } },
     levels: [
       { name: "大王ウナギ",       hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
@@ -1726,6 +1732,7 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(st.subtype === "sleepingLion" ? { dormant: true, _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
@@ -1735,7 +1742,9 @@ export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, las
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
-  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+  const isSleepingLion = st.subtype === "sleepingLion";
+  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant: isSleepingLion || dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
@@ -3177,8 +3186,10 @@ function _clearDodgemoleTrap(m, dg, ml, pl) {
 /* ===== 夢喰い：眠っている敵を起こして回復／睡眠中のプレイヤーから吸収 ===== */
 function findDreamEaterTarget(m, dg) {
   return (dg.monsters || [])
-    .filter(o => o !== m && (o.hp || 0) > 0 && (o.sleepTurns || 0) > 0)
-    .map(o => ({ monster: o, dist: Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) }))
+    .filter(o => o !== m && (o.hp || 0) > 0 && ((o.sleepTurns || 0) > 0 || (o.subtype === "sleepingLion" && o.dormant)))
+    .map(o => ({ monster: o, dist: o.subtype === "sleepingLion"
+      ? monsterPointDistance(o, m.x, m.y)
+      : Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) }))
     .filter(o => o.dist <= 8)
     .sort((a, b) => a.dist - b.dist)[0]?.monster || null;
 }
@@ -3187,9 +3198,18 @@ function dreamEaterWakeTarget(m, dg, ml) {
   const target = findDreamEaterTarget(m, dg);
   if (!target) return false;
   target.sleepTurns = 0;
-  target._justWoke = true;
+  if (target.subtype === "sleepingLion") {
+    target.dormant = false;
+    target.dormantHouse = false;
+    target.aware = true;
+    target._dormantTouched = false;
+    delete target._dormantHp;
+    delete target._justWoke;
+  } else {
+    target._justWoke = true;
+    target._movedThisTurn = true;
+  }
   target.turnAccum = 0;
-  target._movedThisTurn = true;
   const heal = Math.min(m.maxHp - m.hp, Math.max(5, Math.floor(m.maxHp * 0.15)));
   if (heal > 0) {
     m.hp += heal;
@@ -4231,6 +4251,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 目覚めたターンは行動しない（袋叩き防止） */
   if (m._justWoke) { m._justWoke = false; return; }
+  /* 眠れる獅子は視界に入っただけでは起きず、体に隣接するか被弾するまで眠り続ける。 */
+  if (m.subtype === "sleepingLion" && m.dormant) {
+    const _lionWasHit = m.hp < (m._dormantHp ?? m.maxHp ?? m.hp);
+    if (_lionWasHit || m._dormantTouched || monsterPointDistance(m, pl.x, pl.y) <= 1) {
+      wakeIfDormant(m, ml);
+      delete m._justWoke; // 起床判定自体がこの行動を消費する。次ターンは通常行動できる。
+    } else {
+      m._dormantHp = m.hp;
+    }
+    return;
+  }
   /* 囮のペン（祝福）: 仮眠中でも起こして誘導（dormant チェックより先に処理）（魔封じで無効） */
   if (m.dormant && !m.dormantHouse && !inMagicSealRoom(m.x, m.y, dg) &&
       dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
@@ -5090,7 +5121,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
   }
-  if (m.baseKind === "boss_kingbehinmos" && !m.sealed &&
+  if ((m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion") && !m.sealed &&
       !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&
       canSee && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
       !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg) &&

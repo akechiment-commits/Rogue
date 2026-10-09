@@ -109,11 +109,20 @@ describe('上級25階のキングベヒんもス',()=>{
     s.dungeon.monsters=s.dungeon.monsters.filter(m=>m!==s.boss); s.boss.hp=0; s.player.x=3;
     hazards(s,{worldTicks:2}); expect(s.dungeon.monsters).toEqual([]); expect(s.player.exp).toBe(0);
   });
-  it('キング本人はメテオが無効で、床や道具も壊さない',()=>{
-    const s=setup(), item={id:'item',name:'道具',x:10,y:10}; s.dungeon.items.push(item);
+  it('キング本人はメテオが無効で、着弾範囲の壁・魔方陣だけ壊す',()=>{
+    const s=setup(), item={id:'item',name:'道具',x:10,y:10}, embedded={id:'embedded',name:'壁内の道具',x:9,y:9,wallEmbedded:true};
+    s.dungeon.items.push(item,embedded);
+    const impactCircle={kind:'sanctuary',name:'聖域の魔方陣',x:9,y:9};
+    const distantCircle={kind:'sanctuary',name:'遠い魔方陣',x:15,y:15};
+    s.dungeon.pentacles=[impactCircle,distantCircle];
     s.dungeon.map[9][9]=T.WALL;
+    s.dungeon.map[15][15]=T.WALL;
+    vi.spyOn(Math,'random').mockReturnValue(0.99);
     castMeteor(s.boss,s.dungeon,{x:10,y:10},s.messages); hazards(s,{worldTicks:2});
-    expect(s.boss.hp).toBe(1200); expect(s.dungeon.items).toEqual([item]); expect(s.dungeon.map[9][9]).toBe(T.WALL);
+    expect(s.boss.hp).toBe(1200); expect(s.dungeon.items).toEqual([item,embedded]);
+    expect(embedded.wallEmbedded).toBeUndefined(); expect(embedded.discovered).toBe(true);
+    expect(s.dungeon.map[9][9]).toBe(T.FLOOR); expect(s.dungeon.map[15][15]).toBe(T.WALL);
+    expect(s.dungeon.pentacles).toEqual([distantCircle]);
     expect(s.messages.filter(m=>m.includes('にはメテオが効かなかった'))).toHaveLength(1);
   });
   it('バリアは1マス分だけ防ぎ、魔法無効にはダメージを与えない',()=>{

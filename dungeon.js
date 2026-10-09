@@ -876,10 +876,13 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
   const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
     ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }
     : mt;
+  const randomlyDormant = Math.random() < dormantRate;
   return {
     ...st, id: uid(), x, y, maxHp: st.hp, turnAccum: 0, aware: false,
     dir: { x: [-1, 1][rng(0, 1)], y: 0 }, lastPx: 0, lastPy: 0,
-    patrolTarget: null, dormant: Math.random() < dormantRate,
+    patrolTarget: null,
+    dormant: st.subtype === "sleepingLion" || randomlyDormant,
+    ...(st.subtype === "sleepingLion" ? { _dormantHp: st.hp } : {}),
   };
 }
 /* 部屋の外周に接する通路タイル数を数える（=物理的な出入り口の数） */

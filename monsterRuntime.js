@@ -49,14 +49,24 @@ export function monLevelDown(...args) {
 }
 
 export function wakeIfDormant(monster, messages) {
+  const sleepingLion = monster.subtype === "sleepingLion";
   if (monster.dormantHouse) {
     monster.dormantHouse = false;
     monster.aware = true;
+    if (sleepingLion) {
+      monster._movedThisTurn = true;
+      monster._justWoke = true;
+    }
     messages.push(`${monster.name}が目を覚ました！`);
     return;
   }
   if (!monster.dormant) return;
   monster.dormant = false;
+  if (sleepingLion) {
+    monster.aware = true;
+    monster._movedThisTurn = true;
+    monster._justWoke = true;
+  }
   monster._dormantTouched = false;
   delete monster._dormantHp;
   messages.push(`${monster.name}が目を覚ました！`);

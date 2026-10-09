@@ -1,6 +1,6 @@
-import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext, calcAtkDefDmg, calcPlayerDefense } from './utils.js';
+import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext, calcAtkDefDmg, calcPlayerDefense, T } from './utils.js';
 import { monsterAreaTargets, monsterOccupiesCell } from './monsterGeometry.js';
-import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, weakenOrClearParalysis } from './items.js';
+import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, weakenOrClearParalysis, wallBreakDrop } from './items.js';
 import { monEffectiveMagicImmune } from './monTraits.js';
 import { pushExplosionAnim } from './animEvents.js';
 
@@ -17,6 +17,36 @@ export function castMeteor(monster, dungeon, player, messages) {
   monster.meteorCooldown = monster.meteorInterval ?? 4;
   messages.push(`${monster.name}がメテオを詠唱した！赤い3×3マスに2ターン後、隕石が落ちる！`);
   return true;
+}
+
+function destroyMeteorTerrain(dungeon, meteor, messages) {
+  let brokenWalls = 0;
+  for (let y = meteor.y - 1; y <= meteor.y + 1; y++) {
+    for (let x = meteor.x - 1; x <= meteor.x + 1; x++) {
+      const row = dungeon.map?.[y];
+      if (!row || x < 1 || x >= row.length - 1 || y < 1 || y >= dungeon.map.length - 1) continue;
+      if (row[x] === T.WALL || row[x] === T.BWALL) {
+        const embeddedItem = dungeon.items?.find(item => item.x === x && item.y === y && item.wallEmbedded);
+        if (embeddedItem) {
+          delete embeddedItem.wallEmbedded;
+          embeddedItem.discovered = true;
+        }
+        row[x] = T.FLOOR;
+        if (dungeon.explored?.[y]?.[x] !== undefined) dungeon.explored[y][x] = true;
+        if (dungeon.visible?.[y]?.[x] !== undefined) dungeon.visible[y][x] = true;
+        wallBreakDrop(dungeon, x, y);
+        brokenWalls++;
+      }
+    }
+  }
+  if (brokenWalls > 0) messages.push(`メテオが壁を${brokenWalls}マス砕いた！`);
+
+  const circles = (dungeon.pentacles || []).filter(circle =>
+    Math.abs(circle.x - meteor.x) <= 1 && Math.abs(circle.y - meteor.y) <= 1);
+  if (circles.length > 0) {
+    dungeon.pentacles = dungeon.pentacles.filter(circle => !circles.includes(circle));
+    for (const circle of circles) messages.push(`メテオが${circle.name || "魔方陣"}を砕いた！`);
+  }
 }
 
 /** 敵の行動回数ではなくフロアの時計で進める。詠唱はこの処理より後の敵攻撃フェーズ。 */
@@ -64,6 +94,7 @@ export function advanceMeteors(dungeon, player, messages, lu, worldTicks = 1) {
       messages.push(`メテオが${monster.name}に命中！${damage}ダメージ！`);
       if (monster.hp <= 0) killMonster(monster, dungeon, player, messages, lu, false, source);
     }
+    destroyMeteorTerrain(dungeon, meteor, messages);
   }
 }
 

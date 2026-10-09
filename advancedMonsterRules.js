@@ -45,7 +45,7 @@ for (const [startText, kinds] of Object.entries(ADVANCED_MONSTER_STARTS)) {
 /*
  * 再登場帯。序盤の単純敵は中盤にLv2として戻し、後半の候補には
  * 「能力は厄介だが数値は低め」の敵をもう一度入れる。
- * 追加分は通常帯と重複するため、後半は柳を除いて最大13種になる。
+ * 追加分は通常帯と重複するため、後半は柳・眠れる獅子を除いて最大13種になる。
  */
 const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   10: ["rat", "bat", "centipede"],
@@ -76,6 +76,11 @@ for (let floor = 18; floor <= 29; floor++) {
   _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("hauntedWillow");
 }
 
+/* 眠れる獅子はB21Fから登場し、Lv2はB25Fから出現する。 */
+for (let floor = 21; floor <= 30; floor++) {
+  _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("sleepingLion");
+}
+
 /* 28〜30階は上級の締めとして、最終系の候補を少し厚く残す。 */
 for (const floor of [28, 29, 30]) {
   _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("gargoyle", "vampire", "dragon", "icedragon");
@@ -102,6 +107,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   giantEel: { min: 26, max: 30 },
   seaDevil: { min: 26, max: 30 },
   potionhealer: { min: 22, max: 24 },
+  sleepingLion: { min: 25, max: 30 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {

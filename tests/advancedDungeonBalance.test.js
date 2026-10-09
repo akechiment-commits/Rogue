@@ -54,8 +54,8 @@ describe("上級ダンジョンの敵分布", () => {
     expect(ADVANCED_MONSTER_FLOOR_POOLS[1]).toEqual(["rat", "bat", "centipede"]);
     for (let floor = 1; floor <= 30; floor++) {
       expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
-      const extraGiant = ADVANCED_MONSTER_FLOOR_POOLS[floor].includes('hauntedWillow') ? 1 : 0;
-      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiant);
+      const extraGiants = ['hauntedWillow', 'sleepingLion'].filter(kind => ADVANCED_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
+      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiants);
     }
     expect(ADVANCED_MONSTER_FLOOR_POOLS[30]).toEqual(expect.arrayContaining([
       "dragon", "icedragon", "gargoyle", "vampire", "golem", "daemon", "darkness",
@@ -113,9 +113,14 @@ describe("上級ダンジョンの敵分布", () => {
         expect(advancedMonsterSpawnLevel(base, floor)).toBeLessThanOrEqual(2);
       }
     }
+    const sleepingLion = MONS.find(monster => monster.baseKind === "sleepingLion");
+    expect(advancedMonsterAllowed("sleepingLion", 21)).toBe(true);
+    expect(advancedMonsterSpawnLevel(sleepingLion, 24)).toBe(1);
+    expect(advancedMonsterSpawnLevel(sleepingLion, 25)).toBe(2);
+    expect(advancedMonsterSpawnLevel(sleepingLion, 30)).toBe(2);
   });
 
-  it("ロキソ忍を含む上級の全74種は最低3階に候補になる", () => {
+  it("眠れる獅子を含む上級の全75種は最低3階に候補になる", () => {
     const counts = new Map();
     for (const kinds of ADVANCED_MONSTER_FLOOR_POOLS) {
       for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
@@ -123,7 +128,7 @@ describe("上級ダンジョンの敵分布", () => {
     const advancedKinds = MONS
       .filter((monster) => !monster.penaltyOnly && !monster.floodedOnly && !(monster.dungeons && !monster.dungeons.includes("advanced")))
       .map((monster) => monster.baseKind);
-    expect(new Set(advancedKinds).size).toBe(74);
+    expect(new Set(advancedKinds).size).toBe(75);
     expect(advancedKinds).toContain('potionhealer');
     for (const kind of advancedKinds) expect(counts.get(kind)).toBeGreaterThanOrEqual(3);
   });

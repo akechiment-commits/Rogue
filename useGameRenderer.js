@@ -107,7 +107,7 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   }
   /* ── 状態異常アイコン ── */
   const _sts = [];
-  if ((mon.sleepTurns    || 0) > 0)                              _sts.push("#3870e8"); // 眠り：青
+  if ((mon.sleepTurns || 0) > 0 || (mon.subtype === "sleepingLion" && mon.dormant)) _sts.push("#3870e8"); // 眠り：青
   if (mon.paralyzed || (mon.paralyzeTurns || 0) > 0)             _sts.push("#d0d8ff"); // 麻痺：白青
   if ((mon.confusedTurns || 0) > 0)                              _sts.push("#f09020"); // 混乱：橙
   if (mon.bewitched || (mon.bewitchedTurns || 0) > 0 || (mon.fleeingTurns || 0) > 0) _sts.push("#e0c020"); // 幻惑：黄金

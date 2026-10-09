@@ -1681,7 +1681,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (m.hp <= 0) break;
         if (_phase === "moveOnly") {
           const _bx = m.x, _by = m.y;
-          const _wasSleeping = (m.sleepTurns || 0) > 0;
+          const _wasSleeping = (m.sleepTurns || 0) > 0 || (m.subtype === "sleepingLion" && m.dormant);
           monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
           if (m.x !== _bx || m.y !== _by) _moveCount++;
           /* 等速の敵だけはプレイヤーと同時に目覚める扱いにして、
