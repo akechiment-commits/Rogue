@@ -12,7 +12,7 @@ const CHORDS = {
   E7: ["E3", "G#3", "B3", "D4"], Bbm: ["Bb3", "Db4", "F4", "Ab4"],
   Gb: ["Gb3", "Bb3", "Db4", "F4"], Ebm: ["Eb3", "Gb3", "Bb3", "Db4"],
   CsharpDim: ["C#4", "E4", "G4", "Bb4"], DsharpDim: ["D#4", "F#4", "A4", "C5"],
-  C7: ["C4", "E4", "G4", "Bb4"],
+  C7: ["C4", "E4", "G4", "Bb4"], Bdim: ["B3", "D4", "F4", "Ab4"],
 };
 const octave = (note, value) => note.replace(/\d+$/, String(value));
 const parseBar = (score) => {
@@ -330,115 +330,181 @@ function deepExploration() {
 }
 export const BGM_DUNGEON_DEEP = deepExploration();
 
-// 21階〜30階の最深層・奈落探索テーマ。底知れぬ深淵の闇、脈動する重低音、冷徹な静寂と緊迫のアンサンブル。
+// 21階〜30階の最深層・奈落探索テーマ。C短調・128 BPM。冷徹なミニマル・オスティナートとプログレッシブ・サスペンス。
 function abyssExploration() {
   const chords = [
-    // 1-8: 深淵への降下・重い心拍
-    "Cm", "Fm", "Bb", "Eb", "Ab", "Fm", "G", "Cm",
-    // 9-16: 異界の胎動・ナポリ和音と緊迫
-    "Cm", "Ab", "Db", "G", "Cm", "Fm", "G7", "Cm",
-    // 17-24: 奈落の残光・平行調Ebの哀愁から暗黒へ
-    "Eb", "Bb", "Cm", "Gm", "Ab", "Eb", "Fm", "G",
-    // 25-32: 不退転の覚悟・クライマックスから静寂へ
-    "Cm", "Fm", "Bb", "Eb", "Ab", "Db", "G", "Cm",
+    // 1-8: 第1主題（深淵の回廊・冷徹なミニマルリフ）
+    "Cm", "Cm", "Fm", "G", "Cm", "Ab", "G", "Cm",
+    // 9-16: 第2主題（ナポリ和音Dbとトリトーンの戦慄）
+    "Cm", "Db", "Fm", "G", "Cm", "Db", "Bdim", "G",
+    // 17-24: 展開部（平行調Ebの哀愁から暗黒へ）
+    "Eb", "Bb", "Cm", "Gm", "Ab", "Fm", "G", "G",
+    // 25-32: クライマックス（不退転の覚悟〜極限の静寂ブレイク）
+    "Cm", "Ab", "Bb", "Eb", "Fm", "Db", "Bdim", "Cm",
   ];
 
   const melody = [
     // 1-8
-    "C5:3 D5:1 Eb5:4 G5:3 F5:1 Eb5:2 D5:2", "F5:4 Ab5:2 G5:2 F5:4 C5:4",
-    "D5:3 Eb5:1 F5:4 Bb5:2 A5:2 G5:2 F5:2", "G5:6 F5:2 Eb5:4 -:4",
-    "Eb5:3 F5:1 G5:4 C6:2 Bb5:2 Ab5:2 G5:2", "F5:4 Ab5:2 G5:2 F5:4 C5:4",
-    "D5:2 Eb5:2 F5:4 Eb5:2 D5:2 B4:4", "C5:6 -:2 C5:4 -:4",
+    "-:8 C5:4 D5:2 Eb5:2",
+    "G5:6 F#5:2 G5:4 -:4",
+    "Ab5:4 G5:2 F5:2 Eb5:2 D5:2 C5:4",
+    "D5:4 B4:4 -:8",
+    "C5:4 Eb5:2 G5:2 C6:4 Bb5:2 Ab5:2",
+    "G5:4 F5:2 Eb5:2 D5:4 Eb5:4",
+    "F5:4 Eb5:2 D5:2 B4:4 D5:4",
+    "C5:8 -:8",
     // 9-16
-    "G5:3 F5:1 Eb5:2 D5:2 C5:4 G4:4", "Ab4:2 C5:2 Eb5:4 Ab5:3 G5:1 F5:4",
-    "F4:2 Ab4:2 Db5:4 F5:3 Eb5:1 Db5:4", "B4:2 D5:2 G5:4 F5:2 Eb5:2 D5:4",
-    "Eb5:4 C5:2 D5:2 Eb5:4 G5:4", "F5:3 Eb5:1 Db5:4 Ab5:2 Gb5:2 F5:4",
-    "D5:2 Eb5:2 F5:4 Eb5:2 D5:2 B4:4", "C5:8 -:4 C5:2 D5:2",
+    "C5:2 D5:2 Eb5:4 G5:4 F#5:4",
+    "F5:3 Eb5:1 Db5:4 F5:4 Ab5:4",
+    "Ab5:4 G5:2 F5:2 Eb5:2 D5:2 C5:4",
+    "D5:4 G5:4 B4:4 -:4",
+    "C5:2 Eb5:2 G5:4 Bb5:2 Ab5:2 G5:4",
+    "Db5:2 F5:2 Ab5:4 C6:2 Bb5:2 Ab5:4",
+    "B5:4 Ab5:2 F5:2 D5:4 F5:4",
+    "G5:8 -:4 G4:4",
     // 17-24
-    "Eb5:4 G5:2 Bb5:2 Eb6:4 D6:2 C6:2", "Bb5:6 -:2 F5:4 Bb5:4",
-    "C6:4 G5:2 Eb5:2 C5:4 Eb5:4", "D5:6 -:2 G4:4 Bb4:4",
-    "C5:3 D5:1 Eb5:4 Ab5:2 G5:2 F5:4", "G5:4 Bb5:2 A5:2 G5:4 Eb5:4",
-    "F5:2 G5:2 Ab5:4 G5:2 F5:2 C5:4", "D5:4 G5:4 F5:2 Eb5:2 D5:4",
+    "Eb5:4 G5:2 Bb5:2 Eb6:4 D6:2 C6:2",
+    "Bb5:6 -:2 F5:4 Bb5:4",
+    "C6:4 G5:2 Eb5:2 C5:4 Eb5:4",
+    "D5:6 -:2 G4:4 Bb4:4",
+    "C5:2 D5:2 Eb5:4 Ab5:2 G5:2 F5:4",
+    "F5:2 G5:2 Ab5:4 C6:2 Bb5:2 Ab5:4",
+    "G5:4 B5:2 D6:2 F6:4 Eb6:2 D6:2",
+    "G6:8 -:4 G5:4",
     // 25-32
-    "C5:3 D5:1 Eb5:4 G5:2 C6:2 Bb5:2 A5:2", "Ab5:4 F5:2 G5:2 Ab5:4 C6:4",
-    "Bb5:3 A5:1 G5:2 F5:2 D5:4 F5:4", "G5:6 -:2 Eb5:4 G5:4",
-    "C6:4 Ab5:2 G5:2 F5:4 Eb5:4", "F5:3 Eb5:1 Db5:4 Ab5:4 F5:4",
-    "D5:2 F5:2 G5:4 Eb5:2 D5:2 B4:4", "C5:8 -:8",
+    "C5:3 D5:1 Eb5:4 G5:2 C6:2 Bb5:2 A5:2",
+    "Ab5:4 F5:2 G5:2 Ab5:4 C6:4",
+    "Bb5:3 A5:1 G5:2 F5:2 D5:4 F5:4",
+    "G5:6 -:2 Eb5:4 G5:4",
+    "C6:4 Ab5:2 G5:2 F5:4 Eb5:4",
+    "F5:3 Eb5:1 Db5:4 Ab5:4 F5:4",
+    "B5:4 Ab5:2 F5:2 D5:4 B4:4",
+    "C5:4 -:12",
   ];
 
-  const lead = [], piano = [], inner = [], upper = [], bass = [];
-  const kick = [], snare = [], hats = [], openHats = [];
+  const lead = [], piano = [], guitar = [], strings = [], bass = [];
+  const kick = [], snare = [], hats = [];
 
   for (let bar = 0; bar < chords.length; bar++) {
     const c = CHORDS[chords[bar]];
     const intro = bar < 4;
     const bridge = bar >= 16 && bar < 24;
     const climax = bar >= 24;
-    const lift = climax ? 1.0 : bridge ? 0.95 : intro ? 0.86 : 0.92;
+    const lift = climax ? 1.0 : bridge ? 0.95 : intro ? 0.88 : 0.92;
 
-    lead.push(...parseBar(melody[bar]).map(([note, length], index) => [
+    // 1. リードブラス（冷徹かつ鋭い切迫の主旋律）
+    lead.push(...parseBar(melody[bar]).map(([note, len], idx) => [
       note,
-      length,
-      lift * (index % 3 === 0 ? 1 : 0.88),
+      len,
+      lift * (idx % 2 === 0 ? 1 : 0.88),
     ]));
 
-    // ピアノ: 水滴のような高音の分散和音と不穏な低音打鍵
-    piano.push(...parseBar(intro
-      ? `${c[0]}:3:0.58 -:1 ${c[2]}:2:0.44 ${c[1]}:2:0.52 -:2 ${c[3]}:2:0.4 ${c[2]}:2:0.48 -:2`
-      : bridge
-        ? `${c[0]}:2:0.74 -:1 ${c[2]}:1:0.46 ${c[1]}:2:0.6 -:2 ${c[0]}:2:0.64 ${c[3]}:2:0.46 ${c[2]}:2:0.56 -:2`
-        : `${c[0]}:2:0.7 -:1 ${c[2]}:1:0.45 ${c[1]}:2:0.58 -:2 ${c[0]}:2:0.6 ${c[3]}:2:0.44 ${c[2]}:2:0.52 -:2`
-    ));
+    // 2. ピアノ（冷たく刺さる16分オスティナート ＆ 暗黒アルペジオ）
+    if (bar === 3 || bar === 7) {
+      piano.push(...parseBar(`${c[0]}:2 ${c[1]}:2 ${c[2]}:2 ${c[3]}:2 -:8`));
+    } else if (bar === 14) {
+      piano.push(...parseBar("B3:1 D4:1 F4:1 Ab4:1 B4:1 D5:1 F5:1 Ab5:1 G5:2 F5:2 D5:2 B4:2"));
+    } else if (bar === 30) {
+      piano.push(...parseBar("B3:1 D4:1 F4:1 Ab4:1 B4:1 D5:1 F5:1 Ab5:1 B5:1 Ab5:1 F5:1 D5:1 B4:1 Ab4:1 F4:1 D4:1"));
+    } else if (bar === 31) {
+      piano.push(...parseBar("C4:4 -:12"));
+    } else if (bar === 1 || bar === 9 || bar === 13) {
+      const n0 = c[0], n1 = c[1], n2 = c[2];
+      piano.push(...parseBar(`${n0}:1 ${n1}:1 ${n2}:1 G4:1 ${n2}:1 ${n1}:1 ${n0}:1 ${n1}:1 ${n0}:1 ${n1}:1 ${n2}:1 G4:1 ${n2}:1 ${n1}:1 ${n0}:1 ${n1}:1`));
+    } else if (bridge) {
+      piano.push(...parseBar(`${c[0]}:2:0.7 ${c[1]}:2:0.6 ${c[2]}:2:0.65 ${c[3]}:2:0.58 ${c[2]}:2:0.6 ${c[1]}:2:0.55 ${c[0]}:2:0.65 ${c[2]}:2:0.6`));
+    } else {
+      piano.push(...parseBar("C4:1:0.75 Eb4:1:0.6 G4:1:0.7 F#4:1:0.65 G4:1:0.7 Eb4:1:0.6 C4:1:0.75 Eb4:1:0.6 C4:1:0.72 Eb4:1:0.58 G4:1:0.68 F#4:1:0.62 G4:1:0.68 Eb4:1:0.58 D4:1:0.65 B3:1:0.6"));
+    }
 
-    // 内声弦: 重厚で不穏な持続和声
-    inner.push(...parseBar(`${octave(c[1], 3)}:16:${lift * 0.74}`));
+    // 3. スティールギター（パーカッシブな鋭いミュート刻み＆カッティング）
+    if (bar === 3 || bar === 7 || bar === 31) {
+      guitar.push(...parseBar(`${c[0]}:2:0.75 ${c[1]}:2:0.65 -:12`));
+    } else if (bar === 30) {
+      guitar.push(...parseBar("B3:2:0.8 D4:2:0.7 F4:2:0.75 Ab4:2:0.7 B3:2:0.8 D4:2:0.7 F4:2:0.75 Ab4:2:0.7"));
+    } else if (climax) {
+      guitar.push(...parseBar(`-:2 ${c[0]}:2:0.75 -:1 ${c[2]}:1:0.6 ${c[1]}:2:0.7 -:2 ${c[0]}:2:0.7 ${c[3] || c[0]}:4:0.75`));
+    } else {
+      guitar.push(...parseBar(`-:2 ${c[0]}:2:0.7 -:2 ${c[2]}:2:0.65 -:2 ${c[1]}:2:0.68 -:2 ${c[2]}:2:0.6`));
+    }
 
-    // 上声弦: 張り詰めた高音サスペンス
-    upper.push(...parseBar(intro ? "-:16" : `${octave(c[2], 4)}:16:${lift * 0.65}`));
+    // 4. ストリングス（緊迫のサスペンス・クラスターと高音オブリガート）
+    if (bar === 3 || bar === 7) {
+      strings.push(...parseBar(`${octave(c[1], 4)}:8:${lift * 0.7} -:8`));
+    } else if (bar === 30) {
+      strings.push(...parseBar(`Ab4:4:${lift * 0.8} B4:4:${lift * 0.85} D5:4:${lift * 0.9} F5:4:${lift * 0.95}`));
+    } else if (bar === 31) {
+      strings.push(...parseBar(`C5:4:${lift * 0.75} -:12`));
+    } else if (climax) {
+      strings.push(...parseBar(`${octave(c[2], 4)}:4:${lift * 0.85} ${octave(c[1], 4)}:4:${lift * 0.75} ${octave(c[0], 5)}:4:${lift * 0.88} ${octave(c[2], 4)}:4:${lift * 0.8}`));
+    } else if (bridge) {
+      strings.push(...parseBar(`${octave(c[0], 4)}:8:${lift * 0.75} ${octave(c[2], 4)}:8:${lift * 0.8}`));
+    } else {
+      strings.push(...parseBar(`${octave(c[1], 4)}:16:${lift * 0.72}`));
+    }
 
-    // ベース: 奈落を這う重低音
-    bass.push(...parseBar(intro
-      ? `${octave(c[0], 2)}:6:0.75 -:2 ${octave(c[2], 2)}:6:0.6 -:2`
-      : `${octave(c[0], 2)}:3:0.8 -:1 ${octave(c[2], 2)}:3:0.64 -:1 ${octave(c[0], 3)}:2:0.7 -:2 ${octave(c[2], 2)}:3:0.6 -:1`
-    ));
+    // 5. スラップベース（地を這う重低音チョッパー＆ドライブ）
+    const r = octave(c[0], 2), fifth = octave(c[2], 2), octR = octave(c[0], 3);
+    if (bar === 3 || bar === 7) {
+      bass.push(...parseBar(`${r}:2:0.85 -:2 ${fifth}:2:0.7 -:10`));
+    } else if (bar === 14) {
+      bass.push(...parseBar("B1:2:0.85 D2:2:0.75 F2:2:0.8 Ab2:2:0.75 B2:2:0.85 F2:2:0.75 D2:2:0.7 B1:2:0.8"));
+    } else if (bar === 30) {
+      bass.push(...parseBar("B1:2:0.9 D2:2:0.8 F2:2:0.85 Ab2:2:0.8 B2:2:0.9 D3:2:0.85 F3:2:0.9 Ab3:2:0.95"));
+    } else if (bar === 31) {
+      bass.push(...parseBar("C2:4:0.85 -:12"));
+    } else if (climax) {
+      bass.push(...parseBar(`${r}:2:0.85 -:1 ${r}:1:0.6 ${octR}:2:0.8 ${r}:2:0.75 ${fifth}:2:0.7 -:1 ${r}:1:0.55 ${octR}:2:0.75 ${fifth}:2:0.7`));
+    } else {
+      bass.push(...parseBar(`${r}:2:0.85 -:1 ${r}:1:0.6 ${octR}:2:0.75 ${r}:2:0.7 -:2 ${fifth}:2:0.68 ${r}:2:0.75 ${fifth}:2:0.65`));
+    }
 
-    const fill = bar % 8 === 7;
-    const open = bar % 4 === 3 && !intro;
+    // 6. ドラム（キック）
+    if (bar === 3 || bar === 7) {
+      kick.push(...parseBar("C2:4:0.9 C2:2:0.7 -:10"));
+    } else if (bar === 30) {
+      kick.push(...parseBar("C2:2:0.9 C2:2:0.85 C2:2:0.9 C2:2:0.85 C2:2:0.9 C2:2:0.85 C2:2:0.9 C2:2:0.95"));
+    } else if (bar === 31) {
+      kick.push(...parseBar("C2:4:0.9 -:12"));
+    } else if (climax) {
+      kick.push(...parseBar("C2:4:0.9 -:2 C2:2:0.7 C2:4:0.88 C2:2:0.7 C2:2:0.85"));
+    } else {
+      kick.push(...parseBar("C2:4:0.88 -:2 C2:2:0.65 C2:4:0.85 -:4"));
+    }
 
-    // バスドラム: 深淵の鼓動（脈動）
-    kick.push(...parseBar(intro
-      ? (bar === 2 || bar === 3 ? "C2:4:0.65 -:12" : "-:16")
-      : (bar % 4 === 2 ? "C2:4:0.9 -:2 C2:2:0.55 C2:4:0.8 -:4" : "C2:4:0.88 -:4 C2:4:0.8 -:4")
-    ));
+    // 7. ドラム（スネア）
+    if (bar === 3 || bar === 7) {
+      snare.push(...parseBar("-:4 C2:4:0.85 -:8"));
+    } else if (bar === 30) {
+      snare.push(...parseBar("C2:2:0.8 C2:2:0.85 C2:2:0.8 C2:2:0.85 C2:2:0.9 C2:2:0.9 C2:2:0.95 C2:2:1.0"));
+    } else if (bar === 31) {
+      snare.push(...parseBar("-:16"));
+    } else {
+      snare.push(...parseBar("-:4 C2:4:0.82 -:4 C2:4:0.88"));
+    }
 
-    // スネア: 緊迫のリムショット＆フィル
-    snare.push(...parseBar(intro
-      ? (bar === 3 ? "-:12 C2:2:0.42 C2:2:0.62" : "-:16")
-      : (fill ? "-:4 C2:4:0.8 -:2 C2:2:0.48 C2:2:0.62 C2:2:0.92" : `-:4 C2:4:${bridge ? 0.65 : 0.82} -:4 C2:4:${bridge ? 0.72 : 0.88}`)
-    ));
-
-    // ハット: 秒針のように時間を刻む
-    hats.push(...parseBar(intro
-      ? "C5:2:0.42 -:2 C5:2:0.34 -:2 C5:2:0.4 -:2 C5:2:0.32 -:2"
-      : `C5:2:0.54 C5:2:0.36 C5:2:0.46 C5:2:0.34 C5:2:0.5 C5:2:0.38 C5:2:0.46 ${open ? "-:2" : "C5:2:0.34"}`
-    ));
-
-    openHats.push(...parseBar(open ? "-:14 C6:2:0.5" : "-:16"));
+    // 8. ドラム（ハット）
+    if (bar === 3 || bar === 7 || bar === 31) {
+      hats.push(...parseBar("C5:2:0.5 C5:2:0.4 C5:2:0.45 -:10"));
+    } else if (bar === 30) {
+      hats.push(...parseBar("C5:1:0.5 C5:1:0.4 C5:1:0.5 C5:1:0.4 C5:1:0.5 C5:1:0.4 C5:1:0.5 C5:1:0.4 C5:1:0.5 C5:1:0.4 C5:1:0.5 C5:1:0.4 C5:1:0.5 C5:1:0.4 C5:1:0.5 C5:1:0.4"));
+    } else {
+      hats.push(...parseBar("C5:2:0.52 C5:2:0.38 C5:2:0.48 C5:2:0.36 C5:2:0.5 C5:2:0.38 C5:2:0.48 C5:2:0.36"));
+    }
   }
 
   return {
-    name: "dungeon_abyss", title: "深淵の胎動", tempo: 110, loop: true, bars: 32,
-    desc: "C短調。32小節・約70秒。21階〜30階の最深層・奈落探索テーマ。底知れぬ深淵の闇、脈動する重低音キック、冷徹な静寂と不穏な半音階。研ぎ澄まされた極限の緊張感、重厚な弦のクラスター、冷たく美しいピアノと哀愁の木管が織りなす10パートの本格アンサンブル。",
+    name: "dungeon_abyss", title: "深淵の胎動", tempo: 128, loop: true, bars: 32,
+    desc: "C短調。32小節・約60秒。21階〜30階の最深層・奈落探索テーマ。旧版のゆったりした室内楽風から全面刷新。冷徹に刺さるピアノの16分ミニマル・オスティナートと地を奮い立たせるスラップ低音、スティールギターの鋭いミュート刻み、ナポリ和音と減七和音（Bdim）が織りなす底知れぬ切迫感、そして極限の静寂ブレイクへ至るダーク・プログレッシブ・サスペンス。",
     tracks: [
-      { type: "sine", instrument: "woodFlute", volume: 0.27, gate: 0.86, pan: -0.05, cutoff: 3800, roomSend: 0.32, notes: lead },
-      { type: "sine", instrument: "feltPiano", volume: 0.24, gate: 0.68, pan: -0.26, cutoff: 3000, roomSend: 0.25, notes: piano },
-      { type: "sine", instrument: "softStrings", volume: 0.15, gate: 0.95, pan: -0.45, cutoff: 2200, roomSend: 0.38, notes: inner },
-      { type: "sine", instrument: "softStrings", volume: 0.12, gate: 0.95, pan: 0.45, cutoff: 2600, roomSend: 0.38, notes: upper },
-      { type: "sine", instrument: "roundBass", volume: 0.35, gate: 0.76, pan: 0, cutoff: 600, notes: bass },
-      { type: "sine", instrument: "drumKick", volume: 0.32, pan: 0, cutoff: 950, notes: kick },
-      { type: "sine", instrument: "drumSnare", volume: 0.19, pan: 0.06, cutoff: 4400, roomSend: 0.12, notes: snare },
-      { type: "sine", instrument: "drumHat", volume: 0.13, pan: 0.28, cutoff: 7000, notes: hats },
-      { type: "sine", instrument: "drumOpenHat", volume: 0.11, pan: 0.32, cutoff: 7000, notes: openHats },
+      { type: "sine", instrument: "brassLead", volume: 0.28, gate: 0.88, pan: -0.06, cutoff: 4600, roomSend: 0.22, notes: lead },
+      { type: "sine", instrument: "feltPiano", volume: 0.24, gate: 0.70, pan: -0.25, cutoff: 3400, roomSend: 0.18, notes: piano },
+      { type: "sine", instrument: "steelGuitar", volume: 0.26, gate: 0.80, pan: 0.25, cutoff: 4400, roomSend: 0.18, notes: guitar },
+      { type: "sine", instrument: "softStrings", volume: 0.16, gate: 0.90, pan: 0.40, cutoff: 3200, roomSend: 0.30, notes: strings },
+      { type: "sine", instrument: "slapBass", volume: 0.38, gate: 0.74, pan: 0, cutoff: 820, notes: bass },
+      { type: "sine", instrument: "drumKick", volume: 0.32, pan: 0, cutoff: 1100, notes: kick },
+      { type: "sine", instrument: "drumSnare", volume: 0.22, pan: 0.06, cutoff: 4800, roomSend: 0.12, notes: snare },
+      { type: "sine", instrument: "drumHat", volume: 0.14, pan: 0.26, cutoff: 7200, notes: hats },
     ],
   };
 }
