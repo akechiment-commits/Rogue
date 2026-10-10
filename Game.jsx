@@ -2683,10 +2683,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               acted = true;
             } else if (
               attackMon.type === "shopkeeper" &&
-              attackMon.state !== "hostile"
+              (attackMon.state !== "hostile" || attackMon._npcRetaliationTargetId)
             ) {
               if (isWanderingNpc(attackMon)) {
-                /* 体当たりでは会話せず、友好的な巡回者と位置を入れ替えて進む。 */
+                /* 敵を追っている間もプレイヤーに敵対していなければ、体当たりで場所を入れ替える。 */
                 if (Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
                   attackMon.x = p.x;
                   attackMon.y = p.y;
