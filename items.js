@@ -7410,6 +7410,17 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
  * 既に泥棒でも、未払い店主を敵対に揃える。
  * @returns {boolean} 新たに泥棒扱いにした（メッセージ用）
  */
+function clearNpcRetaliation(monster) {
+  if (!monster) return;
+  delete monster._npcRetaliationTargetId;
+  delete monster._npcRetaliationReturnState;
+  delete monster._npcRetaliationReturnSpeed;
+  delete monster._npcRetaliationReturnAware;
+  delete monster._npcRetaliationReturnLastPos;
+  delete monster._npcRetaliationReturnPos;
+  delete monster._npcReturningHome;
+}
+
 export function declareShopTheft(p, dg, ml, opts = {}) {
   if (!dg || !p) return false;
   /* 友好的な行商人・冒険者への攻撃は、撃破されるまでは店泥棒にしない。
@@ -7418,6 +7429,7 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
     const wanderer = dg.monsters?.find((monster) => monster.id === opts.merchantId && isWanderingNpc(monster));
     if (wanderer) {
       const wasHostile = wanderer.state === "hostile";
+      clearNpcRetaliation(wanderer);
       wanderer.state = "hostile";
       wanderer.speed = 1;
       wanderer.aware = true;
@@ -7433,6 +7445,7 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
   if (opts.merchantId) {
     const wanderer = dg.monsters?.find((monster) => monster.id === opts.merchantId && isWanderingNpc(monster));
     if (wanderer) {
+      clearNpcRetaliation(wanderer);
       wanderer.state = "hostile";
       /* 友好的な巡回者は平時だけ半速。敵対した瞬間から等速へ戻る。 */
       wanderer.speed = 1;
@@ -7457,6 +7470,7 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
     if (!opts.forceAll && (s.unpaidTotal || 0) <= 0) continue;
     const sk = dg.monsters.find((m) => m.id === s.shopkeeperId);
     if (sk) {
+      clearNpcRetaliation(sk);
       sk.state = "hostile";
       sk.aware = true;
       sk.lastPx = p.x;
@@ -7509,8 +7523,13 @@ export function canCalmShopkeeper(m, dg, p) {
 /** 店主・行商人・冒険者をHP全快で友好状態へ戻す共通処理。 */
 export function calmShopkeeperIfFullyHealed(m, dg, p, ml) {
   if (!canCalmShopkeeper(m, dg, p)) return false;
+  const returnHome = !isWanderingNpc(m) && m._npcRetaliationReturnPos
+    ? { ...m._npcRetaliationReturnPos }
+    : null;
+  clearNpcRetaliation(m);
   m.state = "friendly";
   if (isWanderingNpc(m)) m.speed = m.baseSpeed ?? 0.5;
+  else if (returnHome) m._npcReturningHome = returnHome;
   const name = m.isWanderingMerchant ? "行商人" : m.isWanderingAdventurer ? m.name : "店主";
   if (ml) ml.push(`${name}のHPが全快した！敵対状態が解除された。`);
   return true;
@@ -7518,6 +7537,7 @@ export function calmShopkeeperIfFullyHealed(m, dg, p, ml) {
 
 /* 支払い後に店主を空きマスへ戻す（homePos が塞がっている場合は店内の別フロアタイルへ） */
 export function moveShopkeeperHome(sk, shop, dg) {
+  clearNpcRetaliation(sk);
   sk.state = "friendly";
   const hp = sk.homePos;
   const occ = (x, y) => dg.monsters.some(m => m !== sk && monsterOccupiesCell(m, x, y));

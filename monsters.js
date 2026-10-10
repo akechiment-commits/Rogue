@@ -4133,10 +4133,169 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   return false;
 }
 
+function npcCanStandAt(monster, dungeon, player, x, y, float = false) {
+  return inBounds(x, y) && !(player && x === player.x && y === player.y) &&
+    canEnter(dungeon.map, x, y, float, dungeon, monster.waterWalker) &&
+    !dungeon.monsters.some(other => other !== monster && monsterOccupiesCell(other, x, y));
+}
+
+function npcCanAttackMonster(monster, target, dungeon, x = monster.x, y = monster.y) {
+  if (monsterBodySize(target) > 1) return monsterCanInteractAtRange(target, dungeon, x, y, 1);
+  return monsterPointDistance(target, x, y) <= 1 &&
+    !isOpaqueMonsterSightTile(dungeon, x, y) &&
+    !isOpaqueMonsterSightTile(dungeon, target.x, target.y) &&
+    giantLineOfSight(dungeon, x, y, target.x, target.y);
+}
+
+function npcApproachStep(monster, target, dungeon, player, float = false) {
+  const points = new Map();
+  for (const cell of monsterBodyCells(target)) {
+    for (const [dx, dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+      const x = cell.x + dx, y = cell.y + dy;
+      if (monsterOccupiesCell(target, x, y) || !npcCanStandAt(monster, dungeon, player, x, y, float)) continue;
+      if (!npcCanAttackMonster(monster, target, dungeon, x, y)) continue;
+      points.set(`${x},${y}`, { x, y });
+    }
+  }
+  const candidates = [...points.values()].sort((a, b) =>
+    Math.max(Math.abs(a.x - monster.x), Math.abs(a.y - monster.y)) -
+    Math.max(Math.abs(b.x - monster.x), Math.abs(b.y - monster.y))
+  );
+  for (const point of candidates) {
+    const next = bfsNext(dungeon.map, dungeon.monsters, monster.x, monster.y, point.x, point.y,
+      monster, 40, dungeon.pentacles, float, null, false, dungeon.rooms, dungeon);
+    if (next && npcCanStandAt(monster, dungeon, player, next.x, next.y, float)) return next;
+  }
+  return null;
+}
+
+function beginNpcRetaliation(npc, attacker, messages) {
+  if (!npc || npc.type !== "shopkeeper" || !attacker || attacker === npc || attacker.isPlayerClone || attacker.hp <= 0) return false;
+  const previousTarget = npc._npcRetaliationTargetId;
+  if (!previousTarget) {
+    npc._npcRetaliationReturnState = npc.state || "friendly";
+    npc._npcRetaliationReturnSpeed = npc.speed ?? npc.baseSpeed ?? 1;
+    npc._npcRetaliationReturnAware = npc.aware;
+    if (Number.isFinite(npc.lastPx) && Number.isFinite(npc.lastPy)) {
+      npc._npcRetaliationReturnLastPos = { x: npc.lastPx, y: npc.lastPy };
+    }
+    if (!isWanderingNpc(npc)) {
+      const returnPos = npc.state === "blocking" ? npc.blockPos
+        : npc.state === "friendly" ? npc.homePos
+          : { x: npc.x, y: npc.y };
+      npc._npcRetaliationReturnPos = returnPos ? { x: returnPos.x, y: returnPos.y } : { x: npc.x, y: npc.y };
+    }
+    delete npc._npcReturningHome;
+  }
+  npc._npcRetaliationTargetId = attacker.id;
+  npc.state = "hostile";
+  npc.speed = 1;
+  npc.aware = true;
+  npc.lastPx = attacker.x;
+  npc.lastPy = attacker.y;
+  if (previousTarget !== attacker.id) {
+    const label = npc.isWanderingMerchant ? "行商人" : npc.isWanderingAdventurer ? npc.name : "店主";
+    messages?.push(`${label}が${attacker.name}に怒った！`);
+  }
+  return true;
+}
+
+function endNpcRetaliation(npc) {
+  const returnState = npc._npcRetaliationReturnState || "friendly";
+  npc.state = returnState;
+  npc.speed = npc._npcRetaliationReturnSpeed ?? npc.baseSpeed ?? 1;
+  npc.aware = npc._npcRetaliationReturnAware ?? (returnState === "hostile");
+  if (npc._npcRetaliationReturnLastPos) {
+    npc.lastPx = npc._npcRetaliationReturnLastPos.x;
+    npc.lastPy = npc._npcRetaliationReturnLastPos.y;
+  }
+  if (!isWanderingNpc(npc)) {
+    npc._npcReturningHome = npc._npcRetaliationReturnPos ||
+      (npc.homePos ? { ...npc.homePos } : { x: npc.x, y: npc.y });
+  }
+  delete npc._npcRetaliationTargetId;
+  delete npc._npcRetaliationReturnState;
+  delete npc._npcRetaliationReturnSpeed;
+  delete npc._npcRetaliationReturnAware;
+  delete npc._npcRetaliationReturnLastPos;
+  delete npc._npcRetaliationReturnPos;
+}
+
+function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
+  if (monster.type !== "shopkeeper") return false;
+  let target = monster._npcRetaliationTargetId
+    ? dungeon.monsters.find(other => other.id === monster._npcRetaliationTargetId && other.hp > 0)
+    : null;
+  if (monster._npcRetaliationTargetId && !target) endNpcRetaliation(monster);
+
+  if (target) {
+    monster.aware = true;
+    monster.lastPx = target.x;
+    monster.lastPy = target.y;
+    if (npcCanAttackMonster(monster, target, dungeon)) {
+      if (!opts.moveOnly && monster.turnAttacks < monEffectiveMaxAttacks(monster)) {
+        if (isAttackSealed(monster)) {
+          messages.push(`${monster.name}は攻撃が封印されていて殴れない！`);
+        } else {
+          monster.turnAttacks++;
+          if (Math.random() >= 0.90) {
+            messages.push(`${monster.name}の${target.name}への攻撃は外れた！`);
+          } else if (consumeBarrier(target, messages)) {
+            messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
+          } else {
+            const damage = Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1));
+            target.hp -= damage;
+            messages.push(`${monster.name}が${target.name}を攻撃！${damage}ダメージ！`);
+            if (target.hp <= 0 && dungeon.monsters.includes(target)) {
+              killMonster(target, dungeon, player, messages, opts.luFn || (() => {}), false, monster);
+            }
+          }
+        }
+      }
+      return true;
+    }
+    if (!opts.attackOnly) {
+      const next = npcApproachStep(monster, target, dungeon, player, float);
+      if (next) {
+        monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
+        monster.x = next.x;
+        monster.y = next.y;
+      }
+    }
+    return true;
+  }
+
+  if (monster._npcReturningHome) {
+    if (opts.attackOnly) return true;
+    const desired = monster._npcReturningHome;
+    if (!npcCanStandAt(monster, dungeon, player, desired.x, desired.y, float)) {
+      /* 定位置がプレイヤーや敵に塞がれている間は帰還を継続する。 */
+      return true;
+    }
+    if (monster.x === desired.x && monster.y === desired.y) {
+      delete monster._npcReturningHome;
+      return false;
+    }
+    const next = bfsNext(dungeon.map, dungeon.monsters, monster.x, monster.y, desired.x, desired.y,
+      monster, 40, dungeon.pentacles, float, null, false, dungeon.rooms, dungeon);
+    if (next && npcCanStandAt(monster, dungeon, player, next.x, next.y, float)) {
+      monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
+      monster.x = next.x;
+      monster.y = next.y;
+      if (monster.x === desired.x && monster.y === desired.y) delete monster._npcReturningHome;
+    }
+    return true;
+  }
+  return false;
+}
+
 /** モンスターAI。移動後は重力罠。長時間動けなければ別方向へ強制移動。 */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _sx = m.x, _sy = m.y;
   const _movedThisTurn = m._movedThisTurn;
+  const _shopkeeperHpBefore = new Map((dg.monsters || [])
+    .filter(other => other !== m && other.type === "shopkeeper" && other.hp > 0)
+    .map(other => [other, other.hp]));
   const _gravityLocksFlightOnly = !!(m.flightOnly && !monEffectiveMagicImmune(m) &&
     !opts.attackOnly && hasGravityPentacle(dg, m.x, m.y));
   const _float = monEffectiveFloat(m) &&
@@ -4180,7 +4339,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.posHistory = [];
     }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || isWanderingNpc(m)) &&
+    if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly &&
+        !m._npcRetaliationTargetId && !m._npcReturningHome && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || isWanderingNpc(m)) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1) &&
@@ -4201,6 +4361,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
           }
         }
+      }
+    }
+    if (m.hp > 0 && dg.monsters.includes(m) && !m.isPlayerClone) {
+      for (const [npc, hpBefore] of _shopkeeperHpBefore) {
+        if (npc.hp > 0 && npc.hp < hpBefore && dg.monsters.includes(npc)) beginNpcRetaliation(npc, m, ml);
       }
     }
   }
@@ -5026,6 +5191,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* プレイヤーに隣接していれば詰まり扱いしない（攻撃ターンは正常） */
   if (_forceAlt && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) _forceAlt = false;
+
+  if (npcRetaliationAI(m, dg, pl, ml, opts, _effFloat)) return;
 
   /* 通常店主は固定。行商人・冒険者は友好的な間も巡回する。 */
   if (m.type === "shopkeeper" && !isWanderingNpc(m)) {
