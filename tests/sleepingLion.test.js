@@ -3,7 +3,7 @@ import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { advancedMonsterSpawnLevel } from "../advancedMonsterRules.js";
 import { legendMonsterSpawnLevel } from "../legendMonsterRules.js";
 import { MONSTER_SHEET_MAP } from "../tilesetMap.js";
-import { MW, MH } from "../utils.js";
+import { MW, MH, T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 const lionBase = MONS.find(monster => monster.baseKind === "sleepingLion");
@@ -74,6 +74,21 @@ describe("眠れる獅子系", () => {
     expect(dungeon.pendingMeteors).toHaveLength(1);
     expect(dungeon.pendingMeteors[0]).toMatchObject({ x: 4, y: 10, turnsLeft: 2, damage: 100 });
     expect(lion.meteorImmune).toBe(true);
+  });
+
+  it("同室で壁に隣接していても認識を保ち、壁越しにはメテオを詠唱しない", () => {
+    const lion = makeMonsterFromBase(lionBase, 1, 12, 10, { aware: true });
+    lion.dormant = false;
+    const rooms = [{ x: 4, y: 5, w: 14, h: 10 }];
+    const dungeon = makeEmptyDg({ monsters: [lion], visible: visibleMap(), rooms });
+    dungeon.map[11][12] = T.WALL;
+    dungeon.map[11][13] = T.WALL;
+    const player = makePlayer({ x: 12, y: 12 });
+
+    monsterAI(lion, dungeon, player, [], { attackOnly: true });
+    expect(lion.aware).toBe(true);
+    expect(dungeon.pendingMeteors || []).toHaveLength(0);
+    expect(player.hp).toBe(player.maxHp);
   });
 
   it("中級・上級・超上級で形態の出現帯を分ける", () => {

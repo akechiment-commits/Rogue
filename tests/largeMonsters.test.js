@@ -74,7 +74,7 @@ describe('巨大敵の体の命中判定', () => {
 });
 
 describe('巨大敵の移動と表示', () => {
-  it('壁に体が重なり、見かけ上は隣接していても視認・接触できない', () => {
+  it('同室なら壁に遮られても認識を保つが、接触攻撃は届かない', () => {
     vi.spyOn(Math,'random').mockReturnValue(0);
     const m=giant(2,{x:5,y:5,aware:true,lastPx:5,lastPy:7});
     const p=makePlayer({x:5,y:7});
@@ -85,7 +85,22 @@ describe('巨大敵の移動と表示', () => {
     const hp=p.hp;
     monsterAI(m,dg,p,[],{attackOnly:true});
     expect(p.hp).toBe(hp);
+    expect(m.aware).toBe(true);
+    monsterAI(m,dg,p,[],{moveOnly:true});
+    expect(m.aware).toBe(true);
+    expect([m.lastPx,m.lastPy]).toEqual([p.x,p.y]);
+  });
+  it('別室では壁越しに認識せず、古いプレイヤー位置を追跡しない', () => {
+    vi.spyOn(Math,'random').mockReturnValue(0);
+    const m=giant(2,{x:5,y:5,aware:true,lastPx:5,lastPy:7});
+    const p=makePlayer({x:5,y:7});
+    const dg=makeEmptyDg({monsters:[m],rooms:[]});
+    dg.map[6][5]=T.WALL; dg.map[6][6]=T.WALL;
+    const hp=p.hp;
+    monsterAI(m,dg,p,[],{attackOnly:true});
+    expect(p.hp).toBe(hp);
     expect(m.aware).toBe(false);
+    expect([m.lastPx,m.lastPy]).toEqual([m.x,m.y]);
   });
   it('間の壁がなくなれば、巨大敵は体の端から隣接・視認できる', () => {
     const m=giant(2,{x:5,y:5}), dg=makeEmptyDg({monsters:[m]}), p=makePlayer({x:5,y:7});

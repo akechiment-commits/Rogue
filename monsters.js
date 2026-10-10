@@ -5108,7 +5108,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const map = dg.map,
     rooms = dg.rooms;
   const dist = Math.abs(pl.x - m.x) + Math.abs(pl.y - m.y);
-  /* 同室は通常敵の相互認識条件。巨大敵は下で壁越し視線も確認する。 */
+  /* 同室内の認識は維持する。巨大敵の攻撃可能な接触・視線は別に壁を確認する。 */
   const _monRoom = findRoom(rooms, m.x, m.y);
   const _plRoom  = findRoom(rooms, pl.x, pl.y);
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
@@ -5119,7 +5119,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
    * - 同部屋
    * - 隣接
    * - プレイヤーの視界内にいる（FOV 対称：見える敵はこちらも認識する）
-   * 巨大敵は同室・隣接でも、壁のない体マスから視線が通ることを追加条件とする。
+   * 巨大敵は同室なら追跡を保つ。別室で隣接・視界認識するには壁のない体マスから視線が必要。
+   * 実際の近接攻撃・隣接特技は、同室でも壁のない接触経路を必須とする。
    *
    * 旧実装は「FOV内 かつ hasLOS」で、廊下2マス視界内でも Bresenham が角壁で
    * hasLOS を落とすと canSee=false → 古い lastPx（画面右など）へ歩き続けた。
@@ -5136,9 +5137,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     ? _cloneCandidate
     : null;
   const _cloneTargeted = !!_cloneDecoy?.isPlayerClone;
-  const canSee = (!_plInvis && _giantSightline && (_sameRoom || _adjPl || _inPlayerFov)) || _cloneTargeted;
-  if (_isGiant && !_giantSightline && !_cloneTargeted) {
-    /* 壁越しに見失った巨大敵は、古い認識位置を追い続けない。 */
+  const canSee = (!_plInvis && (_sameRoom || (_giantSightline && (_adjPl || _inPlayerFov)))) || _cloneTargeted;
+  if (_isGiant && !_sameRoom && !_giantSightline && !_cloneTargeted) {
+    /* 別室の壁越しに見失った巨大敵は、古い認識位置を追い続けない。 */
     m.aware = false;
     m.lastPx = m.x;
     m.lastPy = m.y;
@@ -5187,7 +5188,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   if ((m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion") && !m.sealed &&
       !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&
-      canSee && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
+      canSee && _giantSightline && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
       !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg) &&
       canCastMeteor(m, dg)) {
     // 等速敵は移動するとそのターン攻撃できない。詠唱可能なら移動に行動を使わない。
