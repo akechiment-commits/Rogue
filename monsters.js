@@ -1183,7 +1183,10 @@ export const MONS = [
     ],
   },
   { name: "お化け柳", hp: 78, atk: 27, def: 8, exp: 108, speed: 1, tile: 225, kind: "beast", baseKind: "hauntedWillow", monLevel: 1, minFloor: 20, maxFloor: 50, stationary: true, forcedMoveImmune: true, bodySize: 2, subtype: "hauntedWillow", desc: "2×2マスを占め、その場から動かない。強制移動を受けず、同じ部屋に烈風を吹かせ、隣接者へ枝払いを行う。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 18, max: 29 } },
-    levels: [],
+    levels: [
+      { name: "大お化け柳", hp: 150, atk: 38, def: 13, exp: 220, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 29 } } },
+      { name: "怨霊の古柳", hp: 265, atk: 52, def: 18, exp: 390, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
+    ],
   },
   { name: "眠れる獅子", hp: 128, atk: 36, def: 10, exp: 145, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 100, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、隣接または攻撃されるまで目覚めない。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
     levels: [

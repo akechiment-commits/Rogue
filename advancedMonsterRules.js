@@ -71,7 +71,7 @@ for (const [floorText, kinds] of Object.entries(ADVANCED_MONSTER_REINFORCEMENTS)
   _ADVANCED_MONSTER_FLOOR_POOLS[floor].push(...kinds);
 }
 
-/* 単一形態の巨大敵は、MONSで宣言した上級18〜29階の帯へ登録する。 */
+/* 巨大敵のお化け柳は上級18〜29階の候補に登録する。形態レベルは下の表で決める。 */
 for (let floor = 18; floor <= 29; floor++) {
   _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("hauntedWillow");
 }
@@ -107,6 +107,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   giantEel: { min: 26, max: 30 },
   seaDevil: { min: 26, max: 30 },
   potionhealer: { min: 22, max: 24 },
+  hauntedWillow: { min: 25, max: 29 },
   sleepingLion: { min: 25, max: 30 },
 });
 
