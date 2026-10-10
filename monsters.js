@@ -4266,13 +4266,33 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _shopkeeperHpBefore = new Map((dg.monsters || [])
     .filter(other => other !== m && other.type === "shopkeeper" && other.hp > 0)
     .map(other => [other, other.hp]));
+  const _npcTrapDamage = new Map();
+  const _aiOpts = typeof opts.fireTrapFn === "function" ? {
+    ...opts,
+    fireTrapFn: (...args) => {
+      const beforeTrap = new Map([..._shopkeeperHpBefore.keys()].map(npc => [npc, npc.hp]));
+      const result = opts.fireTrapFn(...args);
+      for (const [npc, hpBefore] of beforeTrap) {
+        const damage = Math.max(0, hpBefore - npc.hp);
+        if (damage > 0) _npcTrapDamage.set(npc, (_npcTrapDamage.get(npc) || 0) + damage);
+      }
+      return result;
+    },
+  } : opts;
   const _gravityLocksFlightOnly = !!(m.flightOnly && !monEffectiveMagicImmune(m) &&
     !opts.attackOnly && hasGravityPentacle(dg, m.x, m.y));
   const _float = monEffectiveFloat(m) &&
     (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
   try {
-    _monsterAIBody(m, dg, pl, ml, opts);
+    _monsterAIBody(m, dg, pl, ml, _aiOpts);
   } finally {
+    /* AIの直接攻撃で受けたダメージだけを報復対象にする。罠の発火で受けた分は差し引く。 */
+    if (m.hp > 0 && dg.monsters.includes(m) && !m.isPlayerClone) {
+      for (const [npc, hpBefore] of _shopkeeperHpBefore) {
+        const directDamage = hpBefore - npc.hp - (_npcTrapDamage.get(npc) || 0);
+        if (npc.hp > 0 && directDamage > 0 && dg.monsters.includes(npc)) beginNpcRetaliation(npc, m, ml);
+      }
+    }
     /* 飛行専用の敵は重力下で自発移動できない。攻撃フェーズ・特技処理は通す。 */
     if (_gravityLocksFlightOnly && (m.x !== _sx || m.y !== _sy)) {
       m.x = _sx;
@@ -4331,11 +4351,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
           }
         }
-      }
-    }
-    if (m.hp > 0 && dg.monsters.includes(m) && !m.isPlayerClone) {
-      for (const [npc, hpBefore] of _shopkeeperHpBefore) {
-        if (npc.hp > 0 && npc.hp < hpBefore && dg.monsters.includes(npc)) beginNpcRetaliation(npc, m, ml);
       }
     }
   }

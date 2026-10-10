@@ -2,6 +2,7 @@ import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext, calcA
 import { monsterAreaTargets, monsterOccupiesCell } from './monsterGeometry.js';
 import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, weakenOrClearParalysis, wallBreakDrop } from './items.js';
 import { monEffectiveMagicImmune } from './monTraits.js';
+import { beginNpcRetaliation } from './npcRetaliation.js';
 import { pushExplosionAnim } from './animEvents.js';
 
 export function canCastMeteor(monster, dungeon) {
@@ -91,6 +92,7 @@ export function advanceMeteors(dungeon, player, messages, lu, worldTicks = 1) {
       const mitigatedDamage = calcAtkDefDmg(meteor.damage, monster.def || 0, { defWeight: 1, variance: false });
       const damage = multiplyCursedMagicDamage(mitigatedDamage, monster, dungeon);
       monster.hp -= damage;
+      if (damage > 0 && monster.type === 'shopkeeper' && monster.hp > 0) beginNpcRetaliation(monster, source, messages);
       messages.push(`メテオが${monster.name}に命中！${damage}ダメージ！`);
       if (monster.hp <= 0) killMonster(monster, dungeon, player, messages, lu, false, source);
     }

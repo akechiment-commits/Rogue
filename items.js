@@ -2138,6 +2138,11 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   };
   const _killed = new Set();
   const _largeMonstersHit = new Set();
+  const retaliateAgainstExplosionSource = (monster) => {
+    if (killerMon && monster.type === "shopkeeper" && monster.hp > 0) {
+      beginNpcRetaliation(monster, killerMon, ml);
+    }
+  };
   for (let ddx = -_blastRadius; ddx <= _blastRadius && !floorChanged(); ddx++) {
     for (let ddy = -_blastRadius; ddy <= _blastRadius && !floorChanged(); ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
@@ -2194,6 +2199,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
             _bd = scaleMonFireDmg(m, _bd);
             m.hp -= _bd;
+            retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
             if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion, killerMon); }
             continue;
@@ -2206,6 +2212,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           const md = clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true);
           m.hp -= md;
+          retaliateAgainstExplosionSource(m);
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills, killerMon); }
         } else {
@@ -2214,6 +2221,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
           md = scaleMonFireDmg(m, md);
           m.hp -= md;
+          retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills, killerMon); }
         }
@@ -2311,6 +2319,11 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
   ensureItemMimicFloorItems(dg);
   const initialDepth = p?.depth;
   const floorChanged = () => p?.depth !== initialDepth;
+  const retaliateAgainstExplosionSource = (monster) => {
+    if (killerMon && monster.type === "shopkeeper" && monster.hp > 0) {
+      beginNpcRetaliation(monster, killerMon, ml);
+    }
+  };
   _gunpowderDepth++;
   try {
     pushExplosionAnim(cx, cy);
@@ -2368,6 +2381,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
+              retaliateAgainstExplosionSource(m);
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn, false, killerMon);
               continue;
