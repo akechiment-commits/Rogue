@@ -34,6 +34,7 @@ import {
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 import { isWanderingNpc } from './wanderingAdventurer.js';
+import { beginNpcRetaliation, clearNpcRetaliation } from "./npcRetaliation.js";
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
@@ -46,6 +47,7 @@ import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './larg
 import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
+export { clearNpcRetaliation };
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -6185,9 +6187,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       res.x = lx; res.y = ly; res.missedPlayer = true;
     },
     onMonHit: (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
-      if (shooter === p && isWanderingNpc(mon) && mon.state !== "hostile") {
-        declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: `${mon.name}が怒った！` });
-      }
+      if (shooter === p && mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, mlx);
       if (_isPotion) {
         if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
         res.consumed = true; res.splash = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
@@ -6858,8 +6858,10 @@ function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
     ? Math.max(1, calcAtkDefDmg(sp.atk || 1, monster.def || 0, { defWeight: 1.5 }))
     : clampDmgFixed(monster, calcProjectileDmg(p, sp.atk || 1, monster.def), true);
   monster.hp -= _dmg;
-  if (isWanderingNpc(monster) && monster.state !== "hostile") {
-    declareShopTheft(p, dg, ml, { merchantId: monster.id, angerOnly: true, message: `${monster.name}が怒った！` });
+  if (_enemyOwned) {
+    if (_source && monster.type === "shopkeeper") beginNpcRetaliation(monster, _source, ml);
+  } else if (monster.type === "shopkeeper") {
+    markShopkeeperHostileToPlayer(monster, dg, p, ml);
   }
   ml.push(`${_enemyOwned ? `${sp.sourceName || "敵"}の` : ""}${sp.name}が${monster.name}に命中！${_dmg}ダメージ！`);
   if (monster.hp <= 0) {
@@ -7410,17 +7412,6 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
  * 既に泥棒でも、未払い店主を敵対に揃える。
  * @returns {boolean} 新たに泥棒扱いにした（メッセージ用）
  */
-function clearNpcRetaliation(monster) {
-  if (!monster) return;
-  delete monster._npcRetaliationTargetId;
-  delete monster._npcRetaliationReturnState;
-  delete monster._npcRetaliationReturnSpeed;
-  delete monster._npcRetaliationReturnAware;
-  delete monster._npcRetaliationReturnLastPos;
-  delete monster._npcRetaliationReturnPos;
-  delete monster._npcReturningHome;
-}
-
 export function declareShopTheft(p, dg, ml, opts = {}) {
   if (!dg || !p) return false;
   /* 友好的な行商人・冒険者への攻撃は、撃破されるまでは店泥棒にしない。
@@ -7429,13 +7420,14 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
     const wanderer = dg.monsters?.find((monster) => monster.id === opts.merchantId && isWanderingNpc(monster));
     if (wanderer) {
       const wasHostile = wanderer.state === "hostile";
+      const wasRetaliatingAtEnemy = !!wanderer._npcRetaliationTargetId;
       clearNpcRetaliation(wanderer);
       wanderer.state = "hostile";
       wanderer.speed = 1;
       wanderer.aware = true;
       wanderer.lastPx = p.x;
       wanderer.lastPy = p.y;
-      if (!wasHostile && ml && opts.message !== null) ml.push(opts.message || `${wanderer.name}が怒った！`);
+      if ((!wasHostile || wasRetaliatingAtEnemy) && ml && opts.message !== null) ml.push(opts.message || `${wanderer.name}が怒った！`);
       return false;
     }
   }
@@ -7485,6 +7477,29 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
     ml.push(opts.message || "商品を持ったまま店を出た！泥棒扱いになった！");
   }
   return !wasThief;
+}
+
+/** プレイヤーの攻撃を受けたNPCの敵ターゲットを、プレイヤーへ切り替える。 */
+export function markShopkeeperHostileToPlayer(monster, dungeon, player, messages) {
+  if (!monster || monster.type !== "shopkeeper") return false;
+  const wasRetaliatingAtEnemy = !!monster._npcRetaliationTargetId;
+  if (monster.state === "hostile" && !wasRetaliatingAtEnemy) return false;
+  if (isWanderingNpc(monster)) {
+    declareShopTheft(player, dungeon, messages, {
+      merchantId: monster.id,
+      angerOnly: true,
+      message: `${monster.name}が怒った！`,
+    });
+    return true;
+  }
+  clearNpcRetaliation(monster);
+  monster.state = "hostile";
+  monster.speed = 1;
+  monster.aware = true;
+  monster.lastPx = player.x;
+  monster.lastPy = player.y;
+  messages?.push("店主が怒った！");
+  return true;
 }
 
 /** フロア離脱前に、所持商品と使用済み商品の未払いを確認する。 */
@@ -8687,9 +8702,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
       } else {
-        if (isWanderingNpc(mon) && mon.state !== "hostile") {
-          declareShopTheft(p, dg, ml, { merchantId: mon.id, angerOnly: true, message: `${mon.name}が怒った！` });
-        }
+        if (mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, ml);
         applySpellEffect(spell.effect, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, lv);
       }
       return { x: tx, y: ty, hitType: "monster" };

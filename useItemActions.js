@@ -19,7 +19,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   LUCK_POTION_TURNS,
   resolveItemName, applyBubbleGoldScroll, pickBigboxType, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
-  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed,
+  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
@@ -41,7 +41,6 @@ import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
-import { isWanderingNpc } from "./wanderingAdventurer.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -50,12 +49,7 @@ const HYPNOSIS_ITEM_TYPES = new Set([
 ]);
 
 function markWanderingNpcHostile(monster, dungeon, player, messages) {
-  if (!isWanderingNpc(monster) || monster.state === "hostile") return;
-  declareShopTheft(player, dungeon, messages, {
-    merchantId: monster.id,
-    angerOnly: true,
-    message: `${monster.name}が怒った！`,
-  });
+  markShopkeeperHostileToPlayer(monster, dungeon, player, messages);
 }
 
 function applyLuckFoodGold(player, foodTier, messages) {
@@ -4585,13 +4579,8 @@ export function useItemActions({
         }
       }
       for (const { m, hp } of _skSnap) {
-        if (m.hp < hp && m.state !== "hostile") {
-          if (isWanderingNpc(m)) {
-            markWanderingNpcHostile(m, dg, p, ml);
-          } else {
-            m.state = "hostile";
-            ml.push("店主が怒った！");
-          }
+        if (m.hp < hp) {
+          markWanderingNpcHostile(m, dg, p, ml);
         } else {
           calmShopkeeperIfFullyHealed(m, dg, p, ml);
         }

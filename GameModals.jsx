@@ -1549,7 +1549,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
   const _adjSkH = gs.dungeon?.monsters?.find(m =>
-    m.type === "shopkeeper" && m.state !== "hostile" &&
+    m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
     Math.abs(m.x - gs.player?.x) <= 1 && Math.abs(m.y - gs.player?.y) <= 1
   );
   const _curShopH = (_adjSkH && getShops(gs.dungeon).find(s => s.shopkeeperId === _adjSkH.id)) || gs.dungeon.shop;
@@ -1599,7 +1599,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
         const _pp = gs.player;
         /* 隣接している店主からどの店か特定する（ショッピングモール対応） */
         const _adjSk = gs.dungeon?.monsters?.find(m =>
-          m.type === "shopkeeper" && m.state !== "hostile" &&
+          m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
           Math.abs(m.x - _pp.x) <= 1 && Math.abs(m.y - _pp.y) <= 1
         );
         const _payShop = (_adjSk && getShops(gs.dungeon).find(s => s.shopkeeperId === _adjSk.id))
@@ -1618,7 +1618,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   if (sr.current) {
                     const { player: p2, dungeon: dg2 } = sr.current;
                     const _adjSk2 = dg2.monsters?.find(m =>
-                      m.type === "shopkeeper" && m.state !== "hostile" &&
+                      m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
                       Math.abs(m.x - p2.x) <= 1 && Math.abs(m.y - p2.y) <= 1
                     );
                     const _curShop2 = (_adjSk2 && getShops(dg2).find(s => s.shopkeeperId === _adjSk2.id))
@@ -2911,7 +2911,7 @@ export function MerchantModal({ mode, setMode, gs, merchantRef, menuSel, setMenu
   if (!mode || !gs?.player) return null;
   const merchant = merchantRef.current;
   const shop = gs.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
-  if (!merchant || !shop || merchant.state === "hostile") return null;
+  if (!merchant || !shop || (merchant.state === "hostile" && !merchant._npcRetaliationTargetId)) return null;
   const p = gs.player;
   const sellable = p.inventory.map((item, index) => ({ item, index })).filter(({ item }) =>
     item.type !== "gold" && item.type !== "goal" && p.weapon !== item && p.armor !== item && p.arrow !== item && !(p.rings || []).includes(item)
