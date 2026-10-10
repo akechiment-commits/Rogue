@@ -5188,7 +5188,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   if ((m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion") && !m.sealed &&
       !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&
-      canSee && _giantSightline && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
+      canSee && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
       !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg) &&
       canCastMeteor(m, dg)) {
     // 等速敵は移動するとそのターン攻撃できない。詠唱可能なら移動に行動を使わない。

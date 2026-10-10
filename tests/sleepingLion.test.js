@@ -76,7 +76,7 @@ describe("眠れる獅子系", () => {
     expect(lion.meteorImmune).toBe(true);
   });
 
-  it("同室で壁に隣接していても認識を保ち、壁越しにはメテオを詠唱しない", () => {
+  it("同室で壁に隣接していても認識を保ち、壁越しにメテオを詠唱する", () => {
     const lion = makeMonsterFromBase(lionBase, 1, 12, 10, { aware: true });
     lion.dormant = false;
     const rooms = [{ x: 4, y: 5, w: 14, h: 10 }];
@@ -87,8 +87,22 @@ describe("眠れる獅子系", () => {
 
     monsterAI(lion, dungeon, player, [], { attackOnly: true });
     expect(lion.aware).toBe(true);
-    expect(dungeon.pendingMeteors || []).toHaveLength(0);
+    expect(dungeon.pendingMeteors).toHaveLength(1);
+    expect(dungeon.pendingMeteors[0]).toMatchObject({ x: 12, y: 12, turnsLeft: 2, damage: 100 });
     expect(player.hp).toBe(player.maxHp);
+  });
+
+  it("別室の壁越しで認識していなければメテオを詠唱しない", () => {
+    const lion = makeMonsterFromBase(lionBase, 1, 12, 10, { aware: true });
+    lion.dormant = false;
+    const dungeon = makeEmptyDg({ monsters: [lion], visible: visibleMap(), rooms: [] });
+    dungeon.map[11][12] = T.WALL;
+    dungeon.map[11][13] = T.WALL;
+    const player = makePlayer({ x: 12, y: 12 });
+
+    monsterAI(lion, dungeon, player, [], { attackOnly: true });
+    expect(lion.aware).toBe(false);
+    expect(dungeon.pendingMeteors || []).toHaveLength(0);
   });
 
   it("中級・上級・超上級で形態の出現帯を分ける", () => {
