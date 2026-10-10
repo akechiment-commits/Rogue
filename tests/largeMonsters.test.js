@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { monsterAt, T, MW, MH } from '../utils.js';
-import { monsterAI } from '../monsters.js';
+import { monsterAI, monsterBodyHasLineOfSight, monsterCanInteractAtRange } from '../monsters.js';
 import { splashPotion, throwItemAlongLine, applySpellEffect, pushEntity, doExplosion, doGunpowderExplosion, doTimeBombExplosion } from '../items.js';
 import { applyWandEffect, fireWandBolt, triggerWandBreakEffect } from '../wands.js';
 import { monsterAreaHitCount, monsterBodyCells, canPlaceMonsterBody } from '../monsterGeometry.js';
@@ -74,6 +74,30 @@ describe('巨大敵の体の命中判定', () => {
 });
 
 describe('巨大敵の移動と表示', () => {
+  it('壁に体が重なり、見かけ上は隣接していても視認・接触できない', () => {
+    vi.spyOn(Math,'random').mockReturnValue(0);
+    const m=giant(2,{x:5,y:5,aware:true,lastPx:5,lastPy:7});
+    const p=makePlayer({x:5,y:7});
+    const dg=makeEmptyDg({monsters:[m],rooms:[{x:4,y:4,w:4,h:4}]});
+    dg.map[6][5]=T.WALL; dg.map[6][6]=T.WALL;
+    expect(monsterCanInteractAtRange(m,dg,p.x,p.y,1)).toBe(false);
+    expect(monsterBodyHasLineOfSight(m,dg,p.x,p.y)).toBe(false);
+    const hp=p.hp;
+    monsterAI(m,dg,p,[],{attackOnly:true});
+    expect(p.hp).toBe(hp);
+    expect(m.aware).toBe(false);
+  });
+  it('間の壁がなくなれば、巨大敵は体の端から隣接・視認できる', () => {
+    const m=giant(2,{x:5,y:5}), dg=makeEmptyDg({monsters:[m]}), p=makePlayer({x:5,y:7});
+    expect(monsterCanInteractAtRange(m,dg,p.x,p.y,1)).toBe(true);
+    expect(monsterBodyHasLineOfSight(m,dg,p.x,p.y)).toBe(true);
+  });
+  it('斜めの角を2枚の壁で塞いだ場合も視線・接触を遮る', () => {
+    const m=giant(2,{x:5,y:5}), dg=makeEmptyDg({monsters:[m]}), p=makePlayer({x:7,y:7});
+    dg.map[6][7]=T.WALL; dg.map[7][6]=T.BWALL;
+    expect(monsterCanInteractAtRange(m,dg,p.x,p.y,1)).toBe(false);
+    expect(monsterBodyHasLineOfSight(m,dg,p.x,p.y)).toBe(false);
+  });
   it('1マス幅の廊下を進み、体の端に隣接したら止まって攻撃する', () => {
     vi.spyOn(Math,'random').mockReturnValue(0.1);
     const m=giant(3,{x:10,y:10}), p=makePlayer({x:5,y:10});
@@ -113,5 +137,12 @@ describe('巨大敵の移動と表示', () => {
     expect(ctx.rect).toHaveBeenCalledExactlyOnceWith(144,160,16,16);
     expect(draw).toHaveBeenCalledExactlyOnceWith(160,160);
     expect(monsterDrawBounds(m,160,160,16)).toEqual({x:144,y:144,size:48});
+  });
+  it('壁の中にある体の部分は表示しない', () => {
+    const m=giant(3), dg=makeEmptyDg({visible:Array.from({length:MH},()=>Array(MW).fill(true))});
+    dg.map[10][9]=T.WALL;
+    const ctx=Object.fromEntries(['save','restore','beginPath','rect','clip'].map(k=>[k,vi.fn()]));
+    expect(drawLargeMonster(ctx,m,dg,0,0,16,vi.fn())).toBe(true);
+    expect(ctx.rect).toHaveBeenCalledTimes(8);
   });
 });

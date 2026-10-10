@@ -17,6 +17,7 @@ import {
   _resolveMonsterWandBolt,
   monReflectsProjectiles,
   resolveMonsterWandEffect,
+  monsterCanInteractAtRange,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
@@ -2665,8 +2666,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               reachMon =
                 monsterAt(dg, rx, ry) || null;
           }
-          const attackMon = mon || reachMon;
-          if (attackMon) {
+          const candidateAttackMon = mon || reachMon;
+          const giantAttackBlocked = !!candidateAttackMon && candidateAttackMon.bodySize > 1 &&
+            !monsterCanInteractAtRange(candidateAttackMon, dg, p.x, p.y, candidateAttackMon === reachMon ? 2 : 1);
+          const attackMon = giantAttackBlocked ? null : candidateAttackMon;
+          if (giantAttackBlocked) {
+            ml.push(`${candidateAttackMon.name}は壁の向こうにいるため攻撃できない！`);
+            acted = true;
+          } else if (attackMon) {
             if (attackMon.isPlayerClone) {
               /* 分身へ歩き込むと、行商人と同じく互いの位置を入れ替える。 */
               if (mon === attackMon && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {

@@ -1843,6 +1843,54 @@ export function hasLOS(map, x0, y0, x1, y1) {
   }
 }
 
+function isOpaqueMonsterSightTile(dg, x, y) {
+  if (!inBounds(x, y)) return true;
+  const tile = dg?.map?.[y]?.[x];
+  return tile === T.WALL || tile === T.BWALL;
+}
+
+function giantLineOfSight(dg, x0, y0, x1, y1) {
+  if (isOpaqueMonsterSightTile(dg, x0, y0) || isOpaqueMonsterSightTile(dg, x1, y1)) return false;
+  let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy, cx = x0, cy = y0;
+  while (cx !== x1 || cy !== y1) {
+    const e2 = 2 * err;
+    let moveX = false, moveY = false;
+    if (e2 > -dy) { err -= dy; moveX = true; }
+    if (e2 < dx) { err += dx; moveY = true; }
+    if (moveX && moveY &&
+        isOpaqueMonsterSightTile(dg, cx + sx, cy) &&
+        isOpaqueMonsterSightTile(dg, cx, cy + sy)) return false;
+    if (moveX) cx += sx;
+    if (moveY) cy += sy;
+    if (isOpaqueMonsterSightTile(dg, cx, cy)) return false;
+  }
+  return true;
+}
+
+/** 巨大敵の露出した体マスから対象へ、壁を挟まず視線が通るか調べる。 */
+export function monsterBodyHasLineOfSight(monster, dungeon, x, y) {
+  if (monsterBodySize(monster) <= 1) return true;
+  if (isOpaqueMonsterSightTile(dungeon, x, y)) return false;
+  return monsterBodyCells(monster).some(cell =>
+    !isOpaqueMonsterSightTile(dungeon, cell.x, cell.y) &&
+    giantLineOfSight(dungeon, cell.x, cell.y, x, y)
+  );
+}
+
+/** 巨大敵は体との距離だけでなく、壁のない露出マスから届く場合だけ干渉できる。 */
+export function monsterCanInteractAtRange(monster, dungeon, x, y, maxDistance = 1) {
+  if (monsterPointDistance(monster, x, y) > maxDistance) return false;
+  if (monsterBodySize(monster) <= 1) return true;
+  if (isOpaqueMonsterSightTile(dungeon, x, y)) return false;
+  return monsterBodyCells(monster).some(cell =>
+    !isOpaqueMonsterSightTile(dungeon, cell.x, cell.y) &&
+    Math.max(Math.abs(cell.x - x), Math.abs(cell.y - y)) <= maxDistance &&
+    giantLineOfSight(dungeon, cell.x, cell.y, x, y)
+  );
+}
+
 /* ===== BFS PATHFINDING ===== */
 export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null, fallbackNearest = false, rooms = null, dg = null) {
   if (sx === tx && sy === ty) return null;
@@ -4135,7 +4183,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || isWanderingNpc(m)) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
-      const _adjPl = pl && monsterPointDistance(m, pl.x, pl.y) <= 1 &&
+      const _adjPl = pl && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1) &&
         (pl.potConfinedTurns || 0) <= 0;
       if (_adjPl) {
         m._idleStuck = 0;
@@ -4254,7 +4302,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* 眠れる獅子は視界に入っただけでは起きず、体に隣接するか被弾するまで眠り続ける。 */
   if (m.subtype === "sleepingLion" && m.dormant) {
     const _lionWasHit = m.hp < (m._dormantHp ?? m.maxHp ?? m.hp);
-    if (_lionWasHit || m._dormantTouched || monsterPointDistance(m, pl.x, pl.y) <= 1) {
+    if (_lionWasHit || m._dormantTouched || monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1)) {
       wakeIfDormant(m, ml);
       delete m._justWoke; // 起床判定自体がこの行動を消費する。次ターンは通常行動できる。
     } else {
@@ -5060,7 +5108,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const map = dg.map,
     rooms = dg.rooms;
   const dist = Math.abs(pl.x - m.x) + Math.abs(pl.y - m.y);
-  /* 同じ部屋にいる場合は常に相互認識（大部屋でFOV外でも同様） */
+  /* 同室は通常敵の相互認識条件。巨大敵は下で壁越し視線も確認する。 */
   const _monRoom = findRoom(rooms, m.x, m.y);
   const _plRoom  = findRoom(rooms, pl.x, pl.y);
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
@@ -5071,16 +5119,32 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
    * - 同部屋
    * - 隣接
    * - プレイヤーの視界内にいる（FOV 対称：見える敵はこちらも認識する）
+   * 巨大敵は同室・隣接でも、壁のない体マスから視線が通ることを追加条件とする。
    *
    * 旧実装は「FOV内 かつ hasLOS」で、廊下2マス視界内でも Bresenham が角壁で
    * hasLOS を落とすと canSee=false → 古い lastPx（画面右など）へ歩き続けた。
    * 遠くの暗闇の敵は FOV 外のままなので、認識しない挙動は維持される。
    */
-  const _inPlayerFov = monsterBodyCells(m).some(cell => dg.visible?.[cell.y]?.[cell.x]);
-  const _adjPl = monsterPointDistance(m, pl.x, pl.y) <= 1;
-  const _cloneDecoy = recognizedDecoyForMonster(m, dg, pl);
+  const _isGiant = monsterBodySize(m) > 1;
+  const _giantSightline = !_isGiant || monsterBodyHasLineOfSight(m, dg, pl.x, pl.y);
+  const _inPlayerFov = monsterBodyCells(m).some(cell =>
+    dg.visible?.[cell.y]?.[cell.x] && (!_isGiant || !isOpaqueMonsterSightTile(dg, cell.x, cell.y))
+  );
+  const _adjPl = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+  const _cloneCandidate = recognizedDecoyForMonster(m, dg, pl);
+  const _cloneDecoy = _cloneCandidate && (!_isGiant || monsterBodyHasLineOfSight(m, dg, _cloneCandidate.x, _cloneCandidate.y))
+    ? _cloneCandidate
+    : null;
   const _cloneTargeted = !!_cloneDecoy?.isPlayerClone;
-  const canSee = (!_plInvis && (_sameRoom || _adjPl || _inPlayerFov)) || _cloneTargeted;
+  const canSee = (!_plInvis && _giantSightline && (_sameRoom || _adjPl || _inPlayerFov)) || _cloneTargeted;
+  if (_isGiant && !_giantSightline && !_cloneTargeted) {
+    /* 壁越しに見失った巨大敵は、古い認識位置を追い続けない。 */
+    m.aware = false;
+    m.lastPx = m.x;
+    m.lastPy = m.y;
+    delete m._rangedAttackThisTurn;
+    delete m._willowAttackType;
+  }
   if (_plPotHidden && !_cloneTargeted) {
     m.aware = false;
     m.lastPx = m.x;
@@ -5107,7 +5171,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.baseKind === "boss_kingbehinmos" && _moveOnly) delete m._kingDustStormReady;
   if (m.baseKind === "boss_kingbehinmos" && !m.sealed && !(m.attackSealTurns > 0) && !m.blind &&
       !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
-      monsterPointDistance(m, pl.x, pl.y) <= 1 && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      _adjPl && m.turnAttacks < monEffectiveMaxAttacks(m)) {
     if (_moveOnly) {
       if (Math.random() < MONSTER_SPECIAL_RATE.status) {
         m._kingDustStormReady = true;
@@ -5501,13 +5565,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (_moveOnly && m.subtype === "hauntedWillow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       const room = findRoom(dg.rooms, m.x, m.y);
       const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
-      const adjacent = monsterPointDistance(m, pl.x, pl.y) <= 1;
+      const adjacent = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
       if (adjacent && Math.random() < MONSTER_SPECIAL_RATE.status) {
         m._willowAttackType = "branch";
         m._rangedAttackThisTurn = true;
         return;
       }
-      if (sameRoom && Math.random() < MONSTER_SPECIAL_RATE.room) {
+      if (sameRoom && _giantSightline && Math.random() < MONSTER_SPECIAL_RATE.room) {
         m._willowAttackType = "gale";
         m._rangedAttackThisTurn = true;
         return;
@@ -5625,7 +5689,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._willowAttackType;
       delete m._rangedAttackThisTurn;
       const room = findRoom(dg.rooms, m.x, m.y);
-      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "branch" && monsterPointDistance(m, pl.x, pl.y) <= 1) {
+      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "branch" && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1)) {
         m.turnAttacks++;
         const bounds = monsterBounds(m);
         const nearX = Math.max(bounds.x, Math.min(pl.x, bounds.x + bounds.width - 1));
@@ -5648,7 +5712,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         });
         return;
       }
-      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "gale" && room && findRoom(dg.rooms, pl.x, pl.y) === room) {
+      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "gale" && room && findRoom(dg.rooms, pl.x, pl.y) === room && _giantSightline) {
         m.turnAttacks++;
         ml.push(`${m.name}が烈風を巻き起こした！`);
         monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
