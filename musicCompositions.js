@@ -1294,13 +1294,79 @@ function bossBattleTheme() {
 }
 export const BGM_BOSS = bossBattleTheme();
 
-export const BGM_GAMEOVER = arrange({
-  name: "gameover", title: "灯りの消える頃", tempo: 72, loop: false, style: "shadow",
-  desc: "4小節の終止曲。探索主題の断片をゆっくり下げ、最後の響きを残して停止する。",
-  chords: ["Dm","Bb","A","Dm"],
-  melody: ["A4:4 F4:4 E4:4 D4:4", "F4:6 D4:2 Bb3:4 -:4", "E4:4 C#4:4 A3:4 C#4:4", "D4:12 -:4"],
-  harmony: ["F3:8 A3:8", "D3:8 F3:8", "C#3:8 E3:8", "F3:12 -:4"],
-});
+// ゲームオーバーテーマ。D短調・66 BPM。力尽きた冒険者の魂に捧げる荘厳で切ないレクイエム。
+function gameOverTheme() {
+  const chords = [
+    // 1-2: 命の灯火が消える瞬間
+    "Dm", "Bb",
+    // 3-4: 後悔と冷たい静寂
+    "Gm", "A",
+    // 5-6: 走馬灯・冒険の記憶
+    "Dm", "Bb",
+    // 7-8: 永遠の眠り・終止
+    "Gm", "Dm",
+  ];
+
+  const melody = [
+    "A5:4 F5:4 E5:4 D5:4",
+    "F5:4 D5:2 F5:2 Bb5:4 -:4",
+    "G5:4 Bb5:2 D6:2 C6:4 Bb5:4",
+    "A5:6 G5:2 E5:4 C#5:4",
+    "D5:4 F5:2 A5:2 D6:4 C6:2 Bb5:2",
+    "A5:4 F5:2 D5:2 Bb4:4 D5:4",
+    "E5:4 G5:2 Bb5:2 A5:4 G5:4",
+    "E5:4 C#5:4 D5:8",
+  ];
+
+  const stringsScore = [
+    "F4:8 A4:8", "D4:8 F4:8", "Bb4:8 D5:8", "C#4:8 E4:8",
+    "F4:8 A4:8", "D4:8 F4:8", "Bb3:8 D4:8", "A3:4 C#4:4 D4:8",
+  ];
+
+  const pianoScore = [
+    "D4:2 F4:2 A4:2 D5:2 F5:2 A5:2 F5:2 D5:2",
+    "Bb3:2 D4:2 F4:2 Bb4:2 D5:2 F5:2 D5:2 Bb4:2",
+    "G3:2 Bb3:2 D4:2 G4:2 Bb4:2 D5:2 Bb4:2 G4:2",
+    "A3:2 C#4:2 E4:2 A4:2 C#5:2 E5:2 C#5:2 A4:2",
+    "D4:2 F4:2 A4:2 D5:2 F5:2 A5:2 F5:2 D5:2",
+    "Bb3:2 D4:2 F4:2 Bb4:2 D5:2 F5:2 D5:2 Bb4:2",
+    "G3:2 Bb3:2 D4:2 G4:2 Bb4:2 D5:2 Bb4:2 G4:2",
+    "A3:2 C#4:2 E4:2 G4:2 D4:4 -:4",
+  ];
+
+  const bassScore = [
+    "D2:8 -:8", "Bb1:8 -:8", "G1:8 -:8", "A1:8 -:8",
+    "D2:8 -:8", "Bb1:8 -:8", "G1:8 -:8", "A1:4 -:4 D1:8",
+  ];
+
+  const kickScore = [
+    "C2:4 -:12", "C2:4 -:12", "C2:4 -:12", "C2:4 -:12",
+    "C2:4 -:12", "C2:4 -:12", "C2:4 -:12", "-:16",
+  ];
+
+  const flute = [], piano = [], strings = [], bass = [], kick = [];
+
+  for (let bar = 0; bar < chords.length; bar++) {
+    flute.push(...parseBar(melody[bar]).map(([n, l]) => [n, l, 0.88]));
+    strings.push(...parseBar(stringsScore[bar]).map(([n, l]) => [n, l, 0.82]));
+    piano.push(...parseBar(pianoScore[bar]).map(([n, l]) => [n, l, 0.72]));
+    bass.push(...parseBar(bassScore[bar]));
+    kick.push(...parseBar(kickScore[bar]));
+  }
+
+  return {
+    name: "gameover", title: "灯りの消える頃", tempo: 66, loop: false, bars: 8,
+    desc: "D短調。8小節・約29秒。ゲームオーバーテーマ。力尽きた冒険者の魂に捧げる荘厳で切ないレクイエム。冷たい石畳に降る雨のように静かに響くピアノアルペジオ、息遣いと哀愁を帯びた木管フルートの旋律、重く悲哀を湛えるストリングスと深淵のベース、そして心臓の鼓動のようにゆっくりと消えゆく余韻。",
+    tracks: [
+      { type: "sine", instrument: "woodFlute", volume: 0.26, gate: 0.90, pan: -0.06, cutoff: 4000, roomSend: 0.32, notes: flute },
+      { type: "sine", instrument: "feltPiano", volume: 0.24, gate: 0.75, pan: 0.28, cutoff: 3400, roomSend: 0.24, notes: piano },
+      { type: "sine", instrument: "softStrings", volume: 0.20, gate: 0.94, pan: -0.38, cutoff: 2800, roomSend: 0.35, notes: strings },
+      { type: "sine", instrument: "roundBass", volume: 0.36, gate: 0.85, pan: 0, cutoff: 650, notes: bass },
+      { type: "sine", instrument: "drumKick", volume: 0.28, pan: 0, cutoff: 800, notes: kick },
+    ],
+  };
+}
+export const BGM_GAMEOVER = gameOverTheme();
 // ゲームクリア・帰還テーマ。C長調・116 BPM。死線を越えた冒険者を称える壮大なシンフォニック・ファンファーレ＆讃歌。
 function gameClearTheme() {
   const chords = [
