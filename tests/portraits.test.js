@@ -831,7 +831,7 @@ describe("portraits", () => {
       lastMsg: "ゴブリンの攻撃！10ダメージ！",
       newMsgs: [summonMsg, "ゴブリンの攻撃！10ダメージ！"],
     });
-    expect(event.src).toMatch(/reaction_surprised/);
+    expect(event.src).toMatch(/reaction_trap_summon/);
     expect(event.force).toBe(true);
   });
 

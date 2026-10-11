@@ -295,15 +295,6 @@ export function msgToDamageKey(msg) {
   return "damage";
 }
 
-/** 属性被ダメは杖・薬などの行動立ち絵より優先する */
-export const PRIORITY_DAMAGE_KEYS = new Set([
-  "damage_explosion",
-  "damage_fire",
-  "damage_lightning",
-  "damage_ice",
-  "damage_poison",
-]);
-
 export function pickDamagePortrait(msg, sets = PORTRAIT_SETS, player = null) {
   const key = msgToDamageKey(msg);
   /* 汎用は hp_hurt のみ。属性プールに落下などが混ざらないようにする */
@@ -363,6 +354,41 @@ export function isFallMsg(msg) {
 export function isSummonTrapMsg(msg) {
   if (!msg) return false;
   return /召喚の罠が発動/.test(msg);
+}
+
+const TRAP_PORTRAIT_RULES = [
+  [/毒矢の罠/, "reaction_trap_poison_arrow"],
+  [/強矢の罠/, "reaction_trap_strong_arrow"],
+  [/MP吸収の罠/, "reaction_trap_mp_absorb"],
+  [/錆の罠/, "reaction_trap_rust"],
+  [/回転板/, "reaction_trap_spin"],
+  [/落石の罠/, "reaction_trap_rockfall"],
+  [/吹き飛ばしの罠/, "reaction_trap_blowback"],
+  [/落とし穴/, "reaction_trap_pitfall"],
+  [/召喚の罠/, "reaction_trap_summon"],
+  [/盗みの罠/, "reaction_trap_steal"],
+  [/腐敗の罠/, "reaction_trap_rot"],
+  [/鳴動の罠/, "reaction_trap_alarm"],
+  [/地雷/, "reaction_trap_mine"],
+  [/時限爆弾の罠/, "reaction_trap_time_bomb"],
+  [/未識別の罠/, "reaction_trap_unident"],
+  [/増殖の罠/, "reaction_trap_multiply"],
+  [/水鉄砲の罠/, "reaction_trap_watergun"],
+  [/転倒の罠/, "reaction_trap_trip"],
+  [/矢の罠/, "reaction_trap_arrow"],
+];
+
+const TRAP_NAMES_WITHOUT_DEDICATED_PORTRAIT =
+  /(?:睡眠ガス|鈍足|空腹|混乱|暗闇|油まみれ|浮遊|封印|影ぬい|惑わし|道具魔物化|加速|装備外し|レベルダウン)の罠|罠の罠/;
+
+/** 罠が実際に作動したログから、発動時に出すリアクションを返す。 */
+export function getTrapPortraitKey(msg) {
+  if (!msg || !/(?:が発動|が作動|が大?爆発|が誘爆)/.test(msg)) return null;
+  for (const [pattern, key] of TRAP_PORTRAIT_RULES) {
+    if (pattern.test(msg)) return key;
+  }
+  if (TRAP_NAMES_WITHOUT_DEDICATED_PORTRAIT.test(msg)) return "reaction_surprised";
+  return null;
 }
 
 /** 店・買い物のログか */
@@ -509,11 +535,12 @@ export function pickClearPortrait(sets = PORTRAIT_SETS, player = null) {
  *
  * 優先度（高い順）:
  *  1. 死亡
- *  2. 腐った/ヤバイ食事（例外的ワンショット）
- *  3. 状態異常の維持（治るまで歩行・被ダメで上書きしない）
- *  4. 復活・大回復・満腹・LvUp・階段・店・装備・呪い
- *  5. アイテム使用・近接攻撃
- *  6. 被ダメ・ダッシュ・歩行（低優先・クールダウン長め）
+ *  2. 罠の発動リアクション（同ターンの状態変化・被ダメ・移動より優先）
+ *  3. 腐った/ヤバイ食事（例外的ワンショット）
+ *  4. 状態異常の維持（治るまで歩行・被ダメで上書きしない）
+ *  5. 復活・大回復・満腹・LvUp・階段・店・装備・呪い
+ *  6. アイテム使用・近接攻撃
+ *  7. 被ダメ・ダッシュ・歩行（低優先・クールダウン長め）
  *
  * @returns {{ src?: string, cooldownUntil?: number, force?: boolean, holdKey?: string, isLow?: boolean, moved?: boolean, lowPriority?: boolean } | null}
  */
@@ -547,10 +574,10 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const previousStickyKey = getActiveStatusPortraitKey(prev, prev.floating);
   const pe = (key, opts = {}) => portraitEvent(key, now, { ...opts, player: p });
 
-  /* 召喚の罠は、敵の即時行動や被ダメが同じターンに続いても専用リアクションを優先 */
-  if (findMsgInNew(newMsgs, eventLastMsg, isSummonTrapMsg)) {
-    /* エディタ欄とイベントキーは先に用意し、画像投入までは驚き立ち絵を仮使用 */
-    return pe("reaction_surprised", { force: true });
+  /* 罠の発動演出は同じターンの状態異常・被ダメ・歩行・ダッシュより先に一度表示する。 */
+  const trapPortraitKey = findMsgInNew(newMsgs, eventLastMsg, (msg) => getTrapPortraitKey(msg) !== null);
+  if (trapPortraitKey) {
+    return pe(getTrapPortraitKey(trapPortraitKey), { force: true });
   }
 
   /* 腐った/ヤバイ食事は状態異常より先（食べた瞬間のリアクション） */
@@ -670,18 +697,6 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const hungerMsg = findHungerMsg(newMsgs, eventLastMsg);
   if (hungerMsg) {
     return pe("hp_hunger", { force: true });
-  }
-
-  /* 属性被ダメ（爆発・炎・雷・氷・毒）は杖・薬・壺割れなどの行動立ち絵より優先 */
-  if (p.hp < prev.hp) {
-    const priorityDmgMsg = findPlayerDamageMsg(newMsgs, eventLastMsg, p?.playerName);
-    if (priorityDmgMsg && PRIORITY_DAMAGE_KEYS.has(msgToDamageKey(priorityDmgMsg))) {
-      return {
-        src: pickDamagePortrait(priorityDmgMsg, PORTRAIT_SETS, p),
-        cooldownUntil: now + PORTRAIT_DAMAGE_COOLDOWN_MS,
-        force: true,
-      };
-    }
   }
 
   if (actionKey) {
