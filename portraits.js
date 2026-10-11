@@ -132,7 +132,8 @@ export function msgToActionKey(msg, recentMsgs = []) {
   if (/泉の水を飲んだ|清らかな水を飲んだ/.test(msg)) return "act_spring_drink";
   if (/を泉に浸した|泉に浸した/.test(msg)) return "act_spring_soak";
   if (/薬を飲|ポーション|飲んだ/.test(msg)) return "act_potion";
-  if (/食べ|食料|料理/.test(msg)) return "act_food";
+  /* 食料名や生成ログへの言及ではなく、実際に食べる操作だけを判定する。 */
+  if (/食べ/.test(msg)) return "act_food";
   if (/魔法書.*(?:を)?(?:読|使)|(?:読|使).*(?:魔法書)/.test(msg)) return "act_spellbook";
   if (/巻物.*(?:を)?(?:読|使)|(?:読|使).*(?:巻物)/.test(msg)) return "act_scroll";
   /* 敵の「○○が杖を振った！」はプレイヤーの使用ログではない */
