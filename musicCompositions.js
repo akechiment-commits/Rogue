@@ -1301,17 +1301,141 @@ export const BGM_GAMEOVER = arrange({
   melody: ["A4:4 F4:4 E4:4 D4:4", "F4:6 D4:2 Bb3:4 -:4", "E4:4 C#4:4 A3:4 C#4:4", "D4:12 -:4"],
   harmony: ["F3:8 A3:8", "D3:8 F3:8", "C#3:8 E3:8", "F3:12 -:4"],
 });
-export const BGM_GAMECLEAR = arrange({
-  name: "gameclear", title: "帰還の朝", tempo: 120, loop: false,
-  desc: "8小節の勝利曲。探索主題を長調のファンファーレとして解決し、余韻の後に停止する。",
-  chords: ["C","G","Am","F","C","F","G","C"],
-  melody: ["C5:2 E5:2 G5:4 -:2 G5:2 A5:2 B5:2", "D6:6 B5:2 G5:8",
-    "C6:4 B5:2 A5:2 E5:4 G5:4", "A5:4 G5:2 F5:2 C6:4 A5:4",
-    "G5:2 E5:2 C5:2 E5:2 G5:4 C6:4", "A5:3 G5:1 F5:4 A5:2 C6:2 F6:4",
-    "D6:2 B5:2 G5:4 A5:2 B5:2 D6:4", "C6:12 -:4"],
-  harmony: ["E4:4 G4:4 C5:8", "B4:8 D5:8", "E5:8 C5:8", "F5:8 C5:8",
-    "E5:8 G5:8", "F5:8 A5:8", "B4:8 D5:8", "E5:12 -:4"],
-});
+// ゲームクリア・帰還テーマ。C長調・116 BPM。死線を越えた冒険者を称える壮大なシンフォニック・ファンファーレ＆讃歌。
+function gameClearTheme() {
+  const chords = [
+    // 1-4: 凱旋ファンファーレ
+    "C", "F", "G", "C",
+    // 5-8: Aメロ（朝光の讃歌）
+    "C", "Em", "F", "G",
+    // 9-12: Bメロ（旅路の追想）
+    "Am", "Em", "F", "G",
+    // 13-16: サビ〜グランドフィナーレ
+    "F", "G", "C", "C",
+  ];
+
+  const melody = [
+    // 1-4: ファンファーレ
+    "C5:4 E5:4 G5:4 C6:4",
+    "A5:3 B5:1 C6:2 B5:2 A5:4 F5:4",
+    "B5:3 C6:1 D6:2 C6:2 B5:4 G5:4",
+    "C6:6 E5:2 G5:4 C6:4",
+    // 5-8: Aメロ
+    "E5:4 G5:2 C6:2 B5:4 A5:2 G5:2",
+    "G5:4 B5:2 E6:2 D6:4 C6:2 B5:2",
+    "A5:3 B5:1 C6:2 D6:2 C6:4 A5:4",
+    "B5:6 G5:2 D5:4 G5:4",
+    // 9-12: Bメロ
+    "C6:4 B5:2 A5:2 E5:4 A5:4",
+    "B5:4 A5:2 G5:2 E5:4 G5:4",
+    "A5:2 B5:2 C6:4 D6:2 E6:2 F6:4",
+    "D6:6 C6:2 B5:4 D6:4",
+    // 13-16: フィナーレ
+    "C6:4 D6:2 E6:2 F6:4 E6:2 D6:2",
+    "D6:4 E6:2 F6:2 G6:4 F6:2 E6:2",
+    "E6:3 F6:1 G6:2 F6:2 E6:4 D6:4",
+    "C6:12 -:4",
+  ];
+
+  const fluteScore = [
+    "-:8 G5:4 C6:4",
+    "C6:4 -:4 C6:4 A5:4",
+    "-:4 D6:4 B5:4 G5:4",
+    "E6:4 G6:4 C6:4 -:4",
+    "-:8 G5:2 C6:2 E6:4",
+    "-:8 B5:2 E6:2 G6:4",
+    "F6:4 E6:2 D6:2 C6:4 A5:4",
+    "G5:4 B5:2 D6:2 G6:4 -:4",
+    "E6:4 D6:2 C6:2 A5:4 C6:4",
+    "G6:4 F6:2 E6:2 B5:4 E6:4",
+    "F6:4 G6:2 A6:2 F6:4 C6:4",
+    "B5:4 C6:2 D6:2 B5:4 G5:4",
+    "A5:4 B5:2 C6:2 D6:4 C6:4",
+    "B5:4 C6:2 D6:2 E6:4 D6:4",
+    "G6:4 F6:2 E6:2 D6:4 B5:4",
+    "C6:12 -:4",
+  ];
+
+  const stringsScore = [
+    "E4:8 G4:8", "F4:8 A4:8", "G4:8 B4:8", "E4:8 G4:8",
+    "G4:8 C5:8", "G4:8 B4:8", "A4:8 C5:8", "B4:8 D5:8",
+    "C5:8 E5:8", "B4:8 D5:8", "A4:8 C5:8", "B4:8 D5:8",
+    "A4:8 C5:8", "B4:8 D5:8", "C5:8 E5:8", "E4:12 -:4",
+  ];
+
+  const bassScore = [
+    "C3:4 -:4 C3:4 -:4", "F2:4 -:4 F2:4 -:4", "G2:4 -:4 G2:4 -:4", "C3:6 -:2 C3:4 -:4",
+    "C3:4 G2:4 C3:4 E3:4", "E3:4 B2:4 E3:4 G3:4", "F2:4 C3:4 F2:4 A2:4", "G2:4 D3:4 G2:4 B2:4",
+    "A2:4 E3:4 A2:4 C3:4", "E2:4 B2:4 E2:4 G2:4", "F2:4 C3:4 F2:4 A2:4", "G2:4 D3:4 G2:4 B2:4",
+    "F2:4 C3:4 F2:4 A2:4", "G2:4 D3:4 G2:4 B2:4", "C3:4 G2:4 C3:4 G2:4", "C3:12 -:4",
+  ];
+
+  const kickScore = [
+    "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4", "C2:4 C2:4 C2:4 -:4",
+    "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4",
+    "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4", "C2:4 C2:2 C2:2 C2:4 C2:4",
+    "C2:4 -:4 C2:4 -:4", "C2:4 -:4 C2:4 -:4", "C2:4 C2:4 C2:4 C2:4", "C2:4 -:12",
+  ];
+
+  const snareScore = [
+    "-:4 C2:4 -:4 C2:4", "-:4 C2:4 -:4 C2:4", "-:4 C2:4 -:4 C2:4", "-:4 C2:4 C2:4 -:4",
+    "-:16", "-:16", "-:4 C2:4 -:4 C2:4", "-:4 C2:4 -:2 C2:2 C2:4",
+    "-:4 C2:4 -:4 C2:4", "-:4 C2:4 -:4 C2:4", "-:4 C2:4 -:4 C2:4", "-:4 C2:4 C2:2 C2:2 C2:4",
+    "-:4 C2:4 -:4 C2:4", "-:4 C2:4 -:4 C2:4", "C2:2 C2:2 C2:2 C2:2 C2:4 C2:4", "C2:4 -:12",
+  ];
+
+  const hatScore = [
+    "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2",
+    "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:4 C5:4 C5:4 -:4",
+    "C5:4 C5:4 C5:4 C5:4", "C5:4 C5:4 C5:4 C5:4", "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2",
+    "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:4 C5:4 C5:4 C5:4",
+    "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2 C5:2", "C5:2 C5:2 C5:2 C5:2 C5:4 C5:4", "C5:4 -:12",
+  ];
+
+  const lead = [], flute = [], piano = [], strings = [], bass = [];
+  const kick = [], snare = [], hats = [];
+
+  for (let bar = 0; bar < chords.length; bar++) {
+    const c = CHORDS[chords[bar]];
+    const climax = bar >= 12;
+    const lift = climax ? 1.0 : 0.94;
+
+    lead.push(...parseBar(melody[bar]).map(([n, l], i) => [n, l, lift * (i % 2 === 0 ? 1 : 0.9)]));
+    flute.push(...parseBar(fluteScore[bar]).map(([n, l]) => [n, l, 0.88]));
+    strings.push(...parseBar(stringsScore[bar]).map(([n, l]) => [n, l, lift * 0.85]));
+    bass.push(...parseBar(bassScore[bar]));
+
+    let pnoStr = "";
+    if (bar < 4) {
+      pnoStr = `${c[0]}:2 ${c[1]}:2 ${c[2]}:2 ${c[3] || c[0]}:2 ${octave(c[0], 5)}:2 ${c[2]}:2 ${c[1]}:2 ${c[0]}:2`;
+    } else if (bar === 15) {
+      pnoStr = `${c[0]}:4 ${c[1]}:4 ${c[2]}:4 -:4`;
+    } else {
+      pnoStr = `${c[0]}:2 -:1 ${c[2]}:1 ${c[1]}:2 -:2 ${c[0]}:2 -:1 ${c[2]}:1 ${c[1]}:2 ${c[2]}:2`;
+    }
+    piano.push(...parseBar(pnoStr).map(([n, l]) => [n, l, 0.75]));
+
+    kick.push(...parseBar(kickScore[bar]));
+    snare.push(...parseBar(snareScore[bar]));
+    hats.push(...parseBar(hatScore[bar]));
+  }
+
+  return {
+    name: "gameclear", title: "帰還の朝", tempo: 116, loop: false, bars: 16,
+    desc: "C長調。16小節・約33秒。ゲームクリア・帰還テーマ。死線を越えて生還した冒険者を称える壮大なシンフォニック・ファンファーレ＆讃歌。誇り高く鳴り響く凱旋のトランペット、澄み渡る朝光のようなフルートのオブリガート、優しく包み込むピアノのアルペジオとストリングス、そして全パートが一体となり余韻を残して静かに結ぶ大団円のグランドフィナーレ。",
+    tracks: [
+      { type: "sine", instrument: "brassLead", volume: 0.30, gate: 0.90, pan: -0.06, cutoff: 4800, roomSend: 0.22, notes: lead },
+      { type: "sine", instrument: "woodFlute", volume: 0.24, gate: 0.88, pan: 0.28, cutoff: 4200, roomSend: 0.24, notes: flute },
+      { type: "sine", instrument: "feltPiano", volume: 0.22, gate: 0.70, pan: -0.28, cutoff: 3600, roomSend: 0.20, notes: piano },
+      { type: "sine", instrument: "softStrings", volume: 0.18, gate: 0.92, pan: 0.38, cutoff: 3200, roomSend: 0.30, notes: strings },
+      { type: "sine", instrument: "roundBass", volume: 0.35, gate: 0.80, pan: 0, cutoff: 750, notes: bass },
+      { type: "sine", instrument: "drumKick", volume: 0.30, pan: 0, cutoff: 1100, notes: kick },
+      { type: "sine", instrument: "drumSnare", volume: 0.24, pan: 0.06, cutoff: 4800, roomSend: 0.12, notes: snare },
+      { type: "sine", instrument: "drumHat", volume: 0.14, pan: 0.28, cutoff: 7200, notes: hats },
+    ],
+  };
+}
+export const BGM_GAMECLEAR = gameClearTheme();
 
 export const ALL_BGM_TRACKS = [BGM_HUB, BGM_DUNGEON_SHALLOW, BGM_DUNGEON_DEEP, BGM_DUNGEON_ABYSS,
   BGM_MONSTER_HOUSE, BGM_SHOP, BGM_BOSS, BGM_GAMEOVER, BGM_GAMECLEAR];
