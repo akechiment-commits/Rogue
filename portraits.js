@@ -17,7 +17,7 @@ export const PORTRAIT_WALK_STEPS_JITTER = 8;
 export const PORTRAIT_FALLBACK = "stand_normal";
 
 /* Portrait PNGs are replaced in place; bump this key to prevent stale browser/CDN cache. */
-export const CHAR_PATH = (name) => `/tiles/Character/${name}.png?v=20261011-portrait-v1`;
+export const CHAR_PATH = (name) => `/tiles/Character/${name}.png?v=20261011-portrait-style-unified`;
 
 export const PORTRAIT_SETS = buildPortraitSets(MERGED_PORTRAIT_CATEGORIES);
 
