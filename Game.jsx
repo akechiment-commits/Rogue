@@ -6051,7 +6051,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         fontFamily: "'Courier New','MS Gothic',monospace",
         fontSize: mobile ? "13px" : "14px",
         padding: mobile ? "4px" : "8px",
-        paddingRight: mobile ? (landscape ? 148 : 4) : 228,
+        paddingRight: mobile ? (landscape ? 148 : 4) : 308,
         outline: "none",
         userSelect: "none",
         position: "relative",

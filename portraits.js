@@ -16,7 +16,8 @@ export const PORTRAIT_WALK_STEPS_MIN = 12;
 export const PORTRAIT_WALK_STEPS_JITTER = 8;
 export const PORTRAIT_FALLBACK = "stand_normal";
 
-export const CHAR_PATH = (name) => `/tiles/Character/${name}.png`;
+/* Portrait PNGs are replaced in place; bump this key to prevent stale browser/CDN cache. */
+export const CHAR_PATH = (name) => `/tiles/Character/${name}.png?v=20261011-portrait-v1`;
 
 export const PORTRAIT_SETS = buildPortraitSets(MERGED_PORTRAIT_CATEGORIES);
 
@@ -360,6 +361,7 @@ const TRAP_PORTRAIT_RULES = [
   [/毒矢の罠/, "reaction_trap_poison_arrow"],
   [/強矢の罠/, "reaction_trap_strong_arrow"],
   [/MP吸収の罠/, "reaction_trap_mp_absorb"],
+  [/空腹の罠/, "hp_hunger"],
   [/錆の罠/, "reaction_trap_rust"],
   [/回転板/, "reaction_trap_spin"],
   [/落石の罠/, "reaction_trap_rockfall"],
@@ -379,11 +381,11 @@ const TRAP_PORTRAIT_RULES = [
 ];
 
 const TRAP_NAMES_WITHOUT_DEDICATED_PORTRAIT =
-  /(?:睡眠ガス|鈍足|空腹|混乱|暗闇|油まみれ|浮遊|封印|影ぬい|惑わし|道具魔物化|加速|装備外し|レベルダウン)の罠|罠の罠/;
+  /(?:睡眠ガス|鈍足|混乱|暗闇|油まみれ|浮遊|封印|影ぬい|惑わし|道具魔物化|加速|装備外し|レベルダウン)の罠|罠の罠/;
 
 /** 罠が実際に作動したログから、発動時に出すリアクションを返す。 */
 export function getTrapPortraitKey(msg) {
-  if (!msg || !/(?:が発動|が作動|が大?爆発|が誘爆)/.test(msg)) return null;
+  if (!msg || !/(?:が発動|が作動|が誘爆)/.test(msg)) return null;
   for (const [pattern, key] of TRAP_PORTRAIT_RULES) {
     if (pattern.test(msg)) return key;
   }
@@ -475,7 +477,7 @@ export function snapshotPlayer(p, opts = {}) {
 
 /**
  * 継続中の状態異常立ち絵キー（優先度順・最初にマッチしたもの）。
- * 歩行・被ダメより強く、治るまで維持する。
+ * 歩行・被ダメより強く、治るまで維持する。浮遊も有効中は維持する。
  */
 export function getActiveStatusPortraitKey(p, floating = false) {
   if (!p) return null;
@@ -496,6 +498,7 @@ export function getActiveStatusPortraitKey(p, floating = false) {
   if ((p.sealedTurns || 0) > 0) return "status_sealed";
   if ((p.oilyTurns || 0) > 0) return "status_oiled";
   if ((p.soakedTurns || 0) > 0) return "status_soaked";
+  if (floating) return "status_floating";
   return null;
 }
 
@@ -551,11 +554,23 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return { src: pickDeathPortrait(p.deathCause, PORTRAIT_SETS, p), cooldownUntil: now + 99999, force: true };
   }
   if (!prev) {
-    return { src: pickPortraitForPlayer(floating ? "status_floating" : idleStandKey(p), p), cooldownUntil: now, force: true };
+    const initialStatusKey = getActiveStatusPortraitKey(p, floating);
+    return {
+      src: pickPortraitForPlayer(initialStatusKey || idleStandKey(p), p),
+      cooldownUntil: now,
+      force: true,
+      ...(initialStatusKey ? { holdKey: initialStatusKey } : {}),
+    };
   }
   /* ゲームオーバー後の再挑戦：死亡スナップショットを引き継ぐと死亡立ち絵の長クールダウンが残る */
   if ((prev.hp || 0) <= 0 && p.hp > 0) {
-    return { src: pickPortraitForPlayer(floating ? "status_floating" : idleStandKey(p), p), cooldownUntil: now, force: true };
+    const initialStatusKey = getActiveStatusPortraitKey(p, floating);
+    return {
+      src: pickPortraitForPlayer(initialStatusKey || idleStandKey(p), p),
+      cooldownUntil: now,
+      force: true,
+      ...(initialStatusKey ? { holdKey: initialStatusKey } : {}),
+    };
   }
 
   const isLow = p.hp / p.maxHp <= 0.25;
@@ -574,10 +589,15 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const previousStickyKey = getActiveStatusPortraitKey(prev, prev.floating);
   const pe = (key, opts = {}) => portraitEvent(key, now, { ...opts, player: p });
 
-  /* 罠の発動演出は同じターンの状態異常・被ダメ・歩行・ダッシュより先に一度表示する。 */
+  /* 罠専用絵は優先するが、驚きへフォールバックする状態系の罠は
+   * 付与された混乱・浮遊などの立ち絵を先に出す。 */
   const trapPortraitKey = findMsgInNew(newMsgs, eventLastMsg, (msg) => getTrapPortraitKey(msg) !== null);
   if (trapPortraitKey) {
-    return pe(getTrapPortraitKey(trapPortraitKey), { force: true });
+    const trapKey = getTrapPortraitKey(trapPortraitKey);
+    if ((trapKey === "reaction_surprised" || trapKey === "hp_hunger") && stickyKey) {
+      return { ...pe(stickyKey, { force: true }), holdKey: stickyKey };
+    }
+    return pe(trapKey, { force: true });
   }
 
   /* 腐った/ヤバイ食事は状態異常より先（食べた瞬間のリアクション） */
@@ -598,11 +618,6 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
       force: true,
       holdKey: stickyKey,
     };
-  }
-
-  /* 浮遊は継続状態として固定せず、開始した瞬間だけ専用立ち絵を出す。 */
-  if (floating && !prev.floating) {
-    return pe("status_floating", { force: true });
   }
 
   /* MP消費でのHP0復活 */
@@ -651,6 +666,19 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   if (findMsgInNew(newMsgs, eventLastMsg, isCursedAcquireMsg)) {
     return pe("status_cursed", { force: true });
+  }
+
+  /* 自分に返った魔法・爆発ダメージは、起点になったアイテム使用絵より優先する。 */
+  if (p.hp < prev.hp) {
+    const selfDamageMsg = findPlayerDamageMsg(newMsgs, eventLastMsg, p?.playerName);
+    if (selfDamageMsg && /自分|魔方陣に打たれた|自分に打たれた|体が燃えるように熱い/.test(selfDamageMsg)) {
+      return {
+        src: pickDamagePortrait(selfDamageMsg, PORTRAIT_SETS, p),
+        cooldownUntil: now + PORTRAIT_DAMAGE_COOLDOWN_MS,
+        force: true,
+        bypassCooldown: true,
+      };
+    }
   }
 
   /* 状態異常「付与瞬間」— sticky が無いフレーム用（付与と同時に sticky に乗るのでほぼ到達しない） */

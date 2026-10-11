@@ -43,6 +43,10 @@ describe("portraitCatalog", () => {
     expect(sets.ending_clear).toContain("gameclear");
     expect(sets.death_dead_unarmored).toEqual(["death_dead_unarmored"]);
     expect(sets.status_soaked).toEqual(["status_soaked"]);
+    expect(sets.status_floating).toEqual(["status_floating"]);
+    expect(sets.status_floating_unarmored).toEqual(["status_floating_unarmored"]);
+    expect(sets.status_confused).toEqual(["reaction_confused"]);
+    expect(sets.status_confused_unarmored).toEqual(["status_confused_unarmored"]);
     expect(sets.status_bound).toEqual(["status_bound"]);
     expect(sets.status_confined).toEqual(["status_confined"]);
     expect(sets.status_wall_suffocation).toEqual(["status_wall_suffocation"]);

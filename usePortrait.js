@@ -13,6 +13,21 @@ import {
   snapshotPlayer,
 } from "./portraits.js";
 
+function getAppendedMessages(previousMessages, currentMessages) {
+  const maxOverlap = Math.min(previousMessages.length, currentMessages.length);
+  for (let overlap = maxOverlap; overlap > 0; overlap--) {
+    let matches = true;
+    for (let index = 0; index < overlap; index++) {
+      if (previousMessages[previousMessages.length - overlap + index] !== currentMessages[index]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return currentMessages.slice(overlap);
+  }
+  return currentMessages.slice(-1);
+}
+
 export function usePortrait({
   gs,
   msgs,
@@ -91,9 +106,9 @@ export function usePortrait({
     const previousMessages = prevMsgsRef.current;
     const currentMessages = msgsRef.current;
     const additions = previousMessages
-      ? currentMessages.filter(message => !previousMessages.has(message))
+      ? getAppendedMessages(previousMessages, currentMessages)
       : [];
-    prevMsgsRef.current = new Set(currentMessages);
+    prevMsgsRef.current = currentMessages.slice();
     if (!dynamicEnabledRef.current || !gs?.player) return;
 
     const p = gs.player;

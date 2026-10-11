@@ -3783,25 +3783,112 @@ export function InventoryModal({
 }
 
 /* ===== Sidebar Portrait Panel ===== */
+function fitPortraitImageToFrame(img, frame) {
+  if (!img?.naturalWidth || !img?.naturalHeight || !frame?.clientWidth || !frame?.clientHeight) return;
+
+  const width = img.naturalWidth;
+  const height = img.naturalHeight;
+  const gutter = 8;
+  const availableWidth = Math.max(1, frame.clientWidth - gutter * 2);
+  const availableHeight = Math.max(1, frame.clientHeight - gutter * 2);
+  const hasDashSheetFringe = img.currentSrc.split(/[?#]/, 1)[0].endsWith("/tiles/Character/battle_dash.png");
+  const cleanLeft = hasDashSheetFringe ? Math.ceil(width * 0.295) : 0;
+  let left = 0;
+  let top = 0;
+  let right = width - 1;
+  let bottom = height - 1;
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("Portrait alpha scan unavailable");
+    context.drawImage(img, 0, 0);
+    const pixels = context.getImageData(0, 0, width, height).data;
+    left = width;
+    top = height;
+    right = -1;
+    bottom = -1;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (x < cleanLeft) continue;
+        if (pixels[(y * width + x) * 4 + 3] <= 12) continue;
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+    if (right < left || bottom < top) {
+      left = 0;
+      top = 0;
+      right = width - 1;
+      bottom = height - 1;
+    }
+  } catch {
+    // Cross-origin or canvas-restricted custom images still remain contained by the frame.
+    left = 0;
+    top = 0;
+    right = width - 1;
+    bottom = height - 1;
+  }
+
+  const contentWidth = right - left + 1;
+  const contentHeight = bottom - top + 1;
+  const scale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight);
+  const renderedContentWidth = contentWidth * scale;
+  const renderedContentHeight = contentHeight * scale;
+  img.style.position = "absolute";
+  img.style.width = `${width * scale}px`;
+  img.style.height = `${height * scale}px`;
+  img.style.maxWidth = "none";
+  img.style.maxHeight = "none";
+  img.style.flex = "none";
+  img.style.transform = "none";
+  img.style.clipPath = hasDashSheetFringe ? `inset(0 0 0 ${(cleanLeft / width) * 100}%)` : "none";
+  img.style.left = `${(frame.clientWidth - renderedContentWidth) / 2 - left * scale}px`;
+  img.style.top = `${(frame.clientHeight - renderedContentHeight) / 2 - top * scale}px`;
+}
+
 export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings, setShowSound, isAnyModalActive = false }) {
+  const portraitFrameRef = useRef(null);
+  const portraitImageRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!showPortrait) return undefined;
+    const frame = portraitFrameRef.current;
+    const img = portraitImageRef.current;
+    if (!frame || !img) return undefined;
+
+    const fit = () => {
+      if (img.complete) fitPortraitImageToFrame(img, frame);
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(fit);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [portraitSrc, showPortrait, mobile, landscape]);
+
   if (!(!mobile || landscape)) return null;
-  /* reaction_fall_severe だけ被写体が右寄りに大きく描かれているため、全体を収める。 */
-  const fitWideFallPortrait = typeof portraitSrc === "string" && /reaction_fall_severe\.png(?:[?#]|$)/.test(portraitSrc);
   return (
     <div
       style={{
         position: "absolute", right: 0, top: 0, bottom: 0,
-        width: mobile ? 140 : 220, background: "#000",
+        width: mobile ? 140 : 300, background: "#000",
         borderLeft: "1px solid #333",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between",
         padding: "8px 4px", boxSizing: "border-box", zIndex: 10,
       }}
     >
-      <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible", position: "relative" }}>
+      <div ref={portraitFrameRef} style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
         {showPortrait && (
           <img
+            ref={portraitImageRef}
             src={portraitSrc || "/tiles/Character/stand_normal.png"}
             alt="portrait"
+            onLoad={(e) => fitPortraitImageToFrame(e.currentTarget, portraitFrameRef.current)}
             onError={(e) => {
               const img = e.currentTarget;
               if (img.dataset.portraitFallbackApplied === "1") return;
@@ -3810,13 +3897,14 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
               img.dataset.portraitFallbackApplied = "1";
               img.src = fallback;
             }}
-            style={fitWideFallPortrait
-              ? {
-                width: "220%",
-                objectFit: "contain",
-                transform: "translateX(-10%)",
-              }
-              : { width: "220%", objectFit: "contain" }}
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              maxWidth: "none",
+              maxHeight: "none",
+              objectFit: "contain",
+            }}
           />
         )}
       </div>
