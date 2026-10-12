@@ -19,7 +19,7 @@ const INTERMEDIATE_MONSTER_BAN = [
   "berserker", "killplaster", "icedragon", "starlight", "darkness",
   "dodgemole", "synthmonster", "gargoyle", "vampire", "dragon", "golem", "daemon",
   "troll", "firedemon", "bombgoblin", "walldigger", "serpent", "witchdoc",
-  "disarmer", "monsterthrow", "barriermage", "windmage", "puller", "waterFlower",
+  "disarmer", "monsterthrow", "barriermage", "windmage", "puller", "waterFlower", "sleepingLion",
 ];
 
 function intermediateMonsterKinds(floor) {

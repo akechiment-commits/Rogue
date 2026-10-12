@@ -1188,7 +1188,7 @@ export const MONS = [
       { name: "怨霊の古柳", hp: 265, atk: 52, def: 18, exp: 390, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
     ],
   },
-  { name: "眠れる獅子", hp: 128, atk: 36, def: 10, exp: 145, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 100, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、隣接または攻撃されるまで目覚めない。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
+  { name: "眠れる獅子", hp: 128, atk: 36, def: 10, exp: 145, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 100, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、隣接または攻撃されるまで目覚めない。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
     levels: [
       { name: "眠れる大獅子", hp: 205, atk: 48, def: 15, exp: 250, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } } },
       { name: "眠れる赤獅子", hp: 320, atk: 60, def: 20, exp: 390, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },

@@ -105,8 +105,8 @@ describe("眠れる獅子系", () => {
     expect(dungeon.pendingMeteors || []).toHaveLength(0);
   });
 
-  it("中級・上級・超上級で形態の出現帯を分ける", () => {
-    expect(lionBase.dungeonFloors.intermediate).toEqual({ min: 18, max: 20 });
+  it("中級には出現せず、上級・超上級で形態の出現帯を分ける", () => {
+    expect(lionBase.dungeonFloors.intermediate).toBeNull();
     expect(advancedMonsterSpawnLevel(lionBase, 24)).toBe(1);
     expect(advancedMonsterSpawnLevel(lionBase, 25)).toBe(2);
     expect(advancedMonsterSpawnLevel(lionBase, 28)).toBe(2);
