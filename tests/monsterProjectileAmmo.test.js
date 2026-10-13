@@ -82,6 +82,47 @@ describe("投擲物を使う敵の弾薬", () => {
     expect(ally.hp).toBe(70);
   });
 
+  it.each([
+    ["薬師系", "potionthrower", 2],
+    ["ロキソ忍系", "potionhealer", 1],
+  ])("%sは残薬があれば5%%でランダムな薬を1個固有ドロップする", (_label, baseKind, level) => {
+    const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === baseKind), level, 5, 5);
+    monster.projectileAmmo.count = 1;
+    const dg = makeEmptyDg();
+    const random = vi.spyOn(Math, "random").mockReturnValueOnce(0.01).mockReturnValue(0.99);
+
+    try {
+      monsterDrop(monster, dg, []);
+
+      const potionDrops = dg.items.filter((item) => item.type === "potion");
+      expect(potionDrops).toHaveLength(1);
+      expect(potionDrops[0]).toMatchObject({ type: "potion", effect: expect.any(String) });
+      expect(random).toHaveBeenCalled();
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it.each([
+    ["薬師系", "potionthrower", 2],
+    ["ロキソ忍系", "potionhealer", 1],
+  ])("%sは在庫0なら固有ドロップ抽選をしない", (_label, baseKind, level) => {
+    const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === baseKind), level, 5, 5);
+    monster.projectileAmmo.count = 0;
+    const dg = makeEmptyDg();
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+
+    try {
+      monsterDrop(monster, dg, []);
+
+      /* 通常ドロップの判定1回のみ。薬投げ系の固有判定は残弾0で行わない。 */
+      expect(random).toHaveBeenCalledTimes(1);
+      expect(dg.items).toHaveLength(0);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it("遠距離攻撃1回で弾薬を1個消費し、残弾0では投げない", () => {
     const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === "archer"), 1, 5, 5, { aware: true });
     monster.projectileAmmo.count = 1;

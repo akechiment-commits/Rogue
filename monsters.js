@@ -1135,13 +1135,13 @@ export const MONS = [
       { name: "ペルセウスマン",     hp: 95,  atk: 35, def: 18, exp: 188 },
     ],
   },
-  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残弾がなくなると投げない。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
+  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
     levels: [
       { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
     ],
   },
-  { name: "ロキソ忍",       hp: 30,  atk: 13, def: 3,  exp: 38,  speed: 1,   tile: 230, kind: "humanoid", baseKind: "potionhealer", monLevel: 1, minFloor: 8, maxFloor: 50, subtype: "potionhealer", desc: "HPの減った味方へ回復薬を投げる。8〜12本を持ち、投げるたびに1本消費する。Lv2は大回復薬、Lv3は超回復薬。", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 } },
+  { name: "ロキソ忍",       hp: 30,  atk: 13, def: 3,  exp: 38,  speed: 1,   tile: 230, kind: "humanoid", baseKind: "potionhealer", monLevel: 1, minFloor: 8, maxFloor: 50, subtype: "potionhealer", desc: "HPの減った味方へ回復薬を投げる。8〜12本を持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。Lv2は大回復薬、Lv3は超回復薬。", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 } },
     levels: [
       { name: "セロト忍", hp: 52,  atk: 21, def: 6,  exp: 78, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 22, max: 24 } } },
       { name: "アルギ忍", hp: 84,  atk: 30, def: 9,  exp: 130, dungeonFloors: { intermediate: { min: 28, max: 30 } } },

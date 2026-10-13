@@ -5750,6 +5750,11 @@ export function monsterDrop(m, dg, ml, p = null) {
   if (_projectileAmmoCount > 0 && m.subtype === "stonethrow" && Math.random() < 0.05 && _dropPool([m.projectileAmmo]).length > 0) {
     drops.push({ ...m.projectileAmmo, id: uid(), count: _projectileAmmoCount });
   }
+  /* 薬投げ系：在庫が残っていれば5%で通常薬を1個落とす */
+  if (_projectileAmmoCount > 0 && ["potionthrow", "potionhealer"].includes(m.subtype) && Math.random() < 0.05) {
+    const _potion = _pickDrop(ITEMS.filter(item => item.type === "potion"));
+    if (_potion) drops.push({ ..._potion, id: uid() });
+  }
   if (m.subtype === "wanduser" && Math.random() < 0.05) {
     const _wt = _pickDrop(WANDS);
     if (_wt) drops.push({ ..._wt, id: uid(), charges: Math.max(1, rng(1, _wt.charges)) });
