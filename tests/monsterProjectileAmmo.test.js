@@ -15,11 +15,15 @@ function openBattlefield(monster) {
 }
 
 describe("投擲物を使う敵の弾薬", () => {
-  it("生成時にアーチャーとワッカが8〜12個の専用弾薬を持つ", () => {
+  it("生成時にアーチャー・ワッカ・薬投げ系が8〜12回分の専用弾薬を持つ", () => {
     const archerBase = MONS.find((m) => m.baseKind === "archer");
     const wokkaBase = MONS.find((m) => m.baseKind === "wokka");
+    const potionThrowerBase = MONS.find((m) => m.baseKind === "potionthrower");
+    const potionHealerBase = MONS.find((m) => m.baseKind === "potionhealer");
     const archer = makeMonsterFromBase(archerBase, 1, 5, 5);
     const wokka = makeMonsterFromBase(wokkaBase, 1, 5, 5);
+    const potionMaker = makeMonsterFromBase(potionThrowerBase, 2, 5, 5);
+    const loxonin = makeMonsterFromBase(potionHealerBase, 1, 5, 5);
 
     expect(archer.projectileAmmo).toMatchObject({ type: "arrow" });
     expect(archer.projectileAmmo.count).toBeGreaterThanOrEqual(8);
@@ -27,6 +31,55 @@ describe("投擲物を使う敵の弾薬", () => {
     expect(wokka.projectileAmmo).toMatchObject({ type: "arrow", stone: true });
     expect(wokka.projectileAmmo.count).toBeGreaterThanOrEqual(8);
     expect(wokka.projectileAmmo.count).toBeLessThanOrEqual(12);
+    for (const monster of [potionMaker, loxonin]) {
+      expect(monster.projectileAmmo).toMatchObject({ type: "potion" });
+      expect(monster.projectileAmmo.count).toBeGreaterThanOrEqual(8);
+      expect(monster.projectileAmmo.count).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it("ポーションメーカーは投げるたび薬瓶を1本消費し、在庫切れで投げなくなる", () => {
+    const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionthrower"), 2, 5, 5, { aware: true });
+    monster.projectileAmmo.count = 1;
+    monster.alwaysUseSpecial = true;
+    const player = makePlayer({ x: 10, y: 5 });
+    const dg = openBattlefield(monster);
+    const firstMessages = [];
+
+    monsterAI(monster, dg, player, firstMessages, { attackOnly: true });
+
+    expect(monster.projectileAmmo.count).toBe(0);
+    expect(firstMessages.some((message) => message.includes("薬を投げた"))).toBe(true);
+
+    const secondMessages = [];
+    monster.turnAttacks = 0;
+    monsterAI(monster, dg, player, secondMessages, { attackOnly: true });
+
+    expect(monster.projectileAmmo.count).toBe(0);
+    expect(secondMessages.some((message) => message.includes("薬を投げた"))).toBe(false);
+  });
+
+  it("ロキソ忍は回復薬を投げるたび在庫を1本消費し、在庫切れで支援しない", () => {
+    const healer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, 3, 5, { aware: true });
+    healer.projectileAmmo.count = 1;
+    healer.alwaysUseSpecial = true;
+    const ally = { id: "wounded-ally", name: "負傷した味方", x: 7, y: 5, hp: 40, maxHp: 100, def: 0 };
+    const player = makePlayer({ x: 10, y: 5 });
+    const dg = openBattlefield(healer);
+    dg.monsters.push(ally);
+    const messages = [];
+
+    monsterAI(healer, dg, player, messages, { moveOnly: true });
+    monsterAI(healer, dg, player, messages, { attackOnly: true });
+
+    expect(healer.projectileAmmo.count).toBe(0);
+    expect(ally.hp).toBe(70);
+
+    monsterAI(healer, dg, player, messages, { moveOnly: true });
+    monsterAI(healer, dg, player, messages, { attackOnly: true });
+
+    expect(healer.projectileAmmo.count).toBe(0);
+    expect(ally.hp).toBe(70);
   });
 
   it("遠距離攻撃1回で弾薬を1個消費し、残弾0では投げない", () => {

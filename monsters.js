@@ -436,6 +436,7 @@ function potionThrowRange(m, dg, pl) {
 }
 
 function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions = null) {
+  if (!consumeMonsterProjectileAmmo(m)) return false;
   const _pot = throwOptions?.potion || pick(_POTION_THROW_POOL);
   const _target = throwOptions?.target || pl;
   const _aim = throwOptions?.aim || _target;
@@ -462,6 +463,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions
     animColor: throwOptions?.color || "#ff88ff",
     wind: _wind,
   });
+  return true;
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
@@ -1133,13 +1135,13 @@ export const MONS = [
       { name: "ペルセウスマン",     hp: 95,  atk: 35, def: 18, exp: 188 },
     ],
   },
-  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
+  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残弾がなくなると投げない。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
     levels: [
       { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
     ],
   },
-  { name: "ロキソ忍",       hp: 30,  atk: 13, def: 3,  exp: 38,  speed: 1,   tile: 230, kind: "humanoid", baseKind: "potionhealer", monLevel: 1, minFloor: 8, maxFloor: 50, subtype: "potionhealer", desc: "射線内で一番近いHPの減った味方へ、確率で回復薬を投げる。Lv2は大回復薬、Lv3は超回復薬。", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 } },
+  { name: "ロキソ忍",       hp: 30,  atk: 13, def: 3,  exp: 38,  speed: 1,   tile: 230, kind: "humanoid", baseKind: "potionhealer", monLevel: 1, minFloor: 8, maxFloor: 50, subtype: "potionhealer", desc: "HPの減った味方へ回復薬を投げる。8〜12本を持ち、投げるたびに1本消費する。Lv2は大回復薬、Lv3は超回復薬。", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 } },
     levels: [
       { name: "セロト忍", hp: 52,  atk: 21, def: 6,  exp: 78, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 22, max: 24 } } },
       { name: "アルギ忍", hp: 84,  atk: 30, def: 9,  exp: 130, dungeonFloors: { intermediate: { min: 28, max: 30 } } },
@@ -1703,12 +1705,15 @@ function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯
   return true;
 }
 
-const MONSTER_PROJECTILE_SUBTYPES = new Set(["archer", "stonethrow"]);
+const MONSTER_PROJECTILE_SUBTYPES = new Set(["archer", "stonethrow", "potionthrow", "potionhealer"]);
 
-/* 矢・石を投げる敵は、生成時に8〜12個の弾薬スタックを持つ。 */
+/* 飛び道具を使う敵は、生成時に8〜12回分の弾薬を持つ。 */
 function createMonsterProjectileAmmo(mon) {
   if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return null;
   const count = rng(8, 12);
+  if (mon.subtype === "potionthrow" || mon.subtype === "potionhealer") {
+    return { type: "potion", count };
+  }
   if (mon.subtype === "archer") {
     const level = mon.monLevel || 1;
     return level >= 3 ? makePiercingArrow(count) : level >= 2 ? makeStrongArrow(count) : makeArrow(count);
@@ -1727,6 +1732,14 @@ export function hasMonsterProjectileAmmo(mon) {
   if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return false;
   /* 手作りのテスト個体や旧セーブは、攻撃直前に遅延初期化する。 */
   return !mon.projectileAmmo || (Number(mon.projectileAmmo.count) || 0) > 0;
+}
+
+function consumeMonsterProjectileAmmo(mon) {
+  if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return true;
+  const ammo = ensureMonsterProjectileAmmo(mon);
+  if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
+  ammo.count--;
+  return true;
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
@@ -3661,7 +3674,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   /* 薬投げ：一直線＋射程 */
   if (subtype === "potionthrow") {
     const range = potionThrowRange(src, dg, pl);
-    return canSee && !plOnBlessedSanc && inLine && lineLen <= range;
+    return hasMonsterProjectileAmmo(src) && canSee && !plOnBlessedSanc && inLine && lineLen <= range;
   }
 
   /* 杖使い：一直線 */
@@ -3963,7 +3976,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         return true;
       }
     }
-    if (m.subtype === "potionthrow" && !_plOnBlessedSanc) {
+    if (m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !_plOnBlessedSanc) {
       const _ptRange = potionThrowRange(m, dg, pl);
       if (inLine && lineLen <= _ptRange) {
         m.turnAttacks++;
@@ -5747,7 +5760,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (_moveOnly && m.subtype === "potionhealer") {
       delete m._potionHealerTarget;
       delete m._rangedAttackThisTurn;
-      if (m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (hasMonsterProjectileAmmo(m) && m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const target = findPotionHealerTarget(m, dg, pl);
         if (target && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
           m._potionHealerTarget = target.target;
@@ -5792,7 +5805,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* わてり：水鉄砲 */
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
       const _ptRange0 = potionThrowRange(m, dg, pl);
-      const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
+      const _ptRdy0 = m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
       const _dragonBreathRdy = _dragonRdy0 || _iceDragonRdy0;
@@ -6011,7 +6024,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget) {
+      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && !hasMonsterProjectileAmmo(m)) {
+        delete m._potionHealerTarget;
+      }
+
+      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && hasMonsterProjectileAmmo(m)) {
         const preferredTarget = m._potionHealerTarget;
         delete m._potionHealerTarget;
         if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
@@ -6034,7 +6051,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
 
-      if (m.subtype === "potionthrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const _ptRange = potionThrowRange(m, dg, pl);
         const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);

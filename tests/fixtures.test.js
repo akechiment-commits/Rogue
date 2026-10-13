@@ -400,6 +400,7 @@ describe("石像", () => {
       turnAttacks: 0, maxAttacks: 1,
       monLevel: 1, aware: true, dormant: false, sealed: false,
       alwaysUseSpecial: true,
+      ...(subtype === "potionthrow" ? { projectileAmmo: { type: "potion", count: 1 } } : {}),
       dir: { x: 1, y: 0 }, lastPx: 7, lastPy: 5,
     };
     const dg = makeEmptyDg({
