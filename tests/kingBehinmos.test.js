@@ -46,6 +46,7 @@ describe('上級25階のキングベヒんもス',()=>{
   it('図鑑・全スタイルのタイル定義から専用ボスを参照できる',()=>{
     expect(getMonsterEncyclopediaEntry(KING_BEHINMOS.name)).toBe(KING_BEHINMOS);
     expect(getMonsterDescription(KING_BEHINMOS.name)).toContain('2ターン後');
+    expect(getMonsterDescription(KING_BEHINMOS.name)).toContain('半分未満なら1ターン後');
     expect(TILE_NAMES[224]).toBe('king_behinmos'); expect(TILE_RENDER[224].ch).toBe('獣');
     expect(MONSTER_SHEET_MAP[224]).toBeDefined(); expect(DAWNLIKE_FALLBACKS[224]).toBe(99);
   });
@@ -60,6 +61,20 @@ describe('上級25階のキングベヒんもス',()=>{
     hazards(s); attack(s,3); expect(s.dungeon.pendingMeteors[0].turnsLeft).toBe(1); expect(s.player.hp).toBe(200);
     hazards(s); expect(s.dungeon.pendingMeteors).toEqual([]); expect(s.player.hp).toBe(100);
     expect(s.messages.filter(m=>m.includes('着弾した'))).toHaveLength(1);
+  });
+  it('詠唱時にHPが半分未満なら1ターン後に着弾し、半分ちょうどなら2ターン後のまま',()=>{
+    const wounded=setup({hp:599});
+    attack(wounded);
+    expect(wounded.dungeon.pendingMeteors[0].turnsLeft).toBe(1);
+    expect(wounded.messages.at(-1)).toContain('1ターン後');
+    hazards(wounded);
+    expect(wounded.dungeon.pendingMeteors).toEqual([]);
+    expect(wounded.player.hp).toBe(100);
+
+    const half=setup({hp:600});
+    attack(half);
+    expect(half.dungeon.pendingMeteors[0].turnsLeft).toBe(2);
+    expect(half.messages.at(-1)).toContain('2ターン後');
   });
   it('プレイヤーが移動しても予兆は追わず、2歩で範囲の外へ逃げられる',()=>{
     const s=setup(); attack(s);

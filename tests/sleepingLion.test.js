@@ -63,9 +63,10 @@ describe("眠れる獅子系", () => {
     expect(lion._justWoke).toBeUndefined();
   });
 
-  it("覚醒後はキングベヒんもスと同じメテオを詠唱する", () => {
+  it("覚醒後の眠れる獅子はHP半分未満でも2ターン後のメテオを詠唱する", () => {
     const lion = makeMonsterFromBase(lionBase, 1, 12, 10, { aware: true });
     lion.dormant = false;
+    lion.hp = lion.maxHp / 2 - 1;
     const dungeon = makeEmptyDg({ monsters: [lion], visible: visibleMap(), rooms: [] });
     const player = makePlayer({ x: 4, y: 10 });
     const messages = [];

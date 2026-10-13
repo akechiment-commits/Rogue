@@ -11,12 +11,14 @@ export function canCastMeteor(monster, dungeon) {
 
 export function castMeteor(monster, dungeon, player, messages) {
   if (!canCastMeteor(monster, dungeon)) return false;
+  const maxHp = Number(monster.maxHp) || 0;
+  const turnsLeft = monster.baseKind === 'boss_kingbehinmos' && maxHp > 0 && monster.hp < maxHp / 2 ? 1 : 2;
   (dungeon.pendingMeteors ||= []).push({
     id: uid(), sourceId: monster.id, sourceName: monster.name,
-    x: player.x, y: player.y, turnsLeft: 2, damage: monster.meteorDamage ?? 60,
+    x: player.x, y: player.y, turnsLeft, damage: monster.meteorDamage ?? 60,
   });
   monster.meteorCooldown = monster.meteorInterval ?? 4;
-  messages.push(`${monster.name}がメテオを詠唱した！赤い3×3マスに2ターン後、隕石が落ちる！`);
+  messages.push(`${monster.name}がメテオを詠唱した！赤い3×3マスに${turnsLeft}ターン後、隕石が落ちる！`);
   return true;
 }
 
