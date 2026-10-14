@@ -5020,6 +5020,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
 }
 
 /** 投擲で食料が命中した時、食べた時と同じ固有効果・薬効を命中対象へ適用する。 */
+function applyFoodLuckToMonster(target, ml) {
+  target.dropItemsSuppressed = false;
+  target.dropExtraGold = true;
+  delete target.dropLuckTurns;
+  delete target.dropNoItemTurns;
+  ml.push(`${target.name}は幸運になった！倒された時に金貨を落とす判定！`);
+}
+
 export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null) {
   const hasPotionEffects = Array.isArray(item?.potionEffects) && item.potionEffects.length > 0;
   if (item?.type !== "food" || (!item.effect && !hasPotionEffects)) return false;
@@ -5189,7 +5197,7 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
           const gold = rng(range[0], range[1]);
           p.gold = (p.gold || 0) + gold;
           ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
-        } else applyPotion("luck");
+        } else applyFoodLuckToMonster(target, ml);
         break;
       case "c_luck":
         applyPotion("luck", LUCK_POTION_TURNS.cursed, true);
@@ -5283,13 +5291,7 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
         const gold = rng(min, max);
         p.gold = (p.gold || 0) + gold;
         ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
-      } else {
-        target.dropItemsSuppressed = false;
-        target.dropExtraItem = true;
-        delete target.dropLuckTurns;
-        delete target.dropNoItemTurns;
-        ml.push(`${target.name}は幸運になった！倒された時に追加ドロップ判定！`);
-      }
+      } else applyFoodLuckToMonster(target, ml);
       break;
     case "reveal_food":
       if (kind === "player") {
@@ -6187,6 +6189,12 @@ export function monsterDrop(m, dg, ml, p = null) {
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
     }
+  }
+  /* 食料由来の幸運を受けた敵は、追加アイテム枠を金貨に置き換えて抽選する。 */
+  if (m.dropExtraGold && Math.random() < monsterRandomDropChance(m)) {
+    const gold = { name: "金貨", type: "gold", value: rng(20, 80), tile: 22, id: uid() };
+    drops.push(gold);
+    ml.push(`${m.name}は幸運で金貨${gold.value}枚を落とした！`);
   }
   if (drops.length === 0) return;
   const _ft = new Set();
