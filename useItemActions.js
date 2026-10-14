@@ -7,7 +7,7 @@ import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   EMPTY_BOTTLE, SPELLS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion,
-  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodPotionEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
+  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
@@ -4496,7 +4496,7 @@ export function useItemActions({
                     m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
                     ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
                   }
-                  if (m.hp > 0) applyFoodPotionEffectsOnHit(it, "monster", m, dg, p, ml, lu);
+                  if (m.hp > 0) applyFoodEffectsOnHit(it, "monster", m, dg, p, ml, lu);
                   if (m.hp <= 0) {
                     killMonster(m, dg, p, ml, lu);
                     if (it.type === "bottle") {
@@ -4550,7 +4550,7 @@ export function useItemActions({
                   ml.push(`腐った食料で毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                 }
               }
-              applyFoodPotionEffectsOnHit(it, "player", p, dg, p, ml, lu);
+              applyFoodEffectsOnHit(it, "player", p, dg, p, ml, lu);
             }
           } else if (_isFarcast) {
             const lb = _mkThrowLb();

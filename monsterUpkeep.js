@@ -64,6 +64,13 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
       monster.floatTurns--;
       if (monster.floatTurns <= 0) messages.push(`${monster.name}の浮遊が解けた！`);
     }
+    if ((monster.foodHasteTurns || 0) > 0) {
+      monster.foodHasteTurns--;
+      if (monster.foodHasteTurns <= 0) {
+        delete monster.foodHasteMultiplier;
+        messages.push(`${monster.name}の速さが元に戻った！`);
+      }
+    }
     if ((monster.drunkTurns || 0) > 0) {
       monster.drunkTurns--;
       if (monster.drunkTurns <= 0) messages.push(`${monster.name}の酔いが覚めた！`);

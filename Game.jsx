@@ -31,7 +31,7 @@ import {
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
-  applyPotionEffect, applyThrownItemToMonster, applyFoodPotionEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
+  applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
@@ -1668,7 +1668,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       });
       const _monsterTurnRate = _eqPcM
         ? (_eqPcM.cursed ? 0.5 : (_eqPcM.blessed ? 2 : 1))
-        : (m.sealed ? 1 : m.speed);
+        : Math.min(3, (m.sealed ? 1 : m.speed) * ((m.foodHasteTurns || 0) > 0 ? (m.foodHasteMultiplier || 2) : 1));
       m.turnAttacks = 0;
       const _due = takeDueActions(m, pl.actionTime || 0, _monsterTurnRate);
       let _actionCount = 0;
@@ -4940,7 +4940,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     ml.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                   }
                 }
-                applyFoodPotionEffectsOnHit(item, "player", p, dg, p, ml, lu);
+                applyFoodEffectsOnHit(item, "player", p, dg, p, ml, lu);
               }
             }
           }

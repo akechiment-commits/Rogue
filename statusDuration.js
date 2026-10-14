@@ -176,6 +176,7 @@ export function clearStatusEffectsOnHpZero(entity) {
 
   const hadStatus = [
     entity.sleepTurns, entity.sleepInterruptedTurns, entity.paralyzeTurns,
+    entity.foodHasteTurns,
     entity.paralyzed, entity.frozenTurns, entity.slowTurns, entity.slowSkip,
     entity.confusedTurns, entity.drunkTurns, entity.drunkenTurns,
     entity.poisoned, entity.poisonedTurns,
@@ -201,6 +202,8 @@ export function clearStatusEffectsOnHpZero(entity) {
 
   entity.sleepTurns = 0;
   entity.sleepInterruptedTurns = 0;
+  entity.foodHasteTurns = 0;
+  delete entity.foodHasteMultiplier;
   entity.paralyzeTurns = 0;
   entity.paralyzed = false;
   entity._paralyzeHp = null;

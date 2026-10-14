@@ -4147,7 +4147,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
   }
 
-  if (mon.hp > 0) applyFoodPotionEffectsOnHit(item, "monster", mon, dg, p, ml, luFn, killerMon);
+  if (mon.hp > 0) applyFoodEffectsOnHit(item, "monster", mon, dg, p, ml, luFn, killerMon);
 
   const killed = mon.hp <= 0;
   if (killed) {
@@ -5019,10 +5019,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   }
 }
 
-/** 投擲で食料が命中した時、食べた時と同じ薬効を命中対象へ適用する。 */
-export function applyFoodPotionEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null) {
-  if (item?.type !== "food" || !Array.isArray(item.potionEffects) || item.potionEffects.length === 0) return false;
-  if (item.iceCream || item.yabai || item.rotten || item.burnt) return false;
+/** 投擲で食料が命中した時、食べた時と同じ固有効果・薬効を命中対象へ適用する。 */
+export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null) {
+  const hasPotionEffects = Array.isArray(item?.potionEffects) && item.potionEffects.length > 0;
+  if (item?.type !== "food" || (!item.effect && !hasPotionEffects)) return false;
+  if (item.yabai || item.rotten || (item.iceCream && !item.burnt)) return false;
   const entity = kind === "player" ? p : target;
   if (!entity || entity.hp <= 0) return false;
 
@@ -5031,7 +5032,9 @@ export function applyFoodPotionEffectsOnHit(item, kind, target, dg, p, ml, luFn,
   const value = item.value || 35;
   const foodTier = value <= 10 ? 0 : value <= 20 ? 1 : value <= 35 ? 2 : value <= 55 ? 3 : value <= 80 ? 4 : 5;
 
-  for (const effect of item.potionEffects) {
+  applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier);
+
+  for (const effect of item.potionEffects || []) {
     switch (effect) {
       case "heal":
       case "superheal": {
@@ -5210,6 +5213,146 @@ export function applyFoodPotionEffectsOnHit(item, kind, target, dg, p, ml, luFn,
     }
   }
   return true;
+}
+
+function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier) {
+  const entity = kind === "player" ? p : target;
+  const healRange = [[12, 18], [24, 32], [37, 45], [50, 60], [63, 73], [76, 86]][foodTier];
+  const heal = (amount, label) => {
+    const gained = Math.min(amount, Math.max(0, (entity.maxHp || 0) - entity.hp));
+    entity.hp += gained;
+    ml.push(gained > 0 ? `${label}HP+${gained}` : `${label}HPは満タンだ。`);
+    if (gained > 0) pushHealAnim(entity.x, entity.y);
+  };
+
+  switch (item.effect) {
+    case "heal_food":
+      heal(rng(healRange[0], healRange[1]), kind === "player" ? "体が温まり" : `${target.name}は体が温まり`);
+      break;
+    case "power_food": {
+      const amount = foodTier >= 5 ? 2 : 1;
+      entity.atk = (entity.atk || 0) + amount;
+      ml.push(kind === "player" ? `力が湧いてきた！攻撃力+${amount}` : `${target.name}の攻撃力が${amount}上がった！`);
+      break;
+    }
+    case "speed_food": {
+      const turns = 5 + foodTier * 4;
+      if (kind === "player") {
+        if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; ml.push("目が覚めた！"); }
+        grantPlayerHaste(p, turns);
+        ml.push(`体が軽くなった！${hasteDurationLabel(p, turns)}行動できる！`);
+      } else {
+        const currentMultiplier = (target.foodHasteTurns || 0) > 0 ? (target.foodHasteMultiplier || 2) : 1;
+        target.foodHasteMultiplier = currentMultiplier < 2 ? 2 : 3;
+        target.foodHasteTurns = (target.foodHasteTurns || 0) + turns;
+        if ((target.sleepTurns || 0) > 0) target.sleepTurns = 0;
+        ml.push(`${target.name}の体が軽くなった！(${turns}ターン)`);
+      }
+      break;
+    }
+    case "def_food": {
+      const amount = foodTier >= 5 ? 2 : 1;
+      entity.def = (entity.def || 0) + amount;
+      ml.push(kind === "player" ? `体が頑丈になった！防御力+${amount}` : `${target.name}の防御力が${amount}上がった！`);
+      break;
+    }
+    case "vitality_food": {
+      const amount = foodTier + 1;
+      if (kind === "player") {
+        p.hp += adjustPlayerBaseMaxHp(p, amount);
+      } else {
+        target.maxHp = (target.maxHp || target.hp || 1) + amount;
+        target.hp += amount;
+      }
+      ml.push(kind === "player" ? `生命力が増した！最大HP+${amount}` : `${target.name}の最大HPが${amount}上がった！`);
+      break;
+    }
+    case "exp_food":
+      if (kind === "player") {
+        const percent = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6][foodTier];
+        const exp = Math.max(1, Math.floor((p.nextExp || 1) * percent));
+        p.exp += exp;
+        ml.push(`知恵が付いた。経験値+${exp}`);
+        luFn?.(p, ml);
+      } else monLevelUp(target, dg, ml);
+      break;
+    case "luck_food":
+      if (kind === "player") {
+        const ranges = [[30, 70], [80, 150], [180, 320], [350, 550], [600, 900], [850, 1200]];
+        const [min, max] = ranges[foodTier];
+        const gold = rng(min, max);
+        p.gold = (p.gold || 0) + gold;
+        ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
+      } else {
+        target.dropItemsSuppressed = false;
+        target.dropExtraItem = true;
+        delete target.dropLuckTurns;
+        delete target.dropNoItemTurns;
+        ml.push(`${target.name}は幸運になった！倒された時に追加ドロップ判定！`);
+      }
+      break;
+    case "reveal_food":
+      if (kind === "player") {
+        for (const row of dg.explored || []) row.fill(true);
+        for (const trap of dg.traps || []) { trap.revealed = true; trackTrap(trap); }
+        ml.push("目が冴えてフロア全体が見えた！");
+      } else ml.push(`${target.name}にはフロアを見通す力が働かなかった。`);
+      break;
+    case "antidote_food": {
+      const cured = [];
+      if ((entity.sleepTurns || 0) > 0) { entity.sleepTurns = 0; cured.push("睡眠"); }
+      if (kind === "player") {
+        if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; cured.push("金縛り"); }
+        if (p.poisoned || (p.poisonAtkLoss || 0) > 0) { clearPlayerPoison(p); cured.push("毒"); }
+      } else {
+        if (target.paralyzed || (target.paralyzeTurns || 0) > 0) {
+          target.paralyzed = false;
+          target.paralyzeTurns = 0;
+          target._paralyzeHp = null;
+          target.paralyzeHits = 0;
+          cured.push("金縛り");
+        }
+        if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
+          target.poisoned = false;
+          target.poisonedTurns = 0;
+          if (target.poisonHalfAtk) {
+            target.atk = target.poisonOrigAtk ?? target.atk;
+            delete target.poisonHalfAtk;
+            delete target.poisonOrigAtk;
+          }
+          cured.push("毒");
+        }
+      }
+      const range = [[3, 6], [5, 9], [7, 12], [10, 16], [13, 20], [16, 25]][foodTier];
+      const amount = rng(range[0], range[1]);
+      const gained = Math.min(amount, Math.max(0, (entity.maxHp || 0) - entity.hp));
+      entity.hp += gained;
+      ml.push(`${cured.length ? `状態異常が消えた！(${cured.join("・")}) ` : ""}${kind === "player" ? `体の調子が良くなった。HP+${gained}` : `${target.name}の体の調子が良くなった。HP+${gained}`}`);
+      if (gained > 0) pushHealAnim(entity.x, entity.y);
+      break;
+    }
+    case "satiate_food":
+      ml.push("とても腹持ちが良い！");
+      break;
+    case "mp_food":
+      if (kind === "player") {
+        if (isMpRecoveryBlocked(p)) {
+          ml.push(`魔力が湧いてきたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
+        } else {
+          const ranges = [[2, 6], [5, 9], [8, 13], [11, 16], [15, 20], [21, 28]][foodTier];
+          const amount = rng(ranges[0], ranges[1]);
+          const gained = Math.min(amount, Math.max(0, (p.maxMp || 0) - (p.mp || 0)));
+          p.mp = Math.min(p.maxMp || 0, (p.mp || 0) + amount);
+          ml.push(gained > 0 ? `魔力が湧いてきた！MP+${gained}` : "魔力が湧いてきたが、MPは既に満タンだ。");
+        }
+      } else {
+        target.alwaysUseSpecial = true;
+        ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 export const POTION_FOOD_PREFIX = {
@@ -6513,7 +6656,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           mlx.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
       }
-      applyFoodPotionEffectsOnHit(item, "player", p, dg, p, mlx, luFn, killerMon);
+      applyFoodEffectsOnHit(item, "player", p, dg, p, mlx, luFn, killerMon);
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
     homingTarget,
