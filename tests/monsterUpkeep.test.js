@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { T } from "../utils.js";
 import { advanceMonsterUpkeep } from "../monsterUpkeep.js";
 
@@ -15,6 +15,41 @@ function advance(dungeon, player = { x: 0, y: 0 }, messages = [], overrides = {}
 }
 
 describe("advanceMonsterUpkeep", () => {
+  it("酩酊中は嘔吐で現HPの10%を受け、時間も減る", () => {
+    const monster = { name: "敵", x: 0, y: 0, hp: 100, maxHp: 100, drunkenTurns: 2 };
+    const dungeon = { monsters: [monster], map: [[T.FLOOR]], pentacles: [] };
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      advance(dungeon, undefined, messages);
+    } finally {
+      random.mockRestore();
+    }
+    expect(monster).toMatchObject({ hp: 90, drunkenTurns: 1 });
+    expect(messages).toEqual(["敵は酩酊して嘔吐した！自分に10ダメージ！"]);
+  });
+
+  it("嘔吐で倒れた敵は自滅として撃破処理へ渡す", () => {
+    const monster = { name: "敵", x: 0, y: 0, hp: 1, maxHp: 100, drunkenTurns: 1 };
+    const dungeon = { monsters: [monster], map: [[T.FLOOR]], pentacles: [] };
+    const onMonsterDefeated = vi.fn();
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      advanceMonsterUpkeep(dungeon, { x: 2, y: 2 }, messages, {
+        hasCursedExplosionPentacle: () => false,
+        inMagicSealRoom: () => false,
+        inCursedMagicSealRoom: () => false,
+        onMonsterDefeated,
+      });
+    } finally {
+      random.mockRestore();
+    }
+    expect(onMonsterDefeated).toHaveBeenCalledWith(monster, { killerMon: monster });
+    expect(dungeon.monsters).toContain(monster); // 実際の除去は撃破コールバック側が行う
+    expect(monster.drunkenTurns).toBe(1); // 以後の状態解除は撃破コールバックが担当する
+  });
+
   it("ボスの自然回復と油・浮遊の終了を処理する", () => {
     const titan = { name: "巨人", baseKind: "im_boss_titan", x: 0, y: 0, hp: 90, maxHp: 100, oilyTurns: 2, isBoss: true };
     const kraken = { name: "海魔", baseKind: "im_boss_kraken", x: 1, y: 0, hp: 70, maxHp: 100, floatTurns: 1 };

@@ -34,6 +34,7 @@ export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   cursed_equipment: { title: "呪われた装備", trigger: "呪いが判明した武器・防具・矢・指輪を装備している", text: ["呪われた装備は普通には外せない。", "解呪してから交換しよう。"] },
   poison: { title: "毒", trigger: "毒状態になる", text: ["毒は毎ターンHPを減らし、自然回復を止める。", "解毒手段で治そう。"] },
   confusion: { title: "混乱", trigger: "混乱状態になる", text: ["移動や攻撃の方向が乱れる。", "敵から離れて効果が切れるのを待とう。"] },
+  intoxication: { title: "酔いと酩酊", trigger: "酒で酔い状態になる", text: ["酔うと移動・攻撃の方向が8分の1で乱れる。", "酔った状態で酒を受けると酩酊し、方向が毎回乱れ、低確率で嘔吐する。"] },
   action_disabled: { title: "行動不能", trigger: "睡眠・金縛り状態になる", text: ["睡眠・金縛り中は自分で動けない。", "敵から離れて回復を待とう。"] },
   slow: { title: "鈍足", trigger: "鈍足状態になる", text: ["鈍足中は2ターンに1回しか動けない。", "敵と距離を取ろう。"] },
   immobile: { title: "移動不能・拘束", trigger: "移動封じ・凍結・敵の拘束を受ける", text: ["移動できなくても攻撃や道具は使えることがある。", "テレポートなどで脱出しよう。"] },
@@ -145,6 +146,7 @@ export function getFirstEncounterStateTipKeys(session, { isDeepWater = false } =
   if (hasKnownCurse) keys.push("cursed_equipment");
   if (p.poisoned || (p.poisonedTurns || 0) > 0) keys.push("poison");
   if ((p.confusedTurns || 0) > 0) keys.push("confusion");
+  if ((p.drunkTurns || 0) > 0 || (p.drunkenTurns || 0) > 0) keys.push("intoxication");
   if ((p.sleepTurns || 0) > 0 || (p.paralyzeTurns || 0) > 0) keys.push("action_disabled");
   if ((p.slowTurns || 0) > 0 || p.slowSkip) keys.push("slow");
   if ((p.immobileTurns || 0) > 0 || (p.frozenTurns || 0) > 0 || p.capturedBy) keys.push("immobile");

@@ -5,6 +5,7 @@
 import { statusTurns } from "./statusDuration.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { maintainPlayerHaste } from "./actionClock.js";
+import { DRUNK_VOMIT_HUNGER_LOSS, shouldVomit } from "./intoxication.js";
 
 export function advancePlayerUpkeep(player, messages, {
   hasAbility,
@@ -24,6 +25,16 @@ export function advancePlayerUpkeep(player, messages, {
 
   if (hasAbility(player.weapon, "gluttony") && player.turns % 5 === 0) {
     player.hunger = Math.max(0, player.hunger - 1);
+  }
+
+  if (shouldVomit(player)) {
+    const lost = Math.min(Math.max(0, player.hunger || 0), DRUNK_VOMIT_HUNGER_LOSS);
+    player.hunger = Math.max(0, (player.hunger || 0) - DRUNK_VOMIT_HUNGER_LOSS);
+    if (lost > 0) {
+      messages.push(`酩酊して嘔吐した！満腹度が${lost}減った！`);
+    } else {
+      messages.push("酩酊して嘔吐したが、空腹で何も出なかった。");
+    }
   }
 
   if (player.hunger === 0) {
@@ -216,6 +227,8 @@ export function advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlo
   if (hasRingEffect(player, "slow_ring") && !isSlowAutoAdvance) player.slowSkip = true;
   const timedMessages = [
     ["confusedTurns", "混乱が解けた！"],
+    ["drunkTurns", "酔いが覚めた！"],
+    ["drunkenTurns", "酩酊が覚めた！"],
     ["darknessTurns", "暗闇が晴れた！視界が戻った！"],
     ["bewitchedTurns", "幻惑が解けた！周囲の見た目が正常に戻った！"],
     ["defSoftenedTurns", "軟化が解けた！防御力が戻った！"],

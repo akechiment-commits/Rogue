@@ -9,6 +9,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
+import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
@@ -4572,7 +4573,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ── 拘束解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
   if ((m.subtype === "grabber" || m.subtype === "giantEel") && pl.capturedBy === m.id) {
     const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-    const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 ||
+    const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 || (m.drunkenTurns || 0) > 0 ||
       (m.darknessTurns || 0) > 0 || (m.fleeingTurns || 0) > 0 || m.sealed || m.bewitched ||
       (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || m.blind || (m.oilyTurns || 0) > 0;
     if (_gRelDist > 1 || _gBadStatus) {
@@ -4925,24 +4926,27 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
     else _attackOnly = true;
   }
-  /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
-  if ((m.confusedTurns || 0) > 0) {
-    if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
-    if (isStationaryGrabber(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
-    if (isStationaryMonster(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
+  /* ===== 混乱・酩酊・酔い：ランダム方向に移動・攻撃 ===== */
+  const _isConfused = (m.confusedTurns || 0) > 0;
+  const _alcoholDirectionRandomized = !_isConfused && isAlcoholDirectionRandomized(m);
+  if (_isConfused || _alcoholDirectionRandomized) {
+    const _disorientedLabel = _isConfused ? "混乱した" : (m.drunkenTurns || 0) > 0 ? "酩酊した" : "酔った";
+    if (_isConfused && !_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
+    if (isStationaryGrabber(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
+    if (isStationaryMonster(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
       if (_cnx === pl.x && _cny === pl.y && !_plPotHidden) {
-        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${_disorientedLabel}${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
         const _other = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
         if (_other) {
           if (!_moveOnly) {
             const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
             _other.hp -= _odmg;
-            ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
+            ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
             if (_other.hp <= 0) killMonster(_other, dg, pl, ml, _luFn, false, m);
           }
         } else if (!_attackOnly && _canMoveTo(_cnx, _cny) && isWalkable(dg.map, _cnx, _cny, dg)) {
@@ -4950,7 +4954,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
     }
-    if (m.confusedTurns <= 0) { ml.push(`${m.name}の混乱が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
+    if (_isConfused && m.confusedTurns <= 0) { ml.push(`${m.name}の混乱が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
 

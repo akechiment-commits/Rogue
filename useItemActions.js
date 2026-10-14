@@ -30,6 +30,7 @@ import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTr
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
+import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
@@ -703,6 +704,15 @@ export function useItemActions({
             if ((p.statusImmune || 0) > 0) { ml.push("混乱成分！状態防止中のため効かなかった！"); }
             else if (hasAbility(p.armor, "confuse_proof")) { ml.push("混乱成分！しかし防具が防いだ！(耐混乱)"); }
             else { const _ct = statusTurns("confuse", { kind: "player" }); p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`); }
+          } else if (pe === "sake" || pe === "sake_blessed") {
+            if ((p.statusImmune || 0) > 0) {
+              ml.push("酒の効果を受けたが、状態防止中のため酔わなかった！");
+            } else {
+              const _sake = applySakeEffect(p, { blessed: pe === "sake_blessed" });
+              ml.push(_sake.status === "drunken"
+                ? `酒乱の効果で酩酊状態になった！(${_sake.turns}ターン)`
+                : `酒乱の効果で酔い状態になった！(${_sake.turns}ターン)`);
+            }
           } else if (pe === "slow") {
             if ((p.statusImmune || 0) > 0) ml.push("鈍足成分！状態防止中のため効かなかった！");
             else if (hasAbility(p.armor, "slow_proof")) ml.push("鈍足成分！しかし防具が防いだ！(耐鈍足)");

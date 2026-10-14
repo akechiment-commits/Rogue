@@ -101,6 +101,7 @@ import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { placeFallenEntities } from "./pitfallPlacement.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed, applyMonsterParalyze, applyMonsterBewitch } from "./statusDuration.js";
+import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { withLargeMonsterDamageTurn } from "./largeMonsterDamage.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
@@ -689,6 +690,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       hasteUsed: false,
       actionTime: 0,
       confusedTurns: 0,
+      drunkTurns: 0,
+      drunkenTurns: 0,
       poisoned: false,
       poisonedTurns: 0,
       poisonAtkLoss: 0,
@@ -2025,8 +2028,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           hasCursedExplosionPentacle,
           inMagicSealRoom,
           inCursedMagicSealRoom,
-          onMonsterDefeated: (monster) => {
-            killMonster(monster, st.dungeon, p, ml, lu);
+          onMonsterDefeated: (monster, { killerMon = null } = {}) => {
+            killMonster(monster, st.dungeon, p, ml, lu, false, killerMon);
           },
         });
         /* ===== 新ペン魔方陣の毎ターン効果 ===== */
@@ -2626,11 +2629,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         }
         /* ===== 混乱状態：移動方向をランダム化 ===== */
-        if ((p.confusedTurns || 0) > 0) {
+        if ((p.confusedTurns || 0) > 0 || isAlcoholDirectionRandomized(p)) {
           const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
           const _crd = pick(_cdirs);
           dx = _crd[0]; dy = _crd[1];
-          ml.push("混乱して違う方向に動いた！");
+          ml.push((p.confusedTurns || 0) > 0
+            ? "混乱して違う方向に動いた！"
+            : (p.drunkenTurns || 0) > 0 ? "酩酊して違う方向に動いた！" : "酔って違う方向に動いた！");
         }
         const nx = p.x + dx,
           ny = p.y + dy;
@@ -3709,8 +3714,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showSoundRef.current || showTileEditorRef.current || showScoresRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
-      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
+      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0 || (p.drunkenTurns || 0) > 0) return;
       const ml = installPlayerHpMessageHook([], p);
+      if (isAlcoholDirectionRandomized(p)) {
+        const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        [dx, dy] = pick(_cdirs);
+        ml.push("酔ってダッシュの方向が乱れた！");
+      }
       let steps = 0;
       let dashMimicRevealed = false;
       let dashTrapWaitEffect = null;
@@ -6159,6 +6169,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.confusedTurns || 0) > 0 && (
           <span style={{ color: "#ff9020" }}>🌀{p.confusedTurns}</span>
+        )}{" "}
+        {(p.drunkTurns || 0) > 0 && (
+          <span style={{ color: "#d89b55" }} title="酔い：残りターン">🍶{p.drunkTurns}</span>
+        )}{" "}
+        {(p.drunkenTurns || 0) > 0 && (
+          <span style={{ color: "#e07080" }} title="酩酊：残りターン">🥴{p.drunkenTurns}</span>
         )}{" "}
         {(p.darknessTurns || 0) > 0 && (
           <span style={{ color: "#4040a0" }}>🌑{p.darknessTurns}</span>

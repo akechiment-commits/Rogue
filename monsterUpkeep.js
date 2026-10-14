@@ -1,5 +1,6 @@
 import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.js";
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
+import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
 
 /** 攻撃後のモンスター回復・状態タイマー・雷の魔方陣効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
@@ -62,6 +63,23 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     if ((monster.floatTurns || 0) > 0) {
       monster.floatTurns--;
       if (monster.floatTurns <= 0) messages.push(`${monster.name}の浮遊が解けた！`);
+    }
+    if ((monster.drunkTurns || 0) > 0) {
+      monster.drunkTurns--;
+      if (monster.drunkTurns <= 0) messages.push(`${monster.name}の酔いが覚めた！`);
+    }
+    if ((monster.drunkenTurns || 0) > 0) {
+      if (shouldVomit(monster)) {
+        const damage = drunkenVomitDamage(monster.hp);
+        monster.hp -= damage;
+        messages.push(`${monster.name}は酩酊して嘔吐した！自分に${damage}ダメージ！`);
+        if (monster.hp <= 0) {
+          onMonsterDefeated(monster, { killerMon: monster });
+          continue;
+        }
+      }
+      monster.drunkenTurns--;
+      if (monster.drunkenTurns <= 0) messages.push(`${monster.name}の酩酊が覚めた！`);
     }
   }
 

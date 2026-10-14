@@ -456,6 +456,8 @@ export function snapshotPlayer(p, opts = {}) {
     poisoned: !!p.poisoned,
     sleepTurns: p.sleepTurns || 0,
     confusedTurns: p.confusedTurns || 0,
+    drunkTurns: p.drunkTurns || 0,
+    drunkenTurns: p.drunkenTurns || 0,
     darknessTurns: p.darknessTurns || 0,
     oilyTurns: p.oilyTurns || 0,
     soakedTurns: p.soakedTurns || 0,
@@ -485,6 +487,7 @@ export function getActiveStatusPortraitKey(p, floating = false) {
   if (p._waterSuffocationDamage) return "status_submerged";
   if (p.capturedBy) return "status_bound";
   if ((p.potConfinedTurns || 0) > 0) return "status_confined";
+  if ((p.drunkTurns || 0) > 0 || (p.drunkenTurns || 0) > 0) return "status_drunk";
   if ((p.hypnosisPending || 0) > 0) return "status_hypnosis";
   if ((p.paralyzeTurns || 0) > 0) return "status_paralyze";
   if ((p.sleepTurns || 0) > 0) return "status_sleep";

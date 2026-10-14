@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "../turnUpkeep.js";
 import { applyPlayerPoison } from "../statusDuration.js";
 
@@ -37,6 +37,19 @@ describe("advancePlayerUpkeep", () => {
     advance(player, messages, { onHungerDamageStarted: () => { warnings++; } });
     expect(player.hp).toBe(8);
     expect(warnings).toBe(1);
+  });
+
+  it("酩酊中は5%で嘔吐し、満腹度を10減らす", () => {
+    const player = makePlayer({ drunkenTurns: 5, hunger: 40 });
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      advance(player, messages);
+    } finally {
+      random.mockRestore();
+    }
+    expect(player.hunger).toBe(29); // 通常の空腹減少1 + 嘔吐10
+    expect(messages).toEqual(["酩酊して嘔吐した！満腹度が10減った！"]);
   });
 
   it("再生防具と回復の指輪は自然回復量をそれぞれ+1する", () => {
@@ -190,6 +203,17 @@ describe("advancePlayerSpeedPhase", () => {
 });
 
 describe("advanceCoreStatusTimers", () => {
+  it("酔いと酩酊の残り時間を進めて終了を通知する", () => {
+    const player = makePlayer({ drunkTurns: 1, drunkenTurns: 2 });
+    const messages = [];
+    advanceCoreStatusTimers(player, messages, { hasRingEffect: () => false });
+    expect(player).toMatchObject({ drunkTurns: 0, drunkenTurns: 1 });
+    expect(messages).toEqual(["酔いが覚めた！"]);
+    advanceCoreStatusTimers(player, messages, { hasRingEffect: () => false });
+    expect(player.drunkenTurns).toBe(0);
+    expect(messages.at(-1)).toBe("酩酊が覚めた！");
+  });
+
   it("鈍足中は行動スキップを予約し、終了時に通知する", () => {
     const player = makePlayer({ slowTurns: 2 });
     advanceCoreStatusTimers(player, [], { hasRingEffect: () => false });

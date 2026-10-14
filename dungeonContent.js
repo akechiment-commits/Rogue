@@ -48,7 +48,7 @@ const BEGINNER_LOOT_ALLOW = new Set([
   "potion:heal", "potion:heal_big", "potion:superheal", "potion:poison", "potion:fire",
   "potion:sleep", "potion:slow", "potion:paralyze", "potion:milk", "potion:mana",
   "potion:seal", "potion:confuse", "potion:water", "potion:power", "potion:panacea",
-  "potion:luck",
+  "potion:luck", "potion:sake",
   "scroll:teleport", "scroll:recovery", "scroll:sleep_scroll", "scroll:confusion",
   "scroll:thunder", "scroll:flame", "scroll:bind", "scroll:reveal",
   "scroll:weapon_up", "scroll:armor_up",

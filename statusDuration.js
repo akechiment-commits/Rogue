@@ -34,6 +34,8 @@ export const STATUS_BASE = {
   paralyze:      { player: 10,  monster: BOSS_PARALYZE_TURNS },
   slow:          { player: 10,  monster: 10 },
   confuse:       { player: 5,   monster: 20 },
+  drunk:         { player: 30,  monster: 30 },
+  drunken:       { player: 30,  monster: 30 },
   darkness:      { player: 20,  monster: 50 },
   bewitch:       { player: 20,  monster: 50 }, // 敵は fleeingTurns
   seal:          { player: 50,  monster: PERMANENT_TURNS },
@@ -175,7 +177,8 @@ export function clearStatusEffectsOnHpZero(entity) {
   const hadStatus = [
     entity.sleepTurns, entity.sleepInterruptedTurns, entity.paralyzeTurns,
     entity.paralyzed, entity.frozenTurns, entity.slowTurns, entity.slowSkip,
-    entity.confusedTurns, entity.poisoned, entity.poisonedTurns,
+    entity.confusedTurns, entity.drunkTurns, entity.drunkenTurns,
+    entity.poisoned, entity.poisonedTurns,
     entity.sealedTurns, entity.sealed, entity.attackSealTurns, entity.darknessTurns, entity.blind,
     entity.blindTurns, entity.bewitchedTurns, entity.fleeingTurns,
     entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,
@@ -206,6 +209,8 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.slowTurns = 0;
   entity.slowSkip = false;
   entity.confusedTurns = 0;
+  entity.drunkTurns = 0;
+  entity.drunkenTurns = 0;
   entity.poisoned = false;
   entity.poisonedTurns = 0;
   entity.sealedTurns = 0;

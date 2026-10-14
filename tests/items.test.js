@@ -10,6 +10,62 @@ import "../monsters.js";
 
 afterEach(() => setFavoriteFoodBase(""));
 
+describe("酒の薬効と食料への付与", () => {
+  it("飲む・浴びると酔い、再度受けると酩酊し、祝福は時間を倍にする", () => {
+    const player = makePlayer();
+    const dg = makeEmptyDg();
+    const messages = [];
+
+    applyPotionEffect("sake", 0, "player", player, dg, player, messages, () => {});
+    expect(player.drunkTurns).toBe(30);
+    applyPotionEffect("sake", 0, "player", player, dg, player, messages, () => {});
+    expect(player).toMatchObject({ drunkTurns: 0, drunkenTurns: 30 });
+
+    const blessed = makePlayer();
+    applyPotionEffect("sake", 0, "player", blessed, dg, blessed, [], () => {}, true, false);
+    expect(blessed.drunkTurns).toBe(60);
+
+    const monster = { name: "敵", hp: 100, maxHp: 100, isBoss: true };
+    applyPotionEffect("sake", 0, "monster", monster, dg, player, [], () => {}, true, false);
+    expect(monster.drunkTurns).toBe(30);
+  });
+
+  it("呪われた酒は酔い・酩酊・混乱を治す", () => {
+    const player = makePlayer({ drunkTurns: 4, drunkenTurns: 0, confusedTurns: 2 });
+    const messages = [];
+    applyPotionEffect("sake", 0, "player", player, makeEmptyDg(), player, messages, () => {}, false, true);
+    expect(player).toMatchObject({ drunkTurns: 0, drunkenTurns: 0, confusedTurns: 0 });
+    expect(messages[0]).toContain("酔い・混乱が治った");
+  });
+
+  it("飛沫は敵に酒の状態を与え、食料には酒乱の酔い効果を付ける", () => {
+    const player = makePlayer({ x: 1, y: 1 });
+    const monster = { name: "敵", hp: 100, maxHp: 100, x: 5, y: 5 };
+    const dg = makeEmptyDg({ monsters: [monster] });
+    splashPotion(dg, 5, 5, "sake", 0, player, [], () => {});
+    expect(monster.drunkTurns).toBe(30);
+
+    const normalFood = { name: "パン", type: "food", value: 30 };
+    applyPotionToItem("sake", 0, normalFood, dg, [], false);
+    expect(normalFood).toMatchObject({ name: "酒乱のパン", potionEffects: ["sake"], value: 24 });
+
+    const blessedFood = { name: "パン", type: "food", value: 30 };
+    applyPotionToItem("sake", 0, blessedFood, dg, [], false, null, true);
+    expect(blessedFood).toMatchObject({ name: "酒乱のパン", potionEffects: ["sake_blessed"] });
+
+    const cursedPotionFood = { name: "パン", type: "food", value: 30 };
+    applyPotionToItem("sake", 0, cursedPotionFood, dg, [], true);
+    expect(cursedPotionFood.potionEffects).toEqual(["sake"]);
+  });
+
+  it("酒を初心者向け薬プールに含め、識別キーを効果単位にする", () => {
+    const sake = ITEMS.find((item) => item.effect === "sake");
+    expect(sake).toBeTruthy();
+    expect(getIdentKey(sake)).toBe("p:sake");
+    expect(lootAllowedInDungeon(sake, "beginner", 1)).toBe(true);
+  });
+});
+
 describe("ハーゲンダッ壺とアイスクリーム", () => {
   it("基本から店舗・商品系まで全フレーバーに個別説明がある", () => {
     expect(ICE_CREAM_FLAVORS.length).toBeGreaterThanOrEqual(600);

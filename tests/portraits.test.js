@@ -568,6 +568,26 @@ describe("portraits", () => {
     expect(event.holdKey).toBe("status_hypnosis");
   });
 
+  it("酔い・酩酊中は酔い立ち絵を維持し、解除時に状態を外す", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      drunkTurns: 0, drunkenTurns: 0,
+    };
+    const player = { ...prev, drunkTurns: 20 };
+    expect(getActiveStatusPortraitKey(player)).toBe("status_drunk");
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "酔い状態になった！" });
+    expect(event.src).toMatch(/status_drunk/);
+    expect(event.holdKey).toBe("status_drunk");
+
+    const sober = { ...player, drunkTurns: 0, drunkenTurns: 0 };
+    const ended = resolvePortraitEvent({
+      player: sober,
+      prev: { ...player, drunkTurns: 0, drunkenTurns: 1 },
+      lastMsg: "酩酊が覚めた！",
+    });
+    expect(ended.statusCleared).toBe(true);
+  });
+
   it("状態異常が解けたフレームを通常立ち絵への復帰対象として返す", () => {
     const prev = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,

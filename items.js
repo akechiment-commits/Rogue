@@ -45,6 +45,7 @@ import { convertToIceCream } from './iceCreamData.js';
 import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
+import { applySakeEffect } from './intoxication.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 export { clearNpcRetaliation };
@@ -429,6 +430,7 @@ export const ITEMS = [
   { name:"万能薬",           type:"potion", effect:"panacea", value:0, rarity:"B", weight:2,  sellPrice:2500, desc:"飲むとMP回復禁止以外の状態異常を全て治す。", tile:17 },
   { name:"牛乳",             type:"potion", effect:"milk",    value:15, rarity:"D", weight:8,  sellPrice:100,  desc:"飲むと満腹度+15。", tile:16 },
   { name:"ドーピングコンソメスープ", type:"potion", effect:"doping", value:50, rarity:"A", weight:1, sellPrice:3000, desc:"飲むと50ターン攻撃力と防御力が2倍になり、その後50ターン半減する。", tile:17 },
+  { name:"酒",               type:"potion", effect:"sake",    value:0,  rarity:"D", weight:8, sellPrice:100,  desc:"飲むか浴びると30ターン酔う（行動方向が1/8で乱れる）。酔い中に再び受けると30ターン酩酊（方向が毎回乱れ、低確率で嘔吐）。\n祝福：各効果時間が2倍になる。\n呪い：酔い・酩酊・混乱を治す。\n食料にかけると酒乱の食料になる。", tile:16 },
   { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:8, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：この冒険で訪れた階層を選んで移動できる。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"C", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
@@ -4284,7 +4286,7 @@ function appendCuredAilments(ml, cured) {
 
 const POTION_MONSTER_STATUS_KEYS = {
   poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
-  darkness: "darkness", bewitch: "bewitch", seal: "seal", paralyze: "paralyze",
+  darkness: "darkness", bewitch: "bewitch", seal: "seal", paralyze: "paralyze", sake: "confuse",
 };
 const POTION_DIRECT_MONSTER_STATUS_KEYS = {
   poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
@@ -4651,6 +4653,33 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       }
       break;
+    case "sake": {
+      const entity = kind === "player" ? p : target;
+      if (!entity) break;
+      const entityName = kind === "monster" ? target.name : "頭";
+      if (!cursed && (kind === "monster" ? isStatusImmune(target, ml, target.name) : isStatusImmune(p, ml))) break;
+      const result = applySakeEffect(entity, { kind, target, blessed, cursed });
+      if (cursed) {
+        if (result.cleared.length > 0) {
+          ml.push(kind === "player"
+            ? `頭がスッキリした！${result.cleared.join("・")}が治った！【呪】`
+            : `${entityName}がスッキリした！${result.cleared.join("・")}が治った！【呪】`);
+        } else {
+          ml.push(kind === "player" ? "頭がスッキリした！【呪】" : `${entityName}がスッキリした！【呪】`);
+        }
+        break;
+      }
+      if (result.status === "drunken") {
+        ml.push(kind === "player"
+          ? `酔いが回って酩酊状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`
+          : `${target.name}は酔いが回って酩酊状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`);
+      } else {
+        ml.push(kind === "player"
+          ? `酔い状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`
+          : `${target.name}は酔い状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`);
+      }
+      break;
+    }
     case "mana":
       if (kind === "player") {
         if (cursed) {
@@ -5003,6 +5032,8 @@ export const POTION_FOOD_PREFIX = {
   luck:     "幸運の",
   panacea:  "万能の",
   milk:     "ミルク風味の",
+  sake:     "酒乱の",
+  sake_blessed: "酒乱の",
   doping:   "ドーピングコンソメの",
   // 呪い（食べた時の効果が反転）
   c_heal:      "猛毒の",
@@ -5120,6 +5151,20 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
     }
     return;
   }
+  /* 酒を食料にかけると、祝福時の持続時間も食べた時まで保持する。呪いでも食べると酔う。 */
+  if (eff === "sake") {
+    const key = blessed ? "sake_blessed" : "sake";
+    const pf = POTION_FOOD_PREFIX[key];
+    if (item.potionEffects.includes(key)) {
+      ml.push(`${item.name}は既に${pf}効果を持っている。`);
+      return;
+    }
+    item.potionEffects.push(key);
+    item.name = pf + item.name;
+    item.value = Math.max(1, Math.floor(item.value * 0.8));
+    ml.push(`${item.name}になった！`);
+    return;
+  }
   /* 牛乳だけは食料の大きさを減らさず、通常・祝福なら1.5倍にする。 */
   if (eff === "milk" && !cursed) {
     const key = "milk";
@@ -5152,7 +5197,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   pushSplashAnim(cx, cy, "#88ccff");
   const _largeStatusTargets = new Set();
   const _largeSoakedTargets = new Set();
-  const _largeStatusKey = !cursed ? POTION_MONSTER_STATUS_KEYS[eff] : null;
+  const _largeStatusKey = (!cursed || eff === "sake") ? POTION_MONSTER_STATUS_KEYS[eff] : null;
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
     for (let dx2 = -1; dx2 <= 1; dx2++) {
