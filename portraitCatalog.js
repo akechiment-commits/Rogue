@@ -97,6 +97,7 @@ const BASE_PORTRAIT_CATEGORIES = [
 
       { file: "status_blind", label: "暗闇・盲目", group: "status_blind" },
       { file: "status_drunk", label: "酔い", group: "status_drunk" },
+      { file: "status_vomiting", label: "嘔吐", group: "status_vomiting" },
       { file: "status_oiled", label: "油まみれ", group: "status_oiled" },
       { file: "status_submerged", label: "水没", group: "status_submerged" },
       { file: "status_soaked", label: "ずぶ濡れ", group: "status_soaked" },

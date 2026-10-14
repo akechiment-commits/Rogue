@@ -367,6 +367,8 @@ export function useItemActions({
             );
           }
         }
+      } else if (it.effect === "sake") {
+        applyPotionEffect("sake", 0, "player", p, dg, p, ml, lu, !!it.blessed, !!it.cursed);
       } else if (it.effect === "power") {
         if (it.cursed) {
           // 呪い：反転→攻撃力減少（通常の増加量と同じ）

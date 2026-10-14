@@ -7,6 +7,8 @@ const MERGED_PORTRAIT_CATEGORIES = mergePortraitCategories(extraSlotsJson.slots 
 export const PORTRAIT_COOLDOWN_MS = 4000;
 /** 腐敗・ヤバイ食事の専用リアクションを状態異常が上書きしない表示時間 */
 export const PORTRAIT_BAD_FOOD_HOLD_MS = 3000;
+/** 酩酊の嘔吐リアクションを表示する時間 */
+export const PORTRAIT_VOMIT_HOLD_MS = 1800;
 /** 被ダメ立ち絵：他が無いときだけ。連続ヒットで切り替わりすぎないよう長め */
 export const PORTRAIT_DAMAGE_COOLDOWN_MS = 10000;
 /** 歩行立ち絵：無イベント時のみ */
@@ -487,10 +489,10 @@ export function getActiveStatusPortraitKey(p, floating = false) {
   if (p._waterSuffocationDamage) return "status_submerged";
   if (p.capturedBy) return "status_bound";
   if ((p.potConfinedTurns || 0) > 0) return "status_confined";
+  if ((p.sleepTurns || 0) > 0) return "status_sleep";
   if ((p.drunkTurns || 0) > 0 || (p.drunkenTurns || 0) > 0) return "status_drunk";
   if ((p.hypnosisPending || 0) > 0) return "status_hypnosis";
   if ((p.paralyzeTurns || 0) > 0) return "status_paralyze";
-  if ((p.sleepTurns || 0) > 0) return "status_sleep";
   if ((p.frozenTurns || 0) > 0) return "status_immobile"; /* 凍結は移動封じ寄り立ち絵を流用 */
   if ((p.immobileTurns || 0) > 0) return "status_immobile";
   if (p.poisoned) return "status_poison";
@@ -610,6 +612,17 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
       force: true,
       transientHoldMs: PORTRAIT_BAD_FOOD_HOLD_MS,
+    };
+  }
+
+  /* 嘔吐した瞬間は、酔い・睡眠などの維持立ち絵より優先して反応を見せる。 */
+  if (findMsgInNew(newMsgs, eventLastMsg, (msg) => /^酩酊して嘔吐した/.test(msg))) {
+    return {
+      src: pickPortraitForPlayer("status_vomiting", p),
+      cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+      force: true,
+      bypassCooldown: true,
+      transientHoldMs: PORTRAIT_VOMIT_HOLD_MS,
     };
   }
 
