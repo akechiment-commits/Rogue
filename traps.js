@@ -1,6 +1,6 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
@@ -10,6 +10,14 @@ import { claimTrapActivation } from "./trapActivationTurn.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   if ((dg?.timeStopTurns || 0) > 0) return null;
+  /* 手動の足元操作や敵に投げ込まれた場合も、浮遊中は罠を回避する。 */
+  if (p && isPlayerFloating(p, dg)) {
+    if (trap.revealed) {
+      trackTrap(trap);
+      ml.push(`浮遊しているので${trap.name}を回避した！`);
+    }
+    return "avoided_float";
+  }
   /* 偽階段：ランダムな通常罠に化けてから再発動 */
   if (trap?.effect === "fake_stair") {
     const _was = trap.name || "偽の階段";

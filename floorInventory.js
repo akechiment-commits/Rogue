@@ -155,7 +155,7 @@ export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
   const items = (dungeon.items || []).filter(
     (i) => i.x === x && i.y === y && !i.wallEmbedded && !i.noPickup,
   );
-  const traps = (dungeon.traps || []).filter((t) => t.x === x && t.y === y);
+  const traps = (dungeon.traps || []).filter((t) => t.x === x && t.y === y && t.revealed);
 
   const vents = (dungeon.vents || [])
     .filter((v) => v.x === x && v.y === y)

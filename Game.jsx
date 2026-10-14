@@ -1290,9 +1290,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       return null;
     }
     if (isPlayerFloating(p, dg)) {
-      trap.revealed = true;
-      trackTrap(trap);
-      ml.push(`浮遊しているので${trap.name}を回避した！`);
+      if (trap.revealed) ml.push(`浮遊しているので${trap.name}を回避した！`);
       return null;
     }
     showFirstEncounterTip("trap");
@@ -3479,8 +3477,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             /* 足元の罠を起動 */
             const _trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
             if (_trapHere) {
-              if (hasRingEffect(p, "float_ring")) {
-                ml.push("浮遊の指輪を付けているので罠を作動させられない！");
+              if (isPlayerFloating(p, dg)) {
+                if (_trapHere.revealed) ml.push("浮遊しているので罠を作動させられない！");
               } else {
                 const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                 showFirstEncounterTip("trap");
@@ -5754,7 +5752,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const _doFloorTrap = (trap) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon, ml = [];
-    if (hasRingEffect(_p, "float_ring")) { setMsgs(prev => [...prev.slice(-80), "浮遊の指輪を付けているので罠を作動させられない！"]); return; }
+    if (isPlayerFloating(_p, _dg)) { setMsgs(prev => [...prev.slice(-80), "浮遊しているので罠を作動させられない！"]); return; }
     const _tnFn = (it) => itemDisplayName(it, s.fakeNames, s.ident, s.nicknames);
     showFirstEncounterTip("trap");
     trackTrap(trap);
