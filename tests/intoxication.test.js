@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applySakeEffect,
+  DRUNKEN_COMA_TURNS,
   drunkenVomitDamage,
   isAlcoholDirectionRandomized,
   shouldVomit,
@@ -15,6 +16,12 @@ describe("酒による酔いと酩酊", () => {
 
     const blessedPlayer = {};
     expect(applySakeEffect(blessedPlayer, { blessed: true })).toMatchObject({ status: "drunk", turns: 60 });
+  });
+
+  it("酩酊中にさらに酒を受けると20ターン昏睡し、酩酊は続く", () => {
+    const player = { drunkenTurns: 17, drunkTurns: 0 };
+    expect(applySakeEffect(player, { blessed: true })).toMatchObject({ status: "coma", turns: DRUNKEN_COMA_TURNS });
+    expect(player).toMatchObject({ sleepTurns: 20, drunkenTurns: 17, drunkTurns: 0 });
   });
 
   it("ボスの酔いと酩酊は通常時間の半分になる", () => {

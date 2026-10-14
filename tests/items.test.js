@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, doTimeBombExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, applyFoodPotionEffectsOnHit, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, doTimeBombExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook, playerDopingMultiplier } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -505,6 +505,45 @@ describe("投擲命中の共通処理", () => {
     }
     expect(damages[0]).toBeGreaterThan(damages[1]);
     expect(damages[1]).toBe(damages[2]);
+  });
+
+  it("酒を付けた食料が敵に当たると酔い・酩酊・昏睡へ進み、毒の食料も毒を与える", () => {
+    const p = makePlayer({ atk: 1 });
+    const dg = makeEmptyDg();
+    const target = { name: "敵", hp: 1000, maxHp: 1000, atk: 20, def: 0, x: 7, y: 5 };
+    dg.monsters.push(target);
+    const sakeFood = { name: "酒乱の食料", type: "food", value: 35, potionEffects: ["sake"] };
+    const ml = [];
+
+    applyThrownItemToMonster(sakeFood, target, dg, p, ml, null);
+    expect(target.drunkTurns).toBe(30);
+    applyThrownItemToMonster(sakeFood, target, dg, p, ml, null);
+    expect(target).toMatchObject({ drunkTurns: 0, drunkenTurns: 30 });
+    applyThrownItemToMonster(sakeFood, target, dg, p, ml, null);
+    expect(target).toMatchObject({ sleepTurns: 20, drunkenTurns: 30 });
+    expect(ml.some((message) => message.includes("昏睡"))).toBe(true);
+
+    const poisoned = { name: "毒の食料", type: "food", value: 20, potionEffects: ["poison"] };
+    applyThrownItemToMonster(poisoned, target, dg, p, ml, null);
+    expect(target.poisonedTurns).toBeGreaterThan(0);
+    expect(target.atk).toBe(10);
+  });
+
+  it("薬効付き食料がプレイヤーに当たっても薬効を適用する", () => {
+    const p = makePlayer({ hp: 80 });
+    const dg = makeEmptyDg();
+    const ml = [];
+    expect(applyFoodPotionEffectsOnHit(
+      { type: "food", value: 35, potionEffects: ["sake_blessed"] },
+      "player", p, dg, p, ml, null,
+    )).toBe(true);
+    expect(p.drunkTurns).toBe(60);
+
+    const sakeFood = { type: "food", value: 35, potionEffects: ["sake"] };
+    applyFoodPotionEffectsOnHit(sakeFood, "player", p, dg, p, ml, null);
+    expect(p).toMatchObject({ drunkenTurns: 30, drunkTurns: 0 });
+    applyFoodPotionEffectsOnHit(sakeFood, "player", p, dg, p, ml, null);
+    expect(p).toMatchObject({ sleepTurns: 20, drunkenTurns: 30 });
   });
 });
 

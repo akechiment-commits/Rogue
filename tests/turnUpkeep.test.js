@@ -148,6 +148,21 @@ describe("advanceForcedTurn", () => {
     expect(messages).toEqual(["目が覚めた！"]);
   });
 
+  it("昏睡で眠っている間も酩酊タイマーと嘔吐判定が進む", () => {
+    const player = makePlayer({ sleepTurns: 20, drunkenTurns: 20, hunger: 30 });
+    const messages = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      advance(player, messages);
+      advanceCoreStatusTimers(player, messages, { hasRingEffect: () => false });
+      advanceForcedTurn(player, messages);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(player).toMatchObject({ sleepTurns: 19, drunkenTurns: 19, hunger: 19 });
+    expect(messages.some((message) => message.includes("酩酊して嘔吐した"))).toBe(true);
+  });
+
   it("壺の最終ターンは敵行動後の脱出を要求し、鈍足の種類を引き継ぐ", () => {
     const confined = makePlayer({ potConfinedTurns: 1 });
     const potMessages = [];

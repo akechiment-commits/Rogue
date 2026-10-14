@@ -4,8 +4,9 @@ export const DRUNK_DIRECTION_CHANCE = 1 / 8;
 export const DRUNK_VOMIT_CHANCE = 0.05;
 export const DRUNK_VOMIT_HUNGER_LOSS = 10;
 export const DRUNK_VOMIT_HP_RATIO = 0.1;
+export const DRUNKEN_COMA_TURNS = 20;
 
-/** 酒の状態を付与する。酔い中の再付与は酩酊に切り替える。 */
+/** 酒の状態を付与する。酔い中なら酩酊、酩酊中なら昏睡に切り替える。 */
 export function applySakeEffect(entity, {
   kind = "player",
   target = entity,
@@ -25,7 +26,12 @@ export function applySakeEffect(entity, {
     return { status: "cured", turns: 0, cleared };
   }
 
-  const escalating = (entity.drunkTurns || 0) > 0 || (entity.drunkenTurns || 0) > 0;
+  if ((entity.drunkenTurns || 0) > 0) {
+    entity.sleepTurns = DRUNKEN_COMA_TURNS;
+    return { status: "coma", turns: DRUNKEN_COMA_TURNS, cleared: [] };
+  }
+
+  const escalating = (entity.drunkTurns || 0) > 0;
   const status = escalating ? "drunken" : "drunk";
   const turns = statusTurns(status, { kind, blessed, target });
   entity.drunkTurns = escalating ? 0 : turns;

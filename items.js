@@ -4147,6 +4147,8 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
   }
 
+  if (mon.hp > 0) applyFoodPotionEffectsOnHit(item, "monster", mon, dg, p, ml, luFn, killerMon);
+
   const killed = mon.hp <= 0;
   if (killed) {
     const wasInDungeon = dg.monsters?.includes(mon);
@@ -4669,7 +4671,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
         break;
       }
-      if (result.status === "drunken") {
+      if (result.status === "coma") {
+        ml.push(kind === "player"
+          ? `酩酊中にさらに酒を浴びて昏睡した！(${result.turns}ターン)酩酊は続いている。`
+          : `${target.name}は酩酊中にさらに酒を浴びて昏睡した！(${result.turns}ターン)酩酊は続いている。`);
+      } else if (result.status === "drunken") {
         ml.push(kind === "player"
           ? `酔いが回って酩酊状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`
           : `${target.name}は酔いが回って酩酊状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`);
@@ -5011,6 +5017,199 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   if (kind === "monster" && Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
     calmShopkeeperIfFullyHealed(target, dg, p, ml);
   }
+}
+
+/** 投擲で食料が命中した時、食べた時と同じ薬効を命中対象へ適用する。 */
+export function applyFoodPotionEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null) {
+  if (item?.type !== "food" || !Array.isArray(item.potionEffects) || item.potionEffects.length === 0) return false;
+  if (item.iceCream || item.yabai || item.rotten || item.burnt) return false;
+  const entity = kind === "player" ? p : target;
+  if (!entity || entity.hp <= 0) return false;
+
+  const applyPotion = (effect, value = 0, cursed = false, blessed = false) =>
+    applyPotionEffect(effect, value, kind, target, dg, p, ml, luFn, blessed, cursed, killerMon);
+  const value = item.value || 35;
+  const foodTier = value <= 10 ? 0 : value <= 20 ? 1 : value <= 35 ? 2 : value <= 55 ? 3 : value <= 80 ? 4 : 5;
+
+  for (const effect of item.potionEffects) {
+    switch (effect) {
+      case "heal":
+      case "superheal": {
+        const heal = rng(10, 25);
+        const maxHp = kind === "player" ? (p.maxHp || 0) : (target.maxHp || 0);
+        const gained = Math.min(heal, Math.max(0, maxHp - entity.hp));
+        if (gained > 0) {
+          entity.hp += gained;
+          ml.push(kind === "player" ? `回復効果でHP+${gained}` : `${target.name}は回復効果でHP+${gained}回復した！`);
+          pushHealAnim(entity.x, entity.y);
+        }
+        break;
+      }
+      case "poison":
+      case "c_heal":
+      case "c_superheal":
+      case "c_milk": {
+        if (kind === "player") {
+          if (hasRingEffect(p, "antidote_ring")) {
+            ml.push("毒が混じっていたが指輪が毒を消した！");
+          } else {
+            const poison = applyPlayerPoison(p);
+            ml.push(`毒が混じっていた！毒状態(${poison.turns}ターン)になった！${poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          }
+        } else if (!blockLargeMonsterStatus(target, "poison", ml) && !isStatusImmune(target, ml, target.name)) {
+          startLargeMonsterStatusCooldown(target, "poison");
+          const turns = statusTurns("poison", { kind: "monster", target });
+          target.poisoned = true;
+          target.poisonedTurns = (target.poisonedTurns || 0) + turns;
+          if (!target.poisonHalfAtk) {
+            target.poisonOrigAtk = target.atk;
+            target.atk = Math.max(1, Math.floor((target.atk || 1) / 2));
+            target.poisonHalfAtk = true;
+          }
+          ml.push(`${target.name}は毒状態になった！(${turns}ターン)攻撃力が半減した！`);
+        }
+        break;
+      }
+      case "c_poison":
+        if (kind === "player") {
+          if (p.poisoned || (p.poisonAtkLoss || 0) > 0) {
+            clearPlayerPoison(p);
+            ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
+          } else ml.push("解毒成分が入っていたが毒ではなかった。");
+        } else if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
+          target.poisoned = false;
+          target.poisonedTurns = 0;
+          if (target.poisonHalfAtk) {
+            target.atk = target.poisonOrigAtk ?? target.atk;
+            delete target.poisonHalfAtk;
+            delete target.poisonOrigAtk;
+          }
+          ml.push(`${target.name}の毒が消え、攻撃力が戻った！`);
+        } else ml.push(`${target.name}は毒にかかっていない。`);
+        break;
+      case "sleep":
+        applyPotion("sleep");
+        break;
+      case "power":
+        applyPotion("power", 2);
+        break;
+      case "mana":
+        if (kind === "player") {
+          if (isMpRecoveryBlocked(p)) {
+            ml.push(`MP回復禁止中のため魔力効果は発揮されなかった！(残り${mpRecoveryBlockTurns(p)}ターン)`);
+          } else {
+            const gain = Math.min(10, Math.max(0, (p.maxMp || 0) - (p.mp || 0)));
+            p.mp = (p.mp || 0) + gain;
+            if (gain > 0) ml.push(`魔力効果でMP+${gain}`);
+          }
+        } else {
+          target.alwaysUseSpecial = true;
+          ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+        }
+        break;
+      case "confuse":
+        applyPotion("confuse");
+        break;
+      case "sake":
+        applyPotion("sake");
+        break;
+      case "sake_blessed":
+        applyPotion("sake", 0, false, true);
+        break;
+      case "slow":
+        applyPotion("slow");
+        break;
+      case "darkness":
+        applyPotion("darkness");
+        break;
+      case "bewitch":
+        applyPotion("bewitch");
+        break;
+      case "paralyze":
+        applyPotion("paralyze");
+        break;
+      case "c_sleep":
+        applyPotion("slow", 0, true);
+        break;
+      case "c_power":
+        applyPotion("power", 2, true);
+        break;
+      case "c_mana":
+        applyPotion("mana", 0, true);
+        break;
+      case "c_confuse":
+        applyPotion("confuse", 0, true);
+        break;
+      case "c_slow":
+        applyPotion("slow", 0, true);
+        break;
+      case "c_darkness":
+        applyPotion("darkness", 0, true);
+        break;
+      case "c_bewitch":
+        applyPotion("bewitch", 0, true);
+        break;
+      case "c_paralyze":
+        applyPotion("paralyze", 0, true);
+        break;
+      case "levelup":
+        if (kind === "player") {
+          const exp = rng(5, 10 + p.level * 3);
+          p.exp += exp;
+          ml.push(`知恵が付いた。経験値+${exp}`);
+          luFn?.(p, ml);
+        } else monLevelUp(target, dg, ml);
+        break;
+      case "c_levelup":
+        entity.atk = Math.max(1, (entity.atk || 1) - 2);
+        ml.push(kind === "player" ? "退化成分が！攻撃力-2..." : `${target.name}の攻撃力が下がった！`);
+        break;
+      case "seal":
+        applyPotion("seal");
+        break;
+      case "c_seal":
+        if (kind === "player") {
+          if ((p.sealedTurns || 0) > 0) {
+            p.sealedTurns = 0;
+            ml.push("解封成分が！魔法封印が解けた！");
+          } else ml.push("解封成分が入っていたが、封印はかかっていなかった。");
+        } else {
+          target.sealed = false;
+          target.sealedTurns = 0;
+          ml.push(`${target.name}の封印が解けた！`);
+        }
+        break;
+      case "luck":
+        if (kind === "player") {
+          const ranges = [[30, 70], [80, 150], [180, 320], [350, 550], [600, 900], [850, 1200]];
+          const range = ranges[foodTier];
+          const gold = rng(range[0], range[1]);
+          p.gold = (p.gold || 0) + gold;
+          ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
+        } else applyPotion("luck");
+        break;
+      case "c_luck":
+        applyPotion("luck", LUCK_POTION_TURNS.cursed, true);
+        break;
+      case "panacea":
+        applyPotion("panacea");
+        break;
+      case "c_panacea":
+        applyPotion("panacea", 0, true);
+        break;
+      case "milk":
+        break;
+      case "doping":
+        applyPotion("doping", 50);
+        break;
+      case "c_doping":
+        applyPotion("doping", 50, true);
+        break;
+      default:
+        break;
+    }
+  }
+  return true;
 }
 
 export const POTION_FOOD_PREFIX = {
@@ -6314,6 +6513,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           mlx.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
       }
+      applyFoodPotionEffectsOnHit(item, "player", p, dg, p, mlx, luFn, killerMon);
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
     homingTarget,
