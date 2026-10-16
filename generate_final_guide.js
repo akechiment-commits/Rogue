@@ -611,6 +611,7 @@ weaponArmorData.push(['【防具・特殊（合成/泉）】', '', '', '', '', '
 for (const a of _specialArmors) {
   weaponArmorData.push([a.name, a.def, (a.abilities ?? (a.ability ? [a.ability] : [])).join('/') || '-', a.rarity ?? '合成', a.sellPrice ?? '-', guideDesc(a)]);
 }
+weaponArmorData.push(['【生成時の能力付与】', '', '', '', '', '能力なしの新規生成武器・防具は、標準生成枠で10%、隠し部屋・双翼フロア島のレア生成枠で20%の確率で能力一覧から1つを均等抽選する。初めから能力がある装備は抽選しない。']);
 
 addSheet('04_武器防具', weaponArmorData);
 
