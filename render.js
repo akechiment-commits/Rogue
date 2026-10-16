@@ -149,6 +149,7 @@ export const TILE_NAMES = {
   222: "sea_devil",
   224: "king_behinmos",
   225: "haunted_willow",
+  [TI.STONE_PROJECTILE]: "stone_projectile",
   230: "loxonin",
   231: "sleeping_lion",
 };
@@ -361,6 +362,7 @@ export const TILE_RENDER = {
   229: { bg: null, fg: "#c0a050", ch: "旅" }, /* 冒険者・男性弓使い */
   230: { bg: null, fg: "#40d0a0", ch: "忍" }, /* ロキソ忍系 */
   231: { bg: null, fg: "#e8c060", ch: "獅" }, /* 眠れる獅子系 */
+  [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
   214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */

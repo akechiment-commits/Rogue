@@ -3,7 +3,7 @@ import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } fro
 import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -57,7 +57,7 @@ import { isWanderingNpc, nextWanderingAdventurerDialogue } from "./wanderingAdve
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
-const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
+const SHARED_TILE_OVERRIDE_IDS = new Set([37, 59, 207, 208, TI.STONE_PROJECTILE]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
 const SHARED_FIXTURE_ASSET_VERSION = "20261010-v15";
 /* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
@@ -382,8 +382,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     })));
 
     if (name === 'default') {
-      /* デフォルトの手続き描画でも、視認性を優先した共通ギミック画像を使う。 */
-      await Promise.all([...SHARED_FIXTURE_TILE_IDS].map((id) => new Promise((res) => {
+      /* デフォルトの手続き描画でも、共通タイル画像を使う。 */
+      await Promise.all([...SHARED_TILE_OVERRIDE_IDS].map((id) => new Promise((res) => {
         const tileName = TILE_NAMES[id];
         const img = new Image();
         img.onload = () => {
@@ -414,8 +414,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _loadTile = (id) => new Promise((res) => {
       /* mon1のtile 42はpenSpriteMapで別途上書きするのでスキップ */
       if (name === 'mon1' && id === 42) { res(); return; }
-      /* 店主・警備員・祭壇・宝物庫は共通の視認性重視画像を全タイルセットで優先する。 */
-      const paths = SHARED_FIXTURE_TILE_IDS.has(id) && TILE_NAMES[id]
+      /* 店主・警備員・祭壇・宝物庫・石系飛び道具は共通画像を優先する。 */
+      const paths = SHARED_TILE_OVERRIDE_IDS.has(id) && TILE_NAMES[id]
         ? [`/tiles/${TILE_NAMES[id]}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`, `/tiles/sprites/${name}/tile_${id}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`]
         : [`/tiles/sprites/${name}/tile_${id}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`];
       if (name === 'mon1' && VENT_TILE_IDS.has(id) && TILE_NAMES[id]) {
@@ -611,7 +611,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         });
       };
-      img.src = SHARED_FIXTURE_TILE_IDS.has(iidx)
+      img.src = SHARED_TILE_OVERRIDE_IDS.has(iidx)
         ? `/tiles/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`
         : `/tiles/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
     });

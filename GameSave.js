@@ -2,7 +2,7 @@
    ダンジョン途中のゲーム状態をlocalStorageに保存・復元する。
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
-import { installPlayerHpReverseHook, MW, MH } from "./utils.js";
+import { installPlayerHpReverseHook, MW, MH, TI } from "./utils.js";
 import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 
@@ -19,6 +19,16 @@ function withoutInternalGravityTriggers(dungeon) {
     ...dungeon,
     items: dungeon.items.filter(item => !isInternalGravityTrigger(item)),
   };
+}
+
+/* 旧セーブの石弾も新しい石専用タイルへ揃える。 */
+function normalizeStoneProjectileTiles(value, seen = new Set()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return;
+  seen.add(value);
+  if (value.type === "arrow" && (value.stone || value.magicStone)) {
+    value.tile = TI.STONE_PROJECTILE;
+  }
+  for (const child of Object.values(value)) normalizeStoneProjectileTiles(child, seen);
 }
 
 /* ---------- serialize ---------- */
@@ -115,6 +125,7 @@ function normalizeSaveData(data) {
       withoutInternalGravityTriggers(dungeon),
     ]),
   );
+  normalizeStoneProjectileTiles(migrated);
   return migrated;
 }
 

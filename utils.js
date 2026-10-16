@@ -54,6 +54,7 @@ export const TI = {
   /* 202〜206 are reserved for additional monster sprites. */
   ALTAR: 207,
   DIMENSIONAL_VAULT: 208,
+  STONE_PROJECTILE: 232,
   ITEM_POTION: 4001,
   ITEM_BOTTLE: 4002,
   ITEM_PEN: 4003,
