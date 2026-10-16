@@ -8573,12 +8573,10 @@ export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, options = {}
   if (_iceCount > 0) {
     dg.items ||= [];
     const _avoid = options.avoidDirection;
-    const _dropCells = DRO
-      .filter(([dx, dy]) => dx !== 0 || dy !== 0)
-      .map(([dx, dy]) => [x + dx, y + dy]);
+    const _dropCells = [[x, y], ...DRO.filter(([dx, dy]) => dx !== 0 || dy !== 0).map(([dx, dy]) => [x + dx, y + dy])];
     const _dropCell = _dropCells.find(([ix, iy]) =>
       ix >= 0 && ix < MW && iy >= 0 && iy < MH && iy < dg.map.length && ix < (dg.map[iy]?.length || 0) &&
-      !(_avoid && (ix - x) * _avoid.dy === (iy - y) * _avoid.dx) &&
+      ((ix === x && iy === y) || !(_avoid && (ix - x) * _avoid.dy === (iy - y) * _avoid.dx)) &&
       dg.map[iy]?.[ix] !== T.WALL && dg.map[iy]?.[ix] !== T.BWALL &&
       dg.map[iy]?.[ix] !== T.WATER && dg.map[iy]?.[ix] !== T.SD && dg.map[iy]?.[ix] !== T.SU &&
       !dg.items.some((item) => item.x === ix && item.y === iy) &&
@@ -8596,6 +8594,7 @@ export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, options = {}
       _iceChunk.y = _dropCell[1];
       markItemIdentifiedForDungeon(_iceChunk, dg);
       dg.items.push(_iceChunk);
+      options.generatedIceChunks?.push(_iceChunk);
       if (ml) ml.push(`${_spring ? "凍った泉" : "凍った水"}から氷塊が${_iceCount}個現れた！`);
     }
   }
@@ -9123,7 +9122,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       return { x: tx, y: ty, hitType: "sealed" };
     }
     /* 氷の魔法：通過した水を凍らせて床にする */
-    if (spell.effect === "ice_bolt") freezeWaterTile(dg, tx, ty, ml, null, { avoidDirection: { dx: _fdx, dy: _fdy } });
+    const _generatedIceChunks = [];
+    if (spell.effect === "ice_bolt") freezeWaterTile(dg, tx, ty, ml, null, { avoidDirection: { dx: _fdx, dy: _fdy }, generatedIceChunks: _generatedIceChunks });
     /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
     if (statueAt(dg, tx, ty)) {
       if (_isLeapMagic) return _landLeap(`${statueAt(dg, tx, ty).name}の前に飛びついた！`, "statue");
@@ -9204,6 +9204,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     if (tx === p.x && ty === p.y) continue;
     const it = itemAt(dg, tx, ty);
     if (it) {
+      if (_generatedIceChunks.includes(it)) { _lx = tx; _ly = ty; continue; }
       if (_isLeapMagic) return _landLeap(`${resolveItemName(it)}の前に飛びついた！`, "item");
       applySpellEffect(spell.effect, "item", it, _fdx, _fdy, dg, p, ml, luFn, lv);
       return { x: tx, y: ty, hitType: "item" };
