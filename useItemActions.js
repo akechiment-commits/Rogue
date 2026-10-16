@@ -158,6 +158,7 @@ export function useItemActions({
   pastIdent = [], discoveredItems = {},
 }) {
   const hypnosisAutoRef = useRef(null);
+  const doUseMarkerRef = useRef(null);
   const markerWriteRef = useRef(null);
   const doUseItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -2222,7 +2223,7 @@ export function useItemActions({
         }
         doWaveWand(idx);
       }
-      else if (it.type === "marker") doUseMarker(idx, { autoSelect: true });
+      else if (it.type === "marker") doUseMarkerRef.current?.(idx, { autoSelect: true });
       else if (it.type === "pot") {
         const _contents = getHypnosisPotContents(p.inventory, it, p);
         const _content = _contents[Math.floor(Math.random() * _contents.length)];
@@ -2242,7 +2243,7 @@ export function useItemActions({
     sr.current = { ...st };
     setGs({ ...st });
     return true;
-  }, [doUseItem, doUseMarker, endTurn]);
+  }, [doUseItem, endTurn]);
 
   const doDropItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -2502,6 +2503,7 @@ export function useItemActions({
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
   }, [endTurn, pastIdent, discoveredItems]);
+  doUseMarkerRef.current = doUseMarker;
   const doReadSpellbook = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
