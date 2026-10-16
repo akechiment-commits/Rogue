@@ -8024,7 +8024,7 @@ export function makePlayerClone(p, x, y, cloneTurns = 30) {
 
 export const SPELLS=[
   {id:"fire_bolt",      name:"炎の魔法",         mpCost:10, effect:"fire_bolt",       damage:25, range:10, needsDir:true,  desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:10"},
-  {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾で敵を凍らせスロー。MP:10"},
+  {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾を撃ち、射線上の水も凍らせる。敵にはダメージと移動封じ。MP:10"},
   {id:"lightning_magic",name:"雷の魔法",          mpCost:12, effect:"lightning_magic", damage:28,           needsDir:false, desc:"視界内の全ての敵に雷ダメージを与える。MP:12"},
   {id:"sleep_bolt",     name:"眠りの魔法",        mpCost:7,  effect:"sleep_bolt",                 range:10, needsDir:true,  desc:"眠りの霧を飛ばす。MP:7"},
   {id:"teleport_magic", name:"テレポート",        mpCost:8,  effect:"teleport_magic",              needsDir:false, desc:"ランダムな場所に飛ぶ。MP:8"},
@@ -8068,7 +8068,7 @@ export const SPELLS=[
 ];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと炎の弾を撃ち、着弾点で爆発させる魔法を習得する。周囲8マスにも爆風ダメージ。MP:10",tile:43},
-  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと氷の弾で敵を凍らせ、スローにする魔法を習得する。MP:10",tile:43},
+  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと氷の弾を撃ち、射線上の水も凍らせる魔法を習得する。MP:10",tile:43},
   {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと視界内の全ての敵に雷ダメージを与える魔法を習得する。MP:12",tile:43},
   {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと眠りの霧を飛ばす魔法を習得する。MP:7",tile:43},
   {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"読むとランダムな場所に飛ぶ魔法を習得する。MP:8",tile:43},
@@ -8512,7 +8512,7 @@ export function tickBubbleGold(p, ml) {
 }
 
 /**
- * 水タイルを凍らせて床にする（氷の杖・氷ブレス共通）。
+ * 水タイルを凍らせて床にする（氷の杖・氷の魔法・氷ブレス共通）。
  * @returns {boolean} 凍らせたか
  */
 export function freezeWaterTile(dg, x, y, ml = null, nameFn = null) {
@@ -9045,6 +9045,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       ml.push("魔法弾が魔封じの魔方陣で消えた！");
       return { x: tx, y: ty, hitType: "sealed" };
     }
+    /* 氷の魔法：通過した水を凍らせて床にする */
+    if (spell.effect === "ice_bolt") freezeWaterTile(dg, tx, ty, ml);
     /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
     if (statueAt(dg, tx, ty)) {
       if (_isLeapMagic) return _landLeap(`${statueAt(dg, tx, ty).name}の前に飛びついた！`, "statue");
