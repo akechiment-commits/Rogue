@@ -578,7 +578,7 @@ export function recoveryScrollAmount({ blessed = false, cursed = false } = {}) {
   return cursed ? RECOVERY_SCROLL_HEAL : RECOVERY_SCROLL_HEAL * blessAmountMul(blessed);
 }
 
-export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical_cat_claw", sellPrice:3000, desc:"会心の一撃が出やすい武器。", tile:20 };
+export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:8, ability:"critical_cat_claw", sellPrice:3000, desc:"会心の一撃が出やすい武器。", tile:20 };
 export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
 /** カラペン系が押し付ける、置くことも投げることもできない敵専用アイテム */
 export const CHARGED_FUZZBALL_T = {
