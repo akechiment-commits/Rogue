@@ -338,7 +338,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     _cx = _ix; _cy = _iy;
     if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) { _emitBreathAnim(); return; }
     /* 氷の杖と同様：射線上の水を凍らせる（止まらない） */
-    freezeWaterTile(dg, _ix, _iy, ml);
+    freezeWaterTile(dg, _ix, _iy, ml, null, { avoidDirection: { dx: _idx, dy: _idy } });
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) { _emitBreathAnim(); return; }
     _breathPath.push({ x: _ix, y: _iy });
     if (_ix === m.x && _iy === m.y) { _hitIceMon(m); _emitBreathAnim(); return; }

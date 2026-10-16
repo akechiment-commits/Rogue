@@ -633,6 +633,7 @@ export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierc
 export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"C", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:TI.STONE_PROJECTILE };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:TI.STONE_PROJECTILE };
+export const ICE_CHUNK_T    = { name:"氷塊",     type:"arrow", atk:3, iceChunk:true, rarity:"E", weight:0, sellPrice:5,   desc:"投げると石と同じように飛ぶ。99個まで束にできる。炎による所持品損傷で優先的に溶ける。", count:1, tile:TI.ICE_CHUNK };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。爆発範囲内の地雷・時限爆弾も誘爆する。\n99本まで束にできる。",                            count:1, tile:23 };
 export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与え、爆発範囲内の地雷・時限爆弾も誘爆する。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。爆発範囲内の地雷・時限爆弾も誘爆する。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
@@ -808,7 +809,7 @@ export const WANDS = [
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"D", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：魔法封印50T。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：敵の特技100%化、自分は封印解除。", tile:24 },
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
-  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛び、水路や泉を凍らせる。氷塊が現れることもある。地面の薬は氷塊に変わる。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
   { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。ボスには現在HPの1/4ダメージを与え、プレイヤーHPをそのダメージと同値にする。巨大敵への爆発・割合ダメージは合計で1ターン1回まで。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別（祝福は2個）。\n壊すと周囲のアイテム・大箱にも効果。\n呪い：対象が未識別に戻る。", tile:24 },
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
@@ -3882,6 +3883,10 @@ export function makeStone(c = 1) {
   return { ...STONE_T, id:uid(), count:Math.min(99, c) };
 }
 
+export function makeIceChunk(c = 1) {
+  return { ...ICE_CHUNK_T, id:uid(), count:Math.min(99, c) };
+}
+
 export function makeGoldNugget(isFake = false) {
   return { ...(isFake ? FAKE_GOLD_NUGGET_T : GOLD_NUGGET_T), id: uid() };
 }
@@ -3947,6 +3952,7 @@ export function makeBasicArrowUnit(stack) {
   if (stack.specialProjectile === "crawling_bomb") return copyDiscoveryMark(makeCrawlingBomb(1));
   if (stack.specialProjectile === "homing") return copyDiscoveryMark(makeHomingShot(1));
   if (stack.magicStone) return copyDiscoveryMark(makeMagicStone(1));
+  if (stack.iceChunk) return copyDiscoveryMark(makeIceChunk(1));
   if (stack.stone) return copyDiscoveryMark(makeStone(1));
   if (stack.bombArrow) return copyDiscoveryMark(makeBombArrow(1));
   if (stack.pierce) return copyDiscoveryMark(makePiercingArrow(1));
@@ -4218,9 +4224,37 @@ export function addStonesInv(inv, c, isMagic = false, maxInv = 30, sourceItem = 
   return true;
 }
 
+export function addIceChunksInv(inv, c, maxInv = 30, sourceItem = null) {
+  const matches = (i) => i.type === "arrow" && !!i.iceChunk;
+  if (!canAddStackCount(inv, c, matches, maxInv)) return false;
+  let r = Math.max(0, Number(c) || 0);
+  const changedStacks = [];
+  for (const i of inv) {
+    if (matches(i) && i.count < 99) {
+      const a = Math.min(r, 99 - i.count);
+      i.count += a;
+      r -= a;
+      changedStacks.push(i);
+      if (r <= 0) {
+        finalizePickedStack(sourceItem, changedStacks);
+        return true;
+      }
+    }
+  }
+  while (r > 0) {
+    const n = Math.min(r, 99);
+    const added = makeIceChunk(n);
+    inv.push(added);
+    changedStacks.push(added);
+    r -= n;
+  }
+  finalizePickedStack(sourceItem, changedStacks);
+  return true;
+}
+
 export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false, strong = false, specialProjectile = null, sourceItem = null) {
   const _special = specialProjectile || null;
-  const matches = (i) => i.type === "arrow" && !i.stone && !i.magicStone && (i.specialProjectile || null) === _special && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && !!i.strong === strong;
+  const matches = (i) => i.type === "arrow" && !i.stone && !i.magicStone && !i.iceChunk && (i.specialProjectile || null) === _special && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && !!i.strong === strong;
   if (!canAddStackCount(inv, c, matches, maxInv)) return false;
   let r = Math.max(0, Number(c) || 0);
   const changedStacks = [];
@@ -7719,7 +7753,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const m = monsterAt(dg, tx, ty);
     if (m) {
-      if (monSubmergesProjectiles(m) && !st.stone && !st.magicStone) {
+      if (monSubmergesProjectiles(m) && !st.stone && !st.magicStone && !st.iceChunk) {
         ml.push(m.name + "が潜って" + _arName + "をかわした！");
         continue;
       }
@@ -8024,7 +8058,7 @@ export function makePlayerClone(p, x, y, cloneTurns = 30) {
 
 export const SPELLS=[
   {id:"fire_bolt",      name:"炎の魔法",         mpCost:10, effect:"fire_bolt",       damage:25, range:10, needsDir:true,  desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:10"},
-  {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾を撃ち、射線上の水も凍らせる。敵にはダメージと移動封じ。MP:10"},
+  {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾を撃ち、水路や泉を凍らせる。氷塊が現れることもある。敵にはダメージと移動封じ。MP:10"},
   {id:"lightning_magic",name:"雷の魔法",          mpCost:12, effect:"lightning_magic", damage:28,           needsDir:false, desc:"視界内の全ての敵に雷ダメージを与える。MP:12"},
   {id:"sleep_bolt",     name:"眠りの魔法",        mpCost:7,  effect:"sleep_bolt",                 range:10, needsDir:true,  desc:"眠りの霧を飛ばす。MP:7"},
   {id:"teleport_magic", name:"テレポート",        mpCost:8,  effect:"teleport_magic",              needsDir:false, desc:"ランダムな場所に飛ぶ。MP:8"},
@@ -8068,7 +8102,7 @@ export const SPELLS=[
 ];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと炎の弾を撃ち、着弾点で爆発させる魔法を習得する。周囲8マスにも爆風ダメージ。MP:10",tile:43},
-  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと氷の弾を撃ち、射線上の水も凍らせる魔法を習得する。MP:10",tile:43},
+  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと水路や泉を凍らせる氷の魔法を習得する。氷塊が現れることもある。MP:10",tile:43},
   {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと視界内の全ての敵に雷ダメージを与える魔法を習得する。MP:12",tile:43},
   {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと眠りの霧を飛ばす魔法を習得する。MP:7",tile:43},
   {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"読むとランダムな場所に飛ぶ魔法を習得する。MP:8",tile:43},
@@ -8512,13 +8546,17 @@ export function tickBubbleGold(p, ml) {
 }
 
 /**
- * 水タイルを凍らせて床にする（氷の杖・氷の魔法・氷ブレス共通）。
+ * 水タイル・泉を凍らせ、泉は干上がらせる。氷塊も凍結時に生成する。
  * @returns {boolean} 凍らせたか
  */
-export function freezeWaterTile(dg, x, y, ml = null, nameFn = null) {
-  if (!dg?.map || dg.map[y]?.[x] !== T.WATER) return false;
-  dg.map[y][x] = T.FLOOR;
-  if (ml) ml.push("氷が水を凍らせた！");
+export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, options = {}) {
+  if (!dg?.map) return false;
+  const _isWater = dg.map[y]?.[x] === T.WATER;
+  const _spring = dg.springs?.find((spring) => spring.x === x && spring.y === y) || null;
+  if (!_isWater && !_spring) return false;
+  if (_isWater) dg.map[y][x] = T.FLOOR;
+  if (_spring) dg.springs = dg.springs.filter((spring) => spring !== _spring);
+  if (ml) ml.push(_spring ? "氷が泉を凍らせて干上がらせた！" : "氷が水を凍らせた！");
   if (dg.waterItems) {
     const _frozen = dg.waterItems.filter((wi) => wi.x === x && wi.y === y);
     dg.waterItems = dg.waterItems.filter((wi) => !(wi.x === x && wi.y === y));
@@ -8531,11 +8569,34 @@ export function freezeWaterTile(dg, x, y, ml = null, nameFn = null) {
       if (ml) ml.push(`凍った水から${resolveItemName(wi.item, nameFn)}が現れた！`);
     }
   }
-  if (dg.springs) {
-    const _fs = dg.springs.find((s) => s.x === x && s.y === y);
-    if (_fs) {
-      dg.springs = dg.springs.filter((s) => s !== _fs);
-      if (ml) ml.push("泉が凍りついて干上がった！");
+  const _iceCount = _spring ? rng(5, 8) : (Math.random() < 0.08 ? rng(1, 2) : 0);
+  if (_iceCount > 0) {
+    dg.items ||= [];
+    const _avoid = options.avoidDirection;
+    const _dropCells = DRO
+      .filter(([dx, dy]) => dx !== 0 || dy !== 0)
+      .map(([dx, dy]) => [x + dx, y + dy]);
+    const _dropCell = _dropCells.find(([ix, iy]) =>
+      ix >= 0 && ix < MW && iy >= 0 && iy < MH && iy < dg.map.length && ix < (dg.map[iy]?.length || 0) &&
+      !(_avoid && (ix - x) * _avoid.dy === (iy - y) * _avoid.dx) &&
+      dg.map[iy]?.[ix] !== T.WALL && dg.map[iy]?.[ix] !== T.BWALL &&
+      dg.map[iy]?.[ix] !== T.WATER && dg.map[iy]?.[ix] !== T.SD && dg.map[iy]?.[ix] !== T.SU &&
+      !dg.items.some((item) => item.x === ix && item.y === iy) &&
+      !dg.traps?.some((trap) => trap.x === ix && trap.y === iy) &&
+      !dg.springs?.some((spring) => spring.x === ix && spring.y === iy) &&
+      !dg.bigboxes?.some((box) => box.x === ix && box.y === iy) &&
+      !dg.gachaMachines?.some((machine) => machine.x === ix && machine.y === iy) &&
+      !dg.altars?.some((altar) => altar.x === ix && altar.y === iy) &&
+      !dg.dimensionalVaults?.some((vault) => vault.x === ix && vault.y === iy) &&
+      !dg.pentacles?.some((pentacle) => pentacle.x === ix && pentacle.y === iy)
+    );
+    if (_dropCell) {
+      const _iceChunk = makeIceChunk(_iceCount);
+      _iceChunk.x = _dropCell[0];
+      _iceChunk.y = _dropCell[1];
+      markItemIdentifiedForDungeon(_iceChunk, dg);
+      dg.items.push(_iceChunk);
+      if (ml) ml.push(`${_spring ? "凍った泉" : "凍った水"}から氷塊が${_iceCount}個現れた！`);
     }
   }
   return true;
@@ -8555,9 +8616,25 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
   if (p.inventory.length === 0) return;
   if (isFireContext ? hasFireResist(p) : hasLightningResist(p)) return;
   const dn = (it) => resolveItemName(it, nameFn);
-  const idx = Math.floor(Math.random() * p.inventory.length);
-  const victim = p.inventory[idx];
+  const _iceChunkStacks = isFireContext ? p.inventory.filter((item) => item.iceChunk && (Number(item.count) || 0) > 0) : [];
+  const victim = _iceChunkStacks.length > 0
+    ? _iceChunkStacks[Math.floor(Math.random() * _iceChunkStacks.length)]
+    : p.inventory[Math.floor(Math.random() * p.inventory.length)];
+  const idx = p.inventory.indexOf(victim);
   const removeVictim = () => { p.inventory = p.inventory.filter((_, i) => i !== idx); };
+  if (isFireContext && victim.iceChunk) {
+    const _count = Math.max(1, Number(victim.count) || 1);
+    const _melted = rng(1, Math.min(3, _count));
+    victim.count = _count - _melted;
+    if (victim.count <= 0) {
+      removeVictim();
+      if (p.arrow === victim) p.arrow = null;
+      ml.push(`所持していた「${dn(victim)}」が炎で溶けてなくなった！(${_melted}個)`);
+    } else {
+      ml.push(`所持していた「${dn(victim)}」が炎で溶けた！(${_melted}個消失・残り${victim.count}個)`);
+    }
+    return;
+  }
   if (victim.type === "pot") {
     removeVictim();
     ml.push(isFireContext ? `所持していた「${dn(victim)}」が熱で割れた！` : `所持していた「${dn(victim)}」が雷で割れた！`);
@@ -9046,7 +9123,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       return { x: tx, y: ty, hitType: "sealed" };
     }
     /* 氷の魔法：通過した水を凍らせて床にする */
-    if (spell.effect === "ice_bolt") freezeWaterTile(dg, tx, ty, ml);
+    if (spell.effect === "ice_bolt") freezeWaterTile(dg, tx, ty, ml, null, { avoidDirection: { dx: _fdx, dy: _fdy } });
     /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
     if (statueAt(dg, tx, ty)) {
       if (_isLeapMagic) return _landLeap(`${statueAt(dg, tx, ty).name}の前に飛びついた！`, "statue");

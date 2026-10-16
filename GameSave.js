@@ -21,14 +21,13 @@ function withoutInternalGravityTriggers(dungeon) {
   };
 }
 
-/* 旧セーブの石弾も新しい石専用タイルへ揃える。 */
-function normalizeStoneProjectileTiles(value, seen = new Set()) {
+/* 旧セーブの石弾・氷塊も専用タイルへ揃える。 */
+function normalizeProjectileTiles(value, seen = new Set()) {
   if (!value || typeof value !== "object" || seen.has(value)) return;
   seen.add(value);
-  if (value.type === "arrow" && (value.stone || value.magicStone)) {
-    value.tile = TI.STONE_PROJECTILE;
-  }
-  for (const child of Object.values(value)) normalizeStoneProjectileTiles(child, seen);
+  if (value.type === "arrow" && (value.stone || value.magicStone)) value.tile = TI.STONE_PROJECTILE;
+  if (value.type === "arrow" && value.iceChunk) value.tile = TI.ICE_CHUNK;
+  for (const child of Object.values(value)) normalizeProjectileTiles(child, seen);
 }
 
 /* ---------- serialize ---------- */
@@ -125,7 +124,7 @@ function normalizeSaveData(data) {
       withoutInternalGravityTriggers(dungeon),
     ]),
   );
-  normalizeStoneProjectileTiles(migrated);
+  normalizeProjectileTiles(migrated);
   return migrated;
 }
 

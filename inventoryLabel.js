@@ -49,7 +49,7 @@ export function formatInventoryItem(item, {
   let label = equipped + blessCurse + displayName(item);
 
   if (item.type === "arrow") {
-    label += ` (${item.count}${(item.stone || item.magicStone) ? "個" : "本"})`;
+    label += ` (${item.count}${(item.stone || item.magicStone || item.iceChunk) ? "個" : "本"})`;
   } else if (item.type === "weapon") {
     label += formatPlusSuffix(item.plus);
     label += ` (攻+${item.atk + (item.plus || 0)})`;

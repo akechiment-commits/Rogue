@@ -3,7 +3,7 @@ import { adjustPlayerBaseMaxHp, setPlayerItemProperties } from "./equipmentEffec
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
-  resolveItemName, getIdentKey, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft,
+  resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft,
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
   soakItemIntoSpring, splashPotion, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
@@ -13,7 +13,7 @@ import {
   multiplyMagicDamage, multiplyCursedMagicDamage,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
-  pickLootFromPool, makeChangeBoxItem, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
+  pickLootFromPool, makeChangeBoxItem, makeIceChunk, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
   setWandBreakEffectHandler, reducePotCapacity, releaseConfinedMonstersFromPot,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
@@ -1809,6 +1809,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     case "ice_wand": {
       const _iwBlessed = blMult > 1, _iwCursed = blMult < 1;
+      if (kind === "item") {
+        if (target?.type === "potion") {
+          const _potionName = resolveItemName(target, nameFn);
+          const _px = target.x, _py = target.y;
+          removeFloorItem(dg, target);
+          chargeShopItem(target, dg, ml, p);
+          const _iceChunk = { ...makeIceChunk(1), x: _px, y: _py };
+          markItemIdentifiedForDungeon(_iceChunk, dg);
+          dg.items.push(_iceChunk);
+          ml.push(`${_potionName}が凍りついて氷塊になった！`);
+        } else {
+          ml.push(`${resolveItemName(target, nameFn)}には効果がなかった。`);
+        }
+        break;
+      }
       if (_iwCursed) {
         /* 呪い：通常ダメージと同じ幅で回復し、移動封じ状態なら解除（アンデッドは回復が逆にダメージ） */
         if (kind === "monster") {
@@ -2127,7 +2142,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       return;
     }
     /* 氷の杖：射線上の水を凍らせる（通過・命中判定はその後） */
-    if (eff === "ice_wand") freezeWaterTile(dg, tx, ty, ml);
+    if (eff === "ice_wand") freezeWaterTile(dg, tx, ty, ml, nameFn, { avoidDirection: { dx: _fdx, dy: _fdy } });
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
       if (monSubmergesProjectiles(mon)) {
@@ -2736,7 +2751,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       if (wx < 0 || wx >= MW || wy < 0 || wy >= MH) continue;
       if (freezeWaterTile(dg, wx, wy, null)) frozenCount++;
     }
-    if (frozenCount > 0) ml.push(`周囲${frozenCount}マスの水が凍りついた！`);
+    if (frozenCount > 0) ml.push(`周囲${frozenCount}マスの水や泉が凍りついた！`);
   }
   if (eff === "warp") {
     const _wCenter = _centerWandTarget(dg, cx, cy, p);

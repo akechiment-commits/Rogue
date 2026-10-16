@@ -22,7 +22,7 @@ import {
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
-  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
+  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
   setPitfallBag, clearPitfallBag,
@@ -57,7 +57,7 @@ import { isWanderingNpc, nextWanderingAdventurerDialogue } from "./wanderingAdve
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
-const SHARED_TILE_OVERRIDE_IDS = new Set([37, 59, 207, 208, TI.STONE_PROJECTILE]);
+const SHARED_TILE_OVERRIDE_IDS = new Set([37, 59, 207, 208, TI.STONE_PROJECTILE, TI.ICE_CHUNK]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
 const SHARED_FIXTURE_ASSET_VERSION = "20261010-v15";
 /* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
@@ -414,7 +414,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _loadTile = (id) => new Promise((res) => {
       /* mon1のtile 42はpenSpriteMapで別途上書きするのでスキップ */
       if (name === 'mon1' && id === 42) { res(); return; }
-      /* 店主・警備員・祭壇・宝物庫・石系飛び道具は共通画像を優先する。 */
+      /* 店主・警備員・祭壇・宝物庫・石／氷系飛び道具は共通画像を優先する。 */
       const paths = SHARED_TILE_OVERRIDE_IDS.has(id) && TILE_NAMES[id]
         ? [`/tiles/${TILE_NAMES[id]}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`, `/tiles/sprites/${name}/tile_${id}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`]
         : [`/tiles/sprites/${name}/tile_${id}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`];
@@ -1193,8 +1193,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ml.push(`${it.value}枚の金貨を拾った！`);
         removeFloorItem(dg, it);
         go = true;
-      } else if (it.type === "arrow" && (it.stone || it.magicStone) && !it.shopPrice) {
-        if (addStonesInv(p.inventory, it.count, !!it.magicStone, p.maxInventory || 30, it)) {
+      } else if (it.type === "arrow" && (it.stone || it.magicStone || it.iceChunk) && !it.shopPrice) {
+        const _added = it.iceChunk
+          ? addIceChunksInv(p.inventory, it.count, p.maxInventory || 30, it)
+          : addStonesInv(p.inventory, it.count, !!it.magicStone, p.maxInventory || 30, it);
+        if (_added) {
           showFirstEncounterTip("item_arrow");
           ml.push(`${it.name}(${it.count}個)を拾った。`);
           removeFloorItem(dg, it);
@@ -2989,7 +2992,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   };
                   const _srPeel = () => { if (!_srUnit) peelShopArrowUnit(_srAr); };
                   /* ── 石 ── */
-                  if (_srAr.stone) {
+                  if (_srAr.stone || _srAr.iceChunk) {
                     pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
                     const _stRange = _srCursedFc ? 1 : 3;
                     let _stLx = p.x, _stLy = p.y;
@@ -3421,8 +3424,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               showFirstEncounterTip("item_gold");
               ml.push(`${_grIt.value}枚の金貨を拾った！`);
               removeFloorItem(dg, _grIt);
-            } else if (_grIt.type === "arrow" && (_grIt.stone || _grIt.magicStone) && !_grIt.shopPrice) {
-              if (addStonesInv(p.inventory, _grIt.count, !!_grIt.magicStone, p.maxInventory || 30, _grIt)) {
+            } else if (_grIt.type === "arrow" && (_grIt.stone || _grIt.magicStone || _grIt.iceChunk) && !_grIt.shopPrice) {
+              const _added = _grIt.iceChunk
+                ? addIceChunksInv(p.inventory, _grIt.count, p.maxInventory || 30, _grIt)
+                : addStonesInv(p.inventory, _grIt.count, !!_grIt.magicStone, p.maxInventory || 30, _grIt);
+              if (_added) {
                 showFirstEncounterTip("item_arrow");
                 ml.push(`${_grIt.name}(${_grIt.count}個)を拾った。`);
                 removeFloorItem(dg, _grIt);
@@ -3900,7 +3906,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
               if (_ns2.length) _lbl += " [" + _ns2.join("・") + "]";
             } else if (_dashIt.type === "arrow") {
-              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone || _dashIt.specialProjectile ? "個" : "本"})`;
+              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone || _dashIt.iceChunk || _dashIt.specialProjectile ? "個" : "本"})`;
             } else if (_dashIt.type === "gold") {
               _lbl += `(${_dashIt.value}枚)`;
             }
@@ -6143,7 +6149,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {p.arrow && (
           <span style={{ color: "#dda050" }}>
-            {p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.specialProjectile ? p.arrow.name : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
+            {p.arrow.iceChunk ? "氷塊" : p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.specialProjectile ? p.arrow.name : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
           </span>
         )}{" "}
         {(p.rings || []).map((r, i) => (
@@ -6821,7 +6827,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               <div style={{ color: "#a66", fontSize: 14 }}>
                 {tmI ? dname(tmI) : "?"}
                 {tmI?.type === "arrow"
-                  ? ` (${tmI.count}本)`
+                  ? ` (${tmI.count}${tmI.stone || tmI.magicStone || tmI.iceChunk || tmI.specialProjectile ? "個" : "本"})`
                   : tmI?.type === "wand" && tmI.fullIdent
                     ? ` [${tmI.charges}回]`
                     : ""}

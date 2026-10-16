@@ -2063,7 +2063,7 @@ export function useItemActions({
       }
     } else if (it.type === "arrow") {
       if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
-      else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone || it.specialProjectile) ? "個" : "本"})を装備した。`); }
+      else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone || it.iceChunk || it.specialProjectile) ? "個" : "本"})を装備した。`); }
     } else if (it.type === "ring") {
       const _wasFullHp = p.hp === p.maxHp;
       const _rdn = (r) => itemDisplayName(r, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -2297,7 +2297,7 @@ export function useItemActions({
         if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
         _dropLbl += ` (防+${it.def + (it.plus || 0)})`;
       } else if (it.type === "arrow") {
-        _dropLbl += `(${it.count}${it.stone || it.magicStone || it.specialProjectile ? "個" : "本"})`;
+        _dropLbl += `(${it.count}${it.stone || it.magicStone || it.iceChunk || it.specialProjectile ? "個" : "本"})`;
       } else if (it.type === "gold") {
         _dropLbl += `(${it.count}枚)`;
       }
@@ -2341,7 +2341,7 @@ export function useItemActions({
     setShowDesc(null);
     const _it = sr.current?.player?.inventory[idx];
     /* 石・魔法の石・爆弾矢は方向選択を共有するが、射つ場合は1個だけ消費する。 */
-    if (_it?.stone || _it?.magicStone || _it?.bombArrow) {
+    if (_it?.stone || _it?.magicStone || _it?.iceChunk || _it?.bombArrow) {
       setThrowMode({ idx, mode: "throw", bundle: false });
       const _nm = itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       const _verb = _it.bombArrow ? "射つ" : "投げる";
@@ -3101,7 +3101,7 @@ export function useItemActions({
         }
 
         /* ── 石 / 魔法の石 専用処理 ── */
-        if (_arItem.stone || _arItem.magicStone) {
+        if (_arItem.stone || _arItem.magicStone || _arItem.iceChunk) {
           const _stName = _arItem.name;
           p.arrow.count--;
           let _stUnit = null;
@@ -3759,7 +3759,7 @@ export function useItemActions({
         }
 
         /* ── インベントリから投げる石／魔法の石 専用処理 ── */
-        if ((it.type === "arrow" && (it.stone || it.magicStone)) || it.type === "gold_nugget") {
+        if ((it.type === "arrow" && (it.stone || it.magicStone || it.iceChunk)) || it.type === "gold_nugget") {
           /* スタックから1個だけ使う */
           const _isGoldNugget = it.type === "gold_nugget";
           if (_isGoldNugget) p.inventory.splice(idx, 1);
@@ -4254,7 +4254,7 @@ export function useItemActions({
             : thrownItemAttack(it);
           /* 投げメッセージ用ラベル生成：武器/防具は+値付き、杖/ペンはチャージ付き、矢は本数付き */
           const _mkThrowLb = () => {
-            if (it.type === "arrow") return (it.stone || it.magicStone || it.specialProjectile) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
+            if (it.type === "arrow") return (it.stone || it.magicStone || it.iceChunk || it.specialProjectile) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
             const _tnm = dnameRef(it);
             if (it.type === "weapon") {
               const _tp = it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";

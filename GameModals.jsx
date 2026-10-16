@@ -4,7 +4,7 @@ import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } f
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { reducePotCapacity } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from "./monsters.js";
@@ -3538,7 +3538,7 @@ export function InventoryModal({
         </div>
       )}
       {p.arrow ? (
-        <div style={{ color: "#aaa", fontSize: 13, marginBottom: 6 }}>矢: <span style={{ color: "#dda050" }}>{p.arrow.name}</span> ({p.arrow.count}本)</div>
+        <div style={{ color: "#aaa", fontSize: 13, marginBottom: 6 }}>矢: <span style={{ color: "#dda050" }}>{p.arrow.name}</span> ({p.arrow.count}{p.arrow.stone || p.arrow.magicStone || p.arrow.iceChunk || p.arrow.specialProjectile ? "個" : "本"})</div>
       ) : (
         <div style={{ color: "#555", fontSize: 13, marginBottom: 6 }}>矢: なし</div>
       )}
@@ -3718,7 +3718,7 @@ export function InventoryModal({
                         {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}
                         {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
                         {it.type === "armor" && ` — 防具 (防+${it.def})`}
-                        {it.type === "arrow" && ` — 矢 (攻${it.atk}, ${it.count}本)`}
+                        {it.type === "arrow" && ` — 飛び道具 (攻${it.atk}, ${it.count}${it.stone || it.magicStone || it.iceChunk || it.specialProjectile ? "個" : "本"})`}
                         {it.type === "wand" && it.fullIdent && gs?.ident?.has(getIdentKey(it)) && ` — 杖 [残${it.charges}回]`}
                         {it.type === "marker" && ` [残${it.charges}回]`}
                         {it.type === "potion" && " — 薬"}
@@ -4200,6 +4200,7 @@ const _DBG_ITEM_CATS = [
     { label: ARROW_T.name,       value: { ...ARROW_T } },
     { label: STONE_T.name,       value: { ...STONE_T } },
     { label: MAGIC_STONE_T.name, value: { ...MAGIC_STONE_T } },
+    { label: ICE_CHUNK_T.name,   value: { ...ICE_CHUNK_T } },
   ]},
   { key: "wands",      label: "杖",           build: () => WANDS.map(w => ({ label: w.name, value: { ...w } })) },
   { key: "spellbooks", label: "魔法書",       build: () => SPELLBOOKS.map(sb => ({ label: sb.name, value: { ...sb } })) },
