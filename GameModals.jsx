@@ -1095,20 +1095,28 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   );
 }
 
-function AutoIdentifyTarget({ enabled, count, onConfirm }) {
+function AutoIdentifyTarget({ enabled, count, selectionKey, onConfirm }) {
   const firedRef = useRef(false);
+  const selectionKeyRef = useRef(null);
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
   useEffect(() => {
     if (!enabled) {
       firedRef.current = false;
+      selectionKeyRef.current = selectionKey;
       return undefined;
+    }
+    if (selectionKeyRef.current !== selectionKey) {
+      selectionKeyRef.current = selectionKey;
+      firedRef.current = false;
     }
     if (firedRef.current || count <= 0) return undefined;
     firedRef.current = true;
     const timer = setTimeout(() => {
-      onConfirm(Math.floor(Math.random() * count));
+      onConfirmRef.current?.(Math.floor(Math.random() * count));
     }, 0);
     return () => clearTimeout(timer);
-  }, [enabled, count, onConfirm]);
+  }, [enabled, count, selectionKey]);
   return null;
 }
 
@@ -1155,7 +1163,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     if (mode.mode === 'forge_item' && mode.cursed && (_selIt.type === "weapon" || _selIt.type === "armor")) {
       const _abilityIds = getForgeAbilityIds(_selIt);
       if (_abilityIds.length > 0) {
-        setMode({ ...mode, mode: 'forge_remove_ability', abilityTargetIndex: _selIndex, abilityIds: _abilityIds, sel: 0, page: 0, autoSelect: false });
+        setMode({ ...mode, mode: 'forge_remove_ability', abilityTargetIndex: _selIndex, abilityIds: _abilityIds, sel: 0, page: 0 });
         setMsgs((prev) => [...prev.slice(-80), "装備から消す能力を選んでください。【呪】"]);
         return;
       }
@@ -1533,7 +1541,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto",
       }}
     >
-      <AutoIdentifyTarget enabled={!!mode.autoSelect && !_isForgeRemovalMode_ui} count={_filtered.length} onConfirm={doConfirmUI} />
+      <AutoIdentifyTarget enabled={!!mode.autoSelect} count={_filtered.length} selectionKey={mode.mode} onConfirm={doConfirmUI} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>
           {/* 未識別の選択式巻物は効果をバレない共通文 */}
@@ -1922,6 +1930,9 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
   const [candidates, setCandidates] = useState(null); // template[] | null
   const [statusMsg, setStatusMsg] = useState("");
   const inputRef = useRef(null);
+  const autoConfirmKeyRef = useRef(null);
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
 
   /* Hooks は mode の有無に関わらず常に同数・同順で呼ぶ */
   useEffect(() => {
@@ -1936,6 +1947,21 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (!mode?.autoSelect) {
+      autoConfirmKeyRef.current = null;
+      return undefined;
+    }
+    const key = String(mode.source || "") + ":" + String(mode.wandId || "");
+    if (autoConfirmKeyRef.current === key) return undefined;
+    autoConfirmKeyRef.current = key;
+    const timer = setTimeout(() => {
+      const preset = WISH_PRESETS[Math.floor(Math.random() * WISH_PRESETS.length)];
+      if (preset) onConfirmRef.current?.({ kind: "preset", id: preset.id });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [mode?.autoSelect, mode?.source, mode?.wandId]);
 
   const discGroups = useMemo(() => {
     if (!mode) return [];

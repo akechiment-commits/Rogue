@@ -6,7 +6,7 @@ import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueL
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
-  EMPTY_BOTTLE, SPELLS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion,
+  EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
@@ -155,8 +155,10 @@ export function useItemActions({
   dnameRef, bigboxAddItem,
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
   floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
+  pastIdent = [], discoveredItems = {},
 }) {
   const hypnosisAutoRef = useRef(null);
+  const markerWriteRef = useRef(null);
   const doUseItem = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
@@ -2220,7 +2222,7 @@ export function useItemActions({
         }
         doWaveWand(idx);
       }
-      else if (it.type === "marker") doUseMarker(idx);
+      else if (it.type === "marker") doUseMarker(idx, { autoSelect: true });
       else if (it.type === "pot") {
         const _contents = getHypnosisPotContents(p.inventory, it, p);
         const _content = _contents[Math.floor(Math.random() * _contents.length)];
@@ -2240,7 +2242,7 @@ export function useItemActions({
     sr.current = { ...st };
     setGs({ ...st });
     return true;
-  }, [doUseItem, endTurn]);
+  }, [doUseItem, doUseMarker, endTurn]);
 
   const doDropItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -2370,7 +2372,11 @@ export function useItemActions({
     setShowInv(false);
     setSelIdx(null);
     setShowDesc(null);
-    setThrowMode({ idx, mode: "wand_wave" });
+    setThrowMode({
+      idx,
+      mode: "wand_wave",
+      hypnosis: hypnosisAutoRef.current?.kind === "wand" && hypnosisAutoRef.current.idx === idx,
+    });
     setMsgs((prev) => [
       ...prev.slice(-80),
       `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を振る方向を選んでください...`,
@@ -2434,21 +2440,57 @@ export function useItemActions({
     },
     [lu, endTurn, chgFloor],
   );
-  const doUseMarker = useCallback((idx) => {
+  const doUseMarker = useCallback((idx, options = {}) => {
     if (!sr.current) return;
     const { player: p } = sr.current;
     const it = p.inventory[idx];
     if (!it || it.type !== "marker") return;
+    const autoSelect = !!options.autoSelect;
+    const finishAutomaticAttempt = (message) => {
+      const ml = installPlayerHpMessageHook([], p);
+      ml.push(message);
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+    };
     if (it.charges <= 0) {
+      if (autoSelect) {
+        finishAutomaticAttempt("催眠術でマーカーを使おうとしたが、インクが切れていた。");
+        return;
+      }
       setMsgs((prev) => [...prev.slice(-80), "マーカーのインクが切れている..."]);
       return;
     }
-    const blanks = p.inventory.filter((b) =>
+    const blanks = p.inventory.map((b, i) => ({ it: b, i })).filter(({ it: b }) =>
       (b.type === "scroll" && b.effect === "blank") ||
       (b.type === "spellbook" && !b.spell)
     );
     if (blanks.length === 0) {
+      if (autoSelect) {
+        finishAutomaticAttempt("催眠術でマーカーを使おうとしたが、白紙のアイテムがなかった。");
+        return;
+      }
       setMsgs((prev) => [...prev.slice(-80), "白紙の巻物も白紙の魔法書もない。"]);
+      return;
+    }
+    if (autoSelect) {
+      const blank = pick(blanks);
+      const blankKind = blank.it.type === "spellbook" ? "spellbook" : "scroll";
+      const knownIdent = new Set([...(sr.current.ident || []), ...pastIdent]);
+      const currentDiscoveries = getDiscoveries().items || {};
+      const inventoryScrollEffects = new Set(p.inventory.filter((item) => item.type === "scroll" && item.effect !== "blank").map((item) => item.effect));
+      const templates = blankKind === "spellbook"
+        ? SPELLBOOKS.filter((template) => template.spell && knownIdent.has("b:" + template.spell))
+        : ITEMS.filter((template) => template.type === "scroll" && template.effect !== "blank" && (
+          knownIdent.has("s:" + template.effect) || discoveredItems[template.effect] || currentDiscoveries[template.effect] || inventoryScrollEffects.has(template.effect)
+        ));
+      const affordableTemplates = templates.filter((template) => getMarkerInkCost(template) <= it.charges);
+      if (affordableTemplates.length === 0) {
+        finishAutomaticAttempt("催眠術でマーカーを使おうとしたが、書き込める種類がなかった。");
+        return;
+      }
+      markerWriteRef.current?.(blank.i, pick(affordableTemplates), { markerIdx: idx, blankKind });
       return;
     }
     setShowInv(false);
@@ -2459,7 +2501,7 @@ export function useItemActions({
     setMsgs((prev) => [...prev.slice(-80), "書き込む白紙アイテムを選んでください..."]);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
-  }, []);
+  }, [endTurn, pastIdent, discoveredItems]);
   const doReadSpellbook = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
@@ -2751,14 +2793,14 @@ export function useItemActions({
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   }, [endTurn]);
   const doMarkerWrite = useCallback(
-    (blankIdx, template) => {
-      if (!sr.current || !markerMode) return;
+    (blankIdx, template, modeOverride = markerMode) => {
+      if (!sr.current || !modeOverride) return;
       const { player: p } = sr.current;
-      const marker = p.inventory[markerMode.markerIdx];
+      const marker = p.inventory[modeOverride.markerIdx];
       const blank = p.inventory[blankIdx];
       if (!marker || marker.type !== "marker") { setMarkerMode(null); return; }
       const ml = installPlayerHpMessageHook([], p);
-      if (markerMode.blankKind === "spellbook") {
+      if (modeOverride.blankKind === "spellbook") {
         if (!blank || blank.type !== "spellbook" || blank.spell) { setMarkerMode(null); return; }
         const _cost = getMarkerInkCost(template);
         if (marker.charges < _cost) {
@@ -2793,7 +2835,7 @@ export function useItemActions({
         ml.push(`${template.name}${_mBcLabel}に変化した！[${marker.name} 残り${marker.charges}回]`);
       }
       if (marker.charges <= 0) {
-        p.inventory.splice(markerMode.markerIdx, 1);
+        p.inventory.splice(modeOverride.markerIdx, 1);
         ml.push(`${marker.name}のインクが切れた。`);
         /* 使い切った場合は足元返却不要（使用分は未払いに残る） */
         if (floorPenDropRef?.current === marker) floorPenDropRef.current = null;
@@ -2831,6 +2873,7 @@ export function useItemActions({
     },
     [markerMode, endTurn],
   );
+  markerWriteRef.current = doMarkerWrite;
   const doPutItem = useCallback(
     (itemIdx, putModeOverride = null) => {
       const activePutMode = putModeOverride || putMode;
@@ -2989,7 +3032,7 @@ export function useItemActions({
         setSelIdx(null);
         setShowDesc(null);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
-        setWishMode({ source: "pot", endTurnOnCancel: true });
+        setWishMode({ source: "pot", endTurnOnCancel: true, autoSelect: !!activePutMode.hypnosis });
         sr.current = { ...sr.current };
         setGs({ ...sr.current });
         return;
@@ -3504,7 +3547,7 @@ export function useItemActions({
           setThrowMode(null);
           setShowInv(false);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setWishMode({ source: "wand", wandId: it.id, endTurnOnCancel: false });
+          setWishMode({ source: "wand", wandId: it.id, endTurnOnCancel: false, autoSelect: !!throwMode?.hypnosis });
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;

@@ -290,7 +290,7 @@ export function useKeyHandler({
           if (identifyMode.mode === 'forge_item' && identifyMode.cursed && (_selIt.type === "weapon" || _selIt.type === "armor")) {
             const _abilityIds = getForgeAbilityIds(_selIt);
             if (_abilityIds.length > 0) {
-              setIdentifyMode({ ...identifyMode, mode: 'forge_remove_ability', abilityTargetIndex: _selIndex, abilityIds: _abilityIds, sel: 0, page: 0, autoSelect: false });
+              setIdentifyMode({ ...identifyMode, mode: 'forge_remove_ability', abilityTargetIndex: _selIndex, abilityIds: _abilityIds, sel: 0, page: 0 });
               setMsgs((prev) => [...prev.slice(-80), "装備から消す能力を選んでください。【呪】"]);
               return;
             }

@@ -5583,6 +5583,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     dnameRef, bigboxAddItem,
     onReturnToHub: returnToHubFromItem, dropModeRef, setFloorSelectMode, setTpSelectMode,
     floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
+    pastIdent, discoveredItems,
   });
   const doOfferFood = useCallback((foodRef) => {
     const s = sr.current;
