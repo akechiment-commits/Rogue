@@ -506,7 +506,7 @@ export const ITEMS = [
   { name:"変換の巻物", type:"scroll", effect:"transform_item",    rarity:"B", weight:2,  sellPrice:700,
     desc:"持ち物から1つ選んで別のアイテムに変える。\n呪い：レアリティが低いものに変化。", tile:18 },
   { name:"錬成の巻物", type:"scroll", effect:"forge_item",        rarity:"B", weight:2,  sellPrice:2000,
-    desc:"持ち物の武器か防具を1つ選んでランダムな能力を付与する。\n呪い：役に立たない能力。", tile:18 },
+    desc:"持ち物の武器か防具を1つ選び、ランダムな能力を付与する。\n呪い：装備の能力を1つ選んで消す。", tile:18 },
   { name:"召喚の巻物", type:"scroll", effect:"summon",            rarity:"E", weight:12, sellPrice:50,
     desc:"敵を4体召喚する。\n呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
   { name:"大箱の巻物", type:"scroll", effect:"bigbox_summon",      rarity:"B", weight:2,  sellPrice:1200,

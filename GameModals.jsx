@@ -1,6 +1,7 @@
 import { monsterBodySize, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
+import { getForgeAbilityIds, removeForgeAbility } from "./forgeAbilityRules.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
@@ -1120,10 +1121,19 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   if (!mode || !gs) return null;
   const _p = gs.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
+  const _isForgeRemovalMode_ui = mode.mode === 'forge_remove_ability';
+  const _forgeTarget_ui = _isForgeRemovalMode_ui ? _p.inventory[mode.abilityTargetIndex] : null;
+  const _forgeAbilityDefs_ui = _forgeTarget_ui?.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+  const _forgeAbilityOptions_ui = _isForgeRemovalMode_ui
+    ? (mode.abilityIds || []).map((id, index) => {
+      const ability = _forgeAbilityDefs_ui.find((entry) => entry.id === id);
+      return { it: { _isForgeAbility: true, abilityId: id, name: ability?.name || id, desc: ability?.desc || "" }, i: index };
+    })
+    : null;
   const _footBb = mode.bbFootId ? gs?.dungeon?.bigboxes?.find(b => b.id === mode.bbFootId) : null;
   const _footBbName = _footBb ? (isBigboxKindIdentified(_footBb, gs) ? _footBb.name : (gs?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
-  const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify';
-  const _filtered = [
+  const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify' && mode.mode !== 'forge_item';
+  const _filtered = _isForgeRemovalMode_ui ? _forgeAbilityOptions_ui : [
     ...(_bbModeOk ? [{ it: { _isBbTarget: true, _bbId: _footBb.id, name: `${_footBbName}（足元の大箱）` }, i: -1 }] : []),
     ..._p.inventory
       .map((it, i) => ({ it, i }))
@@ -1139,9 +1149,42 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     if (!sr.current) return;
     const _vi = (vi !== undefined && vi !== null) ? vi : _curSel_ui;
     const _absIdx = _idPage_ui * 10 + _vi;
-    const { it: _selIt } = _filtered[_absIdx] ?? {};
+    const { it: _selIt, i: _selIndex } = _filtered[_absIdx] ?? {};
     if (!_selIt) return;
     if (!claimModalConfirmation(mode, sr.current.player)) return;
+    if (mode.mode === 'forge_item' && mode.cursed && (_selIt.type === "weapon" || _selIt.type === "armor")) {
+      const _abilityIds = getForgeAbilityIds(_selIt);
+      if (_abilityIds.length > 0) {
+        setMode({ ...mode, mode: 'forge_remove_ability', abilityTargetIndex: _selIndex, abilityIds: _abilityIds, sel: 0, page: 0, autoSelect: false });
+        setMsgs((prev) => [...prev.slice(-80), "装備から消す能力を選んでください。【呪】"]);
+        return;
+      }
+    }
+    if (mode.mode === 'forge_remove_ability') {
+      const _target = sr.current.player.inventory[mode.abilityTargetIndex];
+      const _ability = _forgeAbilityDefs_ui.find((entry) => entry.id === _selIt.abilityId);
+      const _removed = removeForgeAbility(_target, _selIt.abilityId);
+      const _msgResult = _removed
+        ? `${_target.name}から「${_ability?.name || _selIt.abilityId}」が消えた！【呪】`
+        : "消す能力が見つからなかった。巻物は消えた。【呪】";
+      if (mode.identKey && sr.current) {
+        const _wasUnknown = !sr.current.ident.has(mode.identKey);
+        sr.current.ident.add(mode.identKey);
+        if (_wasUnknown && mode.scrollIdx != null) {
+          const _scroll = sr.current.player.inventory[mode.scrollIdx];
+          if (_scroll) trackItem(_scroll);
+        }
+      }
+      if (mode.revMsg) setMsgs((prev) => [...prev.slice(-80), mode.revMsg]);
+      if (mode.scrollIdx != null) { consumeModalScroll(mode, sr.current.player); if (identifyCancelRef) identifyCancelRef.current = null; }
+      if (mode.spellCost != null) sr.current.player.mp -= mode.spellCost;
+      const _turnMsgs = [];
+      endTurn(sr.current, sr.current.player, _turnMsgs);
+      setMode(null);
+      setMsgs((prev) => [...prev.slice(-80), ...(mode.spellMsg ? [mode.spellMsg] : []), _msgResult, ..._turnMsgs]);
+      sr.current = { ...sr.current }; setGs({ ...sr.current });
+      return;
+    }
     /* 操作で識別状態が変わる前の、プレイヤー向け表示名を固定する。 */
     const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     /* ===== 大箱ターゲット処理 ===== */
@@ -1186,7 +1229,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           _bbMsg = mode.blessed ? `${_bbDN}を${_earnedG}Gで換金した！（2倍）【祝】`
                  : mode.cursed  ? `${_bbDN}を${_earnedG}Gで換金した…（半額）【呪】`
                                 : `${_bbDN}を${_earnedG}Gで換金した！`;
-        } else if (mode.mode === 'transform_item' || mode.mode === 'forge_item') {
+        } else if (mode.mode === 'transform_item') {
           const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
           const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
           if (_newBbT) {
@@ -1198,6 +1241,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
               : (sr.current.bbFakeNames?.[_newBbT.kind] || "謎の大箱");
             _bbMsg = `${_oldBbName}が${_newBbName}に変わった！`;
           } else { _bbMsg = "変化しなかった。"; }
+        } else if (mode.mode === 'forge_item') {
+          _bbMsg = `${_bbDN}には効果がなかった。巻物は消えた。`;
         } else if (mode.mode === 'pot_extract') {
           const _extBbItems = [...(_bb.contents || [])];
           _bb.contents = [];
@@ -1339,20 +1384,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       /* ===== 錬成の巻物 ===== */
       if (_selIt.type !== "weapon" && _selIt.type !== "armor") {
         _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
+      } else if (mode.cursed) {
+        _msgResult = `${_selItDN}には消せる能力がなかった。巻物は消えた。【呪】`;
       } else {
       const _isWeapon = _selIt.type === "weapon";
       const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
       const _ownedIds = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
       /* 祝福・呪いで選出プールを絞る */
       const _WEAPON_STRONG = new Set(["reach","critical","critical_oni_club","critical_war_god_axe","critical_cat_claw","oil_proof","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid","lifesteal","double_strike"]);
-      const _WEAPON_WEAK   = new Set(["no_degrade","def_bonus","inflict_slow","knockback","recoil","gluttony"]);
       const _ARMOR_STRONG  = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist","water_proof","oil_proof","all_resist","aura"]);
-      const _ARMOR_WEAK    = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof","frail","noisy"]);
       const _strongSet = _isWeapon ? _WEAPON_STRONG : _ARMOR_STRONG;
-      const _weakSet   = _isWeapon ? _WEAPON_WEAK   : _ARMOR_WEAK;
       const _candidateAbils = _allAbils.filter(ab => !_ownedIds.has(ab.id) && !ab.specialOnly && (
         mode.blessed ? _strongSet.has(ab.id)
-      : mode.cursed  ? _weakSet.has(ab.id)
       : !ab.curseOnly && !ab.blessedOnly  /* 通常巻物では専用能力は出ない */
       ));
       /* プールが空なら全体から（既所持・特殊合成専用除く） */
@@ -1490,18 +1533,19 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto",
       }}
     >
-      <AutoIdentifyTarget enabled={!!mode.autoSelect} count={_filtered.length} onConfirm={doConfirmUI} />
+      <AutoIdentifyTarget enabled={!!mode.autoSelect && !_isForgeRemovalMode_ui} count={_filtered.length} onConfirm={doConfirmUI} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>
           {/* 未識別の選択式巻物は効果をバレない共通文 */}
-          {mode.wasUnknown ? "どのアイテムを選びますか？"
+          {_isForgeRemovalMode_ui ? `${_forgeTarget_ui?.name || "装備"}から消す能力を選んでください【呪】`
+          : mode.wasUnknown ? "どのアイテムを選びますか？"
             : mode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
             : mode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
             : mode.mode === 'duplicate' ? (mode.blessed ? "複製するアイテムを選んでください（複製品が祝福される）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
             : mode.mode === 'identify' ? "識別するアイテムを選んでください"
             : mode.mode === 'sell_item' ? (mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
             : mode.mode === 'transform_item' ? (mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
-            : mode.mode === 'forge_item' ? (mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
+            : mode.mode === 'forge_item' ? (mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（能力を1つ消す）【呪】" : "錬成する武器/防具を選んでください")
             : mode.mode === 'weapon_up' ? (mode.blessed ? "強化する武器/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/指輪を選んでください（－1）【呪】" : "強化する武器/指輪を選んでください（＋1）")
             : mode.mode === 'armor_up'  ? (mode.blessed ? "強化する防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する防具/指輪を選んでください（－1）【呪】" : "強化する防具/指輪を選んでください（＋1）")
             : mode.mode === 'pot_extract' ? (mode.cursed ? "割る壺を選んでください【呪】" : mode.blessed ? "吸い出す壺を選んでください（容量+1）【祝】" : "吸い出す壺を選んでください")
@@ -1536,7 +1580,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
               color: _isSel ? "#fff" : "#ccc",
               fontWeight: _isSel ? "bold" : "normal",
             }}>
-            {_isSel ? "▶ " : "　"}{it._isBbTarget ? it.name : iLabel(it)}
+            {_isSel ? "▶ " : "　"}{it._isForgeAbility ? <><b>{it.name}</b>{it.desc ? <span style={{ color: "#9ab", fontWeight: "normal", marginLeft: 6 }}>{it.desc}</span> : null}</> : it._isBbTarget ? it.name : iLabel(it)}
           </div>
         );
       })}

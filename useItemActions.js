@@ -1016,7 +1016,7 @@ export function useItemActions({
       if (it.effect === "forge_item" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
         const _forgeTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
           { mode: "forge_item", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
-        if (_forgeTargets.length > 0 || _scrollFootBb) {
+        if (_forgeTargets.length > 0) {
           const _ik_fg = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
           setIdentifyMode({ mode: 'forge_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_fg || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });

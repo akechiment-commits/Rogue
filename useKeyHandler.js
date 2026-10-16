@@ -1,6 +1,7 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
+import { getForgeAbilityIds } from "./forgeAbilityRules.js";
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -120,7 +121,7 @@ export { isDuplicateDirectionEvent, directionFamily, isRepeatBlockedKey };
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, keyboardShiftRef = null, keyboardDashRef = null, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+  sr, shiftRef, aRef, keyboardShiftRef = null, keyboardDashRef = null, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showEnding, showScores, showSound = false, gameOverSel, gameOverView, endingSel = 0, endingView,
   facingMode,
@@ -239,14 +240,20 @@ export function useKeyHandler({
         if (!sr.current) return;
         const _p_id = sr.current.player;
         const _isBCMode = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
-        const _filt_id = _p_id.inventory
-          .map((_it, _i) => ({ it: _it, i: _i }))
-          .filter(({ it, i }) => {
-            return isScrollTargetCandidate(identifyMode, it, i, sr.current.ident);
-          });
+        const _isForgeRemovalMode = identifyMode.mode === 'forge_remove_ability';
+        const _forgeTarget = _isForgeRemovalMode ? _p_id.inventory[identifyMode.abilityTargetIndex] : null;
+        const _forgeDefs = _forgeTarget?.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+        const _filt_id = _isForgeRemovalMode
+          ? (identifyMode.abilityIds || []).map((id, i) => {
+            const ability = _forgeDefs.find((entry) => entry.id === id);
+            return { it: { _isForgeAbility: true, abilityId: id, name: ability?.name || id, desc: ability?.desc || "" }, i };
+          })
+          : _p_id.inventory
+            .map((_it, _i) => ({ it: _it, i: _i }))
+            .filter(({ it, i }) => isScrollTargetCandidate(identifyMode, it, i, sr.current.ident));
         const _dg_id = sr.current.dungeon;
         const _footBb_id = identifyMode.bbFootId ? _dg_id?.bigboxes?.find(b => b.id === identifyMode.bbFootId) : null;
-        const _bbOk_id = !!(_footBb_id && !_isBCMode && identifyMode.mode !== 'unidentify');
+        const _bbOk_id = !!(_footBb_id && !_isBCMode && !_isForgeRemovalMode && identifyMode.mode !== 'unidentify' && identifyMode.mode !== 'forge_item');
         const _allList_id = [...(_bbOk_id ? [{ it: { _isBbTarget: true, _bbId: _footBb_id.id }, i: -1 }] : []), ..._filt_id];
         const _len_id = _allList_id.length;
         const _idPage    = identifyMode.page || 0;
@@ -274,8 +281,20 @@ export function useKeyHandler({
         }
         if ((k === "enter" || k === "z") && _idPageLen > 0) {
           const _curSel_id = Math.min(identifyMode.sel || 0, _idPageLen - 1);
-          const { it: _selIt } = _idPageItems[_curSel_id];
+          const { it: _selIt, i: _selIndex } = _idPageItems[_curSel_id];
+          if (_isForgeRemovalMode) {
+            identifyConfirmRef?.current?.(_curSel_id);
+            return;
+          }
           if (!claimModalConfirmation(identifyMode, _p_id)) return;
+          if (identifyMode.mode === 'forge_item' && identifyMode.cursed && (_selIt.type === "weapon" || _selIt.type === "armor")) {
+            const _abilityIds = getForgeAbilityIds(_selIt);
+            if (_abilityIds.length > 0) {
+              setIdentifyMode({ ...identifyMode, mode: 'forge_remove_ability', abilityTargetIndex: _selIndex, abilityIds: _abilityIds, sel: 0, page: 0, autoSelect: false });
+              setMsgs((prev) => [...prev.slice(-80), "装備から消す能力を選んでください。【呪】"]);
+              return;
+            }
+          }
           /* ===== 大箱ターゲット処理 ===== */
           if (_selIt._isBbTarget) {
             const _bb = _dg_id?.bigboxes?.find(b => b.id === _selIt._bbId);
@@ -314,7 +333,7 @@ export function useKeyHandler({
                 _bbMsg = identifyMode.blessed ? `${_bb.name}を${_earnedG}Gで換金した！（2倍）【祝】`
                        : identifyMode.cursed  ? `${_bb.name}を${_earnedG}Gで換金した…（半額）【呪】`
                                               : `${_bb.name}を${_earnedG}Gで換金した！`;
-              } else if (identifyMode.mode === 'transform_item' || identifyMode.mode === 'forge_item') {
+              } else if (identifyMode.mode === 'transform_item') {
                 const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
                 const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
                 if (_newBbT) {
@@ -324,6 +343,8 @@ export function useKeyHandler({
                   const _newBbName = isBigboxKindIdentified(_bb, sr.current) ? _newBbT.name : (sr.current.bbFakeNames?.[_newBbT.kind] || "謎の大箱");
                   _bbMsg = `${_oldBbName}が${_newBbName}に変わった！`;
                 } else { _bbMsg = "変化しなかった。"; }
+              } else if (identifyMode.mode === 'forge_item') {
+                _bbMsg = `${_bb.name}には効果がなかった。巻物は消えた。`;
               } else if (identifyMode.mode === 'pot_extract') {
                 const _extItems = [...(_bb.contents || [])];
                 _bb.contents = [];
@@ -407,19 +428,17 @@ export function useKeyHandler({
             /* ===== 錬成の巻物 ===== */
             if (_selIt.type !== "weapon" && _selIt.type !== "armor") {
               _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
+            } else if (identifyMode.cursed) {
+              _msgResult = `${_selIt.name}には消せる能力がなかった。巻物は消えた。【呪】`;
             } else {
             const _isWeapon = _selIt.type === "weapon";
             const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
             const _owned = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
             const _WS = new Set(["reach","critical","critical_oni_club","critical_war_god_axe","critical_cat_claw","oil_proof","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid"]);
-            const _WW = new Set(["no_degrade","def_bonus","inflict_slow","knockback"]);
             const _AS = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist","oil_proof"]);
-            const _AW = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof"]);
             const _str = _isWeapon ? _WS : _AS;
-            const _wk  = _isWeapon ? _WW : _AW;
             const _cands = _allAbils.filter(ab => !_owned.has(ab.id) && !ab.specialOnly && (
               identifyMode.blessed ? _str.has(ab.id)
-              : identifyMode.cursed ? _wk.has(ab.id)
               : !ab.curseOnly && !ab.blessedOnly));
             const _pool = _cands.length > 0 ? _cands : _allAbils.filter(ab => !_owned.has(ab.id) && !ab.specialOnly);
             if (_pool.length > 0) {

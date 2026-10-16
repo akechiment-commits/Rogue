@@ -5493,7 +5493,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   };
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, keyboardShiftRef, keyboardDashRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+    sr, shiftRef, aRef, keyboardShiftRef, keyboardDashRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
     // state values
     gs, dead, showEnding, showScores, showSound, gameOverSel, gameOverView, endingSel, endingView,
     facingMode,
