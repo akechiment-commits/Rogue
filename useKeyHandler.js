@@ -8,16 +8,14 @@ import { synchronizeFloorArrival } from "./floorArrival.js";
 import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
-  ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, TRAPS, BB_TYPES, RINGS,
-  RAW_FOODS, COOKED_FOODS,
+  ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
   extractPotContents, scatterPotContents, reducePotCapacity,
   declareFloorExitTheft,
 } from "./items.js";
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
-import { prepareLastFloor, DEBUG_SPECIAL_FLOORS } from "./dungeon.js";
+import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight, getDigitNumber, isDashModifierKey } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
@@ -830,42 +828,12 @@ export function useKeyHandler({
           return;
         }
 
-        /* 全エントリ数を計算 */
-        let _dsTotalEntries = 0;
-        if (_dsEff === "debug_summon_mon") {
-          for (const m of MONS) { _dsTotalEntries++; const lvs = MON_LEVELS[m.baseKind]; if (lvs) { if (lvs[0]) _dsTotalEntries++; if (lvs[1]) _dsTotalEntries++; } }
-          _dsTotalEntries += BOSSES.length + INTERMEDIATE_BOSSES.length;
-        } else if (_dsIsItemGet) {
-          if (!_dsCat) { _dsTotalEntries = 14; } // カテゴリ数（special_synth追加済み）
-          else if (_dsCat === "potions")      _dsTotalEntries = ITEMS.filter(x=>x.type==="potion").length + 1;
-          else if (_dsCat === "scrolls")      _dsTotalEntries = ITEMS.filter(x=>x.type==="scroll").length + 1;
-          else if (_dsCat === "weapons")      _dsTotalEntries = ITEMS.filter(x=>x.type==="weapon").length + 2;
-          else if (_dsCat === "armors")       _dsTotalEntries = ITEMS.filter(x=>x.type==="armor").length;
-          else if (_dsCat === "special_synth") _dsTotalEntries = 18;
-          else if (_dsCat === "pens")         _dsTotalEntries = ITEMS.filter(x=>x.type==="pen").length + 1;
-          else if (_dsCat === "arrows")       _dsTotalEntries = ITEMS.filter(x=>x.type==="arrow").length + 3;
-          else if (_dsCat === "wands")        _dsTotalEntries = WANDS.length;
-          else if (_dsCat === "spellbooks")   _dsTotalEntries = SPELLBOOKS.length;
-          else if (_dsCat === "rings")        _dsTotalEntries = RINGS.length;
-          else if (_dsCat === "pots")         _dsTotalEntries = POTS.length;
-          else if (_dsCat === "raw_food")     _dsTotalEntries = RAW_FOODS.length;
-          else if (_dsCat === "cooked_food")  _dsTotalEntries = COOKED_FOODS.length;
-          else if (_dsCat === "others")       _dsTotalEntries = 1;
-        } else if (_dsEff === "debug_create_trap") {
-          _dsTotalEntries = TRAPS.length;
-        } else if (_dsEff === "debug_summon_bb") {
-          _dsTotalEntries = BB_TYPES.length;
-        } else if (_dsEff === "debug_summon_object") {
-          /* オブジェクト召喚はガチャ・泉・風穴・石像・祭壇・次元宝物庫の6項目。 */
-          _dsTotalEntries = 6;
-        } else if (_dsEff === "debug_goto_special") {
-          _dsTotalEntries = DEBUG_SPECIAL_FLOORS.length;
-        }
-        const _dsIsCategory = _dsIsItemGet && !_dsCat;
-        const _dsPageSize = _dsIsCategory ? _dsTotalEntries : 10;
-        const _dsTotalPages = _dsIsCategory ? 1 : Math.max(1, Math.ceil(_dsTotalEntries / _dsPageSize));
+        /* 表示中の候補数を単一の情報源として使う。候補追加時にキー操作側の
+           件数表が古くなり、末尾候補へ届かなくなるのを防ぐ。 */
+        const _dsModal = document.querySelector('[data-debug-spell-modal]');
+        const _dsTotalPages = Math.max(1, Number(_dsModal?.dataset.debugTotalPages) || 1);
         const _dsSafePage = Math.min(_dsPage, _dsTotalPages - 1);
-        const _dsLen = Math.min(_dsPageSize, Math.max(0, _dsTotalEntries - _dsSafePage * _dsPageSize));
+        const _dsLen = _dsModal?.querySelectorAll('[data-debug-entry]').length || 0;
 
         /* 上下: カーソル移動 */
         const _dsUp = isKeyUp(e);
@@ -887,9 +855,8 @@ export function useKeyHandler({
 
         /* Z/Enter: 選択確定 */
         if ((k === "enter" || k === "z") && _dsLen > 0) {
-          const modal = document.querySelector('[data-debug-spell-modal]');
-          if (modal) {
-            const items = modal.querySelectorAll('[data-debug-entry]');
+          if (_dsModal) {
+            const items = _dsModal.querySelectorAll('[data-debug-entry]');
             const sel = Math.min(debugSpellMenuSel ?? 0, items.length - 1);
             if (items[sel]) items[sel].click();
           }

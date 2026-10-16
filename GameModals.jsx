@@ -4543,7 +4543,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   };
 
   return (
-    <div data-debug-spell-modal style={{
+    <div data-debug-spell-modal data-debug-total-pages={totalPages} style={{
       position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#080d18", border: "1px solid #2050a0", padding: mobile ? 10 : 14, zIndex: 12,
       borderRadius: 8, boxShadow: "0 4px 20px rgba(0,40,120,0.7)",
