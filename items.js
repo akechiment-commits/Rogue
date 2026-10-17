@@ -1098,7 +1098,8 @@ export function isNoChargeBoostWand(it) {
 }
 
 export function potOccupancyCount(pot) {
-  if (!pot || pot.type !== "pot") return 0;
+  if (!pot || typeof pot !== "object") return 0;
+  if (pot.type && pot.type !== "pot") return 0;
   return (pot.contents?.length || 0) + (pot.confinedMonsters?.length || 0);
 }
 
@@ -1839,7 +1840,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
   const contents = [...(pot.contents || [])];
   pot.contents = [];
   if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
-  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
   if (_oilEffects[pot.potEffect] && occupied < (pot.capacity ?? 3)) {
     ml.push(`${resolveItemName(pot)}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
     pushSplashAnim(px, py, "#ccaa44");
@@ -2761,15 +2762,16 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
   let hit = false;
   const _rfm = monsterAt(dg, tx, ty);
   if (_rfm) {
-    const _rfd2 = rng(15, 25);
-    _rfm.hp -= _rfd2;
+    wakeIfDormant(_rfm, ml);
     hit = true;
-    ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
-    if (_rfm.hp <= 0) {
-      ml.push(`${_rfm.name}は倒れた！`);
-      trackMonster(_rfm);
-      monsterDrop(_rfm, dg, ml, p);
-      removeMonster(dg, _rfm);
+    if (!consumeBarrier(_rfm, ml) && !blockLargeMonsterDamage(_rfm, p, ml)) {
+      const _rfd2 = clampDmgFixed(_rfm, rng(15, 25));
+      _rfm.hp -= _rfd2;
+      ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
+      if (_rfm.hp <= 0) {
+        ml.push(`${_rfm.name}は倒れた！`);
+        killMonster(_rfm, dg, p, ml, null, true);
+      }
     }
   }
   if (p && p.x === tx && p.y === ty) {
@@ -3193,19 +3195,20 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
         ml.push(`みかわしの魔方陣の加護で${label}が${m.name}に当たらなかった！矢が落ちた。`);
         placeItemAt(dg, cx, cy, arrow, ml, _ft);
       } else {
-        const d = dmgMon();
-        m.hp -= d;
-        if (poison) {
-          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-          ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
-        } else {
-          ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
-        }
-        if (m.hp <= 0) {
-          ml.push(`${m.name}は倒れた！`);
-          trackMonster(m);
-          monsterDrop(m, dg, ml, p);
-          removeMonster(dg, m);
+        wakeIfDormant(m, ml);
+        if (!consumeBarrier(m, ml) && !blockLargeMonsterDamage(m, p, ml)) {
+          const d = clampDmgFixed(m, dmgMon());
+          m.hp -= d;
+          if (poison) {
+            m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
+          } else {
+            ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
+          }
+          if (m.hp <= 0) {
+            ml.push(`${m.name}は倒れた！`);
+            killMonster(m, dg, p, ml, null, true);
+          }
         }
       }
       hit = true;
@@ -3592,14 +3595,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           if (_bbHitWall) { _bbm.hp -= 10; ml.push(`${_bbm.name}が壁に激突！10ダメージ！`); }
           if (_bbHitOther) { _bbm.hp -= 10; _bbHitOther.hp -= 10; ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！お互いに10ダメージ！`); }
           if (_bbm.hp <= 0) {
-            trackMonster(_bbm);
-            monsterDrop(_bbm, dg, ml, p);
+            ml.push(`${_bbm.name}は倒れた！`);
+            killMonster(_bbm, dg, p, ml, null, true);
           }
           if (_bbHitOther?.hp <= 0) {
-            trackMonster(_bbHitOther);
-            monsterDrop(_bbHitOther, dg, ml, p);
+            ml.push(`${_bbHitOther.name}は倒れた！`);
+            killMonster(_bbHitOther, dg, p, ml, null, true);
           }
-          dg.monsters = dg.monsters.filter(m => m.hp > 0);
         }
       }
       if (p && p.x === tx && p.y === ty) {
@@ -3622,10 +3624,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`);
           if (_pHitMon.hp <= 0) {
             ml.push(`${_pHitMon.name}は倒れた！`);
-            trackMonster(_pHitMon);
-            monsterDrop(_pHitMon, dg, ml, p);
+            killMonster(_pHitMon, dg, p, ml, null, true);
           }
-          dg.monsters = dg.monsters.filter(m => m.hp > 0);
         }
         else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
         pushPlayerKnockbackAnim(_blowFromX, _blowFromY, p.x, p.y, _pbdx, _pbdy);
@@ -6390,9 +6390,11 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           else if (it.type === "potion") { blasted.add(it); ml.push(`薬「${resolveItemName(it)}」が割れてなくなった！`); }
           else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${resolveItemName(it)}」が燃えてなくなった！`); }
           else if (it.type === "pot") {
-            blasted.add(it);
-            if (it.potEffect !== "gunpowder") ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
-            if (it.confinedMonsters?.length) releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
+            if (it.potEffect === "gunpowder") {
+              blasted.add(it);
+            } else {
+              _explosionBreakPot(it, ax, ay, dg, p, ml, luFn, null, blasted);
+            }
           } else if (it.type === "wand") {
             _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, null, blasted);
           } else if (it.type === "item_mimic") {

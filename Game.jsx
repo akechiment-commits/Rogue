@@ -4796,7 +4796,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
           } else if (item.type === "pot") {
             /* 壺：種類に応じた破壊効果（中身は散乱しない） */
-            const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+            const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
             const _potOccupancy = potOccupancyCount(item);
             if (item.potEffect !== "imprison" && item.confinedMonsters?.length) {
               releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
