@@ -157,6 +157,9 @@ export const TILE_NAMES = {
   235: "hermit_crab",
   236: "sylph",
   237: "fire_cook",
+  238: "mushroom_poison",
+  239: "mushroom_sleep",
+  240: "mushroom_confuse",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -371,6 +374,9 @@ export const TILE_RENDER = {
   235: { bg: null, fg: "#e6b870", ch: "蟹" }, /* ヤドカリ */
   236: { bg: null, fg: "#70f0d8", ch: "風" }, /* シルフ系 */
   237: { bg: null, fg: "#ff682e", ch: "炎" }, /* 炎の料理人 */
+  238: { bg: null, fg: "#e04040", ch: "茸" }, /* ドクキノコ */
+  239: { bg: null, fg: "#a050d0", ch: "茸" }, /* ネムリキノコ */
+  240: { bg: null, fg: "#e08020", ch: "茸" }, /* マダラキノコ */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

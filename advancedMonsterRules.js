@@ -10,7 +10,7 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   3: ["skeleton", "imp"],
   4: ["runner", "zombie"],
   5: ["archer", "wokka", "slime"],
-  6: ["grabber", "tripper"],
+  6: ["grabber", "tripper", "mushroom"],
   7: ["potionthrower", "potionhealer", "rakugakima"],
   8: ["itemMimic", "charger"],
   9: ["tattoobird", "thief"],
@@ -18,7 +18,7 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   11: ["leprechaun", "itemblaster", "sylph"],
   12: ["stealthrower", "itempusher"],
   13: ["itemThrower", "bombslime", "reflector"],
-  14: ["crystalslime", "rockspirit", "orc", "potRaider"],
+  14: ["crystalslime", "rockspirit", "orc", "potRaider", "mushroom"],
   15: ["dangerousPetal", "dreamEater", "wateri"],
   16: ["lizardman", "dragonknight", "gelcube"],
   17: ["trapmaster", "bombgoblin", "knocker"],
@@ -111,6 +111,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   sylph: { min: 22, max: 24 },
   hauntedWillow: { min: 25, max: 29 },
   sleepingLion: { min: 25, max: 30 },
+  mushroom: { min: 14, max: 16 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {

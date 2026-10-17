@@ -16,6 +16,7 @@ import {
   scaleMonsterFireDamage as scaleMonFireDmg,
   spawnMonsters,
   wakeIfDormant,
+  triggerMushroomCounterSpore,
 } from './monsterRuntime.js';
 import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushItemFlyAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import {
@@ -4110,6 +4111,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   const dmg = clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true);
   mon.hp -= dmg;
   ml.push(hitMessage(mon, dmg));
+  triggerMushroomCounterSpore(mon, dg, p, ml);
 
   /* 毒矢：命中時の毒付与と攻撃力半減も通常投擲と同じにする。 */
   if (item.type === "arrow" && item.poison) {
@@ -7752,6 +7754,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       }
     }
     ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${_wakkaTarget.isBoss ? `(${_wakkaPoisonT}ターン)` : "(永続)"}` : ""}`);
+    triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
     if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
     if (st.bombArrow) {
       if (isFireExplosionNullified(dg, p)) {
@@ -7862,6 +7865,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         }
       }
       ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${m.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+      triggerMushroomCounterSpore(m, dg, p, ml);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }
     }

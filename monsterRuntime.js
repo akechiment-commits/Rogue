@@ -87,3 +87,7 @@ export function scaleMonsterFireDamage(...args) {
 export function monsterFireDamageLabel(...args) {
   return requireRuntime("monsterFireDamageLabel")(...args);
 }
+
+export function triggerMushroomCounterSpore(...args) {
+  return requireRuntime("triggerMushroomCounterSpore")(...args);
+}

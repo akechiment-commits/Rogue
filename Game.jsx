@@ -18,6 +18,7 @@ import {
   monReflectsProjectiles,
   resolveMonsterWandEffect,
   monsterCanInteractAtRange,
+  triggerMushroomCounterSpore,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
@@ -2879,6 +2880,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
+              triggerMushroomCounterSpore(attackMon, dg, p, ml);
               /* 吸血の指輪：通常の敵には与ダメの1/8を吸収し、アンデッドには反動を受ける */
               if (hasRingEffect(p, "vampire_ring")) {
                 const _vamp = Math.max(1, Math.floor(d / 8));
@@ -3220,6 +3222,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           }
                         }
                         mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${mon.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+                        triggerMushroomCounterSpore(mon, dg, p, mlx);
                         _ad.damages.push({ type: "damage", x: mon.x, y: mon.y, value: _srDmg, color: _arColor });
                         if (mon.hp <= 0) { _ad.damages.push({ type: "flash", x: mon.x, y: mon.y, color: "#ff2200", duration: 150 }); killMonster(mon, dg, p, mlx, lu, false); }
                         if (!_isPierce) _srPeel();

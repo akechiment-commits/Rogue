@@ -7,6 +7,7 @@ import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
@@ -1281,6 +1282,14 @@ export const MONS = [
     levels: [
       { name: "竜騎士04", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: null, advanced: { min: 20, max: 24 } } },
       { name: "Mikan", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
+    ],
+  },
+  { name: "ドクキノコ",   hp: 22,  atk: 13, def: 3,  exp: 24,  speed: 1,   tile: 238, kind: "beast", baseKind: "mushroom",       monLevel: 1, minFloor: 6, maxFloor: 50, elemWeak: "fire", subtype: "sporeCounter",
+    desc: "植物・菌類の魔物。直接攻撃や矢・石などの物理攻撃を受けると、周囲1マスに無差別に毒胞子を撒き散らす。炎が弱点。",
+    dungeonFloors: { beginner: { min: 6, max: 8 }, intermediate: { min: 4, max: 7 }, advanced: { min: 6, max: 8 } },
+    levels: [
+      { name: "ネムリキノコ", hp: 48,  atk: 25, def: 7,  exp: 72,  tile: 239, dungeonFloors: { intermediate: { min: 14, max: 17 }, advanced: { min: 14, max: 16 } } },
+      { name: "マダラキノコ", hp: 86,  atk: 39, def: 13, exp: 145, tile: 240, dungeonFloors: { advanced: { min: 24, max: 27 } } },
     ],
   },
 ];
@@ -3831,6 +3840,107 @@ function useDangerousPetalSleep(m, dg, pl, ml) {
 }
 
 /**
+ * キノコ系モンスターの被弾カウンター胞子。
+ * プレイヤーの直接攻撃、矢や石などの物理攻撃を受けた時に、
+ * キノコの周囲1マス（8方向）へ無差別に胞子を撒き散らす。
+ * - Lv1（ドクキノコ）: 毒胞子
+ * - Lv2（ネムリキノコ）: 睡眠胞子
+ * - Lv3（マダラキノコ）: 混乱胞子
+ * 封印中（mon.sealed）は発動しない。
+ */
+export function triggerMushroomCounterSpore(mon, dg, p, ml) {
+  if (!mon || mon.baseKind !== "mushroom" || mon.sealed || !dg) return;
+  const level = mon.monLevel || 1;
+  const sporeType = level === 1 ? "poison" : level === 2 ? "sleep" : "confuse";
+  const sporeName = level === 1 ? "毒胞子" : level === 2 ? "睡眠胞子" : "混乱胞子";
+
+  ml.push(`${mon.name}は衝撃で周囲に${sporeName}を撒き散らした！`);
+
+  const mx = mon.x;
+  const my = mon.y;
+  const targets = [];
+
+  // 周囲1マス（8マス）にいるプレイヤー
+  if (p && (p.hp || 0) > 0 && Math.max(Math.abs(p.x - mx), Math.abs(p.y - my)) === 1) {
+    targets.push(p);
+  }
+
+  // 周囲1マス（8マス）にいる他のモンスター（生存中、自身を除く）
+  for (const other of (dg.monsters || [])) {
+    if (other && other !== mon && (other.hp || 0) > 0 && Math.max(Math.abs(other.x - mx), Math.abs(other.y - my)) === 1) {
+      targets.push(other);
+    }
+  }
+
+  for (const target of targets) {
+    const isPlayer = target === p;
+    if (inMagicSealRoom(target.x, target.y, dg)) {
+      ml.push(`${isPlayer ? "プレイヤー" : target.name}は魔封じの魔方陣に守られた！`);
+      continue;
+    }
+
+    if (isPlayer) {
+      if ((p.statusImmune || 0) > 0) {
+        ml.push(`状態防止中のため${sporeName}を防いだ！`);
+        continue;
+      }
+      if (sporeType === "poison") {
+        if (hasRingEffect(p, "antidote_ring")) {
+          ml.push("毒消しの指輪が毒胞子を防いだ！");
+        } else {
+          const res = applyPlayerPoison(p);
+          ml.push(`毒胞子を浴びた！毒状態(${res.turns}ターン)になった！${res.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+        }
+      } else if (sporeType === "sleep") {
+        if (hasAbility(p.armor, "sleep_proof")) {
+          ml.push("防具が睡眠胞子を防いだ！");
+        } else if ((p.sleepTurns || 0) > 0) {
+          ml.push("すでに眠っている。");
+        } else {
+          const turns = statusTurns("sleep", { kind: "player" });
+          p.sleepTurns = (p.sleepTurns || 0) + turns;
+          ml.push(`睡眠胞子を浴びて眠ってしまった！(${turns}ターン)`);
+        }
+      } else if (sporeType === "confuse") {
+        if (hasAbility(p.armor, "confuse_proof")) {
+          ml.push("防具が混乱胞子を防いだ！");
+        } else {
+          const turns = statusTurns("confuse", { kind: "player" });
+          p.confusedTurns = (p.confusedTurns || 0) + turns;
+          ml.push(`混乱胞子を浴びて混乱してしまった！(${turns}ターン)`);
+        }
+      }
+    } else {
+      // モンスター対象
+      if (sporeType === "poison") {
+        if (blockLargeMonsterStatus(target, "poison", ml)) continue;
+        startLargeMonsterStatusCooldown(target, "poison");
+        const turns = statusTurns("poison", { kind: "monster", target });
+        target.poisonedTurns = (target.poisonedTurns || 0) + turns;
+        if (!target.poisonHalfAtk) {
+          target.poisonOrigAtk = target.atk;
+          target.poisonHalfAtk = true;
+          target.atk = Math.max(1, Math.floor((target.atk || 1) / 2));
+        }
+        ml.push(`${target.name}は毒胞子を浴びて毒状態になった！(${turns}ターン)`);
+      } else if (sporeType === "sleep") {
+        if (blockLargeMonsterStatus(target, "sleep", ml)) continue;
+        startLargeMonsterStatusCooldown(target, "sleep");
+        const turns = statusTurns("sleep", { kind: "monster", target });
+        target.sleepTurns = (target.sleepTurns || 0) + turns;
+        ml.push(`${target.name}は睡眠胞子を浴びて眠りに落ちた！(${turns}ターン)`);
+      } else if (sporeType === "confuse") {
+        if (blockLargeMonsterStatus(target, "confuse", ml)) continue;
+        startLargeMonsterStatusCooldown(target, "confuse");
+        const turns = statusTurns("confuse", { kind: "monster", target });
+        target.confusedTurns = (target.confusedTurns || 0) + turns;
+        ml.push(`${target.name}は混乱胞子を浴びて混乱した！(${turns}ターン)`);
+      }
+    }
+  }
+}
+
+/**
  * ものまね師の位置から見て、コピー元の特技が「実行可能な条件」を満たすか。
  * ラクガキ魔：プレイヤー認識（canSee）ならどこでも試行可（足元失敗は実行時に処理）
  * アーチャー／杖／水鉄砲／突進：一直線
@@ -4603,6 +4713,7 @@ registerMonsterRuntime({
   findMonsterRoom: findRoom,
   scaleMonsterFireDamage: scaleMonFireDmg,
   monsterFireDamageLabel: monFireDmgLabel,
+  triggerMushroomCounterSpore,
 });
 
 /** 分身のAI。通常敵を優先して攻撃し、敵がいなければプレイヤーから離れすぎないよう追従する。 */
