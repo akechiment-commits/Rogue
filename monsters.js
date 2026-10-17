@@ -986,10 +986,10 @@ export const MONS = [
   /* 長居ペナルティ専用：壁抜け・浮遊。等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
   { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
     desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
-  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, elemWeak: "ice", subtype: "powercharge", desc: "隣接時に力を溜めることがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
+  { name: "やかん小僧",   hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, elemWeak: "ice", subtype: "powercharge", desc: "隣接時に力を溜める（沸騰する）ことがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
     levels: [
-      { name: "オーク将",           hp: 65,  atk: 31, def: 12, exp: 77,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
-      { name: "オーク王",           hp: 101, atk: 40, def: 16, exp: 120, dungeonFloors: { advanced: { min: 25, max: 26 } } },
+      { name: "沸騰やかん",         hp: 65,  atk: 31, def: 12, exp: 77,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
+      { name: "大爆発やかん",       hp: 101, atk: 40, def: 16, exp: 120, dungeonFloors: { advanced: { min: 25, max: 26 } } },
     ],
   },
   { name: "ゼラチンキューブ", hp: 81, atk: 22, def: 5, exp: 70,  speed: 0.5, tile: 174, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire", dungeonFloors: { intermediate: { min: 16, max: 18 }, advanced: { min: 12, max: 22 } },

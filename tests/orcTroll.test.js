@@ -10,7 +10,7 @@ describe("オーク系・トロル系の痛恨", () => {
   it("オークは力を溜め、次の1ターンだけ防御無視で攻撃する", () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
-      const base = MONS.find((monster) => monster.name === "オーク");
+      const base = MONS.find((monster) => monster.baseKind === "orc");
       const orc = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
       orc.turnAttacks = 0;
       const player = makePlayer({ x: 6, y: 5, def: 100 });
@@ -39,7 +39,7 @@ describe("オーク系・トロル系の痛恨", () => {
   it("オークの溜めは次のターンに隣接していなければ失効する", () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
-      const base = MONS.find((monster) => monster.name === "オーク");
+      const base = MONS.find((monster) => monster.baseKind === "orc");
       const orc = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
       orc.turnAttacks = 0;
       const player = makePlayer({ x: 6, y: 5 });
