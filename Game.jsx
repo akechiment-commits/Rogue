@@ -3002,7 +3002,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
                   if (_srAr.specialProjectile) {
-                    ml.push(`【射撃の指輪】`);
                     shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
                       forceMiss: _srForceMiss,
                     });
