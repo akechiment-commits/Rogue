@@ -1,4 +1,4 @@
-import { monsterOccupiesCell, monsterAreaTargets } from "./monsterGeometry.js";
+import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
@@ -2932,8 +2932,10 @@ export function useItemActions({
             applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
             pushSplashAnim(p.x, p.y, _potClr);
             const _boilMons = dg.monsters.filter(
-              (m) => m.x >= _boilRoom.x && m.x < _boilRoom.x + _boilRoom.w &&
-                     m.y >= _boilRoom.y && m.y < _boilRoom.y + _boilRoom.h,
+              (m) => !m.disguisedAsItem && monsterBodyCells(m).some(
+                (c) => c.x >= _boilRoom.x && c.x < _boilRoom.x + _boilRoom.w &&
+                       c.y >= _boilRoom.y && c.y < _boilRoom.y + _boilRoom.h,
+              ),
             );
             for (const _bm of _boilMons) {
               applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
@@ -3095,7 +3097,7 @@ export function useItemActions({
       const { idx, mode } = throwMode;
       const { player: p, dungeon: dg } = sr.current;
       const ml = installPlayerHpMessageHook([], p);
-      const _hasWakkaTargetInRange = () => (dg.monsters || []).some(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
+      const _hasWakkaTargetInRange = () => (dg.monsters || []).some(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
         Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10);
       const _skSnap = dg.monsters.filter(m => m.type === "shopkeeper").map(m => ({ m, hp: m.hp }));
       /* 遠投判定（投げ・射撃にのみ影響） */
@@ -3164,7 +3166,7 @@ export function useItemActions({
             /* 魔法の石：10マス以内の最近敵にホーミング */
             const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
             const _msTarget = [...dg.monsters]
-              .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
+              .filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 && Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
               .sort((a, b) => _msDist(a) - _msDist(b))[0];
             if (_msTarget) {
               pushItemFlyAnim(p.x, p.y, _msTarget.x, _msTarget.y, _arItem.tile, null, { flightArc: true });
@@ -3778,7 +3780,7 @@ export function useItemActions({
         const _wakkaRingThrow = mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile;
         const _wakkaTarget = _wakkaRingThrow
           ? [...dg.monsters]
-            .filter(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
+            .filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
               Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
             .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0]
           : null;
@@ -3876,7 +3878,7 @@ export function useItemActions({
           } else if (it.magicStone) {
             const _msDist2 = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
             const _msTarget2 = [...dg.monsters]
-              .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
+              .filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 && Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
               .sort((a, b) => _msDist2(a) - _msDist2(b))[0];
             if (_msTarget2) {
               pushItemFlyAnim(p.x, p.y, _msTarget2.x, _msTarget2.y, it.tile, null, { flightArc: true });

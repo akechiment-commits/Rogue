@@ -7146,7 +7146,7 @@ export function destroyEnemyHomingProjectileAt(dg, x, y, ml, hitName = "飛び�
 
 function nearestSpecialProjectileTarget(dg, x, y, range = 10) {
   return (dg.monsters || [])
-    .filter(m => (m.hp ?? 1) > 0 && Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) <= range)
+    .filter(m => !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0 && Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) <= range)
     .sort((a, b) => {
       const da = Math.max(Math.abs(a.x - x), Math.abs(a.y - y));
       const db = Math.max(Math.abs(b.x - x), Math.abs(b.y - y));
@@ -7176,7 +7176,7 @@ function specialProjectilePathHitMonster(sp, next, dg, monsterSnapshots = null, 
   const _projectilePath = specialProjectileGridPath(sp.x, sp.y, next.x, next.y);
   const _projectileCells = new Set(_projectilePath.map(({ x, y }) => `${x},${y}`));
   for (const monster of dg.monsters || []) {
-    if ((monster.hp ?? 1) <= 0) continue;
+    if ((monster.hp ?? 1) <= 0 || monster.disguisedAsItem) continue;
     const _before = monsterSnapshots?.get(monster.id);
     const _monsterPath = _before
       ? specialProjectileGridPath(_before.x, _before.y, monster.x, monster.y)
@@ -7581,7 +7581,7 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     if (_isEnemyHoming) {
       _target = p;
     } else if (_isHoming) {
-      if (sp.targetId) _target = (dg.monsters || []).find(m => m.id === sp.targetId && (m.hp ?? 1) > 0) || null;
+      if (sp.targetId) _target = (dg.monsters || []).find(m => m.id === sp.targetId && !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0) || null;
       if (!_target) _target = nearestSpecialProjectileTarget(dg, sp.x, sp.y, 10);
       if (_target?.id != null) sp.targetId = _target.id;
     }
@@ -7707,7 +7707,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     if (!_shotUnit) peelShopArrowUnit(st);
   };
 
-  const _wakkaHasTarget = wakka && [...(dg.monsters || [])].some(m => !m.disguisedAsItem && (m.hp ?? 1) > 0 &&
+  const _wakkaHasTarget = wakka && [...(dg.monsters || [])].some(m => !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0 &&
     Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= 10);
   if (wakka && !_wakkaHasTarget) {
     ml.push(`${_arName}を投げたが、近くに敵がいないため通常の軌道で飛んだ。`);
@@ -7717,7 +7717,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
      みかわしの魔方陣と反射だけは通常の優先順位を維持する。 */
   if (wakka && _wakkaHasTarget) {
     const _wakkaTarget = [...(dg.monsters || [])]
-      .filter(m => !m.disguisedAsItem && (m.hp ?? 1) > 0 &&
+      .filter(m => !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0 &&
         Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= 10)
       .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
     if (_wakkaTarget && animFn) {

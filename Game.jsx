@@ -1,4 +1,4 @@
-import { monsterOccupiesCell, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
@@ -29,7 +29,7 @@ import {
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
+  hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
@@ -1554,9 +1554,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             },
           });
         } else if (_we === "teleport_wand") {
-          const _tpRand = (exX, exY) =>
+          const _tpRand = (exX, exY, targetMon = null) =>
             randomTeleportDest(dg, exX, exY, (x, y) =>
-              !dg.monsters.some(o => monsterOccupiesCell(o, x, y)) &&
+              (targetMon ? canPlaceMonsterBody(dg, targetMon, x, y, pl) : !dg.monsters.some(o => monsterOccupiesCell(o, x, y))) &&
               !(x === pl.x && y === pl.y));
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
@@ -1567,13 +1567,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "player", pl, dx, dy, mlx);
                 return;
               }
-              if (dg.pentacles?.some(pc => pc.kind === "teleport" && pc.cursed)) {
+              if (hasCursedTeleportPentacle(dg)) {
                 mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
               }
               const _rp = _tpRand(pl.x, pl.y);
               if (_rp) {
                 const _tpFromX = pl.x, _tpFromY = pl.y;
                 pl.x = _rp.x; pl.y = _rp.y;
+                pl.immobileTurns = 0;
+                pl.potConfinedTurns = 0;
                 pushPlayerTeleportAnim(_tpFromX, _tpFromY, pl.x, pl.y);
                 mlx.push("テレポートの魔法弾を受けた！どこかへテレポートした！");
               }
@@ -1585,7 +1587,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "monster", mon, dx, dy, mlx);
                 return;
               }
-              const _rp = _tpRand(mon.x, mon.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(mon.x, mon.y, mon);
               if (_rp) { mon.x = _rp.x; mon.y = _rp.y; mlx.push(`テレポートの魔法弾が${mon.name}に命中！どこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");
             },
@@ -1595,24 +1600,35 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              const _rp = _tpRand(m.x, m.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中！どこかへテレポートした！`); }
               else mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中したが失敗した！`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (m.forcedMoveImmune) { mlx.push(`${m.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              const _rp = _tpRand(m.x, m.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
             onPlayerReflect: (mlx) => {
+              if (m.forcedMoveImmune) { mlx.push(`${m.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              const _rp = _tpRand(m.x, m.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
             onBigbox: (bb, mlx) => {
@@ -2985,8 +3001,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 for (let _si = 0; _si < _srCount; _si++) {
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
+                  if (_srAr.specialProjectile) {
+                    ml.push(`【射撃の指輪】`);
+                    shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+                      forceMiss: _srForceMiss,
+                    });
+                    if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+                    continue;
+                  }
                   if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile &&
-                      (dg.monsters || []).some(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
+                      (dg.monsters || []).some(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
                         Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)) {
                     shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
                       forceMiss: _srForceMiss,
@@ -3068,7 +3092,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   } else if (_srAr.magicStone) {
                     pushBoltAnim(p.x, p.y, dx, dy, dg, "#cc88ff", true);
                     const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
-                    const _msTarget = [...dg.monsters].filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
+                    const _msTarget = [...dg.monsters].filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 && Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (!_msTarget) {
                       ml.push(`近くに敵がいない！${_arName}は石と同じ距離を飛んだ。`);
@@ -4740,7 +4764,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const p = sr.current.player;
         const _scRoom = findRoom(dg.rooms, bb.x, bb.y);
         const _scMons = _scRoom
-          ? dg.monsters.filter(m => m.x >= _scRoom.x && m.x < _scRoom.x + _scRoom.w && m.y >= _scRoom.y && m.y < _scRoom.y + _scRoom.h)
+          ? dg.monsters.filter(m => !m.disguisedAsItem && monsterBodyCells(m).some(c => c.x >= _scRoom.x && c.x < _scRoom.x + _scRoom.w && c.y >= _scRoom.y && c.y < _scRoom.y + _scRoom.h))
           : [];
         const _scPInRoom = _scRoom && p.x >= _scRoom.x && p.x < _scRoom.x + _scRoom.w && p.y >= _scRoom.y && p.y < _scRoom.y + _scRoom.h;
         const _scDnFn = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
