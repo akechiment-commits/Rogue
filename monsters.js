@@ -1731,6 +1731,11 @@ function makePotRaiderHermitCrab(mon, player) {
   });
 }
 
+function consumeFailedMonsterSpecial(mon, messages, message) {
+  if (mon.turnAttacks < monEffectiveMaxAttacks(mon)) mon.turnAttacks++;
+  messages.push(`${mon.name}${message}`);
+}
+
 function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   const targets = potRaiderTargets(player);
   if (targets.length === 0) return false;
@@ -3841,7 +3846,14 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   let sources = getAdjacentMimicSources(m, dg).filter((src) =>
     canMimicSourceSkill(src, m, dg, pl, opts, ctx),
   );
-  if (!sources.length) return false;
+  if (!sources.length) {
+    const playerAdjacent = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+    if (forceReady || (playerAdjacent && (m.alwaysUseSpecial || Math.random() < 0.5))) {
+      consumeFailedMonsterSpecial(m, ml, "はまねできる特技を探したが、見つからなかった！");
+      return true;
+    }
+    return false;
+  }
   /* 予約時に選んだソースがまだ有効なら優先 */
   if (preferredId != null) {
     const pref = sources.find((s) => s.id === preferredId);
@@ -5597,6 +5609,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
       delete m._dreamEaterTargetId;
+      if (_dePlayerAdj && canSee && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        consumeFailedMonsterSpecial(m, ml, "が夢を食べようとしたが、眠っている相手がいなかった！");
+        return;
+      }
     }
 
     /* ── grabber（からめ鬼等）：静止型 ─ 移動コードより先に処理して即return ── */
@@ -5794,6 +5810,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           }
         }
       }
+      if (!_moveOnly && _itAdj && !m.carriedItem && !itemThrowerTarget(m, dg) &&
+          m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        consumeFailedMonsterSpecial(m, ml, "が床のアイテムを拾おうとしたが、見つからなかった！");
+        return;
+      }
     }
 
     if (_moveOnly && m.subtype === "hauntedWillow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
@@ -5824,11 +5845,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
     if (_moveOnly && m.subtype === "potionhealer") {
       delete m._potionHealerTarget;
+      delete m._potionHealerAttempted;
       delete m._rangedAttackThisTurn;
-      if (hasMonsterProjectileAmmo(m) && m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const target = findPotionHealerTarget(m, dg, pl);
-        if (target && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
-          m._potionHealerTarget = target.target;
+        const adjacentPlayer = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+        if ((target || adjacentPlayer) && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+          m._potionHealerTarget = target?.target || null;
+          m._potionHealerAttempted = true;
           m._rangedAttackThisTurn = true;
           return;
         }
@@ -5840,10 +5864,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _rLen = Math.max(Math.abs(_radx), Math.abs(_rady));
       const _rLine = _radx === 0 || _rady === 0 || Math.abs(_radx) === Math.abs(_rady);
       const _rAtks = m.turnAttacks < monEffectiveMaxAttacks(m);
-      const _archerRdy = m.subtype === "archer" && hasMonsterProjectileAmmo(m) && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
+      const _archerRdy = m.subtype === "archer" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
       const _stLvlR = m.monLevel || 1;
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
-      const _stoneRdy = m.subtype === "stonethrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
+      const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
       const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rAtks &&
         canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc });
@@ -5855,34 +5879,27 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
         (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 3 ? true : _dfLvl0 >= 2 ? _sameRoom : _rLine));
-      const _ttLvl0 = m.monLevel || 1;
-      const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
-        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) === 1 &&
-        dg.traps?.some(t => t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange0 &&
-          Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) >= 2);
+        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) === 1;
       const _mtLvl0 = m.monLevel || 1;
       const _mtRange0 = _mtLvl0 >= 3 ? 10 : _mtLvl0 >= 2 ? 5 : 3;
       const _mtRdy0 = m.subtype === "monsterthrow" && !m.sealed && _rAtks &&
-        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _mtRange0 &&
-        dg.monsters.some(o => o !== m && Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
+        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _mtRange0;
       const _chargerRdy = m.subtype === "charger" && !m.sealed && _rAtks && _rLine && _rLen >= 2;
       /* わてり：水鉄砲 */
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
       const _ptRange0 = potionThrowRange(m, dg, pl);
-      const _ptRdy0 = m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
+      const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _potRaiderLevel0 = m.monLevel || 1;
       const _potRaiderRdy0 = m.subtype === "potRaider" && _potRaiderLevel0 >= 2 && !m.sealed &&
-        !_plOnBlessedSanc && _rAtks && canSee && _rLine && _rLen >= 2 && _rLen <= 8 &&
-        potRaiderTargets(pl).length > 0;
+        !_plOnBlessedSanc && _rAtks && canSee && _rLine && _rLen >= 2 && _rLen <= 8;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
       const _dragonBreathRdy = _dragonRdy0 || _iceDragonRdy0;
       const _specialRate = _dragonBreathRdy ? dragonBreathSpecialRate(m) : rangedSpecialRate(m, pl);
       const _itempusherLvl0 = m.monLevel || 1;
       const _itempusherRdy = m.subtype === "itempusher" && _itempusherLvl0 >= 3 && !m.sealed &&
-        !_plOnBlessedSanc && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10 &&
-        hasInventorySpaceForMonsterGift(pl);
+        !_plOnBlessedSanc && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
       const _guardDarkRdy0 = m.type === "guard" && !m.sealed && _rAtks && (_radx === 0 || _rady === 0) && _rLen >= 2 && _rLen <= 8;
       const _darkBulletRdy0 = m.baseKind === "boss_darkbullet" && !m.sealed && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
       const _armorBreathRdy0 = m.subtype === "armorbreath" && !m.sealed &&
@@ -5966,6 +5983,38 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
+    if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerAttempted) {
+      const preferredTarget = m._potionHealerTarget;
+      delete m._potionHealerTarget;
+      delete m._potionHealerAttempted;
+      delete m._rangedAttackThisTurn;
+      if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+      if (!hasMonsterProjectileAmmo(m)) {
+        consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、薬がなかった！");
+        return;
+      }
+      const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
+      if (!healTarget) {
+        consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、回復できる味方がいなかった！");
+        return;
+      }
+      m.turnAttacks++;
+      const level = m.monLevel || 1;
+      const potion = level >= 3
+        ? { name: "超回復薬", effect: "superheal", value: 100, tile: 17 }
+        : level >= 2
+          ? { name: "大回復薬", effect: "heal_big", value: 60, tile: 17 }
+          : { name: "回復薬", effect: "heal", value: 30, tile: 16 };
+      monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+        target: healTarget.target,
+        aim: healTarget.aim,
+        potion,
+        wind: false,
+        color: "#7bff96",
+      });
+      return;
+    }
+
     if (!_moveOnly && canSee) {
       const adx = pl.x - m.x, ady = pl.y - m.y;
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
@@ -6040,7 +6089,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      if (m.subtype === "archer" && hasMonsterProjectileAmmo(m) && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "archer" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!hasMonsterProjectileAmmo(m)) {
+          consumeFailedMonsterSpecial(m, ml, "は矢を放とうとしたが、矢がなかった！");
+          return;
+        }
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
@@ -6053,11 +6106,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
 
-      if (m.subtype === "stonethrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (m.subtype === "stonethrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_stDist <= _stRange && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          if (!hasMonsterProjectileAmmo(m)) {
+            consumeFailedMonsterSpecial(m, ml, "は石を投げようとしたが、石がなかった！");
+            return;
+          }
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml, opts);
           return;
@@ -6076,8 +6133,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y)) -
           Math.max(Math.abs(a.x - pl.x), Math.abs(a.y - pl.y))
         );
-        if (_ttCands.length > 0 && !_plOnSanc && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!_plOnSanc && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           const _ttTrap = _ttCands[0];
+          if (!_ttTrap) {
+            consumeFailedMonsterSpecial(m, ml, "は投げ込む罠を探したが、見つからなかった！");
+            return;
+          }
           m.turnAttacks++;
           if (hasRingEffect(pl, "core_ring")) {
             ml.push(`${m.name}が${plName(pl)}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
@@ -6095,6 +6156,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
       if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && !hasMonsterProjectileAmmo(m)) {
         delete m._potionHealerTarget;
+        consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、薬がなかった！");
+        return;
       }
 
       if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && hasMonsterProjectileAmmo(m)) {
@@ -6102,7 +6165,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         delete m._potionHealerTarget;
         if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
         const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
-        if (!healTarget) return;
+        if (!healTarget) {
+          consumeFailedMonsterSpecial(m, ml, "が回復薬を投げようとしたが、回復できる味方がいなかった！");
+          return;
+        }
         m.turnAttacks++;
         const level = m.monLevel || 1;
         const potion = level >= 3
@@ -6120,11 +6186,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
 
-      if (m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (m.subtype === "potionthrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const _ptRange = potionThrowRange(m, dg, pl);
         const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
         if (_ptStraight && _ptDist <= _ptRange && canSee && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          if (!hasMonsterProjectileAmmo(m)) {
+            consumeFailedMonsterSpecial(m, ml, "は薬を投げようとしたが、薬がなかった！");
+            return;
+          }
           m.turnAttacks++;
           monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn);
           return;
@@ -6153,7 +6223,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
             .filter(({ x, y }) => isWalkable(dg.map, x, y, dg) &&
               !dg.monsters.some(o => monsterOccupiesCell(o, x, y)));
-          if (_adjMons.length > 0 && _adjPl.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          if (!_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+            if (_adjMons.length === 0 || _adjPl.length === 0) {
+              consumeFailedMonsterSpecial(m, ml, "は投げる仲間か着地点を探したが、見つからなかった！");
+              return;
+            }
             const _thrown = pick(_adjMons);
             const _dest = pick(_adjPl);
             m.turnAttacks++;
@@ -6272,16 +6346,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _prDx = pl.x - m.x, _prDy = pl.y - m.y;
       const _prDist = Math.max(Math.abs(_prDx), Math.abs(_prDy));
       const _prLine = _prDx === 0 || _prDy === 0 || Math.abs(_prDx) === Math.abs(_prDy);
-      const _hasPotTarget = potRaiderTargets(pl).length > 0;
       if (_prLvl >= 2 && !_prAdj && _prLine && _prDist >= 2 && _prDist <= 8 && canSee &&
-          !_plOnBlessedSanc && _hasPotTarget && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
-        usePotRaiderAbility(m, dg, pl, ml, _luFn);
+        if (!usePotRaiderAbility(m, dg, pl, ml, _luFn)) {
+          consumeFailedMonsterSpecial(m, ml, "がヤドカリを入れる壺を探したが、空きのある壺がなかった！");
+        }
         return;
       }
-      if (_prAdj && !_plOnSanc && _hasPotTarget && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+      if (_prAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           (m.alwaysUseSpecial || Math.random() < 0.5)) {
-        usePotRaiderAbility(m, dg, pl, ml, _luFn);
+        if (!usePotRaiderAbility(m, dg, pl, ml, _luFn)) {
+          consumeFailedMonsterSpecial(m, ml, "がヤドカリを入れる壺を探したが、空きのある壺がなかった！");
+        }
         return;
       }
     }
@@ -6296,13 +6373,21 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ipLine = _ipAdx === 0 || _ipAdy === 0 || Math.abs(_ipAdx) === Math.abs(_ipAdy);
       if (_ipLvl >= 3 && !_ipAdj && _ipLine && _ipDist >= 2 && _ipDist <= 10 &&
           !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
-          hasInventorySpaceForMonsterGift(pl) && (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!hasInventorySpaceForMonsterGift(pl)) {
+          consumeFailedMonsterSpecial(m, ml, "が帯電毛玉を押し付けようとしたが、所持品に空きがなかった！");
+          return;
+        }
         m.turnAttacks++;
         monsterThrowChargedFuzzball(m, dg, pl, ml, _luFn);
         return;
       }
       if (_ipAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
-          hasInventorySpaceForMonsterGift(pl) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+          (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!hasInventorySpaceForMonsterGift(pl)) {
+          consumeFailedMonsterSpecial(m, ml, "が帯電毛玉を押し付けようとしたが、所持品に空きがなかった！");
+          return;
+        }
         m.turnAttacks++;
         pushChargedFuzzball(m, pl, ml);
         return;
@@ -6383,8 +6468,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           }
           return;
         }
-        /* 盗めるものがなければ通常攻撃（聖域上なら不可） */
-        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        /* 特技を選んだ後に盗める物がない場合は、通常攻撃へ切り替えず失敗でターンを使う。 */
+        consumeFailedMonsterSpecial(m, ml, "が盗もうとしたが、盗める物がなかった！");
         return;
       }
     }
@@ -6439,8 +6524,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           ml.push(`${m.name}が金貨${_gtAmount}枚を盗んでテレポートした！`);
           return;
         }
-        /* ゴールドがなければ通常攻撃 */
-        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        consumeFailedMonsterSpecial(m, ml, "が金貨を盗もうとしたが、金貨を持っていなかった！");
         return;
       }
     }
@@ -6467,8 +6551,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           }
           return;
         }
-        /* 外せる装備がなければ通常攻撃 */
-        if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        consumeFailedMonsterSpecial(m, ml, "が装備を外そうとしたが、外せる装備がなかった！");
         return;
       }
     }
@@ -6531,8 +6614,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           });
           return;
         }
-        /* 弾くものがなければ通常攻撃（聖域上なら不可） */
-        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        consumeFailedMonsterSpecial(m, ml, "が所持品を弾こうとしたが、弾く物がなかった！");
         return;
       }
     }
@@ -6648,7 +6730,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
        * 手持ち中はここへ絶対に入らず、投擲・死亡まで1個限定。 */
       if (!_moveOnly && _srAdj && !_srHeldItem) {
         const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
-        if (_srStealable.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal)) {
+        if (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal) {
+          if (_srStealable.length === 0) {
+            consumeFailedMonsterSpecial(m, ml, "が盗もうとしたが、盗める物がなかった！");
+            return;
+          }
           const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
           if (_srAntiSteal) {
             ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
@@ -6666,7 +6752,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！${_srSoboroMsg}`);
           return;
         }
-        /* 特技不発または盗むものなし：通常攻撃 */
+        /* 特技の抽選外れだけ通常攻撃へ進む。 */
         if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
         return;
       }
@@ -6684,7 +6770,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         (Math.abs(b.x - m.x) + Math.abs(b.y - m.y)) ? a : b
       ) : null;
       const _hdist = _healTarget ? Math.abs(_healTarget.x - m.x) + Math.abs(_healTarget.y - m.y) : Infinity;
-      if (_healTarget && _hdist <= 1 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+      const _tryHeal = m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal;
+      if (_healTarget && _hdist <= 1 && _tryHeal) {
         /* 隣接：回復（アンデッドには逆にダメージ） */
         const _heal = rng(5, 12);
         if (_healTarget.kind === "undead") {
@@ -6697,7 +6784,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         return;
       }
-      if (_healTarget && _hdist > 1 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+      if (_healTarget && _hdist > 1 && _tryHeal) {
         /* 傷ついた味方へ接近 */
         const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
@@ -6705,21 +6792,34 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           m.x = _hn.x; m.y = _hn.y;
           return;
         }
+        consumeFailedMonsterSpecial(m, ml, "が回復魔法を使おうとしたが、味方のもとへ行けなかった！");
+        return;
+      }
+      if (!_healTarget && _tryHeal && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        consumeFailedMonsterSpecial(m, ml, "が回復魔法を使おうとしたが、回復できる味方がいなかった！");
+        return;
       }
       /* 傷なし、または回復経路がない場合：隣の味方に攻撃バフ（未付与のみ） */
       const _buffable = dg.monsters.filter(o =>
         o !== m && !o.atkBuffed &&
         Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 1
       );
-      if (_buffable.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.buff)) {
-        const _bt = _buffable[rng(0, _buffable.length - 1)];
-        const _buffAmt = rng(2, 4);
-        _bt.atk += _buffAmt;
-        _bt.atkBuffed = true;
-        ml.push(`${m.name}が${_bt.name}を強化！攻撃力+${_buffAmt}！`);
-        return;
+      if (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.buff) {
+        if (_buffable.length === 0) {
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+            consumeFailedMonsterSpecial(m, ml, "が味方を強化しようとしたが、対象がいなかった！");
+            return;
+          }
+        } else {
+          const _bt = _buffable[rng(0, _buffable.length - 1)];
+          const _buffAmt = rng(2, 4);
+          _bt.atk += _buffAmt;
+          _bt.atkBuffed = true;
+          ml.push(`${m.name}が${_bt.name}を強化！攻撃力+${_buffAmt}！`);
+          return;
+        }
       }
-      /* 強化・回復対象なし／抽選外 → 通常行動（プレイヤーへ接近）にフォールスルー */
+      /* 回復・強化の抽選外だけ通常行動（プレイヤーへ接近）にフォールスルー */
     }
 
     /* ── にじりヘビ：隣接時 25% で1回攻撃の毒撃。不発時は通常の二回攻撃へ ── */
