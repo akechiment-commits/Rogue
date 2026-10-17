@@ -1720,7 +1720,7 @@ function potRaiderTargets(player) {
 
 const POT_RAIDER_HERMIT_CRAB_BASE = Object.freeze({
   name: "ヤドカリ", hp: 14, atk: 8, def: 2, exp: 8, speed: 1,
-  tile: 147, kind: "beast", baseKind: "hermitCrab", monLevel: 1, subtype: "hermitCrab",
+  tile: 235, kind: "beast", baseKind: "hermitCrab", monLevel: 1, subtype: "hermitCrab",
 });
 
 function makePotRaiderHermitCrab(mon, player) {
