@@ -912,7 +912,7 @@ export const MONS = [
       { name: "ゴゴペン",             hp: 82,  atk: 31, def: 11, exp: 125, dungeonFloors: { advanced: { min: 24, max: 30 } } },
     ],
   },
-  { name: "危険な花びら", hp: 28,  atk: 15, def: 3,  exp: 45,  speed: 1, tile: 206, kind: "beast", baseKind: "dangerousPetal", monLevel: 1, minFloor: 15, maxFloor: 35, stationary: true, subtype: "dangerousPetal", sleepOnDeath: true, dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 13, max: 24 } },
+  { name: "危険な花びら", hp: 28,  atk: 15, def: 3,  exp: 45,  speed: 1, tile: 206, kind: "beast", baseKind: "dangerousPetal", monLevel: 1, minFloor: 15, maxFloor: 35, stationary: true, elemWeak: "fire", subtype: "dangerousPetal", sleepOnDeath: true, dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 13, max: 24 } },
     desc: "自分からは移動しない。睡眠の花粉は隣接時25%、遠距離時12.5%で使う。倒されると25%で周囲にも眠りを広げる。レベル2は遠距離一直線、レベル3は同じ部屋まで届く。",
     levels: [
       { name: "破滅の花びら", hp: 50, atk: 24, def: 7, exp: 86, dungeonFloors: { advanced: { min: 25, max: 29 } } },
@@ -940,7 +940,7 @@ export const MONS = [
       { name: "豪傑九千坊",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
-  { name: "ヤドカリ壺荒らし", hp: 34, atk: 16, def: 4, exp: 52, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "potRaider", desc: "別のヤドカリを容量の残った壺へ押し込む。Lv2以上は一直線上から壺へ投げ込む。壺を割るか吸い出すとヤドカリが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "ヤドカリ壺荒らし", hp: 34, atk: 16, def: 4, exp: 52, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "別のヤドカリを容量の残った壺へ押し込む。Lv2以上は一直線上から壺へ投げ込む。壺を割るか吸い出すとヤドカリが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "大ヤドカリ壺荒らし", hp: 58, atk: 26, def: 8, exp: 98, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "ヤドカリ壺大将", hp: 96, atk: 38, def: 12, exp: 158, dungeonFloors: { legend: { min: 48, max: 50 } } },
@@ -1052,7 +1052,7 @@ export const MONS = [
       { name: "覇合成獣",           hp: 135, atk: 38, def: 13, exp: 200 },
     ],
   },
-  { name: "バリア蟹",     hp: 43,  atk: 20, def: 3,  exp: 68,  speed: 1,   tile: 147, kind: "humanoid", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, barrier: 1, waterWalker: true, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
+  { name: "バリア蟹",     hp: 43,  atk: 20, def: 3,  exp: 68,  speed: 1,   tile: 147, kind: "beast", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, elemWeak: "thunder", barrier: 1, waterWalker: true, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
     levels: [
       { name: "どこにも居場所がカニ", hp: 69,  atk: 28, def: 6,  exp: 109, barrier: 2 },
       { name: "なんでも無効蟹",     hp: 108, atk: 36, def: 9,  exp: 170, barrier: 3 },
@@ -1064,7 +1064,7 @@ export const MONS = [
       { name: "風の覇者",           hp: 95,  atk: 36, def: 13, exp: 163 },
     ],
   },
-  { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, waterWalker: true, subtype: "puller", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
+  { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, elemWeak: "thunder", waterWalker: true, subtype: "puller", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
     levels: [
       { name: "ひっぱりダコ",       hp: 97,  atk: 32, def: 10, exp: 120 },
       { name: "吸い込みダコ",       hp: 153, atk: 43, def: 14, exp: 188 },
@@ -1113,7 +1113,7 @@ export const MONS = [
       { name: "ゴーレムーガ",       hp: 338, atk: 65, def: 34, exp: 288 },
     ],
   },
-  { name: "デーモン",     hp: 108, atk: 50, def: 13, exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",        monLevel: 1, minFloor: 27, maxFloor: 50, maxAttacks: 3, float: true, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
+  { name: "デーモン",     hp: 108, atk: 50, def: 13, exp: 160, speed: 2,   tile: 58, kind: "undead",   baseKind: "daemon",        monLevel: 1, minFloor: 27, maxFloor: 50, maxAttacks: 3, float: true, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
     levels: [
       { name: "アークデーモン",       hp: 173, atk: 71, def: 19, exp: 256 },
       { name: "グレーターデーモン",   hp: 270, atk: 90, def: 24, exp: 400 },
@@ -1200,13 +1200,13 @@ export const MONS = [
       { name: "かせきうお",       hp: 72, atk: 34, def: 10, exp: 105, dungeonFloors: { intermediate: { min: 11, max: 15 }, advanced: { min: 11, max: 15 }, legend: { min: 11, max: 15 } } },
     ],
   },
-  { name: "水中花",       hp: 42,  atk: 22, def: 5,  exp: 55, speed: 1,   tile: 217, kind: "beast",    baseKind: "waterFlower",   monLevel: 1, minFloor: 15, maxFloor: 35, waterOnly: true, stationary: true, subtype: "waterFlower", desc: "水中にのみ出現し、移動しない。同じ部屋にいると誘導弾を射ってくる。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 13, max: 24 } },
+  { name: "水中花",       hp: 42,  atk: 22, def: 5,  exp: 55, speed: 1,   tile: 217, kind: "beast",    baseKind: "waterFlower",   monLevel: 1, minFloor: 15, maxFloor: 35, elemWeak: "thunder", waterOnly: true, stationary: true, subtype: "waterFlower", desc: "水中にのみ出現し、移動しない。同じ部屋にいると誘導弾を射ってくる。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 13, max: 24 } },
     levels: [
       { name: "水中サボテン", hp: 70,  atk: 31, def: 9,  exp: 95  },
       { name: "水中巾着",   hp: 112, atk: 43, def: 14, exp: 155 },
     ],
   },
-  { name: "お化け柳", hp: 78, atk: 27, def: 8, exp: 108, speed: 1, tile: 225, kind: "beast", baseKind: "hauntedWillow", monLevel: 1, minFloor: 20, maxFloor: 50, stationary: true, forcedMoveImmune: true, bodySize: 2, subtype: "hauntedWillow", desc: "2×2マスを占め、その場から動かない。強制移動を受けず、同じ部屋に烈風を吹かせ、隣接者へ枝払いを行う。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 18, max: 29 } },
+  { name: "お化け柳", hp: 78, atk: 27, def: 8, exp: 108, speed: 1, tile: 225, kind: "beast", baseKind: "hauntedWillow", monLevel: 1, minFloor: 20, maxFloor: 50, stationary: true, forcedMoveImmune: true, bodySize: 2, elemWeak: "fire", subtype: "hauntedWillow", desc: "2×2マスを占め、その場から動かない。強制移動を受けず、同じ部屋に烈風を吹かせ、隣接者へ枝払いを行う。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 18, max: 29 } },
     levels: [
       { name: "大お化け柳", hp: 150, atk: 38, def: 13, exp: 220, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 29 } } },
       { name: "怨霊の古柳", hp: 265, atk: 52, def: 18, exp: 390, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
@@ -1218,13 +1218,13 @@ export const MONS = [
       { name: "眠れる赤獅子", hp: 320, atk: 60, def: 20, exp: 390, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
     ],
   },
-  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 28 } },
+  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, elemWeak: "thunder", waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 28 } },
     levels: [
       { name: "大王ウナギ",       hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
       { name: "深海大王ウナギ",   hp: 207, atk: 54, def: 17, exp: 232, dungeonFloors: { advanced: { min: 37, max: 50 } } },
     ],
   },
-  { name: "うみのあくま", hp: 78,  atk: 18, def: 7,  exp: 105, speed: 1,   tile: 222, kind: "beast",    baseKind: "seaDevil",   monLevel: 1, minFloor: 29, maxFloor: 50, maxAttacks: 3, waterOnly: true, subtype: "seaDevil", desc: "水中にのみ出現・移動し、隣接時は1回の行動で3回攻撃する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 25, max: 34 } },
+  { name: "うみのあくま", hp: 78,  atk: 18, def: 7,  exp: 105, speed: 1,   tile: 222, kind: "beast",    baseKind: "seaDevil",   monLevel: 1, minFloor: 29, maxFloor: 50, elemWeak: "thunder", maxAttacks: 3, waterOnly: true, subtype: "seaDevil", desc: "水中にのみ出現・移動し、隣接時は1回の行動で3回攻撃する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 25, max: 34 } },
     levels: [
       { name: "ゲルショッカー", hp: 126, atk: 27, def: 11, exp: 175, dungeonFloors: { advanced: { min: 35, max: 42 } } },
       { name: "アンキケン",     hp: 201, atk: 39, def: 16, exp: 270, dungeonFloors: { advanced: { min: 43, max: 50 } } },
@@ -1779,7 +1779,7 @@ function potRaiderTargets(player) {
 
 const POT_RAIDER_HERMIT_CRAB_BASE = Object.freeze({
   name: "ヤドカリ", hp: 14, atk: 8, def: 2, exp: 8, speed: 1,
-  tile: 235, kind: "beast", baseKind: "hermitCrab", monLevel: 1, subtype: "hermitCrab",
+  tile: 235, kind: "beast", baseKind: "hermitCrab", monLevel: 1, elemWeak: "thunder", subtype: "hermitCrab",
 });
 
 function makePotRaiderHermitCrab(mon, player) {
