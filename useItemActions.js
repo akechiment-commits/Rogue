@@ -3805,22 +3805,32 @@ export function useItemActions({
 
         /* ── インベントリから投げる石／魔法の石 専用処理 ── */
         if ((it.type === "arrow" && (it.stone || it.magicStone || it.iceChunk)) || it.type === "gold_nugget") {
-          /* スタックから1個だけ使う */
           const _isGoldNugget = it.type === "gold_nugget";
+          const _bundleThrow = !_isGoldNugget && throwMode.bundle === true;
+          const _bundleCount = _bundleThrow ? Math.max(1, Number(it.count) | 0) : 1;
           if (_isGoldNugget) p.inventory.splice(idx, 1);
+          else if (_bundleThrow) {
+            p.inventory.splice(idx, 1);
+            if (p.arrow === it) p.arrow = null;
+          }
           else {
             it.count--;
-            if (it.count <= 0) p.inventory.splice(idx, 1);
+            if (it.count <= 0) {
+              p.inventory.splice(idx, 1);
+              if (p.arrow === it) p.arrow = null;
+            }
           }
-          const _invStName = dnameRef(it);
-          const _invStAtk = it.atk || (it.magicStone ? 5 : 3);
+          const _invStBaseName = dnameRef(it);
+          const _invStName = _bundleThrow ? `${_invStBaseName}(${_bundleCount}個)` : _invStBaseName;
+          const _invStAtk = (it.atk || (it.magicStone ? 5 : 3)) + (_bundleThrow ? _bundleCount : 0);
           let _invStUnit = null;
           const _invStDrop = () => {
             if (_isGoldNugget) return it;
+            if (_bundleThrow) return it;
             if (!_invStUnit) _invStUnit = makeArrowUnitFromStack(it);
             return _invStUnit;
           };
-          const _invStPeel = () => { if (!_isGoldNugget && !_invStUnit) peelShopArrowUnit(it); };
+          const _invStPeel = () => { if (!_isGoldNugget && !_bundleThrow && !_invStUnit) peelShopArrowUnit(it); };
           if (_isFarcast) {
             ml.push(`${_invStName}を投げた。${_invStName}は消滅した。`);
             _invStPeel();
@@ -3872,6 +3882,7 @@ export function useItemActions({
                 break;
               }
               if (statueAt(dg, tx, ty)) { _stHitStatue2 = true; break; }
+              if (monsterAt(dg, tx, ty)) break;
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
               if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
             }
