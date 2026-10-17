@@ -5847,7 +5847,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._potionHealerTarget;
       delete m._potionHealerAttempted;
       delete m._rangedAttackThisTurn;
-      if (m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (hasMonsterProjectileAmmo(m) && m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const target = findPotionHealerTarget(m, dg, pl);
         const adjacentPlayer = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
         if ((target || adjacentPlayer) && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
@@ -5864,10 +5864,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _rLen = Math.max(Math.abs(_radx), Math.abs(_rady));
       const _rLine = _radx === 0 || _rady === 0 || Math.abs(_radx) === Math.abs(_rady);
       const _rAtks = m.turnAttacks < monEffectiveMaxAttacks(m);
-      const _archerRdy = m.subtype === "archer" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
+      const _archerRdy = m.subtype === "archer" && hasMonsterProjectileAmmo(m) && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
       const _stLvlR = m.monLevel || 1;
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
-      const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
+      const _stoneRdy = m.subtype === "stonethrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
       const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rAtks &&
         canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc });
@@ -5889,7 +5889,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* わてり：水鉄砲 */
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
       const _ptRange0 = potionThrowRange(m, dg, pl);
-      const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
+      const _ptRdy0 = m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _potRaiderLevel0 = m.monLevel || 1;
       const _potRaiderRdy0 = m.subtype === "potRaider" && _potRaiderLevel0 >= 2 && !m.sealed &&
         !_plOnBlessedSanc && _rAtks && canSee && _rLine && _rLen >= 2 && _rLen <= 8;
@@ -5989,30 +5989,28 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._potionHealerAttempted;
       delete m._rangedAttackThisTurn;
       if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
-      if (!hasMonsterProjectileAmmo(m)) {
-        consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、薬がなかった！");
+      if (hasMonsterProjectileAmmo(m)) {
+        const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
+        if (!healTarget) {
+          consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、回復できる味方がいなかった！");
+          return;
+        }
+        m.turnAttacks++;
+        const level = m.monLevel || 1;
+        const potion = level >= 3
+          ? { name: "超回復薬", effect: "superheal", value: 100, tile: 17 }
+          : level >= 2
+            ? { name: "大回復薬", effect: "heal_big", value: 60, tile: 17 }
+            : { name: "回復薬", effect: "heal", value: 30, tile: 16 };
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+          target: healTarget.target,
+          aim: healTarget.aim,
+          potion,
+          wind: false,
+          color: "#7bff96",
+        });
         return;
       }
-      const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
-      if (!healTarget) {
-        consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、回復できる味方がいなかった！");
-        return;
-      }
-      m.turnAttacks++;
-      const level = m.monLevel || 1;
-      const potion = level >= 3
-        ? { name: "超回復薬", effect: "superheal", value: 100, tile: 17 }
-        : level >= 2
-          ? { name: "大回復薬", effect: "heal_big", value: 60, tile: 17 }
-          : { name: "回復薬", effect: "heal", value: 30, tile: 16 };
-      monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
-        target: healTarget.target,
-        aim: healTarget.aim,
-        potion,
-        wind: false,
-        color: "#7bff96",
-      });
-      return;
     }
 
     if (!_moveOnly && canSee) {
@@ -6089,11 +6087,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      if (m.subtype === "archer" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
-        if (!hasMonsterProjectileAmmo(m)) {
-          consumeFailedMonsterSpecial(m, ml, "は矢を放とうとしたが、矢がなかった！");
-          return;
-        }
+      if (m.subtype === "archer" && hasMonsterProjectileAmmo(m) && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
@@ -6106,15 +6100,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
 
-      if (m.subtype === "stonethrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (m.subtype === "stonethrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_stDist <= _stRange && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
-          if (!hasMonsterProjectileAmmo(m)) {
-            consumeFailedMonsterSpecial(m, ml, "は石を投げようとしたが、石がなかった！");
-            return;
-          }
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml, opts);
           return;
@@ -6156,8 +6146,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
       if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && !hasMonsterProjectileAmmo(m)) {
         delete m._potionHealerTarget;
-        consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、薬がなかった！");
-        return;
       }
 
       if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && hasMonsterProjectileAmmo(m)) {
@@ -6186,15 +6174,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
 
-      if (m.subtype === "potionthrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const _ptRange = potionThrowRange(m, dg, pl);
         const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
         if (_ptStraight && _ptDist <= _ptRange && canSee && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
-          if (!hasMonsterProjectileAmmo(m)) {
-            consumeFailedMonsterSpecial(m, ml, "は薬を投げようとしたが、薬がなかった！");
-            return;
-          }
           m.turnAttacks++;
           monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn);
           return;
