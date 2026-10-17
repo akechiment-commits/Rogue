@@ -3877,13 +3877,10 @@ export function useItemActions({
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx2 = tx; _stLy2 = ty;
-              if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, _invStName)) {
-                _stHitEnemyProjectile2 = true;
-                break;
-              }
-              if (statueAt(dg, tx, ty)) { _stHitStatue2 = true; break; }
-              if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
-              if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
+            }
+            if (_stLx2 !== p.x || _stLy2 !== p.y) {
+              _stHitEnemyProjectile2 = destroyEnemyHomingProjectileAt(dg, _stLx2, _stLy2, ml, _invStName);
+              if (!_stHitEnemyProjectile2 && statueAt(dg, _stLx2, _stLy2)) _stHitStatue2 = true;
             }
             if (!_isGoldNugget) {
               pushItemFlyAnim(p.x, p.y, _stLx2, _stLy2, it.tile, null, { flightArc: true });
