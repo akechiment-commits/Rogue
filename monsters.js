@@ -946,7 +946,7 @@ export const MONS = [
       { name: "ヤドカリ壺大将", hp: 96, atk: 38, def: 12, exp: 158, dungeonFloors: { legend: { min: 48, max: 50 } } },
     ],
   },
-  { name: "炎の料理人", hp: 38, atk: 16, def: 4, exp: 52, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "fireCook", desc: "隣接すると所持品を焦げた料理に変える。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "炎の料理人", hp: 38, atk: 16, def: 4, exp: 52, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "fireCook", desc: "隣接すると装備中でない所持品を焦げた料理へ変える。焦げた料理とヤバイ料理は互いに変化。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "炎の中華料理人", hp: 62, atk: 27, def: 8, exp: 100, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "炎の中華体育料理人", hp: 100, atk: 38, def: 12, exp: 160, dungeonFloors: { intermediate: null, advanced: { min: 44, max: 47 }, legend: { min: 48, max: 50 } } },
@@ -1791,7 +1791,14 @@ function makePotRaiderHermitCrab(mon, player) {
 }
 
 function fireCookTargets(player) {
-  return (player?.inventory || []).filter(item => item && item.type !== "gold" && item.type !== "goal");
+  const equipped = new Set([
+    player?.weapon,
+    player?.armor,
+    player?.arrow,
+    ...(player?.rings || []),
+  ].filter(Boolean));
+  return (player?.inventory || []).filter(item =>
+    item && item.type !== "gold" && item.type !== "goal" && !equipped.has(item));
 }
 
 function makeRandomBurntFood() {
@@ -1814,13 +1821,35 @@ function useFireCookAbility(mon, dungeon, player, messages, luFn) {
   if (originalIndex < 0) return false;
   const targetName = target.name || "道具";
 
+  if (target.type === "food" && target.yabai) {
+    target.name = target.name?.startsWith("ヤバイ")
+      ? `焦げた${target.name.slice("ヤバイ".length)}`
+      : `焦げた${target.name || "料理"}`;
+    delete target.rotten;
+    delete target.yabai;
+    target.burnt = true;
+    target.tile = 66;
+    target.desc = "焦げた料理。食べると満腹度が回復する。";
+    trackItem(target);
+    mon.turnAttacks++;
+    messages.push(`${mon.name}が${targetName}を焦がし直し、焦げた料理に変えた！`);
+    return true;
+  }
+
+  if (target.type === "food" && target.burnt) {
+    burnFoodItem(target, []);
+    trackItem(target);
+    mon.turnAttacks++;
+    messages.push(`${mon.name}が${targetName}をさらに焦がし、ヤバイ料理に変えた！`);
+    return true;
+  }
+
   if (target.type === "pot" && potOccupancyCount(target) > 0) {
     scatterPotContents(target, dungeon, player.x, player.y, player, messages, luFn, null, { killerMon: mon });
     target.contents = [];
     target.confinedMonsters = [];
   }
 
-  detachPlayerEquipment(player, target);
   const food = makeRandomBurntFood();
   const currentIndex = player.inventory.indexOf(target);
   if (currentIndex >= 0) player.inventory[currentIndex] = food;
