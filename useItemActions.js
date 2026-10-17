@@ -3844,8 +3844,42 @@ export function useItemActions({
             }
             ml.push(`${_invStName}を投げた！`);
             if (!_msTarget2) {
-              ml.push(`近くに敵がいない！${_invStName}は消えた。`);
-              _invStPeel();
+              ml.push(`近くに敵がいない！${_invStName}は石と同じ距離を飛んだ。`);
+              const _msRange2 = _isCursedFc ? 1 : 3;
+              let _msLx2 = p.x, _msLy2 = p.y;
+              for (let d = 1; d <= _msRange2; d++) {
+                const tx = p.x + dx * d, ty = p.y + dy * d;
+                if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+                if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+                _msLx2 = tx; _msLy2 = ty;
+              }
+              if (!_isGoldNugget) {
+                pushItemFlyAnim(p.x, p.y, _msLx2, _msLy2, it.tile, null, { flightArc: true });
+              }
+              const _msHitEnemyProjectile2 = (_msLx2 !== p.x || _msLy2 !== p.y)
+                && destroyEnemyHomingProjectileAt(dg, _msLx2, _msLy2, ml, _invStName);
+              const _msHitStatue2 = !_msHitEnemyProjectile2 && statueAt(dg, _msLx2, _msLy2);
+              if (_msHitEnemyProjectile2) {
+                _invStPeel();
+              } else if (_msHitStatue2) {
+                ml.push(`${_invStName}が石像に命中！`);
+                hitStatueWithAction(dg, _msLx2, _msLy2, p, ml, lu, p?.depth, {
+                  breaks: true,
+                  itemDeps: getFixtureItemDeps(),
+                });
+                _invStPeel();
+              } else {
+                const _msSpr2 = dg.springs?.find(s => s.x === _msLx2 && s.y === _msLy2);
+                const _msBB2 = dg.bigboxes?.find(b => b.x === _msLx2 && b.y === _msLy2);
+                if (_msSpr2) {
+                  soakItemIntoSpring(_msSpr2, _invStDrop(), ml, dg, null);
+                } else if (_msBB2) {
+                  bigboxAddItem(_msBB2, _invStDrop(), dg, ml);
+                } else {
+                  const _msFt2 = new Set();
+                  withPitfallBag(() => placeItemAt(dg, _msLx2, _msLy2, _invStDrop(), ml, _msFt2, 0, p));
+                }
+              }
             } else if (monReflectsProjectiles(_msTarget2)) {
               pushAnim({ type: "projectileReturn", fromX: _msTarget2.x, fromY: _msTarget2.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget2, _invStName, _invStAtk, ml);
