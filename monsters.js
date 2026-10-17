@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potConsumesInsertedContent } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -946,6 +946,12 @@ export const MONS = [
       { name: "ヤドカリ壺大将", hp: 96, atk: 38, def: 12, exp: 158, dungeonFloors: { legend: { min: 48, max: 50 } } },
     ],
   },
+  { name: "炎の料理人", hp: 38, atk: 16, def: 4, exp: 52, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "fireCook", desc: "隣接すると所持品を焦げた料理に変える。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+    levels: [
+      { name: "炎の中華料理人", hp: 62, atk: 27, def: 8, exp: 100, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
+      { name: "炎の中華体育料理人", hp: 100, atk: 38, def: 12, exp: 160, dungeonFloors: { intermediate: null, advanced: { min: 44, max: 47 }, legend: { min: 48, max: 50 } } },
+    ],
+  },
   { name: "シルフ", hp: 36, atk: 18, def: 5, exp: 52, speed: 1, tile: 236, kind: "beast", baseKind: "sylph", monLevel: 1, minFloor: 11, maxFloor: 35, float: true, subtype: "windAura", desc: "常にランダムな方向への風をまとい、範囲内の矢・石・投擲・ブレスを風向きへ曲げる。Lv1は周囲3×3、Lv2は5×5、Lv3は7×7に広がる。", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 11, max: 13 }, legend: { min: 19, max: 22 } },
     levels: [
       { name: "ハイシルフ", hp: 60, atk: 27, def: 9, exp: 92, dungeonFloors: { intermediate: null, advanced: { min: 22, max: 24 }, legend: { min: 29, max: 32 } } },
@@ -1782,6 +1788,47 @@ function makePotRaiderHermitCrab(mon, player) {
     lastPx: player?.x ?? mon.x,
     lastPy: player?.y ?? mon.y,
   });
+}
+
+function fireCookTargets(player) {
+  return (player?.inventory || []).filter(item => item && item.type !== "gold" && item.type !== "goal");
+}
+
+function makeRandomBurntFood() {
+  const food = genFood();
+  if (!food.cooked) {
+    food.value = Math.max(1, Math.floor(food.value * 2));
+    cookFoodMeta(food);
+    food.name = `焼いた${food.name}`;
+  }
+  burnFoodItem(food, []);
+  food.id = uid();
+  return food;
+}
+
+function useFireCookAbility(mon, dungeon, player, messages, luFn) {
+  const targets = fireCookTargets(player);
+  if (targets.length === 0) return false;
+  const target = pick(targets);
+  const originalIndex = player.inventory.indexOf(target);
+  if (originalIndex < 0) return false;
+  const targetName = target.name || "道具";
+
+  if (target.type === "pot" && potOccupancyCount(target) > 0) {
+    scatterPotContents(target, dungeon, player.x, player.y, player, messages, luFn, null, { killerMon: mon });
+    target.contents = [];
+    target.confinedMonsters = [];
+  }
+
+  detachPlayerEquipment(player, target);
+  const food = makeRandomBurntFood();
+  const currentIndex = player.inventory.indexOf(target);
+  if (currentIndex >= 0) player.inventory[currentIndex] = food;
+  else player.inventory.splice(Math.min(originalIndex, player.inventory.length), 0, food);
+  trackItem(food);
+  mon.turnAttacks++;
+  messages.push(`${mon.name}が${targetName}を料理し、${food.name}に変えてしまった！`);
+  return true;
 }
 
 function consumeFailedMonsterSpecial(mon, messages, message) {
@@ -6403,6 +6450,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         m.turnAttacks++;
         monsterIceBreath(m, dg, pl, ml, _onHit);
+        return;
+      }
+    }
+
+    /* ── 炎の料理人：隣接時に所持品を焦げた料理へ変える ── */
+    if (m.subtype === "fireCook" && !m.sealed) {
+      const _fcAdj = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+      if (_fcAdj && _moveOnly) return;
+      if (_fcAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal)) {
+        if (!useFireCookAbility(m, dg, pl, ml, _luFn)) {
+          consumeFailedMonsterSpecial(m, ml, "が料理しようとしたが、焦がせる持ち物がなかった！");
+        }
         return;
       }
     }

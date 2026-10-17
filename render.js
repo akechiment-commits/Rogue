@@ -156,6 +156,7 @@ export const TILE_NAMES = {
   234: "pot_crab_raider",
   235: "hermit_crab",
   236: "sylph",
+  237: "fire_cook",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -369,6 +370,7 @@ export const TILE_RENDER = {
   234: { bg: null, fg: "#d99a55", ch: "蟹" }, /* ヤドカリ壺荒らし */
   235: { bg: null, fg: "#e6b870", ch: "蟹" }, /* ヤドカリ */
   236: { bg: null, fg: "#70f0d8", ch: "風" }, /* シルフ系 */
+  237: { bg: null, fg: "#ff682e", ch: "炎" }, /* 炎の料理人 */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

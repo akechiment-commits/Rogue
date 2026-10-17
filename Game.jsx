@@ -57,9 +57,9 @@ import { isWanderingNpc, nextWanderingAdventurerDialogue } from "./wanderingAdve
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
-const SHARED_TILE_OVERRIDE_IDS = new Set([37, 59, 207, 208, TI.STONE_PROJECTILE, TI.ICE_CHUNK, 234, 235, 236]);
+const SHARED_TILE_OVERRIDE_IDS = new Set([37, 59, 207, 208, TI.STONE_PROJECTILE, TI.ICE_CHUNK, 234, 235, 236, 237]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
-const SHARED_FIXTURE_ASSET_VERSION = "20261017-v20";
+const SHARED_FIXTURE_ASSET_VERSION = "20261017-v21";
 /* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
 const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213, 216];
 const PUBLIC_SPECIAL_PROJECTILE_TILE_IDS = [218, 219, 220];
