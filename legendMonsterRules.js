@@ -26,7 +26,7 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 11, max: 16, level: 1, kinds: ["grabber", "tripper"] },
   /* 13〜22 薬と魔方陣、化ける、突進。盗賊・錆は装備が付いてから */
   { min: 13, max: 17, level: 1, kinds: ["potionthrower", "potionhealer", "rakugakima"] },
-  { min: 15, max: 18, level: 1, kinds: ["itemMimic", "charger"] },
+  { min: 15, max: 18, level: 1, kinds: ["itemMimic", "charger", "manaEater"] },
   { min: 17, max: 20, level: 1, kinds: ["thief", "tattoobird", "wolf"] },
   { min: 18, max: 21, level: 2, kinds: ["rat", "bat", "centipede"] },
   { min: 19, max: 22, level: 1, kinds: ["rustbug", "wizard"] },
@@ -34,7 +34,7 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 23, max: 26, level: 1, kinds: ["itemThrower", "trapmaster", "serpent"] },
   { min: 25, max: 27, level: 1, kinds: ["hypnotist", "dodgemole", "waterFlower", "machodragon"] },
   { min: 26, max: 29, level: 2, kinds: ["kobold", "goblin", "skeleton"] },
-  { min: 28, max: 31, level: 2, kinds: ["imp", "zombie", "wolf"] },
+  { min: 28, max: 31, level: 2, kinds: ["imp", "zombie", "wolf", "manaEater"] },
   /* 28〜40 ドラゴンは装備が付いてからLv1で出す */
   { min: 28, max: 31, level: 1, kinds: ["dragon", "troll", "killplaster"] },
   /* 32〜39 吸血・拘束・氷。盗賊と突進のLv2、花びらLv2。火竜とは別帯 */
@@ -51,7 +51,7 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 44, max: 47, level: 1, kinds: ["seaDevil", "disarmer", "lizardman"] },
   { min: 44, max: 47, level: 2, kinds: ["vampire", "golem", "troll", "killplaster", "itemThrower", "trapmaster"] },
   /* 48〜50 Lv3は竜と催眠。睡眠とは重ねない。他はLv2で厚くする */
-  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "potionhealer", "rakugakima", "mushroom", "machodragon"] },
+  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "potionhealer", "rakugakima", "mushroom", "machodragon", "manaEater"] },
   { min: 48, max: 50, level: 2, kinds: ["darkness", "daemon", "mimic", "knocker", "dodgemole"] },
 ]);
 

@@ -12,7 +12,7 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   5: ["archer", "wokka", "slime"],
   6: ["grabber", "tripper", "mushroom"],
   7: ["potionthrower", "potionhealer", "rakugakima"],
-  8: ["itemMimic", "charger"],
+  8: ["itemMimic", "charger", "manaEater"],
   9: ["tattoobird", "thief"],
   10: ["wolf", "rustbug", "wizard"],
   11: ["leprechaun", "itemblaster", "sylph"],
@@ -51,9 +51,9 @@ const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   10: ["rat", "bat", "centipede"],
   13: ["kobold", "goblin", "skeleton"],
   16: ["imp", "zombie", "wolf"],
-  18: ["hypnotist"],
-  19: ["hypnotist", "giantEel"],
-  20: ["hypnotist", "giantEel", "seaDevil"],
+  18: ["hypnotist", "manaEater"],
+  19: ["hypnotist", "giantEel", "manaEater"],
+  20: ["hypnotist", "giantEel", "seaDevil", "manaEater"],
   21: ["giantEel", "seaDevil"],
   22: ["seaDevil", "potionhealer", "sylph"],
   23: ["potionhealer", "sylph"],
@@ -114,6 +114,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   mushroom: { min: 14, max: 16 },
   fireCook: { min: 25, max: 27 },
   machodragon: { min: 26, max: 28 },
+  manaEater: { min: 18, max: 20 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {

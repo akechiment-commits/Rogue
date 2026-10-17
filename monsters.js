@@ -54,7 +54,7 @@ export function resolveMonsterWandEffect(m) {
  * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
 const ADJACENT_PLAYER_SPECIAL_SUBTYPES = new Set([
   "grabber", "giantEel", "thief", "goldthief", "itemblast", "stealthrower",
-  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater", "potRaider",
+  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater", "potRaider", "manaEater",
 ]);
 
 function isAdjacentPlayerSpecial(m) {
@@ -1296,6 +1296,12 @@ export const MONS = [
     levels: [
       { name: "筋肉竜",       hp: 135, atk: 48, def: 14, exp: 180, tile: 242, dungeonFloors: { advanced: { min: 26, max: 28 } } },
       { name: "筋骨隆々竜",   hp: 220, atk: 66, def: 20, exp: 300, tile: 243 },
+    ],
+  },
+  { name: "マナイーター", hp: 32,  atk: 14, def: 5,  exp: 28,  speed: 1,   tile: 244, kind: "undead",   baseKind: "manaEater",   subtype: "manaEater", monLevel: 1, minFloor: 7, maxFloor: 50, elemWeak: "fire", desc: "プレイヤーのMPを吸い取って回復する不死者。炎弱点。", dungeonFloors: { beginner: null, intermediate: { min: 7, max: 9 }, advanced: { min: 8, max: 10 } },
+    levels: [
+      { name: "マナドレイナー", hp: 68,  atk: 29, def: 10, exp: 80,  tile: 245, dungeonFloors: { advanced: { min: 18, max: 20 } } },
+      { name: "マナヴォイド",   hp: 115, atk: 46, def: 16, exp: 180, tile: 246 },
     ],
   },
 ];
@@ -3674,7 +3680,7 @@ const _MIMIC_SKIP_SUBTYPES = new Set([
 /** 隣接限定かつコピー実行実装済みの特技（プレイヤー隣接時のみ真似る） */
 const _MIMIC_ADJ_SUBTYPES = new Set([
   "tripper", "ruster", "thief", "knocker", "berserker", "trapmaster",
-  "itempusher",
+  "itempusher", "manaEater",
 ]);
 
 function supportBreathTargets(m, dg) {
@@ -3943,6 +3949,38 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
         ml.push(`${target.name}は混乱胞子を浴びて混乱した！(${turns}ターン)`);
       }
     }
+  }
+}
+
+/**
+ * マナイーター系モンスターのMP吸収特技。
+ * 隣接時にプレイヤーのMPを吸収して自身のHPを回復する。
+ * - Lv1（マナイーター）: MP 3 吸収、HP 15 回復
+ * - Lv2（マナドレイナー）: MP 5 吸収、HP 25 回復
+ * - Lv3（マナヴォイド）: MP 10 吸収、HP 50 回復
+ */
+export function useManaEaterDrain(m, pl, ml) {
+  if (!m || !pl || !ml) return false;
+  const lvl = m.monLevel || 1;
+  const drainMax = lvl >= 3 ? 10 : lvl === 2 ? 5 : 3;
+  const healAmount = lvl >= 3 ? 50 : lvl === 2 ? 25 : 15;
+  const curMp = pl.mp || 0;
+  const actualDrain = Math.min(curMp, drainMax);
+  pl.mp = Math.max(0, curMp - drainMax);
+
+  if (actualDrain > 0) {
+    const maxHp = m.maxHp || m.hp;
+    const healed = Math.min(healAmount, maxHp - m.hp);
+    m.hp = Math.min(maxHp, m.hp + healAmount);
+    if (healed > 0) {
+      ml.push(`${m.name}がマナを吸い取った！MPが${actualDrain}減少し、${m.name}のHPが${healed}回復した！`);
+    } else {
+      ml.push(`${m.name}がマナを吸い取った！MPが${actualDrain}減少した！`);
+    }
+    return true;
+  } else {
+    ml.push(`${m.name}がマナを吸い取ろうとしたが、吸い取れるマナがなかった！`);
+    return true;
   }
 }
 
@@ -4462,6 +4500,12 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       }
       m.turnAttacks++;
       ml.push(`${m.name}は罠を仕掛ける場所がなかった！`);
+      return true;
+    }
+    /* マナイーター：隣接時にMP吸収＆回復 */
+    if (m.subtype === "manaEater" && !_plOnSanc && !_plOnBlessedSanc) {
+      m.turnAttacks++;
+      useManaEaterDrain(m, pl, ml);
       return true;
     }
   }
@@ -7144,6 +7188,20 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             checkFloat: true,
             luFn: _luFn,
           });
+          return;
+        }
+      }
+      /* 特技不発時は通常近接へフォールスルー */
+    }
+
+    /* ── manaEater（マナイーター等）：隣接時 50% でMP吸収＆自己回復特技 ── */
+    if (m.subtype === "manaEater" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+      if (_moveOnly) return;
+      if (_plOnSanc) return;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        if (!m.sealed && (m.alwaysUseSpecial || Math.random() < 0.50)) {
+          m.turnAttacks++;
+          useManaEaterDrain(m, pl, ml);
           return;
         }
       }

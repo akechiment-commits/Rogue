@@ -163,6 +163,9 @@ export const TILE_NAMES = {
   241: "machodragon",
   242: "machodragon_lv2",
   243: "machodragon_lv3",
+  244: "manaeater",
+  245: "manaeater_lv2",
+  246: "manaeater_lv3",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -383,6 +386,9 @@ export const TILE_RENDER = {
   241: { bg: null, fg: "#60e060", ch: "D" }, /* マッチョドラゴン */
   242: { bg: null, fg: "#ff4040", ch: "D" }, /* 筋肉竜 */
   243: { bg: null, fg: "#ffd700", ch: "D" }, /* 筋骨隆々竜 */
+  244: { bg: null, fg: "#9966cc", ch: "M" }, /* マナイーター */
+  245: { bg: null, fg: "#ba68c8", ch: "M" }, /* マナドレイナー */
+  246: { bg: null, fg: "#e040fb", ch: "M" }, /* マナヴォイド */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
