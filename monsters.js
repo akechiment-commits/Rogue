@@ -1005,10 +1005,10 @@ export const MONS = [
       { name: "大地穿ち",           hp: 169, atk: 50, def: 16, exp: 163 },
     ],
   },
-  { name: "罠師",         hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 22 } },
+  { name: "仕掛け花火師", hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", elemWeak: "ice", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 22 } },
     levels: [
-      { name: "罠の達人",           hp: 54,  atk: 25, def: 7,  exp: 77  },
-      { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
+      { name: "爆導師",             hp: 54,  atk: 25, def: 7,  exp: 77  },
+      { name: "煙火覇王",           hp: 85,  atk: 32, def: 12, exp: 120 },
     ],
   },
   { name: "にじりヘビ",   hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, elemWeak: "ice", maxAttacks: 2, desc: "隣接時25%で毒撃（1回攻撃、毒薬と同じ毒）。不発時は通常の二回攻撃。", dungeonFloors: { intermediate: null, advanced: { min: 12, max: 22 } },

@@ -257,7 +257,7 @@ export const TILE_RENDER = {
   83: { bg: null, fg: "#ff9900", ch: "w" },
   84: { bg: null, fg: "#c040c0", ch: "^" },
   85: { bg: null, fg: "#2060a0", ch: "^" },
-  86: { bg: null, fg: "#c0a030", ch: "T" },
+  86: { bg: null, fg: "#ff6020", ch: "F" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
   120: { bg: null, fg: "#5080e8", ch: "^" },
@@ -330,7 +330,7 @@ export const TILE_RENDER = {
   147: { bg: null, fg: "#e06060", ch: "C" }, /* バリア蟹 */
   148: { bg: null, fg: "#e09030", ch: "A" }, /* アーチャー */
   149: { bg: null, fg: "#ffd040", ch: "T" }, /* ゴールドタイガー */
-  150: { bg: null, fg: "#c040c0", ch: "T" }, /* 罠師 */
+  150: { bg: null, fg: "#ff6020", ch: "F" }, /* 仕掛け花火師 */
   151: { bg: null, fg: "#ff6040", ch: "O" }, /* 足払い鬼 */
   152: { bg: null, fg: "#6040a0", ch: "D" }, /* ダークネス */
   153: { bg: null, fg: "#cc44aa", ch: "T" }, /* 盗投士 */
