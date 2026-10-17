@@ -946,7 +946,7 @@ export const MONS = [
       { name: "ヤドカリ壺大将", hp: 96, atk: 38, def: 12, exp: 158, dungeonFloors: { legend: { min: 48, max: 50 } } },
     ],
   },
-  { name: "炎の料理人", hp: 38, atk: 16, def: 4, exp: 52, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "fireCook", desc: "隣接すると装備中でない所持品を焦げた料理へ変える。焦げた料理とヤバイ料理は互いに変化。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "炎の料理人", hp: 38, atk: 16, def: 4, exp: 52, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "ice", subtype: "fireCook", desc: "隣接すると装備中でない所持品を焦げた料理へ変える。焦げた料理とヤバイ料理は互いに変化。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "炎の中華料理人", hp: 62, atk: 27, def: 8, exp: 100, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "炎の中華体育料理人", hp: 100, atk: 38, def: 12, exp: 160, dungeonFloors: { intermediate: null, advanced: { min: 44, max: 47 }, legend: { min: 48, max: 50 } } },
@@ -986,7 +986,7 @@ export const MONS = [
   /* 長居ペナルティ専用：壁抜け・浮遊。等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
   { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
     desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
-  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, subtype: "powercharge", desc: "隣接時に力を溜めることがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
+  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, elemWeak: "ice", subtype: "powercharge", desc: "隣接時に力を溜めることがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "オーク将",           hp: 65,  atk: 31, def: 12, exp: 77,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
       { name: "オーク王",           hp: 101, atk: 40, def: 16, exp: 120, dungeonFloors: { advanced: { min: 25, max: 26 } } },
@@ -1010,7 +1010,7 @@ export const MONS = [
       { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
     ],
   },
-  { name: "にじりヘビ",   hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, desc: "隣接時25%で毒撃（1回攻撃、毒薬と同じ毒）。不発時は通常の二回攻撃。", dungeonFloors: { intermediate: null, advanced: { min: 12, max: 22 } },
+  { name: "にじりヘビ",   hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, elemWeak: "ice", maxAttacks: 2, desc: "隣接時25%で毒撃（1回攻撃、毒薬と同じ毒）。不発時は通常の二回攻撃。", dungeonFloors: { intermediate: null, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "スパークヘビ",       hp: 76,  atk: 32, def: 9,  exp: 83  },
       { name: "暗黒ヘビ",           hp: 119, atk: 42, def: 13, exp: 130 },
@@ -1058,7 +1058,7 @@ export const MONS = [
       { name: "なんでも無効蟹",     hp: 108, atk: 36, def: 9,  exp: 170, barrier: 3 },
     ],
   },
-  { name: "ウィンドメイジ", hp: 38, atk: 20, def: 5, exp: 65,  speed: 1,   tile: 157, kind: "humanoid", baseKind: "windmage",     monLevel: 1, minFloor: 23, maxFloor: 50, subtype: "wanduser", wandEffect: "blowback_wand", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
+  { name: "ウィンドメイジ", hp: 38, atk: 20, def: 5, exp: 65,  speed: 1,   tile: 157, kind: "undead",   baseKind: "windmage",     monLevel: 1, minFloor: 23, maxFloor: 50, float: true, subtype: "wanduser", wandEffect: "blowback_wand", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強ウィンドメイジ",   hp: 61,  atk: 28, def: 9,  exp: 104 },
       { name: "風の覇者",           hp: 95,  atk: 36, def: 13, exp: 163 },
@@ -1254,7 +1254,7 @@ export const MONS = [
     ],
   },
   /* ===== ラクガキ魔：同部屋で自分の足元に魔方陣を描く ===== */
-  { name: "ラクガキ魔",   hp: 18,  atk: 7,  def: 2,  exp: 28,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 6,  maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 7, max: 10 }, advanced: { min: 8, max: 15 } },
+  { name: "ラクガキ魔",   hp: 18,  atk: 7,  def: 2,  exp: 28,  speed: 1,   tile: 111, kind: "undead",   baseKind: "rakugakima",    monLevel: 1, minFloor: 6,  maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 7, max: 10 }, advanced: { min: 8, max: 15 } },
     desc: "同じ部屋にいると自分の足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
     levels: [
       { name: "ラクガキ妖精",       hp: 42,  atk: 17, def: 7,  exp: 70,  dungeonFloors: { intermediate: { min: 11, max: 12 }, advanced: { min: 15, max: 22 } } },
