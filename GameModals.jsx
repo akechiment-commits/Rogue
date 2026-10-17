@@ -6,12 +6,13 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
+import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { reducePotCapacity } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
-import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor } from "./dungeon.js";
+import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { makeVent, makeStatue, makeAltar } from "./fixtures.js";
 import { getDiscoveries, trackItem, trackBigbox } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
@@ -4253,6 +4254,7 @@ const _DBG_ITEM_CATS = [
     { label: IRONMASS_T.name,     value: { ...IRONMASS_T } },
     { label: SNIPER_T.name,       value: { ...SNIPER_T } },
     { label: GODBANE_SWORD_T.name, value: { ...GODBANE_SWORD_T } },
+    { label: MAGIC_BANE_T.name, value: { ...MAGIC_BANE_T } },
     { label: TRIELEM_ARMOR_T.name, value: { ...TRIELEM_ARMOR_T } },
     { label: MITHRIL_ARMOR_T.name, value: { ...MITHRIL_ARMOR_T } },
     { label: STOMACH_ARMOR_T.name, value: { ...STOMACH_ARMOR_T } },
@@ -4280,6 +4282,14 @@ const _DBG_ITEM_CATS = [
   { key: "cooked_food",label: "調理済み食べ物",build: () => COOKED_FOODS.map(n => _mkFoodEntry(n, true)) },
   { key: "others",     label: "その他",       build: () => [
     { label: EMPTY_BOTTLE.name, value: { ...EMPTY_BOTTLE } },
+  ]},
+  { key: "valuables",  label: "財宝・キー",   build: () => [
+    { label: "金貨（100G）", value: { name: "金貨", type: "gold", value: 100, tile: 22 } },
+    { label: GOLD_NUGGET_T.name, value: { ...GOLD_NUGGET_T } },
+    { label: "偽物の金塊", value: { ...FAKE_GOLD_NUGGET_T } },
+    ...GEM_TYPES.map(item => ({ label: item.name, value: { ...item } })),
+    ...Object.values(GOAL_ITEMS).map(item => ({ label: item.name, value: { ...item } })),
+    { label: CHARGED_FUZZBALL_T.name, value: { ...CHARGED_FUZZBALL_T } },
   ]},
 ];
 
@@ -4402,7 +4412,11 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       }
       if (!placed) ml.push("召喚する場所がない！");
     } else if (isDebugItemGet) {
-      if (p.inventory.length >= (p.maxInventory || 30)) {
+      if (entry.value?.type === "gold") {
+        const amount = Math.max(0, Number(entry.value.value) || 0);
+        p.gold = (p.gold || 0) + amount;
+        ml.push(`所持金が${amount}G増えた！`);
+      } else if (p.inventory.length >= (p.maxInventory || 30)) {
         ml.push("持ち物がいっぱいだ！");
       } else {
         const it = prepareDebugItem(entry.value, effect, uid());
