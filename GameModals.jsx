@@ -3807,11 +3807,11 @@ export function InventoryModal({
                       {it.potionEffects?.length > 0 && (
                         <div style={{ color: "#fc6", marginTop: 3 }}>薬効果：{it.potionEffects.map(foodPotionEffectLabel).join("・")}</div>
                       )}
-                      {it.type === "pot" && it.potEffect === "imprison" && (it.confinedMonsters?.length || 0) > 0 && (
-                        <div style={{ color: "#ca8", marginTop: 3 }}>閉じ込め: {it.confinedMonsters.map((c) => c.name).join(", ")}</div>
-                      )}
-                      {it.type === "pot" && it.potEffect !== "imprison" && it.contents?.length > 0 && (
-                        <div style={{ color: "#ca8", marginTop: 3 }}>中身: {it.contents.map((c) => itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)).join(", ")}</div>
+                      {it.type === "pot" && ((it.contents?.length || 0) > 0 || (it.confinedMonsters?.length || 0) > 0) && (
+                        <div style={{ color: "#ca8", marginTop: 3 }}>中身: {[
+                          ...(it.contents || []).map((c) => itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)),
+                          ...(it.confinedMonsters || []).map((c) => c.name || "モンスター"),
+                        ].join(", ")}</div>
                       )}
                     </div>
                   )}
@@ -3834,16 +3834,13 @@ export function InventoryModal({
         </div>
         {potOccupancyCount(_previewPot) === 0 ? (
           <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
-        ) : _previewPot.potEffect === "imprison" ? (
-          (_previewPot.confinedMonsters ?? []).map((c, ci) => (
-            <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
-              · {c.name}
-            </div>
-          ))
         ) : (
-          (_previewPot.contents ?? []).map((c, ci) => (
-            <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
-              · {itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)}
+          [
+            ...(_previewPot.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
+            ...(_previewPot.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
+          ].map((entry) => (
+            <div key={entry.key} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
+              · {entry.name}
             </div>
           ))
         )}

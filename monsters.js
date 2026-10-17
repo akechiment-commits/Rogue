@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, confineMonsterInPot, imprisonPotRemainingCapacity, potConsumesInsertedContent } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -937,7 +937,7 @@ export const MONS = [
       { name: "豪傑九千坊",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
-  { name: "ヤドカリ壺荒らし", hp: 34, atk: 16, def: 4, exp: 52, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "potRaider", desc: "プレイヤーの容量が残った壺へ自分を押し込む。Lv2以上は一直線上から壺へ飛び込む。壺を割るか吸い出すと再び現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "ヤドカリ壺荒らし", hp: 34, atk: 16, def: 4, exp: 52, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "potRaider", desc: "別のヤドカリを容量の残った壺へ押し込む。Lv2以上は一直線上から壺へ投げ込む。壺を割るか吸い出すとヤドカリが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "大ヤドカリ壺荒らし", hp: 58, atk: 26, def: 8, exp: 98, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "ヤドカリ壺大将", hp: 96, atk: 38, def: 12, exp: 158, dungeonFloors: { legend: { min: 48, max: 50 } } },
@@ -1718,17 +1718,33 @@ function potRaiderTargets(player) {
   );
 }
 
+const POT_RAIDER_HERMIT_CRAB_BASE = Object.freeze({
+  name: "ヤドカリ", hp: 14, atk: 8, def: 2, exp: 8, speed: 1,
+  tile: 147, kind: "beast", baseKind: "hermitCrab", monLevel: 1, subtype: "hermitCrab",
+});
+
+function makePotRaiderHermitCrab(mon, player) {
+  return makeMonsterFromBase(POT_RAIDER_HERMIT_CRAB_BASE, 1, mon.x, mon.y, {
+    aware: true,
+    lastPx: player?.x ?? mon.x,
+    lastPy: player?.y ?? mon.y,
+  });
+}
+
 function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   const targets = potRaiderTargets(player);
   if (targets.length === 0) return false;
   const pot = pick(targets);
   mon.turnAttacks++;
-  const potName = "壺";
+  const crab = makePotRaiderHermitCrab(mon, player);
+  if (!Array.isArray(dungeon.monsters)) dungeon.monsters = [];
+  dungeon.monsters.push(crab);
 
   if (pot.potEffect === "boil") {
     pot.capacity = Math.max(0, (pot.capacity ?? 3) - 1);
-    messages.push(`${mon.name}が加熱の壺に押し込まれた！熱で焼けて倒れた！`);
-    killMonster(mon, dungeon, player, messages, luFn);
+    messages.push(`${mon.name}がヤドカリを加熱の壺に押し込んだ！熱で焼けた！`);
+    crab.hp = 0;
+    killMonster(crab, dungeon, player, messages, luFn);
     return true;
   }
 
@@ -1738,12 +1754,16 @@ function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
       const potIdx = player.inventory.indexOf(pot);
       if (potIdx >= 0) player.inventory.splice(potIdx, 1);
     }
-    dungeon.monsters = (dungeon.monsters || []).filter((entry) => entry !== mon);
-    messages.push(`${mon.name}は${potName}に吸い込まれて消えた！`);
+    messages.push(`${mon.name}がヤドカリを壺に押し込んだ！`);
+    crab.hp = 0;
+    killMonster(crab, dungeon, player, messages, luFn);
     return true;
   }
 
-  confineMonsterInPot(pot, mon, dungeon, messages, (item) => item === pot ? "壺" : resolveItemName(item));
+  if (!Array.isArray(pot.confinedMonsters)) pot.confinedMonsters = [];
+  pot.confinedMonsters.push(JSON.parse(JSON.stringify(crab)));
+  dungeon.monsters = dungeon.monsters.filter((entry) => entry !== crab);
+  messages.push(`${mon.name}がヤドカリを壺に押し込んだ！`);
   return true;
 }
 
