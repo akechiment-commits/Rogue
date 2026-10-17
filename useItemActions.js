@@ -14,7 +14,8 @@ import {
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
-  imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
+  imprisonPotRemainingCapacity, potOccupancyCount,
+  canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   LUCK_POTION_TURNS,
@@ -89,7 +90,7 @@ export function getHypnosisItemCandidates(inventory = []) {
 
 export function getHypnosisPotContents(inventory = [], pot, player = null) {
   if (!pot || pot.type !== "pot" || pot.potEffect === "imprison") return [];
-  if ((pot.contents?.length || 0) >= (pot.capacity || 0)) return [];
+  if (imprisonPotRemainingCapacity(pot) <= 0) return [];
   return inventory.flatMap((it, idx) => {
     if (!it || it === pot || it.type === "pot" || it.type === "goal") return [];
     if (it.shopPrice) return [];
@@ -2138,7 +2139,7 @@ export function useItemActions({
         }
       } else {
         if (!it.contents) it.contents = [];
-        if (it.contents.length >= it.capacity) {
+        if (potOccupancyCount(it) >= it.capacity) {
           ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`);
         } else {
           setPutMode({ potIdx: idx });
@@ -2149,7 +2150,7 @@ export function useItemActions({
           setShowDesc(null);
           setMsgs((prev) => [
             ...prev.slice(-80),
-            `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に入れるアイテムを選んでください...(${it.contents.length}/${it.capacity})`,
+            `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に入れるアイテムを選んでください...(${potOccupancyCount(it)}/${it.capacity})`,
           ]);
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
@@ -2913,7 +2914,7 @@ export function useItemActions({
         setMsgs((prev) => [...prev.slice(-80), "呪われているので外せない！"]);
         return;
       }
-      if (pot.contents.length >= pot.capacity) {
+      if (potOccupancyCount(pot) >= pot.capacity) {
         setMsgs((prev) => [...prev.slice(-80), `${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`]);
         setPutMode(null);
         return;
@@ -2970,7 +2971,7 @@ export function useItemActions({
             }
           }
           // 薬効発動後はアイテム欄を閉じる
-          if (pot.contents.length >= pot.capacity) ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
+          if (potOccupancyCount(pot) >= pot.capacity) ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
           endTurn(sr.current, p, ml);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
           setPutMode(null);
@@ -3040,7 +3041,7 @@ export function useItemActions({
         applyPotEffect(pot, it, ml, dnameRef);
         pot.contents.push(it);
       }
-      const _potFull = (pot.potEffect === "heal_pot" || pot.potEffect === "klein") ? pot.capacity <= 0 : pot.contents.length >= pot.capacity;
+      const _potFull = (pot.potEffect === "heal_pot" || pot.potEffect === "klein") ? pot.capacity <= 0 : potOccupancyCount(pot) >= pot.capacity;
       if (_potFull)
         ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
       endTurn(sr.current, p, ml);

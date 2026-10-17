@@ -1099,8 +1099,7 @@ export function isNoChargeBoostWand(it) {
 
 export function potOccupancyCount(pot) {
   if (!pot || pot.type !== "pot") return 0;
-  if (pot.potEffect === "imprison") return pot.confinedMonsters?.length || 0;
-  return pot.contents?.length || 0;
+  return (pot.contents?.length || 0) + (pot.confinedMonsters?.length || 0);
 }
 
 /* 容量不足の判定を道具・閉じ込め敵で共通化する。通常の道具は従来どおり床へ出す。 */
@@ -1115,9 +1114,10 @@ export function reducePotCapacity(pot, amount, dg, p, ml, nameFn = null) {
   if (removedAt >= 0) p.inventory.splice(removedAt, 1);
   else removeFloorItem(dg, pot);
   ml.push(`${name}が容量不足で割れた！`);
-  if (pot.potEffect === "imprison") {
+  if (pot.confinedMonsters?.length) {
     releaseConfinedMonstersFromPot(pot, dg, x, y, p, ml);
-  } else {
+  }
+  if (pot.potEffect !== "imprison") {
     const contents = [...(pot.contents || [])];
     pot.contents = [];
     const ft = new Set();
@@ -1127,13 +1127,10 @@ export function reducePotCapacity(pot, amount, dg, p, ml, nameFn = null) {
 }
 
 export function imprisonPotRemainingCapacity(pot) {
-  if (!pot || pot.potEffect !== "imprison") {
-    return Math.max(0, (pot?.capacity ?? 3) - (pot?.contents?.length || 0));
-  }
-  return Math.max(0, (pot.capacity ?? 3) - (pot.confinedMonsters?.length || 0));
+  return Math.max(0, (pot?.capacity ?? 3) - potOccupancyCount(pot));
 }
 
-export function canConfineMonsterInImprisonPot(mon) {
+export function canConfineMonsterInPot(mon) {
   if (!mon) return false;
   if (mon.isBoss) return false;
   if (mon.type === "shopkeeper") return false;
@@ -1142,14 +1139,23 @@ export function canConfineMonsterInImprisonPot(mon) {
   return true;
 }
 
-export function confineMonsterInImprisonPot(pot, mon, dg, ml, nameFn = null) {
+export const canConfineMonsterInImprisonPot = canConfineMonsterInPot;
+
+export function confineMonsterInPot(pot, mon, dg, ml, nameFn = null) {
   if (!pot.confinedMonsters) pot.confinedMonsters = [];
   const snap = JSON.parse(JSON.stringify(mon));
   pot.confinedMonsters.push(snap);
   const _mn = resolveItemName(mon, nameFn);
-  const _pn = resolveItemName(pot, nameFn);
+  const _pn = nameFn ? resolveItemName(pot, nameFn) : "壺";
   ml.push(`${_mn}を${_pn}に閉じ込めた！`);
   removeMonster(dg, mon);
+}
+
+export const confineMonsterInImprisonPot = confineMonsterInPot;
+
+/** 投入した道具を消費して蓄えない壺。 */
+export function potConsumesInsertedContent(pot) {
+  return !!pot && ["heal_pot", "klein", "wish_pot"].includes(pot.potEffect);
 }
 
 export function canMonsterSurviveOnWater(mon, dg, x, y) {
@@ -1390,9 +1396,7 @@ export function makePot(context = "floor", options = {}) {
   const pool = dungeonLootPool(POTS, options);
   const t = pickLootFromPool(pool, context) || pick(pool);
   if (!t) return null;
-  const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
-  if (t.potEffect === "imprison") pot.confinedMonsters = [];
-  return pot;
+  return { ...t, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(t.potEffect) };
 }
 
 /**
@@ -1457,7 +1461,7 @@ export function makeGachaPrize(rarity = null) {
   const pool = all.filter((item) => targetRarities.includes(item.rarity));
   const tmpl = pickGachaTemplate(pool.length ? pool : all) || makeChangeBoxItem("floor");
   if (tmpl.type === "food") return { ...genFood(), id: uid() };
-  if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], capacity: randPotCapacity(tmpl.potEffect) };
+  if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(tmpl.potEffect) };
   if (tmpl.type === "ring") return applyGeneratedRingPlus({ ...tmpl, id: uid() });
   if (tmpl.type === "arrow") return { ...tmpl, id: uid(), count: rng(3, 15) };
   if (tmpl.type === "pen" || tmpl.type === "marker") return { ...tmpl, id: uid(), charges: penInitialCharges(tmpl) };
@@ -1637,7 +1641,7 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
 /** 唐辛子・胡椒の壺：容量が残ったまま割れたとき、周囲のキャラを暗闇にする。 */
 function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
   if (!pot || !["spicy", "pepper"].includes(pot.potEffect)) return false;
-  if ((pot.contents?.length || 0) >= (pot.capacity ?? 3)) return false;
+  if (potOccupancyCount(pot) >= (pot.capacity ?? 3)) return false;
 
   const _label = pot.potEffect === "pepper" ? "胡椒" : "唐辛子";
   ml.push(`${resolveItemName(pot, nameFn)}が割れて${_label}の粉が舞い、周囲が暗闇に包まれた！`);
@@ -1675,10 +1679,12 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
 
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, context = {}) {
   const _pn = resolveItemName(pot, nameFn);
+  const occupied = potOccupancyCount(pot);
   /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
   if (pot.potEffect === "greed") {
-    const _remaining = Math.max(0, (pot.capacity ?? 4) - (pot.contents?.length || 0));
+    const _remaining = Math.max(0, (pot.capacity ?? 4) - occupied);
     ml.push(`${_pn}が割れた！`);
+    if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
     const ft = new Set();
     for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
     if (_remaining > 0) {
@@ -1706,9 +1712,10 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
     return;
   }
   applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn);
+  if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
   /* 回復の壺：命中した対象を回復（アンデッドはダメージ） */
   if (pot.potEffect === "heal_pot") {
-    const _hpAmt = Math.max(0, (pot.capacity ?? 3) - (pot.contents?.length || 0)) * 100;
+    const _hpAmt = Math.max(0, (pot.capacity ?? 3) - occupied) * 100;
     ml.push(`${_pn}が割れた！`);
     if (_hpAmt > 0) {
       const _hm = monsterAt(dg, px, py);
@@ -1748,7 +1755,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
   }
   /* 油系壺：満タンでない場合は周囲8マスに油が飛散 */
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
-  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity ?? 3)) {
+  if (_oilEffects[pot.potEffect] && occupied < (pot.capacity ?? 3)) {
     ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
@@ -1797,7 +1804,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
     }
     return;
   }
-  if (!pot.contents || pot.contents.length === 0) {
+  if (occupied === 0) {
     ml.push(`${_pn}は割れた！（中は空だった）`);
     return;
   }
@@ -1822,15 +1829,18 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     return { potRemovedAt: _idx !== -1 ? _idx : null };
   }
   if (pot.potEffect === "gunpowder") {
+    if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
     ml.push(`${resolveItemName(pot)}から火薬が吸い出され爆発した！`);
     doGunpowderExplosion(px, py, dg, p, ml, luFn, resolveItemName(pot));
     return { potRemovedAt: null };
   }
   /* 中身を先に切り離す。途中で壺が壊れても、放出済みの道具をもう一度出さない。 */
+  const occupied = potOccupancyCount(pot);
   const contents = [...(pot.contents || [])];
   pot.contents = [];
+  if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
-  if (_oilEffects[pot.potEffect] && contents.length < (pot.capacity ?? 3)) {
+  if (_oilEffects[pot.potEffect] && occupied < (pot.capacity ?? 3)) {
     ml.push(`${resolveItemName(pot)}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
@@ -1872,7 +1882,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
   if (contents.length > 0) {
     ml.push(`${resolveItemName(pot)}から中身が飛び出した！`);
     for (const item of contents) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
-  } else {
+  } else if (occupied === 0) {
     ml.push(`${resolveItemName(pot)}は空だった。`);
   }
   if (blessed) {
@@ -2007,9 +2017,9 @@ function _explosionBreakPot(pot, x, y, dg, p, ml, luFn, nameFn, blasted) {
   pot.contents = [];
   removeFloorItem(dg, pot);
   const name = resolveItemName(pot, nameFn);
+  if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, x, y, p, ml);
   if (pot.potEffect === "imprison") {
     ml.push(`壺「${name}」が爆発で割れた！`);
-    releaseConfinedMonstersFromPot(pot, dg, x, y, p, ml);
   } else if (contents.length > 0) {
     ml.push(`壺「${name}」が爆発で割れ、中身が飛び出した！`);
     const ft = new Set();
@@ -6382,7 +6392,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           else if (it.type === "pot") {
             blasted.add(it);
             if (it.potEffect !== "gunpowder") ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
-            if (it.potEffect === "imprison") releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
+            if (it.confinedMonsters?.length) releaseConfinedMonstersFromPot(it, dg, ax, ay, p, ml);
           } else if (it.type === "wand") {
             _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, null, blasted);
           } else if (it.type === "item_mimic") {

@@ -153,6 +153,7 @@ export const TILE_NAMES = {
   [TI.ICE_CHUNK]: "ice_chunk",
   230: "loxonin",
   231: "sleeping_lion",
+  234: "pot_crab_raider",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -363,6 +364,7 @@ export const TILE_RENDER = {
   229: { bg: null, fg: "#c0a050", ch: "旅" }, /* 冒険者・男性弓使い */
   230: { bg: null, fg: "#40d0a0", ch: "忍" }, /* ロキソ忍系 */
   231: { bg: null, fg: "#e8c060", ch: "獅" }, /* 眠れる獅子系 */
+  234: { bg: null, fg: "#d99a55", ch: "蟹" }, /* ヤドカリ壺荒らし */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

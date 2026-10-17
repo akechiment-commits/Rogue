@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, confineMonsterInPot, imprisonPotRemainingCapacity, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -53,7 +53,7 @@ export function resolveMonsterWandEffect(m) {
  * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
 const ADJACENT_PLAYER_SPECIAL_SUBTYPES = new Set([
   "grabber", "giantEel", "thief", "goldthief", "itemblast", "stealthrower",
-  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater",
+  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater", "potRaider",
 ]);
 
 function isAdjacentPlayerSpecial(m) {
@@ -937,6 +937,12 @@ export const MONS = [
       { name: "豪傑九千坊",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
+  { name: "ヤドカリ壺荒らし", hp: 34, atk: 16, def: 4, exp: 52, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, subtype: "potRaider", desc: "プレイヤーの容量が残った壺へ自分を押し込む。Lv2以上は一直線上から壺へ飛び込む。壺を割るか吸い出すと再び現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+    levels: [
+      { name: "大ヤドカリ壺荒らし", hp: 58, atk: 26, def: 8, exp: 98, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
+      { name: "ヤドカリ壺大将", hp: 96, atk: 38, def: 12, exp: 158, dungeonFloors: { legend: { min: 48, max: 50 } } },
+    ],
+  },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "ニトロスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
@@ -1703,6 +1709,41 @@ function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯
   trackItem(gift);
   player.inventory.push(gift);
   messages.push(message);
+  return true;
+}
+
+function potRaiderTargets(player) {
+  return (player?.inventory || []).filter((item) =>
+    item?.type === "pot" && imprisonPotRemainingCapacity(item) > 0,
+  );
+}
+
+function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
+  const targets = potRaiderTargets(player);
+  if (targets.length === 0) return false;
+  const pot = pick(targets);
+  mon.turnAttacks++;
+  const potName = "壺";
+
+  if (pot.potEffect === "boil") {
+    pot.capacity = Math.max(0, (pot.capacity ?? 3) - 1);
+    messages.push(`${mon.name}が加熱の壺に押し込まれた！熱で焼けて倒れた！`);
+    killMonster(mon, dungeon, player, messages, luFn);
+    return true;
+  }
+
+  if (potConsumesInsertedContent(pot)) {
+    pot.capacity = Math.max(0, (pot.capacity ?? 3) - 1);
+    if (pot.potEffect === "wish_pot") {
+      const potIdx = player.inventory.indexOf(pot);
+      if (potIdx >= 0) player.inventory.splice(potIdx, 1);
+    }
+    dungeon.monsters = (dungeon.monsters || []).filter((entry) => entry !== mon);
+    messages.push(`${mon.name}は${potName}に吸い込まれて消えた！`);
+    return true;
+  }
+
+  confineMonsterInPot(pot, mon, dungeon, messages, (item) => item === pot ? "壺" : resolveItemName(item));
   return true;
 }
 
@@ -5810,6 +5851,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
       const _ptRange0 = potionThrowRange(m, dg, pl);
       const _ptRdy0 = m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
+      const _potRaiderLevel0 = m.monLevel || 1;
+      const _potRaiderRdy0 = m.subtype === "potRaider" && _potRaiderLevel0 >= 2 && !m.sealed &&
+        !_plOnBlessedSanc && _rAtks && canSee && _rLine && _rLen >= 2 && _rLen <= 8 &&
+        potRaiderTargets(pl).length > 0;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
       const _dragonBreathRdy = _dragonRdy0 || _iceDragonRdy0;
@@ -5824,7 +5869,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _waterFlowerRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < _specialRate)) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _waterFlowerRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _potRaiderRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < _specialRate)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -6195,6 +6240,28 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         m.turnAttacks++;
         monsterIceBreath(m, dg, pl, ml, _onHit);
+        return;
+      }
+    }
+
+    /* ── ヤドカリ壺荒らし：壺へ潜り込み、壺が割れると再出現する ── */
+    if (m.subtype === "potRaider" && !m.sealed) {
+      const _prAdj = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+      if (_prAdj && _moveOnly) return;
+      const _prLvl = m.monLevel || 1;
+      const _prDx = pl.x - m.x, _prDy = pl.y - m.y;
+      const _prDist = Math.max(Math.abs(_prDx), Math.abs(_prDy));
+      const _prLine = _prDx === 0 || _prDy === 0 || Math.abs(_prDx) === Math.abs(_prDy);
+      const _hasPotTarget = potRaiderTargets(pl).length > 0;
+      if (_prLvl >= 2 && !_prAdj && _prLine && _prDist >= 2 && _prDist <= 8 && canSee &&
+          !_plOnBlessedSanc && _hasPotTarget && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        usePotRaiderAbility(m, dg, pl, ml, _luFn);
+        return;
+      }
+      if (_prAdj && !_plOnSanc && _hasPotTarget && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        usePotRaiderAbility(m, dg, pl, ml, _luFn);
         return;
       }
     }

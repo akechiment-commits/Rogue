@@ -453,6 +453,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         }
       }
+      if (!customTileImages[234] && customTileImages[108]) customTileImages[234] = customTileImages[108];
       /* スタイル3(mon1)は専用のtile_210〜216を優先し、
        * DawnLike／デフォルトだけpublic/tilesの16pxマップアイコンを使う。 */
       if (name !== 'mon1') await loadPublicNamedTiles([...PUBLIC_TRAP_TILE_IDS, ...PUBLIC_SPECIAL_PROJECTILE_TILE_IDS]);
@@ -722,7 +723,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     installPlayerHpReverseHook(p);
     if (dungeonConfig?.startInventory?.length) {
       for (const it of dungeonConfig.startInventory) {
-        if (p.inventory.length < (p.maxInventory || 100)) p.inventory.push({ ...it, id: uid() });
+        if (p.inventory.length < (p.maxInventory || 100)) {
+          const copy = { ...it, id: uid() };
+          if (it.type === "pot") {
+            copy.contents = [...(it.contents || [])];
+            copy.confinedMonsters = [...(it.confinedMonsters || [])];
+          }
+          p.inventory.push(copy);
+        }
       }
     }
     /* 持ち込み装備を優先して自動装備。装備品がなければ短剣・革の鎧を補給する。 */
@@ -4670,8 +4678,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           delete _clone._encyclopediaTracked;
           if (_clone.abilities) _clone.abilities = [..._clone.abilities];
           if (_clone.contents) _clone.contents = [..._clone.contents];
-          /* 中身入り壺：クローンは空にする */
-          if (item.type === "pot" && item.contents?.length > 0) _clone.contents = [];
+          /* 中身や閉じ込めた敵入りの壺：クローンは空にする */
+          if (item.type === "pot") {
+            _clone.contents = [];
+            _clone.confinedMonsters = [];
+          }
           /* +値は半減 */
           if ((_clone.plus || 0) !== 0) _clone.plus = Math.floor(_clone.plus / 2);
           if ((item.plus || 0) !== 0) item.plus = Math.floor(item.plus / 2);
@@ -4784,6 +4795,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           } else if (item.type === "pot") {
             /* 壺：種類に応じた破壊効果（中身は散乱しない） */
             const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+            const _potOccupancy = potOccupancyCount(item);
+            if (item.potEffect !== "imprison" && item.confinedMonsters?.length) {
+              releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
+            }
             if (item.potEffect === "gunpowder") {
               ml.push(`${_idn}が飛び散って各生き物のもとで爆発した！`);
               if (!isFireExplosionNullified(dg, p)) {
@@ -4796,7 +4811,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 announceFireExplosionNullified(dg, p, ml, "爆発");
               }
               _bbExploded = true;
-            } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity ?? 3)) {
+            } else if (_oilMap[item.potEffect] && _potOccupancy < (item.capacity ?? 3)) {
               ml.push(`${_idn}が割れて${_oilMap[item.potEffect]}が飛び散った！`);
               dg.oilyTiles = dg.oilyTiles || [];
               const _addOilArea = (cx, cy) => {
@@ -4836,7 +4851,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
             } else {
               const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
-              const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity ?? 3) - (item.contents?.length || 0)) * 100 : 0;
+              const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity ?? 3) - _potOccupancy) * 100 : 0;
               for (const m of [..._scMons]) {
                 if (floorChanged()) break;
                 if (!dg.monsters.includes(m) || m.hp <= 0) continue;
@@ -5660,7 +5675,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     ];
     const template = pickAltarRewardTemplate(rewardPool, altar.offerCount);
     const reward = template ? { ...template, id: uid() } : null;
-    if (reward?.type === "pot") reward.contents = [];
+    if (reward?.type === "pot") {
+      reward.contents = [];
+      reward.confinedMonsters = [];
+    }
     if (reward?.type === "arrow") reward.count = rng(3, 12);
     if (reward?.type === "wand") reward.charges = reward.effect === "curse_wand" || reward.effect === "bless_wand" || reward.effect === "wish" ? 1 : Math.max(1, reward.charges || 5);
     if (reward?.type === "pen") reward.charges = reward.charges || 3;
@@ -5988,7 +6006,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doUseMarker(_idx);
   };
   const _doFloorOpenPutMode = (pot) => {
-    if ((pot.contents?.length || 0) >= pot.capacity) {
+    if (potOccupancyCount(pot) >= pot.capacity) {
       setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`]);
       return;
     }
