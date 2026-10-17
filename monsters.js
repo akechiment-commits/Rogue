@@ -718,7 +718,9 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
   ml.push(`${m.name}がダストストームを放った！`);
   pushSplashAnim(m.x, m.y, "#b8a777");
   const inStorm = (x, y) => monsterPointDistance(m, x, y) === 1;
-  if (inStorm(pl.x, pl.y)) {
+  const plOnSanc = !inMagicSealRoom(pl.x, pl.y, dg) &&
+    !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
+  if (inStorm(pl.x, pl.y) && !plOnSanc) {
     monsterAttackPlayer(m, dg, pl, ml, damage => `ダストストームが${plName(pl)}を襲う！${damage}ダメージ！`, {
       damageMultiplier: 0.5,
       onPlayerHit: damage => {
@@ -738,6 +740,7 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
     if (victim === m) continue;
     if (victim.hp <= 0 || !dg.monsters.includes(victim) || victim.disguisedAsItem) continue;
     if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
+    if (consumeBarrier(victim, ml)) continue;
     const normalDamage = calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1);
     const damage = Math.max(1, Math.floor(normalDamage * 0.5));
     victim.hp -= damage;
@@ -1289,6 +1292,16 @@ function levelTemplateSpeed(mon, template, level) {
   return template?.speed ?? baseTemplate?.speed ?? mon.speed ?? 1;
 }
 
+function syncMonsterProjectileAmmoForLevel(mon) {
+  if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype) || !mon.projectileAmmo) return;
+  const remaining = Math.max(0, Number(mon.projectileAmmo.count) || 0);
+  const refreshed = createMonsterProjectileAmmo(mon);
+  if (refreshed) {
+    refreshed.count = remaining;
+    mon.projectileAmmo = refreshed;
+  }
+}
+
 /** モンスターのレベルを1上げ、次形態に変化させる。変化した場合 true を返す */
 export function monLevelUp(mon, dg, ml) {
   if (!mon.baseKind) return false;
@@ -1316,6 +1329,9 @@ export function monLevelUp(mon, dg, ml) {
   const oldName = mon.name;
   const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
   const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
+  delete mon.overBoost;
+  delete mon._baseAtk;
+  delete mon._baseExp;
   mon.name   = template.name;
   mon.atk    = template.atk + diamondWeaponBonus;
   mon.def    = template.def + armorBreathBonus;
@@ -1327,6 +1343,7 @@ export function monLevelUp(mon, dg, ml) {
   mon.baseSpeed = mon.speed;
   if (template.tile !== undefined) mon.tile = template.tile;
   if (template.barrier !== undefined) mon.barrier = template.barrier;
+  syncMonsterProjectileAmmoForLevel(mon);
   if (mon.baseKind === "gelcube" && nextLevel === 3) {
     ml.push(`${oldName}がレベルアップして${mon.name}になった！動きが等速になった！`);
   } else if (mon.baseKind === "tattoobird" && nextLevel === 3) {
@@ -1356,6 +1373,9 @@ export function monLevelDown(mon, dg, ml) {
   const oldName = mon.name;
   const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
   const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
+  delete mon.overBoost;
+  delete mon._baseAtk;
+  delete mon._baseExp;
   mon.name   = template.name;
   mon.atk    = template.atk + diamondWeaponBonus;
   mon.def    = template.def + armorBreathBonus;
@@ -1366,6 +1386,9 @@ export function monLevelDown(mon, dg, ml) {
   mon.speed = levelTemplateSpeed(mon, template, prevLevel);
   mon.baseSpeed = mon.speed;
   if (template.tile !== undefined) mon.tile = template.tile;
+  if (template.barrier !== undefined) mon.barrier = template.barrier;
+  else delete mon.barrier;
+  syncMonsterProjectileAmmoForLevel(mon);
   ml.push(`${oldName}がレベルダウンして${mon.name}になった！`);
   return true;
 }
@@ -1654,9 +1677,28 @@ export function applyMonsterTransformation(target, definition, _dungeon = null, 
   for (const key of TRANSFORM_DEFINITION_KEYS) {
     if (!(key in definition)) delete target[key];
   }
+  delete target.disguisedAsItem;
+  delete target.disguiseItemId;
+  delete target.disguiseTile;
+  delete target.disguiseName;
+  delete target.armorBreathBuffs;
+  delete target.armorBreathBuffAmount;
+  delete target.diamondWeaponBuffs;
+  delete target.diamondWeaponBuffAmount;
+  delete target.overBoost;
+  delete target._baseAtk;
+  delete target._baseExp;
+  delete target._gelBoost;
+  delete target._gelBaseAtk;
+  delete target.atkBuffed;
   Object.assign(target, definition, {
     maxHp: definition.hp, baseSpeed: definition.speed ?? 1, turnAccum: 0,
   });
+  if (target.subtype === "itemMimic") target.disguisedAsItem = false;
+  if (_dungeon) ensureItemMimicFloorItems(_dungeon);
+  if (_player && _player.capturedBy === target.id && target.subtype !== "grabber" && target.subtype !== "giantEel") {
+    _player.capturedBy = null;
+  }
   const ammo = createMonsterProjectileAmmo(target);
   if (ammo) target.projectileAmmo = ammo;
   else delete target.projectileAmmo;
@@ -2460,7 +2502,6 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   const _arName = _isPierce ? "貫きの矢" : _isStrong ? "強矢" : "矢";
   const _arColor = _isPierce ? "#ff8844" : _isStrong ? "#ffcc44" : "#d0a050";
   const _arAtkBonus = _isPierce ? 5 : _isStrong ? 8 : 3;
-  const _maxDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
   /* 矢落下：pierceなら消滅、それ以外は地面/泉に落とす */
   const _dropAr = (px, py, mlx) => {
     if (_isPierce) return;
@@ -2469,7 +2510,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   };
   _resolveBolt(m, dg, pl, ml, null, {
     dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
-    baseRange: _maxDist,
+    baseRange: 10,
     animColor: _arColor,
     fireMsg: `${m.name}が${_arName}を放った！`,
     boltName: _arName,
@@ -2713,7 +2754,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
 function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
   const adx = pl.x - m.x, ady = pl.y - m.y;
   let dx = Math.sign(adx), dy = Math.sign(ady);
-  const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
+  const maxDist = 8;
   ml.push(`${m.name}が水鉄砲を撃った！`);
   pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff", { wind: true, range: maxDist });
   const miss = Math.random() < 0.20;
@@ -2723,9 +2764,10 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
     ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
     return;
   }
-  let _wgX = m.x, _wgY = m.y;
+  let _wgX = m.x, _wgY = m.y, _windMsg = false;
   for (let d = 1; d <= maxDist; d++) {
     const _st = stepProjectile(dg, _wgX, _wgY, dx, dy, { wind: true });
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が水鉄砲を曲げた！"); _windMsg = true; }
     dx = _st.dx; dy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _wgX = tx; _wgY = ty;
@@ -2746,8 +2788,8 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       dg.pentacles.splice(_wgPcIdx, 1);
       ml.push(`水鉄砲が${_wgPc.name}を消し去った！`);
     }
-    /* 途中のモンスターに当たった場合 */
-    const hitMon = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, tx, ty));
+    /* 途中のモンスター（または風で戻った自分自身）に当たった場合 */
+    const hitMon = dg.monsters.find(o => (d > 1 || o !== m) && !o.disguisedAsItem && monsterOccupiesCell(o, tx, ty));
     if (hitMon) {
       if (monSubmergesProjectiles(hitMon)) {
         ml.push(`${hitMon.name}が潜って水鉄砲をかわした！`);
@@ -3547,6 +3589,9 @@ const _MIMIC_ADJ_SUBTYPES = new Set([
 function supportBreathTargets(m, dg) {
   return (dg.monsters || []).filter((target) =>
     target.hp > 0 &&
+    !target.disguisedAsItem &&
+    !target.isPlayerClone &&
+    target.state !== "friendly" &&
     (target === m || Math.max(Math.abs(target.x - m.x), Math.abs(target.y - m.y)) <= 1),
   );
 }
@@ -5223,11 +5268,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== バリア術師：非隣接時にバリアを張り直す／レベル2以上は隣接モンスターにも付与 ===== */
-  if (m.baseKind === "barriermage" && !m.sealed) {
+  if (!_moveOnly && m.baseKind === "barriermage" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
     const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
     if (!_adjPl) {
       /* 自分のバリアが優先：なければ50%で張り直す */
       if (!m.barrier && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.barrier)) {
+        m.turnAttacks++;
         m.barrier = 1;
         ml.push(`${m.name}がバリアを張り直した！（残り1回）`);
         return;
@@ -5235,9 +5281,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* レベル2以上かつ自分のバリアあり：バリアのない隣接モンスターに付与 */
       if (m.monLevel >= 2 && m.barrier) {
         const _adjTargets = dg.monsters.filter(o =>
-          o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1 && !o.barrier && !o.sealed
+          o !== m && !o.disguisedAsItem && !o.isPlayerClone && o.state !== "friendly" &&
+          Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1 && !o.barrier && !o.sealed
         );
         if (_adjTargets.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.barrier)) {
+          m.turnAttacks++;
           const _bt = _adjTargets[rng(0, _adjTargets.length - 1)];
           _bt.barrier = 1;
           ml.push(`${m.name}が${_bt.name}にバリアを付与した！`);
@@ -5854,12 +5902,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const room = findRoom(dg.rooms, m.x, m.y);
       const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
       const adjacent = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
-      if (adjacent && Math.random() < MONSTER_SPECIAL_RATE.status) {
+      if (adjacent && !_plOnSanc && !_plOnBlessedSanc && Math.random() < MONSTER_SPECIAL_RATE.status) {
         m._willowAttackType = "branch";
         m._rangedAttackThisTurn = true;
         return;
       }
-      if (sameRoom && _giantSightline && Math.random() < MONSTER_SPECIAL_RATE.room) {
+      if (sameRoom && !_plOnBlessedSanc && _giantSightline && Math.random() < MONSTER_SPECIAL_RATE.room) {
         m._willowAttackType = "gale";
         m._rangedAttackThisTurn = true;
         return;
@@ -5977,7 +6025,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._willowAttackType;
       delete m._rangedAttackThisTurn;
       const room = findRoom(dg.rooms, m.x, m.y);
-      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "branch" && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1)) {
+      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "branch" && !_plOnSanc && !_plOnBlessedSanc && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1)) {
         m.turnAttacks++;
         const bounds = monsterBounds(m);
         const nearX = Math.max(bounds.x, Math.min(pl.x, bounds.x + bounds.width - 1));
@@ -6003,9 +6051,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "gale" && room && findRoom(dg.rooms, pl.x, pl.y) === room && _giantSightline) {
         m.turnAttacks++;
         ml.push(`${m.name}が烈風を巻き起こした！`);
-        monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        if (_plOnBlessedSanc) {
+          ml.push(`祝福された聖域の加護が${m.name}の烈風を防いだ！`);
+        } else {
+          monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        }
         for (const victim of [...dg.monsters]) {
-          if (victim === m || victim.hp <= 0 || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;
+          if (victim === m || victim.hp <= 0 || victim.disguisedAsItem || !dg.monsters.includes(victim) || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;
           if (consumeBarrier(victim, ml)) continue;
           const damage = Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
           victim.hp -= damage;
@@ -6776,10 +6828,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
-    if (!_moveOnly && m.subtype === "supporter") {
+    if (!_moveOnly && m.subtype === "supporter" && !m.sealed && !inMagicSealRoom(m.x, m.y, dg) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       /* 回復は50%、攻撃バフは25%。まず回復対象を優先する。 */
       const _injured = dg.monsters.filter(o =>
-        o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&
+        o !== m && !o.disguisedAsItem && !o.isPlayerClone && o.state !== "friendly" &&
+        (o.maxHp != null ? o.hp < o.maxHp : false) &&
         Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 8
       );
       const _healTarget = _injured.length > 0 ? _injured.reduce((a, b) =>
@@ -6789,6 +6842,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _hdist = _healTarget ? Math.abs(_healTarget.x - m.x) + Math.abs(_healTarget.y - m.y) : Infinity;
       const _tryHeal = m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal;
       if (_healTarget && _hdist <= 1 && _tryHeal) {
+        m.turnAttacks++;
         /* 隣接：回復（アンデッドには逆にダメージ） */
         const _heal = rng(5, 12);
         if (_healTarget.kind === "undead") {
@@ -6804,7 +6858,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_healTarget && _hdist > 1 && _tryHeal) {
         /* 傷ついた味方へ接近 */
         const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
-        if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
+        if (_hn && !(_hn.x === pl.x && _hn.y === pl.y) &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
             !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _hn.x, _hn.y))) {
           m.x = _hn.x; m.y = _hn.y;
           return;
@@ -6818,7 +6873,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       /* 傷なし、または回復経路がない場合：隣の味方に攻撃バフ（未付与のみ） */
       const _buffable = dg.monsters.filter(o =>
-        o !== m && !o.atkBuffed &&
+        o !== m && !o.disguisedAsItem && !o.isPlayerClone && o.state !== "friendly" &&
+        !o.atkBuffed &&
         Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 1
       );
       if (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.buff) {
@@ -6828,6 +6884,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             return;
           }
         } else {
+          m.turnAttacks++;
           const _bt = _buffable[rng(0, _buffable.length - 1)];
           const _buffAmt = rng(2, 4);
           _bt.atk += _buffAmt;
@@ -6910,7 +6967,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── puller（引きダコ等）：範囲内プレイヤーを1マス引き寄せる（視線不要） ── */
-    if (!_attackOnly && m.subtype === "puller") {
+    if (!_attackOnly && m.subtype === "puller" && !m.sealed) {
       const _pullLvl = m.monLevel || 1;
       const _pullRange = _pullLvl >= 3 ? 8 : _pullLvl >= 2 ? 6 : 4;
       const _pulDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
