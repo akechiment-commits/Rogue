@@ -94,44 +94,49 @@ function drawFacingIndicator(ctx, px, py, sz, dx, dy) {
 export function drawMonsterOverlays(ctx, mon, px, py, sz) {
   const body = monsterDrawBounds(mon, px, py, sz);
   px = body.x; py = body.y; sz = body.size;
-  /* ── シルフ系：風穴と同様に風向き矢印を本体に重ねて描画 ── */
+  /* ── シルフ系：風穴と同様に風向き矢印を本体に重ねて描画（本体が見えるよう小さめ・半透明） ── */
   if (monsterWindAuraRadius(mon) > 0) {
     const { dx: wdx, dy: wdy } = ensureMonsterWindDir(mon);
+    const norm = Math.hypot(wdx, wdy) || 1;
+    const ux = wdx / norm, uy = wdy / norm;
     const vcx = px + sz / 2;
-    const vcy = py + sz * 0.54;
-    const len = sz * 0.30;
-    const tipX = vcx + wdx * len, tipY = vcy + wdy * len;
-    const tailX = vcx - wdx * len * 0.72, tailY = vcy - wdy * len * 0.72;
-    const ang = Math.atan2(wdy, wdx);
-    const ah = sz * 0.23;
+    const vcy = py + sz * 0.60;
+    const len = sz * 0.22;
+    const tipX = vcx + ux * len, tipY = vcy + uy * len;
+    const tailX = vcx - ux * len * 0.68, tailY = vcy - uy * len * 0.68;
+    const shaftEndX = tipX - ux * (sz * 0.08), shaftEndY = tipY - uy * (sz * 0.08);
+    const ang = Math.atan2(uy, ux);
+    const ah = sz * 0.18;
     ctx.save();
+    ctx.globalAlpha = 0.72;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    /* 視認性を確保する濃紺の縁取り */
-    ctx.strokeStyle = "rgba(0, 18, 36, 0.92)";
-    ctx.lineWidth = Math.max(4, sz * 0.18);
+    /* 視認性を確保する控えめな濃紺の縁取り */
+    ctx.strokeStyle = "rgba(0, 22, 42, 0.78)";
+    ctx.lineWidth = Math.max(2.2, sz * 0.10);
     ctx.beginPath();
     ctx.moveTo(tailX, tailY);
-    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(shaftEndX, shaftEndY);
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
-    ctx.lineTo(tipX - Math.cos(ang - 0.58) * ah, tipY - Math.sin(ang - 0.58) * ah);
-    ctx.lineTo(tipX - Math.cos(ang + 0.58) * ah, tipY - Math.sin(ang + 0.58) * ah);
+    ctx.lineTo(tipX - Math.cos(ang - 0.60) * ah, tipY - Math.sin(ang - 0.60) * ah);
+    ctx.lineTo(tipX - Math.cos(ang + 0.60) * ah, tipY - Math.sin(ang + 0.60) * ah);
     ctx.closePath();
     ctx.stroke();
     /* 風穴と同じシアン＋白ハイライトの矢印 */
     ctx.strokeStyle = "#e8ffff";
     ctx.fillStyle = "#40e8ff";
-    ctx.lineWidth = Math.max(2, sz * 0.11);
+    ctx.lineWidth = Math.max(1.4, sz * 0.055);
     ctx.beginPath();
     ctx.moveTo(tailX, tailY);
-    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(shaftEndX, shaftEndY);
     ctx.stroke();
+    ctx.lineWidth = Math.max(0.9, sz * 0.03);
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
-    ctx.lineTo(tipX - Math.cos(ang - 0.58) * ah, tipY - Math.sin(ang - 0.58) * ah);
-    ctx.lineTo(tipX - Math.cos(ang + 0.58) * ah, tipY - Math.sin(ang + 0.58) * ah);
+    ctx.lineTo(tipX - Math.cos(ang - 0.60) * ah, tipY - Math.sin(ang - 0.60) * ah);
+    ctx.lineTo(tipX - Math.cos(ang + 0.60) * ah, tipY - Math.sin(ang + 0.60) * ah);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
