@@ -3096,6 +3096,8 @@ export function useItemActions({
       const { idx, mode } = throwMode;
       const { player: p, dungeon: dg } = sr.current;
       const ml = installPlayerHpMessageHook([], p);
+      const _hasWakkaTargetInRange = () => (dg.monsters || []).some(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
+        Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10);
       const _skSnap = dg.monsters.filter(m => m.type === "shopkeeper").map(m => ({ m, hp: m.hp }));
       /* 遠投判定（投げ・射撃にのみ影響） */
       const _throwRelated = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode);
@@ -3119,7 +3121,7 @@ export function useItemActions({
 
         /* ワッカの指輪：装備中の通常飛び道具も魔法の石と同じ必中ホーミング。
            這いずり爆弾・魚雷・誘導弾などの特殊飛び道具は従来どおり。 */
-        if (hasRingEffect(p, "wakka_ring") && !_arItem.specialProjectile) {
+        if (hasRingEffect(p, "wakka_ring") && !_arItem.specialProjectile && _hasWakkaTargetInRange()) {
           shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
             forceMiss: _forceMiss,
             wakka: true,
@@ -3170,8 +3172,38 @@ export function useItemActions({
             }
             ml.push(`${_stName}を投げた！`);
             if (!_msTarget) {
-              ml.push(`近くに敵がいない！${_stName}は消えた。`);
-              _stPeelIfNeeded();
+              ml.push(`近くに敵がいない！${_stName}は石と同じ距離を飛んだ。`);
+              const _msRange = _isCursedFc ? 1 : 3;
+              let _msLx = p.x, _msLy = p.y;
+              for (let d = 1; d <= _msRange; d++) {
+                const tx = p.x + dx * d, ty = p.y + dy * d;
+                if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+                if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+                _msLx = tx; _msLy = ty;
+              }
+              pushItemFlyAnim(p.x, p.y, _msLx, _msLy, _arItem.tile, null, { flightArc: true });
+              const _msHitEnemyProjectile = (_msLx !== p.x || _msLy !== p.y)
+                && destroyEnemyHomingProjectileAt(dg, _msLx, _msLy, ml, _stName);
+              const _msHitStatue = !_msHitEnemyProjectile && statueAt(dg, _msLx, _msLy);
+              if (_msHitEnemyProjectile) {
+                _stPeelIfNeeded();
+              } else if (_msHitStatue) {
+                ml.push(`${_stName}が石像に命中！`);
+                hitStatueWithAction(dg, _msLx, _msLy, p, ml, lu, p?.depth, {
+                  breaks: true,
+                  itemDeps: getFixtureItemDeps(),
+                });
+                _stPeelIfNeeded();
+              } else {
+                const _msSpr = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
+                const _msBB = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
+                if (_msSpr) soakItemIntoSpring(_msSpr, _stDrop(), ml, dg, null);
+                else if (_msBB) bigboxAddItem(_msBB, _stDrop(), dg, ml);
+                else {
+                  const _msft = new Set();
+                  withPitfallBag(() => placeItemAt(dg, _msLx, _msLy, _stDrop(), ml, _msft, 0, p));
+                }
+              }
             } else if (monReflectsProjectiles(_msTarget)) {
               pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget, _stName, _arItem.atk || 5, ml);
@@ -3206,14 +3238,16 @@ export function useItemActions({
             const _stRange = _isCursedFc ? 1 : 3;
             let _stLx = p.x, _stLy = p.y;
             let _stHitStatue = false;
+            let _stHitEnemyProjectile = false;
             for (let d = 1; d <= _stRange; d++) {
               const tx = p.x + dx * d, ty = p.y + dy * d;
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx = tx; _stLy = ty;
-              if (statueAt(dg, tx, ty)) { _stHitStatue = true; break; }
-              if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
-              if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
+            }
+            if (_stLx !== p.x || _stLy !== p.y) {
+              _stHitEnemyProjectile = destroyEnemyHomingProjectileAt(dg, _stLx, _stLy, ml, _stName);
+              if (!_stHitEnemyProjectile && statueAt(dg, _stLx, _stLy)) _stHitStatue = true;
             }
             pushItemFlyAnim(p.x, p.y, _stLx, _stLy, _arItem.tile, null, { flightArc: true });
             const _stM = monsterAt(dg, _stLx, _stLy);
@@ -3222,7 +3256,9 @@ export function useItemActions({
             const _stSureHit = (p.sureHitTurns || 0) > 0;
             const _stAtk = _arItem.atk || 3;
             ml.push(`${_stName}を投げた！`);
-            if (_stHitStatue) {
+            if (_stHitEnemyProjectile) {
+              _stPeelIfNeeded();
+            } else if (_stHitStatue) {
               ml.push(`${_stName}が石像に命中！`);
               hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
                 breaks: true,
@@ -3488,7 +3524,7 @@ export function useItemActions({
           setThrowMode(null);
           return;
         }
-        if (hasRingEffect(p, "wakka_ring") && !it.specialProjectile) {
+        if (hasRingEffect(p, "wakka_ring") && !it.specialProjectile && _hasWakkaTargetInRange()) {
           shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
             forceMiss: _forceMiss,
             wakka: true,
@@ -3740,12 +3776,15 @@ export function useItemActions({
         _forceUnequip(p, it);
 
         /* ── ワッカの指輪：特殊飛び道具以外を魔法の石のようにホーミング ── */
-        if (mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile) {
-          const _wakkaName = dnameRef(it);
-          const _wakkaTarget = [...dg.monsters]
+        const _wakkaRingThrow = mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile;
+        const _wakkaTarget = _wakkaRingThrow
+          ? [...dg.monsters]
             .filter(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
               Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
-            .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+            .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0]
+          : null;
+        if (_wakkaRingThrow && (_isFarcast || _wakkaTarget)) {
+          const _wakkaName = dnameRef(it);
           if (!_isFarcast && _wakkaTarget) {
             pushItemFlyAnim(p.x, p.y, _wakkaTarget.x, _wakkaTarget.y, it.tile, null, { flightArc: true });
           }
@@ -3753,8 +3792,6 @@ export function useItemActions({
           ml.push(_wakkaName + "を投げた！");
           if (_isFarcast) {
             ml.push(_wakkaName + "は遠投の力で消滅した。");
-          } else if (!_wakkaTarget) {
-            ml.push("近くに敵がいない！" + _wakkaName + "は消えた。");
           } else {
             const _wakkaDodgeMode = getDodgePentacleMode(dg, _wakkaTarget.x, _wakkaTarget.y);
             if (_wakkaDodgeMode === "dodge") {
@@ -3786,6 +3823,9 @@ export function useItemActions({
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;
+        }
+        if (_wakkaRingThrow && !_isFarcast && !_wakkaTarget && !it.magicStone) {
+          ml.push("近くに敵がいない！通常の軌道で投げた。");
         }
 
         /* ── インベントリから投げる特殊飛び道具 ── */

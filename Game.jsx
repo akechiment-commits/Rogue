@@ -23,7 +23,7 @@ import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
-  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow,
+  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
@@ -2975,7 +2975,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 for (let _si = 0; _si < _srCount; _si++) {
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
-                  if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile) {
+                  if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile &&
+                      (dg.monsters || []).some(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
+                        Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)) {
                     shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
                       forceMiss: _srForceMiss,
                       wakka: true,
@@ -2997,15 +2999,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     const _stRange = _srCursedFc ? 1 : 3;
                     let _stLx = p.x, _stLy = p.y;
                     let _stHitStatue = false;
+                    let _stHitEnemyProjectile = false;
                     for (let _d = 1; _d <= _stRange; _d++) {
                       const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
                       if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
                       if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                       _stLx = _tx; _stLy = _ty;
-                      if (statueAt(dg, _tx, _ty)) { _stHitStatue = true; break; }
+                    }
+                    if (_stLx !== p.x || _stLy !== p.y) {
+                      _stHitEnemyProjectile = destroyEnemyHomingProjectileAt(dg, _stLx, _stLy, ml, _arName);
+                      if (!_stHitEnemyProjectile && statueAt(dg, _stLx, _stLy)) _stHitStatue = true;
                     }
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
-                    if (_stHitStatue) {
+                    if (_stHitEnemyProjectile) {
+                      _srPeel();
+                    } else if (_stHitStatue) {
                       ml.push(`${_arName}が石像に命中！`);
                       hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
                         breaks: true,
@@ -3053,8 +3061,37 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     const _msTarget = [...dg.monsters].filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (!_msTarget) {
-                      ml.push(`近くに敵がいない！${_arName}は消えた。`);
-                      _srPeel();
+                      ml.push(`近くに敵がいない！${_arName}は石と同じ距離を飛んだ。`);
+                      const _msRange = _srCursedFc ? 1 : 3;
+                      let _msLx = p.x, _msLy = p.y;
+                      for (let _d = 1; _d <= _msRange; _d++) {
+                        const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
+                        if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
+                        if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
+                        _msLx = _tx; _msLy = _ty;
+                      }
+                      const _msHitEnemyProjectile = (_msLx !== p.x || _msLy !== p.y)
+                        && destroyEnemyHomingProjectileAt(dg, _msLx, _msLy, ml, _arName);
+                      const _msHitStatue = !_msHitEnemyProjectile && statueAt(dg, _msLx, _msLy);
+                      if (_msHitEnemyProjectile) {
+                        _srPeel();
+                      } else if (_msHitStatue) {
+                        ml.push(`${_arName}が石像に命中！`);
+                        hitStatueWithAction(dg, _msLx, _msLy, p, ml, lu, p?.depth, {
+                          breaks: true,
+                          itemDeps: getFixtureItemDeps(),
+                        });
+                        _srPeel();
+                      } else {
+                        const _msSpring = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
+                        const _msBigbox = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
+                        if (_msSpring) soakItemIntoSpring(_msSpring, _srDrop(), ml, dg, null);
+                        else if (_msBigbox) bigboxAddItem(_msBigbox, _srDrop(), dg, ml);
+                        else {
+                          const _msft = new Set();
+                          withPitfallBag(() => placeItemAt(dg, _msLx, _msLy, _srDrop(), ml, _msft, 0, p));
+                        }
+                      }
                     } else if (monReflectsProjectiles(_msTarget)) {
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);

@@ -7663,20 +7663,21 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     if (!_shotUnit) peelShopArrowUnit(st);
   };
 
+  const _wakkaHasTarget = wakka && [...(dg.monsters || [])].some(m => !m.disguisedAsItem && (m.hp ?? 1) > 0 &&
+    Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= 10);
+  if (wakka && !_wakkaHasTarget) {
+    ml.push(`${_arName}を投げたが、近くに敵がいないため通常の軌道で飛んだ。`);
+  }
+
   /* ワッカの指輪：特殊飛び道具以外は魔法の石と同じく最近の敵へ必中ホーミング。
      みかわしの魔方陣と反射だけは通常の優先順位を維持する。 */
-  if (wakka) {
+  if (wakka && _wakkaHasTarget) {
     const _wakkaTarget = [...(dg.monsters || [])]
       .filter(m => !m.disguisedAsItem && (m.hp ?? 1) > 0 &&
         Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= 10)
       .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
     if (_wakkaTarget && animFn) {
       animFn({ type: "projectile", fromX: p.x, fromY: p.y, toX: _wakkaTarget.x, toY: _wakkaTarget.y, color: "#cc88ff" });
-    }
-    if (!_wakkaTarget) {
-      ml.push(`${_arName}を投げたが、近くに敵がいないため消えた。`);
-      _ensureShopPeeled();
-      return;
     }
     const _wakkaDodgeMode = getDodgePentacleMode(dg, _wakkaTarget.x, _wakkaTarget.y);
     if (_wakkaDodgeMode === "dodge") {
@@ -9222,7 +9223,7 @@ export const RINGS = [
   { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
   { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:4, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。HP満タンで装備すると現在HPも増える。合成や強化で＋値を上げられる。" },
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
-  { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げたり射ったりしたものが10マス以内の最も近い敵へホーミングし必中になる。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
+  { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げた物・通常飛び道具は10マス以内の最も近い敵へホーミング必中。敵がいない時は本来の軌道で飛ぶ。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
   { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備時に毒と毒による攻撃力低下を治す。装備中、毒が無効になる。" },
   { name: "買い物上手の指輪", type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
