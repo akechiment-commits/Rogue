@@ -78,7 +78,7 @@ describe("敵の吹き飛ばしの杖の撃破処理", () => {
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
     expect(dungeon.monsters).not.toContain(victim);
     expect(mage.monLevel).toBe(2);
-    expect(messages.filter(message => message.includes("コボルドは") && message.includes("倒された"))).toHaveLength(1);
+    expect(messages.filter(message => message.includes(`${victim.name}は`) && message.includes("倒された"))).toHaveLength(1);
     expect(player.exp).toBe(0);
   });
 
@@ -364,7 +364,7 @@ describe("大箱の激突と破壊の順番", () => {
     expect(dungeon.monsters).not.toContain(victim);
     expect(player.exp).toBe(victim.exp);
     expect(levelUp).toHaveBeenCalledOnce();
-    expect(messages.filter(message => message.includes("コボルドを倒した"))).toHaveLength(1);
+    expect(messages.filter(message => message.includes(`${victim.name}を倒した`))).toHaveLength(1);
     const collision = messages.findIndex(message => message.includes("激突"));
     const explosion = messages.findIndex(message => message.includes("ニトロ箱が爆発"));
     expect(collision).toBeLessThan(explosion);
@@ -384,8 +384,8 @@ describe("大箱の激突と破壊の順番", () => {
     expect(dungeon.monsters).not.toContain(victim);
     expect(player.exp).toBe(0);
     expect(mage.monLevel).toBe(2);
-    expect(messages.filter(message => message.includes("コボルド") && message.includes("倒され"))).toHaveLength(1);
-    expect(messages.filter(message => message.includes("コボルドを倒した"))).toHaveLength(0);
+    expect(messages.filter(message => message.includes(victim.name) && message.includes("倒され"))).toHaveLength(1);
+    expect(messages.filter(message => message.includes(`${victim.name}を倒した`))).toHaveLength(0);
   });
 
   it("撃破時の盗品が地雷を起動しても衝突済みのニトロ箱を再び爆発させない", () => {
@@ -959,7 +959,7 @@ describe("敵が飛ばして壊した床の杖の使用者", () => {
     expect([victim.x, victim.y, victim.hp]).toEqual([10, 6, 100]);
     expect(dungeon.items).toContain(remainingItem);
     expect([remainingItem.x, remainingItem.y]).toEqual([10, 5]);
-    expect(messages.some(message => message.includes("コボルドが吹き飛んだ"))).toBe(false);
+    expect(messages.some(message => message.includes(`${victim.name}が吹き飛んだ`))).toBe(false);
     expect(dungeon.items).not.toContain(wand);
   });
 

@@ -45,7 +45,7 @@ describe("敵の特技で地雷へ投げられた時の発動", () => {
     expect(player.hp).toBe(50);
     expect(dungeon._pendingMineExplosion).toBeUndefined();
     expect(dungeon.monsters).not.toContain(victim);
-    expect(messages.some(message => message.includes("コボルドの攻撃"))).toBe(false);
+    expect(messages.some(message => message.includes(`${victim.name}の攻撃`))).toBe(false);
     expect(messages.filter(message => message === "地雷が発動！")).toHaveLength(1);
     resolveTurnHazards(state, player, messages, hazards);
     expect(player.hp).toBe(50);

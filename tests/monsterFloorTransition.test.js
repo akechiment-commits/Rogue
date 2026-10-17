@@ -54,7 +54,7 @@ describe("敵処理中の階移動", () => {
     expect([player.x, player.y]).toEqual([2, 2]);
     expect(player.hp).toBe(100);
     expect(oldEnemy.turnAttacks).toBe(0);
-    expect(messages.some(message => message.includes("コボルドの攻撃"))).toBe(false);
+    expect(messages.some(message => message.includes(`${oldEnemy.name}の攻撃`))).toBe(false);
   });
   it.each(["attackOnly", "moveOnly", "both"])("%sでも、倍速敵の途中で階が変われば残りの行動を止める", phase => {
     const actor = { id: "fast", hp: 10, x: 5, y: 5, speed: 3, actionTime: 0, _phaseActionCount: 3, _movesMadeThisPhase: 0 };

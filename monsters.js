@@ -817,10 +817,10 @@ export const MONS = [
       { name: "草",                     hp: 67,  atk: 29, def: 8,  exp: 108 },
     ],
   },
-  { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13, dungeonFloors: { beginner: { min: 3, max: 6 }, intermediate: { min: 2, max: 5 }, advanced: { min: 4, max: 5 } },
+  { name: "つらら小僧",   hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "beast",    baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13, elemWeak: "fire", dungeonFloors: { beginner: { min: 3, max: 6 }, intermediate: { min: 2, max: 5 }, advanced: { min: 4, max: 5 } },
     levels: [
-      { name: "コボルド戦士",       hp: 38,  atk: 18, def: 8,  exp: 26, dungeonFloors: { advanced: { min: 10, max: 11 } } },
-      { name: "コボルド族長",       hp: 60,  atk: 25, def: 13, exp: 42, dungeonFloors: { advanced: { min: 16, max: 17 } } },
+      { name: "氷柱鬼",             hp: 38,  atk: 18, def: 8,  exp: 26, dungeonFloors: { advanced: { min: 10, max: 11 } } },
+      { name: "永久凍土鬼",         hp: 60,  atk: 25, def: 13, exp: 42, dungeonFloors: { advanced: { min: 16, max: 17 } } },
     ],
   },
   { name: "ゴブリン",     hp: 23,  atk: 16, def: 5,  exp: 20,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16, dungeonFloors: { beginner: { min: 5, max: 7 }, intermediate: { min: 3, max: 6 }, advanced: { min: 5, max: 7 } },

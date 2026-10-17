@@ -18,7 +18,7 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   11: ["leprechaun", "itemblaster", "sylph"],
   12: ["stealthrower", "itempusher"],
   13: ["itemThrower", "bombslime", "reflector"],
-  14: ["crystalslime", "rockspirit", "orc", "potRaider", "mushroom"],
+  14: ["crystalslime", "rockspirit", "orc", "potRaider", "mushroom", "fireCook"],
   15: ["dangerousPetal", "dreamEater", "wateri"],
   16: ["lizardman", "dragonknight", "gelcube"],
   17: ["trapmaster", "bombgoblin", "knocker"],
@@ -58,9 +58,9 @@ const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   22: ["seaDevil", "potionhealer", "sylph"],
   23: ["potionhealer", "sylph"],
   24: ["potionhealer", "sylph"],
-  25: ["dangerousPetal", "dreamEater", "hypnotist", "potRaider"],
-  26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider"],
-  27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider"],
+  25: ["dangerousPetal", "dreamEater", "hypnotist", "potRaider", "fireCook"],
+  26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook"],
+  27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook"],
   28: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
   29: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
   30: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
@@ -112,6 +112,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   hauntedWillow: { min: 25, max: 29 },
   sleepingLion: { min: 25, max: 30 },
   mushroom: { min: 14, max: 16 },
+  fireCook: { min: 25, max: 27 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {

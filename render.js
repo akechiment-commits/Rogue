@@ -178,7 +178,7 @@ export const TILE_RENDER = {
   4: { bg: "#080810", fg: "#1a1a22", ch: ":" },
   5: { bg: null, fg: "#ffe030", ch: "@" },
   6: { bg: null, fg: "#c08050", ch: "r" },
-  7: { bg: null, fg: "#70a050", ch: "k" },
+  7: { bg: null, fg: "#80e0ff", ch: "i" },
   8: { bg: null, fg: "#40a070", ch: "g" },
   9: { bg: null, fg: "#c0c0b0", ch: "s" },
   10: { bg: null, fg: "#60a050", ch: "z" },

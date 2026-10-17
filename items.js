@@ -1917,7 +1917,7 @@ export const WEAPON_ABILITIES = [
   { id:"bane_undead_2", name:"上位聖属性",  desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に2倍ダメージ（上位特効）" },
   { id:"bane_dragon_2", name:"上位竜特効",  desc:"竜系の敵(ドラゴン)に2倍ダメージ（上位特効）" },
   { id:"bane_float_2",  name:"上位浮遊特効",desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に2倍ダメージ（上位特効）" },
-  { id:"bane_humanoid", name:"人特効",    desc:"人型の敵(コボルド・ゴブリン・オーク・トロル)に1.5倍ダメージ" },
+  { id:"bane_humanoid", name:"人特効",    desc:"人型の敵(ゴブリン・アーチャー・魔導士など)に1.5倍ダメージ" },
   { id:"bane_dragon",   name:"竜特効",    desc:"竜系の敵(ドラゴン)に1.5倍ダメージ" },
   { id:"bane_float",    name:"浮遊特効",  desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に1.5倍ダメージ" },
   { id:"knockback",     name:"吹き飛ばし",desc:"攻撃した敵を1マス吹き飛ばす" },
