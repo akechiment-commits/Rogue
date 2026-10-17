@@ -1077,10 +1077,10 @@ export const MONS = [
       { name: "焼き土下座鈴木右衛門", hp: 114, atk: 40, def: 15, exp: 210, dungeonFloors: { advanced: { min: 32, max: 36 } } },
     ],
   },
-  { name: "トロル",       hp: 68,  atk: 29, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "trollcrit", desc: "通常攻撃時に25%で1.5倍ダメージの痛恨の一撃を放つ。", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
+  { name: "おお木霊",     hp: 68,  atk: 29, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "beast",    baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, elemWeak: "fire", subtype: "trollcrit", desc: "通常攻撃時に25%で1.5倍ダメージの痛恨の一撃を放つ。", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
     levels: [
-      { name: "トロルウォーリア",     hp: 108, atk: 40, def: 13, exp: 120 },
-      { name: "トロルキング",         hp: 169, atk: 53, def: 17, exp: 188 },
+      { name: "怒れる巨木",         hp: 108, atk: 40, def: 13, exp: 120 },
+      { name: "神木",               hp: 169, atk: 53, def: 17, exp: 188 },
     ],
   },
   { name: "火ダルマ",     hp: 74,  atk: 36, def: 6,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",     monLevel: 1, minFloor: 25, maxFloor: 50, float: true, elemWeak: "ice", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },

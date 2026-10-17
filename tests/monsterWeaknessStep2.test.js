@@ -32,4 +32,12 @@ describe("敵弱点・種族見直し（オーク、料理人、ヘビ、ウィ�
     expect(rakugaki).toBeDefined();
     expect(rakugaki.kind).toBe("undead");
   });
+
+  it("おお木霊系（旧トロル）は beast かつ炎弱点である", () => {
+    const kodama = MONS.find((m) => m.baseKind === "troll");
+    expect(kodama).toBeDefined();
+    expect(kodama.name).toBe("おお木霊");
+    expect(kodama.kind).toBe("beast");
+    expect(kodama.elemWeak).toBe("fire");
+  });
 });
