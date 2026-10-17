@@ -1471,15 +1471,16 @@ export function makeGuard(x, y, plx, ply) {
  * スポーンレベル (1〜3) を返す共通ロジック。
  * progress = (floor - minFloor) / range で lv2/lv3 の確率が上がる。
  */
-export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false, poolFloor = null } = {}) {
+export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false, excludeLarge = false, poolFloor = null } = {}) {
   const floor = poolFloor != null ? poolFloor : depth + 1;
   const eligible = MONS.filter(m => {
     if (m.penaltyOnly) return false;
     if (excludeWaterOnly && m.waterOnly) return false;
     if (excludeItemMimic && m.baseKind === "itemMimic") return false;
+    if (excludeLarge && (m.bodySize || 1) > 1) return false;
     return isMonsterDefAllowedAtFloor(m, floor, dungeonType);
   });
-  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (!excludeItemMimic || m.baseKind !== "itemMimic"));
+  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (!excludeItemMimic || m.baseKind !== "itemMimic") && (!excludeLarge || (m.bodySize || 1) <= 1));
   const base = eligible.length > 0 ? pick(eligible) : (fallback[0] ?? MONS[0]);
 
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
@@ -1618,7 +1619,7 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
   const floor = poolFloor != null ? poolFloor : depth + 1;
   const targetLevel = Math.max(1, Math.min(3, (sourceLevel || 1) + levelOffset));
   const eligible = MONS.filter(m => {
-    if (m.penaltyOnly || m.floodedOnly) return false;
+    if (m.penaltyOnly || m.floodedOnly || (m.bodySize || 1) > 1) return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     if (dungeonType === "advanced") return advancedMonsterAllowed(m.baseKind, floor);
     if (dungeonType === "legend") return legendMonsterAllowed(m.baseKind, floor);
@@ -1636,7 +1637,7 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
     }) ?? false;
   });
   const compatible = eligible.filter(m => targetLevel === 1 || m.levels?.[targetLevel - 2]);
-  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly);
+  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (m.bodySize || 1) <= 1);
   const base = pick(compatible.length > 0 ? compatible : eligible.length > 0 ? eligible : fallback.length > 0 ? fallback : MONS);
   const availableLevel = Math.min(targetLevel, (base.levels?.length || 0) + 1);
   return buildMonStats(base, availableLevel);
@@ -1647,12 +1648,8 @@ const TRANSFORM_DEFINITION_KEYS = new Set(MONS.flatMap(base =>
 ));
 
 /** 定義にない元の固有特性を消し、座標・時計・状態異常など個体情報は保つ。 */
-export function applyMonsterTransformation(target, definition, dungeon = null, player = null) {
-  if (dungeon && monsterBodySize(definition) > 1) {
-    const candidate = { ...definition, x: target.x, y: target.y };
-    const others = { monsters: (dungeon.monsters || []).filter(monster => monster !== target) };
-    if (!canPlaceMonsterBody(others, candidate, target.x, target.y, player)) return false;
-  }
+export function applyMonsterTransformation(target, definition, _dungeon = null, _player = null) {
+  if (!definition || monsterBodySize(definition) > 1) return false;
   if (!("bodySize" in definition)) delete target.bodySize;
   for (const key of TRANSFORM_DEFINITION_KEYS) {
     if (!(key in definition)) delete target[key];
@@ -1824,8 +1821,8 @@ function consumeMonsterProjectileAmmo(mon) {
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
-export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, poolFloor = null } = {}) {
-  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { poolFloor });
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, excludeLarge = false, poolFloor = null } = {}) {
+  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { excludeLarge, poolFloor });
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
@@ -1873,7 +1870,7 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
   }
   try {
     const _poolFloor = resolveRuntimeSpawnPoolFloor(dg, d + 1);
-    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false, { poolFloor: _poolFloor });
+    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false, { excludeLarge: true, poolFloor: _poolFloor });
     const boosted = Math.min(3, (spawnLevel || 1) + 1);
     const mon = makeMonsterFromBase(base, boosted, mx, my, {
       aware: true,
@@ -1899,7 +1896,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
     if (spawned >= count) break;
     const nx = centerX + dx, ny = centerY + dy;
     if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, nx, ny)) && (!p || nx !== p.x || ny !== p.y)) {
-      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
+      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor }));
       spawned++;
     }
   }
@@ -1911,7 +1908,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
       const sx = rng(room.x + 1, room.x + room.w - 2);
       const sy = rng(room.y + 1, room.y + room.h - 2);
       if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, sx, sy)) && (!p || sx !== p.x || sy !== p.y)) {
-        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
+        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor }));
         spawned++;
         break;
       }
@@ -2051,7 +2048,7 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
 
 export function findRoom(rooms, x, y) {
   return (
-    rooms.find((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) ||
+    rooms?.find((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) ||
     null
   );
 }
@@ -3813,12 +3810,12 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
     ));
   }
 
-  /* 敵投げ：射程内＋隣接に他モンスター */
+  /* 敵投げ：射程内＋隣接に他モンスター（大型・強制移動無効・擬態中は除外） */
   if (subtype === "monsterthrow") {
     const range = monLevel >= 3 ? 10 : monLevel >= 2 ? 5 : 3;
     return canSee && lineLen <= range &&
       (dg.monsters || []).some((o) =>
-        o !== m && o !== src && (o.hp || 0) > 0 &&
+        o !== m && o !== src && (o.hp || 0) > 0 && !o.forcedMoveImmune && !o.disguisedAsItem && monsterBodySize(o) <= 1 &&
         Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1
       );
   }
@@ -4781,7 +4778,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 4) * 4);
-        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
         ml.push(`${m.name}が魔力で手下を召喚した！`);
         _summoned = true;
         break;
@@ -4807,7 +4804,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
           if (pl.x === _sx && pl.y === _sy) continue;
           const _depth = Math.max(0, (m.bossTier || 6) * 4);
-          dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
+          dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
           _summoned++;
         }
         if (_summoned > 0) { ml.push(`${m.name}が骨の手下を呼び寄せた！`); return; } /* 召喚行動消費 */
@@ -4885,7 +4882,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 10) * 5);
-        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
         _summoned++;
       }
       if (_summoned > 0) { ml.push(`${m.name}が深淵から手下を招いた！`); return; } /* 召喚行動消費 */
@@ -6219,7 +6216,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _mtRange = _mtLvl >= 3 ? 10 : _mtLvl >= 2 ? 5 : 3;
         const _mtDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_mtDist <= _mtRange) {
-          const _adjMons = dg.monsters.filter(o => o !== m && !o.forcedMoveImmune &&
+          const _adjMons = dg.monsters.filter(o => o !== m && !o.forcedMoveImmune && !o.disguisedAsItem && monsterBodySize(o) <= 1 &&
             Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
           const _adjPl = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))

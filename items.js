@@ -2796,7 +2796,7 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
     return 0;
   }
   const originals = (dg.monsters || []).filter((m) => {
-    if (!m || m.isBoss || m.type === "shopkeeper") return false;
+    if (!m || m.isBoss || m.type === "shopkeeper" || monsterBodySize(m) > 1) return false;
     return m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h;
   });
   if (originals.length === 0) {
@@ -2926,7 +2926,7 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
   const poolFloor = resolveRuntimeSpawnPoolFloor(dg, (typeof p?.depth === "number" ? p.depth : depth + 1));
   let n = 0;
   for (const it of items) {
-    const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true, poolFloor });
+    const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true, excludeLarge: true, poolFloor });
     if (!picked?.base) continue;
     let mx = it.x, my = it.y;
     const blocked = (x, y) =>
