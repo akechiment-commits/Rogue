@@ -2242,9 +2242,13 @@ export function chooseMerchantPatrolTarget(m, dg, pl) {
 /** 行商人専用の4方向BFS。斜め抜けを許さず、部屋と廊下を自然に歩かせる。 */
 function merchantBfsNext(m, dg, pl, target) {
   if (!target || (m.x === target.x && m.y === target.y)) return null;
-  const occupied = new Set((dg.monsters || [])
-    .filter((other) => other !== m)
-    .map((other) => other.x + other.y * MW));
+  const occupied = new Set();
+  for (const other of (dg.monsters || [])) {
+    if (other === m || other.disguisedAsItem) continue;
+    for (const cell of monsterBodyCells(other)) {
+      occupied.add(cell.x + cell.y * MW);
+    }
+  }
   const queue = [{ x: m.x, y: m.y, first: null }];
   const visited = new Set([m.x + m.y * MW]);
   let head = 0;
@@ -2288,6 +2292,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
   const map = dg.map;
   const rooms = dg.rooms || [];
   const mons = dg.monsters || [];
+  const isLargeSelf = monsterBodySize(m) > 1;
   const clone = livePlayerClone(dg);
   const threatDist2 = (x, y) => {
     const _playerDist = (x - pl.x) * (x - pl.x) + (y - pl.y) * (y - pl.y);
@@ -2306,6 +2311,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     if (clone && x === clone.x && y === clone.y) return false;
     if (avoidAdjacent && isThreatAdjacent(x, y)) return false;
     if (avoidRecent && recent.has(x + y * MW)) return false;
+    if (isLargeSelf && !canPlaceMonsterBody(dg, m, x, y, pl)) return false;
     return canEnter(map, x, y, float, dg, waterWalker);
   };
 
@@ -2319,7 +2325,8 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     if (next.x === pl.x && next.y === pl.y) return null;
     if (mode.avoidAdjacent && isThreatAdjacent(next.x, next.y)) return null;
     if (mode.avoidRecent && recent.has(next.x + next.y * MW)) return null;
-    if (mons.some(o => o !== m && o.x === next.x && o.y === next.y)) return null;
+    if (mons.some(o => o !== m && !o.disguisedAsItem && monsterOccupiesCell(o, next.x, next.y))) return null;
+    if (isLargeSelf && !canPlaceMonsterBody(dg, m, next.x, next.y, pl)) return null;
     if (!canEnter(map, next.x, next.y, float, dg, waterWalker)) return null;
     return next;
   };
@@ -2364,7 +2371,8 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     for (const [dx, dy] of localDirs) {
       const nx = m.x + dx, ny = m.y + dy;
       if (!canEnter(map, nx, ny, float, dg, waterWalker)) continue;
-      if (mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
+      if (mons.some(o => o !== m && !o.disguisedAsItem && monsterOccupiesCell(o, nx, ny))) continue;
+      if (isLargeSelf && !canPlaceMonsterBody(dg, m, nx, ny, pl)) continue;
       if (nx === pl.x && ny === pl.y) continue;
       if (clone && nx === clone.x && ny === clone.y) continue;
       if (mode.avoidAdjacent && isThreatAdjacent(nx, ny)) continue;
@@ -5026,10 +5034,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
-      if (_cnx === pl.x && _cny === pl.y && !_plPotHidden) {
+      const _cCells = monsterBodyCells(m, _cnx, _cny);
+      const _cHitsPlayer = !_plPotHidden && _cCells.some(c => c.x === pl.x && c.y === pl.y) &&
+        (monsterBodySize(m) <= 1 || monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1));
+      if (_cHitsPlayer) {
         if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${_disorientedLabel}${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
-        const _other = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
+        const _other = dg.monsters.find(o => o !== m && !o.disguisedAsItem &&
+          _cCells.some(c => monsterOccupiesCell(o, c.x, c.y)));
         if (_other) {
           if (!_moveOnly) {
             const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
@@ -5057,21 +5069,27 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m.darkDir = pick(_ddirs);
     }
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
-    if (_canMoveTo(_dnx, _dny)) {
-      if (_dnx === pl.x && _dny === pl.y) {
-        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
-      } else {
-        const _dother = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _dnx, _dny));
-        if (_dother) {
-          if (!_moveOnly) {
-            const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
-            _dother.hp -= _dodmg;
-            ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
-            if (_dother.hp <= 0) killMonster(_dother, dg, pl, ml, _luFn, false, m);
-          }
-        } else if (!_attackOnly) {
-          m.x = _dnx; m.y = _dny;
-        }
+    const _dCells = monsterBodyCells(m, _dnx, _dny);
+    const _dCanStepTile = m.waterOnly
+      ? (inBounds(_dnx, _dny) && (map[_dny][_dnx] === T.WATER || dg.springs?.some(s => s.x === _dnx && s.y === _dny)))
+      : canEnter(map, _dnx, _dny, _effFloat, dg, m.waterWalker);
+    const _dHitsPlayer = _dCanStepTile && !_plPotHidden && _dCells.some(c => c.x === pl.x && c.y === pl.y) &&
+      (monsterBodySize(m) <= 1 || monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1));
+    const _dother = (!_dHitsPlayer && _dCanStepTile)
+      ? dg.monsters.find(o => o !== m && !o.disguisedAsItem && _dCells.some(c => monsterOccupiesCell(o, c.x, c.y)))
+      : null;
+    if (_dHitsPlayer) {
+      if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+    } else if (_dother) {
+      if (!_moveOnly) {
+        const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+        _dother.hp -= _dodmg;
+        ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
+        if (_dother.hp <= 0) killMonster(_dother, dg, pl, ml, _luFn, false, m);
+      }
+    } else if (_canMoveTo(_dnx, _dny)) {
+      if (!_attackOnly) {
+        m.x = _dnx; m.y = _dny;
       }
     } else {
       m.darkDir = null; // 壁に当たったら方向リセット
@@ -7450,6 +7468,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
         if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
+        if (monsterBodySize(m) > 1 && !canPlaceMonsterBody(dg, m, _fnx, _fny, pl)) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
         if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
@@ -7554,7 +7573,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat, _patrolTileFilter, false, dg.rooms, dg);
       if (next && !(next.x === pl.x && next.y === pl.y) &&
           !((!inMagicSealRoom(m.x, m.y, dg)) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y))) {
-        if (!dg.monsters.some(o => o !== m && monsterOccupiesCell(o, next.x, next.y))) {
+        if (!dg.monsters.some(o => o !== m && monsterOccupiesCell(o, next.x, next.y)) &&
+            (monsterBodySize(m) <= 1 || canPlaceMonsterBody(dg, m, next.x, next.y, pl))) {
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
           return;
@@ -7569,6 +7589,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (_anx === pl.x && _any === pl.y) continue;
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
           if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _anx, _any))) continue;
+          if (monsterBodySize(m) > 1 && !canPlaceMonsterBody(dg, m, _anx, _any, pl)) continue;
           m.dir = { x: _adx, y: _ady };
           m.x = _anx; m.y = _any;
           _sidestepped = true;
@@ -7591,6 +7612,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
         if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
+        if (monsterBodySize(m) > 1 && !canPlaceMonsterBody(dg, m, _fnx, _fny, pl)) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
         m.posHistory = [];
