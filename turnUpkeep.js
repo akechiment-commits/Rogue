@@ -14,6 +14,8 @@ export function advancePlayerUpkeep(player, messages, {
   onHungerDamageStarted = () => {},
 }) {
   player.turns++;
+  /* 旧セーブに半端な満腹度が残っていても、以後は整数で扱う。 */
+  player.hunger = Math.floor(Math.max(0, Number(player.hunger) || 0));
   /* 回復の指輪は装備個数分だけ +1（2個なら +2）。再生防具とも加算で重複 */
   const regenRingCount = (player.rings || []).filter((r) => r?.effect === "regen_ring").length;
   const hungerRate = calcHungerDrainRate(player);

@@ -557,10 +557,10 @@ export function addFoodHunger(player, amount) {
   if (!player) return 0;
   const maxValue = Number(player.maxHunger ?? 100);
   const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
-  const before = Math.max(0, Number(player.hunger) || 0);
-  const total = before + Math.max(0, Number(amount) || 0);
+  const before = Math.floor(Math.max(0, Number(player.hunger) || 0));
+  const total = before + Math.max(0, Math.floor(Number(amount) || 0));
   player.hunger = total > maxHunger
-    ? maxHunger + (total - maxHunger) / 2
+    ? maxHunger + Math.floor((total - maxHunger) / 2)
     : total;
   if (player.hunger > 0) delete player._hungerDmgStarted;
   return player.hunger - before;
@@ -5082,7 +5082,7 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
   if (kind === "player") {
     const maxValue = Number(p.maxHunger ?? 100);
     const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
-    const hunger = Math.max(0, Number(p.hunger) || 0);
+    const hunger = Math.floor(Math.max(0, Number(p.hunger) || 0));
     if (hunger >= maxHunger) {
       const loss = Math.min(hunger, Math.max(10, Math.floor(maxHunger * 0.25)));
       p.hunger = Math.max(0, hunger - loss);
