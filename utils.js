@@ -152,10 +152,52 @@ export function restoreMonsterDopingStats(monster) {
 }
 
 /** 風穴 5x5 内なら風向き、なければ null（dg.vents 依存・循環 import 回避のため utils に置く） */
+export const WIND_AURA_DIRS = Object.freeze([
+  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 1], [1, -1], [-1, 1], [-1, -1],
+]);
+
+/** シルフ系（windAura）の風域半径（チェビシェフ距離）。Lv1=1(3x3), Lv2=2(5x5), Lv3=3(7x7)。封印・死亡・擬態中は0 */
+export function monsterWindAuraRadius(mon) {
+  if (!mon) return 0;
+  if ((mon.hp ?? 1) <= 0) return 0;
+  if (mon.sealed || (mon.sealedTurns || 0) > 0) return 0;
+  if (mon.subtype === "itemMimic" && mon.disguisedAsItem !== false) return 0;
+  if (mon.subtype !== "windAura" && mon.baseKind !== "sylph") return 0;
+  const lv = Math.max(1, Number(mon.monLevel) || 1);
+  return lv >= 3 ? 3 : lv === 2 ? 2 : 1;
+}
+
+/** シルフ系にランダムな8方向の風向きを保証して返す */
+export function ensureMonsterWindDir(mon, randomFn = Math.random) {
+  if (!mon) return { dx: 0, dy: 1 };
+  const dx = Math.sign(Number(mon.windDx) || 0);
+  const dy = Math.sign(Number(mon.windDy) || 0);
+  if (dx !== 0 || dy !== 0) {
+    mon.windDx = dx;
+    mon.windDy = dy;
+    return { dx, dy };
+  }
+  const idx = Math.max(0, Math.min(WIND_AURA_DIRS.length - 1, Math.floor(randomFn() * WIND_AURA_DIRS.length)));
+  const [ndx, ndy] = WIND_AURA_DIRS[idx];
+  mon.windDx = ndx;
+  mon.windDy = ndy;
+  return { dx: ndx, dy: ndy };
+}
+
+/** 風穴 5x5 内またはシルフ系の風域内なら風向き、なければ null（dg.vents / dg.monsters 依存・循環 import 回避のため utils に置く） */
 export function getWindAt(dg, x, y) {
   for (const v of dg?.vents || []) {
     if (Math.abs(x - v.x) <= 2 && Math.abs(y - v.y) <= 2) {
       return { dx: v.dx, dy: v.dy, vent: v };
+    }
+  }
+  for (const m of dg?.monsters || []) {
+    const r = monsterWindAuraRadius(m);
+    if (r <= 0) continue;
+    if (Math.abs(x - m.x) <= r && Math.abs(y - m.y) <= r) {
+      const dir = ensureMonsterWindDir(m);
+      return { dx: dir.dx, dy: dir.dy, monster: m, radius: r };
     }
   }
   return null;

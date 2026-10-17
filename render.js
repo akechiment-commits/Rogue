@@ -155,6 +155,7 @@ export const TILE_NAMES = {
   231: "sleeping_lion",
   234: "pot_crab_raider",
   235: "hermit_crab",
+  236: "sylph",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -367,6 +368,7 @@ export const TILE_RENDER = {
   231: { bg: null, fg: "#e8c060", ch: "獅" }, /* 眠れる獅子系 */
   234: { bg: null, fg: "#d99a55", ch: "蟹" }, /* ヤドカリ壺荒らし */
   235: { bg: null, fg: "#e6b870", ch: "蟹" }, /* ヤドカリ */
+  236: { bg: null, fg: "#70f0d8", ch: "風" }, /* シルフ系 */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

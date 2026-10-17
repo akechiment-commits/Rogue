@@ -14,6 +14,9 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 23, max: 26, level: 1, kinds: ["potRaider"] },
   { min: 36, max: 39, level: 2, kinds: ["potRaider"] },
   { min: 48, max: 50, level: 3, kinds: ["potRaider"] },
+  { min: 19, max: 22, level: 1, kinds: ["sylph"] },
+  { min: 29, max: 32, level: 2, kinds: ["sylph"] },
+  { min: 44, max: 47, level: 3, kinds: ["sylph"] },
   /* 1〜4 だけ薄く、5階から帯を重ねて6種以上にする */
   { min: 1, max: 6, level: 1, kinds: ["rat", "bat", "centipede"] },
   { min: 3, max: 8, level: 1, kinds: ["kobold", "goblin"] },

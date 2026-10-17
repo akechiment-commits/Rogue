@@ -1,6 +1,6 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
-import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
@@ -943,6 +943,12 @@ export const MONS = [
       { name: "ヤドカリ壺大将", hp: 96, atk: 38, def: 12, exp: 158, dungeonFloors: { legend: { min: 48, max: 50 } } },
     ],
   },
+  { name: "シルフ", hp: 36, atk: 18, def: 5, exp: 52, speed: 1, tile: 236, kind: "beast", baseKind: "sylph", monLevel: 1, minFloor: 11, maxFloor: 35, float: true, subtype: "windAura", desc: "常にランダムな方向への風をまとい、範囲内の矢・石・投擲・ブレスを風向きへ曲げる。Lv1は周囲3×3、Lv2は5×5、Lv3は7×7に広がる。", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 11, max: 13 }, legend: { min: 19, max: 22 } },
+    levels: [
+      { name: "ハイシルフ", hp: 60, atk: 27, def: 9, exp: 92, dungeonFloors: { intermediate: null, advanced: { min: 22, max: 24 }, legend: { min: 29, max: 32 } } },
+      { name: "シルフィード", hp: 96, atk: 38, def: 14, exp: 150, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 47 } } },
+    ],
+  },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "ニトロスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
@@ -1657,6 +1663,14 @@ export function applyMonsterTransformation(target, definition, dungeon = null, p
   const ammo = createMonsterProjectileAmmo(target);
   if (ammo) target.projectileAmmo = ammo;
   else delete target.projectileAmmo;
+  if (target.subtype === "windAura" || target.baseKind === "sylph") {
+    delete target.windDx;
+    delete target.windDy;
+    ensureMonsterWindDir(target);
+  } else {
+    delete target.windDx;
+    delete target.windDy;
+  }
   return true;
 }
 
@@ -1815,19 +1829,23 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
+  const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(st.subtype === "sleepingLion" ? { dormant: true, _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
 
 /** 指定のベース定義・レベルでモンスターを生成する（固定取り巻き用） */
-export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false } = {}) {
+export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false, windDx = null, windDy = null } = {}) {
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const isSleepingLion = st.subtype === "sleepingLion";
+  const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({ windDx, windDy }) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant: isSleepingLion || dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };

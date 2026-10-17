@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import { T, TI, MW, MH, clamp, ensureItemMimicFloorItems } from './utils.js';
+import { T, TI, MW, MH, clamp, ensureItemMimicFloorItems, monsterWindAuraRadius, ensureMonsterWindDir } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
 import { monsterBodySize } from './monsterGeometry.js';
 import { monsterDrawBounds, monsterVisible, drawLargeMonster } from './monsterRendering.js';
@@ -91,9 +91,52 @@ function drawFacingIndicator(ctx, px, py, sz, dx, dy) {
  * バリア：タイル全体にシアンのパルス輝光（うっすら光る枠）
  * 状態異常：右上隅に小さなカラードット（下向きに積み重ね）
  * ─ 色凡例 ─  眠り=青  麻痺=白青  混乱=橙  移動封じ=氷青  毒=紫  封印=灰  暗闇=暗紫 */
-function drawMonsterOverlays(ctx, mon, px, py, sz) {
+export function drawMonsterOverlays(ctx, mon, px, py, sz) {
   const body = monsterDrawBounds(mon, px, py, sz);
   px = body.x; py = body.y; sz = body.size;
+  /* ── シルフ系：風穴と同様に風向き矢印を本体に重ねて描画 ── */
+  if (monsterWindAuraRadius(mon) > 0) {
+    const { dx: wdx, dy: wdy } = ensureMonsterWindDir(mon);
+    const vcx = px + sz / 2;
+    const vcy = py + sz * 0.54;
+    const len = sz * 0.30;
+    const tipX = vcx + wdx * len, tipY = vcy + wdy * len;
+    const tailX = vcx - wdx * len * 0.72, tailY = vcy - wdy * len * 0.72;
+    const ang = Math.atan2(wdy, wdx);
+    const ah = sz * 0.23;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    /* 視認性を確保する濃紺の縁取り */
+    ctx.strokeStyle = "rgba(0, 18, 36, 0.92)";
+    ctx.lineWidth = Math.max(4, sz * 0.18);
+    ctx.beginPath();
+    ctx.moveTo(tailX, tailY);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - Math.cos(ang - 0.58) * ah, tipY - Math.sin(ang - 0.58) * ah);
+    ctx.lineTo(tipX - Math.cos(ang + 0.58) * ah, tipY - Math.sin(ang + 0.58) * ah);
+    ctx.closePath();
+    ctx.stroke();
+    /* 風穴と同じシアン＋白ハイライトの矢印 */
+    ctx.strokeStyle = "#e8ffff";
+    ctx.fillStyle = "#40e8ff";
+    ctx.lineWidth = Math.max(2, sz * 0.11);
+    ctx.beginPath();
+    ctx.moveTo(tailX, tailY);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - Math.cos(ang - 0.58) * ah, tipY - Math.sin(ang - 0.58) * ah);
+    ctx.lineTo(tipX - Math.cos(ang + 0.58) * ah, tipY - Math.sin(ang + 0.58) * ah);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
   /* ── バリア輝光 ── */
   if (mon.barrier) {
     const _p = Math.sin(performance.now() / 400) * 0.5 + 0.5;
