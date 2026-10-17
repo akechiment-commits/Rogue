@@ -3882,7 +3882,6 @@ export function useItemActions({
                 break;
               }
               if (statueAt(dg, tx, ty)) { _stHitStatue2 = true; break; }
-              if (monsterAt(dg, tx, ty)) break;
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
               if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
             }
