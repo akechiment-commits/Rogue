@@ -552,6 +552,20 @@ export function getBlessMultiplier(it) {
   return 1;
 }
 
+/** 食事で上限を超えた分は半分だけ満腹度へ加える。戻り値は実際の増加量。 */
+export function addFoodHunger(player, amount) {
+  if (!player) return 0;
+  const maxValue = Number(player.maxHunger ?? 100);
+  const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
+  const before = Math.max(0, Number(player.hunger) || 0);
+  const total = before + Math.max(0, Number(amount) || 0);
+  player.hunger = total > maxHunger
+    ? maxHunger + (total - maxHunger) / 2
+    : total;
+  if (player.hunger > 0) delete player._hungerDmgStarted;
+  return player.hunger - before;
+}
+
 /** 祝福の数値効果は2倍。呪いの反転は通常値のまま（×0.5しない）。 */
 export function blessAmountMul(blessed) {
   return blessed ? 2 : 1;
@@ -4036,18 +4050,15 @@ export function thrownItemAttack(item) {
 }
 
 /** アイスクリームを食べさせたときの共通効果。敵への投擲にも使う。 */
-export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム" } = {}) {
+export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム", hungerAlreadyApplied = false } = {}) {
   if (!target) return { hp: 0, hunger: 0, confused: false };
   const isPlayer = kind === "player";
   const maxHp = Math.max(0, Number(target.maxHp ?? target.hp ?? 0));
   const hpGain = Math.max(0, Math.min(15, maxHp - (Number(target.hp) || 0)));
   target.hp = (Number(target.hp) || 0) + hpGain;
   let hungerGain = 0;
-  if (isPlayer) {
-    const maxHunger = Math.max(0, Number(target.maxHunger ?? 100));
-    hungerGain = Math.max(0, Math.min(15, maxHunger - (Number(target.hunger) || 0)));
-    target.hunger = Math.min(maxHunger, (Number(target.hunger) || 0) + 15);
-    if (target.hunger > 0) delete target._hungerDmgStarted;
+  if (isPlayer && !hungerAlreadyApplied) {
+    hungerGain = addFoodHunger(target, 15);
   }
   const alreadyProtected = (target.iceCreamFireResTurns || 0) > 0;
   if (alreadyProtected) {
@@ -5053,7 +5064,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   }
 }
 
-/** 投擲で食料が命中した時、食べた時と同じ固有効果・薬効を命中対象へ適用する。 */
+/** 投擲で食料が命中した時、プレイヤーは食事として処理し、食べた時と同じ効果を命中対象へ適用する。 */
 function applyFoodLuckToMonster(target, ml) {
   target.dropItemsSuppressed = false;
   target.dropExtraGold = true;
@@ -5063,11 +5074,34 @@ function applyFoodLuckToMonster(target, ml) {
 }
 
 export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null) {
-  const hasPotionEffects = Array.isArray(item?.potionEffects) && item.potionEffects.length > 0;
-  if (item?.type !== "food" || (!item.effect && !hasPotionEffects)) return false;
-  if (item.yabai || item.rotten || (item.iceCream && !item.burnt)) return false;
+  if (item?.type !== "food") return false;
   const entity = kind === "player" ? p : target;
   if (!entity || entity.hp <= 0) return false;
+
+  const isIceCream = item.iceCream && !item.yabai && !item.rotten && !item.burnt;
+  if (kind === "player") {
+    const maxValue = Number(p.maxHunger ?? 100);
+    const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
+    const hunger = Math.max(0, Number(p.hunger) || 0);
+    if (hunger >= maxHunger) {
+      const loss = Math.min(hunger, Math.max(10, Math.floor(maxHunger * 0.25)));
+      p.hunger = Math.max(0, hunger - loss);
+      ml.push(`お腹いっぱいのところに食べ物が当たり、嘔吐した！満腹度が${loss}減った！`);
+    } else {
+      const amount = isIceCream
+        ? 15
+        : Math.max(1, Math.round((Number(item.value) || 35) * getBlessMultiplier(item) * (item.yabai ? 0.25 : item.rotten ? 0.5 : 1)));
+      const gained = addFoodHunger(p, amount);
+      ml.push(`食べ物が当たって食べてしまった。(満腹度+${gained})`);
+    }
+    if (isIceCream) {
+      applyIceCreamEffect(p, "player", ml, { name: "アイスクリーム", hungerAlreadyApplied: true });
+      return true;
+    }
+  }
+
+  const hasPotionEffects = Array.isArray(item?.potionEffects) && item.potionEffects.length > 0;
+  if ((!item.effect && !hasPotionEffects) || item.yabai || item.rotten || isIceCream) return false;
 
   const applyPotion = (effect, value = 0, cursed = false, blessed = false) =>
     applyPotionEffect(effect, value, kind, target, dg, p, ml, luFn, blessed, cursed, killerMon);
@@ -6672,9 +6706,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       mlx.push(_plHit);
       interruptPlayerSleep(p, mlx);
       /* ヤバイ食料：追加ダメ+状態異常複合 */
-      if (item.type === "food" && item.iceCream && !item.yabai && !item.rotten && !item.burnt) {
-        applyIceCreamEffect(p, "player", mlx, { name: resolveItemName(item, nameFn) });
-      } else if (item.type === "food" && item.yabai) {
+      if (item.type === "food" && item.yabai) {
         const _yDmg = rng(15, 25);
         p.hp -= _yDmg;
         p.deathCause = "跳ね返されたヤバイ食料に当たって";

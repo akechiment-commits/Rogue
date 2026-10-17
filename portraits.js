@@ -616,7 +616,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   /* 嘔吐した瞬間は、酔い・睡眠などの維持立ち絵より優先して反応を見せる。 */
-  if (findMsgInNew(newMsgs, eventLastMsg, (msg) => /^酩酊して嘔吐した/.test(msg))) {
+  if (findMsgInNew(newMsgs, eventLastMsg, (msg) => /嘔吐した/.test(msg))) {
     return {
       src: pickPortraitForPlayer("status_vomiting", p),
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,

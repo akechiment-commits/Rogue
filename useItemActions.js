@@ -6,7 +6,7 @@ import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueL
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
-  EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion,
+  EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
@@ -166,6 +166,10 @@ export function useItemActions({
     const it = p.inventory[idx];
     if (!it) return;
     if (p.sleepTurns > 0 || p.paralyzeTurns > 0) return;
+    if (it.type === "food" && (Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)) {
+      setMsgs((prev) => [...prev.slice(-80), "満腹度が限界を超えていて、食べられない！"]);
+      return;
+    }
 
     const ml = installPlayerHpMessageHook([], p);
     // 未識別消耗品の判定（使用前に取得）
@@ -549,9 +553,7 @@ export function useItemActions({
       } else if (it.yabai) {
         const _yabaiHunger = Math.max(1, Math.round(it.value * _foodBm * 0.25));
         p.inventory.splice(idx, 1);
-        if (p.hunger < 0) p.hunger = 0;
-        const _yabaiAdded = Math.min(_yabaiHunger, p.maxHunger - p.hunger);
-        p.hunger = Math.min(p.maxHunger, p.hunger + _yabaiHunger);
+        const _yabaiAdded = addFoodHunger(p, _yabaiHunger);
         const _yabaiDmg = rng(15, 25);
         p.deathCause = "ヤバイ食料を食べて";
         p.hp -= _yabaiDmg;
@@ -584,9 +586,7 @@ export function useItemActions({
       } else if (it.rotten) {
         const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.5));
         p.inventory.splice(idx, 1);
-        if (p.hunger < 0) p.hunger = 0;
-        const _rotAdded = Math.min(_rotVal, p.maxHunger - p.hunger);
-        p.hunger = Math.min(p.maxHunger, p.hunger + _rotVal);
+        const _rotAdded = addFoodHunger(p, _rotVal);
         const _rotDmg = rng(5, 10);
         p.deathCause = "腐った食料を食べて";
         p.hp -= _rotDmg;
@@ -601,10 +601,7 @@ export function useItemActions({
       } else {
       const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
       p.inventory.splice(idx, 1);
-      if (p.hunger < 0) p.hunger = 0;
-      const _foodAdded = Math.min(_foodVal, p.maxHunger - p.hunger);
-      p.hunger = Math.min(p.maxHunger, p.hunger + _foodVal);
-      if (p.hunger > 0) delete p._hungerDmgStarted;
+      const _foodAdded = addFoodHunger(p, _foodVal);
       ml.push(
         `${_useItemName}を食べた。(満腹度+${_foodAdded})${it.blessed ? "（祝福：よく味わえた）" : it.cursed ? "（呪い：まずかった）" : ""}`,
       );
@@ -2184,7 +2181,8 @@ export function useItemActions({
     if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
 
     const candidates = getHypnosisItemCandidates(p.inventory).filter(({ it }) =>
-      it.type !== "pot" || getHypnosisPotContents(p.inventory, it, p).length > 0
+      (it.type !== "pot" || getHypnosisPotContents(p.inventory, it, p).length > 0) &&
+      (it.type !== "food" || (Number(p.hunger) || 0) <= Number(p.maxHunger ?? 100))
     );
 
     p.hypnosisPending = Math.max(0, (p.hypnosisPending || 0) - 1);
@@ -4666,9 +4664,7 @@ export function useItemActions({
               p.hp -= _selfD;
               p.deathCause = "風に煽られた投げ物に当たって";
               ml.push(`${_selfD}ダメージ！`);
-              if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt) {
-                applyIceCreamEffect(p, "player", ml, { name: dnameRef(it) });
-              } else if (it.type === "food" && it.yabai) {
+              if (it.type === "food" && it.yabai) {
                 const _poison = applyYabaiPoison(p, "player");
                 p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
                 ml.push(`ヤバイ食料の影響で毒(${_poison.turns}ターン)・混乱した！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
