@@ -1292,6 +1292,12 @@ export const MONS = [
       { name: "マダラキノコ", hp: 86,  atk: 39, def: 13, exp: 145, tile: 240, dungeonFloors: { advanced: { min: 24, max: 27 } } },
     ],
   },
+  { name: "マッチョドラゴン", hp: 75,  atk: 32, def: 8,  exp: 95,  speed: 1,   tile: 241, kind: "dragon",   baseKind: "machodragon",   monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "ice", desc: "鍛え抜かれた肉体で戦う筋肉派ドラゴン。特技なし。氷弱点。", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 17, max: 19 } },
+    levels: [
+      { name: "筋肉竜",       hp: 135, atk: 48, def: 14, exp: 180, tile: 242, dungeonFloors: { advanced: { min: 26, max: 28 } } },
+      { name: "筋骨隆々竜",   hp: 220, atk: 66, def: 20, exp: 300, tile: 243 },
+    ],
+  },
 ];
 
 /* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */

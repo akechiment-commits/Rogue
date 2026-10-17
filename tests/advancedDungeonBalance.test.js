@@ -54,7 +54,7 @@ describe("上級ダンジョンの敵分布", () => {
     expect(ADVANCED_MONSTER_FLOOR_POOLS[1]).toEqual(["rat", "bat", "centipede"]);
     for (let floor = 1; floor <= 30; floor++) {
       expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
-      const extraGiants = ['hauntedWillow', 'sleepingLion', 'potRaider', 'sylph', 'mushroom', 'fireCook'].filter(kind => ADVANCED_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
+      const extraGiants = ['hauntedWillow', 'sleepingLion', 'potRaider', 'sylph', 'mushroom', 'fireCook', 'machodragon'].filter(kind => ADVANCED_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
       expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiants);
     }
     expect(ADVANCED_MONSTER_FLOOR_POOLS[30]).toEqual(expect.arrayContaining([
@@ -128,7 +128,7 @@ describe("上級ダンジョンの敵分布", () => {
     const advancedKinds = MONS
       .filter((monster) => !monster.penaltyOnly && !monster.floodedOnly && !(monster.dungeons && !monster.dungeons.includes("advanced")))
       .map((monster) => monster.baseKind);
-    expect(new Set(advancedKinds).size).toBe(79);
+    expect(new Set(advancedKinds).size).toBe(80);
     expect(advancedKinds).toContain('potionhealer');
     expect(advancedKinds).toContain('sylph');
     for (const kind of advancedKinds) expect(counts.get(kind)).toBeGreaterThanOrEqual(3);
