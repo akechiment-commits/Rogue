@@ -1182,7 +1182,7 @@ export const MONS = [
     ],
   },
   { name: "ガーディアン",  hp: 48,  atk: 16, def: 14, exp: 70,  speed: 1,   tile: 155, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
-  { name: "氷竜",         hp: 65,  atk: 32, def: 10, exp: 125, speed: 1,   tile: 162, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { intermediate: null, advanced: { min: 21, max: 30 } },
+  { name: "氷竜",         hp: 65,  atk: 32, def: 10, exp: 125, speed: 1,   tile: 162, kind: "dragon",   baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { intermediate: null, advanced: { min: 21, max: 30 } },
     levels: [
       { name: "ブルードラゴン",             hp: 105, atk: 44, def: 16, exp: 200 },
       { name: "ブルードラゴン 天界の七竜", hp: 168, atk: 58, def: 22, exp: 320 },
