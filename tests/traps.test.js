@@ -371,7 +371,7 @@ describe("new weird traps", () => {
   it("浮遊中は直接操作で罠を起動しても回避し、効果を受けない", () => {
     const p = makePlayer({ x: 5, y: 5, floatTurns: 12, hp: 100 });
     const dg = makeEmptyDg();
-    const trap = { effect: "strong_arrow", name: "強矢の罠", x: 5, y: 5, id: "float-proof" };
+    const trap = { effect: "strong_arrow", name: "強矢の罠", x: 5, y: 5, id: "float-proof", revealed: true };
     const ml = [];
 
     const result = fireTrapPlayer(trap, p, dg, ml);

@@ -420,7 +420,7 @@ describe("portraits", () => {
 
     const baseOnly = { damage_fire: ["damage_fire"] };
     expect(pickPortraitForPlayer("damage_fire", { armor: null }, baseOnly)).toBe(
-      "/tiles/Character/damage_fire.png?v=20261011-portrait-v1",
+      "/tiles/Character/damage_fire.png?v=20261011-portrait-style-unified",
     );
 
     const withBranch = {
@@ -428,7 +428,7 @@ describe("portraits", () => {
       damage_fire_unarmored: ["damage_fire_unarmored"],
     };
     expect(pickPortraitForPlayer("damage_fire", { armor: null }, withBranch)).toMatch(
-      /^\/tiles\/Character\/damage_fire_unarmored\.png\?v=20261011-portrait-v1&portraitFallback=/,
+      /^\/tiles\/Character\/damage_fire_unarmored\.png\?v=20261011-portrait-style-unified&portraitFallback=/,
     );
   });
 
@@ -790,7 +790,7 @@ describe("portraits", () => {
       player,
       prev,
       lastMsg: "岩が命中！19ダメージ！",
-      newMsgs: ["落石の罠が作動！岩が降ってきた！", "岩が命中！19ダメージ！"],
+      newMsgs: ["岩が命中！19ダメージ！"],
     });
     expect(event.force).toBe(false);
     expect(event.lowPriority).toBe(true);
@@ -836,10 +836,10 @@ describe("portraits", () => {
     expect(getTrapPortraitKey("回転板が発動！吹き飛ばされた！")).toBe("reaction_trap_spin");
     const armoredPlayer = { armor: { id: "armor" } };
     expect(pickPortraitForPlayer("reaction_trap_arrow", armoredPlayer)).toMatch(
-      /^\/tiles\/Character\/reaction_trap_arrow\.png\?v=20261011-portrait-v1$/,
+      /^\/tiles\/Character\/reaction_trap_arrow\.png\?v=20261011-portrait-style-unified$/,
     );
     expect(pickPortraitForPlayer("reaction_trap_mp_absorb", armoredPlayer)).toMatch(
-      /^\/tiles\/Character\/reaction_trap_mp_absorb\.png\?v=20261011-portrait-v1$/,
+      /^\/tiles\/Character\/reaction_trap_mp_absorb\.png\?v=20261011-portrait-style-unified$/,
     );
 
     const player = {

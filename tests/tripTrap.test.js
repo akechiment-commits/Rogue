@@ -184,7 +184,7 @@ describe("転倒の罠 trip_trap", () => {
     expect(sank || floored).toBe(true);
   });
 
-  it("isFallMsg / 立ち絵 reaction_fall が転倒ログで出る", () => {
+  it("isFallMsg / 立ち絵 reaction_trap_trip・reaction_fall が転倒ログで出る", () => {
     expect(isFallMsg("転倒の罠が発動！転んでしまった！5ダメージ！")).toBe(true);
     expect(isFallMsg("転倒の罠が発動！")).toBe(false);
     expect(isFallMsg("矢の罠が発動！")).toBe(false);
@@ -194,13 +194,21 @@ describe("転倒の罠 trip_trap", () => {
       paralyzeTurns: 0, slowTurns: 0, bewitchedTurns: 0, immobileTurns: 0,
       mpCooldownTurns: 0, sealedTurns: 0, weaponId: null, armorId: null, ringIds: [], floating: false,
     };
-    const event = resolvePortraitEvent({
+    const trapEvent = resolvePortraitEvent({
       player: { ...base, hp: 35 },
       prev: base,
       lastMsg: "転倒の罠が発動！転んでしまった！5ダメージ！",
       newMsgs: ["転倒の罠が発動！転んでしまった！5ダメージ！"],
     });
-    expect(event.src).toMatch(/reaction_fall/);
+    expect(trapEvent.src).toMatch(/reaction_trap_trip|reaction_fall/);
+
+    const fallEvent = resolvePortraitEvent({
+      player: { ...base, hp: 35 },
+      prev: base,
+      lastMsg: "転んでしまった！5ダメージ！",
+      newMsgs: ["転んでしまった！5ダメージ！"],
+    });
+    expect(fallEvent.src).toMatch(/reaction_fall/);
   });
 
   it("アイテム着弾でも転倒の罠が処理できる", () => {

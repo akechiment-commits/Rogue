@@ -6,6 +6,7 @@ import * as status from "../statusDuration.js";
 import * as discovery from "../DiscoveryTracker.js";
 import * as gameHelpers from "../GameHelpers.js";
 import { findRoom } from "../monsters.js";
+import { monsterBodyCells } from "../monsterGeometry.js";
 import { itemDisplayName } from "../render.js";
 import { pl } from "../playerLabel.js";
 
@@ -19,7 +20,7 @@ export function createGameBigboxHandlers(state) {
   const addEnd = source.indexOf("  /** 願い成功時：泉を必ず干上がらせる */", addStart);
   if ([breakStart, breakEnd, addStart, addEnd].some(index => index < 0)) throw new Error("Game big-box callback boundary not found");
   const deps = { ...items, ...utils, ...wands, ...status, ...discovery, ...gameHelpers,
-    sr: { current: state }, useCallback: fn => fn, lu: () => {}, findRoom, itemDisplayName,
+    sr: { current: state }, useCallback: fn => fn, lu: () => {}, findRoom, monsterBodyCells, itemDisplayName,
     pl, trySynthesize: () => { throw new Error("Synthesis is outside this harness"); } };
   return new Function(...Object.keys(deps), `${source.slice(breakStart, breakEnd)}\n${source.slice(addStart, addEnd)}\nreturn { bigboxAddItem, breakBigbox };`)(...Object.values(deps));
 }

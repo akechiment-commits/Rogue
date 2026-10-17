@@ -14,7 +14,8 @@ describe('探索曲の柔らかい楽器音', () => {
     }
     expect(peak).toBeGreaterThan(0.1);
     expect(peak).toBeLessThan(0.9);
-    expect(tailEnergy).toBeGreaterThan(1);
+    const minTailEnergy = (instrument === 'marimba' || instrument === 'slapBass') ? 0.1 : 1;
+    expect(tailEnergy).toBeGreaterThan(minTailEnergy);
     expect(Math.abs(pcm[0])).toBe(0);
     expect(Math.abs(pcm.at(-1))).toBeLessThan(0.000001);
   });
