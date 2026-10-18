@@ -7,7 +7,7 @@ import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T } from "./items.js";
-import { inMagicSealRoom } from "./items.js";
+import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
@@ -1598,9 +1598,31 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 }
 
 /* ===== Shop Modal ===== */
-export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile }) {
+export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile, shopActionsRef }) {
+  if (shopActionsRef) shopActionsRef.current = null;
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
+  let confirmShopOption = () => {};
+  let completed = false;
+  const cancelShop = () => {
+    if (completed) return;
+    completed = true;
+    if (shopActionsRef) shopActionsRef.current = null;
+    if (mode === "browseConfirm") { setMode("browse"); setMenuSel(0); }
+    else setMode(null);
+  };
+  /* ボタン・キー・パッド・モバイル決定は、表示した同じ選択肢を実行する。 */
+  const shopOptions = (options) => {
+    confirmShopOption = (index) => {
+      if (completed || !options[index] || options[index].disabled) return;
+      if (shopActionsRef && shopActionsRef.current?.confirm !== confirmShopOption) return;
+      completed = true;
+      if (shopActionsRef) shopActionsRef.current = null;
+      options[index].fn();
+    };
+    if (shopActionsRef) shopActionsRef.current = { confirm: confirmShopOption, cancel: cancelShop, count: options.length };
+    return options;
+  };
   const _adjSkH = gs.dungeon?.monsters?.find(m =>
     m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
     Math.abs(m.x - gs.player?.x) <= 1 && Math.abs(m.y - gs.player?.y) <= 1
@@ -1634,7 +1656,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           🏪 {_shopLabel}
         </span>
         <button
-          onClick={() => setMode(null)}
+          onClick={cancelShop}
           style={{
             background: "#333",
             color: "#aaa",
@@ -1664,7 +1686,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
               店主：「お代は{_payShop.unpaidTotal}Gです。」
             </div>
-            {[
+            {shopOptions([
               {
                 label: `支払う (${_payShop.unpaidTotal}G)`,
                 fn: () => {
@@ -1708,10 +1730,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 },
               },
               { label: "やめる", fn: () => setMode(null) },
-            ].map((item, mi) => (
+            ]).map((item, mi) => (
               <button
                 key={mi}
-                onClick={item.fn}
+                onClick={() => confirmShopOption(mi)}
                 style={{
                   padding: "6px 10px",
                   background: menuSel === mi ? "#4a2a00" : "#2a1a00",
@@ -1747,7 +1769,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
               <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
                 店主：「本当によろしいですか？{_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
               </div>
-              {[
+              {shopOptions([
                 { label: "やめる", fn: () => { setMode("browse"); setMenuSel(0); } },
                 {
                   label: `はい、全て売る (${_totalG.toLocaleString()}G)`,
@@ -1761,17 +1783,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
                       p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
                     if (!_sellShop) { setMode("browse"); return; }
-                    const _calcSell2 = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
-                    let earned = 0;
-                    for (const it of toSell) {
-                      const _sp2 = _calcSell2(it);
-                      it.shopPrice = it.type === "gem" ? (it._gemBuyPrice || _sp2) + _sp2 : _sp2;
-                      it._shopId = _sellShop.id;
-                      earned += _sp2;
-                    }
-                    p2.gold += earned;
-                    /* unpaidTotal に加算 → 盗賊判定・pay モードが自動的に機能する */
-                    _sellShop.unpaidTotal += earned;
+                    const earned = sellInventoryItemsToShop(toSell, p2, _sellShop);
                     const _sk = dg2.monsters.find(m => m.id === _sellShop.shopkeeperId && m.state === "friendly");
                     if (_sk) _sk.state = "blocking";
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
@@ -1780,8 +1792,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     setMode(null);
                   },
                 },
-              ].map((item, mi) => (
-                <button key={mi} onClick={item.fn} style={{
+              ]).map((item, mi) => (
+                <button key={mi} onClick={() => confirmShopOption(mi)} style={{
                   padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                   border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
                   color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 14, cursor: "pointer", textAlign: "left",
@@ -1798,7 +1810,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
               店主：「いらっしゃいませ！」
             </div>
-            {[
+            {shopOptions([
               { label: "やめる", fn: () => setMode(null) },
               {
                 label: _inShop
@@ -1807,8 +1819,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 disabled: _sellItems.length === 0 || !_inShop,
                 fn: () => { if (_sellItems.length > 0 && _inShop) { setMode("browseConfirm"); setMenuSel(0); } },
               },
-            ].map((item, mi) => (
-              <button key={mi} onClick={item.fn} disabled={item.disabled} style={{
+            ]).map((item, mi) => (
+              <button key={mi} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
                 padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                 border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
                 color: item.disabled ? "#664422" : menuSel === mi ? "#ffa" : "#fa8",
@@ -1866,8 +1878,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   ) : [];
                   sr.current = { ...sr.current };
                   setGs({ ...sr.current });
-                  if (rem.length <= 1) setMode(null);
-                  else setMenuSel((s) => Math.min(s, rem.length - 2));
+                  if (rem.length === 0) setMode(null);
+                  else setMenuSel((s) => Math.min(s, rem.length - 1));
                 }
               },
             })),
@@ -1881,10 +1893,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 店主：「買い取りましょうか？」
               </div>
               <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
-                {allOpts.map((item, mi) => (
+                {shopOptions(allOpts).map((item, mi) => (
                   <button
                     key={mi}
-                    onClick={item.fn}
+                    onClick={() => confirmShopOption(mi)}
                     style={{
                       display: "block",
                       width: "100%",

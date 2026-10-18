@@ -11,7 +11,7 @@ import {
   ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
-  getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
+  getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
   extractPotContents, scatterPotContents, reducePotCapacity,
   declareFloorExitTheft,
 } from "./items.js";
@@ -119,7 +119,7 @@ export { isDuplicateDirectionEvent, directionFamily, isRepeatBlockedKey };
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, keyboardShiftRef = null, keyboardDashRef = null, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
+  sr, shiftRef, aRef, keyboardShiftRef = null, keyboardDashRef = null, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, shopActionsRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showEnding, showScores, showSound = false, gameOverSel, gameOverView, endingSel = 0, endingView,
   facingMode,
@@ -866,175 +866,20 @@ export function useKeyHandler({
       }
       if (shopMode) {
         e.preventDefault();
+        const actions = shopActionsRef?.current;
         if (k === "escape" || k === "x") {
-          setShopMode(null);
+          if (actions) actions.cancel();
+          else setShopMode(null);
           return;
         }
-        if (shopMode === "pay") {
-          if (isKeyUp(e) || isKeyDown(e)) {
-            setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + 2) % 2);
-            return;
-          }
-          const digit = getDigitNumber(e);
-          if (k === "enter" || k === "z" || digit === 1 || digit === 2) {
-            const selected = digit === 1 ? 0 : digit === 2 ? 1 : shopMenuSel;
-            if (selected === 0) {
-              if (sr.current) {
-                const { player: p2, dungeon: dg2 } = sr.current;
-                const _allShopsPay = getShops(dg2);
-                const _totalUnpaid = _allShopsPay.reduce((s, sh) => s + (sh.unpaidTotal || 0), 0);
-                if (p2.gold >= _totalUnpaid) {
-                  p2.gold -= _totalUnpaid;
-                  _allShopsPay.forEach(sh => { sh.unpaidTotal = 0; });
-                  dg2.shopTheft = false;
-                  p2.isThief = false;
-                  const _clearShopPrice2 = (it2) => {
-                    if (it2.shopPrice) { delete it2.shopPrice; delete it2._shopId; delete it2._shopCharge; }
-                    if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice2);
-                  };
-                  p2.inventory.forEach(_clearShopPrice2);
-                  const sk5 = dg2.monsters.find((m) => m.type === "shopkeeper");
-                  if (sk5) {
-                    sk5.state = "friendly";
-                    /* homePos から近い順に空きタイルを探してテレポート */
-                    const _skCandidates = [];
-                    for (let _r = 0; _r <= 4; _r++) {
-                      for (let _dy = -_r; _dy <= _r; _dy++) {
-                        for (let _dx = -_r; _dx <= _r; _dx++) {
-                          if (Math.abs(_dx) !== _r && Math.abs(_dy) !== _r) continue;
-                          const _cx = sk5.homePos.x + _dx, _cy = sk5.homePos.y + _dy;
-                          const _ct = dg2.map[_cy]?.[_cx];
-                          if (_ct !== T.FLOOR && _ct !== T.SD && _ct !== T.SU) continue;
-                          if (_cx === p2.x && _cy === p2.y) continue;
-                          if (dg2.monsters.some(o => o !== sk5 && monsterOccupiesCell(o, _cx, _cy))) continue;
-                          _skCandidates.push({ x: _cx, y: _cy, d: Math.abs(_dx) + Math.abs(_dy) });
-                        }
-                      }
-                      if (_skCandidates.length > 0) break;
-                    }
-                    if (_skCandidates.length > 0) {
-                      _skCandidates.sort((a, b) => a.d - b.d);
-                      sk5.x = _skCandidates[0].x;
-                      sk5.y = _skCandidates[0].y;
-                    }
-                  }
-                  setMsgs((prev) => [
-                    ...prev.slice(-80),
-                    "代金を支払った。ありがとうございます！",
-                  ]);
-                  setShopMode(null);
-                  sr.current = { ...sr.current };
-                  setGs({ ...sr.current });
-                } else
-                  setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
-              }
-            } else setShopMode(null);
-            return;
-          }
-
+        if (isKeyUp(e) || isKeyDown(e)) {
+          const count = actions?.count || 2;
+          setShopMenuSel(value => (value + (isKeyDown(e) ? 1 : -1) + count) % count);
           return;
         }
-        if (shopMode === "sell") {
-          if (!sr.current) {
-            setShopMode(null);
-            return;
-          }
-          const { player: p2, dungeon: dg2 } = sr.current;
-          const _curSellShop = getShops(dg2).find(s => s.room &&
-            p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
-            p2.y >= s.room.y && p2.y < s.room.y + s.room.h);
-          const fis3 = _curSellShop ? dg2.items.filter(
-            (i) =>
-              !i.shopPrice &&
-              i.x >= _curSellShop.room.x &&
-              i.x < _curSellShop.room.x + _curSellShop.room.w &&
-              i.y >= _curSellShop.room.y &&
-              i.y < _curSellShop.room.y + _curSellShop.room.h,
-          ) : [];
-          const mlen3 = fis3.length + 1;
-          if (isKeyUp(e) || isKeyDown(e)) {
-            setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + mlen3) % mlen3);
-            return;
-          }
-          if (k === "enter" || k === "z") {
-            if (shopMenuSel < fis3.length) {
-              const it2 = fis3[shopMenuSel];
-              const bp = it2.type === "gem" ? gemSellPrice(it2, p2.depth) : Math.ceil(itemPrice(it2) * 0.5);
-              p2.gold += bp;
-              it2.shopPrice = it2.type === "gem" ? (it2._gemBuyPrice || bp) + bp : itemPrice(it2);
-              if (_curSellShop) it2._shopId = _curSellShop.id;
-              setMsgs((prev) => [
-                ...prev.slice(-80),
-                `${it2.name}を${bp}Gで買い取った。`,
-              ]);
-              setShopMenuSel(
-                Math.min(shopMenuSel, Math.max(0, fis3.length - 2)),
-              );
-              sr.current = { ...sr.current };
-              setGs({ ...sr.current });
-              if (fis3.length <= 1) {
-                const dt = _curSellShop?.unpaidTotal ?? 0;
-                if (dt > 0) {
-                  setShopMode("pay");
-                  setShopMenuSel(0);
-                  setMsgs((prev) => [
-                    ...prev.slice(-80),
-                    `店主：「お代は${dt}Gです。」`,
-                  ]);
-                } else setShopMode(null);
-              }
-            } else {
-              const dt = _curSellShop?.unpaidTotal ?? 0;
-              if (dt > 0) {
-                setShopMode("pay");
-                setShopMenuSel(0);
-                setMsgs((prev) => [
-                  ...prev.slice(-80),
-                  `店主：「お代は${dt}Gです。」`,
-                ]);
-              } else setShopMode(null);
-            }
-            return;
-          }
-          return;
-        }
-        if (shopMode === "browse" || shopMode === "browseConfirm") {
-          if (isKeyUp(e) || isKeyDown(e)) {
-            setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + 2) % 2);
-            return;
-          }
-          if (k === "enter" || k === "z") {
-            if (shopMode === "browse") {
-              if (shopMenuSel === 0) { setShopMode(null); } // やめる
-              else { // 所持品を全て売る
-                if (sr.current) {
-                  const { player: p2, dungeon: dg2 } = sr.current;
-                  const _bSellItems = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-                  const _bInShop = getShops(dg2).find(s => s.room && p2.x >= s.room.x && p2.x < s.room.x + s.room.w && p2.y >= s.room.y && p2.y < s.room.y + s.room.h);
-                  if (_bSellItems.length > 0 && _bInShop) { setShopMode("browseConfirm"); setShopMenuSel(0); }
-                }
-              }
-            } else { // browseConfirm
-              if (shopMenuSel === 0) { setShopMode("browse"); setShopMenuSel(0); } // やめる
-              else { // はい、全て売る
-                if (sr.current) {
-                  const { player: p2, dungeon: dg2 } = sr.current;
-                  const toSell = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-                  const _sellShop = getShops(dg2).find(s => s.room && p2.x >= s.room.x && p2.x < s.room.x + s.room.w && p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
-                  if (toSell.length > 0 && _sellShop) {
-                    const _earned = sellInventoryItemsToShop(toSell, p2, _sellShop);
-                    const _sk2 = dg2.monsters.find(m => m.id === _sellShop.shopkeeperId && m.state === "friendly");
-                    if (_sk2) _sk2.state = "blocking";
-                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${_earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
-                    sr.current = { ...sr.current }; setGs({ ...sr.current });
-                  }
-                  setShopMode(null);
-                }
-              }
-            }
-            return;
-          }
-          return;
+        const digit = shopMode === "pay" ? getDigitNumber(e) : null;
+        if (k === "enter" || k === "z" || digit === 1 || digit === 2) {
+          actions?.confirm(digit === 1 ? 0 : digit === 2 ? 1 : shopMenuSel);
         }
         return;
       }

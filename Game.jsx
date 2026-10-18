@@ -33,7 +33,7 @@ import {
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
-  itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
+  itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
 } from "./items.js";
@@ -194,6 +194,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const identifyConfirmRef = useRef(null);
   const identifyCancelRef = useRef(null);
   const spellConfirmRef = useRef(null);
+  const shopActionsRef = useRef(null);
   const nicknameModeRef = useRef(null);
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
@@ -5596,7 +5597,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   };
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, keyboardShiftRef, keyboardDashRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
+    sr, shiftRef, aRef, keyboardShiftRef, keyboardDashRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, shopActionsRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
     // state values
     gs, dead, showEnding, showScores, showSound, gameOverSel, gameOverView, endingSel, endingView,
     facingMode,
@@ -6613,8 +6614,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (miniTip) { closeMiniTip(); return; }
                     if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
-                    if (shopMode === "browseConfirm") { setShopMode("browse"); setShopMenuSel(0); return; }
-                    if (shopMode === "browse") { setShopMode(null); return; }
+                    if (shopMode) { shopActionsRef.current?.cancel(); return; }
                     if (putMode) { cancelPutMode(); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
@@ -6660,8 +6660,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               </div> {" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
-                  sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : altarMode || merchantMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
+                  label={shopMode ? "決" : spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
+                  sub={shopMode ? "決定" : spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : altarMode || merchantMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
                     if (mapMode) return;
                     if (altarMode) {
@@ -6702,33 +6702,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       else { setGachaMode(null); gachaRef.current = null; setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
                       return;
                     }
-                    if (shopMode === "browse" || shopMode === "browseConfirm") {
-                      if (shopMode === "browse") {
-                        if (shopMenuSel === 0) { setShopMode(null); }
-                        else if (sr.current) {
-                          const { player: _bp, dungeon: _bd } = sr.current;
-                          const _bsi = _bp.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-                          const _bsh = getShops(_bd).find(s => s.room && _bp.x >= s.room.x && _bp.x < s.room.x + s.room.w && _bp.y >= s.room.y && _bp.y < s.room.y + s.room.h);
-                          if (_bsi.length > 0 && _bsh) { setShopMode("browseConfirm"); setShopMenuSel(0); }
-                        }
-                      } else {
-                        if (shopMenuSel === 0) { setShopMode("browse"); setShopMenuSel(0); }
-                        else if (sr.current) {
-                          const { player: _bp2, dungeon: _bd2 } = sr.current;
-                          const _toSell = _bp2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-                          const _bsh2 = getShops(_bd2).find(s => s.room && _bp2.x >= s.room.x && _bp2.x < s.room.x + s.room.w && _bp2.y >= s.room.y && _bp2.y < s.room.y + s.room.h) || getShops(_bd2)[0];
-                          if (_toSell.length > 0 && _bsh2) {
-                            const _earn = sellInventoryItemsToShop(_toSell, _bp2, _bsh2);
-                            const _sk3 = _bd2.monsters.find(m => m.id === _bsh2.shopkeeperId && m.state === "friendly");
-                            if (_sk3) _sk3.state = "blocking";
-                            setMsgs(prev => [...prev.slice(-80), `所持品 ${_toSell.length} 件が店の商品になった。${_earn.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
-                            sr.current = { ...sr.current }; setGs({ ...sr.current });
-                          }
-                          setShopMode(null);
-                        }
-                      }
-                      return;
-                    }
+                    if (shopMode) { shopActionsRef.current?.confirm(shopMenuSel); return; }
                     if (putMode) {
                       const _putInv = sr.current?.player?.inventory || [];
                       const _putItems = _putInv.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
@@ -7007,7 +6981,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <SignModal sign={showSign} onClose={() => setShowSign(null)} mobile={mobile} />
       <MiniTipModal tip={miniTip} onClose={closeMiniTip} mobile={mobile} />
       <MsgLogModal show={msgLogMode || (dead && gameOverView === "log") || (showEnding && endingView === "log")} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => { if (dead && gameOverView === "log") setGameOverView(null); else if (showEnding && endingView === "log") setEndingView(null); else setMsgLogMode(false); }} mobile={mobile} />
-      <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
+      <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} shopActionsRef={shopActionsRef} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
       <GachaModal mode={gachaMode} setMode={setGachaMode} gs={gs} gachaRef={gachaRef} menuSel={gachaMenuSel} setMenuSel={setGachaMenuSel} onDraw={doGachaDraw} mobile={mobile} />
       <AltarModal mode={altarMode} setMode={setAltarMode} p={p} menuSel={altarMenuSel} setMenuSel={setAltarMenuSel} onOffer={doOfferFood} mobile={mobile} dname={dnameRef} />
