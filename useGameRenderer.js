@@ -39,13 +39,25 @@ function monsterTileForRender(mon, bewitched = false, x = 0, y = 0) {
 function drawMonsterTile(ctx, ts, mon, tile, px, py, sz) {
   const body = monsterDrawBounds(mon, px, py, sz);
   px = body.x; py = body.y; sz = body.size;
+  const lv = mon?.monLevel || 1;
+  const lvKey = `${tile}_lv${lv}`;
+  const customImg = (lv > 1 && customTileImages[lvKey]) ? customTileImages[lvKey] : null;
+
   if (!mon.isPlayerClone) {
-    drawTile(ctx, ts, tile, px, py, sz);
+    if (customImg) {
+      ctx.drawImage(customImg, px, py, sz, sz);
+      return;
+    }
+    drawTile(ctx, ts, tile, px, py, sz, { monLevel: lv, monName: mon?.name });
     return;
   }
   ctx.save();
   ctx.globalAlpha = 0.68;
-  drawTile(ctx, ts, tile, px, py, sz);
+  if (customImg) {
+    ctx.drawImage(customImg, px, py, sz, sz);
+  } else {
+    drawTile(ctx, ts, tile, px, py, sz, { monLevel: lv, monName: mon?.name });
+  }
   ctx.globalAlpha = 1;
   ctx.fillStyle = "rgba(80, 180, 255, 0.18)";
   ctx.fillRect(px, py, sz, sz);

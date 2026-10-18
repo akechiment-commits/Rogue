@@ -405,7 +405,7 @@ export const TILE_RENDER = {
 };
 
 /* Canvas drawing helper */
-export function drawTile(ctx, ts, idx, dx, dy, sz) {
+export function drawTile(ctx, ts, idx, dx, dy, sz, options = null) {
   const ci = customTileImages[idx];
   if (ci) {
     if (LARGE_FIXTURE_TILE_IDS.has(idx)) {
@@ -443,7 +443,16 @@ export function drawTile(ctx, ts, idx, dx, dy, sz) {
       ctx.fillStyle = td.bg;
       ctx.fillRect(dx, dy, sz, sz);
     }
-    ctx.fillStyle = td.fg;
+    let fg = td.fg;
+    if (options?.monLevel === 2) {
+      fg = (options.monName && options.monName.includes("青")) ? "#40b0ff"
+         : (options.monName && options.monName.includes("緑")) ? "#50e050"
+         : "#ffd700";
+    } else if (options?.monLevel === 3) {
+      fg = (options.monName && (options.monName.includes("黒") || options.monName.includes("影") || options.monName.includes("暗"))) ? "#888899"
+         : "#ff3333";
+    }
+    ctx.fillStyle = fg;
     ctx.font = "bold " + Math.floor(sz * 0.75) + "px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";

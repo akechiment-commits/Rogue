@@ -446,6 +446,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
 
     try {
       await Promise.all(uniqueIds.map(_loadTile));
+      if (name === 'mon1') {
+        const monTiles = [...new Set(MONS.map(m => m.tile).filter(Boolean))];
+        const lvLoaders = [];
+        for (const tid of monTiles) {
+          for (const lv of [2, 3]) {
+            lvLoaders.push(new Promise((res) => {
+              const key = `${tid}_lv${lv}`;
+              const img = new Image();
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width; canvas.height = img.height;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                customTileImages[key] = canvas;
+                res();
+              };
+              img.onerror = () => res();
+              img.src = `/tiles/sprites/mon1/tile_${tid}_lv${lv}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
+            }));
+          }
+        }
+        await Promise.all(lvLoaders);
+      }
       if (name === 'dawnlike') {
         for (const [rawId, fallbackId] of Object.entries(DAWNLIKE_FALLBACKS)) {
           const id = Number(rawId);
