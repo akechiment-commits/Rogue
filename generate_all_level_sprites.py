@@ -49,7 +49,7 @@ NAME_EXCEPTIONS = {
 }
 
 def prefers_dark_for_lv3(mon):
-    name = (mon.get('lv3', {}).get('name') or '').lower()
+    name = ((mon.get('lv3') or {}).get('name') or '').lower()
     base = mon.get('baseKind', '').lower()
     dark_keywords = ['黒', '闇', 'ナイト', '冥', '死', '影', 'デス', 'アンデッド', 'ゴースト', '悪魔', 'デビル', 'シャドウ', '亡霊', 'スケルトン']
     for kw in dark_keywords:
@@ -152,22 +152,51 @@ def process_sprite(tile, baseKind, kind, mon_info):
 
                 # 5. Dragon (Red Dragon / Black Dragon) dedicated handling
                 if baseKind == 'dragon':
-                    is_belly_horn = (ss < 0.32 and vv > 0.58)
-                    is_eye = (35 < x < 65 and 35 < y < 60 and ss < 0.15 and vv < 0.30)
-                    if is_belly_horn:
+                    # Exclude mouth orange skin highlight
+                    is_mouth = (52 <= y <= 58 and 42 <= x <= 54 and ss > 0.40)
+                    is_bh = False
+                    if not is_mouth:
+                        if (0.065 <= hh <= 0.22 and vv > 0.35 and ss < 0.60):
+                            is_bh = True
+                        elif (ss < 0.26 and vv > 0.45):
+                            is_bh = True
+
+                    # Eye glint
+                    is_eye_area = (40 <= x <= 68 and 45 <= y <= 53)
+                    if is_eye_area and ss < 0.15 and vv > 0.85:
+                        arr[y, x, 0] = 255; arr[y, x, 1] = 255; arr[y, x, 2] = 255
+                        continue
+
+                    if is_bh:
                         if level == 2:
-                            hh = 0.13; ss = 0.25; vv = min(1.0, vv * 1.05)
+                            # Level 2: Warm cream/amber belly & horn
+                            bh = 0.11; bs = min(0.40, ss * 0.9); bv = min(1.0, vv * 1.05)
                         elif level == 3:
-                            ss = 0.04; vv = min(1.0, vv * 1.15) # brilliant silver-white!
-                    elif is_eye and level == 3:
-                        hh = 0.0; ss = 0.9; vv = 0.9 # ruby red glowing pupil
-                    else:
-                        if level == 2:
-                            hh = 0.005; ss = min(1.0, ss * 1.25); vv = min(1.0, vv * 1.05)
-                        elif level == 3:
-                            # Rich charcoal obsidian with clear distinction from black outline!
-                            hh = 0.65; ss = 0.18; vv = 0.18 + vv * 0.28
-                            
+                            # Level 3: Brilliant Platinum Silver with full shaded gradient
+                            bh = 0.60; bs = 0.04; bv = 0.40 + (vv ** 1.05) * 0.58
+                        nr, ng, nb = colorsys.hsv_to_rgb(bh, bs, min(1.0, bv))
+                        arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
+                        continue
+
+                    if level == 2:
+                        # Level 2 (Red Dragon): Rich crimson red
+                        hh = 0.005; ss = min(1.0, ss * 1.25); vv = min(1.0, vv * 1.05)
+                    elif level == 3:
+                        # Level 3 (Ancient / Black Dragon): Glossy obsidian with sharp contrast
+                        if vv >= 0.88:
+                            scale_v = 0.42 + (vv - 0.88) * 1.8
+                            scale_s = 0.15
+                            scale_h = 0.60
+                        elif vv >= 0.60:
+                            scale_v = 0.22 + (vv - 0.60) * 0.55
+                            scale_s = 0.20
+                            scale_h = 0.62
+                        else:
+                            scale_v = 0.13 + (vv / 0.60) * 0.10
+                            scale_s = 0.24
+                            scale_h = 0.65
+                        hh, ss, vv = scale_h, scale_s, scale_v
+
                     nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
@@ -282,7 +311,18 @@ def process_sprite(tile, baseKind, kind, mon_info):
                 arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
 
         out_img = Image.fromarray(arr.astype(np.uint8))
-        out_img.save(out_path)
+        abs_out = os.path.abspath(out_path)
+        import time
+        saved = False
+        for attempt in range(5):
+            try:
+                out_img.save(abs_out)
+                saved = True
+                break
+            except OSError:
+                time.sleep(0.05)
+        if not saved:
+            out_img.save(abs_out)
         
     return True
 
