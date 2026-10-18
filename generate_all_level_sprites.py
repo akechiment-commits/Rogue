@@ -150,15 +150,24 @@ def process_sprite(tile, baseKind, kind, mon_info):
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
 
-                # 5. Dragon (Red Dragon / Black Dragon) dedicated handling
+                # 5. Dragon (Red Dragon / Ancient Black-Gold Dragon) dedicated handling
                 if baseKind == 'dragon':
                     # Exclude mouth orange skin highlight
-                    is_mouth = (52 <= y <= 58 and 42 <= x <= 54 and ss > 0.40)
+                    is_mouth = (50 <= y <= 58 and 42 <= x <= 54 and ss > 0.40)
+                    
+                    # Target regions for gold/belly/horn:
+                    in_crest = (12 <= y <= 45 and 40 <= x <= 62)
+                    in_horn_l = (15 <= y <= 38 and 22 <= x <= 36)
+                    in_horn_r = (15 <= y <= 38 and 64 <= x <= 78)
+                    in_belly = (56 <= y <= 86 and 34 <= x <= 68)
+                    in_claws = (y >= 82 and 30 <= x <= 80)
+                    in_gold_region = (in_crest or in_horn_l or in_horn_r or in_belly or in_claws)
+
                     is_bh = False
-                    if not is_mouth:
-                        if (0.065 <= hh <= 0.22 and vv > 0.35 and ss < 0.60):
+                    if not is_mouth and in_gold_region:
+                        if (0.055 <= hh <= 0.24 and vv > 0.35 and ss < 0.65):
                             is_bh = True
-                        elif (ss < 0.26 and vv > 0.45):
+                        elif (ss < 0.30 and vv > 0.40):
                             is_bh = True
 
                     # Eye glint
@@ -172,9 +181,11 @@ def process_sprite(tile, baseKind, kind, mon_info):
                             # Level 2: Warm cream/amber belly & horn
                             bh = 0.11; bs = min(0.40, ss * 0.9); bv = min(1.0, vv * 1.05)
                         elif level == 3:
-                            # Level 3: Brilliant Platinum Silver with full shaded gradient
-                            bh = 0.60; bs = 0.04; bv = 0.40 + (vv ** 1.05) * 0.58
-                        nr, ng, nb = colorsys.hsv_to_rgb(bh, bs, min(1.0, bv))
+                            # Level 3: Radiant Imperial Gold (crest, horns, belly, claws)
+                            bv = 0.50 + (vv ** 1.05) * 0.50
+                            bs = 0.60 + (1.0 - vv) * 0.30
+                            bh = 0.125
+                        nr, ng, nb = colorsys.hsv_to_rgb(bh, min(1.0, bs), min(1.0, bv))
                         arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                         continue
 
@@ -182,9 +193,9 @@ def process_sprite(tile, baseKind, kind, mon_info):
                         # Level 2 (Red Dragon): Rich crimson red
                         hh = 0.005; ss = min(1.0, ss * 1.25); vv = min(1.0, vv * 1.05)
                     elif level == 3:
-                        # Level 3 (Ancient / Black Dragon): Glossy obsidian with sharp contrast
+                        # Level 3 (Ancient Black-Gold Dragon): Glossy obsidian with sharp contrast
                         if vv >= 0.88:
-                            scale_v = 0.42 + (vv - 0.88) * 1.8
+                            scale_v = 0.42 + (vv - 0.88) * 1.6
                             scale_s = 0.15
                             scale_h = 0.60
                         elif vv >= 0.60:
