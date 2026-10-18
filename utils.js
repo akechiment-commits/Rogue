@@ -806,7 +806,7 @@ export function clampDmgFixed(m, damage, isPhysical = false) {
 
 /**
  * 最終被ダメ軽減（防具 ability: dmg_reduce）。
- * HP 代入フックでも使う。メッセージ表示前に使うと表示と実減が一致する。
+ * HP代入フックがHP確定前に1回だけ適用する。
  */
 export function reduceFinalPlayerDamage(p, dmg) {
   if (!p || !Number.isFinite(dmg) || dmg <= 0) return dmg;
@@ -888,6 +888,15 @@ export function flushPlayerGutsMessage(messages, p) {
 }
 
 const playerCapacityHpSetters = new WeakMap();
+const playerFixedHpEffects = new WeakSet();
+
+/* 即死・HP1固定・体力交換は通常ダメージではない。逆転は従来どおり適用する。 */
+export function setPlayerHpForFixedEffect(p, hp) {
+  const nested = playerFixedHpEffects.has(p);
+  playerFixedHpEffects.add(p);
+  try { p.hp = hp; }
+  finally { if (!nested) playerFixedHpEffects.delete(p); }
+}
 
 /* 最大HP補正に伴う現HPの調整は、回復・被ダメージの効果として扱わない。 */
 export function setPlayerHpForCapacityChange(p, hp) {
@@ -942,24 +951,18 @@ export function installPlayerHpReverseHook(p) {
           return;
         }
       }
-      /* 最大HP満タン時の根性：敵の攻撃以外で致死量を受けてもHP1で踏みとどまる。
-         絶対値代入（p.hp=0 / p.hp=1）は既存の即死・1残し処理を優先する。 */
-      if (n < raw && raw >= (Number(this.maxHp) || raw) && n <= 0 && !isEnemyDamageContext(this)) {
+      /* HPを確定する前に被ダメージを軽減する。残HPでは通常ダメージと固定効果を判別しない。 */
+      const fixedEffect = playerFixedHpEffects.has(this);
+      const next = n < raw && !fixedEffect
+        ? raw - reduceFinalPlayerDamage(this, raw - n)
+        : n;
+      /* 最大HP満タン時の根性は軽減後に判定する。即死・HP固定には適用しない。 */
+      if (!fixedEffect && next < raw && raw >= (Number(this.maxHp) || raw) && next <= 0 && !isEnemyDamageContext(this)) {
         raw = 1;
         this._lastHpGutsTriggered = true;
         return;
       }
-      /* 被ダメ軽減：HP が減る代入に適用。
-         p.hp=0 / p.hp=1 のような絶対指定は「即死・1残し」意図なので軽減しない */
-      if (n < raw && hasAbility(this.armor, "dmg_reduce")) {
-        const loss = raw - n;
-        if (loss > 0 && !(n <= 1 && loss > 1)) {
-          const reducedLoss = Math.max(1, Math.floor(loss * 0.9));
-          raw = Math.max(0, raw - reducedLoss);
-          return;
-        }
-      }
-      raw = n;
+      raw = next;
       /* HP0になった瞬間に状態異常を解除する。祭壇の罰など、ダメージ後に
          後続処理が走る場合も、自動ターンの残り物が状態を延長しないようにする。 */
       if (raw <= 0) clearStatusEffectsOnHpZero(this);

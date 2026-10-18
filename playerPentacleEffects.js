@@ -1,3 +1,5 @@
+import { setPlayerHpForFixedEffect } from "./utils.js";
+
 /** 呪われた聖域と雷の魔方陣について、プレイヤー足元の毎ターン効果を解決する。 */
 export function resolvePlayerPentacleEffects(player, dungeon, messages, {
   inMagicSealRoom,
@@ -15,7 +17,7 @@ export function resolvePlayerPentacleEffects(player, dungeon, messages, {
   );
   if (cursedSanctuary && player.hp > 0) {
     player.deathCause = `${cursedSanctuary.name}により`;
-    player.hp = 0;
+    setPlayerHpForFixedEffect(player, 0);
     messages.push(`${cursedSanctuary.name}に触れた！呪いの力で即死した！`);
   }
 

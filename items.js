@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets } from "./monsterGeometry.js";
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { setPlayerHpForFixedEffect, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -2139,7 +2139,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       : _applySoakedFireReduction(rawDmg, p);
     p.deathCause = `${srcLabel}により`;
     if (_oilyMineSurvival) {
-      p.hp = 1;
+      setPlayerHpForFixedEffect(p, 1);
       ml.push(`${srcLabel}！油まみれのためHPが1残った！`);
     } else if (_playerHpOne) {
       if (hasFireResist(p)) {
@@ -2147,7 +2147,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         p.hp -= dmg;
         ml.push(`${srcLabel}！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
       } else {
-        p.hp = Math.min(_playerHpBefore, 1);
+        setPlayerHpForFixedEffect(p, Math.min(_playerHpBefore, 1));
         ml.push(`${srcLabel}！HPが1になった！`);
       }
     } else {
@@ -2546,7 +2546,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           ml.push(`大爆発！${rawDmg}ダメージ！${oilyDamageLabel(dg, p)}`);
           if (p.hp > 0) applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         } else {
-          p.hp = 1;
+          setPlayerHpForFixedEffect(p, 1);
           ml.push(`大爆発！HPが1になった！`);
           applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         }

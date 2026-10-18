@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolvePlayerPentacleEffects } from "../playerPentacleEffects.js";
+import { makePlayer } from "./helpers.js";
 
 function dependencies(overrides = {}) {
   return {
@@ -18,7 +19,7 @@ function dependencies(overrides = {}) {
 
 describe("resolvePlayerPentacleEffects", () => {
   it("呪われた聖域を踏むと雷より先に即死する", () => {
-    const player = { x: 3, y: 3, hp: 40, maxHp: 40 };
+    const player = makePlayer({ x: 3, y: 3, hp: 40, maxHp: 40, armor: { ability: "dmg_reduce" } });
     const dungeon = { pentacles: [
       { name: "呪われた聖域", kind: "sanctuary", cursed: true, x: 3, y: 3 },
       { name: "雷の魔方陣", kind: "thunder_trap", x: 3, y: 3 },

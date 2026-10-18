@@ -1,6 +1,6 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties } from "./equipmentEffects.js";
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { setPlayerHpForFixedEffect, rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft,
@@ -1959,11 +1959,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 自分に振っても交換は起きないが、祝福・呪いの効果は出る */
         if (_vsBless) {
           /* 祝福：「相手のHPを1にする」効果が自分に返ってくる */
-          p.hp = 1;
+          setPlayerHpForFixedEffect(p, 1);
           ml.push("祝力が逆流して自分に！HPが1になった！");
         } else if (_vsCurse) {
           /* 呪い：通常通り自分のHPが1に */
-          p.hp = 1;
+          setPlayerHpForFixedEffect(p, 1);
           ml.push("呪いが自分に返ってきた！HPが1になった！【呪】");
         } else {
           ml.push("何も起こらなかった。");
@@ -1977,14 +1977,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _bossDmg = _magicDamage(bossInstantDeathDamage(target));
           target.hp -= _bossDmg;
           const _oldPlayerHp = p.hp;
-          p.hp = Math.min(p.maxHp, _bossDmg);
+          setPlayerHpForFixedEffect(p, Math.min(p.maxHp, _bossDmg));
           ml.push(`${target.name}は体力交換を跳ね返した！${_bossDmg}ダメージ！プレイヤーのHPが${_oldPlayerHp}→${p.hp}になった！`);
           if (target.hp <= 0) _defeat(target);
           break;
         }
         const _pOldHp = p.hp;
         const _mOldHp = target.hp;
-        p.hp      = Math.min(p.maxHp,      Math.max(1, _mOldHp));
+        setPlayerHpForFixedEffect(p, Math.min(p.maxHp, Math.max(1, _mOldHp)));
         target.hp = Math.min(target.maxHp, Math.max(1, _pOldHp));
         ml.push(`${target.name}と体力を入れ替えた！(自分 ${_pOldHp}→${p.hp}HP)`);
         if (_vsBless) {
@@ -1992,7 +1992,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push(`${target.name}のHPが1になった！`);
         }
         if (_vsCurse) {
-          p.hp = 1;
+          setPlayerHpForFixedEffect(p, 1);
           ml.push("呪いの代償で自分のHPが1になった！【呪】");
         }
         break;
