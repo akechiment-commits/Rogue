@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { installPlayerHpReverseHook, reduceFinalPlayerDamage, hasAbility, withEnemyDamageContext } from "../utils.js";
+import { installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, reduceFinalPlayerDamage, hasAbility, withEnemyDamageContext } from "../utils.js";
 import { MITHRIL_ARMOR_T } from "../items.js";
 import { makePlayer } from "./helpers.js";
 
@@ -39,6 +39,36 @@ describe("dmg_reduce (ミスリル被ダメ軽減)", () => {
     installPlayerHpReverseHook(p);
     p.hp -= 120;
     expect(p.hp).toBe(1);
+  });
+
+  it("HP満タン時の敵攻撃以外の致死ダメージで『しかし根性でHP1で踏みとどまった！』メッセージが出る", () => {
+    const p = makePlayer({ hp: 100, maxHp: 100 });
+    installPlayerHpReverseHook(p);
+    const ml = installPlayerHpMessageHook([], p);
+    p.hp -= 120;
+    ml.push("地雷が大爆発！120ダメージ！");
+    expect(ml).toEqual([
+      "地雷が大爆発！120ダメージ！",
+      "しかし根性でHP1で踏みとどまった！",
+    ]);
+  });
+
+  it("メッセージプッシュがない場合でもflushPlayerGutsMessageで根性メッセージを出せる", () => {
+    const p = makePlayer({ hp: 100, maxHp: 100 });
+    installPlayerHpReverseHook(p);
+    const ml = [];
+    p.hp -= 120;
+    flushPlayerGutsMessage(ml, p);
+    expect(ml).toEqual(["しかし根性でHP1で踏みとどまった！"]);
+  });
+
+  it("満タンでない時は根性メッセージが出ない", () => {
+    const p = makePlayer({ hp: 80, maxHp: 100 });
+    installPlayerHpReverseHook(p);
+    const ml = installPlayerHpMessageHook([], p);
+    p.hp -= 120;
+    ml.push("地雷が大爆発！120ダメージ！");
+    expect(ml).toEqual(["地雷が大爆発！120ダメージ！"]);
   });
 
   it("敵攻撃中は満タン時でも根性が発動しない", () => {

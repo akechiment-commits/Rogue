@@ -860,15 +860,31 @@ export function installPlayerHpMessageHook(messages, p) {
   if (!Array.isArray(messages) || !p || messages._playerHpMessageHook) return messages;
   const rawPush = messages.push.bind(messages);
   Object.defineProperty(messages, "_playerHpMessageHook", { value: true, enumerable: false });
-  messages.push = (...items) => {
-    const effect = p._lastHpEffectForMessage;
-    delete p._lastHpEffectForMessage;
-    const nextItems = effect
-      ? items.map((message) => rewritePlayerHpMessage(message, p, effect))
-      : items;
-    return rawPush(...nextItems);
-  };
+  Object.defineProperty(messages, "push", {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: (...items) => {
+      const effect = p._lastHpEffectForMessage;
+      delete p._lastHpEffectForMessage;
+      const guts = p._lastHpGutsTriggered;
+      delete p._lastHpGutsTriggered;
+      const nextItems = effect
+        ? items.map((message) => rewritePlayerHpMessage(message, p, effect))
+        : [...items];
+      if (guts) {
+        nextItems.push("しかし根性でHP1で踏みとどまった！");
+      }
+      return rawPush(...nextItems);
+    },
+  });
   return messages;
+}
+
+export function flushPlayerGutsMessage(messages, p) {
+  if (!p?._lastHpGutsTriggered || !Array.isArray(messages)) return;
+  delete p._lastHpGutsTriggered;
+  messages.push("しかし根性でHP1で踏みとどまった！");
 }
 
 const playerCapacityHpSetters = new WeakMap();
@@ -930,6 +946,7 @@ export function installPlayerHpReverseHook(p) {
          絶対値代入（p.hp=0 / p.hp=1）は既存の即死・1残し処理を優先する。 */
       if (n < raw && raw >= (Number(this.maxHp) || raw) && n <= 0 && !isEnemyDamageContext(this)) {
         raw = 1;
+        this._lastHpGutsTriggered = true;
         return;
       }
       /* 被ダメ軽減：HP が減る代入に適用。
