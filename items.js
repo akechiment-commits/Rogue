@@ -8913,18 +8913,36 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           ml.push("道具寄せの魔法を唱えたが、引き寄せるアイテムがない。");
           break;
         }
-        const _gatherSet = new Set(_gatherItems);
-        dg.items = (dg.items || []).filter((_item) => !_gatherSet.has(_item));
-        const _gatherFt = new Set();
+        let _gathered = 0;
         for (const _item of _gatherItems) {
-          delete _item.wallEmbedded;
-          const _placed = placeItemAt(dg, p.x, p.y, _item, ml, _gatherFt, 0, p, _item.x, _item.y);
-          if (!_placed && !dg.items.includes(_item) &&
-              !dg.waterItems?.some((_waterItem) => _waterItem.item === _item)) {
-            ml.push(`${resolveItemName(_item)}は引き寄せられなかった！`);
+          /* 置き先を確保してから元の床から外す。周囲にない場合はフロア全体へ逃がす。 */
+          const _freeAt = (x, y, options = {}) =>
+            !isFloorOccupancyBlocked(dg, x, y, { p, ...options }) &&
+            !dg.dimensionalVaults?.some(v => v.x === x && v.y === y);
+          let _spot = DRO.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }))
+            .find(({ x, y }) => _freeAt(x, y, { ignore: _item, allowPlayer: true }));
+          const _nearby = !!_spot;
+          if (!_spot) {
+            const _free = [];
+            for (let y = 1; y < MH - 1; y++) {
+              for (let x = 1; x < MW - 1; x++) {
+                if (_freeAt(x, y)) _free.push({ x, y });
+              }
+            }
+            if (_free.length > 0) _spot = pick(_free);
           }
+          if (!_spot) {
+            ml.push(`${resolveItemName(_item)}はフロアに空きがなく、元の場所に残った。`);
+            continue;
+          }
+          const _ox = _item.x, _oy = _item.y;
+          dg.items = dg.items.filter((_floorItem) => _floorItem !== _item);
+          delete _item.wallEmbedded;
+          placeItemAt(dg, _spot.x, _spot.y, _item, ml, new Set(), 0, p, _ox, _oy);
+          if (_nearby) _gathered++;
+          else ml.push(`${resolveItemName(_item)}は周囲に置けず、フロアの空きマスへ飛んだ！`);
         }
-        ml.push(`${_gatherItems.length}個のアイテムを引き寄せた！`);
+        if (_gathered > 0) ml.push(`${_gathered}個のアイテムを引き寄せた！`);
       }
       break;
     }
