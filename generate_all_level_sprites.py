@@ -6,7 +6,7 @@ from PIL import Image
 
 SPRITE_DIR = r"tiles/sprites/mon1"
 
-with open('scratch_monsters_analysis.json', 'r', encoding='utf-8') as f:
+with open('monsters_data.json', 'r', encoding='utf-8') as f:
     monsters = json.load(f)
 
 # Families that already have separate tiles and images
@@ -41,14 +41,6 @@ NAME_EXCEPTIONS = {
     'stealthrower': {
         2: {'mode': 'dark'},       # 闇盗投士: dark ninja
         3: {'mode': 'dark'}        # 影盗投士: shadow dark ninja
-    },
-    'dragon': {
-        2: {'mode': 'red'},        # レッドドラゴン: deep vibrant red
-        3: {'mode': 'dark_dragon'} # 暗黒竜: dark charcoal black
-    },
-    'icedragon': {
-        2: {'mode': 'blue_dragon'}, # ブルードラゴン: brilliant azure blue
-        3: {'mode': 'gold_cyan'}    # 天界の七竜: celestial gold & cyan
     },
     'sleepingLion': {
         2: {'mode': 'yellow'},      # 黄金獅子
@@ -93,28 +85,25 @@ def process_sprite(tile, baseKind, kind, mon_info):
                 hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
                 
                 # 1. Outline protection
-                if vv < 0.16:
+                if vv < 0.14:
                     continue
                     
                 # 2. Skeleton specific handling
                 if baseKind == 'skeleton':
-                    # Sword blade: x <= 44, y >= 45, low saturation metallic
                     if x <= 44 and y >= 45 and ss < 0.30 and vv > 0.35:
                         ss = 0.04
                         vv = min(1.0, vv * 1.1)
-                    # Shield: y >= 55
                     elif y >= 55 and (0.50 <= hh <= 0.75 or (0.08 <= hh <= 0.20 and ss > 0.5 and x >= 55)):
                         if level == 2:
-                            if 0.50 <= hh <= 0.75: # board -> crimson red
+                            if 0.50 <= hh <= 0.75:
                                 hh = 0.0; ss = 0.85; vv = min(1.0, vv * 1.05)
-                            elif 0.08 <= hh <= 0.20: # cross -> gold
+                            elif 0.08 <= hh <= 0.20:
                                 hh = 0.12; ss = 0.95
                         elif level == 3:
-                            if 0.50 <= hh <= 0.75: # board -> royal purple
+                            if 0.50 <= hh <= 0.75:
                                 hh = 0.78; ss = 0.85; vv = vv * 0.75
-                            elif 0.08 <= hh <= 0.20: # cross -> bright gold
+                            elif 0.08 <= hh <= 0.20:
                                 hh = 0.13; ss = 1.0; vv = min(1.0, vv * 1.1)
-                    # Bones: entire skull and body bones
                     elif vv > 0.20:
                         if level == 2:
                             hh = 0.12; ss = 0.45; vv = min(1.0, vv * 1.05)
@@ -133,10 +122,10 @@ def process_sprite(tile, baseKind, kind, mon_info):
                         if level == 2: hh = 0.14
                         elif level == 3: hh = 0.0; ss = 1.0; vv = 1.0
                     elif is_wings:
-                        if level == 2: hh = 0.59; ss = 0.90; vv = min(1.0, vv * 1.1) # blue wings
-                        elif level == 3: ss = 0.15; vv = vv * 0.45 # charcoal wings
-                    else: # belly
-                        if level == 2: hh = 0.55; ss = 0.20; vv = min(1.0, vv * 1.2) # white/pale belly
+                        if level == 2: hh = 0.59; ss = 0.90; vv = min(1.0, vv * 1.1)
+                        elif level == 3: ss = 0.15; vv = vv * 0.45
+                    else:
+                        if level == 2: hh = 0.55; ss = 0.20; vv = min(1.0, vv * 1.2)
                         elif level == 3: hh = 0.75; ss = 0.35; vv = vv * 0.55
                         
                     nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
@@ -161,7 +150,66 @@ def process_sprite(tile, baseKind, kind, mon_info):
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
 
-                # 5. GENERAL SEGMENTATION FOR ALL OTHER MONSTERS:
+                # 5. Dragon (Red Dragon / Black Dragon) dedicated handling
+                if baseKind == 'dragon':
+                    is_belly_horn = (ss < 0.32 and vv > 0.58)
+                    is_eye = (35 < x < 65 and 35 < y < 60 and ss < 0.15 and vv < 0.30)
+                    if is_belly_horn:
+                        if level == 2:
+                            hh = 0.13; ss = 0.25; vv = min(1.0, vv * 1.05)
+                        elif level == 3:
+                            ss = 0.04; vv = min(1.0, vv * 1.15) # brilliant silver-white!
+                    elif is_eye and level == 3:
+                        hh = 0.0; ss = 0.9; vv = 0.9 # ruby red glowing pupil
+                    else:
+                        if level == 2:
+                            hh = 0.005; ss = min(1.0, ss * 1.25); vv = min(1.0, vv * 1.05)
+                        elif level == 3:
+                            # Rich charcoal obsidian with clear distinction from black outline!
+                            hh = 0.65; ss = 0.18; vv = 0.18 + vv * 0.28
+                            
+                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
+                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
+                    continue
+
+                # 6. Ice Dragon (Blue Dragon / Celestial Blue Dragon) dedicated handling
+                if baseKind == 'icedragon':
+                    # A. Ice Breath Effect: keep 100% original crystal ice breath!
+                    if x <= 38 and 0.49 <= hh <= 0.56 and y >= 34:
+                        continue
+                    # B. Ice Horns, dorsal spikes, claws, belly scales (White / diamond ice crystals)
+                    is_ice_crystal_or_belly = (ss < 0.28 and vv > 0.65)
+                    if is_ice_crystal_or_belly:
+                        if level == 2:
+                            hh = 0.55; ss = 0.10; vv = min(1.0, vv * 1.05)
+                        elif level == 3:
+                            hh = 0.68; ss = 0.08; vv = min(1.0, vv * 1.1)
+                        nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
+                        arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
+                        continue
+                    # C. Red mouth/tongue
+                    if 38 < x < 48 and 53 < y < 63 and (hh < 0.05 or hh > 0.95) and ss > 0.4:
+                        continue
+                    # D. Wing membrane
+                    if x > 68 and 18 <= y <= 65 and 0.50 <= hh <= 0.70 and ss < 0.45:
+                        if level == 2:
+                            hh = 0.56; ss = 0.35; vv = min(1.0, vv * 1.05)
+                        elif level == 3:
+                            hh = 0.60; ss = 0.45; vv = min(1.0, vv * 1.05)
+                        nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
+                        arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
+                        continue
+                    # E. Body scales
+                    if level == 2:
+                        hh = 0.58; ss = min(1.0, ss * 1.25); vv = min(1.0, vv * 1.02)
+                    elif level == 3:
+                        hh = 0.62; ss = min(1.0, ss * 1.35); vv = min(1.0, vv * 0.95)
+                        
+                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
+                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
+                    continue
+
+                # 7. GENERAL SEGMENTATION FOR ALL OTHER MONSTERS:
                 
                 # A. Metal / Blade weapon protection
                 is_metal = (ss < 0.18 and vv > 0.38)
@@ -183,18 +231,7 @@ def process_sprite(tile, baseKind, kind, mon_info):
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
 
-                # C. Glowing Eyes / Gems
-                is_eye_gem = (ss > 0.70 and vv > 0.80 and (0.05 <= hh <= 0.20 or 0.45 <= hh <= 0.65))
-                if is_eye_gem and y < h * 0.55:
-                    if level == 2:
-                        hh = 0.13
-                    elif level == 3:
-                        hh = 0.0; ss = 1.0; vv = 1.0
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
-                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
-
-                # D. Specific Named Exception handling
+                # C. Specific Named Exception handling
                 if exc:
                     mode = exc['mode']
                     if mode == 'green_slime':
@@ -205,17 +242,12 @@ def process_sprite(tile, baseKind, kind, mon_info):
                         hh = 0.04; ss = 0.85; vv = vv * 0.85
                     elif mode == 'corrosive':
                         hh = 0.01; ss = 0.95; vv = vv * 0.75
-                    elif mode == 'blue_dragon':
-                        hh = 0.60; ss = min(1.0, ss * 1.2); vv = min(1.0, vv * 1.1)
-                    elif mode == 'gold_cyan':
-                        if vv > 0.6: hh = 0.13; ss = 0.95; vv = min(1.0, vv * 1.15)
-                        else: hh = 0.52; ss = 0.75
                     elif mode == 'gold':
                         hh = 0.12; ss = min(1.0, ss * 1.3); vv = min(1.0, vv * 1.15)
                     elif mode == 'adamant':
                         if vv > 0.65: hh = 0.13; ss = 0.95; vv = min(1.0, vv * 1.15)
                         else: hh = 0.01; ss = 0.85; vv = vv * 0.85
-                    elif mode == 'dark' or mode == 'dark_dragon':
+                    elif mode == 'dark':
                         ss = max(0.08, ss * 0.35)
                         vv = max(0.15, vv * 0.40)
                     elif mode == 'red':
@@ -227,7 +259,7 @@ def process_sprite(tile, baseKind, kind, mon_info):
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
 
-                # E. Body / Clothes General Transformation:
+                # D. Body / Clothes General Transformation:
                 if level == 2:
                     is_clothing = (0.50 <= hh <= 0.80 and ss > 0.3)
                     if is_clothing and kind == 'humanoid':
@@ -236,11 +268,8 @@ def process_sprite(tile, baseKind, kind, mon_info):
                         hh = 0.125; ss = min(1.0, ss * 1.18); vv = min(1.0, vv * 1.06)
                 elif level == 3:
                     if is_dark_lv3:
-                        if vv > 0.75 and ss > 0.4:
-                            hh = 0.00; ss = 1.0; vv = 1.0
-                        else:
-                            ss = max(0.08, ss * 0.28)
-                            vv = max(0.14, vv * 0.38)
+                        ss = max(0.08, ss * 0.28)
+                        vv = max(0.14, vv * 0.38)
                     else:
                         is_clothing = (0.50 <= hh <= 0.80 and ss > 0.3)
                         if is_clothing and kind == 'humanoid':
@@ -267,4 +296,4 @@ for mon in monsters:
     if process_sprite(tile, baseKind, kind, mon):
         count += 1
 
-print(f"\nSuccessfully generated level 2 and level 3 sprites for {count} monster families!")
+print(f"\nSuccessfully re-generated level 2 and level 3 sprites for {count} monster families!")
