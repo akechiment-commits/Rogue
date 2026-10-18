@@ -188,7 +188,7 @@ export const TILE_RENDER = {
   8: { bg: null, fg: "#40a070", ch: "g" },
   9: { bg: null, fg: "#c0c0b0", ch: "s" },
   10: { bg: null, fg: "#60a050", ch: "z" },
-  11: { bg: null, fg: "#90a040", ch: "O" },
+  11: { bg: null, fg: "#e07030", ch: "k" },
   12: { bg: null, fg: "#40b040", ch: "~" },
   13: { bg: null, fg: "#806030", ch: "T" },
   14: { bg: null, fg: "#f04020", ch: "D" },
@@ -212,6 +212,7 @@ export const TILE_RENDER = {
   126: { bg: null, fg: "#60ff90", ch: "^" },
   127: { bg: null, fg: "#dd66ff", ch: "^" },
   132: { bg: null, fg: "#20c0ff", ch: "^" },
+  133: { bg: null, fg: "#80e0a0", ch: "^" }, /* 転倒の罠 */
   27: { bg: null, fg: "#804040", ch: "^" },
   28: { bg: null, fg: "#909090", ch: "^" },
   29: { bg: null, fg: "#4080f0", ch: "^" },
@@ -367,22 +368,25 @@ export const TILE_RENDER = {
   178: { bg: null, fg: "#80b0ff", ch: "S" }, /* 眠り術師 */
   179: { bg: null, fg: "#a0a0a0", ch: "G" }, /* ガーゴイル */
   180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
-  223: { bg: null, fg: "#b5b867", ch: "魚" }, /* まずい魚系 */
-  224: { bg: null, fg: "#c288e8", ch: "獣" }, /* キングベヒんもス */
-  225: { bg: null, fg: "#70a060", ch: "柳" }, /* お化け柳 */
-  226: { bg: null, fg: "#90b85a", ch: "旅" }, /* 冒険者・女性剣士 */
-  227: { bg: null, fg: "#60a8d0", ch: "旅" }, /* 冒険者・女性術師 */
-  228: { bg: null, fg: "#d07050", ch: "旅" }, /* 冒険者・男性剣士 */
-  229: { bg: null, fg: "#c0a050", ch: "旅" }, /* 冒険者・男性弓使い */
-  230: { bg: null, fg: "#40d0a0", ch: "忍" }, /* ロキソ忍系 */
-  231: { bg: null, fg: "#e8c060", ch: "獅" }, /* 眠れる獅子系 */
-  234: { bg: null, fg: "#d99a55", ch: "蟹" }, /* ヤドカリ壺荒らし */
-  235: { bg: null, fg: "#e6b870", ch: "蟹" }, /* ヤドカリ */
-  236: { bg: null, fg: "#70f0d8", ch: "風" }, /* シルフ系 */
-  237: { bg: null, fg: "#ff682e", ch: "炎" }, /* 炎の料理人 */
-  238: { bg: null, fg: "#e04040", ch: "茸" }, /* ドクキノコ */
-  239: { bg: null, fg: "#a050d0", ch: "茸" }, /* ネムリキノコ */
-  240: { bg: null, fg: "#e08020", ch: "茸" }, /* マダラキノコ */
+  204: { bg: null, fg: "#60c040", ch: "l" }, /* スネークマン */
+  205: { bg: null, fg: "#40a0ff", ch: "k" }, /* 竜騎士 */
+  206: { bg: null, fg: "#ff60a0", ch: "p" }, /* 危険な花びら */
+  223: { bg: null, fg: "#b5b867", ch: "f" }, /* まずい魚系 */
+  224: { bg: null, fg: "#c288e8", ch: "B" }, /* キングベヒんもス */
+  225: { bg: null, fg: "#70a060", ch: "W" }, /* お化け柳 */
+  226: { bg: null, fg: "#90b85a", ch: "A" }, /* 冒険者・女性剣士 */
+  227: { bg: null, fg: "#60a8d0", ch: "A" }, /* 冒険者・女性術師 */
+  228: { bg: null, fg: "#d07050", ch: "A" }, /* 冒険者・男性剣士 */
+  229: { bg: null, fg: "#c0a050", ch: "A" }, /* 冒険者・男性弓使い */
+  230: { bg: null, fg: "#40d0a0", ch: "n" }, /* ロキソ忍系 */
+  231: { bg: null, fg: "#e8c060", ch: "L" }, /* 眠れる獅子系 */
+  234: { bg: null, fg: "#d99a55", ch: "c" }, /* ヤドカリ壺荒らし */
+  235: { bg: null, fg: "#e6b870", ch: "c" }, /* ヤドカリ */
+  236: { bg: null, fg: "#70f0d8", ch: "s" }, /* シルフ系 */
+  237: { bg: null, fg: "#ff682e", ch: "C" }, /* 炎の料理人 */
+  238: { bg: null, fg: "#e04040", ch: "m" }, /* ドクキノコ */
+  239: { bg: null, fg: "#a050d0", ch: "m" }, /* ネムリキノコ */
+  240: { bg: null, fg: "#e08020", ch: "m" }, /* マダラキノコ */
   241: { bg: null, fg: "#60e060", ch: "D" }, /* マッチョドラゴン */
   242: { bg: null, fg: "#ff4040", ch: "D" }, /* 筋肉竜 */
   243: { bg: null, fg: "#ffd700", ch: "D" }, /* 筋骨隆々竜 */
