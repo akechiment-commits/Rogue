@@ -399,6 +399,9 @@ export const TILE_RENDER = {
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
   214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */
   215: { bg: null, fg: "#ff3344", ch: "E" }, /* 土下座鈴木右衛門 */
+  4001: { bg: null, fg: "#f050e0", ch: "!" }, /* 薬カテゴリ */
+  4002: { bg: null, fg: "#88aaff", ch: "!" }, /* 空き瓶 */
+  4003: { bg: null, fg: "#a060ff", ch: "◇" }, /* ペンカテゴリ */
 };
 
 /* Canvas drawing helper */
