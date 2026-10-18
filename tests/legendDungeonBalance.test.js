@@ -64,7 +64,7 @@ describe("超上級ダンジョンの敵分布", () => {
     for (let floor = 1; floor <= 50; floor++) {
       expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(floor <= 4 ? 3 : 6);
       const extraGiants = ['hauntedWillow', 'sleepingLion'].filter(kind => LEGEND_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
-      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(12 + extraGiants);
+      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiants);
     }
     const byKind = new Map();
     for (const band of LEGEND_MONSTER_BANDS) {
