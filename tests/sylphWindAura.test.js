@@ -43,7 +43,7 @@ describe("シルフ系（風まといモンスター）", () => {
     expect(sylphBase.levels.map((l) => l.name)).toEqual(["ハイシルフ", "シルフィード"]);
 
     expect(TILE_NAMES[236]).toBe("sylph");
-    expect(TILE_RENDER[236]?.ch).toBe("風");
+    expect(TILE_RENDER[236]?.ch).toBe("s");
     expect(MONSTER_SHEET_MAP[236]).toEqual([9, 6]);
     expect(DAWNLIKE_FALLBACKS[236]).toBe(54);
 
