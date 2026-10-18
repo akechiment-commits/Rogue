@@ -4770,8 +4770,38 @@ registerMonsterRuntime({
 function playerCloneAI(m, dg, pl, ml, opts = {}) {
   const _moveOnly = !!opts.moveOnly;
   const _attackOnly = !!opts.attackOnly;
-  if (!m.isPlayerClone || m.hp <= 0 || (m.sleepTurns || 0) > 0 || m.paralyzed ||
-      (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0) return;
+  if (!m.isPlayerClone || m.hp <= 0) return;
+  /* 行動不能でも時計は進める。攻撃フェーズでは二重に減らさない。 */
+  for (const [key, message] of [["sleepTurns", "の睡眠が解けた！"], ["knockdownTurns", "が起き上がった！"]]) {
+    if ((m[key] || 0) <= 0) continue;
+    if (!_attackOnly) {
+      m[key] = Math.max(0, m[key] - 1);
+      if (m[key] === 0) {
+        ml.push(`${m.name}${message}`);
+        m._movedThisTurn = true;
+      }
+    }
+    return;
+  }
+  if (m.paralyzed) {
+    if (m._paralyzeHp != null && m.hp < m._paralyzeHp) {
+      m.paralyzed = false;
+      m._paralyzeHp = null;
+      m.paralyzeTurns = 0;
+      m.paralyzeHits = 0;
+      m._movedThisTurn = true;
+      ml.push(`${m.name}はダメージで金縛りが解けた！`);
+    }
+    return;
+  }
+  if ((m.immobileTurns || 0) > 0 && !_attackOnly) {
+    m.immobileTurns = Math.max(0, m.immobileTurns - 1);
+    if (m.immobileTurns === 0) {
+      ml.push(`${m.name}の移動封じが解けた！`);
+      m._movedThisTurn = true;
+      return;
+    }
+  }
   m.turnAttacks = m.turnAttacks || 0;
 
   const _targets = (dg.monsters || []).filter((other) =>
@@ -4795,6 +4825,8 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
     return;
   }
   if (_attackOnly) return;
+
+  if ((m.immobileTurns || 0) > 0) return;
 
   const _followTarget = _target || (chebyshevDistance(m, pl) > 2 ? pl : null);
   if (!_followTarget) return;
