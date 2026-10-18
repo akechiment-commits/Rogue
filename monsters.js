@@ -4911,7 +4911,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   /* 状態異常防止：毎ターンカウントダウン */
-  if ((m.statusImmune || 0) > 0) {
+  if ((m.statusImmune || 0) > 0 && !_attackOnly) {
     m.statusImmune = Math.max(0, m.statusImmune - 1);
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }

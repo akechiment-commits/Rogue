@@ -3,8 +3,32 @@ import { isStatusImmune, blockPlayerStatus } from "../items.js";
 import { fireTrapPlayer } from "../traps.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
+import { monsterAI } from "../monsters.js";
 
 describe("statusImmune (状態防止)", () => {
+  it.each([1, 2, 3])("敵の状態防止は%s回行動でも移動・攻撃で二重に減らさない", (actions) => {
+    const monster = { id: "immune", name: "敵", x: 6, y: 5, hp: 100, maxHp: 100,
+      atk: 1, def: 0, speed: actions, aware: true, statusImmune: 10 };
+    const player = makePlayer();
+    const dungeon = makeEmptyDg({ monsters: [monster], rooms: [] });
+    for (let i = 0; i < actions; i++) monsterAI(monster, dungeon, player, [], { moveOnly: true });
+    expect(monster.statusImmune).toBe(10 - actions);
+    for (let i = 0; i < actions; i++) monsterAI(monster, dungeon, player, [], { attackOnly: true });
+    expect(monster.statusImmune).toBe(10 - actions);
+  });
+
+  it("状態防止の解除は移動フェーズで1回だけ通知する", () => {
+    const monster = { id: "immune", name: "敵", x: 6, y: 5, hp: 100, maxHp: 100,
+      atk: 1, def: 0, speed: 1, aware: true, statusImmune: 1 };
+    const player = makePlayer();
+    const dungeon = makeEmptyDg({ monsters: [monster], rooms: [] });
+    const messages = [];
+    monsterAI(monster, dungeon, player, messages, { moveOnly: true });
+    monsterAI(monster, dungeon, player, messages, { attackOnly: true });
+    expect(monster.statusImmune).toBe(0);
+    expect(messages.filter(m => m === "敵の状態防止が切れた！")).toHaveLength(1);
+  });
+
   it("isStatusImmune は statusImmune>0 で true", () => {
     const p = makePlayer({ statusImmune: 50 });
     const ml = [];
