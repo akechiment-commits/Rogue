@@ -1266,7 +1266,7 @@ export const MONS = [
     ],
   },
   /* ===== ものまね師：隣接キャラの特技を模倣 ===== */
-  { name: "ものまね師",   hp: 34,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 167, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 17 }, advanced: { min: 12, max: 24 } },
+  { name: "ものまね師",   hp: 34,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 248, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 17 }, advanced: { min: 12, max: 24 } },
     desc: "隣の敵の特技をまねてくる。隣接しているとき高確率で特技を使う。",
     levels: [
       { name: "ものまね名優",     hp: 55,  atk: 24, def: 9,  exp: 115, dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 16, max: 26 } } },

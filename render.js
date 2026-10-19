@@ -167,6 +167,7 @@ export const TILE_NAMES = {
   245: "manaeater_lv2",
   246: "manaeater_lv3",
   247: "potionthrower",
+  248: "mimic",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -355,7 +356,7 @@ export const TILE_RENDER = {
   164: { bg: null, fg: "#ff4466", ch: "i" }, /* インプ */
   165: { bg: null, fg: "#ffe060", ch: "*" }, /* スターライト */
   166: { bg: null, fg: "#c060ff", ch: "M" }, /* 魔法反射師 */
-  167: { bg: null, fg: "#e0e0e0", ch: "m" }, /* ものまね師 */
+  167: { bg: null, fg: "#d0a050", ch: "M" }, /* アイテムモドキ */
   168: { bg: null, fg: "#ff8040", ch: "C" }, /* 突進角獣 */
   169: { bg: null, fg: "#d040d0", ch: "h" }, /* ほっちもぺ */
   170: { bg: null, fg: "#a06020", ch: "t" }, /* コソドロ */
@@ -395,6 +396,7 @@ export const TILE_RENDER = {
   245: { bg: null, fg: "#ba68c8", ch: "M" }, /* マナドレイナー */
   246: { bg: null, fg: "#e040fb", ch: "M" }, /* マナヴォイド */
   247: { bg: null, fg: "#60d060", ch: "P" }, /* 薬師 */
+  248: { bg: null, fg: "#e0e0e0", ch: "m" }, /* ものまね師 */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
