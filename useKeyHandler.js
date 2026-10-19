@@ -1,3 +1,4 @@
+import { applyEquipmentUpgradeScroll } from "./equipmentScrollEffects.js";
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
@@ -451,30 +452,8 @@ export function useKeyHandler({
             } else { _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`; }
             }
           } else if (identifyMode.mode === 'weapon_up' || identifyMode.mode === 'armor_up') {
-            /* ===== 武器強化・防具強化の巻物 ===== */
-            const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-            const _gain = identifyMode.blessed ? 2 : identifyMode.cursed ? -1 : 1;
-            const _sfx = identifyMode.blessed ? "【祝】" : identifyMode.cursed ? "【呪】" : "";
-            const _isValidUpTarget = identifyMode.mode === "weapon_up"
-              ? (_selIt.type === "weapon" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)))
-              : (_selIt.type === "armor" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)));
-            if (_isValidUpTarget) {
-              const _bef = _selIt.plus || 0;
-              setPlayerItemProperties(sr.current.player, _selIt, { plus: _bef + _gain });
-              const _glow = _gain > 0 ? "輝いた" : "くすんだ";
-              _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
-              if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
-            } else if (_selIt.type === "ring") {
-              const _bef = _selIt.plus || 0;
-              setPlayerItemProperties(sr.current.player, _selIt, { plus: _bef + _gain });
-              const _glow = _gain > 0 ? "輝いた" : "くすんだ";
-              _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
-              if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
-            } else {
-              _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
-            }
-            /* 巻物の削除は下の共通処理（identifyMode.scrollIdx）に任せる。
-               ここで先に削除すると scrollIdx がずれて別アイテムまで消える二重削除バグが起きる。 */
+            _msgResult = applyEquipmentUpgradeScroll(_p_id, _selIt, identifyMode,
+              itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
           } else if (identifyMode.mode === 'bless') {
             if (_selIt.type === 'pot') {
               _selIt.capacity = (_selIt.capacity ?? 1) + 1;

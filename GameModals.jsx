@@ -1,3 +1,4 @@
+import { applyEquipmentUpgradeScroll } from "./equipmentScrollEffects.js";
 import { monsterBodySize, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
@@ -1350,45 +1351,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         _msgResult = "変換できるアイテムがなかった。";
       }
     } else if (mode.mode === 'weapon_up' || mode.mode === 'armor_up') {
-      /* ===== 武器強化・防具強化の巻物 ===== */
-      const _p_up = sr.current.player;
-      const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-      const _gain = mode.blessed ? 2 : mode.cursed ? -1 : 1;
-      const _sfx = mode.blessed ? "【祝】" : mode.cursed ? "【呪】" : "";
-      const _isValidUpTarget = mode.mode === "weapon_up"
-        ? (_selIt.type === "weapon" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)))
-        : (_selIt.type === "armor" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)));
-      if (_isValidUpTarget) {
-        const _bef = _selIt.plus || 0;
-        /* 武器強化の巻物による特殊変化（通常5%/祝福10%/呪い20%） */
-        const _tChance = mode.blessed ? 0.10 : mode.cursed ? 0.20 : 0.05;
-        const _transformT = mode.mode === 'weapon_up'
-          ? (_selIt.name === "ロングソード"                                  ? EXCALIBUR_T
-           : _selIt.name === "短剣"                                          ? CAT_CLAW_T
-           : (_selIt.name === "バトルアクス" || _selIt.name === "戦神の斧") ? GOLDEN_AXE_T
-           : null)
-          : null;
-        if (_transformT && Math.random() < _tChance) {
-          const _oldName = _selIt.name;
-          const _oldAbs = [...new Set([...(_selIt.abilities || []), ...(_selIt.ability ? [_selIt.ability] : [])])].filter(Boolean);
-          Object.assign(_selIt, { ..._transformT, id: _selIt.id, plus: Math.max(0, _bef) });
-          const _newAbs = [...new Set([..._oldAbs, _transformT.ability])];
-          _selIt.abilities = _newAbs; _selIt.ability = _newAbs[0];
-          _selIt.fullIdent = true; _selIt.bcKnown = true;
-          const _transformMsg = _transformT === EXCALIBUR_T  ? "聖なる光を放ち...エクスカリバーに変化した！"
-                              : _transformT === CAT_CLAW_T   ? "鋭い輝きを放ち...猫の爪に変化した！"
-                                                             : "黄金の輝きを放ち...ゴールデンアクスに変化した！";
-          _msgResult = `${_oldName}が${_transformMsg}${_sfx}`;
-        } else {
-          setPlayerItemProperties(sr.current.player, _selIt, { plus: _bef + _gain });
-          const _glow = _gain > 0 ? "輝いた" : "くすんだ";
-          _msgResult = `${_selItDN}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
-          if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
-        }
-      } else {
-        _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
-      }
-      /* 巻物の消費は末尾の共通処理で1回だけ行う。先に消すと次の所持品まで消える。 */
+      _msgResult = applyEquipmentUpgradeScroll(sr.current.player, _selIt, mode, _selItDN);
     } else if (mode.mode === 'forge_item') {
       /* ===== 錬成の巻物 ===== */
       if (_selIt.type !== "weapon" && _selIt.type !== "armor") {

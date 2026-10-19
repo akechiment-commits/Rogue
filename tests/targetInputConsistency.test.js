@@ -118,3 +118,25 @@ describe.each(inputs)("複製の新品生成: %s", input => {
     expect(copy).toMatchObject({ charges: source.charges, blessed: true, cursed: false });
   });
 });
+
+describe.each(inputs)("装備強化の入力一致: %s", input => {
+  it.each([[{}, 0.049, true], [{}, 0.05, false], [{ blessed: true }, 0.099, true],
+    [{ blessed: true }, 0.10, false], [{ cursed: true }, 0.199, true], [{ cursed: true }, 0.20, false]])(
+    "祝呪%j・乱数%sの特殊変化=%s", (modifiers, random, transforms) => {
+      vi.mocked(Math.random).mockReturnValue(random);
+      const source = ITEMS.find(i => i.name === "ロングソード");
+      const { target } = choose(input, { ...source, plus: 3, abilities: ["bane_dragon"] }, "weapon_up", modifiers);
+      expect(target.name).toBe(transforms ? "エクスカリバー" : "ロングソード");
+      expect(target.plus).toBe(transforms ? 3 : 3 + (modifiers.blessed ? 2 : modifiers.cursed ? -1 : 1));
+      expect(target.abilities).toContain("bane_dragon");
+    },
+  );
+  it.each([["短剣", "猫の爪"], ["バトルアクス", "ゴールデンアクス"]])(
+    "%sも同じ条件で%sへ特殊変化する", (name, expected) => {
+      vi.mocked(Math.random).mockReturnValue(0);
+      const source = ITEMS.find(i => i.name === name);
+      const { target } = choose(input, source, "weapon_up");
+      expect(target.name).toBe(expected);
+    },
+  );
+});
