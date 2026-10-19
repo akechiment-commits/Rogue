@@ -27,7 +27,7 @@ NAME_EXCEPTIONS = {
         3: {'mode': 'corrosive'}   # 錆喰い蟲: dark corrosive crimson
     },
     'serpent': {
-        2: {'mode': 'yellow'},      # スパークヘビ: electric amber/yellow + white belly
+        2: {'mode': 'yellow'},      # スパークヘビ: electric amber/yellow
         3: {'mode': 'dark'}        # 暗黒ヘビ: obsidian pitch black
     },
     'gargoyle': {
@@ -39,7 +39,7 @@ NAME_EXCEPTIONS = {
         3: {'mode': 'dark'}        # 草: shadow grass ninja
     },
     'sleepingLion': {
-        2: {'mode': 'lion_lv2'},   # 眠れる大獅子: golden lion + cream muzzle/belly
+        2: {'mode': 'lion_lv2'},   # 眠れる大獅子: golden lion
         3: {'mode': 'red'}         # 眠れる赤獅子: crimson mane
     }
 }
@@ -69,158 +69,82 @@ def process_sprite(tile, baseKind, kind, mon_info):
         out_path = os.path.join(SPRITE_DIR, f"tile_{tile}_lv{level}.png")
         arr = arr_orig.copy()
         
-        exc = NAME_EXCEPTIONS.get(baseKind, {}).get(level)
-        is_dark_lv3 = (level == 3 and prefers_dark_for_lv3(mon_info))
-        
-        for y in range(h):
-            for x in range(w):
-                if arr[y, x, 3] < 12:
-                    continue # transparent
+        # 1. Tiger (trapthrower: tile 149) - Dedicated smooth anti-aliased shift
+        if baseKind == 'trapthrower':
+            for y in range(h):
+                for x in range(w):
+                    if arr[y, x, 3] < 10:
+                        continue
+                    r, g, b = arr[y, x, :3] / 255.0
+                    hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
                     
-                r, g, b = arr[y, x, :3] / 255.0
-                hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
-                
-                # 1. Outline protection
-                if vv < 0.12:
-                    continue
+                    fur_factor = float(np.clip((vv - 0.22) / 0.28, 0.0, 1.0))
                     
-                # 2. Tiger (trapthrower: tile 149) dedicated handling
-                if baseKind == 'trapthrower':
-                    is_dark_stripe = (vv < 0.32 or (vv < 0.45 and ss > 0.65 and hh < 0.09))
-                    is_ivory = (ss < 0.38 and vv > 0.65)
-                    is_coin = (x >= 82 and y <= 68 and 0.08 <= hh <= 0.16 and ss > 0.4)
-                    is_eye_area = (48 <= x <= 76 and 42 <= y <= 56)
-
                     if level == 2:
-                        # Level 2: "ずっと見てタイガー" -> White Tiger (白虎 / サファイアアイ)
-                        if is_dark_stripe:
-                            hh = 0.60; ss = 0.22; vv = max(0.12, vv * 0.75)
-                        elif is_coin:
-                            hh = 0.58; ss = 0.06; vv = min(1.0, vv * 1.1)
-                        elif is_ivory:
-                            hh = 0.58; ss = 0.03; vv = min(1.0, 0.88 + vv * 0.12)
-                        elif is_eye_area and (ss > 0.4 or (0.45 <= hh <= 0.70)):
-                            # Vivid blue/emerald eye
-                            hh = 0.58; ss = 0.85; vv = 0.95
+                        # White Tiger (白虎): Smooth desaturation of fur, keeping sharp dark stripes & outlines
+                        if 0.04 <= hh <= 0.18:
+                            new_h = 0.58 # Cool ice tint
+                            new_s = ss * (1.0 - fur_factor * 0.88)
+                            new_v = vv + (1.0 - vv) * 0.30 * fur_factor
                         else:
-                            hh = 0.58; ss = 0.08; vv = min(1.0, 0.68 + vv * 0.32)
+                            new_h = hh
+                            new_s = ss * (1.0 - fur_factor * 0.80)
+                            new_v = vv
                     elif level == 3:
-                        # Level 3: "よく頑張っタイガー" -> Shadow Tiger (歴戦の漆黒虎 × 黄金ストライプ × 紅蓮アイ)
-                        if is_coin:
-                            hh = 0.125; ss = 0.95; vv = 1.0
-                        elif is_eye_area and (ss > 0.4 or vv > 0.5):
-                            # Blazing ruby eye
-                            hh = 0.01; ss = 0.95; vv = 1.0
-                        elif is_dark_stripe:
-                            # Shining Imperial Gold Stripes!
-                            hh = 0.125; ss = 0.95; vv = min(1.0, 0.55 + vv * 1.4)
-                        elif is_ivory:
-                            # Soft warm champagne highlights on belly & muzzle
-                            hh = 0.12; ss = 0.35; vv = min(1.0, vv * 1.05)
+                        # Crimson Tiger (紅蓮猛虎): Smooth hue shift to deep crimson
+                        if 0.04 <= hh <= 0.18:
+                            new_h = 0.005 # Crimson red
+                            new_s = min(1.0, ss * 1.15)
+                            new_v = vv
                         else:
-                            # Deep obsidian fur
-                            hh = 0.65; ss = 0.15; vv = 0.14 + (vv ** 1.3) * 0.22
+                            new_h = hh
+                            new_s = ss
+                            new_v = vv
                             
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
+                    nr, ng, nb = colorsys.hsv_to_rgb(new_h, new_s, new_v)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
+                    
+            out_img = Image.fromarray(arr.astype(np.uint8))
+            out_img.save(os.path.abspath(out_path))
+            continue
 
-                # 3. Golem (golem: tile 57 & timeoutPunisher) dedicated handling
-                if baseKind in ('golem', 'timeoutPunisher'):
-                    is_eye_or_core = (38 <= y <= 50 and 52 <= x <= 72 and vv > 0.40 and ss < 0.28)
-                    is_highlight = (vv > 0.82)
-
+        # 2. Golem (golem: tile 57 & timeoutPunisher) - Dedicated smooth metallic tone
+        if baseKind in ('golem', 'timeoutPunisher'):
+            for y in range(h):
+                for x in range(w):
+                    if arr[y, x, 3] < 10:
+                        continue
+                    r, g, b = arr[y, x, :3] / 255.0
+                    hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
+                    
                     if level == 2:
-                        # Level 2: "ゴーレムLv2" -> Bronze / Heavy Metal Golem (青銅・黄銅ゴーレム × エメラルドコア)
-                        if is_eye_or_core and (40 <= y <= 46 and 55 <= x <= 68):
-                            # Glowing emerald nucleus
-                            hh = 0.40; ss = 0.95; vv = 1.0
-                        elif is_highlight:
-                            # Polished brass / gold highlight
-                            hh = 0.12; ss = 0.55; vv = 0.98
-                        else:
-                            # Heavy bronze / antique copper
-                            hh = 0.105; ss = 0.60 + (1.0 - vv) * 0.20; vv = min(1.0, 0.28 + vv * 0.68)
+                        # Bronze / Antique Copper: smooth saturation enhancement
+                        new_h = 0.105
+                        new_s = min(0.70, ss * 2.8)
+                        new_v = vv
                     elif level == 3:
-                        # Level 3: "ゴーレムーガ" -> Obsidian / Magma Golem (黒曜石ゴーレム × 紅蓮マグマコア)
-                        if is_eye_or_core:
-                            # Blazing crimson magma core & eye
-                            hh = 0.01; ss = 0.98; vv = 1.0
-                        elif is_highlight:
-                            # Sharp crystal obsidian edge
-                            hh = 0.60; ss = 0.08; vv = 0.65
-                        else:
-                            # Obsidian pitch dark stone
-                            hh = 0.65; ss = 0.12; vv = 0.15 + (vv ** 1.3) * 0.25
-
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
-                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
-
-                # 4. Skeleton specific handling
-                if baseKind == 'skeleton':
-                    if x <= 44 and y >= 45 and ss < 0.30 and vv > 0.35:
-                        ss = 0.04
-                        vv = min(1.0, vv * 1.1)
-                    elif y >= 55 and (0.50 <= hh <= 0.75 or (0.08 <= hh <= 0.20 and ss > 0.5 and x >= 55)):
-                        if level == 2:
-                            if 0.50 <= hh <= 0.75:
-                                hh = 0.0; ss = 0.85; vv = min(1.0, vv * 1.05)
-                            elif 0.08 <= hh <= 0.20:
-                                hh = 0.12; ss = 0.95
-                        elif level == 3:
-                            if 0.50 <= hh <= 0.75:
-                                hh = 0.78; ss = 0.85; vv = vv * 0.75
-                            elif 0.08 <= hh <= 0.20:
-                                hh = 0.13; ss = 1.0; vv = min(1.0, vv * 1.1)
-                    elif vv > 0.20:
-                        if level == 2:
-                            hh = 0.12; ss = 0.45; vv = min(1.0, vv * 1.05)
-                        elif level == 3:
-                            hh = 0.75; ss = 0.25; vv = max(0.14, vv * 0.35)
-                            
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
-                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
-
-                # 5. Bat specific handling
-                if baseKind == 'bat':
-                    is_eye = (0.08 <= hh <= 0.18 and ss > 0.5 and vv > 0.5)
-                    is_wings = (0.60 <= hh <= 0.88 and ss > 0.2)
-                    if is_eye:
-                        if level == 2: hh = 0.14
-                        elif level == 3: hh = 0.0; ss = 1.0; vv = 1.0
-                    elif is_wings:
-                        if level == 2: hh = 0.59; ss = 0.90; vv = min(1.0, vv * 1.1)
-                        elif level == 3: ss = 0.15; vv = vv * 0.45
-                    else:
-                        if level == 2: hh = 0.55; ss = 0.20; vv = min(1.0, vv * 1.2)
-                        elif level == 3: hh = 0.75; ss = 0.35; vv = vv * 0.55
+                        # Obsidian Stone: smooth darkening
+                        new_h = 0.65
+                        new_s = ss * 0.40
+                        new_v = 0.12 + (vv ** 1.35) * 0.35
                         
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
+                    nr, ng, nb = colorsys.hsv_to_rgb(new_h, new_s, new_v)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
+                    
+            out_img = Image.fromarray(arr.astype(np.uint8))
+            out_img.save(os.path.abspath(out_path))
+            continue
 
-                # 6. Goblin specific handling
-                if baseKind == 'goblin':
-                    if 0.18 <= hh <= 0.42 and ss > 0.15:
-                        if level == 2: hh = 0.12; ss = min(1.0, ss * 1.1); vv = min(1.0, vv * 1.05)
-                        elif level == 3: hh = 0.01; ss = min(1.0, ss * 1.15); vv = min(1.0, vv * 0.95)
-                    elif (hh < 0.10 or hh > 0.90) and ss > 0.3:
-                        if level == 2: hh = 0.60; ss = 0.75; vv = vv * 0.75
-                        elif level == 3:
-                            if vv > 0.55: hh = 0.13; ss = 0.95; vv = min(1.0, vv * 1.1)
-                            else: ss = 0.08; vv = vv * 0.4
-                    elif x < 40 and y > 50 and 0.05 <= hh <= 0.16:
-                        if level == 2: hh = 0.07; ss = 0.6; vv = vv * 0.7
-                        elif level == 3: ss = 0.05; vv = min(1.0, vv * 1.1)
-                        
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
-                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
-
-                # 7. Dragon (Red Dragon / Ancient Black-Gold Dragon) dedicated handling
-                if baseKind == 'dragon':
+        # 3. Dragon (Red Dragon / Ancient Black-Gold Dragon)
+        if baseKind == 'dragon':
+            for y in range(h):
+                for x in range(w):
+                    if arr[y, x, 3] < 12:
+                        continue
+                    r, g, b = arr[y, x, :3] / 255.0
+                    hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
+                    if vv < 0.12: continue
+                    
                     is_mouth = (50 <= y <= 58 and 42 <= x <= 54 and ss > 0.40)
                     in_crest = (12 <= y <= 45 and 40 <= x <= 62)
                     in_horn_l = (15 <= y <= 38 and 22 <= x <= 36)
@@ -271,10 +195,20 @@ def process_sprite(tile, baseKind, kind, mon_info):
 
                     nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
+            out_img = Image.fromarray(arr.astype(np.uint8))
+            out_img.save(os.path.abspath(out_path))
+            continue
 
-                # 8. Ice Dragon (Blue Dragon / Celestial Blue Dragon) dedicated handling
-                if baseKind == 'icedragon':
+        # 4. Ice Dragon
+        if baseKind == 'icedragon':
+            for y in range(h):
+                for x in range(w):
+                    if arr[y, x, 3] < 12:
+                        continue
+                    r, g, b = arr[y, x, :3] / 255.0
+                    hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
+                    if vv < 0.12: continue
+                    
                     if x <= 38 and 0.49 <= hh <= 0.56 and y >= 34:
                         continue
                     is_ice_crystal_or_belly = (ss < 0.28 and vv > 0.65)
@@ -303,58 +237,58 @@ def process_sprite(tile, baseKind, kind, mon_info):
                         
                     nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
+            out_img = Image.fromarray(arr.astype(np.uint8))
+            out_img.save(os.path.abspath(out_path))
+            continue
 
-                # 9. GENERAL HIGH-PRECISION SEGMENTATION FOR ALL OTHER MONSTERS:
+        # 5. General monsters - Safe, smooth, non-destructive color shifts
+        exc = NAME_EXCEPTIONS.get(baseKind, {}).get(level)
+        is_dark_lv3 = (level == 3 and prefers_dark_for_lv3(mon_info))
+        
+        for y in range(h):
+            for x in range(w):
+                if arr[y, x, 3] < 12:
+                    continue
+                r, g, b = arr[y, x, :3] / 255.0
+                hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
                 
-                # A. Metal / Blade weapon protection (steel silver)
-                is_metal = (ss < 0.20 and vv > 0.30)
-                if is_metal and (kind in ('humanoid', 'undead') or baseKind in ('walldigger', 'knocker', 'fireCook', 'archer', 'berserker', 'lizardman', 'dragonknight')):
-                    hh = 0.58; ss = 0.05; vv = min(1.0, vv * 1.06)
+                # Dark outlines preserved 100%
+                if vv < 0.12:
+                    continue
+                    
+                # Metal / Blade preservation
+                is_metal = (ss < 0.16 and vv > 0.35)
+                if is_metal and kind in ('humanoid', 'undead'):
+                    hh = 0.58; ss = 0.04; vv = min(1.0, vv * 1.05)
                     nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
-
-                # B. Eyes & Oral cavity (mouth, tongue, lips, beak, paw pads) protection
-                is_mouth_pink = ((hh < 0.05 or hh > 0.93) and ss > 0.35 and vv > 0.35)
-                if is_mouth_pink and baseKind not in ('dragon', 'icedragon'):
-                    hh = 0.98; ss = min(1.0, ss * 1.10); vv = min(1.0, vv * 1.05)
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
+                    
+                # Mouth / Tongue / Pink features
+                is_mouth = ((hh < 0.05 or hh > 0.94) and ss > 0.40 and vv > 0.40)
+                if is_mouth:
+                    nr, ng, nb = colorsys.hsv_to_rgb(0.98, min(1.0, ss * 1.1), vv)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
 
-                # C. Belly / Muzzle / Inner ear / Soft highlights -> CREAM IVORY WHITE (never flat yellow!)
-                is_ivory = (ss < 0.35 and vv > 0.58)
+                # Ivory / Cream belly & muzzle (Preserve soft highlights)
+                is_ivory = (ss < 0.35 and vv > 0.60)
                 if is_ivory:
                     if level == 2:
-                        # Soft refined cream ivory
                         hh = 0.115; ss = min(0.20, ss * 0.50); vv = min(1.0, 0.88 + vv * 0.12)
                     elif level == 3:
                         if is_dark_lv3:
-                            # Pale eerie highlight
-                            hh = 0.65; ss = 0.12; vv = min(1.0, vv * 1.1)
+                            hh = 0.65; ss = 0.12; vv = min(1.0, vv * 1.05)
                         else:
-                            # Pale rosy cream highlight
                             hh = 0.02; ss = min(0.25, ss * 0.60); vv = min(1.0, 0.85 + vv * 0.15)
                     nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
                     arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
                     continue
 
-                # D. Fire / Flame effect protection (e.g. fireCook, firedemon)
-                is_fire = ((hh < 0.08 or hh > 0.92) and ss > 0.55 and vv > 0.60)
-                if is_fire and baseKind in ('fireCook', 'firedemon'):
-                    hh = 0.04; ss = 1.0; vv = 1.0
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
-                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
-
-                # E. Clothing / Pants / Robe / Fabric / Belt accents (Complementary & Harmony colors)
-                is_blue_purple_cloth = (0.50 <= hh <= 0.82 and ss > 0.20)
-                is_red_cloth = ((hh <= 0.06 or hh >= 0.92) and ss > 0.30 and vv < 0.65)
-                is_green_cloth = (0.24 <= hh <= 0.45 and ss > 0.25)
-                is_leather = (0.05 <= hh <= 0.12 and 0.40 <= ss <= 0.80 and vv < 0.48)
-
-                # F. Specific Named Exception handling
+                # Clothing separation (Gentle, smooth)
+                is_blue_purple = (0.50 <= hh <= 0.82 and ss > 0.25)
+                is_red_cloth = ((hh <= 0.06 or hh >= 0.92) and ss > 0.35 and vv < 0.65)
+                
                 if exc:
                     mode = exc['mode']
                     if mode == 'green_slime':
@@ -365,11 +299,6 @@ def process_sprite(tile, baseKind, kind, mon_info):
                         hh = 0.04; ss = 0.85; vv = vv * 0.85
                     elif mode == 'corrosive':
                         hh = 0.01; ss = 0.95; vv = vv * 0.75
-                    elif mode == 'gold':
-                        hh = 0.12; ss = min(1.0, ss * 1.3); vv = min(1.0, vv * 1.15)
-                    elif mode == 'adamant':
-                        if vv > 0.65: hh = 0.13; ss = 0.95; vv = min(1.0, vv * 1.15)
-                        else: hh = 0.01; ss = 0.85; vv = vv * 0.85
                     elif mode == 'dark':
                         ss = max(0.08, ss * 0.35)
                         vv = max(0.15, vv * 0.40)
@@ -378,65 +307,35 @@ def process_sprite(tile, baseKind, kind, mon_info):
                     elif mode == 'yellow':
                         hh = 0.12; ss = min(1.0, ss * 1.2); vv = min(1.0, vv * 1.05)
                     elif mode == 'lion_lv2':
-                        # Golden lion mane + cream muzzle
                         hh = 0.11; ss = min(1.0, ss * 1.25); vv = min(1.0, vv * 1.08)
-                        
-                    nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
-                    arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-                    continue
-
-                # G. Body / Clothes General Transformation with Part Accents:
-                if level == 2:
-                    if is_blue_purple_cloth:
-                        # Deep Royal Navy (striking contrast against golden body!)
-                        hh = 0.61; ss = min(0.85, max(0.60, ss * 1.2)); vv = vv * 0.82
-                    elif is_red_cloth:
-                        # Burgundy / Wine Red accent
-                        hh = 0.98; ss = min(0.90, max(0.65, ss * 1.15)); vv = vv * 0.85
-                    elif is_green_cloth and (kind == 'humanoid' or baseKind in ('archer', 'leprechaun')):
-                        # Forest Emerald accent
-                        hh = 0.38; ss = min(0.85, max(0.60, ss * 1.2)); vv = vv * 0.82
-                    elif is_leather and kind in ('humanoid', 'beast'):
-                        # Rich Leather Brown
-                        hh = 0.07; ss = min(0.85, ss * 1.1); vv = vv * 0.80
-                    else:
-                        # Body / Skin / Fur: Rich golden yellow / amber
-                        hh = 0.122; ss = min(1.0, ss * 1.22); vv = min(1.0, vv * 1.06)
-                elif level == 3:
-                    if is_dark_lv3:
-                        if is_blue_purple_cloth:
-                            hh = 0.70; ss = 0.40; vv = vv * 0.50
+                else:
+                    if level == 2:
+                        if is_blue_purple:
+                            hh = 0.61; ss = min(0.85, max(0.55, ss * 1.15)); vv = vv * 0.85
                         elif is_red_cloth:
-                            hh = 0.01; ss = 0.85; vv = vv * 0.60
+                            hh = 0.98; ss = min(0.90, max(0.60, ss * 1.1)); vv = vv * 0.88
                         else:
-                            ss = max(0.08, ss * 0.28)
-                            vv = max(0.14, vv * 0.38)
-                    else:
-                        if is_blue_purple_cloth:
-                            if vv > 0.6: hh = 0.13; ss = 0.95; vv = min(1.0, vv * 1.1)
-                            else: ss = 0.08; vv = vv * 0.4
-                        elif is_leather:
-                            hh = 0.05; ss = 0.80; vv = vv * 0.60
+                            hh = 0.122; ss = min(1.0, ss * 1.20); vv = min(1.0, vv * 1.05)
+                    elif level == 3:
+                        if is_dark_lv3:
+                            if is_blue_purple:
+                                hh = 0.70; ss = 0.35; vv = vv * 0.50
+                            else:
+                                ss = max(0.08, ss * 0.28)
+                                vv = max(0.14, vv * 0.38)
                         else:
-                            hh = 0.01; ss = min(1.0, ss * 1.2); vv = min(1.0, vv * 0.98)
+                            if is_blue_purple:
+                                if vv > 0.6: hh = 0.13; ss = 0.95; vv = min(1.0, vv * 1.1)
+                                else: ss = 0.08; vv = vv * 0.40
+                            else:
+                                hh = 0.01; ss = min(1.0, ss * 1.2); vv = min(1.0, vv * 0.98)
 
                 nr, ng, nb = colorsys.hsv_to_rgb(hh, ss, vv)
                 arr[y, x, 0] = nr * 255; arr[y, x, 1] = ng * 255; arr[y, x, 2] = nb * 255
-
+                
         out_img = Image.fromarray(arr.astype(np.uint8))
-        abs_out = os.path.abspath(out_path)
-        import time
-        saved = False
-        for attempt in range(5):
-            try:
-                out_img.save(abs_out)
-                saved = True
-                break
-            except OSError:
-                time.sleep(0.05)
-        if not saved:
-            out_img.save(abs_out)
-        
+        out_img.save(os.path.abspath(out_path))
+
     return True
 
 if __name__ == '__main__':
