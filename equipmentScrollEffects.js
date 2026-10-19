@@ -1,4 +1,4 @@
-import { CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T } from "./items.js";
+import { CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
 import { setPlayerItemProperties } from "./equipmentEffects.js";
 
 /* 対象選択の入力経路によらず、同じ確率・同じ効果で装備を強化する。 */
@@ -32,4 +32,29 @@ export function applyEquipmentUpgradeScroll(player, item, mode, displayName = it
   let message = `${displayName}が${gain > 0 ? "輝いた" : "くすんだ"}！(${plusLabel(before)}→${plusLabel(item.plus)})${suffix}`;
   if (gain > 0 && item.cursed) { item.cursed = false; message += " 呪いが解けた！"; }
   return message;
+}
+
+/* 祝福錬成の強力な能力候補も、キー専用の古い一覧を持たず共有する。 */
+export function applyEquipmentForgeScroll(item, mode, displayName = item.name, random = Math.random) {
+  if (item.type !== "weapon" && item.type !== "armor") return `${displayName}には効果がなかった。巻物は消えた。`;
+  if (mode.cursed) return `${displayName}には消せる能力がなかった。巻物は消えた。【呪】`;
+  const isWeapon = item.type === "weapon";
+  const allAbilities = isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+  const owned = new Set([...(item.abilities || []), item.ability].filter(Boolean));
+  const strong = new Set(isWeapon
+    ? ["reach", "critical", "critical_oni_club", "critical_war_god_axe", "critical_cat_claw", "oil_proof",
+      "bane_dragon", "bane_float", "fire_elem", "ice_elem", "thunder_elem", "inflict_seal",
+      "inflict_immobile", "inflict_bewitch", "bane_undead", "bane_humanoid", "lifesteal", "double_strike"]
+    : ["regen", "thorn", "dodge", "wand_reflect", "fire_resist", "lightning_resist", "ice_resist",
+      "water_proof", "oil_proof", "all_resist", "aura"]);
+  const available = allAbilities.filter(ability => !owned.has(ability.id) && !ability.specialOnly);
+  const candidates = available.filter(ability => mode.blessed ? strong.has(ability.id) : !ability.curseOnly && !ability.blessedOnly);
+  const pool = candidates.length ? candidates : available;
+  if (!pool.length) return `${displayName}はもうこれ以上能力を宿せない。`;
+  const ability = pool[Math.floor(random() * pool.length)];
+  item.abilities = [...(item.abilities || []), ability.id];
+  if (!item.ability) item.ability = ability.id;
+  if (ability.id === "pickaxe" && item.durability == null) item.durability = 30;
+  item.fullIdent = true;
+  return mode.blessed ? `${displayName}に「${ability.name}」が宿った！【祝】` : `${displayName}に「${ability.name}」が宿った！`;
 }

@@ -11,7 +11,7 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { useGamepad } from "../useGamepad.js";
 import { BTN } from "../gamepadInput.js";
 import { soundEngine } from "../soundEngine.js";
-import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, generateFakeNames, getIdentKey } from "../items.js";
+import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES } from "../items.js";
 import { itemDisplayName } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -192,5 +192,24 @@ describe.each(inputs)("祝福・呪い時の表示名: %s", input => {
     const result = choose(input, { ...source, capacity: 6, contents: [] }, action);
     expect(result.messages.join("\n")).toContain(result.initialDisplayName);
     expect(result.messages.join("\n")).not.toContain(source.name);
+  });
+});
+
+describe.each(inputs)("錬成の候補一致: %s", input => {
+  it.each(["lifesteal", "double_strike", "water_proof", "all_resist", "aura"])(
+    "祝福錬成で%sも他の候補と同様に選べる", ability => {
+      const weapon = ["lifesteal", "double_strike"].includes(ability);
+      const definitions = weapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+      const template = ITEMS.find(item => item.name === (weapon ? "ロングソード" : "革の鎧"));
+      const abilities = definitions.filter(a => a.id !== ability).map(a => a.id);
+      const { target } = choose(input, { ...template, abilities }, "forge_item", { blessed: true });
+      expect(target.abilities).toContain(ability);
+      expect(target.abilities).toHaveLength(abilities.length + 1);
+    },
+  );
+  it("同じ乱数なら祝福錬成で同じ能力が付く", () => {
+    vi.mocked(Math.random).mockReturnValue(0.999);
+    const { target } = choose(input, ITEMS.find(item => item.name === "ロングソード"), "forge_item", { blessed: true });
+    expect(target.abilities).toEqual(["double_strike"]);
   });
 });

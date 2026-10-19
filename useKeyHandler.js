@@ -1,4 +1,4 @@
-import { applyEquipmentUpgradeScroll } from "./equipmentScrollEffects.js";
+import { applyEquipmentUpgradeScroll, applyEquipmentForgeScroll } from "./equipmentScrollEffects.js";
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
@@ -408,33 +408,8 @@ export function useKeyHandler({
                                                 : `${_selDisp}が${_newDisp}に変わった！`;
             } else { _msgResult = "変換できるアイテムがなかった。"; }
           } else if (identifyMode.mode === 'forge_item') {
-            /* ===== 錬成の巻物 ===== */
-            if (_selIt.type !== "weapon" && _selIt.type !== "armor") {
-              _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
-            } else if (identifyMode.cursed) {
-              _msgResult = `${_selIt.name}には消せる能力がなかった。巻物は消えた。【呪】`;
-            } else {
-            const _isWeapon = _selIt.type === "weapon";
-            const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
-            const _owned = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
-            const _WS = new Set(["reach","critical","critical_oni_club","critical_war_god_axe","critical_cat_claw","oil_proof","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid"]);
-            const _AS = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist","oil_proof"]);
-            const _str = _isWeapon ? _WS : _AS;
-            const _cands = _allAbils.filter(ab => !_owned.has(ab.id) && !ab.specialOnly && (
-              identifyMode.blessed ? _str.has(ab.id)
-              : !ab.curseOnly && !ab.blessedOnly));
-            const _pool = _cands.length > 0 ? _cands : _allAbils.filter(ab => !_owned.has(ab.id) && !ab.specialOnly);
-            if (_pool.length > 0) {
-              const _ab = _pool[Math.floor(Math.random() * _pool.length)];
-              _selIt.abilities = [...(_selIt.abilities || []), _ab.id].filter(Boolean);
-              if (!_selIt.ability) _selIt.ability = _ab.id;
-              if (_ab.id === "pickaxe" && _selIt.durability == null) _selIt.durability = 30;
-              _selIt.fullIdent = true;
-              _msgResult = identifyMode.blessed ? `${_selIt.name}に「${_ab.name}」が宿った！【祝】`
-                         : identifyMode.cursed  ? `${_selIt.name}に「${_ab.name}」が刻まれてしまった…【呪】`
-                                                : `${_selIt.name}に「${_ab.name}」が宿った！`;
-            } else { _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`; }
-            }
+            _msgResult = applyEquipmentForgeScroll(_selIt, identifyMode,
+              itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
           } else if (identifyMode.mode === 'weapon_up' || identifyMode.mode === 'armor_up') {
             _msgResult = applyEquipmentUpgradeScroll(_p_id, _selIt, identifyMode,
               itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));

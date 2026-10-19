@@ -1,4 +1,4 @@
-import { applyEquipmentUpgradeScroll } from "./equipmentScrollEffects.js";
+import { applyEquipmentUpgradeScroll, applyEquipmentForgeScroll } from "./equipmentScrollEffects.js";
 import { monsterBodySize, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
@@ -1332,38 +1332,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     } else if (mode.mode === 'weapon_up' || mode.mode === 'armor_up') {
       _msgResult = applyEquipmentUpgradeScroll(sr.current.player, _selIt, mode, _selItDN);
     } else if (mode.mode === 'forge_item') {
-      /* ===== 錬成の巻物 ===== */
-      if (_selIt.type !== "weapon" && _selIt.type !== "armor") {
-        _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
-      } else if (mode.cursed) {
-        _msgResult = `${_selItDN}には消せる能力がなかった。巻物は消えた。【呪】`;
-      } else {
-      const _isWeapon = _selIt.type === "weapon";
-      const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
-      const _ownedIds = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
-      /* 祝福・呪いで選出プールを絞る */
-      const _WEAPON_STRONG = new Set(["reach","critical","critical_oni_club","critical_war_god_axe","critical_cat_claw","oil_proof","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid","lifesteal","double_strike"]);
-      const _ARMOR_STRONG  = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist","water_proof","oil_proof","all_resist","aura"]);
-      const _strongSet = _isWeapon ? _WEAPON_STRONG : _ARMOR_STRONG;
-      const _candidateAbils = _allAbils.filter(ab => !_ownedIds.has(ab.id) && !ab.specialOnly && (
-        mode.blessed ? _strongSet.has(ab.id)
-      : !ab.curseOnly && !ab.blessedOnly  /* 通常巻物では専用能力は出ない */
-      ));
-      /* プールが空なら全体から（既所持・特殊合成専用除く） */
-      const _finalPool = _candidateAbils.length > 0 ? _candidateAbils : _allAbils.filter(ab => !_ownedIds.has(ab.id) && !ab.specialOnly);
-      if (_finalPool.length > 0) {
-        const _newAb = _finalPool[Math.floor(Math.random() * _finalPool.length)];
-        _selIt.abilities = [...(_selIt.abilities || []), _newAb.id].filter(Boolean);
-        if (!_selIt.ability) _selIt.ability = _newAb.id;
-        if (_newAb.id === "pickaxe" && _selIt.durability == null) _selIt.durability = 30;
-        _selIt.fullIdent = true;
-        _msgResult = mode.blessed ? `${_selItDN}に「${_newAb.name}」が宿った！【祝】`
-                   : mode.cursed  ? `${_selItDN}に「${_newAb.name}」が刻まれてしまった…【呪】`
-                                  : `${_selItDN}に「${_newAb.name}」が宿った！`;
-      } else {
-        _msgResult = `${_selItDN}はもうこれ以上能力を宿せない。`;
-      }
-      }
+      _msgResult = applyEquipmentForgeScroll(_selIt, mode, _selItDN);
     } else if (mode.mode === 'pot_extract') {
       /* ===== 吸い出しの巻物 ===== */
       const _p_ext = sr.current.player;
