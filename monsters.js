@@ -4778,37 +4778,6 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   const _moveOnly = !!opts.moveOnly;
   const _attackOnly = !!opts.attackOnly;
   if (!m.isPlayerClone || m.hp <= 0) return;
-  /* 行動不能でも時計は進める。攻撃フェーズでは二重に減らさない。 */
-  for (const [key, message] of [["sleepTurns", "の睡眠が解けた！"], ["knockdownTurns", "が起き上がった！"]]) {
-    if ((m[key] || 0) <= 0) continue;
-    if (!_attackOnly) {
-      m[key] = Math.max(0, m[key] - 1);
-      if (m[key] === 0) {
-        ml.push(`${m.name}${message}`);
-        m._movedThisTurn = true;
-      }
-    }
-    return;
-  }
-  if (m.paralyzed) {
-    if (m._paralyzeHp != null && m.hp < m._paralyzeHp) {
-      m.paralyzed = false;
-      m._paralyzeHp = null;
-      m.paralyzeTurns = 0;
-      m.paralyzeHits = 0;
-      m._movedThisTurn = true;
-      ml.push(`${m.name}はダメージで金縛りが解けた！`);
-    }
-    return;
-  }
-  if ((m.immobileTurns || 0) > 0 && !_attackOnly) {
-    m.immobileTurns = Math.max(0, m.immobileTurns - 1);
-    if (m.immobileTurns === 0) {
-      ml.push(`${m.name}の移動封じが解けた！`);
-      m._movedThisTurn = true;
-      return;
-    }
-  }
   m.turnAttacks = m.turnAttacks || 0;
 
   const _targets = (dg.monsters || []).filter((other) =>
@@ -4820,6 +4789,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   const _target = _targets[0] || null;
   if (_target && chebyshevDistance(m, _target) <= 1) {
     m._cloneCombatTurn = true;
+    if (isAttackSealed(m)) return;
     if (_moveOnly) return;
     if (_attackOnly && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
@@ -4847,10 +4817,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
 }
 
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
-  if (m.isPlayerClone) {
-    playerCloneAI(m, dg, pl, ml, opts);
-    return;
-  }
+  if (m.isPlayerClone && m.hp <= 0) return;
   m.turnAttacks = m.turnAttacks || 0;
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
@@ -5399,8 +5366,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
     const _dCells = monsterBodyCells(m, _dnx, _dny);
     const _dCanStepTile = m.waterOnly
-      ? (inBounds(_dnx, _dny) && (map[_dny][_dnx] === T.WATER || dg.springs?.some(s => s.x === _dnx && s.y === _dny)))
-      : canEnter(map, _dnx, _dny, _effFloat, dg, m.waterWalker);
+      ? (inBounds(_dnx, _dny) && (dg.map[_dny][_dnx] === T.WATER || dg.springs?.some(s => s.x === _dnx && s.y === _dny)))
+      : canEnter(dg.map, _dnx, _dny, _effFloat, dg, m.waterWalker);
     const _dHitsPlayer = _dCanStepTile && !_plPotHidden && _dCells.some(c => c.x === pl.x && c.y === pl.y) &&
       (monsterBodySize(m) <= 1 || monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1));
     const _dother = (!_dHitsPlayer && _dCanStepTile)
@@ -5440,6 +5407,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (!_isPerm && m.fleeingTurns <= 0) { ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
+    return;
+  }
+
+  /* 分身も共通の状態処理を通す。通常行動だけを味方AIへ切り替える。 */
+  if (m.isPlayerClone) {
+    playerCloneAI(m, dg, pl, ml, { ...opts, attackOnly: _attackOnly });
     return;
   }
 
