@@ -166,7 +166,8 @@ export const TILE_NAMES = {
   244: "manaeater",
   245: "manaeater_lv2",
   246: "manaeater_lv3",
-  247: "potionthrower",
+  163: "potionthrower",
+  247: "itemthrower",
   248: "mimic",
   249: "timeout_punisher",
 };
@@ -353,7 +354,7 @@ export const TILE_RENDER = {
   160: { bg: null, fg: "#d080e0", ch: "L" }, /* ルカチュウ */
   161: { bg: null, fg: "#40b040", ch: "S" }, /* 大蛇 */
   162: { bg: null, fg: "#60c8ff", ch: "I" }, /* 氷竜 */
-  163: { bg: null, fg: "#40d0a0", ch: "K" }, /* ひょい河童 */
+  163: { bg: null, fg: "#60d060", ch: "P" }, /* 薬師 */
   164: { bg: null, fg: "#ff4466", ch: "i" }, /* インプ */
   165: { bg: null, fg: "#ffe060", ch: "*" }, /* スターライト */
   166: { bg: null, fg: "#c060ff", ch: "M" }, /* 魔法反射師 */
@@ -396,7 +397,7 @@ export const TILE_RENDER = {
   244: { bg: null, fg: "#9966cc", ch: "M" }, /* マナイーター */
   245: { bg: null, fg: "#ba68c8", ch: "M" }, /* マナドレイナー */
   246: { bg: null, fg: "#e040fb", ch: "M" }, /* マナヴォイド */
-  247: { bg: null, fg: "#60d060", ch: "P" }, /* 薬師 */
+  247: { bg: null, fg: "#40d0a0", ch: "K" }, /* ひょい河童 */
   248: { bg: null, fg: "#e0e0e0", ch: "m" }, /* ものまね師 */
   249: { bg: null, fg: "#e0d080", ch: "T" }, /* 刻限の巨像 */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */

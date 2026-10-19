@@ -937,7 +937,7 @@ export const MONS = [
       { name: "アイテムモドキ王", hp: 95,  atk: 39, def: 13, exp: 138, dungeonFloors: { advanced: { min: 26, max: 30 } } },
     ],
   },
-  { name: "ひょい河童",   hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
+  { name: "ひょい河童",   hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 247, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
     desc: "床のアイテムを拾い、一直線上から投げつける（命中率75%）。投げる前に倒せばアイテムを落とす。",
     levels: [
       { name: "剛腕水虎",     hp: 69,  atk: 29, def: 9,  exp: 100, dungeonFloors: { advanced: { min: 26, max: 30 } } },
@@ -1161,7 +1161,7 @@ export const MONS = [
       { name: "ペルセウスマン",     hp: 95,  atk: 35, def: 18, exp: 188 },
     ],
   },
-  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 247, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
+  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
     levels: [
       { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },

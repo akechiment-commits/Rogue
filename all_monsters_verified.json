@@ -218,7 +218,7 @@
   {
     "index": 25,
     "baseKind": "itemThrower",
-    "tile": 163,
+    "tile": 247,
     "kind": "humanoid",
     "l1": "ひょい河童",
     "l2": "剛腕水虎",
@@ -551,7 +551,7 @@
   {
     "index": 62,
     "baseKind": "potionthrower",
-    "tile": 247,
+    "tile": 163,
     "kind": "humanoid",
     "l1": "薬師",
     "l2": "ポーションメーカー",
