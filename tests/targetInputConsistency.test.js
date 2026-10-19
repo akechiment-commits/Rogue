@@ -11,7 +11,7 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { useGamepad } from "../useGamepad.js";
 import { BTN } from "../gamepadInput.js";
 import { soundEngine } from "../soundEngine.js";
-import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES } from "../items.js";
+import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, BB_TYPES, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES } from "../items.js";
 import { getDiscoveries, resetDiscoveries, trackItem } from "../DiscoveryTracker.js";
 import { itemDisplayName } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -25,12 +25,12 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-function findTarget(node) {
+function findTarget(node, key = "0") {
   if (node == null) return null;
-  if (Array.isArray(node)) return node.map(findTarget).find(Boolean);
+  if (Array.isArray(node)) return node.map(child => findTarget(child, key)).find(Boolean);
   if (typeof node !== "object") return null;
-  if (node.type === "div" && node.key === "0" && node.props.onClick) return node;
-  return findTarget(node.props?.children);
+  if (node.type === "div" && node.key === key && node.props.onClick) return node;
+  return findTarget(node.props?.children, key);
 }
 function choose(input, source, action = "duplicate", modifiers = {}, nameState = {}) {
   effects.length = 0;
@@ -42,6 +42,7 @@ function choose(input, source, action = "duplicate", modifiers = {}, nameState =
     ident: new Set(nameState.identified ? [key] : []),
     fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, [], RINGS),
     nicknames: nameState.nickname ? { [key]: nameState.nickname } : {}, floors: {} } };
+  nameState.setupDungeon?.(sr.current.dungeon, player);
   const initialDisplayName = itemDisplayName(target, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
   const mode = { mode: action, sel: 0, scrollIdx: 1, ...modifiers };
   const endTurn = vi.fn(), identifyConfirmRef = { current: null }, listeners = {};
@@ -58,7 +59,7 @@ function choose(input, source, action = "duplicate", modifiers = {}, nameState =
   useKeyHandler({ ...props, identifyMode: mode, setIdentifyMode: props.setMode, identifyConfirmRef,
     shiftRef: { current: false }, aRef: { current: false }, arrowHeldRef: { current: {} }, execRef: { current: null } });
   effects.splice(0).forEach(fn => fn());
-  if (input === "click" || input === "tap") findTarget(tree).props.onClick();
+  if (input === "click" || input === "tap") findTarget(tree, modifiers.bbFootId ? "-1" : "0").props.onClick();
   else if (input === "mobileConfirm") identifyConfirmRef.current(0);
   else if (input === "keyboard") listeners.keydown(new KeyboardEvent("keydown", { key: "Enter", code: "Enter" }));
   else {
@@ -251,5 +252,63 @@ describe.each(inputs)("呪われた複製の表示名: %s", input => {
     expect(result.player.inventory).not.toContain(result.target);
     expect(result.sr.current.ident.has(getIdentKey(source))).toBe(!!nameState.identified);
     if (!nameState.identified) expect(result.messages.join("\n")).not.toContain(source.name);
+  });
+});
+
+const boxObstacles = ["statues", "monsters", "largeMonster", "largeMonster3", "items", "traps", "springs", "pentacles", "altars", "gachaMachines", "vents", "dimensionalVaults", "oilyTiles", "bigboxes", "player", "water", "wall", "downStair", "upStair"];
+function prepareBoxDungeon(dungeon, player) {
+  const base = BB_TYPES.find(box => box.kind === "synthesis") || BB_TYPES[0];
+  const box = { ...base, id: "original-box", x: player.x, y: player.y, capacity: 4, contents: [{ id: "content", name: "パン", type: "food" }], revealed: true };
+  dungeon.bigboxes = [box];
+  return box;
+}
+describe.each(inputs)("大箱複製の配置: %s", input => {
+  it.each(boxObstacles)("%sとの重なりを避け、次の空き床へ置く", obstacle => {
+    for (const blessed of [false, true]) {
+      const result = choose(input, ITEMS.find(item => item.type === "potion"), "duplicate", { bbFootId: "original-box", blessed }, {
+        setupDungeon(dungeon, player) {
+          prepareBoxDungeon(dungeon, player);
+          const object = { id: "obstacle", x: 5, y: 6, name: "障害物" };
+          if (obstacle === "player") { player.x = 5; player.y = 6; }
+          else if (obstacle === "largeMonster") dungeon.monsters = [{ ...object, x: 4, bodySize: 2, hp: 20 }];
+          else if (obstacle === "largeMonster3") dungeon.monsters = [{ ...object, x: 6, y: 7, bodySize: 3, hp: 20 }];
+          else if (["water", "wall", "downStair", "upStair"].includes(obstacle)) dungeon.map[6][5] = { water: "~", wall: "#", downStair: ">", upStair: "<" }[obstacle];
+          else if (obstacle === "bigboxes") dungeon.bigboxes.push(object);
+          else dungeon[obstacle] = [object];
+        },
+      });
+      const copies = result.sr.current.dungeon.bigboxes.filter(box => box.id !== "original-box" && box.id !== "obstacle");
+      expect(copies).toHaveLength(1);
+      expect(copies[0]).toMatchObject({ x: 6, y: 5, contents: [] });
+      const original = result.sr.current.dungeon.bigboxes.find(box => box.id === "original-box");
+      expect(original.contents).toHaveLength(1);
+      expect(result.player.inventory).toHaveLength(1);
+    }
+  });
+  it("周囲8マスが埋まっていたら複製せず、元の大箱と中身を残す", () => {
+    const result = choose(input, ITEMS.find(item => item.type === "potion"), "duplicate", { bbFootId: "original-box" }, {
+      setupDungeon(dungeon, player) {
+        prepareBoxDungeon(dungeon, player);
+        dungeon.traps = [];
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if (dx || dy) dungeon.traps.push({ x: player.x + dx, y: player.y + dy });
+        }
+      },
+    });
+    expect(result.sr.current.dungeon.bigboxes).toHaveLength(1);
+    expect(result.sr.current.dungeon.bigboxes[0].contents).toHaveLength(1);
+    expect(result.messages).toContain("複製する場所がなかった。");
+  });
+  it("マップ端では範囲外を避けて空き床へ置く", () => {
+    const result = choose(input, ITEMS.find(item => item.type === "potion"), "duplicate", { bbFootId: "original-box" }, {
+      setupDungeon(dungeon, player) { player.x = 0; player.y = 0; prepareBoxDungeon(dungeon, player); },
+    });
+    expect(result.sr.current.dungeon.bigboxes[1]).toMatchObject({ x: 0, y: 1 });
+  });
+  it("呪いの複製では置き場を探さず元の大箱を消す", () => {
+    const result = choose(input, ITEMS.find(item => item.type === "potion"), "duplicate", { bbFootId: "original-box", cursed: true }, {
+      setupDungeon: prepareBoxDungeon,
+    });
+    expect(result.sr.current.dungeon.bigboxes).toEqual([]);
   });
 });

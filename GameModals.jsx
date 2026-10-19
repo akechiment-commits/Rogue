@@ -1,3 +1,4 @@
+import { findBigboxDuplicatePosition } from "./floorObjectPlacement.js";
 import { applyEquipmentUpgradeScroll, applyEquipmentForgeScroll } from "./equipmentScrollEffects.js";
 import { monsterBodySize, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
@@ -1216,19 +1217,16 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             _bbMsg = `${_bbDN}が消えてしまった！【呪】`;
           } else {
             const _dg_bb = sr.current.dungeon;
-            let _dupPlaced = false;
-            for (const [_ddx, _ddy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
-              const _nx = _bb.x + _ddx, _ny = _bb.y + _ddy;
-              if (_dg_bb.map[_ny]?.[_nx] === T.FLOOR && !_dg_bb.bigboxes?.some(b => b.x === _nx && b.y === _ny)) {
-                const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!mode.blessed || isBigboxKindIdentified(_bb, sr.current) };
-                if (mode.blessed) { markBigboxKindIdentified(sr.current, _newBb); trackBigbox(_newBb); }
-                _dg_bb.bigboxes.push(_newBb);
-                _dupPlaced = true;
-                _bbMsg = mode.blessed ? `祝福された${_bbDN}が隣に現れた！【祝】` : `${_bbDN}の複製が隣に現れた！`;
-                break;
-              }
+            const _duplicateSpot = findBigboxDuplicatePosition(_dg_bb, _bb, sr.current.player);
+            if (_duplicateSpot) {
+              const { x: _nx, y: _ny } = _duplicateSpot;
+              const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!mode.blessed || isBigboxKindIdentified(_bb, sr.current) };
+              if (mode.blessed) { markBigboxKindIdentified(sr.current, _newBb); trackBigbox(_newBb); }
+              _dg_bb.bigboxes.push(_newBb);
+              _bbMsg = mode.blessed ? `祝福された${_bbDN}が隣に現れた！【祝】` : `${_bbDN}の複製が隣に現れた！`;
+            } else {
+              _bbMsg = "複製する場所がなかった。";
             }
-            if (!_dupPlaced) _bbMsg = "複製する場所がなかった。";
           }
         } else if (mode.mode === 'sell_item') {
           const _remaining = Math.max(1, (_bb.capacity ?? 1) - (_bb.contents?.length || 0));

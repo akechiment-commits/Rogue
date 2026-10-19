@@ -238,3 +238,14 @@ export function ensureStairsPresent(dg, opts = {}) {
   }
   return { fixedUp, fixedDown };
 }
+
+/** 複製する大箱の置き場。全入力で同じ周囲8マスと占有判定を使う。 */
+export function findBigboxDuplicatePosition(dungeon, box, player) {
+  for (const [dx, dy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+    const x = box.x + dx, y = box.y + dy;
+    if (isFloorOccupancyBlocked(dungeon, x, y, { p: player })) continue;
+    if (dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y)) continue;
+    return { x, y };
+  }
+  return null;
+}
