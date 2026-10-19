@@ -1,4 +1,4 @@
-import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets } from "./monsterGeometry.js";
+import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerHpForFixedEffect, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
@@ -9091,7 +9091,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         const _tof = [];
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)
-            if (dg.map[_ty][_tx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, _tx, _ty)) && !(p.x === _tx && p.y === _ty))
+            if (dg.map[_ty][_tx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, _tx, _ty)) &&
+                canPlaceMonsterBody(dg, target, _tx, _ty, p))
               _tof.push({ x: _tx, y: _ty });
         if (_tof.length === 0) { ml.push("テレポートに失敗した。"); break; }
         const _tod = pick(_tof);
