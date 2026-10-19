@@ -8798,6 +8798,7 @@ export function gatherFloorItems(dungeon, player, items, messages, { scatter = f
     item.y = spot.y;
     delete item.wallEmbedded;
     markItemIdentifiedForDungeon(item, dungeon);
+    if (item.itemMimicId) ensureItemMimicFloorItems(dungeon);
     if (nearby) gathered++;
     else {
       scattered++;

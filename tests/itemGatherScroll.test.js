@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("react", () => ({ useCallback: fn => fn, useEffect: () => {}, useRef: initial => ({ current: initial }) }));
 import { useItemActions } from "../useItemActions.js";
 import { ITEMS, applySpellEffect } from "../items.js";
+import { MONS, makeMonsterFromBase } from "../monsters.js";
+import { ensureItemMimicFloorItems } from "../utils.js";
 import { MH, MW, T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 afterEach(() => vi.restoreAllMocks());
@@ -92,5 +94,25 @@ describe("巻物と魔法の安全な転送先の共通判定", () => {
   expect(player.inventory).toContain(pot);
   expect(pot.contents).toEqual([{ id: "inside", type: "potion", effect: "heal" }]);
   expect(dungeon.items).toEqual([]);
+ });
+});
+
+describe("道具寄せとアイテムモドキ", () => {
+ it.each(["normal", "blessed", "cursed", "magic"])("%s: 偽アイテムを所持品へ複製せず、本体と同じ場所へ転送する", mode => {
+  const mimic = makeMonsterFromBase(MONS.find(monster => monster.baseKind === "itemMimic"), 1, 20, 20);
+  const dungeon = makeEmptyDg({ monsters: [mimic], items: [] });
+  ensureItemMimicFloorItems(dungeon);
+  const disguise = dungeon.items[0];
+  let player;
+  if (mode === "magic") {
+   player = makePlayer();
+   applySpellEffect("item_gather_magic", "self", null, 0, 0, dungeon, player, [], () => {});
+  } else player = use(dungeon, { blessed: mode === "blessed", cursed: mode === "cursed" }).player;
+  expect(player.inventory.some(item => item.itemMimicId)).toBe(false);
+  expect(dungeon.monsters).toContain(mimic);
+  expect(dungeon.items).toEqual([disguise]);
+  expect(mimic).toMatchObject({ x: disguise.x, y: disguise.y, disguisedAsItem: true });
+  ensureItemMimicFloorItems(dungeon);
+  expect(dungeon.items).toEqual([disguise]);
  });
 });

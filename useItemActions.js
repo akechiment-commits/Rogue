@@ -1309,7 +1309,7 @@ export function useItemActions({
               dg.items = dg.items.filter(item => item !== gi);
               p.gold += gi.value;
               _goldTotal += gi.value;
-            } else if (p.inventory.length < (p.maxInventory || 30)) {
+            } else if (!gi.itemMimicId && p.inventory.length < (p.maxInventory || 30)) {
               dg.items = dg.items.filter(item => item !== gi);
               delete gi.wallEmbedded;
               trackItem(gi);
