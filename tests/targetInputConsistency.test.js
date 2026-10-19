@@ -227,3 +227,18 @@ describe.each(inputs)("識別時の図鑑登録: %s", input => {
     expect(getDiscoveries().items.heal.count).toBe(1);
   });
 });
+
+describe.each(inputs)("換金時の表示名: %s", input => {
+  it.each([{}, { blessed: true }, { cursed: true }])("通常・祝福・呪いでも名前と換金額を保つ: %j", modifiers => {
+    const source = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    for (const nameState of [{}, { nickname: "試しの薬" }, { identified: true }]) {
+      const result = choose(input, source, "sell_item", modifiers, nameState);
+      const amount = modifiers.blessed ? 200 : modifiers.cursed ? 50 : 100;
+      expect(result.messages.join("\n")).toContain(`${result.initialDisplayName}を${amount}Gで換金した`);
+      expect(result.player.gold).toBe(amount);
+      expect(result.player.inventory).not.toContain(result.target);
+      expect(result.sr.current.ident.has(getIdentKey(source))).toBe(!!nameState.identified);
+      if (!nameState.identified) expect(result.messages.join("\n")).not.toContain(source.name);
+    }
+  });
+});

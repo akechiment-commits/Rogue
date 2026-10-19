@@ -11,7 +11,7 @@ import { itemDisplayName } from "./render.js";
 import {
   makeFreshDuplicate, makeScrollTransformedItem, ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
-  itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
+  itemPrice, formatSoldItemMessage, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
   extractPotContents, scatterPotContents, reducePotCapacity,
   declareFloorExitTheft,
@@ -388,9 +388,8 @@ export function useKeyHandler({
               if (identifyMode.scrollIdx != null && _rmIdx_sell < identifyMode.scrollIdx) identifyMode.scrollIdx--;
             }
             _p_id.gold = (_p_id.gold || 0) + _earned;
-            _msgResult = identifyMode.blessed ? `${_selIt.name}を${_earned}Gで換金した！（2倍）【祝】`
-                       : identifyMode.cursed  ? `${_selIt.name}を${_earned}Gで換金した…（半額）【呪】`
-                                              : `${_selIt.name}を${_earned}Gで換金した！`;
+            _msgResult = formatSoldItemMessage(_selIt, _earned, identifyMode.blessed, identifyMode.cursed,
+              (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
           } else if (identifyMode.mode === 'transform_item') {
             /* ===== 変換の巻物 ===== */
             const _newIt = makeScrollTransformedItem(_selIt, identifyMode);
