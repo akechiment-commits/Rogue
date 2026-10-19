@@ -1,3 +1,4 @@
+import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
@@ -3220,7 +3221,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       onPlHit: (mlx) => {
                         if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
                           const _poison = applyPlayerPoison(p);
-                          mlx.push(`毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                          mlx.push(statusResultMessage(_poison, `毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                         }
                         _srPeel();
                       },
@@ -3236,7 +3237,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         mon.hp -= _srDmg;
                         if (mon.type === "shopkeeper") markWanderingNpcHostile(mon, dg, p, mlx);
                         let _poisonT = 0;
-                        if (_isPoison) {
+                        const _poisonApplied = _isPoison && !isStatusImmune(mon, mlx, mon.name);
+                        if (_poisonApplied) {
                           if (mon.isBoss) {
                             _poisonT = mon.bossPoisonHalfAtk ? (mon.bossPoisonHalfAtkTurns || monsterStatusTurns(10, mon)) : monsterStatusTurns(10, mon);
                             if (!mon.bossPoisonHalfAtk) { mon.bossPoisonOrigAtk = mon.atk; mon.bossPoisonHalfAtk = true; mon.bossPoisonHalfAtkTurns = _poisonT; }
@@ -3245,7 +3247,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                             mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
                           }
                         }
-                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${mon.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_poisonApplied ? `攻撃力が半減した！${mon.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
                         triggerMushroomCounterSpore(mon, dg, p, mlx);
                         _ad.damages.push({ type: "damage", x: mon.x, y: mon.y, value: _srDmg, color: _arColor });
                         if (mon.hp <= 0) { _ad.damages.push({ type: "flash", x: mon.x, y: mon.y, color: "#ff2200", duration: 150 }); killMonster(mon, dg, p, mlx, lu, false); }
@@ -4877,15 +4879,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
               };
               for (const m of [..._scMons]) {
-                const _oilT = statusTurns("oily", { kind: "monster", target: m });
-                m.oilyTurns = (m.oilyTurns || 0) + _oilT;
-                ml.push(`${m.name}は油まみれになった！(${_oilT}ターン)`);
+                if (!isStatusImmune(m, ml, m.name)) {
+                  const _oilT = statusTurns("oily", { kind: "monster", target: m });
+                  m.oilyTurns = (m.oilyTurns || 0) + _oilT;
+                  ml.push(`${m.name}は油まみれになった！(${_oilT}ターン)`);
+                }
                 _addOilArea(m.x, m.y);
               }
               if (_scPInRoom && !floorChanged()) {
-                const _oilT = statusTurns("oily", { kind: "player" });
-                p.oilyTurns = (p.oilyTurns || 0) + _oilT;
-                ml.push(`油を浴びた！炎ダメージが2倍になる！(${_oilT}ターン)`);
+                if (!isStatusImmune(p, ml)) {
+                  const _oilT = statusTurns("oily", { kind: "player" });
+                  p.oilyTurns = (p.oilyTurns || 0) + _oilT;
+                  ml.push(`油を浴びた！炎ダメージが2倍になる！(${_oilT}ターン)`);
+                }
                 _addOilArea(p.x, p.y);
               }
               /* 油をbox周囲にも飛散 */
@@ -5033,19 +5039,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
                     const _poison = applyYabaiPoison(p, "player");
-                    ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
+                    ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
                   }
                   const _yConfuseT = statusTurns("confuse", { kind: "player" });
                   const _ySlowT = statusTurns("slow", { kind: "player" });
-                  p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
-                  p.slowTurns = (p.slowTurns || 0) + _ySlowT;
-                  ml.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+                  if (!isStatusImmune(p, ml)) {
+                    p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
+                    p.slowTurns = (p.slowTurns || 0) + _ySlowT;
+                    ml.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+                  }
                 } else if (item.type === "food" && item.rotten && !item.yabai) {
                   if (hasRingEffect(p, "antidote_ring")) {
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
                     const _poison = applyPlayerPoison(p);
-                    ml.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                    ml.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                   }
                 }
                 applyFoodEffectsOnHit(item, "player", p, dg, p, ml, lu);
@@ -5242,9 +5250,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
     } else if (r < 0.76) {
       // 混乱になる
-      const _springConfuseT = SPRING_CONFUSION_TURNS;
-      p.confusedTurns = (p.confusedTurns || 0) + _springConfuseT;
-      ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
+      if (!isStatusImmune(p, ml)) {
+        const _springConfuseT = SPRING_CONFUSION_TURNS;
+        p.confusedTurns = (p.confusedTurns || 0) + _springConfuseT;
+        ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
+      }
     } else if (r < 0.84) {
       // ダメージ
       const d = rng(3, 8);
@@ -5257,7 +5267,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ml.push("なんか変な味がした...しかし毒消しの指輪が泉の毒を無効化した！");
       } else {
         const _poison = applyPlayerPoison(p);
-        ml.push(`なんか変な味がした...毒だ！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+        ml.push(statusResultMessage(_poison, `なんか変な味がした...毒だ！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
       }
     } else if (r < 0.95) {
       // 所持品がランダムで呪われる（壺は容量-1）

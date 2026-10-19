@@ -1,3 +1,4 @@
+import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
@@ -316,6 +317,8 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     onPlayerHit?.(_iDmg, m);
     if (_hasIceR) {
       ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！${iceResistDamageLabel(pl)}・鈍足無効`);
+    } else if (isStatusImmune(pl, ml)) {
+      ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！`);
     } else if (isPlayerOnWater(pl, dg)) {
       ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！`);
       applyWaterIceFreeze(pl, dg, ml, statusTurns("frozen", { kind: "player" }));
@@ -606,7 +609,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     if (m.baseKind === "boss_warlord" && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`魔将軍の刃が鎧を砕いた！しかし状態防止中のため効かなかった！`);
-      } else {
+      } else if (!isStatusImmune(pl, ml)) {
         const _ds = statusTurns("defSoftened", { kind: "player" });
         pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
         ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(${_ds}ターン)`);
@@ -643,7 +646,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`煉獄公の爪に毒が！しかし乳酸菌が毒を防いだ！`);
       } else {
         const _poison = applyPlayerPoison(pl);
-        ml.push(`煉獄公の爪に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+        ml.push(statusResultMessage(_poison, `煉獄公の爪に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
       }
     }
     if (m.baseKind === "boss_abyssgod") {
@@ -659,7 +662,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       if (Math.random() < MONSTER_SPECIAL_RATE.status) {
         if ((pl.statusImmune || 0) > 0) {
           ml.push(`深淵神の呪いで防御が崩れた！しかし状態防止中のため効かなかった！`);
-        } else {
+        } else if (!isStatusImmune(pl, ml)) {
           const _ds = statusTurns("defSoftened", { kind: "player" });
           pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
           ml.push(`深淵神の呪いで防御が崩れた！防御力が半減した！(${_ds}ターン)`);
@@ -3901,7 +3904,7 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
           ml.push("毒消しの指輪が毒胞子を防いだ！");
         } else {
           const res = applyPlayerPoison(p);
-          ml.push(`毒胞子を浴びた！毒状態(${res.turns}ターン)になった！${res.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          ml.push(statusResultMessage(res, `毒胞子を浴びた！毒状態(${res.turns}ターン)になった！${res.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
       } else if (sporeType === "sleep") {
         if (hasAbility(p.armor, "sleep_proof")) {
@@ -4261,16 +4264,18 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
       if (monEffectiveMagicImmune(m)) {
         ml.push(`魔法は${m.name}に効かない！`);
-      } else {
+      } else if (!isStatusImmune(m, ml, m.name)) {
         m.def = Math.floor((m.def || 0) / 2);
         ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
       }
     } else if (_plOnBlessedSanc) {
       ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
     } else {
-      const _ds = statusTurns("defSoftened", { kind: "player" });
-      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
-      ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
+      if (!isStatusImmune(pl, ml)) {
+        const _ds = statusTurns("defSoftened", { kind: "player" });
+        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+        ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
+      }
     }
     return true;
   }
@@ -4291,8 +4296,10 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
       ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
     } else {
-      pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
-      ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+      if (!isStatusImmune(pl, ml)) {
+        pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
+        ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+      }
     }
     return true;
   }
@@ -5142,9 +5149,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`祝福された聖域の加護が${m.name}の炎の息を防いだ！`);
         return;
       }
-      const _oilT = statusTurns("oily", { kind: "player" });
-      pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
-      ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
+      if (!isStatusImmune(pl, ml)) {
+        const _oilT = statusTurns("oily", { kind: "player" });
+        pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
+        ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
+      }
       return; /* ブレス行動消費 */
     }
   }
@@ -5159,13 +5168,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`祝福された聖域の加護が${m.name}の呪いを防いだ！`);
         return;
       }
-      const _r = Math.random();
-      if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
-      else if (_r < 0.66) {
-        if ((pl.yogurtImmuneTurns || 0) > 0) { ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`); }
-        else { const _ct = statusTurns("confuse", { kind: "player" }); pl.confusedTurns = (pl.confusedTurns || 0) + _ct; ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`); }
+      if (!isStatusImmune(pl, ml)) {
+        const _r = Math.random();
+        if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
+        else if (_r < 0.66) {
+          if ((pl.yogurtImmuneTurns || 0) > 0) { ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`); }
+          else { const _ct = statusTurns("confuse", { kind: "player" }); pl.confusedTurns = (pl.confusedTurns || 0) + _ct; ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`); }
+        }
+        else { const _st = statusTurns("seal", { kind: "player" }); pl.sealedTurns = (pl.sealedTurns || 0) + _st; ml.push(`${m.name}の空間歪曲で魔法が封印された！(${_st}ターン)`); }
       }
-      else { const _st = statusTurns("seal", { kind: "player" }); pl.sealedTurns = (pl.sealedTurns || 0) + _st; ml.push(`${m.name}の空間歪曲で魔法が封印された！(${_st}ターン)`); }
       return; /* 状態異常付与行動消費 */
     }
   }
@@ -5281,9 +5292,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
           pl.hp -= _kiDmg;
           pl.deathCause = `${m.name}の墨で`;
-          const _darkT = statusTurns("darkness", { kind: "player" });
-          pl.darknessTurns = (pl.darknessTurns || 0) + _darkT;
-          ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！暗闇状態になった！(${_darkT}ターン)`);
+          ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！`);
+          if (!isStatusImmune(pl, ml)) {
+            const _darkT = statusTurns("darkness", { kind: "player" });
+            pl.darknessTurns = (pl.darknessTurns || 0) + _darkT;
+            ml.push(`暗闇状態になった！(${_darkT}ターン)`);
+          }
           _onHit?.(_kiDmg, m);
           break;
         }
@@ -5969,7 +5983,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (isStationaryGrabber(m)) {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
         let _justCaptured = false;
-        if (!pl.capturedBy && !_plOnSanc) {
+        if (!pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
           pl.capturedBy = m.id;
           _justCaptured = true;
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
@@ -5989,7 +6003,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* ── giantEel（巨大ウナギ等）：隣接時にプレイヤーを拘束する ── */
     if (m.subtype === "giantEel" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       let _justBound = false;
-      if (!pl.capturedBy && !_plOnSanc) {
+      if (!pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
         pl.capturedBy = m.id;
         _justBound = true;
         ml.push(`${m.name}に締め付けられた！倒さなければ逃げられない！`);
@@ -6598,8 +6612,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
           ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
         } else {
-          pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
+          if (!isStatusImmune(pl, ml)) {
+      pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
           ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+      }
         }
         return;
       }
@@ -7196,7 +7212,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 ml.push(`${m.name}の牙に毒が！しかし乳酸菌が毒を防いだ！`);
               } else {
                 const _poison = applyPlayerPoison(pl);
-                ml.push(`${m.name}の牙に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                ml.push(statusResultMessage(_poison, `${m.name}の牙に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
               }
             },
             onPlayerMiss: _onMiss,
@@ -7353,13 +7369,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
               if (monEffectiveMagicImmune(m)) {
                 ml.push(`魔法は${m.name}に効かない！`);
-              } else {
+              } else if (!isStatusImmune(m, ml, m.name)) {
                 m.def = Math.floor((m.def || 0) / 2);
                 ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
               }
             } else if (_plOnBlessedSanc) {
               ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
-            } else {
+            } else if (!isStatusImmune(pl, ml)) {
               const _ds = statusTurns("defSoftened", { kind: "player" });
               pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
               ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);

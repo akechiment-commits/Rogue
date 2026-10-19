@@ -210,6 +210,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "shadow_stitch": {
+      if (blockPlayerStatus(p, ml)) break;
       const _it = statusTurns("immobile", { kind: "player" });
       p.immobileTurns = (p.immobileTurns || 0) + _it;
       ml.push(`${trap.name}が作動！影に縫い付けられた！(${_it}ターン移動不能)`);
@@ -243,6 +244,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "oil_trap": {
+      if (blockPlayerStatus(p, ml)) break;
       const _ot = statusTurns("oily", { kind: "player" });
       p.oilyTurns = (p.oilyTurns || 0) + _ot;
       ml.push(`${trap.name}が発動！油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);

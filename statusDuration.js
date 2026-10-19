@@ -1,3 +1,5 @@
+import { isStatusImmune } from "./statusImmunity.js";
+export { isStatusImmune } from "./statusImmunity.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 
 /**
@@ -109,6 +111,13 @@ export function monsterStatusTurns(baseTurns, target) {
   return target?.isBoss ? Math.max(1, Math.ceil(turns / 2)) : turns;
 }
 
+/** 状態付与に付随する毒の能力低下・ログも、防止結果と同じ判定に揃える。 */
+export function statusResultMessage(result, message) {
+  if (!result?.blocked) return message;
+  const damage = String(message).match(/\d+ダメージ！/g) || [];
+  return damage.join("") + "状態防止中のため効かなかった！";
+}
+
 /**
  * プレイヤーへ毒を付与する。
  * 毒の再付与では攻撃力低下を重ねず、持続だけ加算する。
@@ -116,6 +125,7 @@ export function monsterStatusTurns(baseTurns, target) {
  */
 export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOverride } = {}) {
   if (!player) return { newlyApplied: false, atkLoss: 0, turns: 0, remaining: 0 };
+  if (isStatusImmune(player)) return { blocked: true, newlyApplied: false, atkLoss: 0, turns: 0, remaining: player.poisonedTurns || 0 };
   const newlyApplied = !player.poisoned;
   const turns = statusTurns("poison", { kind: "player", blessed });
   player.poisoned = true;
@@ -136,6 +146,7 @@ export function applyYabaiPoison(entity, kind, opts = {}) {
   if (kind === "player") {
     return applyPlayerPoison(entity, { blessed: true, atkLoss: 2 });
   }
+  if (isStatusImmune(entity)) return { blocked: true, newlyApplied: false, atkLoss: 0, turns: 0, remaining: entity?.poisonedTurns || 0 };
   const target = opts.target || entity;
   const newlyApplied = !entity.poisoned;
   const turns = statusTurns("poison", { kind: "monster", blessed: true, target });
@@ -253,7 +264,7 @@ export function isAttackSealed(entity) {
 /** 祝福された封印の追加効果。通常攻撃を封じる。祝福倍率はかけない（10T固定、ボスは半分）。 */
 export function applyAttackSeal(entity, opts = {}) {
   const { kind = "player", target = entity } = opts;
-  if (!entity) return 0;
+  if (!entity || isStatusImmune(entity, opts.ml, kind === "monster" ? target?.name : null)) return 0;
   if (kind === "monster" && blockLargeMonsterStatus(target, "attackSeal", opts.ml)) return 0;
   if (kind === "monster") startLargeMonsterStatusCooldown(target, "attackSeal");
   const turns = statusTurns("attackSeal", { kind, target: kind === "monster" ? target : null });
@@ -268,7 +279,7 @@ export function applyAttackSeal(entity, opts = {}) {
  * @returns {number} 付与ターン（通常敵の永続は PERMANENT_TURNS）
  */
 export function applyMonsterParalyze(target, { blessed = false, ml = null, name = null } = {}) {
-  if (!target) return 0;
+  if (!target || isStatusImmune(target, ml, name || target?.name)) return 0;
   if (blockLargeMonsterStatus(target, "paralyze", ml)) return 0;
   startLargeMonsterStatusCooldown(target, "paralyze");
   const nm = name || target.name || "敵";
@@ -297,7 +308,7 @@ export function applyMonsterParalyze(target, { blessed = false, ml = null, name 
 
 /** 敵の暗闇。再付与は持続を加算し、直進方向は維持する。 */
 export function applyMonsterDarkness(monster, turns, ml = null) {
-  if (!monster || !(turns > 0)) return 0;
+  if (!monster || !(turns > 0) || isStatusImmune(monster, ml, monster?.name)) return 0;
   if (blockLargeMonsterStatus(monster, "darkness", ml)) return 0;
   startLargeMonsterStatusCooldown(monster, "darkness");
   const wasDark = (monster.darknessTurns || 0) > 0;
@@ -309,7 +320,7 @@ export function applyMonsterDarkness(monster, turns, ml = null) {
 
 /** 敵の幻惑。再付与は逃走タイマーを加算する。 */
 export function applyMonsterBewitch(monster, turns, ml = null) {
-  if (!monster || !(turns > 0)) return 0;
+  if (!monster || !(turns > 0) || isStatusImmune(monster, ml, monster?.name)) return 0;
   if (blockLargeMonsterStatus(monster, "bewitch", ml)) return 0;
   startLargeMonsterStatusCooldown(monster, "bewitch");
   monster.fleeingTurns = (monster.fleeingTurns || 0) + turns;

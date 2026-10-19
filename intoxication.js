@@ -1,4 +1,4 @@
-import { statusTurns } from "./statusDuration.js";
+import { isStatusImmune, statusTurns } from "./statusDuration.js";
 
 export const DRUNK_DIRECTION_CHANCE = 1 / 8;
 export const DRUNK_VOMIT_CHANCE = 0.05;
@@ -25,6 +25,8 @@ export function applySakeEffect(entity, {
     entity.confusedTurns = 0;
     return { status: "cured", turns: 0, cleared };
   }
+
+  if (isStatusImmune(entity)) return { status: "blocked", turns: 0, cleared: [] };
 
   if ((entity.drunkenTurns || 0) > 0) {
     entity.sleepTurns = DRUNKEN_COMA_TURNS;

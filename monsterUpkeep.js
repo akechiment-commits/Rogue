@@ -1,3 +1,4 @@
+import { isStatusImmune } from "./statusImmunity.js";
 import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.js";
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
@@ -39,12 +40,13 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     if ((monster.dopingTurns || 0) > 0) {
       monster.dopingTurns--;
       if (monster.dopingTurns <= 0) {
-        if (monster.dopingAftereffectPending) {
+        if (monster.dopingAftereffectPending && !isStatusImmune(monster, messages, monster.name)) {
           monster.dopingAftereffectTurns = 50;
           monster.dopingAftereffectPending = false;
           applyMonsterDopingStats(monster, 0.5);
           messages.push(`${monster.name}のドーピング効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)`);
         } else {
+          monster.dopingAftereffectPending = false;
           restoreMonsterDopingStats(monster);
           messages.push(`${monster.name}のドーピング効果が切れた！攻撃力と防御力が戻った！`);
         }

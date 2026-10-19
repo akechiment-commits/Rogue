@@ -1,3 +1,4 @@
+import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
@@ -280,9 +281,9 @@ export function useItemActions({
           // 通常：毒状態を付与。付与時に攻撃力低下、効果中は毎ターンダメージ
           const _poison = applyPlayerPoison(p, { blessed: it.blessed });
           if (it.blessed) {
-            ml.push(`${_useItemName}を飲んだ。強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！【祝=強毒】`);
+            ml.push(statusResultMessage(_poison, `${_useItemName}を飲んだ。強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！【祝=強毒】`));
           } else {
-            ml.push(`${_useItemName}を飲んだ。${_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`}`);
+            ml.push(statusResultMessage(_poison, `${_useItemName}を飲んだ。${_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`}`));
           }
         }
       } else if (it.effect === "luck") {
@@ -295,7 +296,7 @@ export function useItemActions({
             ml.push(`${_useItemName}を飲んだ。お腹を壊したが、毒消しの指輪が毒を防いだ！満腹度-15【呪】`);
           } else {
             const _milkPoison = applyPlayerPoison(p);
-            ml.push(`${_useItemName}を飲んだ。お腹を壊して毒になった！満腹度-15（毒${_milkPoison.turns}ターン）【呪】`);
+            ml.push(statusResultMessage(_milkPoison, `${_useItemName}を飲んだ。お腹を壊して毒になった！満腹度-15（毒${_milkPoison.turns}ターン）【呪】`));
           }
         } else {
           ml.push(`${_useItemName}を飲んだ。満腹度+${it.blessed ? 30 : 15}${it.blessed ? "【祝福】" : ""}`);
@@ -564,25 +565,27 @@ export function useItemActions({
           ml.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyYabaiPoison(p, "player");
-          ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
+          ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
         }
-        if ((p.yogurtImmuneTurns || 0) > 0) {
-          ml.push("乳酸菌が混乱を防いだ！");
-        } else {
-          const _yConfuseT = statusTurns("confuse", { kind: "player" });
-          p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
-          ml.push(`混乱した！(${_yConfuseT}ターン)`);
+        if (!isStatusImmune(p, ml)) {
+          if ((p.yogurtImmuneTurns || 0) > 0) {
+            ml.push("乳酸菌が混乱を防いだ！");
+          } else {
+            const _yConfuseT = statusTurns("confuse", { kind: "player" });
+            p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
+            ml.push(`混乱した！(${_yConfuseT}ターン)`);
+          }
+          if (hasAbility(p.armor, "bewitch_proof")) {
+            ml.push("防具が幻惑を防いだ！");
+          } else {
+            const _yBewitchT = statusTurns("bewitch", { kind: "player" });
+            p.bewitchedTurns = (p.bewitchedTurns || 0) + _yBewitchT;
+            ml.push(`幻惑された！(${_yBewitchT}ターン)`);
+          }
+          const _ySlowT = statusTurns("slow", { kind: "player" });
+          p.slowTurns = (p.slowTurns || 0) + _ySlowT;
+          ml.push(`体が重くなった…(鈍足${_ySlowT}ターン)`);
         }
-        if (hasAbility(p.armor, "bewitch_proof")) {
-          ml.push("防具が幻惑を防いだ！");
-        } else {
-          const _yBewitchT = statusTurns("bewitch", { kind: "player" });
-          p.bewitchedTurns = (p.bewitchedTurns || 0) + _yBewitchT;
-          ml.push(`幻惑された！(${_yBewitchT}ターン)`);
-        }
-        const _ySlowT = statusTurns("slow", { kind: "player" });
-        p.slowTurns = (p.slowTurns || 0) + _ySlowT;
-        ml.push(`体が重くなった…(鈍足${_ySlowT}ターン)`);
       /* 腐った食料：通常の満腹度1/2、毒＋ダメージ、効果なし */
       } else if (it.rotten) {
         const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.5));
@@ -597,7 +600,7 @@ export function useItemActions({
           ml.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyPlayerPoison(p);
-          ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
       } else {
       const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
@@ -686,7 +689,7 @@ export function useItemActions({
               ml.push("毒が混じっていたが指輪が毒を消した！");
             } else {
               const _poison = applyPlayerPoison(p);
-              ml.push(`毒が混じっていた！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+              ml.push(statusResultMessage(_poison, `毒が混じっていた！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
             }
           } else if (pe === "sleep") {
             const st = rng(3, 6);
@@ -738,7 +741,7 @@ export function useItemActions({
               ml.push("呪いの回復成分があったが指輪が毒を消した！");
             } else {
               const _poison = applyPlayerPoison(p);
-              ml.push(`呪いの回復成分が！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+              ml.push(statusResultMessage(_poison, `呪いの回復成分が！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
             }
           } else if (pe === "c_poison") {
             if (p.poisoned) {
@@ -803,7 +806,7 @@ export function useItemActions({
               ml.push("猛毒の効果があったが、毒消しの指輪が毒を防いだ！");
             } else {
               const _milkFoodPoison = applyPlayerPoison(p);
-              ml.push(`猛毒の効果で毒になった！(${_milkFoodPoison.turns}ターン)`);
+              ml.push(statusResultMessage(_milkFoodPoison, `猛毒の効果で毒になった！(${_milkFoodPoison.turns}ターン)`));
             }
           } else if (pe === "doping") {
             applyPotionEffect("doping", 50, "player", p, dg, p, ml, lu, false, false);
@@ -1566,9 +1569,11 @@ export function useItemActions({
       } else if (it.effect === "debuff") {
         if (it.cursed) {
           // 呪い：自分に攻撃力半減・防御力半減デバフ50ターン
-          p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
-          p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
-          ml.push("呪いの力が自分に降り注いだ！50ターン攻撃力・防御力が半減する！【呪】");
+          if (!isStatusImmune(p, ml)) {
+            p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
+            p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
+            ml.push("呪いの力が自分に降り注いだ！50ターン攻撃力・防御力が半減する！【呪】");
+          }
         } else {
           const _dbTgts = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           if (_dbTgts.length === 0) { ml.push("視界に敵はいない。"); }
@@ -1578,9 +1583,11 @@ export function useItemActions({
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
                 // 反射：自分に攻撃力半減・防御力半減デバフ
-                p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
-                p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
-                ml.push(`${_m.name}が解除魔法を跳ね返した！自分に攻撃力・防御力半減デバフ！`);
+                if (!isStatusImmune(p, ml)) {
+                  p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
+                  p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
+                  ml.push(`${_m.name}が解除魔法を跳ね返した！自分に攻撃力・防御力半減デバフ！`);
+                }
                 continue;
               }
               if (consumeBarrier(_m, ml)) continue;
@@ -2575,28 +2582,30 @@ export function useItemActions({
         p.hp -= _recoil;
         p.deathCause = "魔法書の魔力反動で";
         ml.push(`MPが${_shortage}足りず、魔力の反動で${_recoil}ダメージ！`);
-        if (_shortage >= 5) {
-          const _confuseTurns = Math.min(12, statusTurns("confuse", { kind: "player" }) + Math.floor(_shortage / 3));
-          p.confusedTurns = (p.confusedTurns || 0) + _confuseTurns;
-          ml.push(`魔力が乱れて混乱した！(${_confuseTurns}ターン)`);
-        }
-        if (_shortage >= 10) {
-          const _slowTurns = statusTurns("slow", { kind: "player" }) + Math.floor(_shortage / 4);
-          p.slowTurns = (p.slowTurns || 0) + _slowTurns;
-          ml.push(`魔力の反動で鈍足になった！(${_slowTurns}ターン)`);
-        }
-        if (_shortage >= 15) {
-          const _sleepTurns = statusTurns("sleep", { kind: "player" }) + Math.floor(_shortage / 5);
-          p.sleepTurns = (p.sleepTurns || 0) + _sleepTurns;
-          ml.push(`魔力の反動で眠ってしまった！(${_sleepTurns}ターン)`);
-        }
-        if (_shortage >= 20) {
-          const _sealTurns = applyPlayerSeal(p, ml, { proofMsg: "魔力の反動による封印を防具が防いだ！(耐封印)" });
-          if (_sealTurns > 0) ml.push(`魔力の反動で魔法封印になった！(${_sealTurns}ターン)`);
-          const _paralyzeTurns = statusTurns("paralyze", { kind: "player" });
-          p.paralyzed = true;
-          p.paralyzeTurns = (p.paralyzeTurns || 0) + _paralyzeTurns;
-          ml.push(`魔力の反動で金縛りになった！(${_paralyzeTurns}ターン)`);
+        if (!isStatusImmune(p, ml)) {
+          if (_shortage >= 5) {
+            const _confuseTurns = Math.min(12, statusTurns("confuse", { kind: "player" }) + Math.floor(_shortage / 3));
+            p.confusedTurns = (p.confusedTurns || 0) + _confuseTurns;
+            ml.push(`魔力が乱れて混乱した！(${_confuseTurns}ターン)`);
+          }
+          if (_shortage >= 10) {
+            const _slowTurns = statusTurns("slow", { kind: "player" }) + Math.floor(_shortage / 4);
+            p.slowTurns = (p.slowTurns || 0) + _slowTurns;
+            ml.push(`魔力の反動で鈍足になった！(${_slowTurns}ターン)`);
+          }
+          if (_shortage >= 15) {
+            const _sleepTurns = statusTurns("sleep", { kind: "player" }) + Math.floor(_shortage / 5);
+            p.sleepTurns = (p.sleepTurns || 0) + _sleepTurns;
+            ml.push(`魔力の反動で眠ってしまった！(${_sleepTurns}ターン)`);
+          }
+          if (_shortage >= 20) {
+            const _sealTurns = applyPlayerSeal(p, ml, { proofMsg: "魔力の反動による封印を防具が防いだ！(耐封印)" });
+            if (_sealTurns > 0) ml.push(`魔力の反動で魔法封印になった！(${_sealTurns}ターン)`);
+            const _paralyzeTurns = statusTurns("paralyze", { kind: "player" });
+            p.paralyzed = true;
+            p.paralyzeTurns = (p.paralyzeTurns || 0) + _paralyzeTurns;
+            ml.push(`魔力の反動で金縛りになった！(${_paralyzeTurns}ターン)`);
+          }
         }
         if (p.hp <= 0) return;
         ml.push(`魔力の反動を受けながらも、${_spell.name}が発動した！`);
@@ -3457,7 +3466,7 @@ export function useItemActions({
             /* reflector経由でプレイヤー命中時の毒処理 */
             if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
               const _poison = applyPlayerPoison(p);
-                mlx.push(_poison.atkLoss > 0 ? `毒を受けた！(${_poison.turns}ターン)攻撃力が下がった！` : `毒を受けた！(${_poison.turns}ターン)`);
+                mlx.push(statusResultMessage(_poison, _poison.atkLoss > 0 ? `毒を受けた！(${_poison.turns}ターン)攻撃力が下がった！` : `毒を受けた！(${_poison.turns}ターン)`));
             } else if (_arIsPoison) {
               mlx.push("しかし指輪が毒を消した！");
             }
@@ -4526,19 +4535,21 @@ export function useItemActions({
                       ml.push("毒消しの指輪が毒を防いだ！");
                     } else {
                       const _poison = applyYabaiPoison(p, "player");
-                      ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
+                      ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
                     }
                     const _rfConfuseT = statusTurns("confuse", { kind: "player" });
                     const _rfSlowT = statusTurns("slow", { kind: "player" });
-                    p.confusedTurns = (p.confusedTurns || 0) + _rfConfuseT;
-                    p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
-                    ml.push(`混乱(${_rfConfuseT}ターン)・鈍足(${_rfSlowT}ターン)状態になった！`);
+                    if (!isStatusImmune(p, ml)) {
+                      p.confusedTurns = (p.confusedTurns || 0) + _rfConfuseT;
+                      p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
+                      ml.push(`混乱(${_rfConfuseT}ターン)・鈍足(${_rfSlowT}ターン)状態になった！`);
+                    }
                   } else if (it.type === "food" && it.rotten && !it.yabai) {
                     if (hasRingEffect(p, "antidote_ring")) {
                       ml.push("毒消しの指輪が毒を防いだ！");
                     } else {
                       const _poison = applyPlayerPoison(p);
-                      ml.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                      ml.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                     }
                   }
                   if (it.type === "wand") {
@@ -4608,7 +4619,7 @@ export function useItemActions({
                     const _yThrowDmg = rng(15, 25);
                     m.hp -= _yThrowDmg;
                     ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yThrowDmg}ダメージ！`);
-                    if (m.hp > 0) {
+                    if (m.hp > 0 && !isStatusImmune(m, ml, m.name)) {
                       const _yPoison = applyYabaiPoison(m, "monster");
                       const _yConfuseT = statusTurns("confuse", { kind: "monster", target: m });
                       const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
@@ -4621,7 +4632,7 @@ export function useItemActions({
                   if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt && m.hp > 0) {
                     applyIceCreamEffect(m, "monster", ml, { name: dnameRef(it) });
                   }
-                  if (it.type === "food" && (it.rotten || it.burnt) && !it.yabai && m.hp > 0) {
+                  if (it.type === "food" && (it.rotten || it.burnt) && !it.yabai && m.hp > 0 && !isStatusImmune(m, ml, m.name)) {
                     m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
                     ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
                   }
@@ -4669,12 +4680,14 @@ export function useItemActions({
               ml.push(`${_selfD}ダメージ！`);
               if (it.type === "food" && it.yabai) {
                 const _poison = applyYabaiPoison(p, "player");
-                p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
-                ml.push(`ヤバイ食料の影響で毒(${_poison.turns}ターン)・混乱した！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
+                if (!isStatusImmune(p, ml)) {
+                  p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
+                }
+                ml.push(statusResultMessage(_poison, `ヤバイ食料の影響で毒(${_poison.turns}ターン)・混乱した！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
               } else if (it.type === "food" && it.rotten) {
                 if (!hasRingEffect(p, "antidote_ring")) {
                   const _poison = applyPlayerPoison(p);
-                  ml.push(`腐った食料で毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                  ml.push(statusResultMessage(_poison, `腐った食料で毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                 }
               }
               applyFoodEffectsOnHit(it, "player", p, dg, p, ml, lu);

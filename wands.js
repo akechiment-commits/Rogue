@@ -83,6 +83,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     ml.push(`${target.name}は強制移動を受けない！`);
     return;
   }
+  const _statusVictim = kind === "player" ? p : kind === "monster" ? target : null;
+  if (_statusVictim && blMult >= 1 && ["slow", "sleep", "paralyze", "seal", "confuse", "darkness", "bewitch", "soften"].includes(eff) &&
+      isStatusImmune(_statusVictim, ml, kind === "monster" ? target.name : null)) return;
   const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && blMult >= 1
     ? ({ slow: "slow", sleep: "sleep", confuse: "confuse", sleep_bolt: "sleep", poison_bolt: "poison", ice_wand: "immobile" })[eff]
     : null;
@@ -1855,7 +1858,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwIceMult));
         _iwDmg = _magicDamage(_iwDmg);
         target.hp -= _iwDmg;
-        if (_skipLargeStatus) {
+        if (_skipLargeStatus || isStatusImmune(target, ml, target.name)) {
           ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じは効かなかった！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
         } else {
           target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
@@ -1872,6 +1875,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.hp -= _iwDmg;
         if (hasIceResist(p)) {
           ml.push(`${_hitYou("氷の弾")}${_iwDmg}ダメージ！${iceResistDamageLabel(p)}・移動封じ無効`);
+        } else if (isStatusImmune(p, ml)) {
+          ml.push(`${_hitYou("氷の弾")}${_iwDmg}ダメージ！`);
         } else if (isPlayerOnWater(p, dg)) {
           ml.push(`${_hitYou("氷の弾")}${_iwDmg}ダメージ！`);
           applyWaterIceFreeze(p, dg, ml, _iwTurns);
@@ -2695,9 +2700,11 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     /* 通常/祝福：中心の防御半減＋落とし穴＋周囲に軟化効果（壁は食料に変化） */
     const _sfcEnt = _centerWandTarget(dg, cx, cy, p);
     if (_sfcEnt?.kind === "player") {
-      const _ds = statusTurns("defSoftened", { kind: "player", blessed: blMult > 1 });
-      p.defSoftenedTurns = (p.defSoftenedTurns || 0) + _ds;
-      ml.push(`軟化の杖が壊れた！防御力が半減した！(${_ds}ターン)`);
+      if (!isStatusImmune(p, ml)) {
+        const _ds = statusTurns("defSoftened", { kind: "player", blessed: blMult > 1 });
+        p.defSoftenedTurns = (p.defSoftenedTurns || 0) + _ds;
+        ml.push(`軟化の杖が壊れた！防御力が半減した！(${_ds}ターン)`);
+      }
     } else if (_sfcEnt?.kind === "monster") {
       _applyBreakEffect("soften", "monster", _sfcEnt.t, 0, 0);
       ml.push("軟化の杖が壊れた！");

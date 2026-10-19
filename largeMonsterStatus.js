@@ -1,3 +1,4 @@
+import { isStatusImmune } from "./statusImmunity.js";
 import { monsterBodySize } from "./monsterGeometry.js";
 
 export const LARGE_MONSTER_STATUS_COOLDOWN_TURNS = 10;
@@ -20,6 +21,7 @@ export function startLargeMonsterStatusCooldown(monster, status) {
 }
 
 export function blockLargeMonsterStatus(monster, status, messages) {
+  if (status !== "float" && isStatusImmune(monster, messages, monster?.name)) return true;
   const remaining = largeMonsterStatusCooldown(monster, status);
   if (remaining <= 0) return false;
   messages?.push(`${monster.name}は${STATUS_LABELS[status] || "状態異常"}への耐性を保っている！(あと${remaining}ターン)`);

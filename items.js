@@ -27,7 +27,7 @@ import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -177,11 +177,7 @@ function _triggerWandBreakEffect(...args) {
 }
 
 /* ===== 状態異常防止チェックヘルパー ===== */
-export function isStatusImmune(entity, ml, name = null) {
-  if ((entity.statusImmune || 0) <= 0) return false;
-  if (ml) ml.push(name ? `${name}には効かなかった！(状態防止中)` : "状態防止中のため効かなかった！");
-  return true;
-}
+export { isStatusImmune } from "./statusDuration.js";
 
 /** ボスに即死系の環境効果を当てたときの代替ダメージ（爆発と同じ現在HPの1/4）。 */
 export function bossInstantDeathDamage(mon) {
@@ -1278,7 +1274,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
  * モンスターに封印を付与し、水上浮遊の弾き出し／即死を解決する。
  */
 export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
-  if (!target) return null;
+  if (!target || isStatusImmune(target, ml, target?.name)) return null;
   if (blockLargeMonsterStatus(target, "seal", ml)) return null;
   startLargeMonsterStatusCooldown(target, "seal");
   const { blessed = false, sealedTurns = null, message = null } = opts;
@@ -1829,9 +1825,11 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
           }
         }
         if (tx === p.x && ty === p.y) {
-          const _ot = statusTurns("oily", { kind: "player" });
-          p.oilyTurns = (p.oilyTurns || 0) + _ot;
-          ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          if (!isStatusImmune(p, ml)) {
+            const _ot = statusTurns("oily", { kind: "player" });
+            p.oilyTurns = (p.oilyTurns || 0) + _ot;
+            ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          }
         }
         /* 油がかかったマスの非永続罠を消滅 */
         const _oilTrap = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
@@ -1913,9 +1911,11 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
           }
         }
         if (tx === p.x && ty === p.y) {
-          const _ot = statusTurns("oily", { kind: "player" });
-          p.oilyTurns = (p.oilyTurns || 0) + _ot;
-          ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          if (!isStatusImmune(p, ml)) {
+            const _ot = statusTurns("oily", { kind: "player" });
+            p.oilyTurns = (p.oilyTurns || 0) + _ot;
+            ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          }
         }
         const _ot = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
         if (_ot) removeTrap(dg, _ot, ml, { message: `油で${_ot.name}が消えた！`, p });
@@ -3191,7 +3191,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
         } else {
           const _poison = applyPlayerPoison(p);
-          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          ml.push(statusResultMessage(_poison, `毒矢が命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
       } else {
         ml.push(`${label}が命中！${d}ダメージ！`);
@@ -3225,7 +3225,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
                 ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！しかし指輪が毒を消した！`);
               } else {
                 const _poison = applyPlayerPoison(p);
-                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                ml.push(statusResultMessage(_poison, `跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
               }
             } else {
               ml.push(`跳ね返された${label}が${pl()}に命中！${d}ダメージ！`);
@@ -3783,9 +3783,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         }
       }
       if (p && p.x === tx && p.y === ty) {
-        const _ot = statusTurns("oily", { kind: "player" });
-        p.oilyTurns = (p.oilyTurns || 0) + _ot;
-        ml.push(`油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);
+        if (!isStatusImmune(p, ml)) {
+          const _ot = statusTurns("oily", { kind: "player" });
+          p.oilyTurns = (p.oilyTurns || 0) + _ot;
+          ml.push(`油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);
+        }
       }
       return "restart";
     }
@@ -4160,7 +4162,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   triggerMushroomCounterSpore(mon, dg, p, ml);
 
   /* 毒矢：命中時の毒付与と攻撃力半減も通常投擲と同じにする。 */
-  if (item.type === "arrow" && item.poison) {
+  if (item.type === "arrow" && item.poison && !isStatusImmune(mon, ml, mon.name)) {
     if (mon.isBoss) {
       if (!mon.bossPoisonHalfAtk) {
         mon.bossPoisonOrigAtk = mon.atk;
@@ -4179,7 +4181,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     const _yDmg = rng(15, 25);
     mon.hp -= _yDmg;
     ml.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
-    if (mon.hp > 0) {
+    if (mon.hp > 0 && !isStatusImmune(mon, ml, mon.name)) {
       const _ailments = [];
       let _yPoison = { turns: 0, atkLoss: 0 };
       if (!blockLargeMonsterStatus(mon, "poison", ml)) {
@@ -4217,7 +4219,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   }
 
   /* 腐った／焦げた食料：攻撃力半減（ヤバイ食料を除く）。 */
-  if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0) {
+  if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0 && !isStatusImmune(mon, ml, mon.name)) {
     mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
     ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
   }
@@ -4399,6 +4401,9 @@ const POTION_DIRECT_MONSTER_STATUS_KEYS = {
 
 export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false, skipLargeMonsterStatus = false) {
   if (kind === "monster") wakeIfDormant(target, ml);
+  const statusVictim = kind === "player" ? p : kind === "monster" ? target : null;
+  const pureAilment = (!cursed && ["sleep", "slow", "confuse", "darkness", "bewitch"].includes(eff)) || (cursed && eff === "panacea");
+  if (statusVictim && pureAilment && isStatusImmune(statusVictim, ml, kind === "monster" ? target.name : null)) return;
   let _skipLargeMonsterStatus = skipLargeMonsterStatus;
   const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && !cursed && !_skipLargeMonsterStatus
     ? POTION_DIRECT_MONSTER_STATUS_KEYS[eff]
@@ -4573,7 +4578,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const dmg = poisonContactAmount(val, { blessed });
           target.hp -= dmg;
-          if (_skipLargeMonsterStatus) {
+          if (_skipLargeMonsterStatus || isStatusImmune(target, ml, target.name)) {
             ml.push(`${target.name}は毒の薬液で${dmg}ダメージ！`);
           } else {
             const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
@@ -4602,9 +4607,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const _poison = applyPlayerPoison(p, { blessed });
           if (blessed) {
-            ml.push(`強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！(強毒)`);
+            ml.push(statusResultMessage(_poison, `強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！(強毒)`));
           } else {
-            ml.push(_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`);
+            ml.push(statusResultMessage(_poison, _poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`));
           }
         }
       }
@@ -4985,7 +4990,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.darknessTurns = (p.darknessTurns || 0) + _dark;
           p.bewitchedTurns = (p.bewitchedTurns || 0) + _bewitch;
           p.sealedTurns = (p.sealedTurns || 0) + _seal;
-          ml.push(`万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`);
+          ml.push(statusResultMessage(_poison, `万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`));
         } else {
           const _hadDopingAftereffect = (p.dopingAftereffectTurns || 0) > 0;
           if (_hadDopingAftereffect) {
@@ -5067,13 +5072,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             ml.push(`牛乳でお腹を壊したが、防具が毒を防いだ！満腹度${_delta}`);
           } else {
             const _poison = applyPlayerPoison(p);
-            ml.push(`牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`);
+            ml.push(statusResultMessage(_poison, `牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`));
           }
         } else {
           ml.push(`牛乳を飲んだ。満腹度+${_delta}${blessed ? "【祝福】" : ""}`);
         }
       } else if (kind === "monster" && cursed) {
-        if (blockLargeMonsterStatus(target, "poison", ml)) {
+        if (isStatusImmune(target, ml, target.name) || blockLargeMonsterStatus(target, "poison", ml)) {
           ml.push(`${target.name}は牛乳でお腹を壊したが、毒への耐性で毒にならなかった！`);
         } else {
           startLargeMonsterStatusCooldown(target, "poison");
@@ -5090,6 +5095,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       break;
     }
     case "doping": {
+      if (cursed && isStatusImmune(kind === "player" ? p : target, ml, kind === "monster" ? target.name : null)) break;
       const _active = DOPING_POTION_TURNS.active;
       const _after = DOPING_POTION_TURNS.aftereffect;
       if (kind === "player") {
@@ -5191,7 +5197,7 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
             ml.push("毒が混じっていたが指輪が毒を消した！");
           } else {
             const poison = applyPlayerPoison(p);
-            ml.push(`毒が混じっていた！毒状態(${poison.turns}ターン)になった！${poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+            ml.push(statusResultMessage(poison, `毒が混じっていた！毒状態(${poison.turns}ターン)になった！${poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
           }
         } else if (!blockLargeMonsterStatus(target, "poison", ml) && !isStatusImmune(target, ml, target.name)) {
           startLargeMonsterStatusCooldown(target, "poison");
@@ -6775,19 +6781,21 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyYabaiPoison(p, "player");
-          mlx.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
+          mlx.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
         }
-        p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
-        p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
-        const _yConfuseT = statusTurns("confuse", { kind: "player" });
-        const _ySlowT = statusTurns("slow", { kind: "player" });
-        mlx.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+        if (!isStatusImmune(p, mlx)) {
+          p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
+          p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
+          const _yConfuseT = statusTurns("confuse", { kind: "player" });
+          const _ySlowT = statusTurns("slow", { kind: "player" });
+          mlx.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+        }
       } else if (item.type === "food" && item.rotten && !item.yabai) {
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyPlayerPoison(p);
-          mlx.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          mlx.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
       }
       applyFoodEffectsOnHit(item, "player", p, dg, p, mlx, luFn, killerMon);
@@ -7786,7 +7794,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     const _wakkaDmg = clampDmgFixed(_wakkaTarget, calcProjectileDmg(p, _arAtk, _wakkaTarget.def), true);
     _wakkaTarget.hp -= _wakkaDmg;
     let _wakkaPoisonT = 0;
-    if (_isPoison) {
+    const _wakkaPoisonApplied = _isPoison && !isStatusImmune(_wakkaTarget, ml, _wakkaTarget.name);
+    if (_wakkaPoisonApplied) {
       if (_wakkaTarget.isBoss) {
         _wakkaPoisonT = _wakkaTarget.bossPoisonHalfAtk ? (_wakkaTarget.bossPoisonHalfAtkTurns || monsterStatusTurns(10, _wakkaTarget)) : monsterStatusTurns(10, _wakkaTarget);
         if (!_wakkaTarget.bossPoisonHalfAtk) {
@@ -7799,7 +7808,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         _wakkaTarget.atk = Math.max(1, Math.floor((_wakkaTarget.atk || 1) / 2));
       }
     }
-    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${_wakkaTarget.isBoss ? `(${_wakkaPoisonT}ターン)` : "(永続)"}` : ""}`);
+    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_wakkaPoisonApplied ? `攻撃力が半減した！${_wakkaTarget.isBoss ? `(${_wakkaPoisonT}ターン)` : "(永続)"}` : ""}`);
     triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
     if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
     if (st.bombArrow) {
@@ -7885,7 +7894,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           p.hp -= _refDmg;
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
             const _poison = applyPlayerPoison(p);
-            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+            ml.push(statusResultMessage(_poison, `跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
           } else if (_isPoison) {
             ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);
           } else {
@@ -7901,7 +7910,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       const _arDmg = clampDmgFixed(m, calcProjectileDmg(p, _arAtk, m.def), true);
       m.hp -= _arDmg;
       let _poisonT = 0;
-      if (_isPoison) {
+      const _poisonApplied = _isPoison && !isStatusImmune(m, ml, m.name);
+      if (_poisonApplied) {
         if (m.isBoss) {
           _poisonT = m.bossPoisonHalfAtk ? (m.bossPoisonHalfAtkTurns || monsterStatusTurns(10, m)) : monsterStatusTurns(10, m);
           if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = _poisonT; }
@@ -7910,7 +7920,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
         }
       }
-      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${m.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_poisonApplied ? `攻撃力が半減した！${m.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
       triggerMushroomCounterSpore(m, dg, p, ml);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }
@@ -8558,6 +8568,7 @@ export function isPlayerOnWater(p, dg) {
 export function applyWaterIceFreeze(p, dg, ml, turns = null) {
   if (turns == null) turns = statusTurns("frozen", { kind: "player" });
   if (!isPlayerOnWater(p, dg)) return false;
+  if (isStatusImmune(p, ml)) return false;
   if (hasIceResist(p)) {
     if (ml) ml.push("防具が氷を弾いた！凍結しなかった。(耐氷)");
     return false;
@@ -9018,7 +9029,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       let dmg = Math.round(rng(15, 22) * _lvF);
       const _iceFreeze = statusTurns("immobile", { kind: "monster", target });
       if (kind === "monster") {
-        const _iceStatusBlocked = monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "immobile", ml);
+        const _iceStatusBlocked = isStatusImmune(target, ml, target.name) || (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "immobile", ml));
         if (!_iceStatusBlocked && monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "immobile");
         if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
         dmg = _enemyMagicDamage(dmg);
@@ -9064,6 +9075,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "sleep_bolt": {
       if (kind === "monster") {
+        if (isStatusImmune(target, ml, target.name)) break;
         if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "sleep", ml)) break;
         if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "sleep");
         const t = statusTurns("sleep", { kind: "monster", target });
@@ -9102,6 +9114,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "poison_bolt": {
       if (kind === "monster") {
+        if (isStatusImmune(target, ml, target.name)) break;
         if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "poison", ml)) break;
         if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "poison");
         const _pt = statusTurns("poison", { kind: "monster", target });
@@ -9277,7 +9290,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             if (hasRingEffect(p, "antidote_ring")) { ml.push("毒の魔法が跳ね返ってきたが指輪が毒を消した！"); }
             else {
               const _poison = applyPlayerPoison(p);
-              ml.push(`毒の魔法が跳ね返ってきた！毒に侵された！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+              ml.push(statusResultMessage(_poison, `毒の魔法が跳ね返ってきた！毒に侵された！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
             }
             break;
           }
@@ -9899,7 +9912,7 @@ export function isSoaked(p) {
 export function applySoakedFromWaterWalk(p, dg, ml) {
   if (!dg?.map || dg.map[p.y]?.[p.x] !== T.WATER) return;
   if (isPlayerFloating(p, dg)) return;
-  if (hasWaterProof(p)) return;
+  if (hasWaterProof(p) || isStatusImmune(p, ml)) return;
   const _was = p.soakedTurns || 0;
   const _st = statusTurns("soaked", { kind: "player" });
   p.soakedTurns = _st;
@@ -9913,7 +9926,7 @@ export function applySoakedFromWaterWalk(p, dg, ml) {
  */
 export function applySoakedStatus(p, ml, turns = null, msg = null) {
   if (turns == null) turns = statusTurns("soaked", { kind: "player" });
-  if (!p) return false;
+  if (!p || isStatusImmune(p, ml)) return false;
   if (hasWaterProof(p)) {
     if (ml) ml.push("防具が水を弾いた！ずぶ濡れにならなかった。(耐水)");
     return false;
@@ -9927,7 +9940,7 @@ export function applySoakedStatus(p, ml, turns = null, msg = null) {
 
 /** 水の飛沫で敵をずぶ濡れにする。 */
 export function applySoakedStatusToMonster(monster, ml, turns = null) {
-  if (!monster) return false;
+  if (!monster || isStatusImmune(monster, ml, monster?.name)) return false;
   if (blockLargeMonsterStatus(monster, "soaked", ml)) return false;
   startLargeMonsterStatusCooldown(monster, "soaked");
   if (turns == null) turns = statusTurns("soaked", { kind: "monster", target: monster });

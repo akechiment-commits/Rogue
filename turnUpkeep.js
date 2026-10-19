@@ -1,3 +1,4 @@
+import { isStatusImmune } from "./statusImmunity.js";
 /**
  * プレイヤーのターン開始後に必ず進む基礎状態（ターン数・空腹・自然回復）を更新する。
  * 依存する装備判定は注入し、ゲーム UI や敵行動には依存しない。
@@ -308,9 +309,11 @@ export function advanceConsumableBuffTimers(player, messages) {
   if ((player.dopingTurns || 0) > 0) {
     player.dopingTurns--;
     if (player.dopingTurns <= 0 && player.dopingAftereffectPending) {
-      player.dopingAftereffectTurns = 50;
       player.dopingAftereffectPending = false;
-      messages.push("ドーピングの効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)");
+      if (!isStatusImmune(player, messages)) {
+        player.dopingAftereffectTurns = 50;
+        messages.push("ドーピングの効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)");
+      }
     }
   } else if ((player.dopingAftereffectTurns || 0) > 0) {
     player.dopingAftereffectTurns--;
