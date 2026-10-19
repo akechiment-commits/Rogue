@@ -439,18 +439,20 @@ export function useKeyHandler({
             _msgResult = applyEquipmentUpgradeScroll(_p_id, _selIt, identifyMode,
               itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
           } else if (identifyMode.mode === 'bless') {
+            const _displayName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
             if (_selIt.type === 'pot') {
               _selIt.capacity = (_selIt.capacity ?? 1) + 1;
-              _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
-            } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_selIt.name}を祝福した！【祝】`; }
+              _msgResult = `${_displayName}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
+            } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_displayName}を祝福した！【祝】`; }
           } else if (identifyMode.mode === 'curse') {
+            const _displayName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
             if (_selIt.type === 'pot') {
               const _capacityMsgs = [];
               const result = reducePotCapacity(_selIt, 1, sr.current.dungeon, _p_id, _capacityMsgs,
-                item => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+                () => _displayName);
               if (result.removedAt >= 0 && identifyMode.scrollIdx != null && result.removedAt < identifyMode.scrollIdx) identifyMode.scrollIdx--;
-              _msgResult = result.broken ? _capacityMsgs : `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`;
-            } else { setPlayerItemProperties(sr.current.player, _selIt, { cursed: true, blessed: false, bcKnown: true }); _msgResult = `${_selIt.name}を呪った！【呪】`; }
+              _msgResult = result.broken ? _capacityMsgs : `${_displayName}を呪った！(容量-1 → ${_selIt.capacity})【呪】`;
+            } else { setPlayerItemProperties(sr.current.player, _selIt, { cursed: true, blessed: false, bcKnown: true }); _msgResult = `${_displayName}を呪った！【呪】`; }
           } else if (identifyMode.mode === 'duplicate') {
             const _dupCount = identifyMode.cursed ? 0 : 1;
             if (_dupCount === 0) {

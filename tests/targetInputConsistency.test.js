@@ -11,7 +11,8 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { useGamepad } from "../useGamepad.js";
 import { BTN } from "../gamepadInput.js";
 import { soundEngine } from "../soundEngine.js";
-import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T } from "../items.js";
+import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, generateFakeNames, getIdentKey } from "../items.js";
+import { itemDisplayName } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 beforeEach(() => {
@@ -29,12 +30,17 @@ function findTarget(node) {
   if (node.type === "div" && node.key === "0" && node.props.onClick) return node;
   return findTarget(node.props?.children);
 }
-function choose(input, source, action = "duplicate", modifiers = {}) {
+function choose(input, source, action = "duplicate", modifiers = {}, nameState = {}) {
   effects.length = 0;
   const target = structuredClone({ ...source, id: "target" });
   const scroll = { id: "scroll", name: "使用する巻物", type: "scroll", effect: action };
   const player = makePlayer({ inventory: [target, scroll], mp: 100, atk: 10, def: 5 });
-  const sr = { current: { player, dungeon: makeEmptyDg({ rooms: [] }), ident: new Set(), fakeNames: {}, nicknames: {}, floors: {} } };
+  const key = getIdentKey(target);
+  const sr = { current: { player, dungeon: makeEmptyDg({ rooms: [] }),
+    ident: new Set(nameState.identified ? [key] : []),
+    fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, [], RINGS),
+    nicknames: nameState.nickname ? { [key]: nameState.nickname } : {}, floors: {} } };
+  const initialDisplayName = itemDisplayName(target, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
   const mode = { mode: action, sel: 0, scrollIdx: 1, ...modifiers };
   const endTurn = vi.fn(), identifyConfirmRef = { current: null }, listeners = {};
   const props = { sr, gs: sr.current, endTurn, setMode: vi.fn(), setGs: vi.fn(), setMsgs: vi.fn(), iLabel: item => item.name };
@@ -66,7 +72,8 @@ function choose(input, source, action = "duplicate", modifiers = {}) {
   }
   expect(endTurn).toHaveBeenCalledTimes(1);
   expect(player.inventory).not.toContain(scroll);
-  return { player, target, copy: player.inventory[1], mode, sr };
+  const messages = props.setMsgs.mock.calls.flatMap(([update]) => typeof update === "function" ? update([]) : update);
+  return { player, target, copy: player.inventory[1], mode, sr, messages, initialDisplayName };
 }
 
 const inputs = ["click", "tap", "keyboard", "controller", "mobileConfirm"];
@@ -158,4 +165,32 @@ describe.each(inputs)("変換の抽選一致: %s", input => {
       expect(player.inventory[0].name).not.toBe(source.name);
     },
   );
+});
+
+describe.each(inputs)("祝福・呪い時の表示名: %s", input => {
+  it.each(["bless", "curse"])("未識別薬の%sでも、ゲーム本来の仮名を使い正体を漏らさない", action => {
+    const source = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, source, action);
+    expect(result.initialDisplayName).toBe("赤い薬");
+    expect(result.messages.join("\n")).toContain(`赤い薬を${action === "bless" ? "祝福した" : "呪った"}`);
+    expect(result.messages.join("\n")).not.toContain(source.name);
+    expect(result.sr.current.ident.has(getIdentKey(source))).toBe(false);
+  });
+  it.each(["bless", "curse"])("名付けた薬の%sはニックネームを保つ", action => {
+    const source = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, source, action, {}, { nickname: "試しの薬" });
+    expect(result.messages.join("\n")).toContain("薬:試しの薬を");
+    expect(result.messages.join("\n")).not.toContain(source.name);
+  });
+  it.each(["bless", "curse"])("識別済みの薬の%sでは本名を表示する", action => {
+    const source = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, source, action, {}, { identified: true });
+    expect(result.messages.join("\n")).toContain(`${source.name}を`);
+  });
+  it.each(["bless", "curse"])("未識別壺の%sでも容量の増減メッセージで正体を漏らさない", action => {
+    const source = POTS.find(item => item.potEffect === "none");
+    const result = choose(input, { ...source, capacity: 6, contents: [] }, action);
+    expect(result.messages.join("\n")).toContain(result.initialDisplayName);
+    expect(result.messages.join("\n")).not.toContain(source.name);
+  });
 });
