@@ -1,0 +1,758 @@
+[
+  {
+    "index": 1,
+    "baseKind": "rat",
+    "tile": 6,
+    "kind": "beast",
+    "l1": "ネズミ",
+    "l2": "殺人ネズミ",
+    "l3": "ものすごいネズミ"
+  },
+  {
+    "index": 2,
+    "baseKind": "bat",
+    "tile": 103,
+    "kind": "beast",
+    "l1": "バット",
+    "l2": "青バット",
+    "l3": "ゴルァバット"
+  },
+  {
+    "index": 3,
+    "baseKind": "centipede",
+    "tile": 12,
+    "kind": "beast",
+    "l1": "ムカデ",
+    "l2": "巨大ムカデ",
+    "l3": "重装甲ムカデ"
+  },
+  {
+    "index": 4,
+    "baseKind": "itemblaster",
+    "tile": 158,
+    "kind": "humanoid",
+    "l1": "マイナーダイミョウ",
+    "l2": "メジャーダイミョウ",
+    "l3": "ミフネ"
+  },
+  {
+    "index": 5,
+    "baseKind": "stealthrower",
+    "tile": 153,
+    "kind": "humanoid",
+    "l1": "はぐれ乱波",
+    "l2": "闇透破",
+    "l3": "草"
+  },
+  {
+    "index": 6,
+    "baseKind": "kobold",
+    "tile": 7,
+    "kind": "beast",
+    "l1": "つらら小僧",
+    "l2": "氷柱鬼",
+    "l3": "永久凍土鬼"
+  },
+  {
+    "index": 7,
+    "baseKind": "goblin",
+    "tile": 8,
+    "kind": "humanoid",
+    "l1": "ゴブリン",
+    "l2": "ゴブリン頭",
+    "l3": "ゴブリン王"
+  },
+  {
+    "index": 8,
+    "baseKind": "imp",
+    "tile": 164,
+    "kind": "beast",
+    "l1": "インプ",
+    "l2": "レッサーインプ",
+    "l3": "アークインプ"
+  },
+  {
+    "index": 9,
+    "baseKind": "skeleton",
+    "tile": 9,
+    "kind": "undead",
+    "l1": "スケルトン",
+    "l2": "骸骨戦士",
+    "l3": "アンデッドナイ"
+  },
+  {
+    "index": 10,
+    "baseKind": "runner",
+    "tile": 171,
+    "kind": "beast",
+    "l1": "フクマル",
+    "l2": "フクフクマル",
+    "l3": "コイトフクマル"
+  },
+  {
+    "index": 11,
+    "baseKind": "zombie",
+    "tile": 10,
+    "kind": "undead",
+    "l1": "ゾンビ",
+    "l2": "中ゾンビ",
+    "l3": "強ゾンビ"
+  },
+  {
+    "index": 12,
+    "baseKind": "wokka",
+    "tile": 172,
+    "kind": "beast",
+    "l1": "ワッカ",
+    "l2": "ぷにぷにワッカ",
+    "l3": "シン・ワッカ"
+  },
+  {
+    "index": 13,
+    "baseKind": "slime",
+    "tile": 113,
+    "kind": "beast",
+    "l1": "分裂スライム",
+    "l2": "緑分裂スライム",
+    "l3": "赤分裂スライム"
+  },
+  {
+    "index": 14,
+    "baseKind": "archer",
+    "tile": 148,
+    "kind": "humanoid",
+    "l1": "アーチャー",
+    "l2": "古参アーチャー",
+    "l3": "弓の達人"
+  },
+  {
+    "index": 15,
+    "baseKind": "wolf",
+    "tile": 56,
+    "kind": "beast",
+    "l1": "ウルフ",
+    "l2": "強ウルフ",
+    "l3": "フェンリル"
+  },
+  {
+    "index": 16,
+    "baseKind": "thief",
+    "tile": 170,
+    "kind": "humanoid",
+    "l1": "コソドロ",
+    "l2": "大盗賊",
+    "l3": "怪盗"
+  },
+  {
+    "index": 17,
+    "baseKind": "leprechaun",
+    "tile": 109,
+    "kind": "humanoid",
+    "l1": "レプラコーン",
+    "l2": "クルラコーン",
+    "l3": "エルドラド"
+  },
+  {
+    "index": 18,
+    "baseKind": "rustbug",
+    "tile": 75,
+    "kind": "beast",
+    "l1": "錆虫",
+    "l2": "赤錆虫",
+    "l3": "錆喰い蟲"
+  },
+  {
+    "index": 19,
+    "baseKind": "tripper",
+    "tile": 151,
+    "kind": "humanoid",
+    "l1": "足払い鬼",
+    "l2": "転倒鬼",
+    "l3": "崩し羅刹"
+  },
+  {
+    "index": 20,
+    "baseKind": "wizard",
+    "tile": 175,
+    "kind": "humanoid",
+    "l1": "ウィザード",
+    "l2": "強ウィザード",
+    "l3": "大魔導士"
+  },
+  {
+    "index": 21,
+    "baseKind": "itempusher",
+    "tile": 183,
+    "kind": "beast",
+    "l1": "カラペン",
+    "l2": "パタペン",
+    "l3": "ゴゴペン"
+  },
+  {
+    "index": 22,
+    "baseKind": "dangerousPetal",
+    "tile": 206,
+    "kind": "beast",
+    "l1": "危険な花びら",
+    "l2": "破滅の花びら",
+    "l3": "超危険な花びら"
+  },
+  {
+    "index": 23,
+    "baseKind": "dreamEater",
+    "tile": 178,
+    "kind": "beast",
+    "l1": "夢喰い",
+    "l2": "強夢喰い",
+    "l3": "夢喰い王"
+  },
+  {
+    "index": 24,
+    "baseKind": "itemMimic",
+    "tile": 167,
+    "kind": "beast",
+    "l1": "アイテムモドキ",
+    "l2": "強アイテムモドキ",
+    "l3": "アイテムモドキ王"
+  },
+  {
+    "index": 25,
+    "baseKind": "itemThrower",
+    "tile": 163,
+    "kind": "humanoid",
+    "l1": "ひょい河童",
+    "l2": "剛腕水虎",
+    "l3": "豪傑九千坊"
+  },
+  {
+    "index": 26,
+    "baseKind": "potRaider",
+    "tile": 234,
+    "kind": "beast",
+    "l1": "ヤドカリ壺荒らし",
+    "l2": "大ヤドカリ壺荒らし",
+    "l3": "ヤドカリ壺大将"
+  },
+  {
+    "index": 27,
+    "baseKind": "fireCook",
+    "tile": 237,
+    "kind": "humanoid",
+    "l1": "炎の料理人",
+    "l2": "炎の中華料理人",
+    "l3": "炎の中華体育料理人"
+  },
+  {
+    "index": 28,
+    "baseKind": "sylph",
+    "tile": 236,
+    "kind": "beast",
+    "l1": "シルフ",
+    "l2": "ハイシルフ",
+    "l3": "シルフィード"
+  },
+  {
+    "index": 29,
+    "baseKind": "bombslime",
+    "tile": 114,
+    "kind": "beast",
+    "l1": "ボムスライム",
+    "l2": "ニトロスライム",
+    "l3": "メテオスライム"
+  },
+  {
+    "index": 30,
+    "baseKind": "bombgoblin",
+    "tile": 159,
+    "kind": "humanoid",
+    "l1": "ボルガ",
+    "l2": "ボルガ博士",
+    "l3": "頭の中にダイナマイト"
+  },
+  {
+    "index": 31,
+    "baseKind": "crystalslime",
+    "tile": 115,
+    "kind": "beast",
+    "l1": "水晶スライム",
+    "l2": "プラチナスライム",
+    "l3": "ダマスカスライム"
+  },
+  {
+    "index": 32,
+    "baseKind": "rockspirit",
+    "tile": 145,
+    "kind": "undead",
+    "l1": "ゴースト",
+    "l2": "ファントム",
+    "l3": "ミラージュ"
+  },
+  {
+    "index": 33,
+    "baseKind": "timeoutPunisher",
+    "tile": 57,
+    "kind": "beast",
+    "l1": "刻限の巨像",
+    "l2": "刻限の巨像Lv2",
+    "l3": "刻限の巨像Lv3"
+  },
+  {
+    "index": 34,
+    "baseKind": "orc",
+    "tile": 11,
+    "kind": "humanoid",
+    "l1": "やかん小僧",
+    "l2": "沸騰やかん",
+    "l3": "大爆発やかん"
+  },
+  {
+    "index": 35,
+    "baseKind": "gelcube",
+    "tile": 174,
+    "kind": "beast",
+    "l1": "ゼラチンキューブ",
+    "l2": "大ゼラチンキューブ",
+    "l3": "暴食ゼラチンキューブ"
+  },
+  {
+    "index": 36,
+    "baseKind": "walldigger",
+    "tile": 154,
+    "kind": "beast",
+    "l1": "岩砕き",
+    "l2": "山崩し",
+    "l3": "大地穿ち"
+  },
+  {
+    "index": 37,
+    "baseKind": "trapmaster",
+    "tile": 150,
+    "kind": "humanoid",
+    "l1": "仕掛け花火師",
+    "l2": "爆導師",
+    "l3": "煙火覇王"
+  },
+  {
+    "index": 38,
+    "baseKind": "serpent",
+    "tile": 161,
+    "kind": "beast",
+    "l1": "にじりヘビ",
+    "l2": "スパークヘビ",
+    "l3": "暗黒ヘビ"
+  },
+  {
+    "index": 39,
+    "baseKind": "trapthrower",
+    "tile": 149,
+    "kind": "humanoid",
+    "l1": "ゴールドタイガー",
+    "l2": "ずっと見てタイガー",
+    "l3": "よく頑張っタイガー"
+  },
+  {
+    "index": 40,
+    "baseKind": "witchdoc",
+    "tile": 44,
+    "kind": "humanoid",
+    "l1": "杖術師",
+    "l2": "杖魔人",
+    "l3": "杖ゴミ"
+  },
+  {
+    "index": 41,
+    "baseKind": "disarmer",
+    "tile": 214,
+    "kind": "humanoid",
+    "l1": "強引タヌキ",
+    "l2": "無理矢理タヌキ",
+    "l3": "すっぽんタヌキ"
+  },
+  {
+    "index": 42,
+    "baseKind": "monsterthrow",
+    "tile": 146,
+    "kind": "humanoid",
+    "l1": "かいりきベア",
+    "l2": "かいりきベア・セブン",
+    "l3": "かいりきベア・イレブン"
+  },
+  {
+    "index": 43,
+    "baseKind": "shaman",
+    "tile": 55,
+    "kind": "humanoid",
+    "l1": "シャーマン",
+    "l2": "強シャーマン",
+    "l3": "大シャーマン"
+  },
+  {
+    "index": 44,
+    "baseKind": "synthmonster",
+    "tile": 176,
+    "kind": "beast",
+    "l1": "合成獣",
+    "l2": "強合成獣",
+    "l3": "覇合成獣"
+  },
+  {
+    "index": 45,
+    "baseKind": "barriermage",
+    "tile": 147,
+    "kind": "beast",
+    "l1": "バリア蟹",
+    "l2": "どこにも居場所がカニ",
+    "l3": "なんでも無効蟹"
+  },
+  {
+    "index": 46,
+    "baseKind": "windmage",
+    "tile": 157,
+    "kind": "undead",
+    "l1": "ウィンドメイジ",
+    "l2": "強ウィンドメイジ",
+    "l3": "風の覇者"
+  },
+  {
+    "index": 47,
+    "baseKind": "puller",
+    "tile": 177,
+    "kind": "beast",
+    "l1": "引きダコ",
+    "l2": "ひっぱりダコ",
+    "l3": "吸い込みダコ"
+  },
+  {
+    "index": 48,
+    "baseKind": "hypnotist",
+    "tile": 215,
+    "kind": "humanoid",
+    "l1": "土下座鈴木右衛門",
+    "l2": "飛翔土下座鈴木右衛門",
+    "l3": "焼き土下座鈴木右衛門"
+  },
+  {
+    "index": 49,
+    "baseKind": "troll",
+    "tile": 13,
+    "kind": "beast",
+    "l1": "おお木霊",
+    "l2": "怒れる巨木",
+    "l3": "神木"
+  },
+  {
+    "index": 50,
+    "baseKind": "firedemon",
+    "tile": 61,
+    "kind": "beast",
+    "l1": "火ダルマ",
+    "l2": "獄炎ダルマ",
+    "l3": "煉獄ダルマ"
+  },
+  {
+    "index": 51,
+    "baseKind": "gargoyle",
+    "tile": 179,
+    "kind": "undead",
+    "l1": "ガーゴイル",
+    "l2": "黒曜ガーゴイル",
+    "l3": "アダマントガーゴイル"
+  },
+  {
+    "index": 52,
+    "baseKind": "vampire",
+    "tile": 15,
+    "kind": "undead",
+    "l1": "ヴァンパイア",
+    "l2": "強ヴァンパイア",
+    "l3": "ヴァンパイア卿"
+  },
+  {
+    "index": 53,
+    "baseKind": "dragon",
+    "tile": 14,
+    "kind": "dragon",
+    "l1": "ドラゴン",
+    "l2": "レッドドラゴン",
+    "l3": "エンシェントドラゴン"
+  },
+  {
+    "index": 54,
+    "baseKind": "golem",
+    "tile": 57,
+    "kind": "beast",
+    "l1": "ゴーレム",
+    "l2": "ゴーレムLv2",
+    "l3": "ゴーレムーガ"
+  },
+  {
+    "index": 55,
+    "baseKind": "daemon",
+    "tile": 58,
+    "kind": "undead",
+    "l1": "デーモン",
+    "l2": "アークデーモン",
+    "l3": "グレーターデーモン"
+  },
+  {
+    "index": 56,
+    "baseKind": "grabber",
+    "tile": 108,
+    "kind": "beast",
+    "l1": "からめ鬼",
+    "l2": "がんじがらめ鬼",
+    "l3": "こんがらマッチョ"
+  },
+  {
+    "index": 57,
+    "baseKind": "charger",
+    "tile": 168,
+    "kind": "beast",
+    "l1": "突進角獣",
+    "l2": "激突角獣",
+    "l3": "猪突角獣"
+  },
+  {
+    "index": 58,
+    "baseKind": "reflector",
+    "tile": 169,
+    "kind": "beast",
+    "l1": "ほっちもぺ",
+    "l2": "ほっちんもっぺ",
+    "l3": "モチチモチ？"
+  },
+  {
+    "index": 59,
+    "baseKind": "dodgemole",
+    "tile": 181,
+    "kind": "beast",
+    "l1": "かわしモグラ",
+    "l2": "ひょいひょいモグラ",
+    "l3": "ディグダグダグダ"
+  },
+  {
+    "index": 60,
+    "baseKind": "knocker",
+    "tile": 116,
+    "kind": "humanoid",
+    "l1": "ハンマーオーガ",
+    "l2": "ボンバーオーガ",
+    "l3": "オーガキング"
+  },
+  {
+    "index": 61,
+    "baseKind": "magicreflector",
+    "tile": 166,
+    "kind": "humanoid",
+    "l1": "ミラーマン",
+    "l2": "全反射マン",
+    "l3": "ペルセウスマン"
+  },
+  {
+    "index": 62,
+    "baseKind": "potionthrower",
+    "tile": 163,
+    "kind": "humanoid",
+    "l1": "薬師",
+    "l2": "ポーションメーカー",
+    "l3": "ポーションマスター"
+  },
+  {
+    "index": 63,
+    "baseKind": "potionhealer",
+    "tile": 230,
+    "kind": "humanoid",
+    "l1": "ロキソ忍",
+    "l2": "セロト忍",
+    "l3": "アルギ忍"
+  },
+  {
+    "index": 64,
+    "baseKind": "berserker",
+    "tile": 180,
+    "kind": "humanoid",
+    "l1": "バーサーカー",
+    "l2": "バーサーカー2",
+    "l3": "バーサーカー99"
+  },
+  {
+    "index": 65,
+    "baseKind": "killplaster",
+    "tile": 160,
+    "kind": "humanoid",
+    "l1": "ルカチュウ",
+    "l2": "ナンチュウ",
+    "l3": "ラプラス"
+  },
+  {
+    "index": 66,
+    "baseKind": "guardian",
+    "tile": 155,
+    "kind": "humanoid",
+    "l1": "ガーディアン",
+    "l2": "ガーディアンLv2",
+    "l3": "ガーディアンLv3"
+  },
+  {
+    "index": 67,
+    "baseKind": "icedragon",
+    "tile": 162,
+    "kind": "dragon",
+    "l1": "氷竜",
+    "l2": "ブルードラゴン",
+    "l3": "ブルードラゴン 天界の七竜"
+  },
+  {
+    "index": 68,
+    "baseKind": "wateri",
+    "tile": 93,
+    "kind": "beast",
+    "l1": "わてり",
+    "l2": "わてに",
+    "l3": "わてさん"
+  },
+  {
+    "index": 69,
+    "baseKind": "badFish",
+    "tile": 223,
+    "kind": "beast",
+    "l1": "まずい魚",
+    "l2": "古い魚",
+    "l3": "かせきうお"
+  },
+  {
+    "index": 70,
+    "baseKind": "waterFlower",
+    "tile": 217,
+    "kind": "beast",
+    "l1": "水中花",
+    "l2": "水中サボテン",
+    "l3": "水中巾着"
+  },
+  {
+    "index": 71,
+    "baseKind": "hauntedWillow",
+    "tile": 225,
+    "kind": "beast",
+    "l1": "お化け柳",
+    "l2": "大お化け柳",
+    "l3": "怨霊の古柳"
+  },
+  {
+    "index": 72,
+    "baseKind": "sleepingLion",
+    "tile": 231,
+    "kind": "beast",
+    "l1": "眠れる獅子",
+    "l2": "眠れる大獅子",
+    "l3": "眠れる赤獅子"
+  },
+  {
+    "index": 73,
+    "baseKind": "giantEel",
+    "tile": 221,
+    "kind": "beast",
+    "l1": "巨大ウナギ",
+    "l2": "大王ウナギ",
+    "l3": "深海大王ウナギ"
+  },
+  {
+    "index": 74,
+    "baseKind": "seaDevil",
+    "tile": 222,
+    "kind": "beast",
+    "l1": "うみのあくま",
+    "l2": "ゲルショッカー",
+    "l3": "アンキケン"
+  },
+  {
+    "index": 75,
+    "baseKind": "starlight",
+    "tile": 165,
+    "kind": "beast",
+    "l1": "スターライト",
+    "l2": "スターライトⅡ",
+    "l3": "スターライトⅢ"
+  },
+  {
+    "index": 76,
+    "baseKind": "darkness",
+    "tile": 152,
+    "kind": "beast",
+    "l1": "ダークネス",
+    "l2": "ダークネスⅡ",
+    "l3": "ダークネスⅢ"
+  },
+  {
+    "index": 77,
+    "baseKind": "tattoobird",
+    "tile": 112,
+    "kind": "beast",
+    "l1": "タトゥーバード",
+    "l2": "スカーバード",
+    "l3": "クレストバード"
+  },
+  {
+    "index": 78,
+    "baseKind": "rakugakima",
+    "tile": 111,
+    "kind": "undead",
+    "l1": "ラクガキ魔",
+    "l2": "ラクガキ妖精",
+    "l3": "ラクガキバンシー"
+  },
+  {
+    "index": 79,
+    "baseKind": "mimic",
+    "tile": 167,
+    "kind": "humanoid",
+    "l1": "ものまね師",
+    "l2": "ものまね名優",
+    "l3": "ものまね帝王"
+  },
+  {
+    "index": 80,
+    "baseKind": "lizardman",
+    "tile": 204,
+    "kind": "dragon",
+    "l1": "スネークマン",
+    "l2": "リザードマン",
+    "l3": "とかげせんし"
+  },
+  {
+    "index": 81,
+    "baseKind": "dragonknight",
+    "tile": 205,
+    "kind": "dragon",
+    "l1": "竜騎士",
+    "l2": "竜騎士04",
+    "l3": "Mikan"
+  },
+  {
+    "index": 82,
+    "baseKind": "mushroom",
+    "tile": 238,
+    "kind": "beast",
+    "l1": "ドクキノコ",
+    "l2": "ネムリキノコ",
+    "l3": "マダラキノコ"
+  },
+  {
+    "index": 83,
+    "baseKind": "machodragon",
+    "tile": 241,
+    "kind": "dragon",
+    "l1": "マッチョドラゴン",
+    "l2": "筋肉竜",
+    "l3": "筋骨隆々竜"
+  },
+  {
+    "index": 84,
+    "baseKind": "manaEater",
+    "tile": 244,
+    "kind": "undead",
+    "l1": "マナイーター",
+    "l2": "マナドレイナー",
+    "l3": "マナヴォイド"
+  }
+]

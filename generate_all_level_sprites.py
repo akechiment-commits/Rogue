@@ -6,7 +6,7 @@ from PIL import Image
 
 SPRITE_DIR = r"tiles/sprites/mon1"
 
-with open('monsters_data.json', 'r', encoding='utf-8') as f:
+with open('all_monsters_verified.json', 'r', encoding='utf-8') as f:
     monsters = json.load(f)
 
 # Families that already have separate tiles and images
@@ -24,34 +24,34 @@ NAME_EXCEPTIONS = {
     },
     'rustbug': {
         2: {'mode': 'red_rust'},   # 赤錆虫: reddish brown rust
-        3: {'mode': 'corrosive'}   # 腐食虫: dark corrosive crimson
+        3: {'mode': 'corrosive'}   # 錆喰い蟲: dark corrosive crimson
     },
     'serpent': {
-        2: {'mode': 'yellow'},      # 猛毒大蛇: warning amber/venom yellow
+        2: {'mode': 'yellow'},      # スパークヘビ: electric amber/yellow
         3: {'mode': 'dark'}        # 暗黒ヘビ: obsidian pitch black
     },
     'trapthrower': {
-        2: {'mode': 'yellow'},      # トラバサミ: warning amber yellow
-        3: {'mode': 'gold'}        # ゴールドタイガー: shimmering bright gold
+        2: {'mode': 'yellow'},      # ずっと見てタイガー: amber/yellow tiger
+        3: {'mode': 'gold'}        # よく頑張っタイガー: golden veteran tiger
     },
     'gargoyle': {
         2: {'mode': 'dark'},       # 黒曜ガーゴイル: obsidian black
         3: {'mode': 'adamant'}     # アダマントガーゴイル: adamant crimson + gold
     },
     'stealthrower': {
-        2: {'mode': 'dark'},       # 闇盗投士: dark ninja
-        3: {'mode': 'dark'}        # 影盗投士: shadow dark ninja
+        2: {'mode': 'dark'},       # 闇透破: dark ninja
+        3: {'mode': 'dark'}        # 草: shadow grass ninja
     },
     'sleepingLion': {
-        2: {'mode': 'yellow'},      # 黄金獅子
+        2: {'mode': 'yellow'},      # 眠れる大獅子: golden lion
         3: {'mode': 'red'}         # 眠れる赤獅子: crimson mane
     }
 }
 
 def prefers_dark_for_lv3(mon):
-    name = ((mon.get('lv3') or {}).get('name') or '').lower()
+    name = (mon.get('l3') or (mon.get('lv3') or {}).get('name') or '').lower()
     base = mon.get('baseKind', '').lower()
-    dark_keywords = ['黒', '闇', 'ナイト', '冥', '死', '影', 'デス', 'アンデッド', 'ゴースト', '悪魔', 'デビル', 'シャドウ', '亡霊', 'スケルトン']
+    dark_keywords = ['黒', '闇', 'ナイト', '冥', '死', '影', 'デス', 'アンデッド', 'ゴースト', '悪魔', 'デビル', 'シャドウ', '亡霊', 'スケルトン', '草']
     for kw in dark_keywords:
         if kw in name or kw in base:
             return True
