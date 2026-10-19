@@ -8770,6 +8770,43 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
     ml.push(isFireContext ? `所持していた「${dn(victim)}」は炎に当たったが無事だった。` : `所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }
 }
+/** 道具寄せの床配置。移動先を確保するまで元の個体・座標・中身を維持する。 */
+export function gatherFloorItems(dungeon, player, items, messages, { scatter = false, nameFn = null } = {}) {
+  let gathered = 0, scattered = 0, remaining = 0;
+  const freeAt = (x, y, options = {}) =>
+    !isFloorOccupancyBlocked(dungeon, x, y, { p: player, ...options }) &&
+    !dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y);
+  for (const item of items) {
+    if (item.shopPrice || !dungeon.items.includes(item)) continue;
+    let spot = scatter ? null : DRO.map(([dx, dy]) => ({ x: player.x + dx, y: player.y + dy }))
+      .find(({ x, y }) => freeAt(x, y, { ignore: item, allowPlayer: true }));
+    const nearby = !!spot;
+    if (!spot) {
+      const free = [];
+      for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+        if (freeAt(x, y)) free.push({ x, y });
+      }
+      if (free.length) spot = pick(free);
+    }
+    if (!spot) {
+      remaining++;
+      messages.push(`${resolveItemName(item, nameFn)}はフロアに空きがなく、元の場所に残った。`);
+      continue;
+    }
+    // 安全な空き床への転送なので、落下による破壊・設備への投入は発生させない。
+    item.x = spot.x;
+    item.y = spot.y;
+    delete item.wallEmbedded;
+    markItemIdentifiedForDungeon(item, dungeon);
+    if (nearby) gathered++;
+    else {
+      scattered++;
+      if (!scatter) messages.push(`${resolveItemName(item, nameFn)}は周囲に置けず、フロアの空きマスへ飛んだ！`);
+    }
+  }
+  return { gathered, scattered, remaining };
+}
+
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv = 1, castMpCost = null) {
   if (kind === "monster") {
     wakeIfDormant(target, ml);
@@ -8970,36 +9007,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           ml.push("道具寄せの魔法を唱えたが、引き寄せるアイテムがない。");
           break;
         }
-        let _gathered = 0;
-        for (const _item of _gatherItems) {
-          /* 置き先を確保してから元の床から外す。周囲にない場合はフロア全体へ逃がす。 */
-          const _freeAt = (x, y, options = {}) =>
-            !isFloorOccupancyBlocked(dg, x, y, { p, ...options }) &&
-            !dg.dimensionalVaults?.some(v => v.x === x && v.y === y);
-          let _spot = DRO.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }))
-            .find(({ x, y }) => _freeAt(x, y, { ignore: _item, allowPlayer: true }));
-          const _nearby = !!_spot;
-          if (!_spot) {
-            const _free = [];
-            for (let y = 1; y < MH - 1; y++) {
-              for (let x = 1; x < MW - 1; x++) {
-                if (_freeAt(x, y)) _free.push({ x, y });
-              }
-            }
-            if (_free.length > 0) _spot = pick(_free);
-          }
-          if (!_spot) {
-            ml.push(`${resolveItemName(_item)}はフロアに空きがなく、元の場所に残った。`);
-            continue;
-          }
-          const _ox = _item.x, _oy = _item.y;
-          dg.items = dg.items.filter((_floorItem) => _floorItem !== _item);
-          delete _item.wallEmbedded;
-          placeItemAt(dg, _spot.x, _spot.y, _item, ml, new Set(), 0, p, _ox, _oy);
-          if (_nearby) _gathered++;
-          else ml.push(`${resolveItemName(_item)}は周囲に置けず、フロアの空きマスへ飛んだ！`);
-        }
-        if (_gathered > 0) ml.push(`${_gathered}個のアイテムを引き寄せた！`);
+        const result = gatherFloorItems(dg, p, _gatherItems, ml);
+        if (result.gathered > 0) ml.push(`${result.gathered}個のアイテムを引き寄せた！`);
       }
       break;
     }

@@ -7,7 +7,7 @@ import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueL
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
-  EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger,
+  gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
@@ -1299,83 +1299,33 @@ export function useItemActions({
         if (_cnt === 0) {
           ml.push("引き寄せるアイテムがなかった。");
         } else if (it.cursed) {
-          // 呪い：フロアのアイテムをランダムな場所に飛ばす
-          dg.items = dg.items.filter((gi) => gi.shopPrice);
-          const _floorCands = [];
-          for (let _fy = 0; _fy < MH; _fy++)
-            for (let _fx = 0; _fx < MW; _fx++)
-              if (dg.map[_fy][_fx] !== T.WALL && dg.map[_fy][_fx] !== T.BWALL &&
-                  dg.map[_fy][_fx] !== T.SD && dg.map[_fy][_fx] !== T.SU)
-                _floorCands.push([_fx, _fy]);
-          for (const gi of _toG) {
-            const [_rx, _ry] = pick(_floorCands);
-            gi.x = _rx; gi.y = _ry;
-            delete gi.wallEmbedded;
-            markItemIdentifiedForDungeon(gi, dg);
-            dg.items.push(gi);
-          }
-          ml.push(`${_cnt}個のアイテムがフロアに散らばった！【呪】`);
+          const result = gatherFloorItems(dg, p, _toG, ml, { scatter: true, nameFn: dnameRef });
+          if (result.scattered > 0) ml.push(`${result.scattered}個のアイテムがフロアに散らばった！【呪】`);
         } else if (it.blessed) {
-          // 祝福：フロアのアイテムを直接インベントリに吸収（満杯分は通常の落下ルールで配置）
-          dg.items = dg.items.filter((gi) => gi.shopPrice);
-          let _picked = 0, _dropped = 0, _goldTotal = 0;
-          const _blessFt = new Set();
+          let _picked = 0, _goldTotal = 0;
+          const _overflow = [];
           for (const gi of _toG) {
-            delete gi.wallEmbedded;
             if (gi.type === "gold") {
+              dg.items = dg.items.filter(item => item !== gi);
               p.gold += gi.value;
               _goldTotal += gi.value;
             } else if (p.inventory.length < (p.maxInventory || 30)) {
+              dg.items = dg.items.filter(item => item !== gi);
+              delete gi.wallEmbedded;
               trackItem(gi);
               p.inventory.push(gi);
               _picked++;
-            } else {
-              placeItemAt(dg, p.x, p.y, gi, ml, _blessFt, 0, p);
-              _dropped++;
-            }
+            } else _overflow.push(gi);
           }
-          const _blessMsg = [];
-          if (_picked > 0) _blessMsg.push(`${_picked}個のアイテムを拾った！`);
-          if (_goldTotal > 0) _blessMsg.push(`${_goldTotal}枚の金貨を拾った！`);
-          if (_blessMsg.length === 0) _blessMsg.push("引き寄せるアイテムがなかった。");
-          ml.push(_blessMsg.join("") + "【祝】" + (_dropped > 0 ? `（${_dropped}個は満杯で周囲に配置）` : ""));
+          const result = gatherFloorItems(dg, p, _overflow, ml, { nameFn: dnameRef });
+          const summary = [];
+          if (_picked > 0) summary.push(`${_picked}個のアイテムを拾った！`);
+          if (_goldTotal > 0) summary.push(`${_goldTotal}枚の金貨を拾った！`);
+          if (result.gathered > 0) summary.push(`${result.gathered}個は満杯で周囲に配置した！`);
+          if (summary.length > 0) ml.push(summary.join("") + "【祝】");
         } else {
-          // 通常：隣接マスに引き寄せる
-          dg.items = dg.items.filter((gi) => gi.shopPrice);
-          const _gft = new Set();
-          withPitfallBag(() => {
-            for (const gi of _toG) {
-              let _placed = false;
-              for (const [_dx, _dy] of DRO) {
-                const _cx = p.x + _dx, _cy = p.y + _dy;
-                if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-                if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
-                const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
-                if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
-                const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
-                if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg, dnameRef); _placed = true; break; }
-                const _gt = dg.traps.find((t) => t.x === _cx && t.y === _cy && !_gft.has(t.id));
-                if (_gt) {
-                  _gft.add(_gt.id);
-                  _gt.revealed = true;
-                  const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
-                  if (_gr !== "already_activated" && _gr !== "time_stopped" && _gt.effect !== "explode" && !_gt.permanent && Math.random() < trapStepBreakChance(_gt)) removeTrap(dg, _gt, ml, { activated: true, message: `${_gt.name}は壊れた。`, ft: _gft, p });
-                  if (_gr === "destroyed") { _placed = true; break; }
-                  if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
-                  continue;
-                }
-                if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
-                gi.x = _cx; gi.y = _cy;
-                delete gi.wallEmbedded;
-                markItemIdentifiedForDungeon(gi, dg);
-                dg.items.push(gi);
-                _placed = true;
-                break;
-              }
-              if (!_placed) ml.push(`${resolveItemName(gi, dnameRef)}は引き寄せられなかった！`);
-            }
-          });
-          ml.push(`${_cnt}個のアイテムを引き寄せた！`);
+          const result = gatherFloorItems(dg, p, _toG, ml, { nameFn: dnameRef });
+          if (result.gathered > 0) ml.push(`${result.gathered}個のアイテムを引き寄せた！`);
         }
       } else if (it.effect === "sleep_scroll") {
         if (it.cursed) {
