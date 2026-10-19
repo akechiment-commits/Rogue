@@ -1161,7 +1161,7 @@ export const MONS = [
       { name: "ペルセウスマン",     hp: 95,  atk: 35, def: 18, exp: 188 },
     ],
   },
-  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
+  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 247, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
     levels: [
       { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
