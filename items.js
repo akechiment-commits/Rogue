@@ -1093,6 +1093,35 @@ export function randPotCapacity(potEffect) {
   return rng(3, 5);
 }
 
+/* 複製の巻物は同種の新品を作る。合成能力・強化・消耗・店の請求情報は引き継がない。 */
+export function makeFreshDuplicate(source) {
+  const catalog = [...ITEMS, ...WANDS, ...POTS, ...RINGS, ...SPELLBOOKS,
+    MAGIC_MARKER, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL,
+    ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T,
+    CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T,
+    FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T,
+    GODBANE_SWORD_T, MAGIC_BANE_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
+    GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T];
+  const template = catalog.find(item => item.type === source.type && item.name === source.name);
+  const copy = { ...(template || source), id: uid() };
+  for (const key of ["blessed", "cursed", "bcKnown", "fullIdent", "plus", "_encyclopediaTracked",
+    "shopPrice", "_shopId", "_shopCharge", "_origCharges", "_origCount", "x", "y", "wallEmbedded"]) delete copy[key];
+  if (template?.abilities) copy.abilities = [...template.abilities];
+  else delete copy.abilities;
+  if (!template) delete copy.ability;
+  delete copy.oilProofUses;
+  if (copy.type === "wand" || copy.type === "pen" || copy.type === "marker") {
+    copy.charges = template?.charges ?? source.maxCharges ?? 1;
+  }
+  if (copy.type === "pot") {
+    copy.contents = [];
+    copy.confinedMonsters = [];
+    copy.capacity = randPotCapacity(copy.potEffect);
+  }
+  if (copy.type === "arrow") copy.count = template?.count ?? 1;
+  return copy;
+}
+
 /** 願いの杖など、回数を増やせない杖か */
 export function isNoChargeBoostWand(it) {
   return !!(it && it.type === "wand" && (it.effect === "wish" || it.noChargeBoost));

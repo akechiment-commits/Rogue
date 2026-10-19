@@ -8,7 +8,7 @@ import { synchronizeFloorArrival } from "./floorArrival.js";
 import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
-  ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
+  makeFreshDuplicate, ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
@@ -506,24 +506,7 @@ export function useKeyHandler({
               }
             } else {
               /* 同種の新品アイテムを生成（チャージ・中身・強化値は複製元と無関係） */
-              const _makeFresh = () => {
-                if (_selIt.type === "wand") {
-                  const _tpl = WANDS.find(w => w.effect === _selIt.effect) || _selIt;
-                  return { ..._tpl, id: uid() };
-                }
-                if (_selIt.type === "pot") {
-                  const _tpl = POTS.find(pp => pp.potEffect === _selIt.potEffect) || _selIt;
-                  return { ..._tpl, id: uid(), contents: [], capacity: randPotCapacity(_tpl.potEffect) };
-                }
-                if (_selIt.type === "weapon" || _selIt.type === "armor") {
-                  const _tpl = ITEMS.find(i => i.name === _selIt.name) || _selIt;
-                  return { ..._tpl, id: uid() };
-                }
-                /* その他（薬・巻物・食料・矢など）は名前と種別を保ち新品として生成 */
-                const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, _encyclopediaTracked: _tracked, ...rest } = _selIt;
-                return { ...rest, id: uid() };
-              };
-              const _newIt = _makeFresh();
+              const _newIt = makeFreshDuplicate(_selIt);
               delete _newIt._encyclopediaTracked;
               if (identifyMode.blessed) {
                 if (_newIt.type === "pot") {
