@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
-import { setPlayerHpForFixedEffect, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -2731,7 +2731,7 @@ export function applyPlayerLevelDown(p, ml) {
 
   p.level = currentLevel - 1;
   adjustPlayerBaseMaxHp(p, -5);
-  p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
+  setPlayerHpForCapacityChange(p, Math.min(p.hp ?? p.maxHp, p.maxHp));
   p.atk = Math.max(1, (p.atk || 1) - 1);
   /* Game.jsx のレベルアップ処理はLv3,6,...到達時だけ防御力と最大MPを増やす。 */
   if (currentLevel % 3 === 0) {
