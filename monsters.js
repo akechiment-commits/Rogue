@@ -988,7 +988,7 @@ export const MONS = [
     ],
   },
   /* 長居ペナルティ専用：壁抜け・浮遊。等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
-  { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
+  { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 249, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
     desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
   { name: "やかん小僧",   hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, elemWeak: "ice", subtype: "powercharge", desc: "隣接時に力を溜める（沸騰する）ことがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
     levels: [
