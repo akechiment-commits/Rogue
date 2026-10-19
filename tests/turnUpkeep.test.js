@@ -117,6 +117,52 @@ describe("applyArmorAura", () => {
     expect(defeated).toEqual([adjacent]);
     expect(messages).toEqual(["闘気がコウモリに2ダメージ！"]);
   });
+  it.each([
+    { name: "分身", isPlayerClone: true },
+    { name: "店主", type: "shopkeeper", state: "friendly" },
+    { name: "会計待ちの店主", type: "shopkeeper", state: "blocking" },
+    { name: "行商人", type: "shopkeeper", state: "friendly", isWanderingMerchant: true },
+    { name: "冒険者", type: "shopkeeper", state: "friendly", isWanderingAdventurer: true },
+    { name: "友好キャラ", state: "friendly" },
+    { name: "道具に擬態した敵", disguisedAsItem: true },
+  ])("$nameにはダメージを与えない", properties => {
+    const monster = { ...properties, x: 6, y: 5, hp: 20 };
+    const messages = [], killMonster = vi.fn();
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), { monsters: [monster] }, messages,
+      { hasAbility: () => true, killMonster });
+    expect(monster.hp).toBe(20);
+    expect(messages).toEqual([]);
+    expect(killMonster).not.toHaveBeenCalled();
+  });
+  it.each([
+    [3, 7, 5, 6], [3, 3, 5, 6], [3, 5, 7, 6], [3, 5, 3, 6],
+    [3, 7, 7, 2], [3, 8, 5, 0], [2, 6, 5, 4], [2, 3, 5, 4],
+  ])("%sマス角の敵 (%s,%s) に隣接する体のマス数分で%sダメージ", (bodySize, x, y, damage) => {
+    const monster = { name: "大型敵", bodySize, x, y, hp: 100 };
+    const messages = [];
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), { monsters: [monster] }, messages,
+      { hasAbility: () => true, killMonster: vi.fn() });
+    expect(monster.hp).toBe(100 - damage);
+    expect(messages).toEqual(damage ? [`闘気が大型敵に${damage}ダメージ！`] : []);
+  });
+  it("敵対済みの店主・冒険者は攻撃対象になる", () => {
+    const monsters = [
+      { name: "店主", type: "shopkeeper", state: "hostile", hp: 20, x: 6, y: 5 },
+      { name: "冒険者", type: "shopkeeper", state: "hostile", isWanderingAdventurer: true, hp: 20, x: 5, y: 6 },
+    ];
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), { monsters }, [],
+      { hasAbility: () => true, killMonster: vi.fn() });
+    expect(monsters.map(monster => monster.hp)).toEqual([18, 18]);
+  });
+  it("大型敵を倒したときの撃破処理は1回だけ行う", () => {
+    const monster = { name: "大型敵", bodySize: 3, x: 7, y: 5, hp: 3 };
+    const dungeon = { monsters: [monster] }, killMonster = vi.fn(monster => dungeon.monsters.splice(dungeon.monsters.indexOf(monster), 1));
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), dungeon, [],
+      { hasAbility: () => true, killMonster });
+    expect(killMonster).toHaveBeenCalledTimes(1);
+    expect(dungeon.monsters).toEqual([]);
+  });
+
 });
 
 describe("advancePentacleWear", () => {

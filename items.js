@@ -2026,7 +2026,7 @@ export const ARMOR_ABILITIES = [
   { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
   /* 祝福専用強力能力 */
   { id:"all_resist",       name:"万能耐性", desc:"炎・氷・雷ダメージ2/3。個別耐性と併用で半減",             blessedOnly:true },
-  { id:"aura",             name:"闘気",     desc:"毎ターン、隣接する敵全員に2ダメージを与える",       blessedOnly:true },
+  { id:"aura",             name:"闘気",     desc:"毎ターン、隣接する敵の体1マスにつき2ダメージを与える",       blessedOnly:true },
 ];
 
 

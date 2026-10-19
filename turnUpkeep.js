@@ -2,6 +2,7 @@
  * プレイヤーのターン開始後に必ず進む基礎状態（ターン数・空腹・自然回復）を更新する。
  * 依存する装備判定は注入し、ゲーム UI や敵行動には依存しない。
  */
+import { monsterAreaHitCount } from "./monsterGeometry.js";
 import { statusTurns } from "./statusDuration.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { maintainPlayerHaste } from "./actionClock.js";
@@ -61,12 +62,14 @@ export function advancePlayerUpkeep(player, messages, {
 /** 闘気防具の隣接ダメージを適用し、倒した敵は既存の撃破処理へ渡す。 */
 export function applyArmorAura(player, dungeon, messages, { hasAbility, killMonster }) {
   if (!hasAbility(player.armor, "aura") || dungeon.monsters.length === 0) return;
-  const adjacentMonsters = dungeon.monsters.filter((monster) =>
-    Math.abs(monster.x - player.x) <= 1 && Math.abs(monster.y - player.y) <= 1
-  );
-  for (const monster of adjacentMonsters) {
-    monster.hp -= 2;
-    messages.push(`闘気が${monster.name}に2ダメージ！`);
+  for (const monster of [...dungeon.monsters]) {
+    if (monster.hp <= 0 || monster.isPlayerClone || monster.disguisedAsItem || monster.state === "friendly" ||
+        (monster.type === "shopkeeper" && monster.state !== "hostile")) continue;
+    const adjacentCells = monsterAreaHitCount(monster, player.x - 1, player.y - 1, 3);
+    if (!adjacentCells) continue;
+    const damage = adjacentCells * 2;
+    monster.hp -= damage;
+    messages.push(`闘気が${monster.name}に${damage}ダメージ！`);
     if (monster.hp <= 0 && dungeon.monsters.includes(monster)) {
       killMonster(monster);
     }
