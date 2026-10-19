@@ -4903,7 +4903,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.pacifistTurns || 0) > 0) {
     if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - 1);
     if (m.pacifistTurns <= 0) { ml.push(`${m.name}の平和主義状態が解けた！`); m.turnAccum = 0; }
-    else if (isStationaryMonster(m)) return;
+    else if (_attackOnly || isStationaryMonster(m)) return;
     else if (!_attackOnly) {
       const _pdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
       const _pshuf = [..._pdirs].sort(() => Math.random() - 0.5);
@@ -5338,7 +5338,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _other = dg.monsters.find(o => o !== m && !o.disguisedAsItem &&
           _cCells.some(c => monsterOccupiesCell(o, c.x, c.y)));
         if (_other) {
-          if (!_moveOnly) {
+          if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+            m.turnAttacks++;
             const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
             _other.hp -= _odmg;
             ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
@@ -5376,7 +5377,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (_dHitsPlayer) {
       if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
     } else if (_dother) {
-      if (!_moveOnly) {
+      if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        m.turnAttacks++;
         const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
         _dother.hp -= _dodmg;
         ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
