@@ -9,7 +9,7 @@ import { synchronizeFloorArrival } from "./floorArrival.js";
 import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
-  makeFreshDuplicate, ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
+  makeFreshDuplicate, makeScrollTransformedItem, ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
@@ -393,24 +393,8 @@ export function useKeyHandler({
                                               : `${_selIt.name}を${_earned}Gで換金した！`;
           } else if (identifyMode.mode === 'transform_item') {
             /* ===== 変換の巻物 ===== */
-            const _RARITY_UP   = { E:"D", D:"C", C:"B", B:"A", A:"S", S:"S" };
-            const _RARITY_DOWN = { E:"E", D:"E", C:"D", B:"C", A:"B", S:"A" };
-            const _excl = (t) => t.type === "gold" || (t.effect === _selIt.effect && t.type === _selIt.type);
-            let _tsfPool;
-            if (identifyMode.blessed) {
-              _tsfPool = ITEMS.filter(t => t.rarity === _RARITY_UP[_selIt.rarity || "C"] && !_excl(t));
-            } else if (identifyMode.cursed) {
-              _tsfPool = ITEMS.filter(t => t.rarity === _RARITY_DOWN[_selIt.rarity || "C"] && !_excl(t));
-            } else {
-              _tsfPool = ITEMS.filter(t => !_excl(t));
-            }
-            const _tsfFb = ITEMS.filter(t => !_excl(t));
-            const _tsfTmpl = _tsfPool.length > 0 ? _tsfPool[Math.floor(Math.random() * _tsfPool.length)]
-                                                  : _tsfFb[Math.floor(Math.random() * _tsfFb.length)];
-            if (_tsfTmpl) {
-              const _newIt = { ..._tsfTmpl, id: uid() };
-              if (_tsfTmpl.type === "wand") _newIt.charges = _tsfTmpl.maxCharges ?? _tsfTmpl.charges ?? 5;
-              if (_tsfTmpl.type === "arrow") _newIt.count = _tsfTmpl.count ?? 1;
+            const _newIt = makeScrollTransformedItem(_selIt, identifyMode);
+            if (_newIt) {
               unequipPlayerItem(_p_id, _selIt);
               const _rmIdx_tsf = _p_id.inventory.indexOf(_selIt);
               if (_rmIdx_tsf !== -1) {

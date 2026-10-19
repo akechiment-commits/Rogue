@@ -140,3 +140,22 @@ describe.each(inputs)("装備強化の入力一致: %s", input => {
     },
   );
 });
+
+describe.each(inputs)("変換の抽選一致: %s", input => {
+  it("同じ乱数では全入力で同じ重み付き抽選結果になる", () => {
+    const source = ITEMS.find(item => item.type === "potion");
+    const { player, target } = choose(input, source, "transform_item");
+    expect(player.inventory).toHaveLength(1);
+    expect(player.inventory[0].name).toBe("ロングソード");
+    expect(player.inventory[0]).not.toBe(target);
+  });
+  it.each([[{ blessed: true }, "D"], [{ cursed: true }, "E"]])(
+    "祝呪%jは同じレア度%sの候補へ変換する", (modifiers, rarity) => {
+      const source = ITEMS.find(item => item.type === "potion" && item.rarity === "E");
+      const { player } = choose(input, source, "transform_item", modifiers);
+      expect(player.inventory).toHaveLength(1);
+      expect(player.inventory[0].rarity).toBe(rarity);
+      expect(player.inventory[0].name).not.toBe(source.name);
+    },
+  );
+});

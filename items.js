@@ -1122,6 +1122,23 @@ export function makeFreshDuplicate(source) {
   return copy;
 }
 
+/* 変換の巻物の候補・重み・新品初期化は全入力で共通にする。 */
+export function makeScrollTransformedItem(source, mode, random = Math.random) {
+  const rarityUp = { E: "D", D: "C", C: "B", B: "A", A: "S", S: "S" };
+  const rarityDown = { E: "E", D: "E", C: "D", B: "C", A: "B", S: "A" };
+  const fallback = ITEMS.filter(item => item.type !== "gold" &&
+    !(item.effect === source.effect && item.type === source.type));
+  const targetRarity = mode.blessed ? rarityUp[source.rarity || "C"]
+    : mode.cursed ? rarityDown[source.rarity || "C"] : null;
+  const pool = targetRarity ? fallback.filter(item => item.rarity === targetRarity) : fallback;
+  const template = pickLootFromPool(pool, "change", random) || pickLootFromPool(fallback, "change", random);
+  if (!template) return null;
+  const item = { ...template, id: uid() };
+  if (template.type === "wand") item.charges = template.maxCharges ?? template.charges ?? 5;
+  if (template.type === "arrow") item.count = template.count ?? 1;
+  return item;
+}
+
 /** 願いの杖など、回数を増やせない杖か */
 export function isNoChargeBoostWand(it) {
   return !!(it && it.type === "wand" && (it.effect === "wish" || it.noChargeBoost));

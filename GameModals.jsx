@@ -6,7 +6,7 @@ import { getForgeAbilityIds, removeForgeAbility } from "./forgeAbilityRules.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
-import { makeFreshDuplicate, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
+import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T } from "./items.js";
 import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
@@ -1312,29 +1312,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     } else if (mode.mode === 'transform_item') {
       /* ===== 変換の巻物 ===== */
       const _p_tsf = sr.current.player;
-      /* E(最コモン)→…→S(最レア)。同レア同 weight */
-      const _RARITY_UP   = { E:"D", D:"C", C:"B", B:"A", A:"S", S:"S" };
-      const _RARITY_DOWN = { E:"E", D:"E", C:"D", B:"C", A:"B", S:"A" };
-      const _excludeKey = (t) => t.type === "gold" || (t.effect === _selIt.effect && t.type === _selIt.type);
-      let _pool;
-      if (mode.blessed) {
-        const _r = _RARITY_UP[_selIt.rarity || "C"];
-        _pool = ITEMS.filter(t => t.rarity === _r && !_excludeKey(t));
-      } else if (mode.cursed) {
-        const _r = _RARITY_DOWN[_selIt.rarity || "C"];
-        _pool = ITEMS.filter(t => t.rarity === _r && !_excludeKey(t));
-      } else {
-        _pool = ITEMS.filter(t => !_excludeKey(t)); /* 通常: 完全ランダム */
-      }
-      const _fallback = ITEMS.filter(t => !_excludeKey(t));
-      /* 変化の大箱と同系統の抽選（weight＋一定確率で均等） */
-      const _tmpl = (_pool.length > 0 ? pickLootFromPool(_pool, "change") : null)
-        || pickLootFromPool(_fallback, "change")
-        || _fallback[Math.floor(Math.random() * _fallback.length)];
-      if (_tmpl) {
-        const _newIt = { ..._tmpl, id: uid() };
-        if (_tmpl.type === "wand") _newIt.charges = _tmpl.maxCharges ?? _tmpl.charges ?? 5;
-        if (_tmpl.type === "arrow") _newIt.count = _tmpl.count ?? 1;
+      const _newIt = makeScrollTransformedItem(_selIt, mode);
+      if (_newIt) {
         const _rmIdx_tsf = _p_tsf.inventory.indexOf(_selIt);
         if (_rmIdx_tsf !== -1) {
           /* 装備中なら外す */
