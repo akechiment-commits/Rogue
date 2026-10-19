@@ -12,10 +12,12 @@ import { useGamepad } from "../useGamepad.js";
 import { BTN } from "../gamepadInput.js";
 import { soundEngine } from "../soundEngine.js";
 import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES } from "../items.js";
+import { getDiscoveries, resetDiscoveries, trackItem } from "../DiscoveryTracker.js";
 import { itemDisplayName } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 beforeEach(() => {
+  resetDiscoveries();
   effects.length = 0;
   vi.stubGlobal("React", React);
   vi.spyOn(soundEngine, "unlock").mockImplementation(() => {});
@@ -211,5 +213,17 @@ describe.each(inputs)("錬成の候補一致: %s", input => {
     vi.mocked(Math.random).mockReturnValue(0.999);
     const { target } = choose(input, ITEMS.find(item => item.name === "ロングソード"), "forge_item", { blessed: true });
     expect(target.abilities).toEqual(["double_strike"]);
+  });
+});
+
+describe.each(inputs)("識別時の図鑑登録: %s", input => {
+  it("未識別の薬を識別すると種類を図鑑に1回登録する", () => {
+    const source = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const { target, sr } = choose(input, source, "identify");
+    expect(sr.current.ident.has(getIdentKey(target))).toBe(true);
+    expect(target.fullIdent).toBe(true);
+    expect(getDiscoveries().items.heal).toMatchObject({ name: source.name, type: "potion", count: 1 });
+    trackItem(target);
+    expect(getDiscoveries().items.heal.count).toBe(1);
   });
 });

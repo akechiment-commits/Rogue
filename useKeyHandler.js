@@ -482,7 +482,7 @@ export function useKeyHandler({
             const _selKey = _isBcOnly ? null : getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
               const _wasAlreadyNamed = !_isBcOnly && _selKey && sr.current.ident.has(_selKey);
-              if (_selKey) sr.current.ident.add(_selKey);
+              if (_selKey) { sr.current.ident.add(_selKey); if (!_wasAlreadyNamed) trackItem(_selIt); }
               _selIt.fullIdent = true; _selIt.bcKnown = true;
               const _knownName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               _msgResult = _selIt.type === "gold_nugget"
