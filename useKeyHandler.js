@@ -302,13 +302,15 @@ export function useKeyHandler({
             const _bbEffectMsgs = [];
             if (_bb) {
               const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
+              const _bbDN = (isBigboxKindIdentified(_bb, sr.current) || identifyMode.mode === "identify")
+                ? _bb.name : (sr.current.bbFakeNames?.[_bb.kind] || "謎の大箱");
               if (identifyMode.mode === 'identify') {
                 markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
-                _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
+                _bbMsg = `大箱「${_bbDN}」の正体が明らかになった！`;
               } else if (identifyMode.mode === 'duplicate') {
                 if (identifyMode.cursed) {
                   sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
-                  _bbMsg = `${_bb.name}が消えてしまった！【呪】`;
+                  _bbMsg = `${_bbDN}が消えてしまった！【呪】`;
                 } else {
                   const _duplicateSpot = findBigboxDuplicatePosition(_dg_id, _bb, sr.current.player);
                   if (_duplicateSpot) {
@@ -316,7 +318,7 @@ export function useKeyHandler({
                     const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!identifyMode.blessed || isBigboxKindIdentified(_bb, sr.current) };
                     if (identifyMode.blessed) { markBigboxKindIdentified(sr.current, _newBb); trackBigbox(_newBb); }
                     _dg_id.bigboxes.push(_newBb);
-                    _bbMsg = identifyMode.blessed ? `祝福された${_bb.name}が隣に現れた！【祝】` : `${_bb.name}の複製が隣に現れた！`;
+                    _bbMsg = identifyMode.blessed ? `祝福された${_bbDN}が隣に現れた！【祝】` : `${_bbDN}の複製が隣に現れた！`;
                   } else {
                     _bbMsg = "複製する場所がなかった。";
                   }
@@ -327,9 +329,9 @@ export function useKeyHandler({
                 const _earnedG = identifyMode.blessed ? _baseG * 2 : identifyMode.cursed ? Math.floor(_baseG / 2) : _baseG;
                 sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
                 sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
-                _bbMsg = identifyMode.blessed ? `${_bb.name}を${_earnedG}Gで換金した！（2倍）【祝】`
-                       : identifyMode.cursed  ? `${_bb.name}を${_earnedG}Gで換金した…（半額）【呪】`
-                                              : `${_bb.name}を${_earnedG}Gで換金した！`;
+                _bbMsg = identifyMode.blessed ? `${_bbDN}を${_earnedG}Gで換金した！（2倍）【祝】`
+                       : identifyMode.cursed  ? `${_bbDN}を${_earnedG}Gで換金した…（半額）【呪】`
+                                              : `${_bbDN}を${_earnedG}Gで換金した！`;
               } else if (identifyMode.mode === 'transform_item') {
                 const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
                 const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
@@ -341,7 +343,7 @@ export function useKeyHandler({
                   _bbMsg = `${_oldBbName}が${_newBbName}に変わった！`;
                 } else { _bbMsg = "変化しなかった。"; }
               } else if (identifyMode.mode === 'forge_item') {
-                _bbMsg = `${_bb.name}には効果がなかった。巻物は消えた。`;
+                _bbMsg = `${_bbDN}には効果がなかった。巻物は消えた。`;
               } else if (identifyMode.mode === 'pot_extract') {
                 const _extItems = [...(_bb.contents || [])];
                 _bb.contents = [];
@@ -349,15 +351,15 @@ export function useKeyHandler({
                 for (const _ci of _extItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, _bbEffectMsgs, _extFts, 0, sr.current.player);
                 if (identifyMode.cursed) {
                   sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
-                  _bbMsg = `${_bb.name}の中身を吸い出した！大箱は壊れた！【呪】`;
+                  _bbMsg = `${_bbDN}の中身を吸い出した！大箱は壊れた！【呪】`;
                 } else {
                   if (identifyMode.blessed) _bb.capacity = (_bb.capacity ?? 1) + 1;
                   _bbMsg = _extItems.length > 0
-                    ? `${_bb.name}から${_extItems.map(c => c.name).join('、')}が出た！${identifyMode.blessed ? '（容量+1）【祝】' : ''}`
-                    : `${_bb.name}は空だった。${identifyMode.blessed ? '（容量+1）【祝】' : ''}`;
+                    ? `${_bbDN}から${_extItems.map(c => itemDisplayName(c, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)).join('、')}が出た！${identifyMode.blessed ? '（容量+1）【祝】' : ''}`
+                    : `${_bbDN}は空だった。${identifyMode.blessed ? '（容量+1）【祝】' : ''}`;
                 }
               } else if (identifyMode.mode === 'weapon_up' || identifyMode.mode === 'armor_up') {
-                _bbMsg = `${_bb.name}には効果がなかった。巻物は消えた。`;
+                _bbMsg = `${_bbDN}には効果がなかった。巻物は消えた。`;
               }
             }
             if (identifyMode.identKey && sr.current) { const _scrWasUnk = !sr.current.ident.has(identifyMode.identKey); sr.current.ident.add(identifyMode.identKey); if (_scrWasUnk && identifyMode.scrollIdx != null) { const _sc = sr.current.player.inventory[identifyMode.scrollIdx]; if (_sc) trackItem(_sc); } }

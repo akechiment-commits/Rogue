@@ -11,7 +11,7 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { useGamepad } from "../useGamepad.js";
 import { BTN } from "../gamepadInput.js";
 import { soundEngine } from "../soundEngine.js";
-import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, BB_TYPES, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES } from "../items.js";
+import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, BB_TYPES, generateBbFakeNames, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES } from "../items.js";
 import { getDiscoveries, resetDiscoveries, trackItem } from "../DiscoveryTracker.js";
 import { itemDisplayName } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -41,6 +41,7 @@ function choose(input, source, action = "duplicate", modifiers = {}, nameState =
   const sr = { current: { player, dungeon: makeEmptyDg({ rooms: [] }),
     ident: new Set(nameState.identified ? [key] : []),
     fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, [], RINGS),
+    bbFakeNames: generateBbFakeNames(BB_TYPES), identifiedBigboxes: new Set(nameState.identifiedBigboxes || []),
     nicknames: nameState.nickname ? { [key]: nameState.nickname } : {}, floors: {} } };
   nameState.setupDungeon?.(sr.current.dungeon, player);
   const initialDisplayName = itemDisplayName(target, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
@@ -310,5 +311,41 @@ describe.each(inputs)("大箱複製の配置: %s", input => {
       setupDungeon: prepareBoxDungeon,
     });
     expect(result.sr.current.dungeon.bigboxes).toEqual([]);
+  });
+});
+
+describe.each(inputs)("大箱の未識別名を含む操作の一致: %s", input => {
+  it.each([
+    ["sell_item", {}], ["sell_item", { blessed: true }], ["sell_item", { cursed: true }],
+    ["duplicate", {}], ["duplicate", { cursed: true }],
+    ["pot_extract", {}], ["pot_extract", { blessed: true }], ["pot_extract", { cursed: true }],
+    ["weapon_up", {}], ["armor_up", {}],
+  ])("%s %jは未識別の大箱と中身の正体を漏らさない", (action, flags) => {
+    let originalName, originalKind;
+    const potion = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, potion, action, { ...flags, bbFootId: "original-box" }, {
+      setupDungeon(dungeon, player) {
+        const box = prepareBoxDungeon(dungeon, player);
+        box.revealed = false;
+        box.contents = [{ ...potion, id: "unknown-content" }];
+        originalName = box.name; originalKind = box.kind;
+      },
+    });
+    const messages = result.messages.join("\n");
+    expect(messages).toContain(result.sr.current.bbFakeNames[originalKind]);
+    expect(messages).not.toContain(originalName);
+    expect(messages).not.toContain(potion.name);
+    expect(result.sr.current.identifiedBigboxes.size).toBe(0);
+  });
+  it("識別済みの大箱は本名で表示する", () => {
+    let originalName, originalKind;
+    const result = choose(input, ITEMS.find(item => item.type === "potion"), "sell_item", { bbFootId: "original-box" }, {
+      identifiedBigboxes: [BB_TYPES[0].kind],
+      setupDungeon(dungeon, player) {
+        const box = prepareBoxDungeon(dungeon, player); originalName = box.name; originalKind = box.kind;
+      },
+    });
+    expect(result.messages.join("\n")).toContain(originalName);
+    expect(result.sr.current.identifiedBigboxes.has(originalKind)).toBe(true);
   });
 });
