@@ -601,10 +601,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 呪い：引き寄せ（方向を逆にして目の前まで引っ張る） */
         if (kind === "monster") {
           if (target.forcedMoveImmune) { ml.push(`${target.name}は強制移動を受けない！【呪】`); break; }
-          const _pullX = p.x + dx, _pullY = p.y + dy;
+          /* 基準マスではなく体の端を隣接させる（2×2は左上、3×3は中心基準）。 */
+          const _pullBounds = monsterBounds(target);
+          const _pullLeft = target.x - _pullBounds.x, _pullTop = target.y - _pullBounds.y;
+          const _pullRight = _pullBounds.width - 1 - _pullLeft, _pullBottom = _pullBounds.height - 1 - _pullTop;
+          const _pullX = p.x + (dx > 0 ? 1 + _pullLeft : dx < 0 ? -1 - _pullRight : 0);
+          const _pullY = p.y + (dy > 0 ? 1 + _pullTop : dy < 0 ? -1 - _pullBottom : 0);
           if (_pullX >= 0 && _pullX < MW && _pullY >= 0 && _pullY < MH &&
               dg.map[_pullY][_pullX] !== T.WALL && dg.map[_pullY][_pullX] !== T.BWALL &&
-              !dg.monsters.some(m2 => m2 !== target && monsterOccupiesCell(m2, _pullX, _pullY))) {
+              canPlaceMonsterBody(dg, target, _pullX, _pullY, p)) {
             target.x = _pullX; target.y = _pullY;
             ml.push(`${target.name}を引き寄せた！【呪】`);
           } else {
