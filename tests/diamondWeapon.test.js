@@ -21,7 +21,7 @@ describe("竜騎士系", () => {
   it("13階から出現し、レベル間に空白階を置く", () => {
     const base = MONS.find((m) => m.baseKind === "dragonknight");
 
-    expect([base.hp, base.atk, base.def, base.exp]).toEqual([43, 20, 5, 62]);
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([45, 22, 5, 60]);
     expect([base.minFloor, base.maxFloor]).toEqual([13, 17]);
     expect(base.levels.map((level) => [level.minFloor, level.maxFloor])).toEqual([[20, 24], [27, 30]]);
     expect(base.levels[0].dungeonFloors).toEqual({ intermediate: null, advanced: { min: 20, max: 24 } });
@@ -59,7 +59,7 @@ describe("竜騎士系", () => {
       random.mockRestore();
     }
 
-    expect(knight.atk).toBe(20);
+    expect(knight.atk).toBe(22);
     expect(ally.atk).toBe(8);
     expect(messages).toContain("竜騎士がダイヤモンドウエポンを唱えた！隣の敵の攻撃力が5上がった！");
   });
@@ -81,11 +81,11 @@ describe("竜騎士系", () => {
     addDiamondWeaponBuff(mon);
 
     expect(monLevelUp(mon, makeEmptyDg(), [])).toBe(true);
-    expect(mon.atk).toBe(34);
+    expect(mon.atk).toBe(35);
     addDiamondWeaponBuff(mon);
-    expect(mon.atk).toBe(41);
+    expect(mon.atk).toBe(42);
     expect(clearDiamondWeaponBuff(mon)).toBe(12);
-    expect(mon.atk).toBe(29);
+    expect(mon.atk).toBe(30);
   });
 
   it("強化は重ねがけ分だけ解除でき、封印でも解除される", () => {

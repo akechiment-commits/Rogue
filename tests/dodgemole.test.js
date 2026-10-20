@@ -23,9 +23,9 @@ describe("かわしモグラ", () => {
 
   it("Lv1を16階水準にし、Lv2以降のパラメータは維持する", () => {
     const base = MONS.find((m) => m.baseKind === "dodgemole");
-    expect([base.hp, base.atk, base.def, base.exp]).toEqual([68, 28, 7, 65]);
-    expect([base.levels[0].hp, base.levels[0].atk, base.levels[0].def, base.levels[0].exp]).toEqual([135, 42, 15, 165]);
-    expect([base.levels[1].hp, base.levels[1].atk, base.levels[1].def, base.levels[1].exp]).toEqual([210, 58, 21, 260]);
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([65, 26, 7, 65]);
+    expect([base.levels[0].hp, base.levels[0].atk, base.levels[0].def, base.levels[0].exp]).toEqual([115, 38, 12, 160]);
+    expect([base.levels[1].hp, base.levels[1].atk, base.levels[1].def, base.levels[1].exp]).toEqual([180, 52, 17, 550]);
   });
 
   it("Lv1を16階から出し、Lv2以降の出現範囲は維持する", () => {

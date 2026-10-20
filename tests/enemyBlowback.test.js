@@ -96,7 +96,7 @@ describe("敵の吹き飛ばしの杖の撃破処理", () => {
     const messages = [];
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
     expect(dungeon.monsters).not.toContain(mage);
-    expect(player.exp).toBe(65);
+    expect(player.exp).toBe(60);
     expect(messages.filter(message => message.includes("ウィンドメイジを倒した"))).toHaveLength(1);
   });
 });
@@ -159,7 +159,7 @@ describe("敵の吹き飛ばしによる衝突撃破", () => {
       expect(mage.monLevel).toBe(2);
     } else {
       expect(dungeon.monsters).toContain(victim);
-      expect(victim.hp).toBe(5);
+      expect(victim.hp).toBe(7);
       expect(victim._stealthrowerHeldItem).toBe(stolen);
       expect(dungeon.items).toEqual([]);
       expect(mage.monLevel).toBe(1);

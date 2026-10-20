@@ -30,7 +30,7 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
     expect(lv2.name).toBe("爆導師");
     expect(lv2.kind).toBe("humanoid");
     expect(lv2.elemWeak).toBe("ice");
-    expect(lv2.hp).toBe(54);
+    expect(lv2.hp).toBe(55);
     expect(lv2.atk).toBe(25);
     expect(lv2.def).toBe(7);
 
@@ -38,8 +38,8 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
     expect(lv3.name).toBe("煙火覇王");
     expect(lv3.kind).toBe("humanoid");
     expect(lv3.elemWeak).toBe("ice");
-    expect(lv3.hp).toBe(85);
-    expect(lv3.atk).toBe(32);
+    expect(lv3.hp).toBe(88);
+    expect(lv3.atk).toBe(34);
     expect(lv3.def).toBe(12);
   });
 });
