@@ -25,8 +25,8 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
     expect(lv1.kind).toBe("undead");
     expect(lv1.elemWeak).toBe("fire");
     expect(lv1.subtype).toBe("manaEater");
-    expect(lv1.hp).toBe(32);
-    expect(lv1.atk).toBe(14);
+    expect(lv1.hp).toBe(34);
+    expect(lv1.atk).toBe(15);
     expect(lv1.def).toBe(5);
     expect(lv1.tile).toBe(244);
 
@@ -35,8 +35,8 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
     expect(lv2.kind).toBe("undead");
     expect(lv2.elemWeak).toBe("fire");
     expect(lv2.subtype).toBe("manaEater");
-    expect(lv2.hp).toBe(68);
-    expect(lv2.atk).toBe(29);
+    expect(lv2.hp).toBe(70);
+    expect(lv2.atk).toBe(30);
     expect(lv2.def).toBe(10);
     expect(lv2.tile).toBe(245);
 
@@ -45,8 +45,8 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
     expect(lv3.kind).toBe("undead");
     expect(lv3.elemWeak).toBe("fire");
     expect(lv3.subtype).toBe("manaEater");
-    expect(lv3.hp).toBe(115);
-    expect(lv3.atk).toBe(46);
+    expect(lv3.hp).toBe(120);
+    expect(lv3.atk).toBe(48);
     expect(lv3.def).toBe(16);
     expect(lv3.tile).toBe(246);
   });
@@ -99,8 +99,8 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
 
       useManaEaterDrain(mon, pl, ml);
       expect(pl.mp).toBe(7);
-      expect(mon.hp).toBe(32); // 30 + 2
-      expect(ml[0]).toContain("HPが2回復した！");
+      expect(mon.hp).toBe(34); // 30 + 4
+      expect(ml[0]).toContain("HPが4回復した！");
     });
 
     it("プレイヤーのMPが吸収量未満の場合、残っている分だけ吸い取る", () => {
