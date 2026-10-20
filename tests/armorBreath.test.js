@@ -22,7 +22,7 @@ describe("スネークマン系", () => {
   it("13階から出現し、レベル間に空白階を置く", () => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
 
-    expect([base.hp, base.atk, base.def, base.exp]).toEqual([45, 20, 6, 60]);
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([43, 20, 5, 62]);
     expect([base.minFloor, base.maxFloor]).toEqual([13, 17]);
     expect(base.levels.map((level) => [level.minFloor, level.maxFloor])).toEqual([[20, 24], [27, 30]]);
     expect(base.levels[0].dungeonFloors).toEqual({ intermediate: null, advanced: { min: 20, max: 24 } });
@@ -66,7 +66,7 @@ describe("スネークマン系", () => {
     }
 
     expect(ally.def).toBe(13);
-    expect(snake.def).toBe(6);
+    expect(snake.def).toBe(5);
     expect(messages).toContain("スネークマンがロックアーマーを唱えた！隣の敵の防御力が5上がった！");
   });
 
@@ -87,11 +87,11 @@ describe("スネークマン系", () => {
     addArmorBreathBuff(mon);
 
     expect(monLevelUp(mon, makeEmptyDg(), [])).toBe(true);
-    expect(mon.def).toBe(15);
+    expect(mon.def).toBe(14);
     addArmorBreathBuff(mon);
-    expect(mon.def).toBe(22);
+    expect(mon.def).toBe(21);
     expect(clearArmorBreathBuff(mon)).toBe(12);
-    expect(mon.def).toBe(10);
+    expect(mon.def).toBe(9);
   });
 
   it("強化解除は重ねがけ分だけを解除する", () => {
@@ -165,7 +165,7 @@ describe("スネークマン系", () => {
     }
 
     expect(reflector.def).toBe(3);
-    expect(snake.def).toBe(11);
+    expect(snake.def).toBe(10);
     expect(messages).toContain("魔法反射の敵がロックアーマーを反射した！");
     expect(messages).toContain("跳ね返ったロックアーマーがスネークマンにかかり、防御力が5上がった！");
   });

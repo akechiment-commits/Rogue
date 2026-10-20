@@ -1184,12 +1184,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.level++;
       p.exp -= p.nextExp;
       p.nextExp = Math.floor(p.nextExp * 1.5);
-      const hpGain = rng(4, 6);
-      adjustPlayerBaseMaxHp(p, hpGain);
+      adjustPlayerBaseMaxHp(p, 5);
       p.hp = Math.min(p.hp + 10, p.maxHp);
       p.atk++;
       if (p.level % 3 === 0) { p.def++; p.maxMp++; }
-      ml.push(`レベルアップ！Lv.${p.level}！（最大HP+${hpGain}）`);
+      ml.push(`レベルアップ！Lv.${p.level}！`);
     }
   }, []);
   const autoPickup = useCallback((p, dg, ml) => {

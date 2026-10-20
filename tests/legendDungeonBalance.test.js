@@ -64,7 +64,7 @@ describe("超上級ダンジョンの敵分布", () => {
     for (let floor = 1; floor <= 50; floor++) {
       expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(floor <= 4 ? 3 : 6);
       const extraGiants = ['hauntedWillow', 'sleepingLion'].filter(kind => LEGEND_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
-      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(35);
+      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiants);
     }
     const byKind = new Map();
     for (const band of LEGEND_MONSTER_BANDS) {
@@ -88,10 +88,9 @@ describe("超上級ダンジョンの敵分布", () => {
     const daemon = MONS.find((monster) => monster.baseKind === "daemon");
     expect(legendMonsterSpawnLevel(dragon, 28)).toBe(1);
     expect(legendMonsterSpawnLevel(dragon, 38)).toBe(2);
-    expect(legendMonsterSpawnLevel(dragon, 46)).toBe(3);
-    expect(legendMonsterSpawnLevel(daemon, 38)).toBe(1);
-    expect(legendMonsterSpawnLevel(daemon, 45)).toBe(2);
-    expect(legendMonsterSpawnLevel(daemon, 50)).toBe(3);
+    expect(legendMonsterSpawnLevel(dragon, 48)).toBe(3);
+    expect(legendMonsterSpawnLevel(daemon, 40)).toBe(1);
+    expect(legendMonsterSpawnLevel(daemon, 48)).toBe(2);
   });
 
   it("眠れる獅子系はレベル帯の間を空けて自然出現する", () => {

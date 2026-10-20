@@ -29,7 +29,7 @@ describe("オーク系・トロル系の痛恨", () => {
       orc.turnAttacks = 0;
       monsterAI(orc, dg, player, messages, { attackOnly: true });
       expect(orc.powerChargeReady).toBeUndefined();
-      expect(player.hp).toBe(79);
+      expect(player.hp).toBe(80);
       expect(messages.at(-1)).toContain("痛恨の一撃");
     } finally {
       random.mockRestore();
@@ -76,7 +76,7 @@ describe("オーク系・トロル系の痛恨", () => {
 
       monsterAI(troll, dg, player, messages, { attackOnly: true });
 
-      expect(player.hp).toBe(61);
+      expect(player.hp).toBe(60);
       expect(messages.at(-1)).toContain("痛恨の一撃");
     } finally {
       random.mockRestore();

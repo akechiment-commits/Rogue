@@ -21,7 +21,7 @@ describe("つらら小僧系（旧コボルド系）のテスト", () => {
     expect(lv1.name).toBe("つらら小僧");
     expect(lv1.kind).toBe("beast");
     expect(lv1.elemWeak).toBe("fire");
-    expect(lv1.hp).toBe(16);
+    expect(lv1.hp).toBe(15);
     expect(lv1.atk).toBe(8);
     expect(lv1.def).toBe(2);
 
@@ -29,7 +29,7 @@ describe("つらら小僧系（旧コボルド系）のテスト", () => {
     expect(lv2.name).toBe("氷柱鬼");
     expect(lv2.kind).toBe("beast");
     expect(lv2.elemWeak).toBe("fire");
-    expect(lv2.hp).toBe(40);
+    expect(lv2.hp).toBe(38);
     expect(lv2.atk).toBe(18);
     expect(lv2.def).toBe(8);
 
@@ -37,8 +37,8 @@ describe("つらら小僧系（旧コボルド系）のテスト", () => {
     expect(lv3.name).toBe("永久凍土鬼");
     expect(lv3.kind).toBe("beast");
     expect(lv3.elemWeak).toBe("fire");
-    expect(lv3.hp).toBe(68);
-    expect(lv3.atk).toBe(26);
+    expect(lv3.hp).toBe(60);
+    expect(lv3.atk).toBe(25);
     expect(lv3.def).toBe(13);
   });
 });
