@@ -204,11 +204,26 @@ export function weakenOrClearParalysis(mon, ml) {
   if (!mon.paralyzed) return;
   if ((mon.paralyzeHits || 0) > 1) {
     mon.paralyzeHits--;
+    mon._paralyzeHp = mon.hp;
     ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`);
   } else {
     mon.paralyzed = false;
     mon.paralyzeHits = 0;
+    mon.paralyzeTurns = 0;
+    mon._paralyzeHp = null;
     ml.push(`${mon.name}の金縛りが解けた！`);
+  }
+}
+
+/** 命中前の弱体化と、その命中によるHP変化を1回の被弾として確定する。 */
+export function withParalysisHit(mon, ml, hit) {
+  if (!mon) return hit();
+  const wasParalyzed = !!mon.paralyzed;
+  weakenOrClearParalysis(mon, ml);
+  try {
+    return hit();
+  } finally {
+    if (wasParalyzed && mon.paralyzed) mon._paralyzeHp = mon.hp;
   }
 }
 
@@ -4153,7 +4168,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     hitMessage = (target, dmg) => `${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
     onKilled = null,
   } = opts;
-  weakenOrClearParalysis(mon, ml);
+  return withParalysisHit(mon, ml, () => {
   if (consumeBarrier(mon, ml)) return { blocked: true, killed: false };
 
   const dmg = clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true);
@@ -4244,6 +4259,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     }
   }
   return { blocked: false, killed };
+  });
 }
 
 function finalizePickedStack(sourceItem, changedStacks) {
@@ -5693,7 +5709,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     }
     const mon = monsterAt(dg, x, y);
     if (mon) {
-      weakenOrClearParalysis(mon, ml);
+      withParalysisHit(mon, ml, () => {
       const _duplicateLargeStatusTile = _largeStatusKey && monsterBodySize(mon) > 1 && _largeStatusTargets.has(mon);
       if (!_duplicateLargeStatusTile || eff === "poison") {
         if (_largeStatusKey && monsterBodySize(mon) > 1) _largeStatusTargets.add(mon);
@@ -5706,6 +5722,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
           applySoakedStatusToMonster(mon, ml);
         }
       }
+      });
     }
     if (p && x === p.x && y === p.y) {
       applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
@@ -5761,9 +5778,10 @@ function applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn = 
       if (dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) continue;
       const mon = monsterAt(dg, tx, ty);
       if (mon) {
-        weakenOrClearParalysis(mon, ml);
-        applyPotionEffect("water", WATER_BOTTLE.value, "monster", mon, dg, p, ml, luFn, blessed, cursed);
-        applySoakedStatusToMonster(mon, ml);
+        withParalysisHit(mon, ml, () => {
+          applyPotionEffect("water", WATER_BOTTLE.value, "monster", mon, dg, p, ml, luFn, blessed, cursed);
+          applySoakedStatusToMonster(mon, ml);
+        });
       }
       if (p && tx === p.x && ty === p.y) {
         applyPotionEffect("water", WATER_BOTTLE.value, "player", p, dg, p, ml, luFn, blessed, cursed);

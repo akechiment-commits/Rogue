@@ -6,7 +6,7 @@ import {
   resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft,
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
   soakItemIntoSpring, splashPotion, inMagicSealRoom,
-  getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
+  getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, withParalysisHit,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
   hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, applyMonsterSeal, applyPlayerSeal,
@@ -592,8 +592,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   }
 
   /* any wand bolt hitting a monster weakens/clears its paralysis */
-  if (kind === "monster") weakenOrClearParalysis(target, ml);
-
+  return withParalysisHit(kind === "monster" ? target : null, ml, () => {
   switch (eff) {
     case "knockback": {
       const _blessed = blMult > 1, _cursed = blMult < 1;
@@ -2018,6 +2017,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       /* 未登録の effect が渡された場合は警告 (items.js WANDS への追加を忘れずに) */
       console.warn(`[applyWandEffect] 未登録の effect: "${eff}" — applyWandEffect の switch に case を追加してください`);
   }
+  });
 }
 
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null, bigboxNameFn = null) {

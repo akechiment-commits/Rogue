@@ -22,7 +22,7 @@ import {
   triggerMushroomCounterSpore,
 } from "./monsters.js";
 import {
-  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
+  weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
@@ -2790,10 +2790,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
                 acted = true;
               } else {
-              if (attackMon.paralyzed) {
-                attackMon.paralyzed = false;
-                ml.push(`${attackMon.name}の金縛りが解けた！`);
-              }
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
               let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1) * playerDopingMultiplier(p)));
               if ((p.garlicDmgTurns || 0) > 0) ap += 5;
@@ -2872,6 +2868,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 ml.push(`ガーディアンが${attackMon.name}をかばった！`);
                 if (!consumeBarrier(_guardMon, ml)) {
                   _guardMon.hp -= d;
+                  weakenOrClearParalysis(_guardMon, ml);
                   ml.push(`ガーディアンに${d}ダメージ！`);
                 }
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
@@ -2895,6 +2892,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 ml.push(`フェザーガード！${attackMon.name}はダメージを半減した！`);
               }
               attackMon.hp -= d;
+              weakenOrClearParalysis(attackMon, ml);
               if (attackMon.type === "shopkeeper") markWanderingNpcHostile(attackMon, dg, p, ml);
               const atkSfx =
                 (crit ? "会心！" : "") +
@@ -2997,6 +2995,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (wabHas("double_strike") && attackMon.hp > 0 && dg.monsters.includes(attackMon)) {
                 const _d2 = Math.max(1, Math.floor(d * 0.6));
                 attackMon.hp -= _d2;
+                weakenOrClearParalysis(attackMon, ml);
                 ml.push(`連撃！${attackMon.name}にさらに${_d2}ダメージ！`);
                 _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: _d2, color: "#ff8800" });
                 if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) {

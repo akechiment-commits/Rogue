@@ -1,6 +1,6 @@
 import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext, calcAtkDefDmg, calcPlayerDefense, T } from './utils.js';
 import { monsterAreaTargets, monsterOccupiesCell } from './monsterGeometry.js';
-import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, weakenOrClearParalysis, wallBreakDrop } from './items.js';
+import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, withParalysisHit, wallBreakDrop } from './items.js';
 import { monEffectiveMagicImmune } from './monTraits.js';
 import { beginNpcRetaliation } from './npcRetaliation.js';
 import { pushExplosionAnim } from './animEvents.js';
@@ -90,13 +90,14 @@ export function advanceMeteors(dungeon, player, messages, lu, worldTicks = 1) {
       }
       if (monEffectiveMagicImmune(monster)) continue;
       if (consumeBarrier(monster, messages)) continue;
-      weakenOrClearParalysis(monster, messages);
+      withParalysisHit(monster, messages, () => {
       const mitigatedDamage = calcAtkDefDmg(meteor.damage, monster.def || 0, { defWeight: 1, variance: false });
       const damage = multiplyCursedMagicDamage(mitigatedDamage, monster, dungeon);
       monster.hp -= damage;
       if (damage > 0 && monster.type === 'shopkeeper' && monster.hp > 0) beginNpcRetaliation(monster, source, messages);
       messages.push(`メテオが${monster.name}に命中！${damage}ダメージ！`);
       if (monster.hp <= 0) killMonster(monster, dungeon, player, messages, lu, false, source);
+      });
     }
     destroyMeteorTerrain(dungeon, meteor, messages);
   }
