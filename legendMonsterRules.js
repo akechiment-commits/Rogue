@@ -31,29 +31,39 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 18, max: 21, level: 2, kinds: ["rat", "bat", "centipede"] },
   { min: 19, max: 22, level: 1, kinds: ["rustbug", "wizard"] },
   { min: 21, max: 24, level: 1, kinds: ["leprechaun", "bombgoblin", "orc", "dangerousPetal", "dreamEater"] },
-  { min: 21, max: 24, level: 2, kinds: ["mushroom"] },
+  { min: 21, max: 24, level: 2, kinds: ["mushroom", "runner"] },
   { min: 23, max: 26, level: 1, kinds: ["itemThrower", "trapmaster", "serpent"] },
   { min: 25, max: 27, level: 1, kinds: ["hypnotist", "dodgemole", "waterFlower", "machodragon"] },
-  { min: 26, max: 29, level: 2, kinds: ["kobold", "goblin", "skeleton"] },
-  { min: 28, max: 31, level: 2, kinds: ["imp", "zombie", "wolf", "manaEater"] },
+  { min: 26, max: 29, level: 2, kinds: ["kobold", "goblin", "skeleton", "wokka", "slime", "archer", "tripper"] },
+  { min: 28, max: 31, level: 2, kinds: ["imp", "zombie", "wolf", "manaEater", "thief", "leprechaun", "rustbug", "wizard"] },
   /* 28〜40 ドラゴンは装備が付いてからLv1で出す */
   { min: 28, max: 31, level: 1, kinds: ["dragon", "troll", "killplaster"] },
+  { min: 30, max: 33, level: 1, kinds: ["itemblaster", "stealthrower", "crystalslime", "bombslime"] },
   /* 32〜39 吸血・拘束・氷。盗賊と突進のLv2、花びらLv2。火竜とは別帯 */
   { min: 32, max: 35, level: 1, kinds: ["vampire", "giantEel", "mimic", "knocker", "walldigger"] },
-  { min: 32, max: 35, level: 2, kinds: ["thief", "charger"] },
-  { min: 33, max: 36, level: 2, kinds: ["rakugakima"] },
-  { min: 34, max: 37, level: 1, kinds: ["icedragon"] },
-  { min: 36, max: 39, level: 1, kinds: ["golem", "darkness", "magicreflector"] },
-  { min: 36, max: 39, level: 2, kinds: ["dangerousPetal", "dreamEater", "grabber", "rustbug", "orc"] },
-  { min: 38, max: 41, level: 2, kinds: ["dragon", "machodragon"] },
-  /* 40〜47 デーモンLv1。薬・爆発・水中花のLv2。催眠は花びらが終わってから */
-  { min: 40, max: 43, level: 1, kinds: ["daemon", "puller", "witchdoc", "berserker"] },
-  { min: 40, max: 43, level: 2, kinds: ["potionthrower", "potionhealer", "bombgoblin", "waterFlower", "hypnotist"] },
-  { min: 44, max: 47, level: 1, kinds: ["seaDevil", "disarmer", "lizardman"] },
-  { min: 44, max: 47, level: 2, kinds: ["vampire", "golem", "troll", "killplaster", "itemThrower", "trapmaster"] },
-  /* 48〜50 Lv3は竜と催眠。睡眠とは重ねない。他はLv2で厚くする */
-  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "potionhealer", "rakugakima", "mushroom", "machodragon", "manaEater"] },
-  { min: 48, max: 50, level: 2, kinds: ["darkness", "daemon", "mimic", "knocker", "dodgemole"] },
+  { min: 32, max: 35, level: 2, kinds: ["charger", "rakugakima", "itemMimic", "tattoobird"] },
+  { min: 34, max: 37, level: 1, kinds: ["icedragon", "golem", "darkness", "magicreflector", "reflector"] },
+  { min: 35, max: 38, level: 2, kinds: ["dangerousPetal", "dreamEater", "grabber", "orc", "bombgoblin", "trapmaster", "serpent", "itemThrower", "itempusher"] },
+  { min: 36, max: 39, level: 3, kinds: ["rat", "bat", "centipede", "kobold", "goblin"] },
+  { min: 38, max: 41, level: 1, kinds: ["daemon", "puller", "witchdoc", "berserker", "shaman"] },
+  { min: 38, max: 41, level: 2, kinds: ["dragon", "machodragon", "crystalslime", "bombslime", "itemblaster", "stealthrower"] },
+  { min: 40, max: 43, level: 2, kinds: ["potionthrower", "potionhealer", "waterFlower", "hypnotist", "gelcube", "walldigger", "knocker", "dodgemole", "berserker"] },
+  { min: 40, max: 43, level: 3, kinds: ["imp", "skeleton", "zombie", "wokka", "slime", "archer", "wolf", "thief", "tripper", "rustbug"] },
+  /* 43〜47 準深層：Lv2最上位 ＋ Lv3中堅 */
+  { min: 43, max: 46, level: 1, kinds: ["seaDevil", "disarmer", "lizardman", "dragonknight", "synthmonster", "barriermage", "windmage", "starlight"] },
+  { min: 44, max: 47, level: 2, kinds: ["vampire", "golem", "troll", "killplaster", "daemon", "mimic", "icedragon", "magicreflector", "reflector", "darkness", "shaman", "witchdoc", "puller", "firedemon", "gargoyle"] },
+  { min: 44, max: 47, level: 3, kinds: ["dangerousPetal", "dreamEater", "itemMimic", "itemThrower", "fireCook", "bombslime", "bombgoblin", "orc", "gelcube", "walldigger", "trapmaster", "serpent", "trapthrower", "tattoobird", "rakugakima", "manaEater", "leprechaun", "wizard", "itempusher", "grabber", "charger"] },
+  /* 47〜50 最深層：Lv3強敵・大物枠の総動員！ */
+  { min: 47, max: 50, level: 2, kinds: ["seaDevil", "giantEel", "disarmer", "lizardman", "dragonknight", "synthmonster", "barriermage", "windmage", "starlight"] },
+  { min: 47, max: 50, level: 3, kinds: [
+    "dragon", "hypnotist", "machodragon", "sleepingLion",
+    "daemon", "vampire", "golem", "crystalslime", "seaDevil", "giantEel",
+    "firedemon", "dodgemole", "berserker", "icedragon", "troll", "gargoyle",
+    "reflector", "knocker", "magicreflector", "potionthrower", "potionhealer",
+    "killplaster", "waterFlower", "starlight", "darkness", "mimic",
+    "lizardman", "dragonknight", "runner", "itemblaster", "stealthrower",
+    "synthmonster", "barriermage", "windmage", "puller", "disarmer", "shaman", "witchdoc"
+  ] },
 ]);
 
 const _pools = Array.from({ length: 51 }, () => []);
