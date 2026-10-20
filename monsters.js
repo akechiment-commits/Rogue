@@ -1173,10 +1173,10 @@ export const MONS = [
       { name: "アルギ忍", hp: 84,  atk: 30, def: 9,  exp: 130, dungeonFloors: { intermediate: { min: 28, max: 30 } } },
     ],
   },
-  { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 180, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
+  { name: "バーサーカー", hp: 58,  atk: 27, def: 7,  exp: 65,  speed: 1,   tile: 180, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
     levels: [
-      { name: "バーサーカー2",      hp: 90,  atk: 40, def: 13, exp: 104, dungeonFloors: { advanced: { min: 26, max: 27 } } },
-      { name: "バーサーカー99",     hp: 145, atk: 58, def: 20, exp: 166, dungeonFloors: { advanced: { min: 28, max: 29 } } },
+      { name: "バーサーカー2",      hp: 95,  atk: 42, def: 11, exp: 110, dungeonFloors: { advanced: { min: 26, max: 27 } } },
+      { name: "バーサーカー99",     hp: 155, atk: 60, def: 17, exp: 220, dungeonFloors: { advanced: { min: 28, max: 29 } } },
     ],
   },
   { name: "ルカチュウ", hp: 35, atk: 18, def: 4,  exp: 58,  speed: 1,   tile: 160, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true, dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
