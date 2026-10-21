@@ -464,6 +464,7 @@ export function snapshotPlayer(p, opts = {}) {
     oilyTurns: p.oilyTurns || 0,
     soakedTurns: p.soakedTurns || 0,
     paralyzeTurns: p.paralyzeTurns || 0,
+    petrifiedTurns: p.petrifiedTurns || 0,
     potConfinedTurns: p.potConfinedTurns || 0,
     hypnosisPending: p.hypnosisPending || 0,
     capturedBy: p.capturedBy || null,
@@ -485,6 +486,7 @@ export function snapshotPlayer(p, opts = {}) {
  */
 export function getActiveStatusPortraitKey(p, floating = false) {
   if (!p) return null;
+  if ((p.petrifiedTurns || 0) > 0) return "status_petrified";
   if (p._wallSuffocationDamage && !(p.wallWalkTurns > 0)) return "status_wall_suffocation";
   if (p._waterSuffocationDamage) return "status_submerged";
   if (p.capturedBy) return "status_bound";
