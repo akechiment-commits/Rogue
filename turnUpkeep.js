@@ -109,6 +109,7 @@ export function hasForcedTurn(player) {
     (player.sleepInterruptedTurns || 0) > 0 ||
     (player.paralyzeTurns || 0) > 0 ||
     (player.frozenTurns || 0) > 0 ||
+    (player.petrifiedTurns || 0) > 0 ||
     !!player.slowSkip ||
     (player.potConfinedTurns || 0) > 0;
 }
@@ -148,6 +149,11 @@ export function advanceForcedTurn(player, messages) {
   if ((player.frozenTurns || 0) > 0) {
     player.frozenTurns--;
     messages.push(player.frozenTurns > 0 ? `凍りついている...あと${player.frozenTurns}ターン` : "氷が解けた！動けるようになった！");
+    return { advanced: true, exitPotAfterTurn: false };
+  }
+  if ((player.petrifiedTurns || 0) > 0) {
+    player.petrifiedTurns--;
+    messages.push(player.petrifiedTurns > 0 ? `体が石化している...あと${player.petrifiedTurns}ターン` : "石化が解けた！動けるようになった！");
     return { advanced: true, exitPotAfterTurn: false };
   }
   if ((player.potConfinedTurns || 0) > 0) {

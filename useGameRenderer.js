@@ -4,6 +4,7 @@ import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from '
 import { monsterBodySize } from './monsterGeometry.js';
 import { monsterDrawBounds, monsterVisible, drawLargeMonster } from './monsterRendering.js';
 import { drawMeteorWarnings } from './meteor.js';
+import { drawPetroBreathWarnings } from './petroBreath.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
 const VENT_TILE_BY_DIR = {
@@ -169,6 +170,7 @@ export function drawMonsterOverlays(ctx, mon, px, py, sz) {
   const _sts = [];
   if ((mon.sleepTurns || 0) > 0 || (mon.subtype === "sleepingLion" && mon.dormant)) _sts.push("#3870e8"); // 眠り：青
   if (mon.paralyzed || (mon.paralyzeTurns || 0) > 0)             _sts.push("#d0d8ff"); // 麻痺：白青
+  if ((mon.petrifiedTurns || 0) > 0)                             _sts.push("#a0a0a0"); // 石化：灰
   if ((mon.confusedTurns || 0) > 0)                              _sts.push("#f09020"); // 混乱：橙
   if (mon.bewitched || (mon.bewitchedTurns || 0) > 0 || (mon.fleeingTurns || 0) > 0) _sts.push("#e0c020"); // 幻惑：黄金
   if ((mon.immobileTurns || 0) > 0)                              _sts.push("#50c8e8"); // 移動封じ：氷青
@@ -1268,6 +1270,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
 
     /* 予兆はキャラクター描画の後にも見えるよう重ね、各マスに残りターンを示す。 */
     drawMeteorWarnings(ctx, dg, sx, sy, sz);
+    drawPetroBreathWarnings(ctx, dg, sx, sy, sz);
 
     /* ===== lookMode cursor ===== */
     if (lookMode) {

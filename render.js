@@ -170,6 +170,7 @@ export const TILE_NAMES = {
   247: "itemthrower",
   248: "mimic",
   249: "timeout_punisher",
+  250: "battering_ram",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -400,6 +401,7 @@ export const TILE_RENDER = {
   247: { bg: null, fg: "#40d0a0", ch: "K" }, /* ひょい河童 */
   248: { bg: null, fg: "#e0e0e0", ch: "m" }, /* ものまね師 */
   249: { bg: null, fg: "#e0d080", ch: "T" }, /* 刻限の巨像 */
+  250: { bg: null, fg: "#e0d8c0", ch: "R" }, /* バタリングラム */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

@@ -1,6 +1,7 @@
 import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
+import { castPetroBreath, canCastPetroBreath } from './petroBreath.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -716,6 +717,34 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       }
     }
   }
+}
+
+
+function ramCharge(m, dg, pl, ml, opts = {}, onHit = null, onMiss = null, luFn = null) {
+  const bounds = monsterBounds(m);
+  const nearX = Math.max(bounds.x, Math.min(pl.x, bounds.x + bounds.width - 1));
+  const nearY = Math.max(bounds.y, Math.min(pl.y, bounds.y + bounds.height - 1));
+  let shoveX = Math.sign(pl.x - nearX);
+  let shoveY = Math.sign(pl.y - nearY);
+  if (shoveX === 0 && shoveY === 0) {
+    shoveX = Math.sign(pl.x - (m.x + 0.5));
+    shoveY = Math.sign(pl.y - (m.y + 0.5));
+  }
+  if (shoveX === 0 && shoveY === 0) shoveX = 1;
+
+  monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}のラムチャージ！${d}ダメージ！`, {
+    onPlayerHit: damage => {
+      onHit?.(damage, m);
+      if (pl.hp <= 0) return;
+      const fromX = pl.x, fromY = pl.y;
+      pushEntity(dg, pl.x, pl.y, shoveX, shoveY, 3, ml, "player", pl, pl, luFn, 0, m);
+      if (pl.x === fromX && pl.y === fromY) return;
+      const landingTrap = (dg.traps || []).find(trap => trap.x === pl.x && trap.y === pl.y);
+      if (landingTrap) opts.fireTrapFn?.(landingTrap, pl, dg, ml);
+    },
+    onPlayerMiss: onMiss,
+    luFn: luFn,
+  });
 }
 
 function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
@@ -1487,7 +1516,16 @@ export const KING_BEHINMOS = {
   meteorDamage: 100, meteorImmune: true, meteorInterval: 4,
   desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。詠唱時にHPが半分以上なら赤い予兆の3×3マスへ2ターン後、半分未満なら1ターン後に防御力で軽減されるメテオを落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
 };
-export const SPECIAL_BOSSES = [KING_BEHINMOS];
+
+/* 上級5階専用ボス。通常ボス一覧を置換しないため、他のダンジョンのフリージアは維持する。 */
+export const BATTERING_RAM = {
+  name: "バタリングラム", hp: 360, atk: 36, def: 20, exp: 1000,
+  speed: 1, tile: 250, kind: "beast", baseKind: "boss_batteringram",
+  isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 1, bodySize: 2,
+  desc: "2×2マスの巨大な羊のボス。隣接時に25%でラムチャージ（通常ダメージ+吹き飛ばし）、25%でペトロブレス（前方2マスに攻撃予約し、次ターンに敵味方無差別に4ターン石化させるブレス）を放つ。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -4965,6 +5003,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       ml.push(m.subtype === "giantEel" ? `${m.name}の拘束が解けた！` : `${m.name}の捕獲が解けた！`);
     }
   }
+
+  /* 石化状態：4ターンの間、攻撃・移動ともにできない。 */
+  if ((m.petrifiedTurns || 0) > 0) {
+    if (!_attackOnly) m.petrifiedTurns = Math.max(0, m.petrifiedTurns - 1);
+    if (m.petrifiedTurns <= 0) {
+      ml.push(`${m.name}の石化が解けた！`);
+      m.turnAccum = 0;
+      m._movedThisTurn = true;
+    }
+    return;
+  }
+
   if (m.sleepTurns > 0) {
     if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - 1);
     if (m.sleepTurns <= 0) { ml.push(`${m.name}の睡眠が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
@@ -5753,6 +5803,38 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
   }
+
+  if (m.baseKind === "boss_batteringram" && _moveOnly) {
+    delete m._ramChargeReady;
+    delete m._petroBreathReady;
+  }
+  if (m.baseKind === "boss_batteringram" && !m.sealed && !(m.attackSealTurns > 0) && !m.blind &&
+      !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
+      _adjPl && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      const roll = Math.random();
+      if (m.alwaysUseSpecial || roll < 0.25) {
+        m._ramChargeReady = true;
+        return;
+      } else if (roll < 0.50 && canCastPetroBreath(m, dg)) {
+        m._petroBreathReady = true;
+        return;
+      }
+    }
+    if (m._ramChargeReady) {
+      delete m._ramChargeReady;
+      m.turnAttacks++;
+      ramCharge(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
+      return;
+    }
+    if (m._petroBreathReady) {
+      delete m._petroBreathReady;
+      m.turnAttacks++;
+      castPetroBreath(m, dg, pl, ml);
+      return;
+    }
+  }
+
   if (m.baseKind === "boss_kingbehinmos" && _moveOnly) delete m._kingDustStormReady;
   if (m.baseKind === "boss_kingbehinmos" && !m.sealed && !(m.attackSealTurns > 0) && !m.blind &&
       !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&

@@ -167,7 +167,7 @@ export function useItemActions({
     const { player: p, dungeon: dg } = sr.current;
     const it = p.inventory[idx];
     if (!it) return;
-    if (p.sleepTurns > 0 || p.paralyzeTurns > 0) return;
+    if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.petrifiedTurns || 0) > 0) return;
     if (it.type === "food" && (Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)) {
       setMsgs((prev) => [...prev.slice(-80), "満腹度が限界を超えていて、食べられない！"]);
       return;
@@ -2136,7 +2136,7 @@ export function useItemActions({
     if (!st) return false;
     const { player: p } = st;
     if ((p.hypnosisPending || 0) <= 0) return false;
-    if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
+    if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || (p.petrifiedTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
 
     const candidates = getHypnosisItemCandidates(p.inventory).filter(({ it }) =>
       (it.type !== "pot" || getHypnosisPotContents(p.inventory, it, p).length > 0) &&
