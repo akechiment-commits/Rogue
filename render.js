@@ -405,7 +405,7 @@ export const TILE_RENDER = {
   249: { bg: null, fg: "#e0d080", ch: "T" }, /* 刻限の巨像 */
   250: { bg: null, fg: "#e0d8c0", ch: "R" }, /* バタリングラム */
   251: { bg: null, fg: "#d04070", ch: "S" }, /* ちらにくつんのく */
-  252: { bg: null, fg: "#d09020", ch: "T" }, /* タイサイジン */
+  252: { bg: null, fg: "#c060d0", ch: "T" }, /* タイサイジン */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

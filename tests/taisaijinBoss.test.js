@@ -31,7 +31,7 @@ describe("上級ダンジョン10階ボス：タイサイジン", () => {
     expect(boss.atk).toBe(30);
     expect(boss.def).toBe(26);
     expect(boss.maxAttacks).toBe(2);
-    expect(boss.kind).toBe("material");
+    expect(boss.kind).toBe("beast");
   });
 
   it("上級ダンジョンの他階層や他ダンジョンの10階との棲み分けが正しい", () => {

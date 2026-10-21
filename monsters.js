@@ -1556,9 +1556,9 @@ export const CHIRANIKUTSUNNOKU = {
 
 export const TAISAIJIN = {
   name: "タイサイジン", hp: 520, atk: 30, def: 26, exp: 2000,
-  speed: 1, tile: 252, kind: "material", baseKind: "boss_taisaijin",
+  speed: 1, tile: 252, kind: "beast", baseKind: "boss_taisaijin",
   isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 2,
-  desc: "たくさんの目がついた塔のようなボス。通常攻撃が2回攻撃。遠距離直線上に25%で催眠術、視界内にプレイヤーがいる時10%でブレイズスパイク（炎まとい状態）、10%でリフレシュ（20ターンの間毎ターン5HP回復）を唱える。",
+  desc: "縦長の体躯にたくさんの目がついたスライム系のボス。通常攻撃が2回攻撃。遠距離直線上に25%で催眠術、視界内にプレイヤーがいる時10%でブレイズスパイク（炎まとい状態）、10%でリフレシュ（20ターンの間毎ターン5HP回復）を唱える。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN];
