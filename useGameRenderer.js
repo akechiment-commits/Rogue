@@ -237,6 +237,8 @@ function drawOverlays(ctx, overlays, sx, sy, sz) {
       drawExplosionEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "splash") {
       drawSplashEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "petroBreath") {
+      drawPetroBreathEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "lightning") {
       drawLightningEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "heal") {
@@ -532,6 +534,65 @@ function drawSplashEffect(ctx, o, sx, sy, sz, p) {
   ctx.beginPath();
   ctx.arc(cx, cy, rippleR, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
+}
+
+/* ===== Petro Breath Effect (石化ブレス演出) ===== */
+function drawPetroBreathEffect(ctx, o, sx, sy, sz, p) {
+  const px = (o.x - sx) * sz;
+  const py = (o.y - sy) * sz;
+  const cx = px + sz / 2;
+  const cy = py + sz / 2;
+  const alpha = p > 0.65 ? Math.max(0, 1 - (p - 0.65) / 0.35) : 1;
+  if (alpha <= 0) return;
+
+  ctx.save();
+
+  // 1. マス全体の石化ガス・砂煙の雲
+  const cloudR = Math.max(1, easeOutQuad(p) * sz * 0.75);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cloudR);
+  grad.addColorStop(0, "rgba(220, 200, 140, 0.85)");
+  grad.addColorStop(0.4, "rgba(180, 165, 120, 0.55)");
+  grad.addColorStop(0.8, "rgba(130, 120, 100, 0.3)");
+  grad.addColorStop(1, "rgba(90, 85, 75, 0)");
+  ctx.globalAlpha = alpha * 0.75;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cloudR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. タイルの輪郭フラッシュ（黄金・灰黄色）
+  ctx.globalAlpha = alpha * 0.5 * (1 - p);
+  ctx.strokeStyle = "#e8d080";
+  ctx.lineWidth = Math.max(1, sz * 0.08);
+  ctx.strokeRect(px + 1, py + 1, sz - 2, sz - 2);
+
+  // 3. 放射状に噴き出す石片・灰砂パーティクル（12方向）
+  const particleCount = 12;
+  const travel = easeOutQuad(Math.min(1, p * 1.4)) * sz * 0.75;
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2 + (i % 2 === 0 ? 0.2 : -0.2);
+    const dist = travel * (0.6 + (i % 3) * 0.2);
+    const spx = cx + Math.cos(angle) * dist;
+    const spy = cy + Math.sin(angle) * dist;
+    const pr = Math.max(1, sz * (i % 2 === 0 ? 0.12 : 0.08) * (1 - p * 0.6));
+    
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.fillStyle = i % 3 === 0 ? "#f4ecc4" : i % 3 === 1 ? "#c8b888" : "#8c826e";
+    ctx.beginPath();
+    ctx.arc(spx, spy, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 4. 石化衝撃波リング
+  const ringR = easeOutQuad(p) * sz * 0.65;
+  ctx.globalAlpha = alpha * 0.6 * (1 - p);
+  ctx.strokeStyle = "#fff0a0";
+  ctx.lineWidth = Math.max(1, sz * 0.07);
+  ctx.beginPath();
+  ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+
   ctx.restore();
 }
 

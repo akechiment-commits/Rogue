@@ -5048,6 +5048,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
     if (m.paralyzed) return;
   }
+
+  /* バタリングラムのブレス予約中：状態異常や強制移動を受けない限り、移動・別攻撃を行わず次ターンのブレス発射に専念する */
+  if (m.baseKind === "boss_batteringram" && (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id || b.source === m))) {
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
+  }
   /* ===== 特殊AI ===== */
   /* 遺物の番人：7ターンごとにプレイヤーの隣に瞬間移動（逃げ場なし）
      HP50%以下で激昂：毎ターン5HP回復 + 次ワープまでの間隔が4ターンに縮む */
@@ -5805,7 +5812,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.aware = false;
   }
 
-  if (m.baseKind === "boss_batteringram" && dg.pendingPetroBreaths?.some(b => b.sourceId === m.id)) {
+  if (m.baseKind === "boss_batteringram" && (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id || b.source === m))) {
     // ブレスを吐くターンは移動も別攻撃も行わずブレス発射に専念する
     m._movedThisTurn = true;
     m.turnAttacks = monEffectiveMaxAttacks(m);
@@ -5818,15 +5825,26 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   if (m.baseKind === "boss_batteringram" && !m.sealed && !(m.attackSealTurns > 0) && !m.blind &&
       !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
-      _adjPl && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    const _adjPl1 = _adjPl;
+    const _adjPl2 = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 2);
+
     if (_moveOnly) {
-      const roll = Math.random();
-      if (m.alwaysUseSpecial || roll < 0.25) {
-        m._ramChargeReady = true;
-        return;
-      } else if (roll < 0.50 && canCastPetroBreath(m, dg)) {
-        m._petroBreathReady = true;
-        return;
+      if (_adjPl1) {
+        const roll = Math.random();
+        if (m.alwaysUseSpecial || roll < 0.25) {
+          m._ramChargeReady = true;
+          return;
+        } else if (roll < 0.50 && canCastPetroBreath(m, dg)) {
+          m._petroBreathReady = true;
+          return;
+        }
+      } else if (_adjPl2 && canCastPetroBreath(m, dg)) {
+        // 1マス離れていてもペトロブレス予兆を放つ（隣接時はラムチャージと25%ずつ、1マス離れている時は25%で予兆）
+        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+          m._petroBreathReady = true;
+          return;
+        }
       }
     }
     if (m._ramChargeReady) {

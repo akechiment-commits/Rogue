@@ -8,6 +8,7 @@ import { T } from "../utils.js";
 import { TILE_NAMES, TILE_RENDER } from "../render.js";
 import { MONSTER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "../tilesetMap.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { drainAnims } from "../animEvents.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -176,6 +177,75 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     monsterAI(boss, dg, player, messages, { attackOnly: true });
     expect(messages.filter(m => m.includes("バタリングラムの攻撃"))).toHaveLength(0);
     expect(messages.filter(m => m.includes("ラムチャージ"))).toHaveLength(0);
+  });
+
+  it("1マス離れていてもペトロブレスの予兆を発動する（非隣接・距離2マス）", () => {
+    const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
+    // ボスは (10, 10)-(11, 11) の2x2。プレイヤーは (13, 10) で間に1マス（12, 10）空いている距離2マス
+    const boss = {
+      ...BATTERING_RAM,
+      id: "ram-far",
+      x: 10,
+      y: 10,
+      aware: true,
+      turnAttacks: 0,
+      alwaysUseSpecial: true,
+    };
+    const player = makePlayer({ x: 13, y: 10, hp: 100 });
+    const dg = makeEmptyDg({ map, monsters: [boss] });
+    const messages = [];
+
+    // 移動フェーズ：移動せずペトロブレスを準備する
+    monsterAI(boss, dg, player, messages, { moveOnly: true });
+    expect(boss.x).toBe(10);
+    expect(boss.y).toBe(10);
+    expect(boss._petroBreathReady).toBe(true);
+    expect(boss._ramChargeReady).toBeUndefined(); // ラムチャージは隣接時のみ
+
+    // 攻撃フェーズ：ペトロブレス予兆が登録され、ボス本体に _isPetroBreathing フラグが立つ
+    monsterAI(boss, dg, player, messages, { attackOnly: true });
+    expect(dg.pendingPetroBreaths).toHaveLength(1);
+    expect(boss._isPetroBreathing).toBe(true);
+    expect(messages.some(m => m.includes("前方広範囲に石化ブレスの予兆！"))).toBe(true);
+  });
+
+  it("ブレス予兆後にプレイヤーが斜めに動いてもラムは動かず次ターン確実にブレスを発射する", () => {
+    const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
+    const boss = {
+      ...BATTERING_RAM,
+      id: "ram-stay",
+      x: 10,
+      y: 10,
+      aware: true,
+      turnAttacks: 0,
+    };
+    // プレイヤーが斜めに退避した位置 (13, 9)
+    const player = makePlayer({ x: 13, y: 9, hp: 100 });
+    const dg = makeEmptyDg({ map, monsters: [boss] });
+    const messages = [];
+
+    // 予兆を発動させる
+    castPetroBreath(boss, dg, player, messages);
+    expect(boss._isPetroBreathing).toBe(true);
+    expect(dg.pendingPetroBreaths).toHaveLength(1);
+
+    // プレイヤーが斜めに移動した後の敵移動フェーズ：ボスは絶対に変な方向へ動かない
+    monsterAI(boss, dg, player, messages, { moveOnly: true });
+    expect(boss.x).toBe(10);
+    expect(boss.y).toBe(10);
+    expect(boss._movedThisTurn).toBe(true);
+
+    // フロア時計によるブレス解決：中断されず発射される！
+    drainAnims(); // 既存アニメーションをクリア
+    advancePetroBreaths(dg, player, messages, () => {}, 1);
+    expect(messages.some(m => m.includes("ペトロブレスが放たれた！"))).toBe(true);
+    expect(messages.some(m => m.includes("中断された"))).toBe(false);
+    expect(boss._isPetroBreathing).toBeUndefined();
+
+    // 効果範囲の全マスに petroBreath 視覚エフェクトが発行されている
+    const anims = drainAnims();
+    const petroEvts = anims.filter(a => a.type === "petroBreath");
+    expect(petroEvts.length).toBeGreaterThanOrEqual(4);
   });
 
   it("封印・行動不能・強制移動でブレスの予兆が中断される", () => {

@@ -3,6 +3,7 @@ import { inMagicSealRoom } from './items.js';
 import { monsterOccupiesCell, monsterBounds } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
+import { pushAnim } from './animEvents.js';
 
 export function canCastPetroBreath(monster, dungeon) {
   return !monster.sealed &&
@@ -97,12 +98,15 @@ export function castPetroBreath(monster, dungeon, player, messages) {
 
   const cells = getPetroBreathCells(monster, player, dungeon.map);
 
+  monster._isPetroBreathing = true;
+
   (dungeon.pendingPetroBreaths ||= []).push({
     id: uid(),
     sourceId: monster.id,
     sourceName: monster.name,
     originX: monster.x,
     originY: monster.y,
+    source: monster,
     turnsLeft: 1,
     cells,
   });
@@ -126,7 +130,11 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
     dungeon.pendingPetroBreaths = dungeon.pendingPetroBreaths.filter(pending => pending !== breath);
 
     // 予兆の中断判定：本体が不在・死亡・封印・行動不能・強制移動（位置ズレ）しているなら中断
-    const source = dungeon.monsters?.find(m => m.id === breath.sourceId);
+    const source = dungeon.monsters?.find(m => m.id === breath.sourceId || m === breath.source);
+    if (source) {
+      delete source._isPetroBreathing;
+    }
+
     const isInterrupted = !source || source.hp <= 0 ||
       source.sealed ||
       (source.sleepTurns || 0) > 0 ||
@@ -144,6 +152,11 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
     }
 
     messages?.push(`${breath.sourceName}のペトロブレスが放たれた！`);
+
+    // ブレス着弾エフェクトを効果範囲の全マスに発行
+    for (const cell of breath.cells || []) {
+      pushAnim({ type: "petroBreath", x: cell.x, y: cell.y, color: "#c8b888" });
+    }
 
     for (const cell of breath.cells || []) {
       // 1. プレイヤーへの命中判定

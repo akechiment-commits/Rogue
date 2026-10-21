@@ -2404,7 +2404,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       const _drainedEvts = drainAnims();
       for (const _de of _drainedEvts) {
-        if (_de.type === "splash") (_ad.splashes = _ad.splashes || []).push(_de);
+        if (_de.type === "splash" || _de.type === "petroBreath") (_ad.splashes = _ad.splashes || []).push(_de);
         else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
@@ -3620,7 +3620,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         else if (_de.type === "projectileReturn") (_ad.projectileReturns = _ad.projectileReturns || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
-        else if (_de.type === "splash") (_ad.splashes = _ad.splashes || []).push(_de);
+        else if (_de.type === "splash" || _de.type === "petroBreath") (_ad.splashes = _ad.splashes || []).push(_de);
         else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "damage") _ad.damages.push(_de);
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
