@@ -1,5 +1,5 @@
 import { calcAtkDefDmg, calcPlayerDefense, rng, consumeBarrier } from './utils.js';
-import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster } from './items.js';
+import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster, applyPlayerTrip } from './items.js';
 import { monEffectiveFloat } from './monTraits.js';
 import { monsterPointDistance, monsterBodyCells } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
@@ -58,14 +58,15 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
       ml.push(`激しい地響きが${plName(pl)}を襲う！${dmg}ダメージ！`);
       onHit?.(dmg, m);
 
-      // 転倒判定
-      if (hasRingEffect(pl, "core_ring")) {
-        ml.push("体幹の指輪のおかげで踏ん張った！");
-      } else if (isStatusImmune(pl, ml, "自分")) {
-        // isStatusImmune 内でメッセージ出力済み
-      } else {
-        pl.knockdownTurns = 2;
-        ml.push("激しい地響きで転倒してしまった！(2ターン)");
+      // 転倒判定（所持品落とし、行動不能ではない）
+      if (pl.hp > 0) {
+        applyPlayerTrip(pl, dg, ml, {
+          cause: `${m.name}のアースブレイカーで`,
+          checkFloat: false,
+          luFn,
+          skipDamage: true,
+          tripMsg: "激しい地響きで転んでしまった！",
+        });
       }
     }
   }

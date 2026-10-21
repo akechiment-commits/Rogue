@@ -9674,6 +9674,8 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
     cause = "転倒により",
     checkFloat = false,
     luFn = null,
+    skipDamage = false,
+    tripMsg = null,
   } = opts;
 
   if (hasRingEffect(p, "core_ring")) {
@@ -9685,10 +9687,14 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
     return "blocked_float";
   }
 
-  const dmg = rng(3, 8);
-  p.deathCause = cause;
-  p.hp -= dmg;
-  ml.push(`転んでしまった！${dmg}ダメージ！`);
+  if (!skipDamage) {
+    const dmg = rng(3, 8);
+    p.deathCause = cause;
+    p.hp -= dmg;
+    ml.push(`転んでしまった！${dmg}ダメージ！`);
+  } else {
+    ml.push(tripMsg || "転んでしまった！");
+  }
 
   const eq = new Set([p.weapon, p.armor, ...(p.rings || [])].filter(Boolean));
   const cand = (p.inventory || []).filter((i) => i && i.type !== "goal" && !eq.has(i));

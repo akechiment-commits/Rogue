@@ -9,7 +9,6 @@ import {
   chiranikuttsunnokuVenomSting,
   chiranikuttsunnokuSharpStrike,
 } from "../chiranikuttsunnoku.js";
-import { hasForcedTurn, advanceForcedTurn } from "../turnUpkeep.js";
 import { T } from "../utils.js";
 import { TILE_NAMES, TILE_RENDER } from "../render.js";
 import { MONSTER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "../tilesetMap.js";
@@ -72,7 +71,7 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
   });
 
   describe("特技1: アースブレイカー", () => {
-    it("周囲1マスに無差別にダメージ＋転倒を与える", () => {
+    it("周囲1マスに無差別にダメージ＋転倒を与える（プレイヤーは所持品落とし、モンスターは2ターン行動不能）", () => {
       const dg = makeEmptyDg();
       const boss = {
         ...CHIRANIKUTSUNNOKU,
@@ -81,8 +80,19 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
         y: 10, // 2x2: (10,10), (11,10), (10,11), (11,11)
         hp: 720,
       };
-      // プレイヤーを右側に隣接配置 (12, 10)
-      const pl = makePlayer({ x: 12, y: 10, hp: 100, maxHp: 100, def: 10 });
+      // プレイヤーを右側に隣接配置 (12, 10)、未装備アイテムを所持
+      const pl = makePlayer({
+        x: 12,
+        y: 10,
+        hp: 100,
+        maxHp: 100,
+        def: 10,
+        inventory: [
+          { name: "薬草", type: "potion" },
+          { name: "毒消し草", type: "potion" },
+          { name: "あかりの巻物", type: "scroll" },
+        ],
+      });
       // 他モンスターを周囲に配置 (10, 9)
       const minion = {
         name: "ゴブリン",
@@ -98,16 +108,50 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
       const ml = [];
       chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
 
-      // プレイヤーへのダメージと転倒
+      // プレイヤーへのダメージと転倒（アイテム落とし。行動不能ではない）
       expect(pl.hp).toBeLessThan(100);
-      expect(pl.knockdownTurns).toBe(2);
+      expect(pl.knockdownTurns).toBeUndefined(); // 行動不能フラグは付かない
+      expect(pl.inventory.length).toBeLessThan(3); // アイテムを落とした
       expect(ml.some(m => m.includes("アースブレイカー"))).toBe(true);
-      expect(ml.some(m => m.includes("転倒してしまった！"))).toBe(true);
+      expect(ml.some(m => m.includes("転んでしまった！"))).toBe(true);
+      expect(ml.some(m => m.includes("落とした！"))).toBe(true);
 
-      // モンスターへのダメージと転倒
+      // モンスターへのダメージと転倒（敵は2ターン行動不能）
       expect(minion.hp).toBeLessThan(200);
       expect(minion.knockdownTurns).toBe(2);
       expect(ml.some(m => m.includes("ゴブリンは激しい地響きで転倒した！"))).toBe(true);
+    });
+
+    it("体幹の指輪を装備していればプレイヤーはアイテムを落とさない", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 10,
+        y: 10,
+        hp: 720,
+      };
+      const ring = { name: "体幹の指輪", type: "ring", effect: "core_ring" };
+      const pl = makePlayer({
+        x: 12,
+        y: 10,
+        hp: 100,
+        maxHp: 100,
+        def: 10,
+        rings: [ring],
+        inventory: [
+          ring,
+          { name: "薬草", type: "potion" },
+        ],
+      });
+      dg.monsters = [boss];
+
+      const ml = [];
+      chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
+
+      expect(pl.hp).toBeLessThan(100);
+      expect(pl.inventory.length).toBe(2); // アイテムは落ちていない
+      expect(ml.some(m => m.includes("体幹の指輪で踏ん張り、転ばなかった！"))).toBe(true);
     });
 
     it("浮遊しているキャラにはアースブレイカーが無効化される", () => {
@@ -145,28 +189,6 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
       expect(flyingMon.hp).toBe(50);
       expect(flyingMon.knockdownTurns).toBeUndefined();
       expect(ml.some(m => m.includes("大コウモリは宙に浮いているためアースブレイカーの揺れを受けない！"))).toBe(true);
-    });
-  });
-
-  describe("プレイヤー転倒状態（knockdownTurns）のターン管理", () => {
-    it("転倒中は hasForcedTurn が true になり、ターン経過でカウントダウンされる", () => {
-      const pl = makePlayer({ x: 5, y: 5, hp: 100, knockdownTurns: 2 });
-
-      expect(hasForcedTurn(pl)).toBe(true);
-
-      const msgs1 = [];
-      const res1 = advanceForcedTurn(pl, msgs1);
-      expect(res1.advanced).toBe(true);
-      expect(pl.knockdownTurns).toBe(1);
-      expect(msgs1.some(m => m.includes("転倒している...あと1ターン"))).toBe(true);
-      expect(hasForcedTurn(pl)).toBe(true);
-
-      const msgs2 = [];
-      const res2 = advanceForcedTurn(pl, msgs2);
-      expect(res2.advanced).toBe(true);
-      expect(pl.knockdownTurns).toBe(0);
-      expect(msgs2.some(m => m.includes("起き上がった！動けるようになった！"))).toBe(true);
-      expect(hasForcedTurn(pl)).toBe(false);
     });
   });
 
