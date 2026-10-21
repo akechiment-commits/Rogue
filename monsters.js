@@ -3,7 +3,7 @@ import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDis
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { castPetroBreath, canCastPetroBreath } from './petroBreath.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -105,24 +105,29 @@ function dragonBreathSpecialRate(m) {
 
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
-  monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
+  monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
   monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility,
 } from "./monTraits.js";
 import {
-  monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
+  monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks,
   monCanUseExplosiveAbility,
 } from "./monTraits.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
-function _fireDemonBurnItems(m, dg, ml) {
+function _fireDemonBurnItems(m, dg, ml, p = null) {
   const _items = dg.items.filter(it => it.x === m.x && it.y === m.y);
   const _toRemove = new Set();
   for (const it of _items) {
     if (it.type === "scroll" || it.type === "spellbook") {
       _toRemove.add(it);
       ml.push(`${m.name}が通った！「${resolveItemName(it)}」が燃えてなくなった！`);
+    } else if (it.type === "potion") {
+      removeFloorItem(dg, it);
+      ml.push(`${m.name}が通った！薬「${resolveItemName(it)}」が炎で割れた！`);
+      splashPotion(dg, m.x, m.y, it.effect, it.value || 0, p, ml, null,
+        !!it.blessed, !!it.cursed, null, m);
     } else if (it.type === "food") {
       if (!it.cooked) {
         it.value = Math.floor((it.value || 10) * 2); cookFoodMeta(it);
@@ -169,7 +174,7 @@ function canEnter(map, x, y, float = false, dg = null, waterWalker = false) {
 /* ===== プレイヤー防御力計算ヘルパー ===== */
 /** モンスターの炎耐性倍率（elemResist:"fire" → 半減）。火ダルマの吸収は別処理 */
 export function monFireDmgMult(m) {
-  if (m?.elemResist === "fire" || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
+  if (monHasFlameMantle(m) || m?.elemResist === "fire" || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
   return 1;
 }
 export function monFireDmgLabel(m) {
@@ -208,7 +213,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   const _applyFireToMon = (_fBlock) => {
     wakeIfDormant(_fBlock, ml);
     const _fDmgBase = calcAtkDefDmg(m.atk, _fBlock.def || 0, { defWeight: 1 });
-    if (_fBlock.baseKind === "firedemon") {
+    if (monHasFlameMantle(_fBlock)) {
       const _fheal = Math.min(_fDmgBase, _fBlock.maxHp - _fBlock.hp);
       if (_fheal > 0) { _fBlock.hp += _fheal; ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
       else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
@@ -478,6 +483,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     ml.push(`${m.name}は攻撃が封印されていて殴れない！`);
     return;
   }
+  const _fireMantleAttack = monHasFlameMantle(m);
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
   const _cannotEvade = isEvasionDisabledByStatus(pl);
   /* dodge: 25% 完全回避 */
@@ -521,7 +527,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   const _fzLbl = frozenPhysicalLabel(pl);
   dmg = applyFrozenPhysicalMult(dmg, pl);
   /* 火ダルマの通常攻撃は炎属性。アイスやカレーの一時耐火も先に適用する。 */
-  if (m.baseKind === "firedemon") dmg = reduceFireDamage(dmg, pl);
+  if (_fireMantleAttack) dmg = reduceFireDamage(dmg, pl);
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
@@ -540,7 +546,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   interruptPlayerSleep(pl, ml);
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
-  if (m.baseKind === "firedemon" && dmg > 0) {
+  if (_fireMantleAttack && dmg > 0) {
     if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true, { killerMon: m, sourceIsPlayer: false });
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) {
@@ -2946,6 +2952,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
         if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, luFn, false, m);
       }
+      if (hitMon.hp > 0) applySoakedStatusToMonster(hitMon, ml);
       return;
     }
     if (tx === pl.x && ty === pl.y) {
@@ -4936,7 +4943,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ずぶ濡れ状態：水の飛沫などで付与され、敵ターンごとに減少 */
   if ((m.soakedTurns || 0) > 0 && !_attackOnly) {
     m.soakedTurns = Math.max(0, m.soakedTurns - 1);
-    if (m.soakedTurns <= 0) ml.push(`${m.name}のずぶ濡れが解けた！`);
+    if (m.soakedTurns <= 0) {
+      ml.push(`${m.name}のずぶ濡れが解けた！`);
+      if (m.baseKind === "firedemon" && !m.sealed) ml.push(`${m.name}の炎が戻った！`);
+    }
+  }
+  if ((m.flameMantleTurns || 0) > 0 && !_attackOnly) {
+    m.flameMantleTurns = Math.max(0, m.flameMantleTurns - 1);
+    if (m.flameMantleTurns <= 0) ml.push(`${m.name}を包んでいた炎が消えた！`);
   }
   /* 平和主義状態：攻撃できず、ランダムに1歩移動して終了 */
   if ((m.pacifistTurns || 0) > 0) {
@@ -7843,7 +7857,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m.dir = { x: next.x - m.x, y: next.y - m.y };
         m.x = next.x;
         m.y = next.y;
-        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         if (_forceAlt) m.posHistory = [];
         return;
@@ -7863,7 +7877,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           _blocker.x = m.x; _blocker.y = m.y;
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
-          if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+          if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
           if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
           return;
         }
@@ -7902,7 +7916,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
         m.x = _ab.x; m.y = _ab.y;
-        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         return;
       }
@@ -7923,7 +7937,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (monsterBodySize(m) > 1 && !canPlaceMonsterBody(dg, m, _fnx, _fny, pl)) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
-        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         m.posHistory = [];
         return;

@@ -1,4 +1,5 @@
 import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
+import { monHasFlameMantle } from "./monTraits.js";
 import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
@@ -2822,7 +2823,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _hasFireElem  = _hasFireElem2 || wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
               const _fireElemMult = _hasFireElem2 ? 2.0 : 1.5;
               if (_hasFireElem) {
-                if (attackMon.baseKind === "firedemon" && !attackMon.sealed) {
+                if (monHasFlameMantle(attackMon)) {
                   d = Math.max(1, Math.floor(d * 0.5));
                 } else if (attackMon.elemResist === "fire") {
                   d = Math.max(1, Math.floor(d * 0.5));
@@ -2897,9 +2898,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (_isBane ? (_baneMult >= 2 ? "上位特効！" : "特効！") : "") +
-                (_hasFireElem && (attackMon.baseKind === "firedemon" || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
+                (_hasFireElem && (monHasFlameMantle(attackMon) || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
                 (_hasFireElem && attackMon.elemWeak === "fire" ? (_hasFireElem2 ? "炎弱点×2！" : "炎弱点×1.5！") : "") +
-                (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemResist !== "fire" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? `油まみれ炎×${_hasFireElem2 ? "2" : "1.5"}！` : "") +
+                (_hasFireElem && !monHasFlameMantle(attackMon) && attackMon.elemResist !== "fire" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? `油まみれ炎×${_hasFireElem2 ? "2" : "1.5"}！` : "") +
                 (_hasIceElem && attackMon.elemWeak === "ice" ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");

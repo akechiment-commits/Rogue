@@ -48,6 +48,7 @@ export const STATUS_BASE = {
   sureHit:       { player: 100, monster: 100 },
   statusImmune:  { player: 200, monster: 200 },
   oily:          { player: 50,  monster: 100 },
+  flameMantle:   { player: 0,   monster: 10 },
   float:         { player: 30,  monster: 30 },
   soaked:        { player: 10,  monster: 10 },
   frozen:        { player: 5,   monster: 5 },
@@ -141,6 +142,22 @@ export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOve
   return { newlyApplied, atkLoss, turns, remaining: player.poisonedTurns };
 }
 
+/** 火ダルマの炎特性を一時的に他の敵へ付与する。 */
+export function applyMonsterFlameMantle(monster, messages = null, turns = null) {
+  if (!monster || (monster.hp ?? 1) <= 0 || (monster.soakedTurns || 0) > 0) return false;
+  if (blockLargeMonsterStatus(monster, "flameMantle", messages)) return false;
+  if (turns == null) turns = statusTurns("flameMantle", { kind: "monster", target: monster });
+  const previous = monster.flameMantleTurns || 0;
+  monster.flameMantleTurns = Math.max(previous, turns);
+  startLargeMonsterStatusCooldown(monster, "flameMantle");
+  if (messages && monster.flameMantleTurns > previous) {
+    messages.push(previous > 0
+      ? `${monster.name}の炎が強まった！(${monster.flameMantleTurns}ターン)`
+      : `${monster.name}は炎を身にまとった！(${monster.flameMantleTurns}ターン)`);
+  }
+  return monster.flameMantleTurns > previous;
+}
+
 /** ヤバイ食料の毒。攻撃力-2、持続は通常毒の2倍。 */
 export function applyYabaiPoison(entity, kind, opts = {}) {
   if (kind === "player") {
@@ -194,7 +211,7 @@ export function clearStatusEffectsOnHpZero(entity) {
     entity.sealedTurns, entity.sealed, entity.attackSealTurns, entity.darknessTurns, entity.blind,
     entity.blindTurns, entity.bewitchedTurns, entity.fleeingTurns,
     entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,
-    entity.capturedBy, entity.oilyTurns, entity.soakedTurns,
+    entity.capturedBy, entity.oilyTurns, entity.soakedTurns, entity.flameMantleTurns,
     entity.defSoftenedTurns, entity.atkDebuffTurns, entity.defDebuffTurns,
     entity.pacifistTurns, entity.hypnosisPending,
   ].some((value) => typeof value === "boolean" ? value : (value || 0) > 0);
@@ -242,6 +259,7 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.capturedBy = null;
   entity.oilyTurns = 0;
   entity.soakedTurns = 0;
+  entity.flameMantleTurns = 0;
   entity.defSoftenedTurns = 0;
   entity.atkDebuffTurns = 0;
   entity.defDebuffTurns = 0;

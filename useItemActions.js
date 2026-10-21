@@ -9,7 +9,7 @@ import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
-  applyWaterSplash, burnFoodItem,
+  applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect,
@@ -36,7 +36,7 @@ import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
-import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic } from "./monTraits.js";
+import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
@@ -1432,7 +1432,7 @@ export function useItemActions({
               ml.push(`${_m.name}が炎を跳ね返した！${_refFlDmg}ダメージ！`); pushExplosionAnim(p.x, p.y); continue;
             }
             if (consumeBarrier(_m, ml)) continue;
-            if (_m.baseKind === "firedemon") {
+            if (monHasFlameMantle(_m)) {
               const _flHeal = Math.min(Math.round(rng(10, 20) * _scrBm), _m.maxHp - _m.hp);
               if (_flHeal > 0) { _m.hp += _flHeal; ml.push(`炎が${_m.name}を癒した！HP+${_flHeal}`); } else ml.push(`${_m.name}には効果がなかった。`);
               continue;
@@ -4140,7 +4140,7 @@ export function useItemActions({
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
                 _potHits.push(m);
-              } else if (m.baseKind === "firedemon" && it.effect !== "water") {
+              } else if (monHasFlameMantle(m) && it.effect !== "water" && it.effect !== "fire") {
                 /* 火ダルマ：非遠投の薬を燃やして消滅（水は消火できるので着弾する） */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！`);
                 lx = tx; ly = ty; _fdBurned = true; break;
@@ -4183,6 +4183,7 @@ export function useItemActions({
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
                 applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+                if (it.effect === "water" && _pm.hp > 0) applySoakedStatusToMonster(_pm, ml);
                 if (_pm.hp <= 0) { killMonster(_pm, dg, p, ml, lu); }
               }
             }
@@ -4234,7 +4235,7 @@ export function useItemActions({
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
               const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !isEvasionDisabledByStatus(m) && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
-              if (!_isFarcast && m.baseKind === "firedemon") {
+              if (!_isFarcast && monHasFlameMantle(m)) {
                 /* 火ダルマ：非遠投の壺を燃やして消滅 */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
                 lx = tx; ly = ty; _potFdBurned = true; break;
@@ -4426,7 +4427,7 @@ export function useItemActions({
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
               const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !isEvasionDisabledByStatus(m) && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
-              if (!_isFarcast && m.baseKind === "firedemon") {
+              if (!_isFarcast && monHasFlameMantle(m)) {
                 /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
                 ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
                 lx = tx; ly = ty; hit = true; break;

@@ -9,6 +9,12 @@ export function monIsSealed(m) {
   return !!(m && m.sealed);
 }
 
+/** 火ダルマの固有炎特性または爆発から伝わった炎まといが有効か。 */
+export function monHasFlameMantle(m) {
+  return !!(m && !m.sealed && !(m.soakedTurns > 0) &&
+    (m.baseKind === "firedemon" || (m.flameMantleTurns || 0) > 0));
+}
+
 /** 爆発系特技（自爆・誘爆を含む）は封印中に無効 */
 export function monCanUseExplosiveAbility(m) {
   return !!(m && !m.sealed);

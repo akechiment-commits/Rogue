@@ -23,7 +23,7 @@ import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectB
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
-import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
@@ -1756,7 +1756,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _fwBlessMult = _fwBlessed ? 2 : 1;
       if (kind === "monster") {
         /* 火ダルマ：回復（封印中は特性無効） */
-        if (target.baseKind === "firedemon" && !target.sealed) {
+        if (monHasFlameMantle(target)) {
           const _fwHeal = Math.min(Math.round(rng(20,30) * _fwBlessMult), target.maxHp - target.hp);
           if (_fwHeal > 0) { target.hp += _fwHeal; ml.push(`炎が${target.name}を癒した！HP+${_fwHeal}`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
           else ml.push(`${target.name}には効果がなかった。`);
@@ -1782,7 +1782,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
-        if (target.type === "spellbook" || target.type === "scroll" || target.type === "potion" || target.type === "item_mimic") {
+        if (target.type === "potion") {
+          const _potionName = _dname_item(target);
+          const _px = target.x, _py = target.y;
+          removeFloorItem(dg, target);
+          chargeShopItem(target, dg, ml, p);
+          ml.push(`炎で${_potionName}が割れた！`);
+          splashPotion(dg, _px, _py, target.effect, target.value || 0, p, ml, luFn,
+            !!target.blessed, !!target.cursed, nameFn, killerMon);
+        } else if (target.type === "spellbook" || target.type === "scroll" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`炎で${_dname_item(target)}が燃えた！`);
