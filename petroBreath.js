@@ -5,50 +5,114 @@ import { isStatusImmune } from './statusImmunity.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 
 export function canCastPetroBreath(monster, dungeon) {
-  return !monster.sealed && !dungeon.pendingPetroBreaths?.some(b => b.sourceId === monster.id);
+  return !monster.sealed &&
+    (monster.sleepTurns || 0) <= 0 &&
+    !monster.paralyzed &&
+    (monster.paralyzeTurns || 0) <= 0 &&
+    (monster.petrifiedTurns || 0) <= 0 &&
+    (monster.frozenTurns || 0) <= 0 &&
+    (monster.knockdownTurns || 0) <= 0 &&
+    !dungeon.pendingPetroBreaths?.some(b => b.sourceId === monster.id);
 }
 
 /**
- * バタリングラムからプレイヤーの方向へ前方2マスを攻撃予約する。
+ * プレイヤーの位置に応じてバタリングラムの前方2マス×横幅倍（2マス幅）のブレス範囲を計算する。
+ */
+export function getPetroBreathCells(monster, player, map) {
+  const bounds = monsterBounds(monster);
+  const minX = bounds.x;
+  const maxX = bounds.x + bounds.width - 1;
+  const minY = bounds.y;
+  const maxY = bounds.y + bounds.height - 1;
+
+  const cx = bounds.x + (bounds.width - 1) / 2;
+  const cy = bounds.y + (bounds.height - 1) / 2;
+  const pdx = player.x - cx;
+  const pdy = player.y - cy;
+
+  const rawCells = [];
+
+  // 1. 純粋な左右判定（プレイヤーのYがボスの高さ範囲内にある、または水平差が垂直差の1.5倍超）
+  if (Math.abs(pdx) > Math.abs(pdy) * 1.5 || (player.y >= minY && player.y <= maxY)) {
+    const dx = Math.sign(pdx) || 1;
+    const startX = dx > 0 ? maxX + 1 : minX - 1;
+    for (let step = 0; step < 2; step++) {
+      const bx = startX + dx * step;
+      for (let by = minY; by <= maxY; by++) {
+        rawCells.push({ x: bx, y: by });
+      }
+    }
+  }
+  // 2. 純粋な上下判定（プレイヤーのXがボスの幅範囲内にある、または垂直差が水平差の1.5倍超）
+  else if (Math.abs(pdy) > Math.abs(pdx) * 1.5 || (player.x >= minX && player.x <= maxX)) {
+    const dy = Math.sign(pdy) || 1;
+    const startY = dy > 0 ? maxY + 1 : minY - 1;
+    for (let step = 0; step < 2; step++) {
+      const by = startY + dy * step;
+      for (let bx = minX; bx <= maxX; bx++) {
+        rawCells.push({ x: bx, y: by });
+      }
+    }
+  }
+  // 3. 斜め判定（プレイヤーのいる角から、前方2マス×幅2マスの扇状に広がる）
+  else {
+    const dx = Math.sign(pdx) || 1;
+    const dy = Math.sign(pdy) || 1;
+    const cornerX = dx > 0 ? maxX : minX;
+    const cornerY = dy > 0 ? maxY : minY;
+
+    // 1歩目（3マス：斜め直撃と両脇）
+    rawCells.push({ x: cornerX + dx, y: cornerY + dy });
+    rawCells.push({ x: cornerX + dx, y: cornerY });
+    rawCells.push({ x: cornerX, y: cornerY + dy });
+
+    // 2歩目（3マス：2マス斜めと外側）
+    rawCells.push({ x: cornerX + 2 * dx, y: cornerY + 2 * dy });
+    rawCells.push({ x: cornerX + 2 * dx, y: cornerY + dy });
+    rawCells.push({ x: cornerX + dx, y: cornerY + 2 * dy });
+  }
+
+  // 重複除去およびマップ範囲内（壁以外）の抽出
+  const mapW = map?.[0]?.length || 60;
+  const mapH = map?.length || 30;
+  const seen = new Set();
+  const validCells = [];
+
+  for (const c of rawCells) {
+    if (c.x < 0 || c.x >= mapW || c.y < 0 || c.y >= mapH) continue;
+    const key = `${c.x},${c.y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    validCells.push(c);
+  }
+
+  return validCells;
+}
+
+/**
+ * バタリングラムからプレイヤーの方向へ攻撃予約を行う。
  */
 export function castPetroBreath(monster, dungeon, player, messages) {
   if (!canCastPetroBreath(monster, dungeon)) return false;
 
-  const bounds = monsterBounds(monster);
-  const nearX = Math.max(bounds.x, Math.min(player.x, bounds.x + bounds.width - 1));
-  const nearY = Math.max(bounds.y, Math.min(player.y, bounds.y + bounds.height - 1));
-
-  let dx = Math.sign(player.x - nearX);
-  let dy = Math.sign(player.y - nearY);
-  if (dx === 0 && dy === 0) {
-    dx = Math.sign(player.x - (monster.x + 0.5));
-    dy = Math.sign(player.y - (monster.y + 0.5));
-  }
-  if (dx === 0 && dy === 0) dx = 1; // フォールバック
-
-  const cells = [];
-  for (let dist = 1; dist <= 2; dist++) {
-    const cx = nearX + dx * dist;
-    const cy = nearY + dy * dist;
-    if (cx >= 0 && cx < (dungeon.map?.[0]?.length || 60) && cy >= 0 && cy < (dungeon.map?.length || 30)) {
-      cells.push({ x: cx, y: cy });
-    }
-  }
+  const cells = getPetroBreathCells(monster, player, dungeon.map);
 
   (dungeon.pendingPetroBreaths ||= []).push({
     id: uid(),
     sourceId: monster.id,
     sourceName: monster.name,
+    originX: monster.x,
+    originY: monster.y,
     turnsLeft: 1,
     cells,
   });
 
-  messages?.push(`${monster.name}は息を大きく吸い込んだ！前方2マスに石化ブレスの予兆！`);
+  messages?.push(`${monster.name}は息を大きく吸い込んだ！前方広範囲に石化ブレスの予兆！`);
   return true;
 }
 
 /**
- * 敵移動後・敵攻撃前のフロア時計で予約ブレスを進め、0ターンで敵味方無差別に石化ブレスを発射する。
+ * 敵移動後・敵攻撃前のフロア時計で予約ブレスを進め、発射または中断を解決する。
  */
 export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 1) {
   if (worldTicks <= 0 || (dungeon.timeStopTurns || 0) > 0) return;
@@ -60,6 +124,25 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
 
     // 発射前にリストから除外
     dungeon.pendingPetroBreaths = dungeon.pendingPetroBreaths.filter(pending => pending !== breath);
+
+    // 予兆の中断判定：本体が不在・死亡・封印・行動不能・強制移動（位置ズレ）しているなら中断
+    const source = dungeon.monsters?.find(m => m.id === breath.sourceId);
+    const isInterrupted = !source || source.hp <= 0 ||
+      source.sealed ||
+      (source.sleepTurns || 0) > 0 ||
+      source.paralyzed ||
+      (source.paralyzeTurns || 0) > 0 ||
+      (source.petrifiedTurns || 0) > 0 ||
+      (source.frozenTurns || 0) > 0 ||
+      (source.knockdownTurns || 0) > 0 ||
+      source.x !== breath.originX ||
+      source.y !== breath.originY;
+
+    if (isInterrupted) {
+      messages?.push(`${breath.sourceName}の石化ブレスは中断された！`);
+      continue;
+    }
+
     messages?.push(`${breath.sourceName}のペトロブレスが放たれた！`);
 
     for (const cell of breath.cells || []) {
@@ -84,7 +167,6 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
         if (!monsterOccupiesCell(monster, cell.x, cell.y)) continue;
 
         if (blockLargeMonsterStatus(monster, "petrify", messages)) {
-          // 耐性ありまたは状態防止中
           continue;
         }
 
@@ -97,7 +179,7 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
 }
 
 /**
- * 予約ブレスマスの警告描画
+ * 予約ブレスマスの警告描画（メテオと同じく残りターン数を中央に表示）
  */
 export function drawPetroBreathWarnings(ctx, dungeon, sx, sy, tileSize) {
   if (!dungeon.pendingPetroBreaths?.length) return;
@@ -107,12 +189,13 @@ export function drawPetroBreathWarnings(ctx, dungeon, sx, sy, tileSize) {
   ctx.font = `bold ${Math.max(9, Math.round(tileSize * 0.45))}px sans-serif`;
 
   for (const breath of dungeon.pendingPetroBreaths) {
+    const turnsLabel = String(Math.max(1, breath.turnsLeft));
     for (const cell of breath.cells || []) {
       if (!dungeon.visible?.[cell.y]?.[cell.x]) continue;
       const px = (cell.x - sx) * tileSize;
       const py = (cell.y - sy) * tileSize;
 
-      ctx.fillStyle = 'rgba(180, 160, 120, 0.45)';
+      ctx.fillStyle = breath.turnsLeft <= 1 ? 'rgba(210, 180, 110, 0.48)' : 'rgba(180, 160, 120, 0.35)';
       ctx.fillRect(px, py, tileSize, tileSize);
 
       ctx.strokeStyle = '#e0c060';
@@ -122,8 +205,8 @@ export function drawPetroBreathWarnings(ctx, dungeon, sx, sy, tileSize) {
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#403010';
       ctx.lineWidth = Math.max(2, tileSize * 0.08);
-      ctx.strokeText('石', px + tileSize / 2, py + tileSize / 2);
-      ctx.fillText('石', px + tileSize / 2, py + tileSize / 2);
+      ctx.strokeText(turnsLabel, px + tileSize / 2, py + tileSize / 2);
+      ctx.fillText(turnsLabel, px + tileSize / 2, py + tileSize / 2);
     }
   }
   ctx.restore();

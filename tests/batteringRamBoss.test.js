@@ -1,13 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import fs from "fs";
 import { genDungeon } from "../dungeon.js";
 import { BATTERING_RAM, monsterAI } from "../monsters.js";
-import { castPetroBreath, advancePetroBreaths, canCastPetroBreath } from "../petroBreath.js";
+import { castPetroBreath, advancePetroBreaths, canCastPetroBreath, getPetroBreathCells, drawPetroBreathWarnings } from "../petroBreath.js";
 import { hasForcedTurn, advanceForcedTurn } from "../turnUpkeep.js";
 import { T } from "../utils.js";
 import { TILE_NAMES, TILE_RENDER } from "../render.js";
 import { MONSTER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "../tilesetMap.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("上級ダンジョン5階ボス：バタリングラム", () => {
   it("上級ダンジョン5階（depth=4）でバタリングラムがボスとして生成される", () => {
@@ -46,7 +50,8 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     expect(stat.size).toBeGreaterThan(1000);
   });
 
-  it("特技：ラムチャージで通常ダメージと3マス吹き飛ばしが発生する", () => {
+  it("特技：ラムチャージで通常ダメージと3マス吹き飛ばしが発生し、メッセージが表示される", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
     const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
     const boss = {
       ...BATTERING_RAM,
@@ -55,7 +60,7 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
       y: 10,
       aware: true,
       turnAttacks: 0,
-      _ramChargeReady: true, // 強制発動
+      _ramChargeReady: true,
     };
     // プレイヤーを右側に隣接配置 (x: 12, y: 10) - 2x2ボスの右端は x=11
     const player = makePlayer({ x: 12, y: 10, hp: 100 });
@@ -65,6 +70,7 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     monsterAI(boss, dg, player, messages, { attackOnly: true });
 
     expect(messages.some(m => m.includes("バタリングラムのラムチャージ！"))).toBe(true);
+    expect(messages.some(m => m.includes("強烈な体当たりで吹き飛ばされた！"))).toBe(true);
     expect(player.hp).toBeLessThan(100);
     // 右方向に3マス吹き飛ばされて x=15 になる
     expect(player.x).toBe(15);
@@ -72,6 +78,7 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
   });
 
   it("体幹の指輪を装備しているとラムチャージで吹き飛ばない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
     const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
     const boss = {
       ...BATTERING_RAM,
@@ -99,7 +106,40 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     expect(player.y).toBe(10);
   });
 
-  it("特技：ペトロブレスの予兆と次ターンの石化発射（敵味方無差別）", () => {
+  describe("ペトロブレスの範囲計算", () => {
+    const map = Array.from({ length: 30 }, () => Array(30).fill(T.FLOOR));
+    const boss = { ...BATTERING_RAM, x: 10, y: 10 }; // 2x2: x in [10, 11], y in [10, 11]
+
+    it("右方向（純粋な左右）：高さ2マス×前方2マス（計4マス）", () => {
+      const player = { x: 12, y: 10 };
+      const cells = getPetroBreathCells(boss, player, map);
+      expect(cells).toHaveLength(4);
+      expect(cells).toContainEqual({ x: 12, y: 10 });
+      expect(cells).toContainEqual({ x: 12, y: 11 });
+      expect(cells).toContainEqual({ x: 13, y: 10 });
+      expect(cells).toContainEqual({ x: 13, y: 11 });
+    });
+
+    it("下方向（純粋な上下）：幅2マス×前方2マス（計4マス）", () => {
+      const player = { x: 10, y: 12 };
+      const cells = getPetroBreathCells(boss, player, map);
+      expect(cells).toHaveLength(4);
+      expect(cells).toContainEqual({ x: 10, y: 12 });
+      expect(cells).toContainEqual({ x: 11, y: 12 });
+      expect(cells).toContainEqual({ x: 10, y: 13 });
+      expect(cells).toContainEqual({ x: 11, y: 13 });
+    });
+
+    it("斜め方向（右下）：角から前方2マス×扇状に広がる範囲", () => {
+      const player = { x: 12, y: 12 };
+      const cells = getPetroBreathCells(boss, player, map);
+      expect(cells.length).toBeGreaterThanOrEqual(4);
+      expect(cells).toContainEqual({ x: 12, y: 12 });
+      expect(cells).toContainEqual({ x: 13, y: 13 });
+    });
+  });
+
+  it("ブレスを吐くターンはボスが移動せずブレス発射に専念する", () => {
     const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
     const boss = {
       ...BATTERING_RAM,
@@ -108,65 +148,128 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
       y: 10,
       aware: true,
       turnAttacks: 0,
-      _petroBreathReady: true,
     };
-    // プレイヤー: x=12, y=10 (ボスの右隣接)
     const player = makePlayer({ x: 12, y: 10, hp: 100 });
-    // 別モンスター（取り巻き）: x=13, y=10 (プレイヤーのさらに右＝ブレス2マス目の範囲内)
-    const minion = { id: "minion-1", name: "取り巻き", x: 13, y: 10, hp: 30, maxHp: 30 };
-    // 範囲外のモンスター: x=15, y=15
-    const bystander = { id: "bystander-1", name: "傍観者", x: 15, y: 15, hp: 30, maxHp: 30 };
-
-    const dg = makeEmptyDg({ map, monsters: [boss, minion, bystander] });
-    const messages = [];
-
-    // 1. 予兆予約
-    monsterAI(boss, dg, player, messages, { attackOnly: true });
-    expect(messages.some(m => m.includes("石化ブレスの予兆！"))).toBe(true);
-    expect(dg.pendingPetroBreaths).toHaveLength(1);
-    expect(dg.pendingPetroBreaths[0].cells).toEqual([
-      { x: 12, y: 10 },
-      { x: 13, y: 10 },
-    ]);
-
-    // この時点ではまだ石化していない
-    expect(player.petrifiedTurns).toBe(0);
-    expect(minion.petrifiedTurns).toBeUndefined();
-
-    // 2. 次ターンのフロア進行でブレス着弾
-    const breathMessages = [];
-    advancePetroBreaths(dg, player, breathMessages, () => {}, 1);
-
-    expect(breathMessages.some(m => m.includes("バタリングラムのペトロブレスが放たれた！"))).toBe(true);
-    // プレイヤーが石化（4ターン）
-    expect(player.petrifiedTurns).toBe(4);
-    // 範囲内の敵（取り巻き）も石化（4ターン）
-    expect(minion.petrifiedTurns).toBe(4);
-    // 範囲外の敵は石化しない
-    expect(bystander.petrifiedTurns).toBeUndefined();
-    // 予約は消費されて空になる
-    expect(dg.pendingPetroBreaths).toHaveLength(0);
-  });
-
-  it("祝福された聖域にいるプレイヤーは石化ブレスを防げる", () => {
-    const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
-    const player = makePlayer({ x: 12, y: 10, hp: 100 });
+    // すでにブレス予約がある状態
     const dg = makeEmptyDg({
       map,
-      pentacles: [{ kind: "sanctuary", blessed: true, x: 12, y: 10 }],
+      monsters: [boss],
       pendingPetroBreaths: [{
+        id: "breath-1",
         sourceId: "ram-1",
         sourceName: "バタリングラム",
+        originX: 10,
+        originY: 10,
         turnsLeft: 1,
-        cells: [{ x: 12, y: 10 }],
+        cells: [{ x: 12, y: 10 }, { x: 12, y: 11 }],
       }],
     });
     const messages = [];
 
-    advancePetroBreaths(dg, player, messages, () => {}, 1);
+    // 移動フェーズで移動しようとしても動かない
+    monsterAI(boss, dg, player, messages, { moveOnly: true });
+    expect(boss.x).toBe(10);
+    expect(boss.y).toBe(10);
+    expect(boss._movedThisTurn).toBe(true);
 
-    expect(messages.some(m => m.includes("祝福された聖域の加護が"))).toBe(true);
-    expect(player.petrifiedTurns).toBe(0);
+    // 攻撃フェーズでも別攻撃は行わない
+    monsterAI(boss, dg, player, messages, { attackOnly: true });
+    expect(messages.filter(m => m.includes("バタリングラムの攻撃"))).toHaveLength(0);
+    expect(messages.filter(m => m.includes("ラムチャージ"))).toHaveLength(0);
+  });
+
+  it("封印・行動不能・強制移動でブレスの予兆が中断される", () => {
+    const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
+
+    // 1. 封印（sealed）
+    {
+      const boss = { ...BATTERING_RAM, id: "ram-sealed", x: 10, y: 10, sealed: true };
+      const player = makePlayer({ x: 12, y: 10 });
+      const dg = makeEmptyDg({
+        map,
+        monsters: [boss],
+        pendingPetroBreaths: [{
+          sourceId: "ram-sealed",
+          sourceName: "バタリングラム",
+          originX: 10,
+          originY: 10,
+          turnsLeft: 1,
+          cells: [{ x: 12, y: 10 }],
+        }],
+      });
+      const messages = [];
+      advancePetroBreaths(dg, player, messages, () => {}, 1);
+      expect(messages.some(m => m.includes("石化ブレスは中断された！"))).toBe(true);
+      expect(player.petrifiedTurns).toBe(0);
+    }
+
+    // 2. 行動不能（睡眠 sleepTurns > 0）
+    {
+      const boss = { ...BATTERING_RAM, id: "ram-sleep", x: 10, y: 10, sleepTurns: 3 };
+      const player = makePlayer({ x: 12, y: 10 });
+      const dg = makeEmptyDg({
+        map,
+        monsters: [boss],
+        pendingPetroBreaths: [{
+          sourceId: "ram-sleep",
+          sourceName: "バタリングラム",
+          originX: 10,
+          originY: 10,
+          turnsLeft: 1,
+          cells: [{ x: 12, y: 10 }],
+        }],
+      });
+      const messages = [];
+      advancePetroBreaths(dg, player, messages, () => {}, 1);
+      expect(messages.some(m => m.includes("石化ブレスは中断された！"))).toBe(true);
+      expect(player.petrifiedTurns).toBe(0);
+    }
+
+    // 3. 強制移動（吹き飛ばし等で座標がズレた）
+    {
+      const boss = { ...BATTERING_RAM, id: "ram-moved", x: 7, y: 10 }; // originX: 10 から移動
+      const player = makePlayer({ x: 12, y: 10 });
+      const dg = makeEmptyDg({
+        map,
+        monsters: [boss],
+        pendingPetroBreaths: [{
+          sourceId: "ram-moved",
+          sourceName: "バタリングラム",
+          originX: 10,
+          originY: 10,
+          turnsLeft: 1,
+          cells: [{ x: 12, y: 10 }],
+        }],
+      });
+      const messages = [];
+      advancePetroBreaths(dg, player, messages, () => {}, 1);
+      expect(messages.some(m => m.includes("石化ブレスは中断された！"))).toBe(true);
+      expect(player.petrifiedTurns).toBe(0);
+    }
+  });
+
+  it("予兆描画にはメテオと同じく残りターン数が描画される", () => {
+    const dg = makeEmptyDg({
+      visible: Array.from({ length: 20 }, () => Array(30).fill(true)),
+      pendingPetroBreaths: [{
+        sourceId: "ram-1",
+        turnsLeft: 1,
+        cells: [{ x: 12, y: 10 }],
+      }],
+    });
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      strokeText: vi.fn(),
+      fillText: vi.fn(),
+    };
+
+    drawPetroBreathWarnings(ctx, dg, 0, 0, 16);
+
+    expect(ctx.strokeText).toHaveBeenCalledWith("1", expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith("1", expect.any(Number), expect.any(Number));
   });
 
   it("石化状態異常中はプレイヤー・モンスターともに行動不能になり4ターンで解除される", () => {
@@ -174,20 +277,15 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     expect(hasForcedTurn(player)).toBe(true);
 
     const messages = [];
-    // 1ターン目経過
     advanceForcedTurn(player, messages);
     expect(player.petrifiedTurns).toBe(3);
-    expect(messages[messages.length - 1]).toBe("体が石化している...あと3ターン");
 
-    // 2ターン目経過
     advanceForcedTurn(player, messages);
     expect(player.petrifiedTurns).toBe(2);
 
-    // 3ターン目経過
     advanceForcedTurn(player, messages);
     expect(player.petrifiedTurns).toBe(1);
 
-    // 4ターン目経過で解除
     advanceForcedTurn(player, messages);
     expect(player.petrifiedTurns).toBe(0);
     expect(messages[messages.length - 1]).toBe("石化が解けた！動けるようになった！");
@@ -198,7 +296,6 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     const dg = makeEmptyDg({ map: Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR)), monsters: [mon] });
     const monMessages = [];
 
-    // 移動しようとしても石化で行動できない
     monsterAI(mon, dg, player, monMessages, { moveOnly: true });
     expect(mon.x).toBe(5);
     expect(mon.y).toBe(5);

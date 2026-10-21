@@ -739,6 +739,7 @@ function ramCharge(m, dg, pl, ml, opts = {}, onHit = null, onMiss = null, luFn =
       const fromX = pl.x, fromY = pl.y;
       pushEntity(dg, pl.x, pl.y, shoveX, shoveY, 3, ml, "player", pl, pl, luFn, 0, m);
       if (pl.x === fromX && pl.y === fromY) return;
+      ml.push(`${m.name}の強烈な体当たりで吹き飛ばされた！`);
       const landingTrap = (dg.traps || []).find(trap => trap.x === pl.x && trap.y === pl.y);
       if (landingTrap) opts.fireTrapFn?.(landingTrap, pl, dg, ml);
     },
@@ -5802,6 +5803,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.lastPy = _cloneTargeted ? _cloneDecoy.y : pl.y;
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
+  }
+
+  if (m.baseKind === "boss_batteringram" && dg.pendingPetroBreaths?.some(b => b.sourceId === m.id)) {
+    // ブレスを吐くターンは移動も別攻撃も行わずブレス発射に専念する
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
   }
 
   if (m.baseKind === "boss_batteringram" && _moveOnly) {
