@@ -1,4 +1,4 @@
-import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
+import { isStatusImmune, statusResultMessage, monsterStatusTurns } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
@@ -1557,12 +1557,13 @@ export function useItemActions({
               // 元から倍速なら等速に戻す
               if ((_m.speed || 1) > 1) { _m.speed = 1; _removed.push("倍速→等速"); }
               if (it.blessed) {
-                // 祝福：攻撃力・防御力を50ターン半減
+                // 祝福：攻撃力・防御力を通常敵50行動、ボス25行動半減
+                const _halfTurns = monsterStatusTurns(50, _m);
                 if (_m._debuffOrigAtk === undefined) { _m._debuffOrigAtk = _m.atk; _m.atk = Math.max(1, Math.floor(_m.atk / 2)); }
                 if (_m._debuffOrigDef === undefined) { _m._debuffOrigDef = _m.def; _m.def = Math.max(0, Math.floor(_m.def / 2)); }
-                _m.debuffAtkHalfTurns = Math.max(_m.debuffAtkHalfTurns || 0, 50);
-                _m.debuffDefHalfTurns = Math.max(_m.debuffDefHalfTurns || 0, 50);
-                _removed.push("攻撃力・防御力半減50T");
+                _m.debuffAtkHalfTurns = _halfTurns;
+                _m.debuffDefHalfTurns = _halfTurns;
+                _removed.push(`攻撃力・防御力半減${_halfTurns}T`);
               }
               if (_removed.length > 0) ml.push(`${_m.name}のバフが解除された！(${_removed.join("、")})${it.blessed ? "【祝】" : ""}`);
               else ml.push(`${_m.name}に解除するバフはなかった。${it.blessed ? "【祝】" : ""}`);

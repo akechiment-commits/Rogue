@@ -21,7 +21,7 @@ import { interruptPlayerSleep } from './turnUpkeep.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
-import { statusTurns, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -915,9 +915,18 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _sfBlessed = blMult > 1;
       if (kind === "monster") {
         const _prevDef = target.def || 0;
-        target.def = _sfBlessed ? Math.floor(_prevDef / 4) : Math.floor(_prevDef / 2);
+        const _divisor = _sfBlessed ? 4 : 2;
+        if (target.isBoss) {
+          if (target._debuffOrigDef === undefined) target._debuffOrigDef = _prevDef;
+          target.debuffDefHalfTurns = monsterStatusTurns(50, target);
+        } else if ((target.debuffDefHalfTurns || 0) > 0 && target._debuffOrigDef !== undefined) {
+          // 通常敵への杖効果は永続。別の一時防御半減が切れた後にも杖の低下を残す。
+          target._debuffOrigDef = Math.floor(target._debuffOrigDef / _divisor);
+        }
+        target.def = Math.floor(_prevDef / _divisor);
         const _ratio = _sfBlessed ? "4分の1" : "半分";
-        ml.push(`軟化の魔法弾が${target.name}に命中！防御力が${_ratio}になった！(${_prevDef}→${target.def})`);
+        const _duration = target.isBoss ? `（${target.debuffDefHalfTurns}ターン）` : "";
+        ml.push(`軟化の魔法弾が${target.name}に命中！防御力が${_ratio}になった！(${_prevDef}→${target.def})${_duration}`);
         break;
       }
       if (kind === "item") {

@@ -5390,7 +5390,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}の攻撃力が戻った！`);
     }
   }
-  /* 強化解除巻物デバフ：ATK/DEF半減（50ターン） */
+  /* 一時的なATK/DEF半減：祝福強化解除の巻物、ボスへの軟化の杖 */
   if ((m.debuffAtkHalfTurns || 0) > 0 && !_attackOnly) {
     m.debuffAtkHalfTurns = Math.max(0, m.debuffAtkHalfTurns - 1);
     if (m.debuffAtkHalfTurns <= 0) {
@@ -5402,7 +5402,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.debuffDefHalfTurns = Math.max(0, m.debuffDefHalfTurns - 1);
     if (m.debuffDefHalfTurns <= 0) {
       if (m._debuffOrigDef !== undefined) { m.def = m._debuffOrigDef; delete m._debuffOrigDef; }
-      ml.push(`${m.name}の防御力デバフが解けた！`);
+      ml.push(`${m.name}の防御力半減が解けた！`);
     }
   }
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
