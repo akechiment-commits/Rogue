@@ -2,6 +2,13 @@ import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { castPetroBreath, canCastPetroBreath } from './petroBreath.js';
+import {
+  canUseChiranikuttsunnokuSpecial,
+  chiranikuttsunnokuEarthbreaker,
+  getVenomStingOriginAndDir,
+  chiranikuttsunnokuVenomSting,
+  chiranikuttsunnokuSharpStrike,
+} from './chiranikuttsunnoku.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -505,7 +512,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     return;
   }
   const pdef = ignoreDefense ? 0 : calcPlayerDef(pl);
-  let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
+  const _effAtk = (m.sharpStrikeTurns || 0) > 0 && !m.sealed ? Math.floor(m.atk * 1.5) : m.atk;
+  let dmg = calcAtkDefDmg(_effAtk, pdef, { defWeight: 1.5 });
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (vulnPc) dmg = vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (vulnPc.blessed ? 4 : 2);
@@ -1532,7 +1540,14 @@ export const BATTERING_RAM = {
   desc: "2×2マスの巨大な羊のボス。隣接時に25%でラムチャージ（通常ダメージ+吹き飛ばし）、25%でペトロブレス（前方2マスに攻撃予約し、次ターンに敵味方無差別に4ターン石化させるブレス）を放つ。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM];
+export const CHIRANIKUTSUNNOKU = {
+  name: "ちらにくつんのく", hp: 720, atk: 58, def: 34, exp: 3000,
+  speed: 1, tile: 251, kind: "insect", baseKind: "boss_chiranikuttsunnoku",
+  isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
+  desc: "2×2マスの巨大なサソリのボス。隣接時に25%でアースブレイカー（周囲1マス無差別攻撃+転倒、浮遊無効）、直線遠距離で50%でベノムスティング（猛毒針投擲、命中80%）、視界内にプレイヤーがいる時10%でシャープストライク（10ターン攻撃力1.5倍）を繰り出す。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -4999,6 +5014,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.attackSealTurns = Math.max(0, m.attackSealTurns - 1);
     if (m.attackSealTurns <= 0) ml.push(`${m.name}の攻撃封印が解けた！`);
   }
+  /* ちらにくつんのく：シャープストライク（攻撃力1.5倍バフ）持続カウントダウン */
+  if ((m.sharpStrikeTurns || 0) > 0 && !_attackOnly) {
+    m.sharpStrikeTurns = Math.max(0, m.sharpStrikeTurns - 1);
+    if (m.sharpStrikeTurns <= 0) {
+      ml.push(`${m.name}の毒針の鋭い輝きが収まった。（攻撃力上昇終了）`);
+    }
+  }
   /* 封印状態（ボスのみターン経過で解除） */
   if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
@@ -5871,6 +5893,61 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._petroBreathReady;
       m.turnAttacks++;
       castPetroBreath(m, dg, pl, ml);
+      return;
+    }
+  }
+
+  if (m.baseKind === "boss_chiranikuttsunnoku" && _moveOnly) {
+    delete m._sharpStrikeReady;
+    delete m._earthbreakerReady;
+    delete m._venomStingReady;
+  }
+  if (m.baseKind === "boss_chiranikuttsunnoku" && canUseChiranikuttsunnokuSpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      // 1. シャープストライク（視界内10% & 未発動中）
+      if (canSee && (m.sharpStrikeTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+        m._sharpStrikeReady = true;
+        return;
+      }
+      // 2. 隣接時アースブレイカー（25%）
+      if (_adjPl) {
+        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+          m._earthbreakerReady = true;
+          return;
+        }
+      } else {
+        // 3. 遠距離直線上にいるときベノムスティング（50%）
+        const stingAim = getVenomStingOriginAndDir(m, dg, pl);
+        if (stingAim) {
+          if (m.alwaysUseSpecial || Math.random() < 0.50) {
+            m._venomStingReady = stingAim;
+            return;
+          }
+        }
+      }
+    }
+    if (m._sharpStrikeReady) {
+      delete m._sharpStrikeReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuSharpStrike(m, ml);
+      return;
+    }
+    if (m._earthbreakerReady) {
+      delete m._earthbreakerReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, {
+        luFn: _luFn,
+        onPlayerHit: _onHit,
+        onPlayerMiss: _onMiss,
+      });
+      return;
+    }
+    if (m._venomStingReady) {
+      const aim = m._venomStingReady;
+      delete m._venomStingReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuVenomSting(m, dg, pl, ml, _luFn, aim);
       return;
     }
   }

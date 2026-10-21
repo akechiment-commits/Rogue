@@ -2636,6 +2636,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         setGs({ ...st });
         return;
       }
+      if ((p.knockdownTurns || 0) > 0) {
+        p.knockdownTurns--;
+        ml.push(p.knockdownTurns > 0
+          ? `転倒している...あと${p.knockdownTurns}ターン`
+          : "起き上がった！動けるようになった！");
+        endTurn(st, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        sr.current = { ...st };
+        setGs({ ...st });
+        return;
+      }
       if (type === "move" && (dx || dy)) {
         /* ===== 移動封じ状態：移動不可（攻撃は可） ===== */
         if ((p.immobileTurns || 0) > 0) {
