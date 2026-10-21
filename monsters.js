@@ -9,6 +9,13 @@ import {
   chiranikuttsunnokuVenomSting,
   chiranikuttsunnokuSharpStrike,
 } from './chiranikuttsunnoku.js';
+import {
+  canUseTaisaijinSpecial,
+  isFarLineToPlayer,
+  taisaijinHypnosis,
+  taisaijinBlazeSpike,
+  taisaijinRefresh,
+} from './taisaijin.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -1547,7 +1554,14 @@ export const CHIRANIKUTSUNNOKU = {
   desc: "2×2マスの巨大なサソリのボス。隣接時に25%でアースブレイカー（周囲1マス無差別攻撃+転倒、浮遊無効）、直線遠距離で50%でベノムスティング（猛毒針投擲、命中80%）、視界内にプレイヤーがいる時10%でシャープストライク（10ターン攻撃力1.5倍）を繰り出す。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU];
+export const TAISAIJIN = {
+  name: "タイサイジン", hp: 520, atk: 30, def: 26, exp: 2000,
+  speed: 1, tile: 252, kind: "material", baseKind: "boss_taisaijin",
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 2,
+  desc: "たくさんの目がついた塔のようなボス。通常攻撃が2回攻撃。遠距離直線上に25%で催眠術、視界内にプレイヤーがいる時10%でブレイズスパイク（炎まとい状態）、10%でリフレシュ（20ターンの間毎ターン5HP回復）を唱える。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -5021,6 +5035,20 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}の毒針の鋭い輝きが収まった。（攻撃力上昇終了）`);
     }
   }
+  /* タイサイジン：リフレシュ（HP持続回復：20ターン毎ターン5回復） */
+  if ((m.refreshTurns || 0) > 0 && !_attackOnly) {
+    m.refreshTurns--;
+    if (!m.sealed) {
+      const _rHeal = Math.min(5, m.maxHp - m.hp);
+      if (_rHeal > 0) {
+        m.hp += _rHeal;
+        ml.push(`${m.name}はリフレシュの力で回復した！(+${_rHeal}HP)`);
+      }
+    }
+    if (m.refreshTurns <= 0) {
+      ml.push(`${m.name}のリフレシュの効果が切れた。`);
+    }
+  }
   /* 封印状態（ボスのみターン経過で解除） */
   if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
@@ -5948,6 +5976,49 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._venomStingReady;
       m.turnAttacks++;
       chiranikuttsunnokuVenomSting(m, dg, pl, ml, _luFn, aim);
+      return;
+    }
+  }
+
+  if (m.baseKind === "boss_taisaijin" && _moveOnly) {
+    delete m._blazeSpikeReady;
+    delete m._refreshReady;
+    delete m._hypnosisReady;
+  }
+  if (m.baseKind === "boss_taisaijin" && canUseTaisaijinSpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      // 1. ブレイズスパイク（視界内10% & 未発動中）
+      if (canSee && (m.flameMantleTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+        m._blazeSpikeReady = true;
+        return;
+      }
+      // 2. リフレシュ（視界内10% & 未発動中）
+      if (canSee && (m.refreshTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+        m._refreshReady = true;
+        return;
+      }
+      // 3. 催眠（遠距離直線上に25%）
+      if (isFarLineToPlayer(m, dg, pl)) {
+        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+          m._hypnosisReady = true;
+          return;
+        }
+      }
+    }
+    if (m._blazeSpikeReady) {
+      delete m._blazeSpikeReady;
+      taisaijinBlazeSpike(m, dg, ml);
+      return;
+    }
+    if (m._refreshReady) {
+      delete m._refreshReady;
+      taisaijinRefresh(m, dg, ml);
+      return;
+    }
+    if (m._hypnosisReady) {
+      delete m._hypnosisReady;
+      taisaijinHypnosis(m, dg, pl, ml);
       return;
     }
   }
