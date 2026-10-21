@@ -21,24 +21,24 @@ describe("つらら小僧系（旧コボルド系）のテスト", () => {
     expect(lv1.name).toBe("つらら小僧");
     expect(lv1.kind).toBe("beast");
     expect(lv1.elemWeak).toBe("fire");
-    expect(lv1.hp).toBe(14);
-    expect(lv1.atk).toBe(8);
+    expect(lv1.hp).toBe(20);
+    expect(lv1.atk).toBe(9);
     expect(lv1.def).toBe(2);
 
     const lv2 = makeMonsterFromBase(base, 2, 0, 0);
     expect(lv2.name).toBe("氷柱鬼");
     expect(lv2.kind).toBe("beast");
     expect(lv2.elemWeak).toBe("fire");
-    expect(lv2.hp).toBe(32);
-    expect(lv2.atk).toBe(18);
+    expect(lv2.hp).toBe(38);
+    expect(lv2.atk).toBe(20);
     expect(lv2.def).toBe(5);
 
     const lv3 = makeMonsterFromBase(base, 3, 0, 0);
     expect(lv3.name).toBe("永久凍土鬼");
     expect(lv3.kind).toBe("beast");
     expect(lv3.elemWeak).toBe("fire");
-    expect(lv3.hp).toBe(55);
-    expect(lv3.atk).toBe(28);
+    expect(lv3.hp).toBe(62);
+    expect(lv3.atk).toBe(30);
     expect(lv3.def).toBe(9);
   });
 });

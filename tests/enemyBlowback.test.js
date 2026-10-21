@@ -548,7 +548,7 @@ describe("敵が飛ばしたニトロ箱の爆風の撃破者", () => {
     const dungeon = makeEmptyDg({ monsters: [victim, collateral], bigboxes: [box] });
     fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
     expect(dungeon.monsters).toEqual([]);
-    expect(player.exp).toBe(52);
+    expect(player.exp).toBe(54);
   });
 
   it.each(["fire_wand", "soften"])("敵の%sでニトロ箱を直接壊した場合にも撃破者を渡す", effect => {
@@ -676,7 +676,7 @@ describe("敵が飛ばした壺の破壊効果の撃破者", () => {
     const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
     const dungeon = makeEmptyDg({ monsters: [victim, collateral], items: [pot] });
     fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
-    expect(player.exp).toBe(potEffect === "gunpowder" ? 52 : 42);
+    expect(player.exp).toBe(potEffect === "gunpowder" ? 54 : 42);
   });
 
   it("敵が飛ばした回復の壺も通常の生きた敵は従来どおり回復する", () => {
@@ -1132,7 +1132,7 @@ describe("敵が飛ばして壊した床の杖の使用者", () => {
     const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
     const dungeon = makeEmptyDg({ monsters: [victim, collateral], items: [wand] });
     fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
-    expect(player.exp).toBe(charges === 0 ? 42 : 52);
+    expect(player.exp).toBe(charges === 0 ? 42 : 54);
   });
 
   it.each(["soften", "dig"])("敵の%sで床の杖を直接壊した場合も破壊効果の撃破者を引き継ぐ", effect => {

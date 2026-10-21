@@ -68,7 +68,7 @@ describe("大箱へ飛ばして投入した側の撃破", () => {
     const { bigboxAddItem } = createGameBigboxHandlers({ player, dungeon, ident: new Set() });
     bigboxAddItem(box, item, dungeon, []);
     expect(dungeon.monsters).not.toContain(victim);
-    expect(player.exp).toBe(10);
+    expect(player.exp).toBe(12);
   });
 
   it.each(KILLING_INSERTIONS)("敵が%sへ%sを投入して倒した場合、投入した敵の撃破になる", (kind, item) => {
@@ -81,7 +81,7 @@ describe("大箱へ飛ばして投入した側の撃破", () => {
   it.each(KILLING_INSERTIONS)("プレイヤーが%sへ%sを飛ばして投入した場合、経験値は一度だけ入る", (kind, item) => {
     const { caster, victim, player, dungeon } = insertByBlowback(kind, { ...item }, { enemy: false });
     expect(dungeon.monsters).not.toContain(victim);
-    expect(player.exp).toBe(10);
+    expect(player.exp).toBe(12);
     expect(caster.monLevel).toBe(1);
   });
 
