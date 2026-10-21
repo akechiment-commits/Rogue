@@ -96,7 +96,7 @@ describe("敵の吹き飛ばしの杖の撃破処理", () => {
     const messages = [];
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
     expect(dungeon.monsters).not.toContain(mage);
-    expect(player.exp).toBe(65);
+    expect(player.exp).toBe(45);
     expect(messages.filter(message => message.includes("ウィンドメイジを倒した"))).toHaveLength(1);
   });
 });
@@ -159,7 +159,7 @@ describe("敵の吹き飛ばしによる衝突撃破", () => {
       expect(mage.monLevel).toBe(2);
     } else {
       expect(dungeon.monsters).toContain(victim);
-      expect(victim.hp).toBe(5);
+      expect(victim.hp).toBe(11);
       expect(victim._stealthrowerHeldItem).toBe(stolen);
       expect(dungeon.items).toEqual([]);
       expect(mage.monLevel).toBe(1);
@@ -266,7 +266,7 @@ describe("敵が飛ばした道具・大箱の撃破者", () => {
     applyWandEffect("knockback", type === "bigbox" ? "bigbox" : "item", moved, 1, 0,
       dungeon, player, [], () => {});
     expect(dungeon.monsters).not.toContain(victim);
-    expect(player.exp).toBe(45);
+    expect(player.exp).toBe(42);
   });
 });
 
@@ -548,7 +548,7 @@ describe("敵が飛ばしたニトロ箱の爆風の撃破者", () => {
     const dungeon = makeEmptyDg({ monsters: [victim, collateral], bigboxes: [box] });
     fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
     expect(dungeon.monsters).toEqual([]);
-    expect(player.exp).toBe(55);
+    expect(player.exp).toBe(52);
   });
 
   it.each(["fire_wand", "soften"])("敵の%sでニトロ箱を直接壊した場合にも撃破者を渡す", effect => {
@@ -676,7 +676,7 @@ describe("敵が飛ばした壺の破壊効果の撃破者", () => {
     const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
     const dungeon = makeEmptyDg({ monsters: [victim, collateral], items: [pot] });
     fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
-    expect(player.exp).toBe(potEffect === "gunpowder" ? 55 : 45);
+    expect(player.exp).toBe(potEffect === "gunpowder" ? 52 : 42);
   });
 
   it("敵が飛ばした回復の壺も通常の生きた敵は従来どおり回復する", () => {
@@ -932,7 +932,7 @@ describe("ニトロ箱の爆風で壊れる杖", () => {
     doGunpowderExplosion(8, 5, dungeon, player, [], () => {});
     expect(dungeon.items).not.toContain(wand);
     expect(dungeon.monsters.includes(victim)).toBe(charges === 0);
-    expect(player.exp).toBe(charges === 0 ? 0 : 45);
+    expect(player.exp).toBe(charges === 0 ? 0 : 42);
   });
 });
 
@@ -1132,7 +1132,7 @@ describe("敵が飛ばして壊した床の杖の使用者", () => {
     const player = makePlayer({ x: 5, y: 5, depth: 1, exp: 0 });
     const dungeon = makeEmptyDg({ monsters: [victim, collateral], items: [wand] });
     fireWandBolt(player, dungeon, "knockback", 1, 0, [], () => {});
-    expect(player.exp).toBe(charges === 0 ? 45 : 55);
+    expect(player.exp).toBe(charges === 0 ? 42 : 52);
   });
 
   it.each(["soften", "dig"])("敵の%sで床の杖を直接壊した場合も破壊効果の撃破者を引き継ぐ", effect => {

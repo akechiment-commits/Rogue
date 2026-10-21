@@ -182,7 +182,7 @@ describe("中級ダンジョンの敵", () => {
     expect(intermediateMonsterKinds(15)).toHaveLength(12);
     expect(intermediateMonsterKinds(15)).not.toContain("lizardman");
     expect(intermediateMonsterKinds(15)).not.toContain("dragonknight");
-    expect(intermediateMonsterKinds(16)).toHaveLength(13);
+    expect(intermediateMonsterKinds(16)).toHaveLength(12);
     expect(intermediateMonsterKinds(16)).toContain("lizardman");
     expect(intermediateMonsterKinds(16)).not.toContain("dragonknight");
     expect(intermediateMonsterKinds(17)).toHaveLength(15);

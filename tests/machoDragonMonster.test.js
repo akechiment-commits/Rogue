@@ -24,27 +24,27 @@ describe("マッチョドラゴン系（マッチョドラゴン・筋肉竜・�
     expect(lv1.name).toBe("マッチョドラゴン");
     expect(lv1.kind).toBe("dragon");
     expect(lv1.elemWeak).toBe("ice");
-    expect(lv1.hp).toBe(75);
-    expect(lv1.atk).toBe(32);
-    expect(lv1.def).toBe(8);
+    expect(lv1.hp).toBe(90);
+    expect(lv1.atk).toBe(30);
+    expect(lv1.def).toBe(10);
     expect(lv1.tile).toBe(241);
 
     const lv2 = makeMonsterFromBase(base, 2, 0, 0);
     expect(lv2.name).toBe("筋肉竜");
     expect(lv2.kind).toBe("dragon");
     expect(lv2.elemWeak).toBe("ice");
-    expect(lv2.hp).toBe(135);
-    expect(lv2.atk).toBe(48);
-    expect(lv2.def).toBe(14);
+    expect(lv2.hp).toBe(170);
+    expect(lv2.atk).toBe(46);
+    expect(lv2.def).toBe(16);
     expect(lv2.tile).toBe(242);
 
     const lv3 = makeMonsterFromBase(base, 3, 0, 0);
     expect(lv3.name).toBe("筋骨隆々竜");
     expect(lv3.kind).toBe("dragon");
     expect(lv3.elemWeak).toBe("ice");
-    expect(lv3.hp).toBe(220);
-    expect(lv3.atk).toBe(66);
-    expect(lv3.def).toBe(20);
+    expect(lv3.hp).toBe(300);
+    expect(lv3.atk).toBe(65);
+    expect(lv3.def).toBe(22);
     expect(lv3.tile).toBe(243);
   });
 });

@@ -25,9 +25,9 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
     expect(lv1.kind).toBe("undead");
     expect(lv1.elemWeak).toBe("fire");
     expect(lv1.subtype).toBe("manaEater");
-    expect(lv1.hp).toBe(32);
-    expect(lv1.atk).toBe(14);
-    expect(lv1.def).toBe(5);
+    expect(lv1.hp).toBe(28);
+    expect(lv1.atk).toBe(13);
+    expect(lv1.def).toBe(3);
     expect(lv1.tile).toBe(244);
 
     const lv2 = makeMonsterFromBase(base, 2, 0, 0);
@@ -35,9 +35,9 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
     expect(lv2.kind).toBe("undead");
     expect(lv2.elemWeak).toBe("fire");
     expect(lv2.subtype).toBe("manaEater");
-    expect(lv2.hp).toBe(68);
-    expect(lv2.atk).toBe(29);
-    expect(lv2.def).toBe(10);
+    expect(lv2.hp).toBe(50);
+    expect(lv2.atk).toBe(20);
+    expect(lv2.def).toBe(5);
     expect(lv2.tile).toBe(245);
 
     const lv3 = makeMonsterFromBase(base, 3, 0, 0);
@@ -45,9 +45,9 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
     expect(lv3.kind).toBe("undead");
     expect(lv3.elemWeak).toBe("fire");
     expect(lv3.subtype).toBe("manaEater");
-    expect(lv3.hp).toBe(115);
-    expect(lv3.atk).toBe(46);
-    expect(lv3.def).toBe(16);
+    expect(lv3.hp).toBe(80);
+    expect(lv3.atk).toBe(28);
+    expect(lv3.def).toBe(8);
     expect(lv3.tile).toBe(246);
   });
 
@@ -74,8 +74,8 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
       const res = useManaEaterDrain(mon, pl, ml);
       expect(res).toBe(true);
       expect(pl.mp).toBe(5); // 10 - 5
-      expect(mon.hp).toBe(55); // 30 + 25
-      expect(ml[0]).toContain("マナドレイナーがマナを吸い取った！MPが5減少し、マナドレイナーのHPが25回復した！");
+      expect(mon.hp).toBe(50); // maxHp is 50
+      expect(ml[0]).toContain("マナドレイナーがマナを吸い取った！MPが5減少し、マナドレイナーのHPが20回復した！");
     });
 
     it("Lv3（マナヴォイド）: プレイヤーのMPを10吸い取り、自身のHPを最大50回復する", () => {
@@ -87,19 +87,19 @@ describe("マナイーター系（マナイーター・マナドレイナー・�
       const res = useManaEaterDrain(mon, pl, ml);
       expect(res).toBe(true);
       expect(pl.mp).toBe(5); // 15 - 10
-      expect(mon.hp).toBe(100); // 50 + 50
-      expect(ml[0]).toContain("マナヴォイドがマナを吸い取った！MPが10減少し、マナヴォイドのHPが50回復した！");
+      expect(mon.hp).toBe(80); // maxHp is 80
+      expect(ml[0]).toContain("マナヴォイドがマナを吸い取った！MPが10減少し、マナヴォイドのHPが30回復した！");
     });
 
     it("モンスターのHPは maxHp を超えて回復しない", () => {
       const mon = makeMonsterFromBase(base, 1, 1, 1);
-      mon.hp = 30; // maxHp 32, 空きは 2
+      mon.hp = 26; // maxHp 28, 空きは 2
       const pl = { mp: 10, maxMp: 20 };
       const ml = [];
 
       useManaEaterDrain(mon, pl, ml);
       expect(pl.mp).toBe(7);
-      expect(mon.hp).toBe(32); // 30 + 2
+      expect(mon.hp).toBe(28); // maxHp is 28
       expect(ml[0]).toContain("HPが2回復した！");
     });
 
