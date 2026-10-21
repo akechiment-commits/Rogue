@@ -27,7 +27,7 @@ import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyMonsterFlameMantle, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -2127,14 +2127,6 @@ function fireBreakFloorPotion(item, x, y, dg, p, ml, luFn, nameFn = null, killer
   return true;
 }
 
-function applyExplosionFlameMantle(dg, cx, cy, radius, ml) {
-  for (const monster of dg.monsters || []) {
-    if (monster.baseKind === "firedemon" || (monster.hp ?? 1) <= 0) continue;
-    if (Math.max(Math.abs(monster.x - cx), Math.abs(monster.y - cy)) > radius) continue;
-    applyMonsterFlameMantle(monster, ml);
-  }
-}
-
 /** 爆発範囲内の地雷・時限爆弾を、爆発の種類によらず連鎖させる。 */
 export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = null, options = {}) {
   if (!dg || (dg.timeStopTurns || 0) > 0 || _explosionChainDepth > 8) return;
@@ -2192,10 +2184,6 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     return;
   }
   const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
-  const _fireMantleSourceInBlast = !options.nonElemental && (dg.monsters || []).some(m =>
-    m.baseKind === "firedemon" && monHasFlameMantle(m) &&
-    Math.max(Math.abs(m.x - cx), Math.abs(m.y - cy)) <= _blastRadius
-  );
   const _instantMonsterKill = options.instantMonsterKill === true;
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む爆発範囲内） */
@@ -2391,7 +2379,6 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   breakGachaMachinesInRadius(dg, cx, cy, _blastRadius, ml, p, nameFn);
   removeBlastedItems();
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
-  if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, cx, cy, _blastRadius, ml);
   /* 爆発範囲内の石像 */
   for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
     for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
@@ -2433,10 +2420,6 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
   ensureItemMimicFloorItems(dg);
   const initialDepth = p?.depth;
   const floorChanged = () => p?.depth !== initialDepth;
-  const _fireMantleSourceInBlast = (dg.monsters || []).some(m =>
-    m.baseKind === "firedemon" && monHasFlameMantle(m) &&
-    Math.max(Math.abs(m.x - cx), Math.abs(m.y - cy)) <= 2
-  );
   const retaliateAgainstExplosionSource = (monster) => {
     if (killerMon && monster.type === "shopkeeper" && monster.hp > 0) {
       beginNpcRetaliation(monster, killerMon, ml);
@@ -2539,7 +2522,6 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     for (const it of _blasted) destroyItemMimicFloorItem(dg, it);
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
     dg.monsters = dg.monsters.filter(m => m.hp > 0);
-    if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, cx, cy, 2, ml);
     if (floorChanged()) return;
     /* 範囲内の大箱を破壊 */
     const _gpBlastedBB = [];
@@ -2602,10 +2584,6 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
   }
   ensureItemMimicFloorItems(dg);
   const R = 2;
-  const _fireMantleSourceInBlast = (dg.monsters || []).some(m =>
-    m.baseKind === "firedemon" && monHasFlameMantle(m) &&
-    Math.max(Math.abs(m.x - cx), Math.abs(m.y - cy)) <= R
-  );
   pushExplosionAnim(cx, cy);
   ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
   const blasted = new Set();
@@ -2710,7 +2688,6 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
   if (blasted.size > 0) dg.items = dg.items.filter(i => !blasted.has(i));
   breakGachaMachinesInRadius(dg, cx, cy, R, ml, p, nameFn);
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
-  if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, cx, cy, R, ml);
   /* 範囲内の火薬壺を連鎖爆発 */
   const _chainPots = dg.items.filter(it =>
     it.type === "pot" && it.potEffect === "gunpowder" &&
@@ -6438,10 +6415,6 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
       (pc.blessed || dg.rooms?.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h) === mRoom)
     );
     if (!exPc) return;
-    const _fireMantleSourceInBlast = (dg.monsters || []).some(m =>
-      m.baseKind === "firedemon" && monHasFlameMantle(m) &&
-      Math.max(Math.abs(m.x - mx), Math.abs(m.y - my)) <= 1
-    );
     ml.push(`${exPc.name}の力で爆発した！`);
     const blasted = new Set();
     const largeMonstersHit = new Set();
@@ -6546,7 +6519,6 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     dg.items = dg.items.filter(i => !blasted.has(i));
     breakGachaMachinesInRadius(dg, mx, my, 1, ml, p);
     dg.monsters = dg.monsters.filter(m => m.hp > 0);
-    if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, mx, my, 1, ml);
     /* 破壊された火薬壺の連鎖爆発 */
     for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
       doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
