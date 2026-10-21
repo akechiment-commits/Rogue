@@ -56,6 +56,7 @@ export const STATUS_BASE = {
   monsterSense:  { player: 100, monster: 100 },
   defSoftened:   { player: 10,  monster: 10 },
   berserker:     { player: 50,  monster: 50 },
+  caswack:       { player: 50,  monster: 50 },
 };
 
 /** ベースが永続のとき、ボスへは有限化するステータス */

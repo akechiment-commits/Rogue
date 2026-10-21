@@ -5,6 +5,7 @@ import { monsterBodySize } from './monsterGeometry.js';
 import { monsterDrawBounds, monsterVisible, drawLargeMonster } from './monsterRendering.js';
 import { drawMeteorWarnings } from './meteor.js';
 import { drawPetroBreathWarnings } from './petroBreath.js';
+import { drawCaswackWarnings } from './ohplenty.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
 const VENT_TILE_BY_DIR = {
@@ -185,6 +186,7 @@ export function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.debuffDefHalfTurns || 0) > 0)                           _sts.push("#6080ff"); // 防御力半減：青紫
   if ((mon.flameMantleTurns || 0) > 0)                             _sts.push("#ff4800"); // 炎まとい：朱炎
   if ((mon.refreshTurns || 0) > 0)                                 _sts.push("#20e060"); // 持続回復（リフレシュ）：緑
+  if ((mon.caswackTurns || 0) > 0)                                 _sts.push("#9900cc"); // カスワック：不吉な濃紫
   /* ── モンスターレベルバッジ（左上） ── */
   const _ml = mon.monLevel ?? 1;
   if (_ml >= 2) {
@@ -249,6 +251,10 @@ function drawOverlays(ctx, overlays, sx, sy, sz) {
       drawFlameMantleEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "refresh") {
       drawRefreshEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "caswack") {
+      drawCaswackEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "deathTrap") {
+      drawDeathTrapEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "itemArc") {
       drawItemArc(ctx, o, sx, sy, sz, t);
     }
@@ -585,6 +591,78 @@ function drawRefreshEffect(ctx, o, sx, sy, sz, p) {
     ctx.moveTo(spx, spy - spr * 1.6);
     ctx.lineTo(spx, spy + spr * 1.6);
     ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ===== Caswack Effect (カスワック死霊波動) ===== */
+function drawCaswackEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.6 ? Math.max(0, 1 - (p - 0.6) / 0.4) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 禍々しい濃紫・黒紫の放射状オーラ */
+  const r = Math.max(1, (0.5 + easeOutQuad(p) * 0.6) * sz);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "rgba(220, 100, 255, 0.9)");
+  grad.addColorStop(0.3, "rgba(140, 0, 200, 0.75)");
+  grad.addColorStop(0.7, "rgba(70, 0, 120, 0.45)");
+  grad.addColorStop(1, "rgba(20, 0, 40, 0)");
+  ctx.globalAlpha = alpha * 0.9;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* 渦巻く死霊の霊気粒子 */
+  const soulCount = 6;
+  for (let i = 0; i < soulCount; i++) {
+    const angle = (i / soulCount) * Math.PI * 2 + p * 2.5;
+    const dist = sz * 0.3 * (0.4 + p * 0.8);
+    const sx_pos = cx + Math.cos(angle) * dist;
+    const sy_pos = cy + Math.sin(angle) * dist - p * sz * 0.35;
+    const sr = Math.max(1, sz * 0.08 * (1 - p * 0.5));
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.fillStyle = (i % 2 === 0) ? "#cc66ff" : "#1a0033";
+    ctx.beginPath();
+    ctx.arc(sx_pos, sy_pos, sr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ===== Death Trap Effect (デストラップ炸裂) ===== */
+function drawDeathTrapEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.55 ? Math.max(0, 1 - (p - 0.55) / 0.45) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 衝撃波リング */
+  const r = Math.max(1, easeOutQuad(p) * sz * 1.6);
+  ctx.globalAlpha = alpha * 0.8;
+  ctx.strokeStyle = "#ff2266";
+  ctx.lineWidth = Math.max(2, sz * 0.12 * (1 - p));
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  /* 8方向に飛び散る鋭いスパイク・刃粒子 */
+  const dirs8 = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  const travel = easeOutQuad(p) * sz * 1.4;
+  for (const [dx, dy] of dirs8) {
+    const spx = cx + dx * travel;
+    const spy = cy + dy * travel;
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.fillStyle = "#ffdd44";
+    ctx.beginPath();
+    ctx.arc(spx, spy, Math.max(1, sz * 0.09 * (1 - p * 0.4)), 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -1425,6 +1503,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     /* 予兆はキャラクター描画の後にも見えるよう重ね、各マスに残りターンを示す。 */
     drawMeteorWarnings(ctx, dg, sx, sy, sz);
     drawPetroBreathWarnings(ctx, dg, sx, sy, sz);
+    drawCaswackWarnings(ctx, dg, sx, sy, sz);
 
     /* ===== lookMode cursor ===== */
     if (lookMode) {

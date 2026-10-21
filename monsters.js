@@ -11,11 +11,18 @@ import {
 } from './chiranikuttsunnoku.js';
 import {
   canUseTaisaijinSpecial,
-  isFarLineToPlayer,
+  isFarLineToPlayer as isTaisaijinFarLine,
   taisaijinHypnosis,
   taisaijinBlazeSpike,
   taisaijinRefresh,
 } from './taisaijin.js';
+import {
+  canUseOhplentySpecial,
+  isFarLineToPlayer as isOhplentyFarLine,
+  ohplentyPullPlayer,
+  castCaswack,
+  ohplentyDeathTrap,
+} from './ohplenty.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -1530,12 +1537,12 @@ export const BOSSES = [
     isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
 ];
 
-/* 上級25階専用。通常ボス一覧を置換しないため、ほかのダンジョンの魔将軍は維持する。 */
+/* 上級20階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔神王は維持する。 */
 export const KING_BEHINMOS = {
-  name: "キングベヒんもス", hp: 1200, atk: 96, def: 55, exp: 9000,
+  name: "キングベヒんもス", hp: 950, atk: 74, def: 42, exp: 5500,
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
-  isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, bodySize: 3,
-  meteorDamage: 100, meteorImmune: true, meteorInterval: 4,
+  isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, bodySize: 3,
+  meteorDamage: 80, meteorImmune: true, meteorInterval: 4,
   desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。詠唱時にHPが半分以上なら赤い予兆の3×3マスへ2ターン後、半分未満なら1ターン後に防御力で軽減されるメテオを落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
 };
 
@@ -1561,7 +1568,15 @@ export const TAISAIJIN = {
   desc: "縦長の体躯にたくさんの目がついたスライム系のボス。通常攻撃が2回攻撃。遠距離直線上に25%で催眠術、視界内にプレイヤーがいる時10%でブレイズスパイク（炎まとい状態）、10%でリフレシュ（20ターンの間毎ターン5HP回復）を唱える。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN];
+/* 上級25階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔将軍は維持する。 */
+export const OHPLENTY = {
+  name: "オープレンティ", hp: 1100, atk: 86, def: 50, exp: 9000,
+  speed: 2, tile: 253, kind: "material", baseKind: "boss_ohplenty",
+  isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1,
+  desc: "宝箱の姿をしたモンスター。2倍速・1回行動。遠距離直線上のプレイヤーを50%で目の前に引き寄せる。隣接時は25%でカスワック（周囲1マス予告・1ターン後発動、50ターンカスワック状態付与、重複で即死）、25%でデストラップ（周囲1マス無差別攻撃+金縛り）を繰り出す。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -5049,6 +5064,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}のリフレシュの効果が切れた。`);
     }
   }
+  /* カスワック状態カウントダウン（モンスター） */
+  if ((m.caswackTurns || 0) > 0 && !_attackOnly) {
+    m.caswackTurns--;
+    if (m.caswackTurns <= 0) {
+      ml.push(`${m.name}のカスワックの呪いが解けた！`);
+    }
+  }
   /* 封印状態（ボスのみターン経過で解除） */
   if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
@@ -5999,7 +6021,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
       // 3. 催眠（遠距離直線上に25%）
-      if (isFarLineToPlayer(m, dg, pl)) {
+      if (isTaisaijinFarLine(m, dg, pl)) {
         if (m.alwaysUseSpecial || Math.random() < 0.25) {
           m._hypnosisReady = true;
           return;
@@ -6019,6 +6041,54 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m._hypnosisReady) {
       delete m._hypnosisReady;
       taisaijinHypnosis(m, dg, pl, ml);
+      return;
+    }
+  }
+
+  if (m.baseKind === "boss_ohplenty" && (m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id || c.source === m))) {
+    // カスワック詠唱ターンは移動・別攻撃を行わず詠唱に専念する
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
+  }
+
+  if (m.baseKind === "boss_ohplenty" && _moveOnly) {
+    delete m._pullPlayerReady;
+    delete m._caswackReady;
+    delete m._deathTrapReady;
+  }
+  if (m.baseKind === "boss_ohplenty" && canUseOhplentySpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      if (_adjPl) {
+        const roll = Math.random();
+        if (m.alwaysUseSpecial || roll < 0.25) {
+          m._caswackReady = true;
+          return;
+        } else if (roll < 0.50) {
+          m._deathTrapReady = true;
+          return;
+        }
+      } else if (isOhplentyFarLine(m, dg, pl)) {
+        if (m.alwaysUseSpecial || Math.random() < 0.50) {
+          m._pullPlayerReady = true;
+          return;
+        }
+      }
+    }
+    if (m._caswackReady) {
+      delete m._caswackReady;
+      castCaswack(m, dg, pl, ml);
+      return;
+    }
+    if (m._deathTrapReady) {
+      delete m._deathTrapReady;
+      ohplentyDeathTrap(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
+      return;
+    }
+    if (m._pullPlayerReady) {
+      delete m._pullPlayerReady;
+      ohplentyPullPlayer(m, dg, pl, ml);
       return;
     }
   }

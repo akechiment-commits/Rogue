@@ -45,9 +45,13 @@ describe("上級ダンジョン10階ボス：タイサイジン", () => {
     const dg15 = genDungeon(14, "advanced");
     expect(dg15.monsters.find(m => m.isBoss).baseKind).toBe("boss_chiranikuttsunnoku");
 
+    // 上級20F
+    const dg20 = genDungeon(19, "advanced");
+    expect(dg20.monsters.find(m => m.isBoss).baseKind).toBe("boss_kingbehinmos");
+
     // 上級25F
     const dg25 = genDungeon(24, "advanced");
-    expect(dg25.monsters.find(m => m.isBoss).baseKind).toBe("boss_kingbehinmos");
+    expect(dg25.monsters.find(m => m.isBoss).baseKind).toBe("boss_ohplenty");
 
     // 中級10F（ティターン）
     const imDg = genDungeon(9, "intermediate");

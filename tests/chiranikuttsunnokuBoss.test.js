@@ -39,9 +39,13 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
     const dg5 = genDungeon(4, "advanced");
     expect(dg5.monsters.find(m => m.isBoss).baseKind).toBe("boss_batteringram");
 
-    // 上級25Fはキングベヒんもス
+    // 上級20Fはキングベヒんもス
+    const dg20 = genDungeon(19, "advanced");
+    expect(dg20.monsters.find(m => m.isBoss).baseKind).toBe("boss_kingbehinmos");
+
+    // 上級25Fはオープレンティ
     const dg25 = genDungeon(24, "advanced");
-    expect(dg25.monsters.find(m => m.isBoss).baseKind).toBe("boss_kingbehinmos");
+    expect(dg25.monsters.find(m => m.isBoss).baseKind).toBe("boss_ohplenty");
 
     // 初心者ダンジョン15F
     const begDg = genDungeon(14, "beginner");

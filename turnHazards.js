@@ -1,6 +1,7 @@
 import { canActivateTrap } from "./trapActivationTurn.js";
 import { advanceMeteors } from './meteor.js';
 import { advancePetroBreaths } from './petroBreath.js';
+import { advanceCaswacks } from './ohplenty.js';
 
 /** 敵移動後・敵攻撃前に発火する罠、爆発、時限爆弾を解決する。 */
 export function resolveTurnHazards(state, player, messages, {
@@ -20,6 +21,7 @@ export function resolveTurnHazards(state, player, messages, {
   if ((dungeon?.timeStopTurns || 0) > 0) return { spinFired: false };
   if (tickTimedEffects) advanceMeteors(dungeon, player, messages, lu, worldTicks);
   if (tickTimedEffects) advancePetroBreaths(dungeon, player, messages, lu, worldTicks);
+  if (tickTimedEffects) advanceCaswacks(dungeon, player, messages, lu, worldTicks);
   if (tickTimedEffects && player.hp > 0 && hasRingEffect(player, "explode_ring") && random() < 0.05) {
     messages.push("指輪が爆発した！");
     doExplosion(player.x, player.y, dungeon, player, messages, getItemName, "爆発の指輪", null, null, false, true);

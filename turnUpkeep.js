@@ -227,6 +227,10 @@ export function advanceEarlyStatusTimers(player, messages) {
     player.invisibleTurns--;
     if (player.invisibleTurns === 0) messages.push("透明が解けた！敵に見えるようになった。");
   }
+  if ((player.caswackTurns || 0) > 0) {
+    player.caswackTurns--;
+    if (player.caswackTurns === 0) messages.push("カスワックの呪いが解けた！");
+  }
 }
 
 /** 行動速度と知覚系の基本状態タイマーを更新する。 */
