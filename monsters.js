@@ -7936,12 +7936,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
       if (_plOnSanc) return;
-      if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      while (m.turnAttacks < monEffectiveMaxAttacks(m) && m.hp > 0 && pl.hp > 0) {
         m.turnAttacks++;
         monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
-        return;
       }
-      /* 2回目以降：攻撃せずBFSで移動を試みる */
+      return;
     }
 
     if (_attackOnly) return; /* attackOnlyフェーズ：移動しない */
@@ -7995,9 +7994,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
         if (_plOnSanc) return;
         m.dir = { x: next.x - m.x, y: next.y - m.y };
-        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-          m.turnAttacks++;
-          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        if (!_moveOnly) {
+          while (m.turnAttacks < monEffectiveMaxAttacks(m) && m.hp > 0 && pl.hp > 0) {
+            m.turnAttacks++;
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          }
         }
         return;
       }
@@ -8055,10 +8056,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         _altMoves.sort((a, b) => a.dist - b.dist);
         const _ab = _altMoves[0];
         if (_ab.x === pl.x && _ab.y === pl.y) {
-          if (!_moveOnly && !_plOnSanc &&
-              m.turnAttacks < monEffectiveMaxAttacks(m)) {
-            m.turnAttacks++; m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
-            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          if (!_moveOnly && !_plOnSanc) {
+            m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+            while (m.turnAttacks < monEffectiveMaxAttacks(m) && m.hp > 0 && pl.hp > 0) {
+              m.turnAttacks++;
+              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+            }
           }
           return;
         }

@@ -12,6 +12,8 @@ import {
 import { T } from "../utils.js";
 import { TILE_NAMES, TILE_RENDER } from "../render.js";
 import { MONSTER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "../tilesetMap.js";
+import { drainAnims } from "../animEvents.js";
+import { drawMonsterOverlays } from "../useGameRenderer.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => {
@@ -200,6 +202,109 @@ describe("上級ダンジョン10階ボス：タイサイジン", () => {
 
       const normalBoss = { ...TAISAIJIN };
       expect(canUseTaisaijinSpecial(normalBoss)).toBe(true);
+    });
+  });
+
+  describe("通常攻撃の2回攻撃", () => {
+    it("隣接時に通常攻撃を行うと2回攻撃を実行する", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...TAISAIJIN,
+        id: "tai-1",
+        x: 5,
+        y: 5,
+        turnAttacks: 0,
+      };
+      // プレイヤーが隣接 (6, 5)
+      const pl = makePlayer({ x: 6, y: 5, hp: 200, maxHp: 200, def: 0 });
+      dg.monsters = [boss];
+      const ml = [];
+
+      // attackOnly フェーズで行動
+      monsterAI(boss, dg, pl, ml, { attackOnly: true });
+
+      expect(boss.turnAttacks).toBe(2);
+      const attackMsgs = ml.filter(m => m.includes("タイサイジンの攻撃"));
+      expect(attackMsgs.length).toBe(2);
+    });
+
+    it("封印時は1回攻撃になる", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...TAISAIJIN,
+        id: "tai-1",
+        x: 5,
+        y: 5,
+        turnAttacks: 0,
+        sealed: true,
+      };
+      const pl = makePlayer({ x: 6, y: 5, hp: 200, maxHp: 200, def: 0 });
+      dg.monsters = [boss];
+      const ml = [];
+
+      monsterAI(boss, dg, pl, ml, { attackOnly: true });
+
+      expect(boss.turnAttacks).toBe(1);
+      const attackMsgs = ml.filter(m => m.includes("タイサイジンの攻撃"));
+      expect(attackMsgs.length).toBe(1);
+    });
+  });
+
+  describe("エフェクトと状態異常アイコンの表示", () => {
+    it("ブレイズスパイク・リフレシュ使用時に専用エフェクトがプッシュされる", () => {
+      drainAnims(); // 既存クリア
+      const dg = makeEmptyDg();
+      const boss = { ...TAISAIJIN, id: "tai-1", x: 5, y: 5 };
+      const ml = [];
+
+      taisaijinBlazeSpike(boss, dg, ml);
+      const spikeAnims = drainAnims();
+      expect(spikeAnims.some(a => a.type === "flameMantle" && a.x === 5 && a.y === 5)).toBe(true);
+
+      taisaijinRefresh(boss, dg, ml);
+      const refreshAnims = drainAnims();
+      expect(refreshAnims.some(a => a.type === "refresh" && a.x === 5 && a.y === 5)).toBe(true);
+    });
+
+    it("drawMonsterOverlaysで炎まとい・持続回復の四角アイコンが描画される", () => {
+      const fills = [];
+      const mockCtx = {
+        save: vi.fn(),
+        restore: vi.fn(),
+        beginPath: vi.fn(),
+        closePath: vi.fn(),
+        arc: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        strokeRect: vi.fn(),
+        fillText: vi.fn(),
+        strokeText: vi.fn(),
+        fillRect: vi.fn((x, y, w, h) => {
+          fills.push({ fillStyle: mockCtx.fillStyle, x, y, w, h });
+        }),
+        fillStyle: "#000000",
+        strokeStyle: "#000000",
+        lineWidth: 1,
+        globalAlpha: 1,
+      };
+
+      const boss = {
+        ...TAISAIJIN,
+        x: 5,
+        y: 5,
+        flameMantleTurns: 8,
+        refreshTurns: 15,
+      };
+
+      drawMonsterOverlays(mockCtx, boss, 50, 50, 32);
+
+      // #ff4800 (炎まとい) と #20e060 (リフレシュ) の四角アイコンが描画されていることを確認
+      const hasFlameMantleIcon = fills.some(f => f.fillStyle === "#ff4800");
+      const hasRefreshIcon = fills.some(f => f.fillStyle === "#20e060");
+      expect(hasFlameMantleIcon).toBe(true);
+      expect(hasRefreshIcon).toBe(true);
     });
   });
 });

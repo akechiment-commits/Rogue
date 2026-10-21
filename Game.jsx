@@ -1167,7 +1167,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       else if (e.type === "monProjectile") (d.monProjectiles = d.monProjectiles || []).push(e);
       else if (e.type === "monProjectileReturn") (d.monProjectileReturns = d.monProjectileReturns || []).push(e);
       else if (e.type === "splash") (d.splashes = d.splashes || []).push(e);
-      else if (e.type === "explosion" || e.type === "lightning" || e.type === "heal") d.explosions.push(e);
+      else if (e.type === "explosion" || e.type === "lightning" || e.type === "heal" || e.type === "flameMantle" || e.type === "refresh") d.explosions.push(e);
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
       else if (e.type === "playerKnockback") d.playerKnockback = e;
@@ -2406,7 +2406,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _drainedEvts = drainAnims();
       for (const _de of _drainedEvts) {
         if (_de.type === "splash" || _de.type === "petroBreath") (_ad.splashes = _ad.splashes || []).push(_de);
-        else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        else if (_de.type === "explosion" || _de.type === "lightning" || _de.type === "heal" || _de.type === "flameMantle" || _de.type === "refresh") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
         else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);

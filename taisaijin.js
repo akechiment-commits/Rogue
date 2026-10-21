@@ -2,7 +2,8 @@ import { hasLOS } from './monsters.js';
 import { inMagicSealRoom } from './items.js';
 import { applyMonsterFlameMantle } from './statusDuration.js';
 import { isStatusImmune } from './statusImmunity.js';
-import { pushAnim, pushHealAnim } from './animEvents.js';
+import { pushAnim, pushHealAnim, pushFlameMantleAnim, pushRefreshAnim } from './animEvents.js';
+import { monEffectiveMaxAttacks } from './monTraits.js';
 import { plName } from './playerLabel.js';
 
 /**
@@ -39,7 +40,7 @@ export function isFarLineToPlayer(monster, dungeon, player) {
  * 遠距離直線上にいる時、25%で催眠術をかける（次の行動を勝手に行ってしまう）
  */
 export function taisaijinHypnosis(m, dg, pl, ml) {
-  m.turnAttacks++;
+  m.turnAttacks = monEffectiveMaxAttacks(m);
   if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
     ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
     return;
@@ -62,14 +63,14 @@ export function taisaijinHypnosis(m, dg, pl, ml) {
  * プレイヤーが視界内にいる時、10%でブレイズスパイクを唱えて炎まとい状態（10ターン）になる
  */
 export function taisaijinBlazeSpike(m, dg, ml) {
-  m.turnAttacks++;
+  m.turnAttacks = monEffectiveMaxAttacks(m);
   if (inMagicSealRoom(m.x, m.y, dg)) {
     ml.push(`${m.name}はブレイズスパイクを唱えようとしたが、魔封じの魔方陣で封じられた！`);
     return;
   }
   ml.push(`${m.name}はブレイズスパイクを唱えた！`);
   applyMonsterFlameMantle(m, ml, 10);
-  pushAnim({ type: "flash", x: m.x, y: m.y, color: "#ff6600", duration: 300 });
+  pushFlameMantleAnim(m.x, m.y);
 }
 
 /**
@@ -77,12 +78,12 @@ export function taisaijinBlazeSpike(m, dg, ml) {
  * プレイヤーが視界内にいる時、10%でリフレシュを唱えてHP持続回復状態になり20ターンの間毎ターン5回復する
  */
 export function taisaijinRefresh(m, dg, ml) {
-  m.turnAttacks++;
+  m.turnAttacks = monEffectiveMaxAttacks(m);
   if (inMagicSealRoom(m.x, m.y, dg)) {
     ml.push(`${m.name}はリフレシュを唱えようとしたが、魔封じの魔方陣で封じられた！`);
     return;
   }
   m.refreshTurns = 20;
   ml.push(`${m.name}はリフレシュを唱えた！HP持続回復状態になった！（20ターンの間、毎ターン5回復）`);
-  pushHealAnim(m.x, m.y);
+  pushRefreshAnim(m.x, m.y);
 }

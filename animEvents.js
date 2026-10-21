@@ -275,3 +275,17 @@ export function pushLightningAnim(x, y) {
 export function pushHealAnim(x, y) {
   pushAnim({ type: "heal", x, y });
 }
+
+/*
+ * Push a flame mantle aura animation on a tile.
+ */
+export function pushFlameMantleAnim(x, y) {
+  pushAnim({ type: "flameMantle", x, y });
+}
+
+/*
+ * Push a refresh (continuous regeneration) aura animation on a tile.
+ */
+export function pushRefreshAnim(x, y) {
+  pushAnim({ type: "refresh", x, y });
+}

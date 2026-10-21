@@ -183,6 +183,8 @@ export function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if (mon.baseSpeed != null && (mon.speed ?? 1) < mon.baseSpeed)  _sts.push("#20b8a0"); // 鈍足：青緑
   if ((mon.debuffAtkHalfTurns || 0) > 0)                           _sts.push("#ff6060"); // 攻撃力半減：赤橙
   if ((mon.debuffDefHalfTurns || 0) > 0)                           _sts.push("#6080ff"); // 防御力半減：青紫
+  if ((mon.flameMantleTurns || 0) > 0)                             _sts.push("#ff4800"); // 炎まとい：朱炎
+  if ((mon.refreshTurns || 0) > 0)                                 _sts.push("#20e060"); // 持続回復（リフレシュ）：緑
   /* ── モンスターレベルバッジ（左上） ── */
   const _ml = mon.monLevel ?? 1;
   if (_ml >= 2) {
@@ -243,6 +245,10 @@ function drawOverlays(ctx, overlays, sx, sy, sz) {
       drawLightningEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "heal") {
       drawHealEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "flameMantle") {
+      drawFlameMantleEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "refresh") {
+      drawRefreshEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "itemArc") {
       drawItemArc(ctx, o, sx, sy, sz, t);
     }
@@ -492,6 +498,93 @@ function drawHealEffect(ctx, o, sx, sy, sz, p) {
     ctx.beginPath();
     ctx.arc(spx, spy, spr, 0, Math.PI * 2);
     ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ===== Flame Mantle Effect (炎まといオーラ) ===== */
+function drawFlameMantleEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.6 ? Math.max(0, 1 - (p - 0.6) / 0.4) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 炎の放射状オーラ */
+  const r = Math.max(1, (0.4 + easeOutQuad(p) * 0.55) * sz);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "rgba(255, 255, 200, 0.9)");
+  grad.addColorStop(0.3, "rgba(255, 140, 0, 0.75)");
+  grad.addColorStop(0.7, "rgba(230, 40, 0, 0.45)");
+  grad.addColorStop(1, "rgba(180, 0, 0, 0)");
+  ctx.globalAlpha = alpha * 0.85;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* 立ち昇る炎の火柱粒子・火の粉 (7個) */
+  const flameCount = 7;
+  for (let i = 0; i < flameCount; i++) {
+    const angle = (i / flameCount) * Math.PI * 2 + p * 1.5;
+    const dist = sz * 0.28 * (0.6 + p * 0.5);
+    const fx = cx + Math.cos(angle) * dist;
+    const fy = cy + Math.sin(angle) * dist * 0.7 - p * sz * 0.55;
+    const fr = Math.max(1, sz * 0.09 * (1 - p * 0.55));
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillStyle = (i % 2 === 0) ? "#ffcc00" : "#ff3300";
+    ctx.beginPath();
+    ctx.arc(fx, fy, fr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ===== Refresh Effect (リフレシュ・持続回復オーラ) ===== */
+function drawRefreshEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.65 ? Math.max(0, 1 - (p - 0.65) / 0.35) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* エメラルドグリーンの光輪・オーラ */
+  const r = Math.max(1, easeOutQuad(p) * sz * 0.75);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "rgba(180, 255, 220, 0.85)");
+  grad.addColorStop(0.4, "rgba(40, 220, 110, 0.55)");
+  grad.addColorStop(0.8, "rgba(20, 160, 80, 0.25)");
+  grad.addColorStop(1, "rgba(0, 120, 50, 0)");
+  ctx.globalAlpha = alpha * 0.8;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* 上昇する癒しのキラキラ十字星・光粒子 */
+  const sparkCount = 6;
+  for (let i = 0; i < sparkCount; i++) {
+    const angle = (i / sparkCount) * Math.PI * 2;
+    const dist = sz * 0.32 * (0.5 + p * 0.6);
+    const spx = cx + Math.cos(angle) * dist;
+    const spy = cy + Math.sin(angle) * dist * 0.8 - p * sz * 0.5;
+    const spr = Math.max(1, sz * 0.075 * (1 - p * 0.5));
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.fillStyle = (i % 2 === 0) ? "#88ffbb" : "#ffffff";
+    /* 十字星を描画 */
+    ctx.beginPath();
+    ctx.arc(spx, spy, spr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = Math.max(1, sz * 0.025);
+    ctx.beginPath();
+    ctx.moveTo(spx - spr * 1.6, spy);
+    ctx.lineTo(spx + spr * 1.6, spy);
+    ctx.moveTo(spx, spy - spr * 1.6);
+    ctx.lineTo(spx, spy + spr * 1.6);
+    ctx.stroke();
   }
   ctx.restore();
 }
