@@ -60,6 +60,8 @@ export const STATUS_BASE = {
 
 /** ベースが永続のとき、ボスへは有限化するステータス */
 const BOSS_FINITE_WHEN_PERMANENT = new Set(["seal"]);
+// 炎まといは通常敵・ボスとも同じターン数を維持する。
+const BOSS_FULL_DURATION = new Set(["flameMantle"]);
 
 /**
  * @param {string} status STATUS_BASE のキー
@@ -94,8 +96,8 @@ export function statusTurns(status, opts = {}) {
     return Math.max(1, Math.ceil(BOSS_SEAL_TURNS / 2));
   }
 
-  // ボスは付与時点で半分から始める。奇数は切り上げ、最低1ターンを保証する。
-  if (kind === "monster" && target?.isBoss && turns < PERMANENT_TURNS) {
+  // ボスは原則付与時点で半分から始める。奇数は切り上げ、最低1ターンを保証する。
+  if (kind === "monster" && target?.isBoss && turns < PERMANENT_TURNS && !BOSS_FULL_DURATION.has(status)) {
     return Math.max(1, Math.ceil(turns / 2));
   }
 
