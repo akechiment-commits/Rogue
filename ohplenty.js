@@ -146,7 +146,6 @@ export function castCaswack(monster, dungeon, player, messages) {
     sourceName: monster.name,
     originX: monster.x,
     originY: monster.y,
-    source: monster,
     turnsLeft: 1,
     cells,
   });
@@ -168,7 +167,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
 
     dungeon.pendingCaswacks = dungeon.pendingCaswacks.filter(pending => pending !== caswack);
 
-    const source = dungeon.monsters?.find(m => m.id === caswack.sourceId || m === caswack.source);
+    const source = dungeon.monsters?.find(m => m.id === caswack.sourceId);
     if (source) {
       delete source._isCaswackCasting;
     }

@@ -106,7 +106,6 @@ export function castPetroBreath(monster, dungeon, player, messages) {
     sourceName: monster.name,
     originX: monster.x,
     originY: monster.y,
-    source: monster,
     turnsLeft: 1,
     cells,
   });
@@ -130,7 +129,7 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
     dungeon.pendingPetroBreaths = dungeon.pendingPetroBreaths.filter(pending => pending !== breath);
 
     // 予兆の中断判定：本体が不在・死亡・封印・行動不能・強制移動（位置ズレ）しているなら中断
-    const source = dungeon.monsters?.find(m => m.id === breath.sourceId || m === breath.source);
+    const source = dungeon.monsters?.find(m => m.id === breath.sourceId);
     if (source) {
       delete source._isPetroBreathing;
     }
