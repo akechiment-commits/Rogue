@@ -106,14 +106,10 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
   };
 
   const applyFireToPlayer = () => {
-    const pdef = calcPlayerDefense(pl);
-    // 基礎火力は攻撃力の1.5倍（大ダメージ）
-    const baseAtk = Math.floor(m.atk * 1.5);
-    let dmg = calcAtkDefDmg(baseAtk, pdef, { defWeight: 1.5 });
-
-    // 炎耐性軽減
+    // 防御力無視の固定70ダメージ（耐性でのみ軽減）
+    const baseDmg = 70;
     const hasProt = hasFireResist(pl);
-    dmg = reduceFireDamage(dmg, pl);
+    let dmg = reduceFireDamage(baseDmg, pl);
 
     // 油まみれ判定（炎2倍）
     const oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
@@ -136,7 +132,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
   };
 
   const applyFireToMon = (victim) => {
-    const baseDmg = calcAtkDefDmg(Math.floor(m.atk * 1.5), victim.def || 0, { defWeight: 1 });
+    const baseDmg = 70;
     const oilyMult = (victim.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === victim.x && t.y === victim.y) ? 2 : 1;
     const finalDmg = baseDmg * oilyMult;
     victim.hp -= finalDmg;

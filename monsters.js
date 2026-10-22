@@ -1588,7 +1588,8 @@ export const MIREU = {
   name: "ミレウ", hp: 1400, atk: 105, def: 60, exp: 14000,
   speed: 1, tile: 254, kind: "dragon", baseKind: "boss_mireu",
   isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, bodySize: 3,
-  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤーに50%でハイパーサーミックブレス（炎属性の大ダメージブレス）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
+  meteorDamage: 80, meteorImmune: true, meteorInterval: 4,
+  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤーに50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに80ダメージの隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU];
@@ -6134,6 +6135,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.baseKind === "boss_mireu" && _moveOnly) {
     delete m._hyperthermicBreathReady;
     delete m._spikeFlailReady;
+    delete m._meteorReady;
     delete m._absoluteTerrorReady;
   }
   if (m.baseKind === "boss_mireu" && canUseMireuSpecial(m) &&
@@ -6153,6 +6155,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
       if (canSee) {
+        // プレイヤーが視界内なら10%でメテオ
+        if (canCastMeteor(m, dg) && !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg)) {
+          if (m.alwaysUseSpecial || Math.random() < 0.10) {
+            m._meteorReady = true;
+            return;
+          }
+        }
         // プレイヤーが視界内なら10%でアブソルートテラー
         if (m.alwaysUseSpecial || Math.random() < 0.10) {
           m._absoluteTerrorReady = true;
@@ -6171,6 +6180,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m.turnAttacks++;
       mireuHyperthermicBreath(m, dg, pl, ml, opts);
       return;
+    }
+    if (m._meteorReady) {
+      delete m._meteorReady;
+      if (castMeteor(m, dg, pl, ml)) {
+        m.turnAttacks++;
+        return;
+      }
     }
     if (m._absoluteTerrorReady) {
       delete m._absoluteTerrorReady;

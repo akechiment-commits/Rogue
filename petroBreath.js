@@ -142,6 +142,9 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
       (source.petrifiedTurns || 0) > 0 ||
       (source.frozenTurns || 0) > 0 ||
       (source.knockdownTurns || 0) > 0 ||
+      source.blind ||
+      (source.confusedTurns || 0) > 0 ||
+      source.bewitched ||
       source.x !== breath.originX ||
       source.y !== breath.originY;
 
