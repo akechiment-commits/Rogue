@@ -1188,7 +1188,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.nextExp = Math.floor(p.nextExp * 1.5);
       adjustPlayerBaseMaxHp(p, 5);
       p.hp = Math.min(p.hp + 10, p.maxHp);
-      p.atk++;
+      p.atk += (p.level % 2 === 0) ? 2 : 1;
       if (p.level % 3 === 0) { p.def++; p.maxMp++; }
       ml.push(`レベルアップ！Lv.${p.level}！`);
     }

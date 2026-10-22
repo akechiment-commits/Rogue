@@ -32,6 +32,21 @@ describe("レベルダウンの罠", () => {
     expect(ml.some((message) => message.includes("レベルが1下がった"))).toBe(true);
   });
 
+  it("偶数レベルからのレベルダウン時は攻撃力が2下がる", () => {
+    const p = makePlayer({
+      level: 2, hp: 35, maxHp: 35, atk: 7, def: 0, mp: 20, maxMp: 20,
+      exp: 0, nextExp: 15,
+    });
+    const dg = makeEmptyDg();
+    const ml = [];
+
+    fireTrapPlayer({ ...levelDownTrap, x: p.x, y: p.y, id: "ld-player-2" }, p, dg, ml);
+
+    expect(p.level).toBe(1);
+    expect(p.maxHp).toBe(30);
+    expect(p.atk).toBe(5);
+  });
+
   it("レベル1のプレイヤーには何も起こらない", () => {
     const p = makePlayer({ level: 1, maxHp: 30, hp: 30, atk: 5, exp: 9, nextExp: 10 });
     const before = { ...p };

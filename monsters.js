@@ -855,7 +855,7 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
  *    コメントの「N〜M階」は minFloor〜maxFloor に対応。
  * ── */
 export const MONS = [
-  { name: "ネズミ",       hp: 10,  atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 }, intermediate: { min: 1, max: 3 }, advanced: { min: 1, max: 3 } },
+  { name: "ネズミ",       hp: 9,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 }, intermediate: { min: 1, max: 3 }, advanced: { min: 1, max: 3 } },
     levels: [
       { name: "殺人ネズミ",         hp: 16,  atk: 22, def: 1,  exp: 28, dungeonFloors: { advanced: { min: 8, max: 9 } } },
       { name: "ものすごいネズミ",   hp: 28,  atk: 42, def: 2,  exp: 110, dungeonFloors: { advanced: { min: 14, max: 15 } } },

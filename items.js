@@ -2761,7 +2761,8 @@ export function applyPlayerLevelDown(p, ml) {
   p.level = currentLevel - 1;
   adjustPlayerBaseMaxHp(p, -5);
   setPlayerHpForCapacityChange(p, Math.min(p.hp ?? p.maxHp, p.maxHp));
-  p.atk = Math.max(1, (p.atk || 1) - 1);
+  const atkLoss = (currentLevel % 2 === 0) ? 2 : 1;
+  p.atk = Math.max(1, (p.atk || 1) - atkLoss);
   /* Game.jsx のレベルアップ処理はLv3,6,...到達時だけ防御力と最大MPを増やす。 */
   if (currentLevel % 3 === 0) {
     p.def = Math.max(0, (p.def || 0) - 1);
