@@ -148,11 +148,9 @@ export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOve
 /** 火ダルマの炎特性を一時的に他の敵へ付与する。 */
 export function applyMonsterFlameMantle(monster, messages = null, turns = null) {
   if (!monster || (monster.hp ?? 1) <= 0 || (monster.soakedTurns || 0) > 0) return false;
-  if (blockLargeMonsterStatus(monster, "flameMantle", messages)) return false;
   if (turns == null) turns = statusTurns("flameMantle", { kind: "monster", target: monster });
   const previous = monster.flameMantleTurns || 0;
   monster.flameMantleTurns = Math.max(previous, turns);
-  startLargeMonsterStatusCooldown(monster, "flameMantle");
   if (messages && monster.flameMantleTurns > previous) {
     messages.push(previous > 0
       ? `${monster.name}の炎が強まった！(${monster.flameMantleTurns}ターン)`

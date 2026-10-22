@@ -66,11 +66,16 @@ export function taisaijinBlazeSpike(m, dg, ml) {
   m.turnAttacks = monEffectiveMaxAttacks(m);
   if (inMagicSealRoom(m.x, m.y, dg)) {
     ml.push(`${m.name}はブレイズスパイクを唱えようとしたが、魔封じの魔方陣で封じられた！`);
-    return;
+    return false;
+  }
+  if ((m.soakedTurns || 0) > 0) {
+    ml.push(`${m.name}はずぶ濡れで炎をまとえなかった！`);
+    return false;
   }
   ml.push(`${m.name}はブレイズスパイクを唱えた！`);
-  applyMonsterFlameMantle(m, ml, 10);
-  pushFlameMantleAnim(m.x, m.y);
+  const applied = applyMonsterFlameMantle(m, ml, 10);
+  if (applied) pushFlameMantleAnim(m.x, m.y);
+  return applied;
 }
 
 /**

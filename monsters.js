@@ -6030,7 +6030,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
     if (_moveOnly) {
       // 1. ブレイズスパイク（視界内10% & 未発動中）
-      if (canSee && (m.flameMantleTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+      if (canSee && (m.soakedTurns || 0) <= 0 && (m.flameMantleTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
         m._blazeSpikeReady = true;
         return;
       }
