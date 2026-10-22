@@ -196,7 +196,7 @@ async function removeExtraSlot(file, deleteImage) {
 }
 
 function portraitUrl(file) {
-  return `/tiles/Character/${file}.png?v=${Date.now()}`;
+  return `/tiles/Character/${file}.webp?v=${Date.now()}`;
 }
 
 window.addEventListener("resize", () => {

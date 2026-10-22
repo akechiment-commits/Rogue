@@ -920,7 +920,8 @@ tiles/
     mon1/           ← スタイル3メインスプライト（tile_${id}.png）
   items/            ← ペン・薬のランダムグラフィックプール
   chip3_v2/         ← 武器・防具・指輪等の素材（切り出し前）
-  Character/        ← プレイヤー立ち絵（254枚、状況別PNG）
+  Character/      ← プレイヤー立ち絵の原本PNG（状況別）
+  CharacterOptimized/ ← 配信用WebP（自動生成）
 public/
   tiles/            ← スタイル2（DawnLike）スプライト ※優先度高
 ```
@@ -934,7 +935,9 @@ public/
 
 ### 立ち絵ファイル（`tiles/Character/`）
 
-254枚のPNG。場面に応じて命名：
+立ち絵の原本は `tiles/Character/` にPNGで保存する。デプロイには `tiles/CharacterOptimized/` の同名WebPを配信し、生成・更新は `npm run portraits:webp` で行う。WebPは品質90で透過を保ち、原本PNGは編集用に保持する。
+
+場面に応じて命名：
 
 | プレフィックス | 内容 |
 |---|---|

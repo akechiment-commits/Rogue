@@ -16,6 +16,7 @@ import {
 } from "./gameAssetManifest.js";
 
 const PORTRAIT_DIR = path.resolve(process.cwd(), "tiles/Character");
+const PORTRAIT_WEBP_DIR = path.resolve(process.cwd(), "tiles/CharacterOptimized");
 const EXTRA_SLOTS_PATH = path.resolve(process.cwd(), "portrait-extra-slots.json");
 const SAFE_PORTRAIT_NAME = /^[a-z][a-z0-9_]*$/;
 
@@ -233,12 +234,14 @@ function serveRootTilesPlugin() {
     }
   }
 
-  function copyRootPngsSync(src, dst, allowedNames) {
+  function copyPortraitWebpsSync(src, dst, allowedNames) {
     fs.mkdirSync(dst, { recursive: true });
-    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-      if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".png") continue;
-      if (!allowedNames.has(path.basename(entry.name, path.extname(entry.name)))) continue;
-      fs.copyFileSync(path.join(src, entry.name), path.join(dst, entry.name));
+    for (const name of allowedNames) {
+      const sourcePath = path.join(src, `${name}.webp`);
+      if (!fs.existsSync(sourcePath)) {
+        throw new Error(`Missing optimized portrait asset: ${sourcePath}. Run npm run portraits:webp.`);
+      }
+      fs.copyFileSync(sourcePath, path.join(dst, `${name}.webp`));
     }
   }
 
@@ -267,9 +270,23 @@ function serveRootTilesPlugin() {
         const publicPath = path.resolve(process.cwd(), "public", url.slice(1));
         if (fs.existsSync(publicPath)) return next();
 
-        const filePath = path.resolve(process.cwd(), url.slice(1));
+        let filePath = path.resolve(process.cwd(), url.slice(1));
         // パストラバーサル防止
         if (!filePath.startsWith(process.cwd())) return next();
+
+        // 開発時は最適化済みWebPが未生成でも、元PNGを同じ表示URLで確認できる。
+        if (
+          !fs.existsSync(filePath) &&
+          url.startsWith("/tiles/Character/") &&
+          url.endsWith(".webp")
+        ) {
+          const name = path.basename(url, ".webp");
+          if (!SAFE_PORTRAIT_NAME.test(name)) return next();
+          const optimizedPath = path.join(PORTRAIT_WEBP_DIR, `${name}.webp`);
+          filePath = fs.existsSync(optimizedPath)
+            ? optimizedPath
+            : path.join(PORTRAIT_DIR, `${name}.png`);
+        }
 
         if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
           const ext = path.extname(filePath).toLowerCase();
@@ -307,8 +324,12 @@ function serveRootTilesPlugin() {
         [...PEN_ITEM_ASSET_NAMES, ...POTION_ITEM_ASSET_NAMES],
       );
 
-      // カタログ登録済みの直下PNGだけ配信し、下書き・未登録候補・バックアップは含めない。
-      copyRootPngsSync(path.join(TILES_ROOT, "Character"), path.join(distDir, "Character"), portraitFiles);
+      // カタログ登録済みの立ち絵だけ配信し、原本PNG・下書き・未登録候補・バックアップは含めない。
+      copyPortraitWebpsSync(
+        PORTRAIT_WEBP_DIR,
+        path.join(distDir, "Character"),
+        portraitFiles,
+      );
     },
   };
 }

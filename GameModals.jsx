@@ -3774,7 +3774,7 @@ function fitPortraitImageToFrame(img, frame) {
   const gutter = 8;
   const availableWidth = Math.max(1, frame.clientWidth - gutter * 2);
   const availableHeight = Math.max(1, frame.clientHeight - gutter * 2);
-  const hasDashSheetFringe = img.currentSrc.split(/[?#]/, 1)[0].endsWith("/tiles/Character/battle_dash.png");
+  const hasDashSheetFringe = img.currentSrc.split(/[?#]/, 1)[0].endsWith("/tiles/Character/battle_dash.webp");
   const cleanLeft = hasDashSheetFringe ? Math.ceil(width * 0.295) : 0;
   let left = 0;
   let top = 0;
@@ -3869,7 +3869,7 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
         {showPortrait && (
           <img
             ref={portraitImageRef}
-            src={portraitSrc || "/tiles/Character/stand_normal.png"}
+            src={portraitSrc || "/tiles/Character/stand_normal.webp"}
             alt="portrait"
             onLoad={(e) => fitPortraitImageToFrame(e.currentTarget, portraitFrameRef.current)}
             onError={(e) => {
@@ -4572,12 +4572,12 @@ export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endi
           }}
         >
           <img
-            src={clearPortrait || "/tiles/Character/reaction_joy.png"}
+            src={clearPortrait || "/tiles/Character/reaction_joy.webp"}
             alt="clear"
             onError={(e) => {
               if (e.currentTarget.dataset.clearFallbackApplied === "1") return;
               e.currentTarget.dataset.clearFallbackApplied = "1";
-              e.currentTarget.src = "/tiles/Character/reaction_joy.png";
+              e.currentTarget.src = "/tiles/Character/reaction_joy.webp";
             }}
             style={{ width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: "drop-shadow(0 0 20px #ffd700aa)" }}
           />

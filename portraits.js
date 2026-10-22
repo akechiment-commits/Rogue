@@ -18,8 +18,8 @@ export const PORTRAIT_WALK_STEPS_MIN = 12;
 export const PORTRAIT_WALK_STEPS_JITTER = 8;
 export const PORTRAIT_FALLBACK = "stand_normal";
 
-/* Portrait PNGs are replaced in place; bump this key to prevent stale browser/CDN cache. */
-export const CHAR_PATH = (name) => `/tiles/Character/${name}.png?v=20261011-portrait-style-unified`;
+/* Keep PNG sources editable and serve their compressed WebP copies in production. */
+export const CHAR_PATH = (name) => `/tiles/Character/${name}.webp?v=20261023-portrait-webp`;
 
 export const PORTRAIT_SETS = buildPortraitSets(MERGED_PORTRAIT_CATEGORIES);
 
