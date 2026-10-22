@@ -30,7 +30,13 @@ import {
   mireuSpikeFlail,
   mireuAbsoluteTerror,
 } from './mireu.js';
-import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
+import {
+  rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt,
+  ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle,
+  getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg,
+  calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
+  resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
+} from "./utils.js";
 import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
@@ -513,23 +519,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   const _fireMantleAttack = monHasFlameMantle(m);
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
-  const _cannotEvade = isEvasionDisabledByStatus(pl);
-  /* dodge: 25% 完全回避 */
-  if (!_cannotEvade && hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
-    ml.push(`${m.name}の攻撃をひらりとかわした！`);
-    onPlayerMiss?.(m);
-    return;
-  }
-  /* オリーブオイル回避: 15% */
-  if (!_cannotEvade && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
-    ml.push(`オリーブオイルの力で${m.name}の攻撃をするりとかわした！`);
-    onPlayerMiss?.(m);
-    return;
-  }
-  /* 10% ミス */
-  if (!_cannotEvade && Math.random() >= 0.90) {
-    ml.push(`${m.name}の攻撃は外れた！`);
-    onPlayerMiss?.(m);
+  if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "攻撃", onMiss: onPlayerMiss })) {
     return;
   }
   const pdef = ignoreDefense ? 0 : calcPlayerDef(pl);
@@ -3293,6 +3283,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
+      if (_dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+        ml.push(`オリーブオイルの力で${boltName}をするりとかわした！`);
+        if (onMiss) onMiss(_tx, _ty, ml);
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
+      }
       if (!inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
         ml.push(`祝福された聖域の加護が${boltName}を防いだ！`);
         if (onMiss) onMiss(_tx, _ty, ml);
@@ -3325,6 +3320,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     if (_mon) {
       if (monSubmergesProjectiles(_mon)) {
         ml.push(`${_mon.name}が潜って${boltName}をかわした！`);
+        _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
+        continue;
+      }
+      if (checkMonsterEvasion(_mon, { baseMissRate: 0.05 })) {
+        ml.push(_mon.baseKind === "boss_mireu" ? `${_mon.name}は攻撃をかわした！` : `${_mon.name}への${boltName}は外れた！`);
         _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
         continue;
       }

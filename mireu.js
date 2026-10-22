@@ -1,6 +1,7 @@
 import {
   MW, MH, T, uid, calcAtkDefDmg, calcPlayerDefense, randomTeleportDest,
-  stepProjectile, playerHpEffectLabel, rng, consumeBarrier
+  stepProjectile, playerHpEffectLabel, rng, consumeBarrier,
+  checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from './utils.js';
 import { monsterPointDistance, monsterBodyCells, canPlaceMonsterBody, monsterOccupiesCell } from './monsterGeometry.js';
 import { pushAnim, pushSplashAnim } from './animEvents.js';
@@ -191,7 +192,11 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
  * 特技2: スパイクフレイル
  * 隣接時25%で発動。隣接マス（周囲外周マス）無差別に3倍ダメージ＋テレポート効果
  */
-export function mireuSpikeFlail(m, dg, pl, ml, opts = {}) {
+export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, onPlayerMiss = null, luFn = null) {
+  const onHit = onPlayerHit || opts.onPlayerHit;
+  const onMiss = onPlayerMiss || opts.onPlayerMiss;
+  const lu = luFn || opts.luFn || null;
+
   ml.push(`${m.name}の尻尾が棘だらけの鉄球と化して唸る！スパイクフレイル！`);
   pushSplashAnim(m.x, m.y, "#0088dd");
 
@@ -202,16 +207,18 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}) {
   const plOnSanc = !inMagicSealRoom(pl.x, pl.y, dg) &&
     !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
 
-  if (plInFlail) {
+  if (plInFlail && pl.hp > 0) {
     if (plOnSanc) {
       ml.push(`聖域の加護が${m.name}のスパイクフレイルを防いだ！`);
+    } else if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "スパイクフレイル", onMiss })) {
+      // 回避成功：ダメージおよびテレポートなし
     } else {
       // 3倍ダメージ
       const baseDmg = calcAtkDefDmg(m.atk * 3, calcPlayerDefense(pl), { defWeight: 1.5 });
       const dmg = Math.max(1, baseDmg + rng(-3, 3));
       pl.deathCause = `${m.name}のスパイクフレイルで`;
       pl.hp -= dmg;
-      opts.onPlayerHit?.(dmg, m);
+      onHit?.(dmg, m);
       ml.push(`強烈な鉄球の一撃が${plName(pl)}を粉砕！${dmg}ダメージ！`);
 
       // テレポート効果（ランダムテレポート）
@@ -232,6 +239,11 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}) {
     if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
     if (consumeBarrier(victim, ml)) continue;
 
+    if (checkMonsterEvasion(victim, { baseMissRate: 0.05 })) {
+      ml.push(victim.baseKind === "boss_mireu" ? `${victim.name}は攻撃をかわした！` : `${victim.name}への攻撃は外れた！`);
+      continue;
+    }
+
     const vDmg = Math.max(1, calcAtkDefDmg(m.atk * 3, victim.def || 0, { defWeight: 1 }) + rng(-2, 2));
     victim.hp -= vDmg;
     ml.push(`スパイクフレイルが${victim.name}を強打！${vDmg}ダメージ！`);
@@ -244,7 +256,7 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}) {
         ml.push(`${victim.name}は吹き飛ばされてテレポートした！`);
       }
     } else {
-      killMonster(victim, dg, pl, ml, opts.luFn || null, false, m);
+      killMonster(victim, dg, pl, ml, lu, false, m);
     }
   }
 }

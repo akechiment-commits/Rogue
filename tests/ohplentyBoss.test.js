@@ -231,6 +231,7 @@ describe('上級25階ボス オープレンティ', () => {
 
   describe('特技3: デストラップ', () => {
     it('周囲1マスに無差別ダメージ＋金縛り（プレイヤー10ターン）を付与する', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.50);
       const s = setup({ x: 6, y: 10 });
       const otherMonster = {
         id: 'slime',
@@ -253,6 +254,71 @@ describe('上級25階ボス オープレンティ', () => {
       expect(otherMonster.hp).toBeLessThan(500);
       expect(otherMonster.paralyzed).toBe(true);
       expect(s.messages.some(m => m.includes('デストラップ'))).toBe(true);
+    });
+
+    it('通常攻撃同様に回避可能（見切りの盾、オリーブオイル、通常ミス率10%）', () => {
+      // 1. 見切りの盾による回避
+      const s1 = setup();
+      s1.player.x = 11;
+      s1.player.y = 10;
+      s1.player.armor = { name: '見切りの盾', ability: 'dodge' };
+      vi.spyOn(Math, 'random').mockReturnValue(0.10); // < 0.25 -> 回避
+      ohplentyDeathTrap(s1.boss, s1.dungeon, s1.player, s1.messages);
+      expect(s1.player.hp).toBe(200); // ノーダメージ
+      expect(s1.player.paralyzeTurns || 0).toBe(0); // 金縛りなし
+      expect(s1.messages.some(m => m.includes('デストラップをひらりとかわした'))).toBe(true);
+
+      // 2. オリーブオイルによる回避
+      const s2 = setup();
+      s2.player.x = 11;
+      s2.player.y = 10;
+      s2.player.oliveEvasionTurns = 5;
+      vi.spyOn(Math, 'random').mockReturnValue(0.10); // < 0.15 -> 回避
+      ohplentyDeathTrap(s2.boss, s2.dungeon, s2.player, s2.messages);
+      expect(s2.player.hp).toBe(200);
+      expect(s2.player.paralyzeTurns || 0).toBe(0);
+      expect(s2.messages.some(m => m.includes('オリーブオイルの力で') && m.includes('かわした'))).toBe(true);
+
+      // 3. 通常ミス率（10%）
+      const s3 = setup();
+      s3.player.x = 11;
+      s3.player.y = 10;
+      vi.spyOn(Math, 'random').mockReturnValue(0.95); // >= 0.90 -> ミス
+      ohplentyDeathTrap(s3.boss, s3.dungeon, s3.player, s3.messages);
+      expect(s3.player.hp).toBe(200);
+      expect(s3.player.paralyzeTurns || 0).toBe(0);
+      expect(s3.messages.some(m => m.includes('デストラップは外れた'))).toBe(true);
+    });
+
+    it('回避不能な状態異常中（睡眠・金縛り・凍結・移動封じ・鈍足）は回避できない', () => {
+      const s = setup();
+      s.player.x = 11;
+      s.player.y = 10;
+      s.player.sleepTurns = 3;
+      s.player.armor = { name: '見切りの盾', ability: 'dodge' };
+      vi.spyOn(Math, 'random').mockReturnValue(0.10);
+      ohplentyDeathTrap(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.player.hp).toBeLessThan(200);
+      expect(s.messages.some(m => m.includes('デストラップ'))).toBe(true);
+    });
+
+    it('他モンスターもデストラップを回避できる', () => {
+      const s = setup();
+      s.player.x = 20;
+      s.player.y = 20;
+      const otherMonster = {
+        id: 'mon1',
+        name: 'スライム',
+        x: 11,
+        y: 10,
+        hp: 500,
+        maxHp: 500,
+      };
+      s.dungeon.monsters.push(otherMonster);
+      vi.spyOn(Math, 'random').mockReturnValue(0.01); // < 0.05 -> 回避
+      ohplentyDeathTrap(s.boss, s.dungeon, s.player, s.messages);
+      expect(otherMonster.hp).toBe(500);
+      expect(s.messages.some(m => m.includes('スライムへの攻撃は外れた'))).toBe(true);
     });
   });
 });

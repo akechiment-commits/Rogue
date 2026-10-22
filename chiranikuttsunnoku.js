@@ -1,4 +1,7 @@
-import { calcAtkDefDmg, calcPlayerDefense, rng, consumeBarrier } from './utils.js';
+import {
+  calcAtkDefDmg, calcPlayerDefense, rng, consumeBarrier,
+  checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
+} from './utils.js';
 import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster, applyPlayerTrip } from './items.js';
 import { monEffectiveFloat } from './monTraits.js';
 import { monsterPointDistance, monsterBodyCells } from './monsterGeometry.js';
@@ -46,11 +49,13 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
   const plOnSanc = !inMagicSealRoom(pl.x, pl.y, dg) &&
     !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
 
-  if (plInQuake) {
+  if (plInQuake && pl.hp > 0) {
     if (isPlayerFloating(pl, dg)) {
       ml.push(`${plName(pl)}は宙に浮いているためアースブレイカーの揺れを受けない！`);
     } else if (plOnSanc) {
       ml.push(`聖域の加護が${m.name}のアースブレイカーを防いだ！`);
+    } else if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "アースブレイカー", onMiss })) {
+      // 回避成功：ダメージ・転倒なし
     } else {
       const dmg = Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2));
       pl.hp -= dmg;
@@ -82,6 +87,11 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
     }
 
     if (consumeBarrier(victim, ml)) continue;
+
+    if (checkMonsterEvasion(victim, { baseMissRate: 0.05 })) {
+      ml.push(victim.baseKind === "boss_mireu" ? `${victim.name}は攻撃をかわした！` : `${victim.name}への攻撃は外れた！`);
+      continue;
+    }
 
     const vDef = victim.def || 0;
     const vDmg = Math.max(1, calcAtkDefDmg(effAtk, vDef, { defWeight: 1, variance: false }) + rng(-2, 2));

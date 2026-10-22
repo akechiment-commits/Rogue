@@ -637,6 +637,46 @@ export function checkMonsterEvasion(target, { sureHit = false, baseMissRate = 0.
   return random() < missChance;
 }
 
+/**
+ * モンスターの物理攻撃に対するプレイヤーの回避判定。
+ * 見切りの盾（25%）、オリーブオイル（15%）、基礎ミス率（10%）を判定する。
+ * 対象が回避不能な状態異常（睡眠・金縛り・凍結・移動封じ・鈍足）のときは回避不可。
+ * @param {Object} attacker 攻撃モンスター
+ * @param {Object} player プレイヤー
+ * @param {string[]} messages メッセージ配列
+ * @param {Object} [opts] オプション（attackName, onMiss, random）
+ * @returns {boolean} 回避・ミスした場合は true、命中した場合は false
+ */
+export function checkPlayerPhysicalAttackEvasion(attacker, player, messages, { attackName = "攻撃", onMiss = null, random = Math.random } = {}) {
+  if (!player) return false;
+  if (isEvasionDisabledByStatus(player)) return false;
+
+  const attackerName = attacker?.name || "敵";
+
+  // 1. 見切りの盾 (dodge ability): 25% 完全回避
+  if (hasAbility(player.armor, "dodge") && random() < 0.25) {
+    messages?.push(`${attackerName}の${attackName}をひらりとかわした！`);
+    onMiss?.(attacker);
+    return true;
+  }
+
+  // 2. オリーブオイル (oliveEvasionTurns): 15% 完全回避
+  if ((player.oliveEvasionTurns || 0) > 0 && random() < 0.15) {
+    messages?.push(`オリーブオイルの力で${attackerName}の${attackName}をするりとかわした！`);
+    onMiss?.(attacker);
+    return true;
+  }
+
+  // 3. 通常ミス率: 10% (random >= 0.90)
+  if (random() >= 0.90) {
+    messages?.push(`${attackerName}の${attackName}は外れた！`);
+    onMiss?.(attacker);
+    return true;
+  }
+
+  return false;
+}
+
 export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }

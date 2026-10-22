@@ -189,6 +189,7 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
 
   describe('特技2: スパイクフレイル', () => {
     it('隣接マス無差別に3倍ダメージを与え、被弾者をテレポートさせる', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.50);
       const s = setup();
       // プレイヤーをボス(3x3)の隣接マス(10, 8)に配置
       s.player.x = 10;
@@ -217,6 +218,75 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       // 他モンスターも大ダメージ＆テレポート
       expect(otherMon.hp).toBeLessThan(150);
       expect(s.messages.some(m => m.includes('スライムは吹き飛ばされてテレポートした'))).toBe(true);
+    });
+
+    it('通常攻撃同様に回避可能（見切りの盾、オリーブオイル、通常ミス率10%）', () => {
+      // 1. 見切りの盾による回避
+      const s1 = setup();
+      s1.player.x = 10;
+      s1.player.y = 8;
+      s1.player.armor = { name: '見切りの盾', ability: 'dodge' };
+      vi.spyOn(Math, 'random').mockReturnValue(0.10); // < 0.25 -> 回避
+      mireuSpikeFlail(s1.boss, s1.dungeon, s1.player, s1.messages);
+      expect(s1.player.hp).toBe(200); // ノーダメージ
+      expect(s1.player.x).toBe(10); // テレポートなし
+      expect(s1.player.y).toBe(8);
+      expect(s1.messages.some(m => m.includes('スパイクフレイルをひらりとかわした'))).toBe(true);
+
+      // 2. オリーブオイルによる回避
+      const s2 = setup();
+      s2.player.x = 10;
+      s2.player.y = 8;
+      s2.player.oliveEvasionTurns = 5;
+      vi.spyOn(Math, 'random').mockReturnValue(0.10); // < 0.15 -> 回避
+      mireuSpikeFlail(s2.boss, s2.dungeon, s2.player, s2.messages);
+      expect(s2.player.hp).toBe(200);
+      expect(s2.player.x).toBe(10);
+      expect(s2.player.y).toBe(8);
+      expect(s2.messages.some(m => m.includes('オリーブオイルの力で') && m.includes('かわした'))).toBe(true);
+
+      // 3. 通常ミス率（10%）
+      const s3 = setup();
+      s3.player.x = 10;
+      s3.player.y = 8;
+      vi.spyOn(Math, 'random').mockReturnValue(0.95); // >= 0.90 -> ミス
+      mireuSpikeFlail(s3.boss, s3.dungeon, s3.player, s3.messages);
+      expect(s3.player.hp).toBe(200);
+      expect(s3.player.x).toBe(10);
+      expect(s3.player.y).toBe(8);
+      expect(s3.messages.some(m => m.includes('スパイクフレイルは外れた'))).toBe(true);
+    });
+
+    it('回避不能な状態異常中（睡眠・金縛り・凍結・移動封じ・鈍足）は回避できない', () => {
+      const s = setup();
+      s.player.x = 10;
+      s.player.y = 8;
+      s.player.hp = 400;
+      s.player.sleepTurns = 3;
+      s.player.armor = { name: '見切りの盾', ability: 'dodge' };
+      vi.spyOn(Math, 'random').mockReturnValue(0.10); // 回避可能なら見切り発動するが、睡眠中は不可
+      mireuSpikeFlail(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.player.hp).toBeLessThan(400); // 被弾する
+      expect(s.messages.some(m => m.includes('スパイクフレイル'))).toBe(true);
+    });
+
+    it('他モンスターもスパイクフレイルを回避できる', () => {
+      const s = setup();
+      s.player.x = 20;
+      s.player.y = 20; // 範囲外
+      const otherMon = {
+        id: 'mon1',
+        name: 'スライム',
+        x: 8,
+        y: 10,
+        hp: 300,
+        maxHp: 300,
+      };
+      s.dungeon.monsters.push(otherMon);
+      vi.spyOn(Math, 'random').mockReturnValue(0.01); // < 0.05 -> 回避
+      mireuSpikeFlail(s.boss, s.dungeon, s.player, s.messages);
+      expect(otherMon.hp).toBe(300);
+      expect(s.messages.some(m => m.includes('スライムへの攻撃は外れた'))).toBe(true);
     });
   });
 

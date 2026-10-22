@@ -76,6 +76,7 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
 
   describe("特技1: アースブレイカー", () => {
     it("周囲1マスに無差別にダメージ＋転倒を与える（プレイヤーは所持品落とし、モンスターは2ターン行動不能）", () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.50);
       const dg = makeEmptyDg();
       const boss = {
         ...CHIRANIKUTSUNNOKU,
@@ -124,6 +125,59 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
       expect(minion.hp).toBeLessThan(200);
       expect(minion.knockdownTurns).toBe(2);
       expect(ml.some(m => m.includes("ゴブリンは激しい地響きで転倒した！"))).toBe(true);
+    });
+
+    it("通常攻撃同様に回避可能（見切りの盾、オリーブオイル、通常ミス率10%）", () => {
+      // 1. 見切りの盾による回避
+      const dg1 = makeEmptyDg();
+      const boss1 = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10, hp: 720 };
+      const pl1 = makePlayer({ x: 12, y: 10, hp: 100, inventory: [{ id: "it1", name: "薬" }] });
+      pl1.armor = { name: "見切りの盾", ability: "dodge" };
+      dg1.monsters = [boss1];
+      const ml1 = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.10); // < 0.25 -> 回避
+      chiranikuttsunnokuEarthbreaker(boss1, dg1, pl1, ml1);
+      expect(pl1.hp).toBe(100);
+      expect(pl1.inventory.length).toBe(1); // アイテム落としなし
+      expect(ml1.some(m => m.includes("アースブレイカーをひらりとかわした"))).toBe(true);
+
+      // 2. オリーブオイルによる回避
+      const dg2 = makeEmptyDg();
+      const boss2 = { ...CHIRANIKUTSUNNOKU, id: "chira-2", x: 10, y: 10, hp: 720 };
+      const pl2 = makePlayer({ x: 12, y: 10, hp: 100, inventory: [{ id: "it1", name: "薬" }] });
+      pl2.oliveEvasionTurns = 5;
+      dg2.monsters = [boss2];
+      const ml2 = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.10); // < 0.15 -> 回避
+      chiranikuttsunnokuEarthbreaker(boss2, dg2, pl2, ml2);
+      expect(pl2.hp).toBe(100);
+      expect(pl2.inventory.length).toBe(1);
+      expect(ml2.some(m => m.includes("オリーブオイルの力で") && m.includes("かわした"))).toBe(true);
+
+      // 3. 通常ミス率（10%）
+      const dg3 = makeEmptyDg();
+      const boss3 = { ...CHIRANIKUTSUNNOKU, id: "chira-3", x: 10, y: 10, hp: 720 };
+      const pl3 = makePlayer({ x: 12, y: 10, hp: 100, inventory: [{ id: "it1", name: "薬" }] });
+      dg3.monsters = [boss3];
+      const ml3 = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.95); // >= 0.90 -> ミス
+      chiranikuttsunnokuEarthbreaker(boss3, dg3, pl3, ml3);
+      expect(pl3.hp).toBe(100);
+      expect(pl3.inventory.length).toBe(1);
+      expect(ml3.some(m => m.includes("アースブレイカーは外れた"))).toBe(true);
+    });
+
+    it("他モンスターもアースブレイカーを回避できる", () => {
+      const dg = makeEmptyDg();
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10, hp: 720 };
+      const pl = makePlayer({ x: 20, y: 20 });
+      const minion = { id: "gob-1", name: "ゴブリン", x: 12, y: 10, hp: 200, maxHp: 200, def: 5 };
+      dg.monsters = [boss, minion];
+      const ml = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.01); // < 0.05 -> 回避
+      chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
+      expect(minion.hp).toBe(200);
+      expect(ml.some(m => m.includes("ゴブリンへの攻撃は外れた"))).toBe(true);
     });
 
     it("体幹の指輪を装備していればプレイヤーはアイテムを落とさない", () => {

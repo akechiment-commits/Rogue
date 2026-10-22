@@ -2,7 +2,10 @@ import { hasLOS } from './monsters.js';
 import { inMagicSealRoom, hasRingEffect, killMonster } from './items.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { plName } from './playerLabel.js';
-import { MW, MH, uid, T, calcAtkDefDmg, calcPlayerDefense, setPlayerHpForFixedEffect } from './utils.js';
+import {
+  MW, MH, uid, T, calcAtkDefDmg, calcPlayerDefense, setPlayerHpForFixedEffect,
+  checkPlayerPhysicalAttackEvasion, checkMonsterEvasion, consumeBarrier
+} from './utils.js';
 import { monsterOccupiesCell } from './monsterGeometry.js';
 import { pushPlayerKnockbackAnim, pushAnim } from './animEvents.js';
 import { statusTurns, applyMonsterParalyze } from './statusDuration.js';
@@ -295,6 +298,10 @@ export function drawCaswackWarnings(ctx, dungeon, sx, sy, tileSize) {
  * 周囲1マスに無差別攻撃 + 金縛り付与
  */
 export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, onPlayerMiss = null, luFn = null) {
+  const onHit = onPlayerHit || opts.onPlayerHit;
+  const onMiss = onPlayerMiss || opts.onPlayerMiss;
+  const lu = luFn || opts.luFn || null;
+
   m.turnAttacks = m.maxAttacks || 1;
   ml.push(`${m.name}のデストラップ！周囲に死の罠が炸裂した！`);
   pushAnim({ type: "deathTrap", x: m.x, y: m.y, color: "#d04070" });
@@ -304,20 +311,28 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
   // プレイヤーへの判定
   const playerHit = cells.some(c => c.x === pl.x && c.y === pl.y);
   if (playerHit && pl.hp > 0) {
-    const pdef = calcPlayerDefense(pl);
-    const dmg = Math.max(1, calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 }));
-    pl.deathCause = `${m.name}のデストラップで`;
-    pl.hp -= dmg;
-    onPlayerHit?.(dmg, m);
-    ml.push(`${m.name}のトラップが${plName(pl)}を襲う！${dmg}ダメージ！`);
+    const plOnSanc = !inMagicSealRoom(pl.x, pl.y, dg) &&
+      !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
+    if (plOnSanc) {
+      ml.push(`聖域の加護が${m.name}のデストラップを防いだ！`);
+    } else if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "デストラップ", onMiss })) {
+      // 回避成功：ダメージ・金縛りなし
+    } else {
+      const pdef = calcPlayerDefense(pl);
+      const dmg = Math.max(1, calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 }));
+      pl.deathCause = `${m.name}のデストラップで`;
+      pl.hp -= dmg;
+      onHit?.(dmg, m);
+      ml.push(`${m.name}のトラップが${plName(pl)}を襲う！${dmg}ダメージ！`);
 
-    if (pl.hp > 0) {
-      if (inMagicSealRoom(pl.x, pl.y, dg) || inMagicSealRoom(m.x, m.y, dg)) {
-        ml.push("魔封じの魔方陣が金縛りを防いだ！");
-      } else if (!isStatusImmune(pl, ml, "自分")) {
-        const pTurns = statusTurns("paralyze", { kind: "player" });
-        pl.paralyzeTurns = Math.max(pl.paralyzeTurns || 0, pTurns);
-        ml.push(`${plName(pl)}は金縛りで動けなくなった！(${pTurns}ターン)`);
+      if (pl.hp > 0) {
+        if (inMagicSealRoom(pl.x, pl.y, dg) || inMagicSealRoom(m.x, m.y, dg)) {
+          ml.push("魔封じの魔方陣が金縛りを防いだ！");
+        } else if (!isStatusImmune(pl, ml, "自分")) {
+          const pTurns = statusTurns("paralyze", { kind: "player" });
+          pl.paralyzeTurns = Math.max(pl.paralyzeTurns || 0, pTurns);
+          ml.push(`${plName(pl)}は金縛りで動けなくなった！(${pTurns}ターン)`);
+        }
       }
     }
   }
@@ -327,11 +342,16 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
     if (other === m || other.hp <= 0 || other.disguisedAsItem) continue;
     const hit = cells.some(c => monsterOccupiesCell(other, c.x, c.y));
     if (hit) {
+      if (consumeBarrier(other, ml)) continue;
+      if (checkMonsterEvasion(other, { baseMissRate: 0.05 })) {
+        ml.push(other.baseKind === "boss_mireu" ? `${other.name}は攻撃をかわした！` : `${other.name}への攻撃は外れた！`);
+        continue;
+      }
       const dmg = Math.max(1, calcAtkDefDmg(m.atk, other.def || 0, { defWeight: 1.0 }));
       other.hp -= dmg;
       ml.push(`${m.name}のトラップが${other.name}に直撃！${dmg}ダメージ！`);
       if (other.hp <= 0) {
-        killMonster(other, dg, pl, ml, luFn, false, m);
+        killMonster(other, dg, pl, ml, lu, false, m);
       } else {
         applyMonsterParalyze(other, { ml, name: other.name });
       }
