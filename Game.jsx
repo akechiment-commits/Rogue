@@ -5,7 +5,7 @@ import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } fro
 import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -2785,8 +2785,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             } else {
               /* 近接命中率95%（必中状態なら100%） */
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
-              if (!_meleeSureHit && !isEvasionDisabledByStatus(attackMon) && Math.random() >= 0.95) {
-                ml.push(`${attackMon.name}への攻撃は外れた！`);
+              if (checkMonsterEvasion(attackMon, { sureHit: _meleeSureHit, baseMissRate: 0.05 })) {
+                ml.push(attackMon.baseKind === "boss_mireu" ? `${attackMon.name}は攻撃をかわした！` : `${attackMon.name}への攻撃は外れた！`);
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
                 _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
                 acted = true;
@@ -3103,7 +3103,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       } else {
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, _srDrop(), ml, _stRft);
                       }
-                    } else if (_stM && !_srForceMiss && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
+                    } else if (_stM && !_srForceMiss && !checkMonsterEvasion(_stM, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 })) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                       if (_stM.type === "shopkeeper") markWanderingNpcHostile(_stM, dg, p, ml);
@@ -3228,7 +3228,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       },
                       onMonHit: (mon, mlx) => {
                         /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
-                        if (_srForceMiss || (!isEvasionDisabledByStatus(mon) && Math.random() >= 0.75)) {
+                        if (_srForceMiss || checkMonsterEvasion(mon, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.25 })) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
                           mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
                           const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _srDrop(), mlx, _mft);

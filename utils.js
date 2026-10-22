@@ -624,6 +624,19 @@ export function isEvasionDisabledByStatus(target) {
     (target?.frozenTurns || 0) > 0;
 }
 
+/**
+ * 敵の回避判定。必中フラグが真、または対象が回避不能な状態異常（眠り・金縛り・凍結・移動封じ・鈍足）のときは回避不可。
+ * ミレウ（boss_mireu）は必中でない攻撃を50%で回避する。
+ * それ以外の通常モンスターは baseMissRate（近接5%、飛び道具10%など）で判定。
+ */
+export function checkMonsterEvasion(target, { sureHit = false, baseMissRate = 0.05, random = Math.random } = {}) {
+  if (!target) return false;
+  if (sureHit) return false;
+  if (isEvasionDisabledByStatus(target)) return false;
+  const missChance = target.baseKind === "boss_mireu" ? 0.50 : baseMissRate;
+  return random() < missChance;
+}
+
 export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }

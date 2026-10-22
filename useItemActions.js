@@ -2,7 +2,7 @@ import { isStatusImmune, statusResultMessage, monsterStatusTurns } from "./statu
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
@@ -3266,7 +3266,7 @@ export function useItemActions({
               ml.push(`${_stName}が${_stM.name}に飲み込まれた！（攻撃力×${_stM._gelBoost.toFixed(2)}→${_stM.atk}）`);
               } else {
               const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
-              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !isEvasionDisabledByStatus(_stM) && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (_stDodgePcMode !== "sure" && checkMonsterEvasion(_stM, { sureHit: _stSureHit, baseMissRate: 0.10 })));
               if (_stMiss) {
                 if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
@@ -3438,7 +3438,7 @@ export function useItemActions({
             /* 命中率: dodge魔方陣・必中状態を考慮 */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
             const _arDodgePcMode = getDodgePentacleMode(dg, mon.x, mon.y);
-            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !isEvasionDisabledByStatus(mon) && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
+            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (_arDodgePcMode !== "sure" && checkMonsterEvasion(mon, { sureHit: _arSureHit, baseMissRate: 0.10 })));
             if (_arMiss) {
               if (_arDodgePcMode === "dodge") mlx.push(`みかわしの魔方陣の加護で${mon.name}に矢が当たらなかった！`);
               if (_arIsPierce) {
@@ -4235,7 +4235,7 @@ export function useItemActions({
               }
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
-              const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !isEvasionDisabledByStatus(m) && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && _potDodgePcMode !== "sure" && checkMonsterEvasion(m, { sureHit: _potSureHit, baseMissRate: 0.10 })));
               if (!_isFarcast && monHasFlameMantle(m)) {
                 /* 火ダルマ：非遠投の壺を燃やして消滅 */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
@@ -4427,7 +4427,7 @@ export function useItemActions({
               }
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
-              const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !isEvasionDisabledByStatus(m) && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && _thDodgePcMode !== "sure" && checkMonsterEvasion(m, { sureHit: _thSureHit, baseMissRate: 0.10 })));
               if (!_isFarcast && monHasFlameMantle(m)) {
                 /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
                 ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);

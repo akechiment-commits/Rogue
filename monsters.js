@@ -23,6 +23,13 @@ import {
   castCaswack,
   ohplentyDeathTrap,
 } from './ohplenty.js';
+import {
+  canUseMireuSpecial,
+  isMireuFarLine,
+  mireuHyperthermicBreath,
+  mireuSpikeFlail,
+  mireuAbsoluteTerror,
+} from './mireu.js';
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
 import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -1576,7 +1583,15 @@ export const OHPLENTY = {
   desc: "宝箱の姿をしたモンスター。2倍速・1回行動。遠距離直線上のプレイヤーを50%で目の前に引き寄せる。隣接時は25%でカスワック（周囲1マス予告・1ターン後発動、通常対象50ターン・ボス25ターンの状態付与、重複で即死）、25%でデストラップ（周囲1マス無差別攻撃+金縛り）を繰り出す。状態防止中はカスワックを防げる。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY];
+/* 上級30階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔王は維持する。 */
+export const MIREU = {
+  name: "ミレウ", hp: 1400, atk: 105, def: 60, exp: 14000,
+  speed: 1, tile: 254, kind: "dragon", baseKind: "boss_mireu",
+  isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, bodySize: 3,
+  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤーに50%でハイパーサーミックブレス（炎属性の大ダメージブレス）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -6111,6 +6126,56 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m._pullPlayerReady) {
       delete m._pullPlayerReady;
       ohplentyPullPlayer(m, dg, pl, ml);
+      return;
+    }
+  }
+
+  /* ===== 上級30階ボス ミレウ 特技AI ===== */
+  if (m.baseKind === "boss_mireu" && _moveOnly) {
+    delete m._hyperthermicBreathReady;
+    delete m._spikeFlailReady;
+    delete m._absoluteTerrorReady;
+  }
+  if (m.baseKind === "boss_mireu" && canUseMireuSpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      if (_adjPl) {
+        // 隣接時25%でスパイクフレイル
+        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+          m._spikeFlailReady = true;
+          return;
+        }
+      } else if (isMireuFarLine(m, dg, pl)) {
+        // 遠距離直線上に50%でハイパーサーミックブレス
+        if (m.alwaysUseSpecial || Math.random() < 0.50) {
+          m._hyperthermicBreathReady = true;
+          return;
+        }
+      }
+      if (canSee) {
+        // プレイヤーが視界内なら10%でアブソルートテラー
+        if (m.alwaysUseSpecial || Math.random() < 0.10) {
+          m._absoluteTerrorReady = true;
+          return;
+        }
+      }
+    }
+    if (m._spikeFlailReady) {
+      delete m._spikeFlailReady;
+      m.turnAttacks++;
+      mireuSpikeFlail(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
+      return;
+    }
+    if (m._hyperthermicBreathReady) {
+      delete m._hyperthermicBreathReady;
+      m.turnAttacks++;
+      mireuHyperthermicBreath(m, dg, pl, ml, opts);
+      return;
+    }
+    if (m._absoluteTerrorReady) {
+      delete m._absoluteTerrorReady;
+      m.turnAttacks++;
+      mireuAbsoluteTerror(m, dg, pl, ml, opts);
       return;
     }
   }

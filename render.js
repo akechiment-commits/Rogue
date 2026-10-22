@@ -174,6 +174,7 @@ export const TILE_NAMES = {
   251: "chiranikuttsunnoku",
   252: "taisaijin",
   253: "ohplenty",
+  254: "mireu",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -408,6 +409,7 @@ export const TILE_RENDER = {
   251: { bg: null, fg: "#d04070", ch: "S" }, /* ちらにくつんのく */
   252: { bg: null, fg: "#c060d0", ch: "T" }, /* タイサイジン */
   253: { bg: null, fg: "#ffd700", ch: "C" }, /* オープレンティ */
+  254: { bg: null, fg: "#33aaff", ch: "D" }, /* ミレウ */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
