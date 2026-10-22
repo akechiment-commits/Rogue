@@ -233,7 +233,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
 
     // 他モンスターへの効果判定
     for (const mon of [...(dungeon.monsters || [])]) {
-      if (mon === source || mon.hp <= 0) continue;
+      if (mon === source || mon.hp <= 0 || mon.disguisedAsItem) continue;
       const hitCells = caswack.cells.filter(cell => monsterOccupiesCell(mon, cell.x, cell.y));
       if (hitCells.length === 0) continue;
       if (hitCells.every(cell => inMagicSealRoom(cell.x, cell.y, dungeon))) {
@@ -324,7 +324,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
 
   // 他モンスターへの判定
   for (const other of [...(dg.monsters || [])]) {
-    if (other === m || other.hp <= 0) continue;
+    if (other === m || other.hp <= 0 || other.disguisedAsItem) continue;
     const hit = cells.some(c => monsterOccupiesCell(other, c.x, c.y));
     if (hit) {
       const dmg = Math.max(1, calcAtkDefDmg(m.atk, other.def || 0, { defWeight: 1.0 }));
