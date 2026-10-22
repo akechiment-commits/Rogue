@@ -855,13 +855,13 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
  *    コメントの「N〜M階」は minFloor〜maxFloor に対応。
  * ── */
 export const MONS = [
-  { name: "ネズミ",       hp: 7,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 }, intermediate: { min: 1, max: 3 }, advanced: { min: 1, max: 3 } },
+  { name: "ネズミ",       hp: 10,  atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 }, intermediate: { min: 1, max: 3 }, advanced: { min: 1, max: 3 } },
     levels: [
       { name: "殺人ネズミ",         hp: 16,  atk: 22, def: 1,  exp: 28, dungeonFloors: { advanced: { min: 8, max: 9 } } },
       { name: "ものすごいネズミ",   hp: 28,  atk: 42, def: 2,  exp: 110, dungeonFloors: { advanced: { min: 14, max: 15 } } },
     ],
   },
-  { name: "バット",       hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, flightOnly: true, dungeonFloors: { beginner: { min: 1, max: 4 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 4 } },
+  { name: "バット",       hp: 11,  atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, flightOnly: true, dungeonFloors: { beginner: { min: 1, max: 4 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 4 } },
     levels: [
       { name: "青バット",               hp: 20,  atk: 14, def: 2,  exp: 25, dungeonFloors: { advanced: { min: 7, max: 9 } } },
       { name: "ゴルァバット",           hp: 36,  atk: 24, def: 4,  exp: 80, dungeonFloors: { advanced: { min: 13, max: 15 } } },
