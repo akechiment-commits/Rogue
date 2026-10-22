@@ -24,6 +24,8 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     expect(boss.baseKind).toBe("boss_batteringram");
     expect(boss.bodySize).toBe(2);
     expect(boss.tile).toBe(250);
+    expect(boss.elemWeak).toBe("fire");
+    expect(BATTERING_RAM.elemWeak).toBe("fire");
   });
 
   it("初心者ダンジョンや中級ダンジョンの5階は既存のボスが生成される", () => {

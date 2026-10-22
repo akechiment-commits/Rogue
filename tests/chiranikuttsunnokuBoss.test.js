@@ -5,6 +5,7 @@ import { CHIRANIKUTSUNNOKU, BATTERING_RAM, KING_BEHINMOS, monsterAI } from "../m
 import {
   canUseChiranikuttsunnokuSpecial,
   chiranikuttsunnokuEarthbreaker,
+  chiranikuttsunnokuDeathScissors,
   getVenomStingOriginAndDir,
   chiranikuttsunnokuVenomSting,
   chiranikuttsunnokuSharpStrike,
@@ -32,6 +33,8 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
     expect(boss.atk).toBe(58);
     expect(boss.def).toBe(34);
     expect(boss.kind).toBe("insect");
+    expect(boss.elemWeak).toBe("thunder");
+    expect(CHIRANIKUTSUNNOKU.elemWeak).toBe("thunder");
   });
 
   it("上級ダンジョンの他階層や他ダンジョンの15階との棲み分けが正しい", () => {
@@ -375,4 +378,97 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
       expect(canUseChiranikuttsunnokuSpecial(normalBoss)).toBe(true);
     });
   });
+
+  describe("特技4: デスシザース", () => {
+    it("通常攻撃の2倍ダメージを与え、シャープストライク中はさらに1.5倍（計3倍）になる", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 10,
+        y: 10,
+        atk: 50,
+      };
+      const pl1 = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500, def: 0 });
+      dg.monsters = [boss];
+
+      // 乱数モック（回避判定をヒットかつダメージブレなし）
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+      const ml1 = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl1, ml1);
+      const dmg1 = 500 - pl1.hp;
+      // 防御0で攻撃50の通常ダメージは50、2倍で100
+      expect(dmg1).toBe(100);
+      expect(ml1.some(m => m.includes("デスシザース"))).toBe(true);
+
+      // シャープストライク中（1.5倍 -> 攻撃力75）
+      const pl2 = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500, def: 0 });
+      boss.sharpStrikeTurns = 10;
+      const ml2 = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl2, ml2);
+      const dmg2 = 500 - pl2.hp;
+      // 防御0で攻撃75の2倍は150
+      expect(dmg2).toBe(150);
+    });
+
+    it("通常攻撃同様に回避可能（見切り、オリーブ、10%通常ミス）", () => {
+      const dg = makeEmptyDg();
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10 };
+      const pl = makePlayer({ x: 12, y: 10, hp: 100 });
+      dg.monsters = [boss];
+
+      // 見切りの盾
+      pl.armor = { name: "見切りの盾", ability: "dodge" };
+      vi.spyOn(Math, "random").mockReturnValue(0.10); // < 0.25 回避
+      const ml = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl, ml);
+      expect(pl.hp).toBe(100);
+      expect(ml.some(m => m.includes("かわした"))).toBe(true);
+    });
+
+    it("聖域の魔方陣上で防がれる", () => {
+      const dg = makeEmptyDg({
+        pentacles: [{ kind: "sanctuary", x: 12, y: 10 }],
+      });
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10 };
+      const pl = makePlayer({ x: 12, y: 10, hp: 100 });
+      dg.monsters = [boss];
+
+      const ml = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl, ml);
+      expect(pl.hp).toBe(100);
+      expect(ml.some(m => m.includes("聖域の加護"))).toBe(true);
+    });
+  });
+
+  describe("AIの特技ルーチン連動 (隣接時10%デスシザース / 10%アースブレイカー)", () => {
+    it("隣接時にデスシザースまたはアースブレイカーを準備して発動する", () => {
+      const dg = makeEmptyDg();
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10 };
+      const pl = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500 });
+      dg.monsters = [boss];
+
+      // デスシザース強制テスト
+      boss.alwaysUseDeathScissors = true;
+      const ml1 = [];
+      monsterAI(boss, dg, pl, ml1, { moveOnly: true });
+      expect(boss._deathScissorsReady).toBe(true);
+      monsterAI(boss, dg, pl, ml1, { attackOnly: true });
+      expect(boss._deathScissorsReady).toBeUndefined();
+      expect(ml1.some(m => m.includes("デスシザース"))).toBe(true);
+
+      // アースブレイカー強制テスト
+      delete boss.alwaysUseDeathScissors;
+      boss.alwaysUseEarthbreaker = true;
+      boss.turnAttacks = 0;
+      const ml2 = [];
+      monsterAI(boss, dg, pl, ml2, { moveOnly: true });
+      expect(boss._earthbreakerReady).toBe(true);
+      monsterAI(boss, dg, pl, ml2, { attackOnly: true });
+      expect(boss._earthbreakerReady).toBeUndefined();
+      expect(ml2.some(m => m.includes("アースブレイカー"))).toBe(true);
+    });
+  });
+
 });

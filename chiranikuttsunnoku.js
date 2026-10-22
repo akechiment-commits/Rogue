@@ -10,7 +10,7 @@ import { applyPlayerPoison } from './statusDuration.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { pushSplashAnim, pushAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
-import { _resolveBolt, hasLOS } from './monsters.js';
+import { _resolveBolt, hasLOS, monsterAttackPlayer } from './monsters.js';
 
 /**
  * ちらにくつんのくが特技を使用可能か（封印・睡眠・金縛り・石化・凍結・混乱・盲目等の状態異常中でないか）
@@ -193,4 +193,38 @@ export function chiranikuttsunnokuSharpStrike(m, ml) {
   m.sharpStrikeTurns = 10;
   ml.push(`${m.name}は尾の毒針を鋭く研ぎ澄ました！10ターンの間、攻撃力が1.5倍になった！`);
   pushAnim({ type: "flash", x: m.x, y: m.y, color: "#ff2244", duration: 250 });
+}
+
+/**
+ * 特技4: デスシザース
+ * 隣接時10%で発動。巨大なハサミで挟み込み2倍の物理打撃を繰り出す。
+ * 通常攻撃と同様に見切りの盾・オリーブオイル・10%通常ミスで回避可能。
+ */
+export function chiranikuttsunnokuDeathScissors(m, dg, pl, ml, opts = {}, onHit = null, onMiss = null, luFn = null) {
+  const plOnSanc = !inMagicSealRoom(pl.x, pl.y, dg) &&
+    !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
+  if (plOnSanc) {
+    ml.push(`聖域の加護が${m.name}のデスシザースを防いだ！`);
+    return;
+  }
+
+  pushAnim({
+    type: "slash",
+    x: pl.x,
+    y: pl.y,
+    color: "#ff2200"
+  });
+
+  monsterAttackPlayer(
+    m, dg, pl, ml,
+    d => `${m.name}の巨大なハサミが挟み込む！デスシザース！${d}ダメージ！`,
+    {
+      attackName: "デスシザース",
+      damageMultiplier: 2,
+      criticalLabel: true,
+      onPlayerHit: onHit || opts.onPlayerHit,
+      onPlayerMiss: onMiss || opts.onPlayerMiss,
+      luFn: luFn || opts.luFn,
+    }
+  );
 }

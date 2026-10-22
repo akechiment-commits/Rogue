@@ -5,6 +5,7 @@ import { castPetroBreath, canCastPetroBreath } from './petroBreath.js';
 import {
   canUseChiranikuttsunnokuSpecial,
   chiranikuttsunnokuEarthbreaker,
+  chiranikuttsunnokuDeathScissors,
   getVenomStingOriginAndDir,
   chiranikuttsunnokuVenomSting,
   chiranikuttsunnokuSharpStrike,
@@ -512,14 +513,14 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
-function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
+export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null, attackName = "攻撃" } = {}) {
   if (isAttackSealed(m)) {
     ml.push(`${m.name}は攻撃が封印されていて殴れない！`);
     return;
   }
   const _fireMantleAttack = monHasFlameMantle(m);
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
-  if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "攻撃", onMiss: onPlayerMiss })) {
+  if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName, onMiss: onPlayerMiss })) {
     return;
   }
   const pdef = ignoreDefense ? 0 : calcPlayerDef(pl);
@@ -547,7 +548,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   dmg = applyFrozenPhysicalMult(dmg, pl);
   /* 火ダルマの通常攻撃は炎属性。アイスやカレーの一時耐火も先に適用する。 */
   if (_fireMantleAttack) dmg = reduceFireDamage(dmg, pl);
-  pl.deathCause = `${m.name}の攻撃で`;
+  pl.deathCause = attackName === "攻撃" ? `${m.name}の攻撃で` : `${m.name}の${attackName}で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
   /* 痛恨はダメージ数値の前：〜の攻撃！痛恨の一撃！Nダメージ！ */
@@ -1548,21 +1549,24 @@ export const BATTERING_RAM = {
   name: "バタリングラム", hp: 360, atk: 36, def: 20, exp: 1000,
   speed: 1, tile: 250, kind: "beast", baseKind: "boss_batteringram",
   isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 1, bodySize: 2,
-  desc: "2×2マスの巨大な羊のボス。隣接時に25%でラムチャージ（通常ダメージ+吹き飛ばし）、25%でペトロブレス（前方2マスに攻撃予約し、次ターンに敵味方無差別に4ターン石化させるブレス）を放つ。",
+  elemWeak: "fire",
+  desc: "2×2マスの巨大な羊のボス。炎弱点。隣接時に25%でラムチャージ（通常ダメージ+吹き飛ばし）、25%でペトロブレス（前方2マスに攻撃予約し、次ターンに敵味方無差別に4ターン石化させるブレス）を放つ。",
 };
 
 export const CHIRANIKUTSUNNOKU = {
   name: "ちらにくつんのく", hp: 720, atk: 58, def: 34, exp: 3000,
   speed: 1, tile: 251, kind: "insect", baseKind: "boss_chiranikuttsunnoku",
   isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
-  desc: "2×2マスの巨大なサソリのボス。隣接時に25%でアースブレイカー（周囲1マス無差別攻撃+転倒、浮遊無効）、直線遠距離で50%でベノムスティング（猛毒針投擲、命中80%）、視界内にプレイヤーがいる時10%でシャープストライク（10ターン攻撃力1.5倍）を繰り出す。",
+  elemWeak: "thunder",
+  desc: "2×2マスの巨大なサソリのボス。雷弱点。隣接時に10%でデスシザース（2倍打撃）、10%でアースブレイカー（周囲1マス無差別攻撃+転倒、浮遊無効）、直線遠距離で50%でベノムスティング（猛毒針投擲、命中80%）、視界内にプレイヤーがいる時10%でシャープストライク（10ターン攻撃力1.5倍）を繰り出す。",
 };
 
 export const TAISAIJIN = {
   name: "タイサイジン", hp: 520, atk: 30, def: 26, exp: 2000,
   speed: 1, tile: 252, kind: "beast", baseKind: "boss_taisaijin",
   isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 2,
-  desc: "縦長の体躯にたくさんの目がついたスライム系のボス。通常攻撃が2回攻撃。遠距離直線上に25%で催眠術、視界内にプレイヤーがいる時10%でブレイズスパイク（炎まとい状態）、10%でリフレシュ（20ターンの間毎ターン5HP回復）を唱える。",
+  elemWeak: "fire",
+  desc: "縦長の体躯にたくさんの目がついたスライム系のボス。通常攻撃が2回攻撃。炎弱点。遠距離直線上に25%で催眠術、視界内にプレイヤーがいる時10%でブレイズスパイク（炎まとい状態）、10%でリフレシュ（20ターンの間毎ターン5HP回復）を唱える。",
 };
 
 /* 上級25階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔将軍は維持する。 */
@@ -5984,6 +5988,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
   if (m.baseKind === "boss_chiranikuttsunnoku" && _moveOnly) {
     delete m._sharpStrikeReady;
+    delete m._deathScissorsReady;
     delete m._earthbreakerReady;
     delete m._venomStingReady;
   }
@@ -5991,13 +5996,29 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
     if (_moveOnly) {
       // 1. シャープストライク（視界内10% & 未発動中）
-      if (canSee && (m.sharpStrikeTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+      if (canSee && (m.sharpStrikeTurns || 0) <= 0 && !m.alwaysUseDeathScissors && !m.alwaysUseEarthbreaker && (m.alwaysUseSpecial || Math.random() < 0.10)) {
         m._sharpStrikeReady = true;
         return;
       }
-      // 2. 隣接時アースブレイカー（25%）
+      // 2. 隣接時: デスシザース(10%) / アースブレイカー(10%)
       if (_adjPl) {
-        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+        if (m.alwaysUseDeathScissors) {
+          m._deathScissorsReady = true;
+          return;
+        }
+        if (m.alwaysUseEarthbreaker) {
+          m._earthbreakerReady = true;
+          return;
+        }
+        if (m.alwaysUseSpecial) {
+          m._earthbreakerReady = true;
+          return;
+        }
+        const roll = Math.random();
+        if (roll < 0.10) {
+          m._deathScissorsReady = true;
+          return;
+        } else if (roll < 0.20) {
           m._earthbreakerReady = true;
           return;
         }
@@ -6016,6 +6037,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._sharpStrikeReady;
       m.turnAttacks++;
       chiranikuttsunnokuSharpStrike(m, ml);
+      return;
+    }
+    if (m._deathScissorsReady) {
+      delete m._deathScissorsReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuDeathScissors(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
       return;
     }
     if (m._earthbreakerReady) {

@@ -29,6 +29,8 @@ describe("上級ダンジョン10階ボス：タイサイジン", () => {
     expect(boss.name).toBe("タイサイジン");
     expect(boss.baseKind).toBe("boss_taisaijin");
     expect(boss.tile).toBe(252);
+    expect(boss.elemWeak).toBe("fire");
+    expect(TAISAIJIN.elemWeak).toBe("fire");
     expect(boss.hp).toBe(520);
     expect(boss.atk).toBe(30);
     expect(boss.def).toBe(26);
