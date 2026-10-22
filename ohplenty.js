@@ -2,7 +2,7 @@ import { hasLOS } from './monsters.js';
 import { inMagicSealRoom, hasRingEffect, killMonster } from './items.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { plName } from './playerLabel.js';
-import { MW, MH, uid, T, calcAtkDefDmg, setPlayerHpForFixedEffect } from './utils.js';
+import { MW, MH, uid, T, calcAtkDefDmg, calcPlayerDefense, setPlayerHpForFixedEffect } from './utils.js';
 import { monsterOccupiesCell } from './monsterGeometry.js';
 import { pushPlayerKnockbackAnim, pushAnim } from './animEvents.js';
 import { statusTurns, applyMonsterParalyze } from './statusDuration.js';
@@ -230,15 +230,17 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
     // 他モンスターへの効果判定
     for (const mon of [...(dungeon.monsters || [])]) {
       if (mon === source || mon.hp <= 0) continue;
-      const monHit = caswack.cells.some(c => c.x === mon.x && c.y === mon.y);
+      const monHit = caswack.cells.some(c => monsterOccupiesCell(mon, c.x, c.y));
       if (monHit) {
+        if (isStatusImmune(mon, messages, mon.name)) continue;
+        const turns = statusTurns("caswack", { kind: "monster", target: mon });
         if ((mon.caswackTurns || 0) > 0) {
           mon.caswackTurns = 0;
           messages?.push(`${mon.name}はカスワックの呪いが重なり、即死した！`);
           killMonster(mon, dungeon, player, messages, lu, false, source);
         } else {
-          mon.caswackTurns = 50;
-          messages?.push(`${mon.name}はカスワック状態になった！（残り50ターン）`);
+          mon.caswackTurns = turns;
+          messages?.push(`${mon.name}はカスワック状態になった！（残り${turns}ターン）`);
         }
       }
     }
@@ -295,7 +297,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
   // プレイヤーへの判定
   const playerHit = cells.some(c => c.x === pl.x && c.y === pl.y);
   if (playerHit && pl.hp > 0) {
-    const pdef = pl.def || 0;
+    const pdef = calcPlayerDefense(pl);
     const dmg = Math.max(1, calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 }));
     pl.deathCause = `${m.name}のデストラップで`;
     pl.hp -= dmg;
@@ -316,7 +318,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
   // 他モンスターへの判定
   for (const other of [...(dg.monsters || [])]) {
     if (other === m || other.hp <= 0) continue;
-    const hit = cells.some(c => c.x === other.x && c.y === other.y);
+    const hit = cells.some(c => monsterOccupiesCell(other, c.x, c.y));
     if (hit) {
       const dmg = Math.max(1, calcAtkDefDmg(m.atk, other.def || 0, { defWeight: 1.0 }));
       other.hp -= dmg;

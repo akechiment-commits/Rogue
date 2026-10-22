@@ -1573,7 +1573,7 @@ export const OHPLENTY = {
   name: "オープレンティ", hp: 1100, atk: 86, def: 50, exp: 9000,
   speed: 2, tile: 253, kind: "material", baseKind: "boss_ohplenty",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1,
-  desc: "宝箱の姿をしたモンスター。2倍速・1回行動。遠距離直線上のプレイヤーを50%で目の前に引き寄せる。隣接時は25%でカスワック（周囲1マス予告・1ターン後発動、50ターンカスワック状態付与、重複で即死）、25%でデストラップ（周囲1マス無差別攻撃+金縛り）を繰り出す。",
+  desc: "宝箱の姿をしたモンスター。2倍速・1回行動。遠距離直線上のプレイヤーを50%で目の前に引き寄せる。隣接時は25%でカスワック（周囲1マス予告・1ターン後発動、通常対象50ターン・ボス25ターンの状態付与、重複で即死）、25%でデストラップ（周囲1マス無差別攻撃+金縛り）を繰り出す。状態防止中はカスワックを防げる。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY];
