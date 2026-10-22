@@ -59,7 +59,7 @@ describe('上級20階のキングベヒんもス',()=>{
     expect(s.dungeon.pendingMeteors).toHaveLength(1);
     expect(s.dungeon.pendingMeteors[0].turnsLeft).toBe(2); expect(s.player.hp).toBe(200);
     hazards(s); attack(s,3); expect(s.dungeon.pendingMeteors[0].turnsLeft).toBe(1); expect(s.player.hp).toBe(200);
-    hazards(s); expect(s.dungeon.pendingMeteors).toEqual([]); expect(s.player.hp).toBe(120);
+    hazards(s); expect(s.dungeon.pendingMeteors).toEqual([]); expect(s.player.hp).toBe(52);
     expect(s.messages.filter(m=>m.includes('着弾した'))).toHaveLength(1);
   });
   it('詠唱時にHPが半分未満なら1ターン後に着弾し、半分ちょうどなら2ターン後のまま',()=>{
@@ -69,7 +69,7 @@ describe('上級20階のキングベヒんもス',()=>{
     expect(wounded.messages.at(-1)).toContain('1ターン後');
     hazards(wounded);
     expect(wounded.dungeon.pendingMeteors).toEqual([]);
-    expect(wounded.player.hp).toBe(120);
+    expect(wounded.player.hp).toBe(52);
 
     const half=setup({hp:475});
     attack(half);
@@ -85,7 +85,7 @@ describe('上級20階のキングベヒんもス',()=>{
     const s=setup(); attack(s);
     hazards(s,{tickTimedEffects:false}); expect(s.dungeon.pendingMeteors[0].turnsLeft).toBe(2);
     s.dungeon.timeStopTurns=3; hazards(s); expect(s.dungeon.pendingMeteors[0].turnsLeft).toBe(2);
-    s.dungeon.timeStopTurns=0; hazards(s,{worldTicks:2}); expect(s.player.hp).toBe(120);
+    s.dungeon.timeStopTurns=0; hazards(s,{worldTicks:2}); expect(s.player.hp).toBe(52);
     expect(s.boss.meteorCooldown).toBe(2);
   });
   it('再詠唱は最短4拍後で、途中に同じ敵の予兆を重ねない',()=>{
@@ -105,10 +105,10 @@ describe('上級20階のキングベヒんもス',()=>{
     hazards(s,{worldTicks:2}); expect(s.player.hp).toBe(200);
   });
   it.each([[2,4],[3,9]])('範囲の巨大敵%sは%s回被弾し、プレイヤー武器倍率を受けない', (size,hits)=>{
-    const s=setup(); const victim={id:'victim',name:'巨大取り巻き',x:size===3?5:4,y:size===3?10:9,hp:1000,maxHp:1000,bodySize:size,def:0};
+    const s=setup(); const victim={id:'victim',name:'巨大取り巻き',x:size===3?5:4,y:size===3?10:9,hp:2000,maxHp:2000,bodySize:size,def:0};
     s.player.x=3; s.dungeon.monsters.push(victim);
     castMeteor(s.boss,s.dungeon,{x:5,y:10},s.messages); hazards(s,{worldTicks:2});
-    expect(victim.hp).toBe(1000-80*hits);
+    expect(victim.hp).toBe(2000-148*hits);
   });
   it('生存中の詠唱者の撃破扱いになり、経験値をプレイヤーへ与えない',()=>{
     const s=setup(), victim={id:'victim',name:'取り巻き',x:5,y:10,hp:1,maxHp:1,exp:20};
@@ -141,11 +141,11 @@ describe('上級20階のキングベヒんもス',()=>{
     expect(s.messages.filter(m=>m.includes('にはメテオが効かなかった'))).toHaveLength(1);
   });
   it('バリアは1マス分だけ防ぎ、魔法無効にはダメージを与えない',()=>{
-    const s=setup(), victim={id:'v',name:'巨体',x:5,y:10,hp:1000,maxHp:1000,bodySize:3,barrier:true};
+    const s=setup(), victim={id:'v',name:'巨体',x:5,y:10,hp:2000,maxHp:2000,bodySize:3,barrier:true};
     s.dungeon.monsters.push(victim); s.player.x=3; castMeteor(s.boss,s.dungeon,{x:5,y:10},s.messages);
-    hazards(s,{worldTicks:2}); expect(victim.hp).toBe(360); expect(victim.barrier).toBeFalsy();
+    hazards(s,{worldTicks:2}); expect(victim.hp).toBe(816); expect(victim.barrier).toBeFalsy();
     victim.magicImmune=true; s.boss.meteorCooldown=0; castMeteor(s.boss,s.dungeon,{x:5,y:10},s.messages);
-    hazards(s,{worldTicks:2}); expect(victim.hp).toBe(360);
+    hazards(s,{worldTicks:2}); expect(victim.hp).toBe(816);
   });
   it('敵の致死ダメージとして処理し、満タンからのメテオを1HPに保護しない',()=>{
     const s=setup(); s.player.hp=50; s.player.maxHp=50; attack(s); hazards(s,{worldTicks:2}); expect(s.player.hp).toBeLessThanOrEqual(0);
@@ -156,16 +156,16 @@ describe('上級20階のキングベヒんもス',()=>{
     expect(saveGameState({player:s.player,dungeon:s.dungeon,floors:{},dungeonType:'advanced'},[],{},null)).toBe(true);
     const loaded=loadGameState(); expect(loaded.dungeon.monsters[0].bodySize).toBe(3);
     expect(loaded.dungeon.pendingMeteors[0]).toMatchObject({x:5,y:10,turnsLeft:1});
-    advanceMeteors(loaded.dungeon,loaded.player,[],()=>{}); expect(loaded.player.hp).toBe(120);
+    advanceMeteors(loaded.dungeon,loaded.player,[],()=>{}); expect(loaded.player.hp).toBe(52);
   });
-  it('防御40のメテオは通常防御計算でプレイヤー30・敵35ダメージになる',()=>{
+  it('防御40のメテオは通常防御計算でプレイヤー70・敵77ダメージになる',()=>{
     const s=setup(), victim={id:'v',name:'敵',x:6,y:10,hp:200,maxHp:200,def:40};
     s.player.def=40; s.dungeon.monsters.push(victim); attack(s); hazards(s,{worldTicks:2});
-    expect(s.player.hp).toBe(170); expect(victim.hp).toBe(165);
+    expect(s.player.hp).toBe(130); expect(victim.hp).toBe(123);
   });
   it('呪い魔封じはメテオの防御軽減後のダメージを2倍にする',()=>{
     const s=setup(); s.player.def=40; s.dungeon.pentacles=[{kind:'magic_seal',cursed:true,x:3,y:3}];
-    attack(s); hazards(s,{worldTicks:2}); expect(s.player.hp).toBe(140);
+    attack(s); hazards(s,{worldTicks:2}); expect(s.player.hp).toBe(60);
   });
   it('ダストストームは本体の外周で1体につき1回だけ当たり、キングへは当たらない',()=>{
     vi.spyOn(Math,'random').mockReturnValue(0);

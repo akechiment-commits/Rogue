@@ -13,9 +13,13 @@ export function castMeteor(monster, dungeon, player, messages) {
   if (!canCastMeteor(monster, dungeon)) return false;
   const maxHp = Number(monster.maxHp) || 0;
   const turnsLeft = monster.baseKind === 'boss_kingbehinmos' && maxHp > 0 && monster.hp < maxHp / 2 ? 1 : 2;
+  const effAtk = (monster.sharpStrikeTurns || 0) > 0 && !monster.sealed
+    ? Math.floor((monster.atk || 0) * 1.5)
+    : monster.atk;
+  const meteorDamage = effAtk != null ? effAtk * 2 : (monster.meteorDamage ?? 60);
   (dungeon.pendingMeteors ||= []).push({
     id: uid(), sourceId: monster.id, sourceName: monster.name,
-    x: player.x, y: player.y, turnsLeft, damage: monster.meteorDamage ?? 60,
+    x: player.x, y: player.y, turnsLeft, damage: meteorDamage,
   });
   monster.meteorCooldown = monster.meteorInterval ?? 4;
   messages.push(`${monster.name}がメテオを詠唱した！赤い3×3マスに${turnsLeft}ターン後、隕石が落ちる！`);

@@ -1271,7 +1271,7 @@ export const MONS = [
       { name: "怨霊の古柳", hp: 350, atk: 58, def: 22, exp: 1400, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
     ],
   },
-  { name: "眠れる獅子", hp: 140, atk: 40, def: 14, exp: 280, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 100, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、隣接または攻撃されるまで目覚めない。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
+  { name: "眠れる獅子", hp: 140, atk: 40, def: 14, exp: 280, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 80, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、隣接または攻撃されるまで目覚めない。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
     levels: [
       { name: "眠れる大獅子", hp: 250, atk: 58, def: 20, exp: 850, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } } },
       { name: "眠れる赤獅子", hp: 380, atk: 78, def: 28, exp: 4200, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
@@ -1539,8 +1539,8 @@ export const KING_BEHINMOS = {
   name: "キングベヒんもス", hp: 950, atk: 74, def: 42, exp: 5500,
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
   isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, bodySize: 3,
-  meteorDamage: 80, meteorImmune: true, meteorInterval: 4,
-  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。詠唱時にHPが半分以上なら赤い予兆の3×3マスへ2ターン後、半分未満なら1ターン後に防御力で軽減されるメテオを落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
+  meteorDamage: 148, meteorImmune: true, meteorInterval: 4,
+  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。詠唱時にHPが半分以上なら赤い予兆の3×3マスへ2ターン後、半分未満なら1ターン後に防御力で軽減されるメテオ（使用者の攻撃力の2倍）を落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
 };
 
 /* 上級5階専用ボス。通常ボス一覧を置換しないため、他のダンジョンのフリージアは維持する。 */
@@ -1578,8 +1578,8 @@ export const MIREU = {
   name: "ミレウ", hp: 1400, atk: 105, def: 60, exp: 14000,
   speed: 1, tile: 254, kind: "dragon", baseKind: "boss_mireu",
   isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, bodySize: 3,
-  meteorDamage: 80, meteorImmune: true, meteorInterval: 4,
-  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤーに50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに80ダメージの隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
+  meteorDamage: 210, meteorImmune: true, meteorInterval: 4,
+  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤーに50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに使用者の攻撃力の2倍の威力を持つ隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU];

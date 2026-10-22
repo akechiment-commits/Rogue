@@ -57,7 +57,7 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       expect(MIREU.kind).toBe('dragon');
       expect(MIREU.tile).toBe(254);
       expect(MIREU.isBoss).toBe(true);
-      expect(MIREU.meteorDamage).toBe(80);
+      expect(MIREU.meteorDamage).toBe(210);
       expect(MIREU.meteorImmune).toBe(true);
       expect(MIREU.meteorInterval).toBe(4);
     });
@@ -325,7 +325,7 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       const ok = castMeteor(s.boss, s.dungeon, s.player, s.messages);
       expect(ok).toBe(true);
       expect(s.dungeon.pendingMeteors?.length).toBe(1);
-      expect(s.dungeon.pendingMeteors[0].damage).toBe(80);
+      expect(s.dungeon.pendingMeteors[0].damage).toBe(210); // 攻撃力105の2倍
       expect(s.boss.meteorCooldown).toBe(4);
 
       // 2ターン進めて着弾させる
@@ -335,6 +335,22 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       // ミレウはmeteorImmuneによりダメージを受けない
       expect(s.boss.hp).toBe(1400);
       expect(s.messages.some(m => m.includes('ミレウにはメテオが効かなかった'))).toBe(true);
+    });
+
+    it('メテオダメージは使用者の攻撃力の2倍で設定される（バフ反映含む）', () => {
+      const s = setup();
+      s.boss.atk = 50;
+      s.boss.meteorCooldown = 0;
+      castMeteor(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.dungeon.pendingMeteors[0].damage).toBe(100);
+
+      // 攻撃力バフ（シャープストライク等）適用時
+      s.dungeon.pendingMeteors = [];
+      s.boss.meteorCooldown = 0;
+      s.boss.sharpStrikeTurns = 10;
+      castMeteor(s.boss, s.dungeon, s.player, s.messages);
+      // atk 50 * 1.5 = 75, 75 * 2 = 150
+      expect(s.dungeon.pendingMeteors[0].damage).toBe(150);
     });
   });
 
@@ -383,7 +399,7 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       expect(s.boss._meteorReady).toBeUndefined();
       expect(s.messages.some(m => m.includes('メテオを詠唱した'))).toBe(true);
       expect(s.dungeon.pendingMeteors?.length).toBe(1);
-      expect(s.dungeon.pendingMeteors[0].damage).toBe(80);
+      expect(s.dungeon.pendingMeteors[0].damage).toBe(210);
     });
 
     it('メテオがクールダウン中の時はアブソルートテラーを準備して発動する', () => {
