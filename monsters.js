@@ -1579,7 +1579,7 @@ export const MIREU = {
   speed: 1, tile: 254, kind: "dragon", baseKind: "boss_mireu",
   isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, bodySize: 3,
   meteorDamage: 210, meteorImmune: true, meteorInterval: 4,
-  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤーに50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに使用者の攻撃力の2倍の威力を持つ隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
+  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤー（体の端マスと直線なら撃ち返し可能）に50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに使用者の攻撃力の2倍の威力を持つ隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU];

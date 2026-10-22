@@ -31,40 +31,71 @@ export function canUseMireuSpecial(monster) {
 }
 
 /**
- * プレイヤーが遠距離直線上にいるか（距離2〜10マス、視線が通る）
+ * ハイパーサーミックブレスの発射起点（ボスの体セル）と方向を算出する。
+ * プレイヤーとの8方向直線（上下左右・斜め45度）で距離2〜10マスかつ射線が通るセルを探す。
+ * プレイヤーから矢を撃って命中する体のマスがあれば、そのマスからブレスを撃ち返せるようにする。
+ */
+export function getMireuBreathOriginAndDir(monster, dungeon, player) {
+  if (!player || player.hp <= 0) return null;
+  const overallDist = monsterPointDistance(monster, player.x, player.y);
+  if (overallDist < 2 || overallDist > 10) return null;
+
+  const cells = monsterBodyCells(monster);
+  let best = null;
+  let bestDist = 999;
+  let bestCenterDist = 999;
+
+  for (const cell of cells) {
+    // 壁に埋まった体セルは射線の起点にしない
+    if (dungeon.map?.[cell.y]?.[cell.x] === T.WALL || dungeon.map?.[cell.y]?.[cell.x] === T.BWALL) continue;
+
+    const dx = player.x - cell.x;
+    const dy = player.y - cell.y;
+    const isLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+    if (!isLine) continue;
+
+    const dist = Math.max(Math.abs(dx), Math.abs(dy));
+    if (dist < 1 || dist > 10) continue;
+
+    // cell から player への直線上に壁がないか確認
+    const sgnX = Math.sign(dx);
+    const sgnY = Math.sign(dy);
+    let blocked = false;
+    let cx = cell.x + sgnX;
+    let cy = cell.y + sgnY;
+    while (cx !== player.x || cy !== player.y) {
+      if (cx < 0 || cx >= MW || cy < 0 || cy >= MH ||
+          dungeon.map?.[cy]?.[cx] === T.WALL || dungeon.map?.[cy]?.[cx] === T.BWALL) {
+        blocked = true;
+        break;
+      }
+      cx += sgnX;
+      cy += sgnY;
+    }
+    if (blocked) continue;
+
+    // プレイヤーへの最短距離を優先。同距離ならボスの中心セル(monster.x, monster.y)に近いものを優先
+    const centerDist = Math.abs(cell.x - monster.x) + Math.abs(cell.y - monster.y);
+    if (dist < bestDist || (dist === bestDist && centerDist < bestCenterDist)) {
+      bestDist = dist;
+      bestCenterDist = centerDist;
+      best = {
+        origin: cell,
+        dx: sgnX,
+        dy: sgnY,
+        dist,
+      };
+    }
+  }
+
+  return best;
+}
+
+/**
+ * プレイヤーが遠距離直線上にいるか（体のいずれかのセルから距離2〜10マス、視線が通る）
  */
 export function isMireuFarLine(m, dg, pl) {
-  if (!pl || pl.hp <= 0) return false;
-  const dist = monsterPointDistance(m, pl.x, pl.y);
-  if (dist < 2 || dist > 10) return false;
-
-  // 3×3の中心または体のマスから8方向直線判定
-  const dx = pl.x - m.x;
-  const dy = pl.y - m.y;
-  const isLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
-  if (!isLine) {
-    // 体の端マスからの直線判定もチェック
-    const bodyCells = monsterBodyCells(m);
-    const hasBodyLine = bodyCells.some(c => {
-      const cdx = pl.x - c.x;
-      const cdy = pl.y - c.y;
-      return (cdx === 0 || cdy === 0 || Math.abs(cdx) === Math.abs(cdy));
-    });
-    if (!hasBodyLine) return false;
-  }
-
-  // 視線チェック（障害物がないか）
-  const sgnX = Math.sign(dx);
-  const sgnY = Math.sign(dy);
-  let cx = m.x + sgnX;
-  let cy = m.y + sgnY;
-  while (cx !== pl.x || cy !== pl.y) {
-    if (cx < 0 || cx >= MW || cy < 0 || cy >= MH) return false;
-    if (dg.map[cy]?.[cx] === T.WALL || dg.map[cy]?.[cx] === T.BWALL) return false;
-    cx += sgnX;
-    cy += sgnY;
-  }
-  return true;
+  return getMireuBreathOriginAndDir(m, dg, pl) !== null;
 }
 
 /**
@@ -80,15 +111,17 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     return true;
   }
 
-  let fdx = Math.sign(pl.x - m.x);
-  let fdy = Math.sign(pl.y - m.y);
+  const line = getMireuBreathOriginAndDir(m, dg, pl);
+  let fdx = line ? line.dx : Math.sign(pl.x - m.x);
+  let fdy = line ? line.dy : Math.sign(pl.y - m.y);
   if (fdx === 0 && fdy === 0) fdy = 1;
+  const origin = line ? line.origin : { x: m.x, y: m.y };
 
   ml.push(`${m.name}は青白く燃え盛る超高温の炎を凝縮させた！`);
 
-  // ブレス発射点（体の外周）
-  let cx = m.x + fdx;
-  let cy = m.y + fdy;
+  // ブレス発射点（起点セル）
+  let cx = origin.x;
+  let cy = origin.y;
   const breathPath = [{ x: cx, y: cy }];
   let windMsg = false;
 
@@ -97,8 +130,8 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     const end = breathPath[breathPath.length - 1];
     pushAnim({
       type: "monProjectile",
-      fromX: m.x,
-      fromY: m.y,
+      fromX: origin.x,
+      fromY: origin.y,
       toX: end.x,
       toY: end.y,
       color: "#00d8ff",

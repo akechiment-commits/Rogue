@@ -4,6 +4,7 @@ import { genDungeon } from '../dungeon.js';
 import {
   canUseMireuSpecial,
   isMireuFarLine,
+  getMireuBreathOriginAndDir,
   mireuHyperthermicBreath,
   mireuSpikeFlail,
   mireuAbsoluteTerror,
@@ -14,6 +15,7 @@ import { getMonsterDescription, getMonsterEncyclopediaEntry } from '../monsterEn
 import { TILE_NAMES, TILE_RENDER } from '../render.js';
 import { MONSTER_SHEET_MAP, DAWNLIKE_FALLBACKS } from '../tilesetMap.js';
 import { MW, MH, T } from '../utils.js';
+import { shootArrow } from '../items.js';
 import { makeEmptyDg, makePlayer } from './helpers.js';
 import fs from 'fs';
 
@@ -148,6 +150,70 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       // 隣接位置 (10, 8) → 3x3の端(10, 9)と隣接（距離1）なので遠距離直線ではない
       s.player.y = 8;
       expect(isMireuFarLine(s.boss, s.dungeon, s.player)).toBe(false);
+
+      // 中心の直線上ではなく、体の端マス（x: 11）の直線上にプレイヤーがいる場合
+      // プレイヤーが矢を撃てばミレウの体(11, 9)に当たる位置
+      s.player.x = 11;
+      s.player.y = 4;
+      expect(isMireuFarLine(s.boss, s.dungeon, s.player)).toBe(true);
+      const lineRight = getMireuBreathOriginAndDir(s.boss, s.dungeon, s.player);
+      expect(lineRight).not.toBeNull();
+      expect(lineRight.origin.x).toBe(11);
+      expect(lineRight.origin.y).toBe(9);
+      expect(lineRight.dx).toBe(0);
+      expect(lineRight.dy).toBe(-1);
+
+      // 体の端マス(9, 9)の直線上にプレイヤー(9, 4)がいる場合
+      s.player.x = 9;
+      s.player.y = 4;
+      expect(isMireuFarLine(s.boss, s.dungeon, s.player)).toBe(true);
+
+      // 体の端マス(11, 10)から斜め45度直線上にプレイヤー(15, 6)がいる場合
+      s.player.x = 15;
+      s.player.y = 6;
+      expect(isMireuFarLine(s.boss, s.dungeon, s.player)).toBe(true);
+
+      // どの体マスとも8方向直線になっていない位置 (dx in {3,4,5}, dy in {-7,-8,-9})
+      s.player.x = 14;
+      s.player.y = 2;
+      expect(isMireuFarLine(s.boss, s.dungeon, s.player)).toBe(false);
+    });
+
+    it('体の端マスとの直線上にいるプレイヤーにもブレスが正確に命中してダメージを与える', () => {
+      const s = setup();
+      // ボス中心 (10, 10)、プレイヤー (11, 4) → 体の端マス (11, 9) の真上
+      s.player.x = 11;
+      s.player.y = 4;
+      s.player.hp = 200;
+
+      mireuHyperthermicBreath(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.player.hp).toBe(130); // 70ダメージ直撃
+      expect(s.messages.some(m => m.includes('ハイパーサーミックブレスが直撃'))).toBe(true);
+    });
+
+    it('プレイヤーの矢がミレウの体の端に命中する位置から、ミレウからもブレスを撃ち返して命中する', () => {
+      const s = setup();
+      // ボス中心 (10, 10)、体は x: 9..11, y: 9..11
+      // プレイヤーは (11, 4) に配置（ボス中心列 x=10 ではなく右端列 x=11）
+      s.player.x = 11;
+      s.player.y = 4;
+      s.player.inventory = [{ name: '木の矢', type: 'arrow', count: 10, atk: 5 }];
+
+      // ミレウの50%回避をバイパスして確実に矢を当てるため必中テスト用フラグまたは確実に当たるようにする
+      s.boss.slowTurns = 5; // 鈍足状態にして回避無効化
+
+      // 1. プレイヤーから南(dx: 0, dy: 1)へ矢を撃つ
+      shootArrow(s.player, s.dungeon, 0, 0, 1, s.messages, () => {}, () => {});
+      // 矢がミレウに命中してHPが減少していることを確認
+      expect(s.boss.hp).toBeLessThan(1400);
+      expect(s.messages.some(m => m.includes('ミレウに命中'))).toBe(true);
+
+      // 2. ミレウからプレイヤーへブレスを撃ち返す
+      s.messages.length = 0;
+      expect(isMireuFarLine(s.boss, s.dungeon, s.player)).toBe(true);
+      mireuHyperthermicBreath(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.player.hp).toBe(130); // プレイヤーにブレスが直撃
+      expect(s.messages.some(m => m.includes('ハイパーサーミックブレスが直撃'))).toBe(true);
     });
 
     it('プレイヤーに防御力無視の固定70炎ダメージを与え、耐性でのみ軽減される', () => {
