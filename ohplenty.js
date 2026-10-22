@@ -135,10 +135,14 @@ export function getCaswackCells(monster, map) {
  */
 export function castCaswack(monster, dungeon, player, messages) {
   if (dungeon.pendingCaswacks?.some(c => c.sourceId === monster.id)) return false;
+  monster.turnAttacks = monster.maxAttacks || 1;
+  if (inMagicSealRoom(monster.x, monster.y, dungeon)) {
+    messages?.push(`${monster.name}のカスワックは魔封じの魔方陣に封じられた！`);
+    return false;
+  }
 
   const cells = getCaswackCells(monster, dungeon.map);
   monster._isCaswackCasting = true;
-  monster.turnAttacks = monster.maxAttacks || 1;
 
   (dungeon.pendingCaswacks ||= []).push({
     id: uid(),
@@ -185,6 +189,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
       source.blind ||
       (source.confusedTurns || 0) > 0 ||
       source.bewitched ||
+      inMagicSealRoom(source.x, source.y, dungeon) ||
       source.x !== caswack.originX ||
       source.y !== caswack.originY;
 
@@ -229,18 +234,21 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
     // 他モンスターへの効果判定
     for (const mon of [...(dungeon.monsters || [])]) {
       if (mon === source || mon.hp <= 0) continue;
-      const monHit = caswack.cells.some(c => monsterOccupiesCell(mon, c.x, c.y));
-      if (monHit) {
-        if (isStatusImmune(mon, messages, mon.name)) continue;
-        const turns = statusTurns("caswack", { kind: "monster", target: mon });
-        if ((mon.caswackTurns || 0) > 0) {
-          mon.caswackTurns = 0;
-          messages?.push(`${mon.name}はカスワックの呪いが重なり、即死した！`);
-          killMonster(mon, dungeon, player, messages, lu, false, source);
-        } else {
-          mon.caswackTurns = turns;
-          messages?.push(`${mon.name}はカスワック状態になった！（残り${turns}ターン）`);
-        }
+      const hitCells = caswack.cells.filter(cell => monsterOccupiesCell(mon, cell.x, cell.y));
+      if (hitCells.length === 0) continue;
+      if (hitCells.every(cell => inMagicSealRoom(cell.x, cell.y, dungeon))) {
+        messages?.push(`魔封じの魔方陣が${mon.name}へのカスワックを防いだ！`);
+        continue;
+      }
+      if (isStatusImmune(mon, messages, mon.name)) continue;
+      const turns = statusTurns("caswack", { kind: "monster", target: mon });
+      if ((mon.caswackTurns || 0) > 0) {
+        mon.caswackTurns = 0;
+        messages?.push(`${mon.name}はカスワックの呪いが重なり、即死した！`);
+        killMonster(mon, dungeon, player, messages, lu, false, source);
+      } else {
+        mon.caswackTurns = turns;
+        messages?.push(`${mon.name}はカスワック状態になった！（残り${turns}ターン）`);
       }
     }
   }
