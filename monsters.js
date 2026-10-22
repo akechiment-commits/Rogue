@@ -3725,6 +3725,8 @@ function isPentacleDrawBlocked(dg, x, y) {
 function tryUnstickMove(m, dg, pl, float = false) {
   if (!m || !dg) return false;
   if (isStationaryGrabber(m) || isStationaryMonster(m) || m.type === "shopkeeper" || m.dormant || m.dormantHouse) return false;
+  if (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id || b.source === m)) return false;
+  if (m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id || c.source === m)) return false;
   const map = dg.map;
   const recent = new Set((m.posHistory || []).map(p => p.x + p.y * MW));
   recent.add(m.x + m.y * MW);
@@ -4796,6 +4798,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.x = _sx; m.y = _sy;
       m.dir = { x: 0, y: 0 };
     }
+    /* ブレス準備中またはカスワック詠唱中：外因の強制移動でない自発的移動が発生していたら元位置へ戻す */
+    if ((m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id || c.source === m) ||
+         m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id || b.source === m)) &&
+        !m._blownBack && (m.x !== _sx || m.y !== _sy)) {
+      m.x = _sx; m.y = _sy;
+      m.dir = { x: 0, y: 0 };
+    }
     const moved = m.x !== _sx || m.y !== _sy;
     if (moved) {
       _clearDodgemoleTrap(m, dg, ml, pl);
@@ -4807,7 +4816,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       (m.immobileTurns || 0) > 0 ||
       (m.knockdownTurns || 0) > 0 ||
       _gravityLocksFlightOnly ||
-      isStationaryMonster(m);
+      isStationaryMonster(m) ||
+      m._isPetroBreathing ||
+      dg.pendingPetroBreaths?.some(b => b.sourceId === m.id || b.source === m) ||
+      m._isCaswackCasting ||
+      dg.pendingCaswacks?.some(c => c.sourceId === m.id || c.source === m);
     if (movementDisabled) {
       m._idleStuck = 0;
       m.posHistory = [];
@@ -5137,6 +5150,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
   /* バタリングラムのブレス予約中：状態異常や強制移動を受けない限り、移動・別攻撃を行わず次ターンのブレス発射に専念する */
   if (m.baseKind === "boss_batteringram" && (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id || b.source === m))) {
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
+  }
+  /* オープレンティのカスワック予約中：状態異常や強制移動を受けない限り、移動・別攻撃を行わず次ターンの発動に専念する */
+  if (m.baseKind === "boss_ohplenty" && (m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id || c.source === m))) {
     m._movedThisTurn = true;
     m.turnAttacks = monEffectiveMaxAttacks(m);
     return;
@@ -6053,6 +6072,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   if (m.baseKind === "boss_ohplenty" && _moveOnly) {
+    if (m._caswackReady || m._deathTrapReady || m._pullPlayerReady) {
+      return;
+    }
     delete m._pullPlayerReady;
     delete m._caswackReady;
     delete m._deathTrapReady;

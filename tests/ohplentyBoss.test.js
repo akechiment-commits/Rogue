@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OHPLENTY, monsterAI } from '../monsters.js';
+import { clearStatusEffectsOnHpZero } from '../statusDuration.js';
 import { genDungeon } from '../dungeon.js';
 import { canUseOhplentySpecial, isFarLineToPlayer, ohplentyPullPlayer, castCaswack, advanceCaswacks, ohplentyDeathTrap, drawCaswackWarnings } from '../ohplenty.js';
 import { resolveTurnHazards } from '../turnHazards.js';
@@ -161,6 +162,70 @@ describe('上級25階ボス オープレンティ', () => {
       expect(s.dungeon.pendingCaswacks).toHaveLength(0);
       expect(s.player.caswackTurns || 0).toBe(0);
       expect(s.messages.some(m => m.includes('呪文が途切れた'))).toBe(true);
+    });
+
+    it('予兆後にプレイヤーが一歩離れても（同一マス停滞履歴があっても）ボスは移動せず次ターン確実にカスワックが炸裂する', () => {
+      const s = setup({ x: 10, y: 10 });
+      // プレイヤーが隣接 (10, 11) でカスワック予兆を放つ
+      s.player.x = 10;
+      s.player.y = 11;
+      castCaswack(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.dungeon.pendingCaswacks).toHaveLength(1);
+      expect(s.boss._isCaswackCasting).toBe(true);
+
+      // 同一マスに長時間滞在していたことによるスタック履歴を模擬
+      s.boss.posHistory = Array.from({ length: 8 }, () => ({ x: 10, y: 10 }));
+      s.boss._idleStuck = 10;
+
+      // プレイヤーが一歩離れる (10, 13)
+      s.player.y = 13;
+
+      // 敵移動フェーズ：オープレンティは変な方向へ動かず詠唱位置にとどまる
+      monsterAI(s.boss, s.dungeon, s.player, s.messages, { moveOnly: true });
+      expect(s.boss.x).toBe(10);
+      expect(s.boss.y).toBe(10);
+      expect(s.boss._movedThisTurn).toBe(true);
+
+      // フロア時計によるカスワック解決：中断されず炸裂する！
+      advanceCaswacks(s.dungeon, s.player, s.messages);
+      expect(s.messages.some(m => m.includes('カスワックが炸裂した'))).toBe(true);
+      expect(s.messages.some(m => m.includes('呪文が途切れた'))).toBe(false);
+      expect(s.boss._isCaswackCasting).toBeUndefined();
+    });
+
+    it('カスワック即死で死亡した際、MP復活や復活の魔方陣で復活したときはカスワック状態が解除される', () => {
+      const s = setup({ x: 10, y: 10 });
+      s.player.x = 10;
+      s.player.y = 11;
+      s.player.hp = 100;
+      s.player.mp = 50; // MP復活可能な状態
+      s.player.caswackTurns = 50; // すでにカスワック状態
+
+      // カスワック予兆を発動して解決（2度目のため即死）
+      castCaswack(s.boss, s.dungeon, s.player, s.messages);
+      advanceCaswacks(s.dungeon, s.player, s.messages);
+
+      expect(s.player.hp).toBe(0);
+      expect(s.messages.some(m => m.includes('即死した'))).toBe(true);
+
+      // HP0になった瞬間に clearStatusEffectsOnHpZero が走り、カスワック状態が解除される
+      expect(s.player.caswackTurns).toBe(0);
+
+      // MP復活処理を模擬
+      clearStatusEffectsOnHpZero(s.player);
+      const revHp = s.player.mp;
+      s.player.hp = revHp;
+      s.player.mp = 0;
+      expect(s.player.hp).toBe(50);
+      expect(s.player.caswackTurns).toBe(0); // 復活後もカスワック状態は切れている！
+
+      // 再度復活の魔方陣での蘇生も模擬
+      s.player.caswackTurns = 50;
+      s.player.hp = 0;
+      clearStatusEffectsOnHpZero(s.player);
+      expect(s.player.caswackTurns).toBe(0);
+      s.player.hp = s.player.maxHp;
+      expect(s.player.caswackTurns).toBe(0);
     });
   });
 

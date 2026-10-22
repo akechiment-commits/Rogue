@@ -216,7 +216,7 @@ export function clearStatusEffectsOnHpZero(entity) {
     entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,
     entity.capturedBy, entity.oilyTurns, entity.soakedTurns, entity.flameMantleTurns,
     entity.defSoftenedTurns, entity.atkDebuffTurns, entity.defDebuffTurns,
-    entity.pacifistTurns, entity.hypnosisPending,
+    entity.pacifistTurns, entity.hypnosisPending, entity.caswackTurns,
   ].some((value) => typeof value === "boolean" ? value : (value || 0) > 0);
 
   /* プレイヤーの毒による攻撃力低下を戻す。 */
@@ -268,6 +268,7 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.defDebuffTurns = 0;
   entity.pacifistTurns = 0;
   entity.hypnosisPending = 0;
+  entity.caswackTurns = 0;
 
   /* 自動スキップ・次回行動予約の残骸も状態異常と一緒に捨てる。 */
   delete entity._slowAutoAdv;

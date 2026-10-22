@@ -216,6 +216,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
         if ((player.caswackTurns || 0) > 0) {
           // すでにカスワック状態なら即死！
           player.deathCause = `${caswack.sourceName}のカスワックで`;
+          player.caswackTurns = 0;
           setPlayerHpForFixedEffect(player, 0);
           messages?.push(`カスワックの呪いが重なり、即死した！`);
         } else {
@@ -232,6 +233,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
       const monHit = caswack.cells.some(c => c.x === mon.x && c.y === mon.y);
       if (monHit) {
         if ((mon.caswackTurns || 0) > 0) {
+          mon.caswackTurns = 0;
           messages?.push(`${mon.name}はカスワックの呪いが重なり、即死した！`);
           killMonster(mon, dungeon, player, messages, lu, false, source);
         } else {
