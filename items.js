@@ -445,7 +445,7 @@ export const ITEMS = [
   { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。\n祝福：敵の攻防を半減（通常敵50T／ボス25T）。", tile:18 },
   { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:4,  sellPrice:300,  desc:"半径10の壁を全て壊す。\n祝福：外周以外のフロア内の壁を全て壊す。\n呪い：周囲を壁に変える。", tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"C", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。", tile:18 },
-  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:1,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n呪い：自分が弾き出され踏むと即死。強制移動されたボスは現在HPの1/4ダメージ。", tile:42 },
+  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:1,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できない。強制移動で乗った通常敵は即死、ボスは現在HPの1/4ダメージ（残っている間も毎ターン）。\n呪い：自分が弾き出されて踏むと即死。", tile:42 },
   { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"C", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。\n同じ部屋にいる者全員の受けるダメージが2倍になる。", tile:42 },
   { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に魔封じの魔方陣を描く。\n部屋内では一切の魔法が無効になる。外からの魔法弾も消える。", tile:42 },
   { name:"雷のペン",         type:"pen",    effect:"thunder_trap",  charges:2, rarity:"D", weight:8,  sellPrice:600,  desc:"足元に雷の魔方陣を描く。真上にいると毎ターン25ダメージ。\n呪い：逆に毎ターン25回復。", tile:42 },

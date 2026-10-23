@@ -22,7 +22,7 @@ import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
-import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
+import { ACTION_TIME_BASE, actionCost, playerActionSpeed, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -52,6 +52,19 @@ function changeInventoryPotCapacity(pot, delta, p, dg, ml, nameFn = null) {
   }
   ml.push(`${potName}の容量が${delta > 0 ? 1 : -1}${delta > 0 ? "増えた" : "減った"}！(${pot.capacity})`);
   return true;
+}
+
+/* 強制移動による即時ダメージと同じフロア時計拍の継続ダメージを重ねない。 */
+function sanctuaryDamageTurnForForcedEntry(player) {
+  if (!player) return null;
+  const actionTime = Number(player.actionTime) || 0;
+  const clockTick = Math.floor(actionTime / ACTION_TIME_BASE);
+  if (player._largeMonsterDamageTurn != null) {
+    return clockTick >= player._largeMonsterDamageTurn ? player._largeMonsterDamageTurn : null;
+  }
+  const speed = playerActionSpeed(player, { hasteGrantFreeze: !!player._hasteGrantFreeze });
+  const nextClockTick = Math.floor((actionTime + actionCost(speed)) / ACTION_TIME_BASE);
+  return nextClockTick > clockTick ? (Number(player.turns) || 0) + 1 : null;
 }
 
 
@@ -642,9 +655,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.hp -= _kbDmg;
         pushEntity(dg, target.x, target.y, dx, dy, d, ml, "monster", target, p, luFn, collisionAtk, killerMon);
         /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ（壁激突によるHP0チェックより先に判定） */
-        if (dg.monsters.includes(target) &&
+        if (dg.monsters.includes(target) && !inMagicSealRoom(target.x, target.y, dg) &&
             dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
           if (target.isBoss) {
+            target._sanctuaryEntryDamageTurn = sanctuaryDamageTurnForForcedEntry(p);
             if (blockLargeMonsterDamage(target, p, ml)) break;
             const _bd = bossInstantDeathDamage(target);
             target.hp -= _bd;
@@ -1003,8 +1017,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}と位置が入れ替わった！`);
         if (drownMonsterIfNeeded(target, dg, p, ml, luFn, killerMon)) break;
         /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ */
-        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
+        if (!inMagicSealRoom(target.x, target.y, dg) &&
+            dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
           if (target.isBoss) {
+            target._sanctuaryEntryDamageTurn = sanctuaryDamageTurnForForcedEntry(p);
             if (blockLargeMonsterDamage(target, p, ml)) break;
             const _bd = bossInstantDeathDamage(target);
             target.hp -= _bd;

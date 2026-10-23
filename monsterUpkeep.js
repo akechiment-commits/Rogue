@@ -2,8 +2,9 @@ import { isStatusImmune } from "./statusImmunity.js";
 import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.js";
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
+import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
 
-/** 攻撃後のモンスター回復・状態タイマー・雷の魔方陣効果を進める。 */
+/** 攻撃後のモンスター回復・状態タイマー・魔方陣の継続効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
   hasCursedExplosionPentacle,
   inMagicSealRoom,
@@ -97,8 +98,29 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     dungeon.monsters = dungeon.monsters.filter((monster) => !_expiredClones.includes(monster));
   }
 
+  for (const monster of [...dungeon.monsters]) {
+    if (monster.hp <= 0 || !monster.isBoss) continue;
+    const sanctuary = dungeon.pentacles?.find((pentacle) =>
+      pentacle.kind === "sanctuary" && pentacle.x === monster.x && pentacle.y === monster.y
+    );
+    if (!sanctuary || inMagicSealRoom(sanctuary.x, sanctuary.y, dungeon)) continue;
+
+    const currentTurn = player?._largeMonsterDamageTurn ?? player?.turns;
+    if (monster._sanctuaryEntryDamageTurn != null && monster._sanctuaryEntryDamageTurn === currentTurn) {
+      delete monster._sanctuaryEntryDamageTurn;
+      continue;
+    }
+    if (blockLargeMonsterDamage(monster, player, messages)) continue;
+
+    const damage = Math.max(1, Math.floor(monster.hp / 4));
+    monster.hp -= damage;
+    messages.push(`${sanctuary.name || "聖域の魔方陣"}の力で${monster.name}が${damage}ダメージを受けた！`);
+    if (monster.hp <= 0) onMonsterDefeated(monster);
+  }
+
   if (!dungeon.pentacles?.some((pentacle) => pentacle.kind === "thunder_trap") || hasCursedExplosionPentacle(dungeon)) return;
   for (const monster of [...dungeon.monsters]) {
+    if (monster.hp <= 0) continue;
     const pentacle = dungeon.pentacles.find((entry) =>
       entry.kind === "thunder_trap" && entry.x === monster.x && entry.y === monster.y
     );
