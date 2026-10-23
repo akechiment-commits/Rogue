@@ -636,7 +636,7 @@ function applyStdMods(it, depth) {
   return it;
 }
 
-export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType = null) {
+export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType = null, { luxury = false } = {}) {
   const allOcc = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y) ||
@@ -649,11 +649,11 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       if (map[fy][fx] === T.FLOOR) floorTiles.push([fx, fy]);
     }
   if (floorTiles.length === 0) return;
-  /* 20% の確率で宝物庫（金貨びっしり）になる */
+  /* 20% の確率で宝物庫（金貨びっしり）になる。豪華版は金貨と大箱が少し増える。 */
   if (Math.random() < 0.20) {
     hr.isTreasureVault = true;
     const shuffled = shuffle([...floorTiles]);
-    const goldCount = Math.min(shuffled.length, rng(5, 10));
+    const goldCount = Math.min(shuffled.length, rng(luxury ? 8 : 5, luxury ? 12 : 10));
     let gPlaced = 0;
     for (const [ix, iy] of shuffled) {
       if (gPlaced >= goldCount) break;
@@ -661,7 +661,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       items.push({ name:"金貨", type:"gold", value: rng(150, 500 + depth * 80), tile:22, id: uid(), x: ix, y: iy });
       gPlaced++;
     }
-    if (Math.random() < 0.70) {
+    if (Math.random() < (luxury ? 0.80 : 0.70)) {
       for (let a = 0; a < 40; a++) {
         const [bx, by] = pick(floorTiles);
         if (allOcc(bx, by)) continue;
@@ -671,8 +671,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
   } else {
-  /* アイテム 2〜4個（B/A/Sレアリティ限定、祝福30%呪い10%） */
-  const itemCount = rng(2, Math.min(4, floorTiles.length));
+  /* 通常はアイテム2〜4個、豪華版は3〜5個（B/A/Sレアリティ限定、祝福30%呪い10%） */
+  const itemCount = rng(luxury ? 3 : 2, Math.min(luxury ? 5 : 4, floorTiles.length));
   let placed = 0;
   for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
     const [ix, iy] = pick(floorTiles);
@@ -682,8 +682,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
     items.push(it);
     placed++;
   }
-  /* 収納上手の巻物（30%で追加配置） */
-  if (Math.random() < 0.30) {
+  /* 収納上手の巻物（通常30%、豪華版35%で追加配置） */
+  if (Math.random() < (luxury ? 0.35 : 0.30)) {
     const _expSc = ITEMS.find(i => i.effect === "expand_inv");
     const _expFloor = dungeonType === "beginner" ? Math.max(6, depth + 1) : depth + 1;
     if (_expSc && lootAllowedInDungeon(_expSc, dungeonType, _expFloor)) {
@@ -695,8 +695,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
   }
-  /* 大箱 (75%) */
-  if (Math.random() < 0.75) {
+  /* 大箱（通常75%、豪華版85%） */
+  if (Math.random() < (luxury ? 0.85 : 0.75)) {
     for (let a = 0; a < 40; a++) {
       const [bx, by] = pick(floorTiles);
       if (allOcc(bx, by)) continue;
@@ -705,8 +705,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       break;
     }
   }
-  /* 泉 (55%) */
-  if (Math.random() < 0.55) {
+  /* 泉（通常55%、豪華版65%） */
+  if (Math.random() < (luxury ? 0.65 : 0.55)) {
     for (let a = 0; a < 40; a++) {
       const [sx, sy] = pick(floorTiles);
       if (allOcc(sx, sy)) continue;
@@ -3781,7 +3781,7 @@ export function genTreasureRoom(depth, dungeonType = null) {
         map[chamber.y + dy][chamber.x + dx] = T.FLOOR;
   };
 
-  /* 大広間に0〜3個の小部屋をつなぎ、毎回違う宝物庫の間取りにする。 */
+  /* 大広間に0〜2個の小部屋をつなぎ、毎回違う宝物庫の間取りにする。 */
   const mainW = rng(9, 13), mainH = rng(7, 9);
   const main = makeChamber(
     Math.floor(MW / 2) - Math.floor(mainW / 2),
@@ -3793,7 +3793,7 @@ export function genTreasureRoom(depth, dungeonType = null) {
   carveChamber(main);
 
   const doors = [];
-  const sides = shuffle(["left", "right", "top", "bottom"]).slice(0, rng(0, 3));
+  const sides = shuffle(["left", "right", "top", "bottom"]).slice(0, rng(0, 2));
   for (const side of sides) {
     const horizontal = side === "left" || side === "right";
     const w = horizontal ? rng(4, 7) : rng(4, 6);
@@ -3823,48 +3823,14 @@ export function genTreasureRoom(depth, dungeonType = null) {
   }
   for (const door of doors) map[door.y][door.x] = T.FLOOR;
 
-  /* 上り階段のみ（最下層に戻る）。位置も間取りに合わせて変える。 */
-  const stairRoom = pick(rooms);
-  const stairTiles = [];
-  for (let y = stairRoom.y; y < stairRoom.y + stairRoom.h; y++)
-    for (let x = stairRoom.x; x < stairRoom.x + stairRoom.w; x++)
-      if (map[y][x] === T.FLOOR) stairTiles.push({ x, y });
-  const su = pick(stairTiles);
+  /* 上り階段のみ（最下層に戻る）。中心の報酬部屋から遠くならない位置に置く。 */
+  const su = { x: main.cx + rng(-1, 1), y: main.cy + rng(-1, 1) };
   map[su.y][su.x] = T.SU;
 
-  const minX = Math.min(...rooms.map((room) => room.x));
-  const minY = Math.min(...rooms.map((room) => room.y));
-  const maxX = Math.max(...rooms.map((room) => room.x + room.w - 1));
-  const maxY = Math.max(...rooms.map((room) => room.y + room.h - 1));
-  const treasureBounds = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
-  const availableTiles = [];
-  for (let y = minY; y <= maxY; y++)
-    for (let x = minX; x <= maxX; x++)
-      if (map[y][x] === T.FLOOR) availableTiles.push({ x, y });
-  shuffle(availableTiles);
-  const items = [];
-  const bigboxes = [], springs = [], traps = [];
-  const placeTreasure = (template) => {
-    const pos = availableTiles.pop();
-    if (pos) items.push({ ...template, id: uid(), x: pos.x, y: pos.y });
-  };
-  const treasures = [
-    { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"大回復薬",       type:"potion", effect:"heal_big", value:60, desc:"HPを60回復する。祝福：120回復。\n呪い：60ダメージ。", tile:17 },
-    { name:"大回復薬",       type:"potion", effect:"heal_big", value:60, desc:"HPを60回復する。祝福：120回復。\n呪い：60ダメージ。", tile:17 },
-  ];
-  for (const treasure of treasures) placeTreasure(treasure);
-  /* 従来の8個のゴールドは残し、間取りに合わせて散らす。 */
-  for (let i = 0; i < 8; i++) {
-    const pos = availableTiles.pop();
-    if (!pos) break;
-    items.push({ name: "ゴールド", type: "gold", value: rng(100, 500 + depth * 50), tile: 22, id: uid(), x: pos.x, y: pos.y });
-  }
-  /* 通常の隠し宝部屋の品揃えも足し、少し豪華な版にする。 */
-  populateHiddenRoom(treasureBounds, map, depth, items, bigboxes, springs, traps, dungeonType);
+  /* 固定品目は置かず、強化版の隠し部屋報酬を階段の近くへまとめる。 */
+  const rewardArea = { x: main.cx - 3, y: main.cy - 2, w: 7, h: 5 };
+  const items = [], bigboxes = [], springs = [], traps = [];
+  populateHiddenRoom(rewardArea, map, depth, items, bigboxes, springs, traps, dungeonType, { luxury: true });
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
   return {
