@@ -6,7 +6,7 @@ import {
 import { monsterPointDistance, monsterBodyCells, canPlaceMonsterBody, monsterOccupiesCell } from './monsterGeometry.js';
 import { pushAnim, pushSplashAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
-import { statusTurns } from './statusDuration.js';
+import { statusTurns, resolveParalysisHit } from './statusDuration.js';
 import {
   reduceFireDamage, hasFireResist, fireResistDamageLabel, isFireExplosionNullified,
   applyLightningToInventory, killMonster, inMagicSealRoom, blockPlayerStatus,
@@ -157,7 +157,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
 
     // 睡眠・金縛り解除
     if ((pl.sleepTurns || 0) > 0) { pl.sleepTurns = 0; ml.push("超高熱で目が覚めた！"); }
-    if ((pl.paralyzeTurns || 0) > 0) { pl.paralyzeTurns = 0; ml.push("超高熱で金縛りが解けた！"); }
+    resolveParalysisHit(pl, ml);
 
     // 炎耐性なしの場合は所持品ロースト
     if (!hasProt) {
@@ -252,6 +252,7 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
       pl.deathCause = `${m.name}のスパイクフレイルで`;
       pl.hp -= dmg;
       onHit?.(dmg, m);
+      resolveParalysisHit(pl, ml);
       ml.push(`強烈な鉄球の一撃が${plName(pl)}を粉砕！${dmg}ダメージ！`);
 
       // テレポート効果（ランダムテレポート）
@@ -311,9 +312,11 @@ export function mireuAbsoluteTerror(m, dg, pl, ml, opts = {}) {
   }
 
   // 1. 鈍足付与（耐鈍足で防御可能）
+  let appliedStatus = false;
   if (!blockPlayerStatus(pl, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
     const slowT = statusTurns("slow", { kind: "player" });
     pl.slowTurns = (pl.slowTurns || 0) + slowT;
+    appliedStatus = true;
     ml.push(`${plName(pl)}は圧倒的な恐怖に足がすくみ、鈍足になった！(${slowT}ターン)`);
   }
 
@@ -323,6 +326,8 @@ export function mireuAbsoluteTerror(m, dg, pl, ml, opts = {}) {
   } else if (!blockPlayerStatus(pl, ml, { proofAbility: "shadow_stitch_proof", proofMsg: "しかし防具が影縫いを防いだ！(耐影縫い)" })) {
     const immT = statusTurns("immobile", { kind: "player" });
     pl.immobileTurns = (pl.immobileTurns || 0) + immT;
+    appliedStatus = true;
     ml.push(`${plName(pl)}は恐怖の重圧でその場から動けなくなった！(${immT}ターン)`);
   }
+  if (appliedStatus) resolveParalysisHit(pl, ml);
 }

@@ -11,9 +11,10 @@ import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./larg
  * - ボスは付与時に持続ターンを半分にする。付与後の減少は通常敵と同じ1ターンずつ
  * - 「永続」になるのは通常敵への封印・金縛りなど。ボスに永続は付けず有限化
  *
- * 金縛り（敵）の特例:
- * - 通常敵: 時間制限なし（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
- * - ボス: 有限 BOSS_PARALYZE_TURNS（50）の半分から開始（25T）。祝福時は100Tの半分で50T
+ * 金縛りの特例:
+ * - 通常の金縛り: 有効な攻撃・効果を受けると解除
+ * - 祝福の強金縛り: 1回目で弱まり、2回目で解除
+ * - 敵ボス: 有限 BOSS_PARALYZE_TURNS（50）の半分から開始（25T）。祝福時は100Tの半分で50T
  */
 
 export const PERMANENT_TURNS = 9999;
@@ -23,6 +24,40 @@ export const BOSS_SEAL_TURNS = 20;
 
 /** ボス金縛りの有限ターン（通常敵は永続＝被ダメ解除） */
 export const BOSS_PARALYZE_TURNS = 50;
+
+/** プレイヤーへの金縛りを付与する。祝福時の強金縛りは2回分の被弾を要する。 */
+export function applyPlayerParalyze(target, turns, { blessed = false, mode = "set" } = {}) {
+  if (!target || !(turns > 0)) return 0;
+  const wasParalyzed = !!target.paralyzed || (target.paralyzeTurns || 0) > 0;
+  const current = target.paralyzeTurns || 0;
+  target.paralyzeTurns = mode === "add"
+    ? current + turns
+    : mode === "max"
+      ? Math.max(current, turns)
+      : turns;
+  if (blessed) target.paralyzeHits = 2;
+  else if (!wasParalyzed) target.paralyzeHits = 0;
+  return target.paralyzeTurns;
+}
+
+/** 有効な攻撃や効果を受けた時の金縛り解除。強金縛りは2回分を数える。 */
+export function resolveParalysisHit(entity, messages = null, name = null) {
+  if (!entity || (!entity.paralyzed && (entity.paralyzeTurns || 0) <= 0)) return false;
+  const label = name ?? entity.name ?? "";
+  const prefix = label ? `${label}の` : "";
+  if ((entity.paralyzeHits || 0) > 1) {
+    entity.paralyzeHits--;
+    entity._paralyzeHp = entity.hp;
+    messages?.push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
+    return true;
+  }
+  entity.paralyzed = false;
+  entity.paralyzeHits = 0;
+  entity.paralyzeTurns = 0;
+  entity._paralyzeHp = null;
+  messages?.push(`${prefix}金縛りが解けた！`);
+  return true;
+}
 
 /**
  * 基準ターン（通常・呪い・罠・敵特技・副次効果すべて共通）
@@ -294,7 +329,7 @@ export function applyAttackSeal(entity, opts = {}) {
 
 /**
  * モンスターに金縛りを付与。
- * - 通常敵: 永続（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
+ * - 通常敵: 永続（有効な攻撃・効果を受けると解除）。祝福時は paralyzeHits=2
  * - ボス: 有限 50T（祝福 100T）の半分を付与。被ダメでも解除
  * @returns {number} 付与ターン（通常敵の永続は PERMANENT_TURNS）
  */

@@ -6,7 +6,7 @@ import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster, applyPla
 import { monEffectiveFloat } from './monTraits.js';
 import { monsterPointDistance, monsterBodyCells } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
-import { applyPlayerPoison } from './statusDuration.js';
+import { applyPlayerPoison, resolveParalysisHit } from './statusDuration.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { pushSplashAnim, pushAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
@@ -60,6 +60,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
       const dmg = Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2));
       pl.hp -= dmg;
       pl.deathCause = `${m.name}のアースブレイカーで`;
+      resolveParalysisHit(pl, ml);
       ml.push(`激しい地響きが${plName(pl)}を襲う！${dmg}ダメージ！`);
       onHit?.(dmg, m);
 

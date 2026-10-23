@@ -1,6 +1,6 @@
 import { hasLOS } from './monsters.js';
 import { inMagicSealRoom } from './items.js';
-import { applyMonsterFlameMantle } from './statusDuration.js';
+import { applyMonsterFlameMantle, resolveParalysisHit } from './statusDuration.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { pushAnim, pushHealAnim, pushFlameMantleAnim, pushRefreshAnim } from './animEvents.js';
 import { monEffectiveMaxAttacks } from './monTraits.js';
@@ -52,6 +52,7 @@ export function taisaijinHypnosis(m, dg, pl, ml) {
     return;
   }
   if (!isStatusImmune(pl, ml, "自分")) {
+    resolveParalysisHit(pl, ml);
     pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
     ml.push(`${m.name}の無数の目が怪しく光り、催眠術をかけた！次の行動を勝手に行ってしまう！`);
     pushAnim({ type: "flash", x: pl.x, y: pl.y, color: "#aa44ff", duration: 300 });

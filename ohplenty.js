@@ -13,7 +13,7 @@ import {
   monsterOccupiesCell,
 } from './monsterGeometry.js';
 import { pushPlayerKnockbackAnim, pushAnim } from './animEvents.js';
-import { statusTurns, applyMonsterParalyze } from './statusDuration.js';
+import { statusTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit } from './statusDuration.js';
 
 const inBounds = (x, y) => x >= 0 && x < MW && y >= 0 && y < MH;
 function isWalkable(map, x, y, dg = null) {
@@ -185,10 +185,7 @@ export function ohplentyPullPlayer(m, dg, pl, ml) {
       pl.sleepTurns = 0;
       ml.push("引き寄せられて目が覚めた！");
     }
-    if ((pl.paralyzeTurns || 0) > 0) {
-      pl.paralyzeTurns = 0;
-      ml.push("引き寄せられて金縛りが解けた！");
-    }
+    resolveParalysisHit(pl, ml);
     return;
   }
 
@@ -321,6 +318,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
           messages?.push(`カスワックの呪いが重なり、即死した！`);
         } else {
           // カスワック状態（50ターン）を付与
+          resolveParalysisHit(player, messages);
           player.caswackTurns = 50;
           messages?.push(`不吉な死の呪気を受けた！カスワック状態になった！（50ターンの間に再び受けると即死する！）`);
         }
@@ -343,6 +341,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
         messages?.push(`${mon.name}はカスワックの呪いが重なり、即死した！`);
         killMonster(mon, dungeon, player, messages, lu, false, source);
       } else {
+        resolveParalysisHit(mon, messages);
         mon.caswackTurns = turns;
         messages?.push(`${mon.name}はカスワック状態になった！（残り${turns}ターン）`);
       }
@@ -416,6 +415,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
       pl.deathCause = `${m.name}のデストラップで`;
       pl.hp -= dmg;
       onHit?.(dmg, m);
+      resolveParalysisHit(pl, ml);
       ml.push(`${m.name}のトラップが${plName(pl)}を襲う！${dmg}ダメージ！`);
 
       if (pl.hp > 0) {
@@ -423,7 +423,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
           ml.push("魔封じの魔方陣が金縛りを防いだ！");
         } else if (!isStatusImmune(pl, ml, "自分")) {
           const pTurns = statusTurns("paralyze", { kind: "player" });
-          pl.paralyzeTurns = Math.max(pl.paralyzeTurns || 0, pTurns);
+          applyPlayerParalyze(pl, pTurns, { mode: "max" });
           ml.push(`${plName(pl)}は金縛りで動けなくなった！(${pTurns}ターン)`);
         }
       }
@@ -442,6 +442,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
       }
       const dmg = Math.max(1, calcAtkDefDmg(m.atk, other.def || 0, { defWeight: 1.0 }));
       other.hp -= dmg;
+      resolveParalysisHit(other, ml);
       ml.push(`${m.name}のトラップが${other.name}に直撃！${dmg}ダメージ！`);
       if (other.hp <= 0) {
         killMonster(other, dg, pl, ml, lu, false, m);

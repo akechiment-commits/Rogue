@@ -21,7 +21,7 @@ import { interruptPlayerSleep } from './turnUpkeep.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
-import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -854,7 +854,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)");
             } else {
               const _pt = statusTurns("paralyze", { kind: "player" });
-              p.paralyzeTurns = Math.max(p.paralyzeTurns || 0, _pt);
+              applyPlayerParalyze(p, _pt, { mode: "max" });
               ml.push(`さらに金縛りになった！(${_pt}ターン)`);
             }
           }
@@ -1233,7 +1233,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (hasAbility(p.armor, "paralyze_proof")) {
               ml.push("階段の上にテレポートした！金縛り効果を受けたが防具が防いだ！(耐金縛り)");
             } else {
-              p.paralyzeTurns = statusTurns("paralyze", { kind: "player" });
+              applyPlayerParalyze(p, statusTurns("paralyze", { kind: "player" }));
               ml.push(`階段の上にテレポートした！しかし金縛りになった！(${p.paralyzeTurns}ターン)`);
             }
           } else if (kind === "item" || FLOOR_MOVE_KINDS.has(kind)) {
@@ -1347,7 +1347,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (hasAbility(p.armor, "paralyze_proof")) {
           ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)");
         } else {
-          p.paralyzeTurns = statusTurns("paralyze", { kind: "player", blessed: _pzBlessed });
+          applyPlayerParalyze(p, statusTurns("paralyze", { kind: "player", blessed: _pzBlessed }), { blessed: _pzBlessed });
           ml.push(`金縛りになった！(${p.paralyzeTurns}ターン)${_pzBlessed ? "(強金縛り)" : ""}`);
         }
         break;
@@ -2348,7 +2348,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         ml.push("ゴムゴムの胴がアイテムへの雷を弾いた！");
       }
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-      if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      resolveParalysisHit(pl, ml);
       return;
     }
     const mon = monsterAt(dg, tx, ty);

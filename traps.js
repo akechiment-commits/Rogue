@@ -3,7 +3,7 @@ import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, rando
 import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
-import { statusTurns } from "./statusDuration.js";
+import { statusTurns, resolveParalysisHit } from "./statusDuration.js";
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
 import { claimTrapActivation } from "./trapActivationTurn.js";
@@ -324,9 +324,11 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
         if (_bbHitWall) {
           p.deathCause = `${trap.name}による壁への衝突により`;
           p.hp -= 10;
+          resolveParalysisHit(p, ml);
           ml.push("壁に激突！10ダメージ！");
         } else if (_bbHitMon) {
           p.hp -= 10;
+          resolveParalysisHit(p, ml);
           _bbHitMon.hp -= 10;
           ml.push(`${_bbHitMon.name}に激突！お互いに10ダメージ！`);
           if (_bbHitMon.hp <= 0) {

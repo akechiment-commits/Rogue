@@ -397,6 +397,9 @@ function clearMajorDebuffs(p) {
   clearPlayerPoison(p);
   p.sleepTurns = 0;
   p.paralyzeTurns = 0;
+  p.paralyzed = false;
+  p.paralyzeHits = 0;
+  p._paralyzeHp = null;
   p.confusedTurns = 0;
   p.slowTurns = 0;
   p.darknessTurns = 0;

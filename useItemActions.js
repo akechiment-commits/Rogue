@@ -1,4 +1,4 @@
-import { isStatusImmune, statusResultMessage, monsterStatusTurns } from "./statusDuration.js";
+import { isStatusImmune, statusResultMessage, monsterStatusTurns, applyPlayerParalyze } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
@@ -439,7 +439,7 @@ export function useItemActions({
             ml.push(`${_useItemName}を飲んだ。しかし防具が金縛りを防いだ！(耐金縛り)`);
           } else {
             const _pt = statusTurns("paralyze", { kind: "player", blessed: !!it.blessed });
-            p.paralyzeTurns = _pt;
+            applyPlayerParalyze(p, _pt, { blessed: !!it.blessed });
             ml.push(`${_useItemName}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.blessed ? "【祝=強金縛り】" : ""}`);
           }
         }
@@ -651,7 +651,7 @@ export function useItemActions({
       } else if (fe === "antidote_food") {
         const _acured = [];
         if (p.sleepTurns > 0) { p.sleepTurns = 0; _acured.push("睡眠"); }
-        if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; _acured.push("金縛り"); }
+        if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; _acured.push("金縛り"); }
         if (p.poisoned) {
           clearPlayerPoison(p);
           _acured.push("毒");
@@ -734,7 +734,7 @@ export function useItemActions({
           } else if (pe === "paralyze") {
             if ((p.statusImmune || 0) > 0) ml.push("金縛り成分！状態防止中のため効かなかった！");
             else if (hasAbility(p.armor, "paralyze_proof")) ml.push("金縛り成分！しかし防具が防いだ！(耐金縛り)");
-            else { const _pt = statusTurns("paralyze", { kind: "player" }); p.paralyzeTurns = (p.paralyzeTurns || 0) + _pt; ml.push(`金縛り成分が！体が動かない！(${_pt}ターン)`); }
+            else { const _pt = statusTurns("paralyze", { kind: "player" }); applyPlayerParalyze(p, _pt, { mode: "add" }); ml.push(`金縛り成分が！体が動かない！(${_pt}ターン)`); }
           // 呪い系効果
           } else if (pe === "c_heal") {
             if (hasRingEffect(p, "antidote_ring")) {
@@ -829,7 +829,7 @@ export function useItemActions({
             const _chCured = [];
             if (p.poisoned) { clearPlayerPoison(p); _chCured.push("毒"); }
             if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _chCured.push("眠り"); }
-            if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; _chCured.push("金縛り"); }
+            if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; _chCured.push("金縛り"); }
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _chCured.push("混乱"); }
             if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _chCured.push("鈍足"); }
             if ((p.oilyTurns || 0) > 0) { p.oilyTurns = 0; _chCured.push("油まみれ"); }
@@ -1616,7 +1616,7 @@ export function useItemActions({
           // 呪い：自分が20ターン金縛り
           if ((p.statusImmune || 0) > 0) ml.push("金縛りの呪いが自分を襲った！状態防止中のため効かなかった！【呪】");
           else if (hasAbility(p.armor, "paralyze_proof")) ml.push("金縛りの呪いが自分を襲った！しかし防具が防いだ！(耐金縛り)【呪】");
-          else { const _pt = statusTurns("paralyze", { kind: "player" }); p.paralyzeTurns = (p.paralyzeTurns || 0) + _pt; ml.push(`金縛りの呪いが自分を襲った！${_pt}ターン体が動かない！【呪】`); }
+          else { const _pt = statusTurns("paralyze", { kind: "player" }); applyPlayerParalyze(p, _pt, { mode: "add" }); ml.push(`金縛りの呪いが自分を襲った！${_pt}ターン体が動かない！【呪】`); }
         } else {
           const _btTgts = it.blessed
             ? dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])
@@ -1629,7 +1629,7 @@ export function useItemActions({
             if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が金縛りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "paralyze_proof")) { ml.push(`${_m.name}が金縛りを跳ね返したが、防具が防いだ！`); continue; }
-                const _rt = statusTurns("paralyze", { kind: "player" }); p.paralyzeTurns = (p.paralyzeTurns || 0) + _rt;
+                const _rt = statusTurns("paralyze", { kind: "player" }); applyPlayerParalyze(p, _rt, { mode: "add" });
                 ml.push(`${_m.name}が金縛りを跳ね返した！${_rt}ターン体が動かない！`); continue;
               }
               if (consumeBarrier(_m, ml)) continue;
@@ -2553,8 +2553,8 @@ export function useItemActions({
             const _sealTurns = applyPlayerSeal(p, ml, { proofMsg: "魔力の反動による封印を防具が防いだ！(耐封印)" });
             if (_sealTurns > 0) ml.push(`魔力の反動で魔法封印になった！(${_sealTurns}ターン)`);
             const _paralyzeTurns = statusTurns("paralyze", { kind: "player" });
+            applyPlayerParalyze(p, _paralyzeTurns, { mode: "add" });
             p.paralyzed = true;
-            p.paralyzeTurns = (p.paralyzeTurns || 0) + _paralyzeTurns;
             ml.push(`魔力の反動で金縛りになった！(${_paralyzeTurns}ターン)`);
           }
         }

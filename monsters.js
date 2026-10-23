@@ -46,7 +46,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns, applyPlayerPoison, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
@@ -274,7 +274,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     onPlayerHit?.(dmg, m);
     ml.push(`${m.name}が炎ブレスを吐いた！${playerHpEffectLabel(pl, dmg)}！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
     interruptPlayerSleep(pl, ml, "熱さで目が覚めた！");
-    if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
+    weakenOrClearParalysis(pl, ml);
     if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true, { killerMon: m, sourceIsPlayer: false });
   };
   for (let _fi = 1; _fi < MW + MH; _fi++) {
@@ -564,7 +564,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn);
   }
   interruptPlayerSleep(pl, ml);
-  if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  weakenOrClearParalysis(pl, ml);
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
   if (_fireMantleAttack && dmg > 0) {
     if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true, { killerMon: m, sourceIsPlayer: false });
@@ -629,7 +629,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         ml.push(`魔神王の一撃が魂を縛った！しかし状態防止中のため効かなかった！`);
       } else {
         const _pt = statusTurns("paralyze", { kind: "player" });
-        pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+        applyPlayerParalyze(pl, _pt, { mode: "add" });
         ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
       }
     }
@@ -682,7 +682,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
           ml.push(`深淵神の一撃が意識を蝕んだ！しかし状態防止中のため効かなかった！`);
         } else {
           const _pt = statusTurns("paralyze", { kind: "player" });
-          pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+          applyPlayerParalyze(pl, _pt, { mode: "add" });
           ml.push(`深淵神の一撃が意識を蝕んだ！金縛りになった！(${_pt}ターン)`);
         }
       }
@@ -2718,7 +2718,6 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
     hitChance: 0.80,
     applyVulnPentacle: true,
-    wakeParalyze: true,
     pierce: _isPierce,
     onMiss: (px, py, mlx) => {
       _dropAr(px, py, mlx);
@@ -2856,7 +2855,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
     pl.hp -= dmg;
     ml.push(`${m.name}の${stoneName}が命中！${playerHpEffectLabel(pl, dmg)}！`);
     interruptPlayerSleep(pl, ml);
-    if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+    weakenOrClearParalysis(pl, ml);
   };
 
   let fdx = Math.sign(pl.x - m.x), fdy = Math.sign(pl.y - m.y);
@@ -3021,7 +3020,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       pl.hp -= dmg;
       ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！`);
       interruptPlayerSleep(pl, ml);
-      if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      weakenOrClearParalysis(pl, ml);
       /* ずぶ濡れ＋所持品への水影響（耐水で無効） */
       if (!hasWaterProof(pl)) {
         applySoakedStatus(pl, ml);
@@ -3084,7 +3083,6 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * hitChance: プレイヤー命中時の命中判定（モンスター射手用、1.0=必中、0.80=矢、0.80=水鉄砲 など）
  * onMiss(px, py, ml): 回避/不発/外れ時のコールバック（矢などの弾薬を地面に落とす処理）
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
- * wakeParalyze: 命中時に金縛りを解除するか
  * pierce: trueなら壁・敵・プレイヤー・大箱・泉を貫通して飛び続ける（farcastと同等の挙動）
  * reflectorRange: reflector反射時の最大飛距離（デフォルト20）
  * customPlHit(ml, isReflected, reflectorMon): プレイヤー命中時のカスタム処理。指定するとデフォルトの
@@ -3132,7 +3130,6 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onFlyOff = null,
     hitChance = 1.0,
     applyVulnPentacle = false,
-    wakeParalyze = false,
     wind = true,
     pierce = false,
     isPlayerShooter = false,
@@ -3263,6 +3260,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     if (_tx === pl.x && _ty === pl.y && !_plHit) {
       _plHit = true;
       if (isPlayerShooter) {
+        weakenOrClearParalysis(pl, ml);
         if (customPlHit) {
           customPlHit(ml, false, null);
         } else {
@@ -3304,8 +3302,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       }
       if (customPlHit) {
         /* customPlHit: ダメージ・メッセージ・deathCauseを完全カスタム（壺投げで割れて中身散乱、杖で効果発動など） */
+        weakenOrClearParalysis(pl, ml);
         customPlHit(ml, false, null);
       } else {
+        weakenOrClearParalysis(pl, ml);
         let _dmg = calcPlDmg();
         if (applyVulnPentacle) {
           const _vp = findVulnPentacle(dg, pl.x, pl.y);
@@ -3315,7 +3315,6 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
         ml.push(`${_shooterPrefix}${boltName}が命中！${playerHpEffectLabel(pl, _dmg)}！`);
         interruptPlayerSleep(pl, ml);
-        if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       }
       if (onPlHit) onPlHit(ml);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
@@ -3342,6 +3341,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           const _rtile = dg.map[_rny]?.[_rnx];
           if (_rtile === T.WALL || _rtile === T.BWALL) break;
           if (_rnx === pl.x && _rny === pl.y) {
+            weakenOrClearParalysis(pl, ml);
             if (customPlHit) {
               customPlHit(ml, true, _mon);
             } else {
@@ -3354,7 +3354,6 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
               ml.push(`跳ね返された${boltName}が${plName(pl)}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
               interruptPlayerSleep(pl, ml);
-              if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             }
             if (onPlHit) onPlHit(ml);
             return; /* プレイヤー命中時は弾消滅（onFlyOff呼ばない） */
@@ -3525,6 +3524,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
       } else if (proofAbility && hasAbility(pl.armor, proofAbility)) {
         ml.push(`${wandLabel}の魔法弾を受けた！しかし防具が防いだ！`);
       } else {
+        weakenOrClearParalysis(pl, ml);
         onPlayerHit(ml);
       }
       _hit = true; break;
@@ -3961,6 +3961,7 @@ function useDangerousPetalSleep(m, dg, pl, ml) {
     return true;
   }
   const turns = statusTurns("sleep", { kind: "player" });
+  weakenOrClearParalysis(pl, ml);
   pl.sleepTurns = turns;
   ml.push(`${m.name}が眠りの花粉をまいた！眠ってしまった！(${turns}ターン)`);
   return true;
@@ -5323,6 +5324,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
       if (!isStatusImmune(pl, ml)) {
+        weakenOrClearParalysis(pl, ml);
         const _r = Math.random();
         if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
         else if (_r < 0.66) {
@@ -5446,6 +5448,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
           pl.hp -= _kiDmg;
           pl.deathCause = `${m.name}の墨で`;
+          weakenOrClearParalysis(pl, ml);
           ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！`);
           if (!isStatusImmune(pl, ml)) {
             const _darkT = statusTurns("darkness", { kind: "player" });
@@ -6437,7 +6440,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           _justCaptured = true;
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
           interruptPlayerSleep(pl, ml);
-          if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+          weakenOrClearParalysis(pl, ml);
         }
         if (!_justCaptured && !_plOnSanc) {
           if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
@@ -6457,7 +6460,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         _justBound = true;
         ml.push(`${m.name}に締め付けられた！倒さなければ逃げられない！`);
         interruptPlayerSleep(pl, ml);
-        if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+        weakenOrClearParalysis(pl, ml);
       }
       if (!_justBound && pl.capturedBy === m.id && !_plOnSanc && !_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
@@ -7751,7 +7754,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             pushPlayerKnockbackAnim(_pullFromX, _pullFromY, pl.x, pl.y, _puldx, _puldy);
             ml.push(`${m.name}に引き寄せられた！`);
             interruptPlayerSleep(pl, ml, "引っ張られて目が覚めた！");
-            if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("引っ張られて金縛りが解けた！"); }
+            weakenOrClearParalysis(pl, ml);
           }
         }
       }

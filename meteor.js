@@ -3,6 +3,7 @@ import { monsterAreaTargets, monsterOccupiesCell } from './monsterGeometry.js';
 import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, withParalysisHit, wallBreakDrop } from './items.js';
 import { monEffectiveMagicImmune } from './monTraits.js';
 import { beginNpcRetaliation } from './npcRetaliation.js';
+import { resolveParalysisHit } from './statusDuration.js';
 import { pushExplosionAnim } from './animEvents.js';
 
 export function canCastMeteor(monster, dungeon) {
@@ -79,6 +80,7 @@ export function advanceMeteors(dungeon, player, messages, lu, worldTicks = 1) {
       const damage = multiplyCursedMagicDamage(mitigatedDamage, player, dungeon);
       player.deathCause = `${meteor.sourceName}のメテオにより`;
       withEnemyDamageContext(player, () => { player.hp -= damage; });
+      resolveParalysisHit(player, messages);
       messages.push(`メテオを受けた！${playerHpEffectLabel(player, damage)}！`);
     }
     const targets = monsterAreaTargets(dungeon.monsters || [], inArea);

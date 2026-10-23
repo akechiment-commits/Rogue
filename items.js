@@ -27,7 +27,7 @@ import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -201,18 +201,7 @@ export function blockPlayerStatus(p, ml, { proofAbility = null, proofMsg = null 
 
 /* ===== 金縛り弱体/解除ヘルパー ===== */
 export function weakenOrClearParalysis(mon, ml) {
-  if (!mon.paralyzed) return;
-  if ((mon.paralyzeHits || 0) > 1) {
-    mon.paralyzeHits--;
-    mon._paralyzeHp = mon.hp;
-    ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`);
-  } else {
-    mon.paralyzed = false;
-    mon.paralyzeHits = 0;
-    mon.paralyzeTurns = 0;
-    mon._paralyzeHp = null;
-    ml.push(`${mon.name}の金縛りが解けた！`);
-  }
+  return resolveParalysisHit(mon, ml);
 }
 
 /** 命中前の弱体化と、その命中によるHP変化を1回の被弾として確定する。 */
@@ -1591,7 +1580,7 @@ export function breakAltar(altar, dg, ml, p = null, breaker = null, luFn = null)
   }
   if (victim === p) {
     const paralyzeTurns = statusTurns("paralyze", { kind: "player" });
-    victim.paralyzeTurns = Math.max(victim.paralyzeTurns || 0, paralyzeTurns);
+    applyPlayerParalyze(victim, paralyzeTurns, { mode: "max" });
     ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns}/${slowTurns}ターン)`);
   } else {
     const _allowParalyze = !blockLargeMonsterStatus(victim, "paralyze", ml);
@@ -4767,7 +4756,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)"); }
           else {
             const _pt = statusTurns("paralyze", { kind: "player", blessed });
-            p.paralyzeTurns = _pt;
+            applyPlayerParalyze(p, _pt, { blessed });
             ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
           }
         }
@@ -5471,7 +5460,7 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
       const cured = [];
       if ((entity.sleepTurns || 0) > 0) { entity.sleepTurns = 0; cured.push("睡眠"); }
       if (kind === "player") {
-        if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; cured.push("金縛り"); }
+        if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; cured.push("金縛り"); }
         if (p.poisoned || (p.poisonAtkLoss || 0) > 0) { clearPlayerPoison(p); cured.push("毒"); }
       } else {
         if (target.paralyzed || (target.paralyzeTurns || 0) > 0) {
@@ -7193,7 +7182,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
   ml.push(`跳ね返された${stoneName}が${pl()}にホーミング命中！${dmg}ダメージ！消滅した。`);
   interruptPlayerSleep(p, ml);
-  if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  resolveParalysisHit(p, ml);
   return dmg;
 }
 
@@ -9354,8 +9343,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             else if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛りの魔法が跳ね返ってきた！しかし防具が防いだ！(耐金縛り)"); }
             else {
               const _pt = statusTurns("paralyze", { kind: "player" });
+              applyPlayerParalyze(p, _pt, { mode: "add" });
               p.paralyzed = true;
-              p.paralyzeTurns = (p.paralyzeTurns || 0) + _pt;
               ml.push(`金縛りの魔法が跳ね返ってきた！金縛りになった！(${_pt}ターン)`);
             }
             break;

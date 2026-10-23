@@ -143,7 +143,14 @@ export function advanceForcedTurn(player, messages) {
   }
   if ((player.paralyzeTurns || 0) > 0) {
     player.paralyzeTurns--;
-    messages.push(player.paralyzeTurns > 0 ? `金縛りにあっている...あと${player.paralyzeTurns}ターン` : "金縛りが解けた！");
+    if (player.paralyzeTurns > 0) {
+      messages.push(`金縛りにあっている...あと${player.paralyzeTurns}ターン`);
+    } else {
+      player.paralyzed = false;
+      player.paralyzeHits = 0;
+      player._paralyzeHp = null;
+      messages.push("金縛りが解けた！");
+    }
     return { advanced: true, exitPotAfterTurn: false };
   }
   if ((player.frozenTurns || 0) > 0) {
