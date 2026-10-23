@@ -1,4 +1,3 @@
-import { hasLOS } from './monsters.js';
 import { inMagicSealRoom, hasRingEffect, killMonster } from './items.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { plName } from './playerLabel.js';
@@ -6,7 +5,13 @@ import {
   MW, MH, uid, T, calcAtkDefDmg, calcPlayerDefense, setPlayerHpForFixedEffect,
   checkPlayerPhysicalAttackEvasion, checkMonsterEvasion, consumeBarrier
 } from './utils.js';
-import { monsterOccupiesCell } from './monsterGeometry.js';
+import {
+  canPlaceMonsterBody,
+  monsterBodyCells,
+  monsterBodySize,
+  monsterDistance,
+  monsterOccupiesCell,
+} from './monsterGeometry.js';
 import { pushPlayerKnockbackAnim, pushAnim } from './animEvents.js';
 import { statusTurns, applyMonsterParalyze } from './statusDuration.js';
 
@@ -35,83 +40,171 @@ export function canUseOhplentySpecial(monster) {
 }
 
 /**
- * プレイヤーが遠距離直線上にいるか判定（距離2〜10マス、障害物なしLOSあり）
+ * プレイヤーが遠距離直線上にいるか判定（距離2〜10マス）。
+ * 壁や途中の生物も特技の対象判定に含める。
  */
 export function isFarLineToPlayer(monster, dungeon, player) {
   const dx = player.x - monster.x;
   const dy = player.y - monster.y;
   const isLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
   const dist = Math.max(Math.abs(dx), Math.abs(dy));
-  if (!isLine || dist < 2 || dist > 10) return false;
-  return hasLOS(dungeon.map, monster.x, monster.y, player.x, player.y);
+  return isLine && dist >= 2 && dist <= 10;
+}
+
+function getPullLandingPosition(monster, target, dg, player, dx, dy) {
+  const isPlayer = target === player;
+  const targetSize = isPlayer ? 1 : monsterBodySize(target);
+  const range = isPlayer ? 1 : targetSize + 1;
+  const candidates = [];
+
+  for (let oy = -range; oy <= range; oy++) {
+    for (let ox = -range; ox <= range; ox++) {
+      if (ox === 0 && oy === 0) continue;
+      const x = monster.x + ox;
+      const y = monster.y + oy;
+      if (isPlayer) {
+        if (Math.max(Math.abs(ox), Math.abs(oy)) !== 1) continue;
+      } else if (monsterDistance(monster, { ...target, x, y }) !== 1) {
+        continue;
+      }
+
+      const body = isPlayer ? [{ x, y }] : monsterBodyCells(target, x, y);
+      if (body.some(cell => !isWalkable(dg.map, cell.x, cell.y, dg))) continue;
+      if (isPlayer) {
+        if ((dg.monsters || []).some(other => other !== monster && other.hp > 0 && monsterOccupiesCell(other, x, y))) continue;
+      } else if (!canPlaceMonsterBody(dg, target, x, y, player)) {
+        continue;
+      }
+
+      const projection = ox * dx + oy * dy;
+      const crossTrack = Math.abs(ox * dy - oy * dx);
+      candidates.push({ x, y, projection, crossTrack, distance: Math.max(Math.abs(ox), Math.abs(oy)) });
+    }
+  }
+
+  candidates.sort((a, b) =>
+    b.projection - a.projection ||
+    a.crossTrack - b.crossTrack ||
+    a.distance - b.distance ||
+    a.y - b.y ||
+    a.x - b.x,
+  );
+  return candidates[0] || null;
 }
 
 /**
  * 特技1: 引き寄せの魔法
- * 遠距離直線上のプレイヤーをオープレンティの目の前（隣接マス）に引き寄せる
+ * 遠距離直線上の最初の生物を隣接マスへ引き寄せる。壁に当たった場合は
+ * オープレンティ自身が壁の手前まで飛びつく。
  */
 export function ohplentyPullPlayer(m, dg, pl, ml) {
   m.turnAttacks = m.maxAttacks || 1;
-  if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
+  if (inMagicSealRoom(m.x, m.y, dg)) {
     ml.push(`${m.name}は引き寄せの魔法を唱えようとしたが、魔封じの魔方陣で封じられた！`);
     return;
   }
-  const plOnBlessedSanc = !inMagicSealRoom(pl.x, pl.y, dg) &&
-    !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
-  if (plOnBlessedSanc) {
-    ml.push(`祝福された聖域の加護が${m.name}の引き寄せの魔法を防いだ！`);
-    return;
-  }
-  if (hasRingEffect(pl, "core_ring")) {
-    ml.push(`${m.name}の引き寄せの魔法を受けそうになったが、体幹の指輪で踏ん張った！`);
-    return;
-  }
-
-  // 直線に沿ってオープレンティの隣接マス（手前）を求める
   const sgnX = Math.sign(pl.x - m.x);
   const sgnY = Math.sign(pl.y - m.y);
-  const targetX = m.x + sgnX;
-  const targetY = m.y + sgnY;
+  const dist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+  let target = pl;
+  let lastX = m.x;
+  let lastY = m.y;
 
-  // 途中に障害物がないか確認し、可能な限り引き寄せる
-  let destX = pl.x;
-  let destY = pl.y;
-
-  let cx = pl.x - sgnX;
-  let cy = pl.y - sgnY;
-  while (cx !== m.x || cy !== m.y) {
-    if (!isWalkable(dg.map, cx, cy, dg) || dg.monsters?.some(o => o !== m && monsterOccupiesCell(o, cx, cy))) {
+  for (let step = 1; step < dist; step++) {
+    const x = m.x + sgnX * step;
+    const y = m.y + sgnY * step;
+    if (dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL) {
+      if (lastX === m.x && lastY === m.y) {
+        ml.push(`${m.name}は壁に阻まれて飛びつけなかった！`);
+        return;
+      }
+      m.dir = { x: sgnX, y: sgnY };
+      m.x = lastX;
+      m.y = lastY;
+      m.posHistory = [];
+      m._idleStuck = 0;
+      m._movedThisTurn = true;
+      ml.push(`${m.name}は壁の手前まで飛びついた！`);
+      return;
+    }
+    const blocker = (dg.monsters || []).find(other =>
+      other !== m && other.hp > 0 && monsterOccupiesCell(other, x, y),
+    );
+    if (blocker) {
+      target = blocker;
       break;
     }
-    destX = cx;
-    destY = cy;
-    cx -= sgnX;
-    cy -= sgnY;
+    if (!isWalkable(dg.map, x, y, dg)) {
+      ml.push(`${m.name}は引き寄せの魔法を唱えたが、障害物に阻まれた！`);
+      return;
+    }
+    lastX = x;
+    lastY = y;
   }
 
-  if (destX === pl.x && destY === pl.y) {
-    ml.push(`${m.name}は引き寄せの魔法を唱えたが、障害物に阻まれた！`);
+  if (!target || target.hp <= 0) {
+    ml.push(`${m.name}は引き寄せの魔法を唱えたが、対象がいなかった！`);
     return;
   }
 
-  const fromX = pl.x;
-  const fromY = pl.y;
-  pl.x = destX;
-  pl.y = destY;
-
-  pushPlayerKnockbackAnim(fromX, fromY, pl.x, pl.y, -sgnX, -sgnY);
-  ml.push(`${m.name}は引き寄せの魔法を唱えた！`);
-  ml.push(`${plName(pl)}は${m.name}の目の前に引き寄せられた！`);
-
-  // 睡眠・金縛りの解除
-  if ((pl.sleepTurns || 0) > 0) {
-    pl.sleepTurns = 0;
-    ml.push("引き寄せられて目が覚めた！");
+  if (inMagicSealRoom(target.x, target.y, dg)) {
+    ml.push(`魔封じの魔方陣が${target === pl ? plName(pl) : target.name}への引き寄せを防いだ！`);
+    return;
   }
-  if ((pl.paralyzeTurns || 0) > 0) {
-    pl.paralyzeTurns = 0;
-    ml.push("引き寄せられて金縛りが解けた！");
+  if (target === pl) {
+    const plOnBlessedSanc = !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+    if (plOnBlessedSanc) {
+      ml.push(`祝福された聖域の加護が${m.name}の引き寄せの魔法を防いだ！`);
+      return;
+    }
+    if (hasRingEffect(pl, "core_ring")) {
+      ml.push(`${m.name}の引き寄せの魔法を受けそうになったが、体幹の指輪で踏ん張った！`);
+      return;
+    }
+  } else if (target.forcedMoveImmune || target.stationary) {
+    ml.push(`${target.name}は${m.name}の引き寄せに耐えた！`);
+    return;
   }
+
+  const landing = getPullLandingPosition(m, target, dg, pl, sgnX, sgnY);
+  if (!landing) {
+    ml.push(`${m.name}は引き寄せの魔法を唱えたが、引き寄せる場所がなかった！`);
+    return;
+  }
+
+  if (target === pl) {
+    const fromX = pl.x;
+    const fromY = pl.y;
+    pl.x = landing.x;
+    pl.y = landing.y;
+    pushPlayerKnockbackAnim(fromX, fromY, pl.x, pl.y, -sgnX, -sgnY);
+    ml.push(`${m.name}は引き寄せの魔法を唱えた！`);
+    ml.push(`${plName(pl)}は${m.name}の目の前に引き寄せられた！`);
+
+    if ((pl.sleepTurns || 0) > 0) {
+      pl.sleepTurns = 0;
+      ml.push("引き寄せられて目が覚めた！");
+    }
+    if ((pl.paralyzeTurns || 0) > 0) {
+      pl.paralyzeTurns = 0;
+      ml.push("引き寄せられて金縛りが解けた！");
+    }
+    return;
+  }
+
+  const fromX = target.x;
+  const fromY = target.y;
+  target.x = landing.x;
+  target.y = landing.y;
+  target.dir = { x: Math.sign(landing.x - fromX), y: Math.sign(landing.y - fromY) };
+  target.aware = true;
+  target.lastPx = pl.x;
+  target.lastPy = pl.y;
+  target.posHistory = [];
+  target._idleStuck = 0;
+  target.patrolTarget = null;
+  ml.push(`${m.name}の引き寄せの魔法が${target.name}に命中した！`);
+  ml.push(`${target.name}は${m.name}の目の前に引き寄せられた！`);
 }
 
 /**

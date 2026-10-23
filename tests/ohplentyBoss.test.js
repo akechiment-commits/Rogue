@@ -97,12 +97,13 @@ describe('上級25階ボス オープレンティ', () => {
       expect(s.messages.some(m => m.includes('体幹の指輪'))).toBe(true);
     });
 
-    it('途中に障害物（壁）がある場合は進める限界まで引き寄せる', () => {
+    it('途中に壁がある場合はオープレンティ自身が壁の手前まで飛びつく', () => {
       const s = setup();
       s.dungeon.map[10][8] = T.WALL; // (8, 10) に壁
       ohplentyPullPlayer(s.boss, s.dungeon, s.player, s.messages);
-      // (5, 10) から (8, 10) 手前の (7, 10) まで引き寄せられる
-      expect(s.player.x).toBe(7);
+      // boss (10, 10) が壁 (8, 10) の手前 (9, 10) まで移動する
+      expect(s.boss.x).toBe(9);
+      expect(s.player.x).toBe(5);
       expect(s.player.y).toBe(10);
     });
   });
