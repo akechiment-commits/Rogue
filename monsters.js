@@ -1272,7 +1272,7 @@ export const MONS = [
       { name: "怨霊の古柳", hp: 350, atk: 58, def: 22, exp: 1400, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
     ],
   },
-  { name: "眠れる獅子", hp: 140, atk: 40, def: 14, exp: 280, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 80, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、視界に入ったり隣接しただけでは起きない。攻撃や魔法など何かを受けると目覚める。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
+  { name: "眠れる獅子", hp: 140, atk: 40, def: 14, exp: 280, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 80, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、視界に入ったり隣接しただけでは起きない。攻撃や魔法など何かを受けると目覚める。目覚めると25%でキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
     levels: [
       { name: "眠れる大獅子", hp: 250, atk: 58, def: 20, exp: 850, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } } },
       { name: "眠れる赤獅子", hp: 380, atk: 78, def: 28, exp: 4200, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
@@ -6252,16 +6252,28 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
   }
+  if (m.subtype === "sleepingLion" && _moveOnly) delete m._meteorReady;
   if ((m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion") && !m.sealed &&
       !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&
       canSee && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
       !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg) &&
       canCastMeteor(m, dg)) {
     // 等速敵は移動するとそのターン攻撃できない。詠唱可能なら移動に行動を使わない。
-    if (_moveOnly) return;
-    if (m.turnAttacks < monEffectiveMaxAttacks(m) && castMeteor(m, dg, pl, ml)) {
-      m.turnAttacks++;
-      return;
+    if (_moveOnly) {
+      if (m.subtype !== "sleepingLion") return;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < 0.25)) {
+        m._meteorReady = true;
+        return;
+      }
+    }
+    if (m.turnAttacks < monEffectiveMaxAttacks(m) &&
+        (m.subtype !== "sleepingLion" || m._meteorReady)) {
+      delete m._meteorReady;
+      if (castMeteor(m, dg, pl, ml)) {
+        m.turnAttacks++;
+        return;
+      }
     }
   }
   /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡（魔封じで無効） */
