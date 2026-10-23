@@ -6649,6 +6649,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (showSettings) { setShowSettings(false); return; }
                     if (showSound) { setShowSound(false); return; }
                     if (showTileEditor) { setShowTileEditor(false); return; }
+                    if (showInv) { act("inventory"); return; }
                     if (isAnyModalActive) return;
                     act("inventory");
                   }}
