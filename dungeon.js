@@ -2481,10 +2481,43 @@ function genBossFloor(depth, dungeonType = null) {
     return null;
   };
 
+  /* オープレンティのボス階は、初期位置の周囲に大箱4個を先に確保する。 */
+  const bigboxes = [];
+  const isOhplentyBossFloor = bt.baseKind === "boss_ohplenty";
+  const initialBigboxOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || bigboxes.some(b => b.x === x && b.y === y);
+  const rndNearBoss = (occ) => {
+    const candidates = [];
+    for (let y = main.y; y < main.y + main.h; y++) {
+      for (let x = main.x; x < main.x + main.w; x++) {
+        const distance = Math.max(Math.abs(x - bossX), Math.abs(y - bossY));
+        if (distance < 2 || distance > 5 || map[y]?.[x] !== T.FLOOR || occ(x, y)) continue;
+        candidates.push([x, y]);
+      }
+    }
+    return candidates.length > 0 ? pick(candidates) : null;
+  };
+  const rndBossRoomFloor = (occ) => {
+    const candidates = [];
+    for (let y = main.y; y < main.y + main.h; y++) {
+      for (let x = main.x; x < main.x + main.w; x++) {
+        if (map[y]?.[x] === T.FLOOR && !occ(x, y)) candidates.push([x, y]);
+      }
+    }
+    return candidates.length > 0 ? pick(candidates) : null;
+  };
+  if (isOhplentyBossFloor) {
+    for (let _bi = 0; _bi < 4; _bi++) {
+      const p = rndNearBoss(initialBigboxOcc) || rndBossRoomFloor(initialBigboxOcc);
+      if (!p) break;
+      const bbt = pickBB([], dungeonType, depth);
+      bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+    }
+  }
+
   /* アイテム */
   const items = [];
   const lootPool = lootPoolForDungeon(ITEMS, dungeonType, depth + 1);
-  const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || items.some(i => i.x === x && i.y === y);
+  const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || bigboxes.some(b => b.x === x && b.y === y) || items.some(i => i.x === x && i.y === y);
   for (let _ii = 0; _ii < rng(8, 14); _ii++) {
     const p = rndBossFloor(itemOcc, true);
     if (!p) break;
@@ -2513,13 +2546,14 @@ function genBossFloor(depth, dungeonType = null) {
   }
 
   /* 大箱 */
-  const bigboxes = [];
   const bbOcc = (x, y) => springOcc(x, y) || bigboxes.some(b => b.x === x && b.y === y);
-  for (let _bi = 0; _bi < rng(2, 4); _bi++) {
-    const p = rndBossFloor(bbOcc, true);
-    if (!p) break;
-    const bbt = pickBB([], dungeonType, depth);
-    bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+  if (!isOhplentyBossFloor) {
+    for (let _bi = 0; _bi < rng(2, 4); _bi++) {
+      const p = rndBossFloor(bbOcc, true);
+      if (!p) break;
+      const bbt = pickBB([], dungeonType, depth);
+      bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+    }
   }
 
   /* 隠し部屋（50%の確率で1部屋） */
