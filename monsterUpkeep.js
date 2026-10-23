@@ -3,9 +3,9 @@ import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.j
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
-import { monEffectiveFloat } from "./monTraits.js";
+import { monEffectiveFloat, monEffectiveWallWalker } from "./monTraits.js";
 
-/** 攻撃後のモンスター回復・状態タイマー・魔方陣の継続効果を進める。 */
+/** 攻撃後のモンスター回復・状態タイマー・地形と魔方陣の継続効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
   hasCursedExplosionPentacle,
   inMagicSealRoom,
@@ -137,6 +137,26 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     const damage = Math.max(1, Math.floor(monster.hp / 4));
     monster.hp -= damage;
     messages.push(`${monster.name}は水中から逃れられず${damage}ダメージを受けた！`);
+    if (monster.hp <= 0) onMonsterDefeated(monster);
+  }
+
+  for (const monster of [...dungeon.monsters]) {
+    if (monster.hp <= 0 || !monster.isBoss) continue;
+    const tile = dungeon.map[monster.y]?.[monster.x];
+    const canRemainInWall = tile === T.WALL && monEffectiveWallWalker(monster);
+    if ((tile !== T.WALL && tile !== T.BWALL) || canRemainInWall) {
+      delete monster._wallEntryDamageTurn;
+      continue;
+    }
+    if (monster._wallEntryDamageTurn != null && monster._wallEntryDamageTurn === currentTurn) {
+      delete monster._wallEntryDamageTurn;
+      continue;
+    }
+    if (blockLargeMonsterDamage(monster, player, messages)) continue;
+
+    const damage = Math.max(1, Math.floor(monster.hp / 4));
+    monster.hp -= damage;
+    messages.push(`${monster.name}は壁から出られず${damage}ダメージを受けた！`);
     if (monster.hp <= 0) onMonsterDefeated(monster);
   }
 

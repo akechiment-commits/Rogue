@@ -23,7 +23,7 @@ import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectB
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
-import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
@@ -1002,6 +1002,22 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
         if (drownMonsterIfNeeded(target, dg, p, ml, luFn, killerMon)) break;
+        const landingTile = dg.map[target.y]?.[target.x];
+        const canRemainInWall = landingTile === T.WALL && monEffectiveWallWalker(target);
+        if ((landingTile === T.WALL || landingTile === T.BWALL) && !canRemainInWall) {
+          if (target.isBoss) {
+            target._wallEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
+            if (blockLargeMonsterDamage(target, p, ml)) break;
+            const damage = bossInstantDeathDamage(target);
+            target.hp -= damage;
+            ml.push(`${target.name}は壁の中に埋められたが${damage}ダメージを受けた！`);
+            if (target.hp <= 0) _defeat(target);
+          } else {
+            ml.push(`${target.name}は壁の中に埋まり消滅した！`);
+            _defeat(target);
+          }
+          break;
+        }
         /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ */
         if (!inMagicSealRoom(target.x, target.y, dg) &&
             dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {

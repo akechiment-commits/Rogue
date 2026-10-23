@@ -809,7 +809,7 @@ export const WANDS = [
   { name:"雷の杖",         type:"wand", effect:"lightning", charges:6, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
   { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:4, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
   { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"対象を同じ階層の敵に変える。壊すと周囲全てを変化。",                           tile:24 },
-  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
+  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壁抜けできない通常敵は壁内で即死、水に適応できない通常敵は水没で即死。水中を生存できないボスは水没時、壁抜けできないボスは壁内への移動時に現在HPの1/4ダメージを受け、出られない間は毎ターン同量。壊すと周囲をシャッフル。",                           tile:24 },
   { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"C", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"D", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。\n祝福：敵に飛びついたあと金縛りにする。\n壊しても何も起こらない。",                     tile:24 },
   { name:"テレポートの杖", type:"wand", effect:"warp",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
