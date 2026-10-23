@@ -3420,6 +3420,7 @@ export function InventoryModal({
     bbFakeNames: gs?.bbFakeNames,
     ident: gs?.ident,
     identifiedBigboxes: gs?.identifiedBigboxes,
+    allowEmbeddedItems: (p.wallWalkTurns || 0) > 0 && [T.WALL, T.BWALL].includes(gs?.dungeon?.map?.[p.y]?.[p.x]),
   });
   const _flItems = _fl.items;
   const _flTraps = _fl.traps;

@@ -1256,6 +1256,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       } else if (it.type === "goal") {
         clearDimensionalVaultItemCounter(it);
+        delete it.wallEmbedded;
         p.inventory.push(it);
         showFirstEncounterTip("goal_item");
         ml.push(`★${it.name}を手に入れた！地上に持ち帰ろう！★`);
@@ -1267,6 +1268,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } else if (p.inventory.length < (p.maxInventory || 30)) {
         if (sr.current.allBcKnown) { it.fullIdent = true; it.bcKnown = true; }
         clearDimensionalVaultItemCounter(it);
+        delete it.wallEmbedded;
         p.inventory.push(it);
         maybeTipForItem(it);
         {
@@ -3552,6 +3554,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
               clearDimensionalVaultItemCounter(_grIt);
               trackItem(_grIt);
+              delete _grIt.wallEmbedded;
               p.inventory.push(_grIt);
               if (_grIt.type === "goal") showFirstEncounterTip("goal_item");
               else if (!_grIt.shopPrice) maybeTipForItem(_grIt);
@@ -5859,6 +5862,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     trackItem(item);
+    delete item.wallEmbedded;
     _p.inventory.push(item);
     if (item.type === "goal") showFirstEncounterTip("goal_item");
     else if (!item.shopPrice) maybeTipForItem(item);
@@ -6004,6 +6008,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (!skipCapCheck && _wasInvFull) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     /* 店のアイテムを床から直接使う場合は代金を請求 */
     _chargeShopFloorItem(item, _p, _dg, s);
+    const wasWallEmbedded = !!item.wallEmbedded;
+    delete item.wallEmbedded;
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
@@ -6015,6 +6021,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _si2 = sr.current.player.inventory.indexOf(item);
         if (_si2 !== -1) {
           sr.current.player.inventory.splice(_si2, 1);
+          if (wasWallEmbedded) item.wallEmbedded = true;
           sr.current.dungeon.items.push(item);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
         }
@@ -6054,6 +6061,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
+    delete item.wallEmbedded;
     trackItem(item);
     _p.inventory.push(item);
     floorWandRef.current = item;
@@ -6069,6 +6077,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
+    delete item.wallEmbedded;
     trackItem(item);
     _p.inventory.push(item);
     floorPenDropRef.current = item;
@@ -6766,6 +6775,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           bbFakeNames: sr.current?.bbFakeNames,
                           ident: sr.current?.ident,
                           identifiedBigboxes: sr.current?.identifiedBigboxes,
+                          allowEmbeddedItems: (_p3.wallWalkTurns || 0) > 0 && [T.WALL, T.BWALL].includes(_dg3.map?.[_p3.y]?.[_p3.x]),
                         }) : { items: [], traps: [], all: [] };
                         const _flItems3 = _fl3.items;
                         const _flTraps3 = _fl3.traps;

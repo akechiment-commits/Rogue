@@ -9479,7 +9479,7 @@ const CURSE_DESC_BY_TYPE = {
     slow: "対象を加速。",
     transform: "敵を上位変化。自分は最大HP変動。",
     swap: "対象の前へ飛ぶ。",
-    dig: "1マス先に壁を生成。",
+    dig: "向いた方向に壊せる壁を最大10マス作る。",
     leap: "対象をランダム転移。",
     warp: "1マスだけ転移。",
     paralyze: "状態異常防止。",

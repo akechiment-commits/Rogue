@@ -3,7 +3,7 @@ import { adjustPlayerBaseMaxHp, setPlayerItemProperties } from "./equipmentEffec
 import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
-  resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft,
+  resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft, declareShopTheft,
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
   soakItemIntoSpring, splashPotion, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, withParalysisHit,
@@ -2081,29 +2081,128 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     }
     return;
   }
-  /* 呪われた穴掘り：1マス先に壊せる壁を生成（敵がいたらダメージのみ） */
+  /* 呪われた穴掘り：振った方向へ最大10マス、壊せる壁を生成 */
   if (eff === "dig" && blMult < 1) {
-    const wx = p.x + dx, wy = p.y + dy;
-    if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && !(p.x === wx && p.y === wy)) {
-      const _mon = monsterAt(dg, wx, wy);
-      if (_mon) {
-        if (!consumeBarrier(_mon, ml)) {
-          const _dmg = multiplyMagicDamage(rng(5, 15), p?.weapon, _mon, dg);
-          _mon.hp -= _dmg;
-          ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-          if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
-        }
-      } else if (dg.map[wy][wx] === T.FLOOR) {
-        dg.map[wy][wx] = T.BWALL;
-        const _digPc = dg.pentacles?.find(pc => pc.x === wx && pc.y === wy);
-        if (_digPc) { dg.pentacles = dg.pentacles.filter(pc => pc !== _digPc); ml.push(`壁が${_digPc.name}を押し潰した！`); }
-        ml.push("壊せる壁が出現した！");
-      } else {
-        ml.push("魔法弾は消えた。");
+    dg.items ||= [];
+    let created = 0;
+    let stopReason = null;
+    let replacedStair = false;
+    for (let distance = 1; distance <= 10; distance++) {
+      const wx = p.x + dx * distance, wy = p.y + dy * distance;
+      if (wx <= 0 || wx >= MW - 1 || wy <= 0 || wy >= MH - 1 || !dg.map[wy]?.[wx]) {
+        stopReason = "edge";
+        break;
       }
-    } else {
-      ml.push("魔法弾は消えた。");
+      const creature = dg.monsters?.find((mon) => monsterOccupiesCell(mon, wx, wy));
+      if (creature) {
+        stopReason = "creature";
+        if (!consumeBarrier(creature, ml)) {
+          const damage = multiplyMagicDamage(rng(5, 15), p?.weapon, creature, dg);
+          creature.hp -= damage;
+          ml.push(`壁の魔法が${creature.name}に${damage}ダメージ！`);
+          if (creature.hp <= 0) killMonster(creature, dg, p, ml, luFn);
+        }
+        break;
+      }
+      if (p.x === wx && p.y === wy) {
+        stopReason = "creature";
+        break;
+      }
+      if (dg.map[wy][wx] === T.WALL || dg.map[wy][wx] === T.BWALL) {
+        stopReason = "wall";
+        break;
+      }
+
+      /* 床の道具と水底の道具は壁の中に残す。壁を掘れば通常どおり拾える。 */
+      for (const item of dg.items || []) {
+        if (item.x === wx && item.y === wy) item.wallEmbedded = true;
+      }
+      const submergedItems = (dg.waterItems || []).filter((entry) => entry.x === wx && entry.y === wy);
+      if (submergedItems.length) {
+        dg.waterItems = dg.waterItems.filter((entry) => entry.x !== wx || entry.y !== wy);
+        for (const entry of submergedItems) {
+          if (!entry.item) continue;
+          entry.item.x = wx;
+          entry.item.y = wy;
+          entry.item.wallEmbedded = true;
+          if (!dg.items.includes(entry.item)) dg.items.push(entry.item);
+        }
+      }
+
+      if (dg.map[wy][wx] === T.WATER) ml.push("水が壁に潰されて消えた！");
+      const springs = (dg.springs || []).filter((entry) => entry.x === wx && entry.y === wy);
+      if (springs.length) {
+        dg.springs = dg.springs.filter((entry) => entry.x !== wx || entry.y !== wy);
+        ml.push("泉が壁に潰されて消えた！");
+      }
+      const bigboxes = (dg.bigboxes || []).filter((entry) => entry.x === wx && entry.y === wy);
+      if (bigboxes.length) {
+        dg.bigboxes = dg.bigboxes.filter((entry) => entry.x !== wx || entry.y !== wy);
+        ml.push("大箱が壁に潰されて消えた！");
+      }
+      const gachaMachines = (dg.gachaMachines || []).filter((entry) => entry.x === wx && entry.y === wy);
+      for (const machine of gachaMachines) {
+        if (machine.shopId != null) {
+          declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを壁で潰した！泥棒扱いになった！" });
+        }
+      }
+      if (gachaMachines.length) {
+        dg.gachaMachines = dg.gachaMachines.filter((entry) => entry.x !== wx || entry.y !== wy);
+        ml.push("ガチャマシーンが壁に潰されて消えた！");
+      }
+      for (const altar of [...(dg.altars || [])].filter((entry) => entry.x === wx && entry.y === wy)) {
+        breakAltar(altar, dg, ml, p, p, luFn);
+      }
+      const statue = dg.statues?.find((entry) => entry.x === wx && entry.y === wy);
+      if (statue) {
+        hitStatueWithAction(dg, wx, wy, p, ml, luFn, p.depth || 1, {
+          spawnItem: false,
+          spawnMonster: false,
+          breakMessage: "石像が壁に押し潰された！",
+          itemDeps: getFixtureItemDeps(),
+        });
+      }
+      const pentacles = (dg.pentacles || []).filter((entry) => entry.x === wx && entry.y === wy);
+      if (pentacles.length) {
+        const pairIds = new Set(pentacles.filter((entry) => entry.kind === "fixed_portal").map((entry) => entry.pairId).filter(Boolean));
+        dg.pentacles = dg.pentacles.filter((entry) =>
+          (entry.x !== wx || entry.y !== wy) && !(entry.kind === "fixed_portal" && pairIds.has(entry.pairId)),
+        );
+        ml.push("魔方陣が壁に潰されて消えた！");
+      }
+      const vents = (dg.vents || []).filter((entry) => entry.x === wx && entry.y === wy);
+      if (vents.length) {
+        dg.vents = dg.vents.filter((entry) => entry.x !== wx || entry.y !== wy);
+        ml.push("風穴が壁に潰されて消えた！");
+      }
+      const vaults = (dg.dimensionalVaults || []).filter((entry) => entry.x === wx && entry.y === wy);
+      if (vaults.length) {
+        dg.dimensionalVaults = dg.dimensionalVaults.filter((entry) => entry.x !== wx || entry.y !== wy);
+        ml.push("次元宝物庫が壁に潰されて消えた！");
+      }
+      if (dg.oilyTiles?.some((entry) => entry.x === wx && entry.y === wy)) {
+        dg.oilyTiles = dg.oilyTiles.filter((entry) => entry.x !== wx || entry.y !== wy);
+        ml.push("油床が壁に潰されて消えた！");
+      }
+      if (dg.map[wy][wx] === T.SU) {
+        if (dg.stairUp?.x === wx && dg.stairUp?.y === wy) dg.stairUp = null;
+        replacedStair = true;
+      } else if (dg.map[wy][wx] === T.SD) {
+        if (dg.stairDown?.x === wx && dg.stairDown?.y === wy) dg.stairDown = null;
+        replacedStair = true;
+      }
+      dg.map[wy][wx] = T.BWALL;
+      created++;
     }
+    if (replacedStair) {
+      ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml, message: false });
+    }
+    if (created === 1) ml.push("壊せる壁が出現した！");
+    else if (created > 1) ml.push(`${created}マスに壊せる壁が出現した！`);
+    else if (stopReason === "creature") ml.push("生き物がいて壁を作れなかった。");
+    else if (stopReason === "wall") ml.push("壁に阻まれて壊せる壁を作れなかった。");
+    else ml.push("壊せる壁は作れなかった。");
+    if (created > 0 && stopReason === "creature") ml.push("生き物の手前で壁が止まった。");
     return;
   }
   /* 呪われた吹きとばし：魔法弾は飛ばず、プレイヤー自身が逆方向に吹き飛ぶ */

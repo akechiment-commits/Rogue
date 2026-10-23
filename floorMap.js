@@ -71,6 +71,8 @@ function getTerrain(dg, x, y) {
 export function getFloorMapMarker(dg, p, x, y) {
   if (!isFloorMapCellKnown(dg, x, y)) return null;
   if (p?.x === x && p?.y === y) return "player";
+  const tile = dg.map?.[y]?.[x];
+  const wallCovered = tile === T.WALL || tile === T.BWALL;
 
   const monster = (dg.monsters || []).find((entry) => entry.x === x && entry.y === y && entry.hp > 0);
   if (monster && canShowSensedMonster(dg, p, x, y) &&
@@ -81,11 +83,11 @@ export function getFloorMapMarker(dg, p, x, y) {
   const item = (dg.items || []).find((entry) => entry.x === x && entry.y === y && !entry.wallEmbedded);
   if (item && canShowItem(dg, item, x, y)) return "item";
 
-  const disguisedStair = (dg.traps || []).find((entry) =>
+  const disguisedStair = !wallCovered && (dg.traps || []).find((entry) =>
     entry.x === x && entry.y === y && entry.disguise && !entry.revealed);
   if (disguisedStair) return "stairs";
 
-  const trap = (dg.traps || []).find((entry) => entry.x === x && entry.y === y && entry.revealed);
+  const trap = !wallCovered && (dg.traps || []).find((entry) => entry.x === x && entry.y === y && entry.revealed);
   if (trap) return trap.effect === "bone" ? "bone" : "trap";
 
   if ((dg.map?.[y]?.[x] === T.SD) || (dg.map?.[y]?.[x] === T.SU)) return "stairs";

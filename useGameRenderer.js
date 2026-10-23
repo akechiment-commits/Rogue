@@ -1224,7 +1224,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         }
         /* Pending bomb (作動済み時限爆弾) */
         const _pbAt = _pendingBombMap.get(_k(x, y));
-        if (_pbAt) {
+        if (_pbAt && t !== T.WALL && t !== T.BWALL) {
           if (vis) {
             drawTile(ctx, ts, 73, px2, py2, sz);
             const _pbClr = _pbAt.turnsLeft <= 1 ? "#ff2020" : _pbAt.turnsLeft <= 2 ? "#ff8800" : "#ffff00";
@@ -1320,7 +1320,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
                 drawTile(ctx, ts, _piTile, px2, py2, sz);
               }
               const _pitTrap = _trapMap.get(_k(x, y));
-              if (_pitTrap?.revealed) {
+              if (_pitTrap?.revealed && t !== T.WALL && t !== T.BWALL) {
                 const _ptTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*13+y*7)%9] : _pitTrap.tile;
                 drawTile(ctx, ts, _ptTile, px2, py2, sz);
               }
@@ -1365,7 +1365,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             continue;
           }
           /* Trap */
-          const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
+          const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed && t !== T.WALL && t !== T.BWALL ? _t : undefined; })();
           if (tr) {
             const _trTile = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 13 + y * 7) % 9] : tr.tile;
             drawTile(ctx, ts, _trTile, px2, py2, sz);
@@ -1377,7 +1377,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           if (!_inDark) {
             const ri = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded && (_i.discovered || dg.itemsRevealed) ? _i : undefined; })();
             if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, _spriteTile(ri), px2, py2, sz); ctx.globalAlpha = 1; }
-            const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
+            const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed && t !== T.WALL && t !== T.BWALL ? _t : undefined; })();
             if (tr) { ctx.globalAlpha = 0.4; const _trTile2 = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 13 + y * 7) % 9] : tr.tile; drawTile(ctx, ts, _trTile2, px2, py2, sz); ctx.globalAlpha = 1; }
           }
         }
