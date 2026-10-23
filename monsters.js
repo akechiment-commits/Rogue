@@ -1272,7 +1272,7 @@ export const MONS = [
       { name: "怨霊の古柳", hp: 350, atk: 58, def: 22, exp: 1400, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
     ],
   },
-  { name: "眠れる獅子", hp: 140, atk: 40, def: 14, exp: 280, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 80, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、隣接または攻撃されるまで目覚めない。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
+  { name: "眠れる獅子", hp: 140, atk: 40, def: 14, exp: 280, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 80, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、視界に入ったり隣接しただけでは起きない。攻撃や魔法など何かを受けると目覚める。目覚めるとキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
     levels: [
       { name: "眠れる大獅子", hp: 250, atk: 58, def: 20, exp: 850, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } } },
       { name: "眠れる赤獅子", hp: 380, atk: 78, def: 28, exp: 4200, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
@@ -4983,10 +4983,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 目覚めたターンは行動しない（袋叩き防止） */
   if (m._justWoke) { m._justWoke = false; return; }
-  /* 眠れる獅子は視界に入っただけでは起きず、体に隣接するか被弾するまで眠り続ける。 */
+  /* 眠れる獅子は視界や隣接では起きず、攻撃など何かを受けるまで眠り続ける。 */
   if (m.subtype === "sleepingLion" && m.dormant) {
     const _lionWasHit = m.hp < (m._dormantHp ?? m.maxHp ?? m.hp);
-    if (_lionWasHit || m._dormantTouched || monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1)) {
+    if (_lionWasHit || m._dormantTouched) {
       wakeIfDormant(m, ml);
       delete m._justWoke; // 起床判定自体がこの行動を消費する。次ターンは通常行動できる。
     } else {
