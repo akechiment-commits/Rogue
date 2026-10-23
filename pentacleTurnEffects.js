@@ -4,6 +4,7 @@ import { monsterOccupiesCell } from "./monsterGeometry.js";
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
  */
 import { pl } from "./playerLabel.js";
+import { resolveParalysisHit } from "./statusDuration.js";
 
 export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messages, deps) {
   const {
@@ -126,6 +127,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
         player.deathCause = `${pc.name}の呪いにより`;
         player.hp -= damage;
         messages.push(`${pc.name}の呪いで${damage}ダメージを受けた！`);
+        resolveParalysisHit(player, messages);
       } else {
         const heal = Math.min(amount, player.maxHp - player.hp);
         if (heal > 0) player.hp += heal;
@@ -233,6 +235,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
     player.deathCause = `${pc.name}の魔法の石により`;
     player.hp -= damage;
     messages.push(`${pc.name}の魔法の石が${pl()}に当たった！${damage}ダメージ！`);
+    resolveParalysisHit(player, messages);
     return;
   }
 
