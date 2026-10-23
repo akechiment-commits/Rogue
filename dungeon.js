@@ -671,8 +671,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
   } else {
-  /* 通常はアイテム2〜4個、豪華版は3〜5個（B/A/Sレアリティ限定、祝福30%呪い10%） */
-  const itemCount = rng(luxury ? 3 : 2, Math.min(luxury ? 5 : 4, floorTiles.length));
+  /* 通常はアイテム2〜4個、豪華版は5〜7個（B/A/Sレアリティ限定、祝福30%呪い10%） */
+  const itemCount = rng(luxury ? 5 : 2, Math.min(luxury ? 7 : 4, floorTiles.length));
   let placed = 0;
   for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
     const [ix, iy] = pick(floorTiles);
@@ -695,8 +695,9 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
   }
-  /* 大箱（通常75%、豪華版85%） */
-  if (Math.random() < (luxury ? 0.85 : 0.75)) {
+  /* 通常は75%で大箱1個、豪華版は必ず1個+35%でもう1個 */
+  const boxCount = luxury ? 1 + (Math.random() < 0.35 ? 1 : 0) : (Math.random() < 0.75 ? 1 : 0);
+  for (let boxIndex = 0; boxIndex < boxCount; boxIndex++) {
     for (let a = 0; a < 40; a++) {
       const [bx, by] = pick(floorTiles);
       if (allOcc(bx, by)) continue;
@@ -3781,54 +3782,23 @@ export function genTreasureRoom(depth, dungeonType = null) {
         map[chamber.y + dy][chamber.x + dx] = T.FLOOR;
   };
 
-  /* 大広間に0〜2個の小部屋をつなぎ、毎回違う宝物庫の間取りにする。 */
-  const mainW = rng(9, 13), mainH = rng(7, 9);
-  const main = makeChamber(
-    Math.floor(MW / 2) - Math.floor(mainW / 2),
-    Math.floor(MH / 2) - Math.floor(mainH / 2),
-    mainW,
-    mainH,
+  /* 一つの広間だけにし、大きさを少し揺らして毎回の見た目を変える。 */
+  const roomW = rng(9, 11), roomH = rng(7, 8);
+  const room = makeChamber(
+    Math.floor(MW / 2) - Math.floor(roomW / 2),
+    Math.floor(MH / 2) - Math.floor(roomH / 2),
+    roomW,
+    roomH,
   );
-  const rooms = [main];
-  carveChamber(main);
-
-  const doors = [];
-  const sides = shuffle(["left", "right", "top", "bottom"]).slice(0, rng(0, 2));
-  for (const side of sides) {
-    const horizontal = side === "left" || side === "right";
-    const w = horizontal ? rng(4, 7) : rng(4, 6);
-    const h = horizontal ? rng(4, 6) : rng(4, 7);
-    let x, y, doorX, doorY;
-    if (side === "left") {
-      x = main.x - w - 1;
-      y = main.cy - Math.floor(h / 2);
-      doorX = main.x - 1; doorY = main.cy;
-    } else if (side === "right") {
-      x = main.x + main.w + 1;
-      y = main.cy - Math.floor(h / 2);
-      doorX = main.x + main.w; doorY = main.cy;
-    } else if (side === "top") {
-      x = main.cx - Math.floor(w / 2);
-      y = main.y - h - 1;
-      doorX = main.cx; doorY = main.y - 1;
-    } else {
-      x = main.cx - Math.floor(w / 2);
-      y = main.y + main.h + 1;
-      doorX = main.cx; doorY = main.y + main.h;
-    }
-    const chamber = makeChamber(x, y, w, h);
-    rooms.push(chamber);
-    carveChamber(chamber);
-    doors.push({ x: doorX, y: doorY });
-  }
-  for (const door of doors) map[door.y][door.x] = T.FLOOR;
+  const rooms = [room];
+  carveChamber(room);
 
   /* 上り階段のみ（最下層に戻る）。中心の報酬部屋から遠くならない位置に置く。 */
-  const su = { x: main.cx + rng(-1, 1), y: main.cy + rng(-1, 1) };
+  const su = { x: room.cx + rng(-1, 1), y: room.cy + rng(-1, 1) };
   map[su.y][su.x] = T.SU;
 
-  /* 固定品目は置かず、強化版の隠し部屋報酬を階段の近くへまとめる。 */
-  const rewardArea = { x: main.cx - 3, y: main.cy - 2, w: 7, h: 5 };
+  /* 固定品目は置かず、強化版の隠し部屋報酬を一つの広間にまとめる。 */
+  const rewardArea = room;
   const items = [], bigboxes = [], springs = [], traps = [];
   populateHiddenRoom(rewardArea, map, depth, items, bigboxes, springs, traps, dungeonType, { luxury: true });
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
