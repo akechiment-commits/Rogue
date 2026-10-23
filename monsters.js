@@ -4859,7 +4859,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1) &&
         (pl.potConfinedTurns || 0) <= 0;
-      if (_adjPl) {
+      if (m.baseKind === "boss_ohplenty") {
+        /* 引き寄せ・壁際への飛びつきに失敗した拍を、汎用のランダム脱出移動へ数えない */
+        m._idleStuck = 0;
+        m.posHistory = [];
+      } else if (_adjPl) {
         m._idleStuck = 0;
       } else {
         if (!moved) {
