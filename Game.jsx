@@ -6107,6 +6107,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     showSound || showSign || miniTip || showTileEditor || exitHubConfirm || dead || showEnding
   );
   const isAnyModalActive = isModalActive || !!throwMode;
+  const dispatchModalKeyDown = (key, code) => {
+    window.dispatchEvent(new KeyboardEvent("keydown", {
+      key,
+      code,
+      bubbles: true,
+      cancelable: true,
+    }));
+  };
   useInterfaceSounds(isModalActive);
   // 道具使用のアニメーション収集後に、ログ・実際の変化・アニメーションをまとめて鳴らす。
   useEffect(() => { messageSoundObserverRef.current(msgs, { state: gs }); }, [msgs, gs]);
@@ -6577,14 +6585,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   isThrow: !!throwMode,
                   isTpSelect: modal.type === "tpSelect" || !!tpSelectMode,
                 }, dx, dy);
-                if (arrow) {
-                  window.dispatchEvent(new KeyboardEvent("keydown", {
-                    key: arrow.key,
-                    code: arrow.code,
-                    bubbles: true,
-                    cancelable: true,
-                  }));
-                }
+                if (arrow) dispatchModalKeyDown(arrow.key, arrow.code);
                 return;
               }
               if (throwMode) execDirection(dx, dy);
@@ -6624,9 +6625,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 />
                 <AB
                   small
-                  label={gamepadQuickOpen ? "閉" : miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : altarMode ? "閉" : merchantMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={gamepadQuickOpen ? "閉じる" : miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : altarMode ? "閉じる" : merchantMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
+                  label={debugSpellMode ? (debugSpellMode.category ? "戻" : "閉") : gamepadQuickOpen ? "閉" : miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : altarMode ? "閉" : merchantMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={debugSpellMode ? (debugSpellMode.category ? "戻る" : "閉じる") : gamepadQuickOpen ? "閉じる" : miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : altarMode ? "閉じる" : merchantMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
+                    if (debugSpellMode) { dispatchModalKeyDown("x", "KeyX"); return; }
                     if (gamepadQuickOpen) { setGamepadQuickOpen(false); return; }
                     if (miniTip) { closeMiniTip(); return; }
                     if (showSign) { setShowSign(null); return; }
@@ -6653,7 +6655,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (isAnyModalActive) return;
                     act("inventory");
                   }}
-                  color={gamepadQuickOpen ? "#f88" : miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode || altarMode || merchantMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : (isAnyModalActive ? "#334455" : "#ff0")}
+                  color={debugSpellMode ? "#f88" : gamepadQuickOpen ? "#f88" : miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode || altarMode || merchantMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : (isAnyModalActive ? "#334455" : "#ff0")}
                 />
                 <AB
                   small
@@ -6678,9 +6680,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               </div> {" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={shopMode ? "決" : spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
-                  sub={shopMode ? "決定" : spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : altarMode || merchantMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
+                  label={debugSpellMode ? "決" : shopMode ? "決" : spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
+                  sub={debugSpellMode ? "決定" : shopMode ? "決定" : spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : altarMode || merchantMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
+                    if (debugSpellMode) { dispatchModalKeyDown("z", "KeyZ"); return; }
                     if (mapMode) return;
                     if (altarMode) {
                       const _foods = (sr.current?.player?.inventory || []).map((it, i) => ({ it, i })).filter(({ it }) => it.type === "food");
@@ -6839,7 +6842,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       act("interact");
                     }
                   }}
-                  color={spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode || altarMode || merchantMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : (isAnyModalActive ? "#334455" : "#0ff")}
+                  color={debugSpellMode ? "#fc0" : spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode || altarMode || merchantMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : (isAnyModalActive ? "#334455" : "#0ff")}
                 />
                 <AB
                   label={bigboxMode === "put" ? "決" : gachaMode ? "戻" : altarMode || merchantMode ? "戻" : showInv ? "置" : "前"}
@@ -6995,7 +6998,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} onCancel={cancelPutMode} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} page={markerPage} setPage={setMarkerPage} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} discoveredItems={discoveredItems} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} spellConfirmRef={spellConfirmRef} />{" "}
-      <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
+      <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} onCancel={() => dispatchModalKeyDown("x", "KeyX")} />
       <SignModal sign={showSign} onClose={() => setShowSign(null)} mobile={mobile} />
       <MiniTipModal tip={miniTip} onClose={closeMiniTip} mobile={mobile} />
       <MsgLogModal show={msgLogMode || (dead && gameOverView === "log") || (showEnding && endingView === "log")} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => { if (dead && gameOverView === "log") setGameOverView(null); else if (showEnding && endingView === "log") setEndingView(null); else setMsgLogMode(false); }} mobile={mobile} />

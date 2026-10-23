@@ -4207,7 +4207,7 @@ const _DBG_ITEM_CATS = [
 
 const PAGE_SIZE = 10;
 
-export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, endTurn, mobile }) {
+export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, endTurn, mobile, onCancel }) {
   if (!mode || !gs) return null;
   const { effect } = mode;
   const page = mode.page ?? 0;
@@ -4477,7 +4477,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={{ color: "#80c0ff", fontSize: 13, fontWeight: "bold" }}>{title}</span>
-        <button onClick={() => setMode(null)}
+        <button onClick={onCancel || (() => setMode(null))}
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div>
@@ -4508,7 +4508,9 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         </div>
       )}
       <div style={{ color: "#304060", fontSize: 12, marginTop: 6 }}>
-        ↑↓:選択  Z:決定  {totalPages > 1 ? "←→:ページ  " : ""}{isDebugItemGet && category ? "X:カテゴリに戻る" : "X:閉じる"}
+        {mobile
+          ? `Dパッド:選択${totalPages > 1 ? "・ページ移動" : ""}　決定ボタン:実行　${isDebugItemGet && category ? "戻るボタン:カテゴリへ戻る" : "閉じるボタン:閉じる"}`
+          : `↑↓:選択  Z:決定  ${totalPages > 1 ? "←→:ページ  " : ""}${isDebugItemGet && category ? "X:カテゴリに戻る" : "X:閉じる"}`}
       </div>
     </div>
   );
