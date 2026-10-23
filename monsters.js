@@ -2219,10 +2219,15 @@ export function monsterBodyHasLineOfSight(monster, dungeon, x, y) {
   );
 }
 
-/** 巨大敵は体との距離だけでなく、壁のない露出マスから届く場合だけ干渉できる。 */
-export function monsterCanInteractAtRange(monster, dungeon, x, y, maxDistance = 1) {
+/** 巨大敵は体との距離だけでなく、壁のない露出マスから届く場合だけ干渉できる。壁抜け中は壁を無視する。 */
+export function monsterCanInteractAtRange(monster, dungeon, x, y, maxDistance = 1, ignoreWalls = false) {
   if (monsterPointDistance(monster, x, y) > maxDistance) return false;
   if (monsterBodySize(monster) <= 1) return true;
+  if (ignoreWalls) {
+    return monsterBodyCells(monster).some(cell =>
+      Math.max(Math.abs(cell.x - x), Math.abs(cell.y - y)) <= maxDistance
+    );
+  }
   if (isOpaqueMonsterSightTile(dungeon, x, y)) return false;
   return monsterBodyCells(monster).some(cell =>
     !isOpaqueMonsterSightTile(dungeon, cell.x, cell.y) &&

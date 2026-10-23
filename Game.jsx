@@ -2722,7 +2722,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
           const candidateAttackMon = mon || reachMon;
           const giantAttackBlocked = !!candidateAttackMon && candidateAttackMon.bodySize > 1 &&
-            !monsterCanInteractAtRange(candidateAttackMon, dg, p.x, p.y, candidateAttackMon === reachMon ? 2 : 1);
+            !monsterCanInteractAtRange(
+              candidateAttackMon,
+              dg,
+              p.x,
+              p.y,
+              candidateAttackMon === reachMon ? 2 : 1,
+              (p.wallWalkTurns || 0) > 0,
+            );
           const attackMon = giantAttackBlocked ? null : candidateAttackMon;
           if (giantAttackBlocked) {
             ml.push(`${candidateAttackMon.name}は壁の向こうにいるため攻撃できない！`);
