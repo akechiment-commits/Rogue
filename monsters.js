@@ -1541,7 +1541,7 @@ export const KING_BEHINMOS = {
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
   isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, bodySize: 3,
   meteorDamage: 148, meteorImmune: true, meteorInterval: 4,
-  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。詠唱時にHPが半分以上なら赤い予兆の3×3マスへ2ターン後、半分未満なら1ターン後に防御力で軽減されるメテオ（使用者の攻撃力の2倍）を落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
+  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。視認できるプレイヤーが体から8マス以内にいて詠唱制限がなければ、50%でメテオを詠唱する。HPが半分以上なら赤い予兆の3×3マスへ2ターン後、半分未満なら1ターン後に防御力で軽減される隕石（使用者の攻撃力の2倍）を落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
 };
 
 /* 上級5階専用ボス。通常ボス一覧を置換しないため、他のダンジョンのフリージアは維持する。 */
@@ -6252,24 +6252,38 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
   }
-  if (m.subtype === "sleepingLion" && _moveOnly) delete m._meteorReady;
+  const _usesMeteorChance = m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion";
+  if (_usesMeteorChance && _moveOnly) {
+    delete m._kingMeteorReady;
+    delete m._meteorReady;
+    delete m._meteorRollDone;
+  }
   if ((m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion") && !m.sealed &&
       !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&
       canSee && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
       !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg) &&
       canCastMeteor(m, dg)) {
-    // 等速敵は移動するとそのターン攻撃できない。詠唱可能なら移動に行動を使わない。
+    // 抽選に当たった場合、等速敵は移動せず攻撃フェーズで詠唱する。
+    const _meteorReadyKey = m.baseKind === "boss_kingbehinmos" ? "_kingMeteorReady" : "_meteorReady";
+    const _meteorChance = m.baseKind === "boss_kingbehinmos" ? 0.50 : 0.25;
     if (_moveOnly) {
-      if (m.subtype !== "sleepingLion") return;
+      m._meteorRollDone = true;
       if (m.turnAttacks < monEffectiveMaxAttacks(m) &&
-          (m.alwaysUseSpecial || Math.random() < 0.25)) {
-        m._meteorReady = true;
+          (m.alwaysUseSpecial || Math.random() < _meteorChance)) {
+        m[_meteorReadyKey] = true;
         return;
       }
     }
-    if (m.turnAttacks < monEffectiveMaxAttacks(m) &&
-        (m.subtype !== "sleepingLion" || m._meteorReady)) {
-      delete m._meteorReady;
+    if (!_moveOnly && !m._meteorRollDone) {
+      m._meteorRollDone = true;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < _meteorChance)) {
+        m[_meteorReadyKey] = true;
+      }
+    }
+    if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m) && m[_meteorReadyKey]) {
+      delete m[_meteorReadyKey];
+      delete m._meteorRollDone;
       if (castMeteor(m, dg, pl, ml)) {
         m.turnAttacks++;
         return;
