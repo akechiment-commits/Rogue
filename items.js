@@ -39,7 +39,7 @@ import { beginNpcRetaliation, clearNpcRetaliation } from "./npcRetaliation.js";
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
-import { grantPlayerHaste, hasteDurationLabel, playerHasteStage } from './actionClock.js';
+import { grantPlayerHaste, hasteDurationLabel, playerHasteStage, worldTickDamageTurnForCurrentAction } from './actionClock.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
@@ -1220,6 +1220,7 @@ export function drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon = null) {
   if (!mon || !dg?.map || !dg.monsters?.includes(mon)) return false;
   if (canMonsterSurviveOnWater(mon, dg, mon.x, mon.y)) return false;
   if (mon.isBoss) {
+    mon._waterEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
     if (blockLargeMonsterDamage(mon, p, ml)) return true;
     const _bd = bossInstantDeathDamage(mon);
     mon.hp -= _bd;
@@ -1259,6 +1260,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
     return "ejected";
   }
   if (m.isBoss) {
+    m._waterEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
     if (blockLargeMonsterDamage(m, p, ml)) return "damaged";
     const _bd = bossInstantDeathDamage(m);
     m.hp -= _bd;

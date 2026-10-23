@@ -3,6 +3,7 @@ import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.j
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
+import { monEffectiveFloat } from "./monTraits.js";
 
 /** 攻撃後のモンスター回復・状態タイマー・魔方陣の継続効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
@@ -115,6 +116,27 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     const damage = Math.max(1, Math.floor(monster.hp / 4));
     monster.hp -= damage;
     messages.push(`${sanctuary.name || "聖域の魔方陣"}の力で${monster.name}が${damage}ダメージを受けた！`);
+    if (monster.hp <= 0) onMonsterDefeated(monster);
+  }
+
+  const currentTurn = player?._largeMonsterDamageTurn ?? player?.turns;
+  for (const monster of [...dungeon.monsters]) {
+    if (monster.hp <= 0 || !monster.isBoss) continue;
+    const onWater = dungeon.map[monster.y]?.[monster.x] === T.WATER ||
+      dungeon.springs?.some((spring) => spring.x === monster.x && spring.y === monster.y);
+    if (!onWater || monster.waterOnly || monster.waterWalker || monEffectiveFloat(monster)) {
+      delete monster._waterEntryDamageTurn;
+      continue;
+    }
+    if (monster._waterEntryDamageTurn != null && monster._waterEntryDamageTurn === currentTurn) {
+      delete monster._waterEntryDamageTurn;
+      continue;
+    }
+    if (blockLargeMonsterDamage(monster, player, messages)) continue;
+
+    const damage = Math.max(1, Math.floor(monster.hp / 4));
+    monster.hp -= damage;
+    messages.push(`${monster.name}は水中から逃れられず${damage}ダメージを受けた！`);
     if (monster.hp <= 0) onMonsterDefeated(monster);
   }
 
