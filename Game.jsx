@@ -3752,7 +3752,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             setMsgs((prev) => [...prev.slice(-80), `壁を掘った！(耐久: ${_pweapon.durability})`]);
           }
         } else {
-          act("wait");
           setMsgs((prev) => [...prev.slice(-80), "壁を叩いた。ゴツン！"]);
         }
       } else {
