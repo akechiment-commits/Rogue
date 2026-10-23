@@ -3770,17 +3770,84 @@ export function prepareLastFloor(dg, dungeonType) {
 /* ===== 隠し宝部屋（最下層の落とし穴で到達） ===== */
 export function genTreasureRoom(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
-  const rx = Math.floor(MW / 2) - 5, ry = Math.floor(MH / 2) - 3;
-  const rw = 11, rh = 7;
-  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
-  for (let dy = 0; dy < rh; dy++)
-    for (let dx = 0; dx < rw; dx++)
-      map[ry + dy][rx + dx] = T.FLOOR;
-  /* 上り階段のみ（最下層に戻る） */
-  const su = { x: rx + 1, y: ry + 1 };
+  const makeChamber = (x, y, w, h) => ({
+    x, y, w, h,
+    cx: x + Math.floor(w / 2),
+    cy: y + Math.floor(h / 2),
+  });
+  const carveChamber = (chamber) => {
+    for (let dy = 0; dy < chamber.h; dy++)
+      for (let dx = 0; dx < chamber.w; dx++)
+        map[chamber.y + dy][chamber.x + dx] = T.FLOOR;
+  };
+
+  /* 大広間に0〜3個の小部屋をつなぎ、毎回違う宝物庫の間取りにする。 */
+  const mainW = rng(9, 13), mainH = rng(7, 9);
+  const main = makeChamber(
+    Math.floor(MW / 2) - Math.floor(mainW / 2),
+    Math.floor(MH / 2) - Math.floor(mainH / 2),
+    mainW,
+    mainH,
+  );
+  const rooms = [main];
+  carveChamber(main);
+
+  const doors = [];
+  const sides = shuffle(["left", "right", "top", "bottom"]).slice(0, rng(0, 3));
+  for (const side of sides) {
+    const horizontal = side === "left" || side === "right";
+    const w = horizontal ? rng(4, 7) : rng(4, 6);
+    const h = horizontal ? rng(4, 6) : rng(4, 7);
+    let x, y, doorX, doorY;
+    if (side === "left") {
+      x = main.x - w - 1;
+      y = main.cy - Math.floor(h / 2);
+      doorX = main.x - 1; doorY = main.cy;
+    } else if (side === "right") {
+      x = main.x + main.w + 1;
+      y = main.cy - Math.floor(h / 2);
+      doorX = main.x + main.w; doorY = main.cy;
+    } else if (side === "top") {
+      x = main.cx - Math.floor(w / 2);
+      y = main.y - h - 1;
+      doorX = main.cx; doorY = main.y - 1;
+    } else {
+      x = main.cx - Math.floor(w / 2);
+      y = main.y + main.h + 1;
+      doorX = main.cx; doorY = main.y + main.h;
+    }
+    const chamber = makeChamber(x, y, w, h);
+    rooms.push(chamber);
+    carveChamber(chamber);
+    doors.push({ x: doorX, y: doorY });
+  }
+  for (const door of doors) map[door.y][door.x] = T.FLOOR;
+
+  /* 上り階段のみ（最下層に戻る）。位置も間取りに合わせて変える。 */
+  const stairRoom = pick(rooms);
+  const stairTiles = [];
+  for (let y = stairRoom.y; y < stairRoom.y + stairRoom.h; y++)
+    for (let x = stairRoom.x; x < stairRoom.x + stairRoom.w; x++)
+      if (map[y][x] === T.FLOOR) stairTiles.push({ x, y });
+  const su = pick(stairTiles);
   map[su.y][su.x] = T.SU;
-  /* 宝アイテム配置 */
+
+  const minX = Math.min(...rooms.map((room) => room.x));
+  const minY = Math.min(...rooms.map((room) => room.y));
+  const maxX = Math.max(...rooms.map((room) => room.x + room.w - 1));
+  const maxY = Math.max(...rooms.map((room) => room.y + room.h - 1));
+  const treasureBounds = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+  const availableTiles = [];
+  for (let y = minY; y <= maxY; y++)
+    for (let x = minX; x <= maxX; x++)
+      if (map[y][x] === T.FLOOR) availableTiles.push({ x, y });
+  shuffle(availableTiles);
   const items = [];
+  const bigboxes = [], springs = [], traps = [];
+  const placeTreasure = (template) => {
+    const pos = availableTiles.pop();
+    if (pos) items.push({ ...template, id: uid(), x: pos.x, y: pos.y });
+  };
   const treasures = [
     { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
     { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
@@ -3789,19 +3856,19 @@ export function genTreasureRoom(depth, dungeonType = null) {
     { name:"大回復薬",       type:"potion", effect:"heal_big", value:60, desc:"HPを60回復する。祝福：120回復。\n呪い：60ダメージ。", tile:17 },
     { name:"大回復薬",       type:"potion", effect:"heal_big", value:60, desc:"HPを60回復する。祝福：120回復。\n呪い：60ダメージ。", tile:17 },
   ];
-  for (let i = 0; i < treasures.length; i++) {
-    const ix = rx + 2 + (i % 5), iy = ry + 2 + Math.floor(i / 5);
-    items.push({ ...treasures[i], id: uid(), x: ix, y: iy });
-  }
-  /* ゴールドを散りばめる */
+  for (const treasure of treasures) placeTreasure(treasure);
+  /* 従来の8個のゴールドは残し、間取りに合わせて散らす。 */
   for (let i = 0; i < 8; i++) {
-    const gx = rng(rx + 1, rx + rw - 2), gy = rng(ry + 1, ry + rh - 2);
-    items.push({ name: "ゴールド", type: "gold", value: rng(100, 500 + depth * 50), tile: 22, id: uid(), x: gx, y: gy });
+    const pos = availableTiles.pop();
+    if (!pos) break;
+    items.push({ name: "ゴールド", type: "gold", value: rng(100, 500 + depth * 50), tile: 22, id: uid(), x: pos.x, y: pos.y });
   }
+  /* 通常の隠し宝部屋の品揃えも足し、少し豪華な版にする。 */
+  populateHiddenRoom(treasureBounds, map, depth, items, bigboxes, springs, traps, dungeonType);
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
   return {
-    map, rooms: [room], monsters: [], items, traps: [], springs: [], bigboxes: [],
+    map, rooms, monsters: [], items, traps, springs, bigboxes,
     stairUp: su, stairDown: null, visible: vis, explored: exp,
     shop: null, pentacles: [], waterItems: [], hiddenRooms: [], monsterHouseRoom: null,
     floorType: "treasureRoom", isTreasureRoom: true,
