@@ -78,12 +78,38 @@ export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", 
 export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "ice_wand"]);
 const GWEN_VETERAN_WAND_EFFECTS = Object.freeze(["slow_wand", "confuse_wand", "sleep_wand", "darkness_wand"]);
 const FLOCK_MAGIC_EFFECTS = Object.freeze(["fire_bolt", "ice_wand", "poison_bolt", "curse_wand"]);
-const FLOCK_SPELL_LINES = Object.freeze({
-  fire_bolt: "紅蓮よ、周囲ごと灰燼に帰せ！巻き込み？それは演出だ！",
-  ice_wand: "絶対零度の氷獄よ！このあと衣替えする！",
-  poison_bolt: "紫毒よ、魂まで蝕め！解毒薬は持っていない！",
-  curse_wand: "禁忌の契約よ、その運命を呪縛せよ！まず持ち物からだ！",
+export const FLOCK_SPELL_LINES = Object.freeze({
+  fire_bolt: Object.freeze([
+    "紅蓮よ、周囲ごと灰燼に帰せ！巻き込み？それは演出だ！",
+    "燃え盛れ炎！敵だけを焼け！……細かい指定はできない！",
+    "火焔よ、派手に爆ぜろ！避難訓練は各自で済ませておけ！",
+  ]),
+  ice_wand: Object.freeze([
+    "絶対零度の氷獄よ！このあと衣替えする！",
+    "氷獄の鎖よ、時を止めて跪かせよ！暖房は切っておいた！",
+    "凍てつけ！手加減？氷の温度に聞いてくれ！",
+  ]),
+  poison_bolt: Object.freeze([
+    "紫毒よ、魂まで蝕め！解毒薬は持っていない！",
+    "猛毒よ、敵を侵せ！毒消しの指輪は反則だからな！",
+    "毒をもって毒を制す！なお解毒剤の在庫はゼロ！",
+  ]),
+  curse_wand: Object.freeze([
+    "禁忌の契約よ、その運命を呪縛せよ！まず持ち物からだ！",
+    "呪われし運命よ！呪う品はちゃんと選んでね！",
+    "深淵の呪詛！本当に呪われると困るのは私も同じ！",
+  ]),
 });
+export const FLOCK_TELEPORT_LINES = Object.freeze([
+  "近い近い！……こほん、紫電転移！",
+  "我に触れるな！あっ、もう目の前！？転移！",
+  "空間よ、扉を開け！出口はそっちじゃない！",
+]);
+export const FLOCK_DEATH_LINES = Object.freeze([
+  "こんなところで……第二形態の台詞を用意していない！",
+  "馬鹿な！眼帯を外せば真の力が……え、外れない！？",
+  "我が深淵、ここに潰える……ところで経験値は入った？",
+]);
 const FLOCK_IDLE_LINES = Object.freeze([
   "この眼帯は封印具！……ただのゴム紐ではない！",
   "我が右目の封印が疼く……あれ、眼帯は左だったか？",
@@ -1618,9 +1644,9 @@ export const GWEN_VETERAN_BOSS = {
 };
 
 export const FLOCK_BOSS = {
-  name: "フロック", hp: 380, atk: 42, def: 24, exp: 1400,
+  name: "自称・深淵の大魔導士「フロック」", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
-  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true,
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, deathLines: FLOCK_DEATH_LINES,
   desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
@@ -5091,13 +5117,13 @@ function teleportFlockAway(monster, dungeon, player, messages) {
   monster._movedThisTurn = true;
   pushAnim({ type: "flash", x: fromX, y: fromY, color: "#bd72ff" });
   pushAnim({ type: "flash", x: destination.x, y: destination.y, color: "#bd72ff" });
-  messages.push(`${monster.name}は「近い近い！……こほん、紫電転移！」と唱え、紫の閃光とともに消えた！`);
+  messages.push(`${monster.name}は『${pick(FLOCK_TELEPORT_LINES)}』と唱え、紫の閃光とともに消えた！`);
   return true;
 }
 
 function castFlockSpell(monster, opts, dx, dy, effect, messages) {
   if (!opts.monsterWandFn) return false;
-  messages.push(`${monster.name}は「${FLOCK_SPELL_LINES[effect]}」と唱えた！`);
+  messages.push(`${monster.name}は『${pick(FLOCK_SPELL_LINES[effect])}』と唱えた！`);
   const previousEffect = monster.wandEffect;
   monster.wandEffect = effect;
   try {

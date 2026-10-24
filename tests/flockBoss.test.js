@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import { genDungeon } from "../dungeon.js";
-import { FLOCK_BOSS, makeMonsterFromBase, monsterAI, _resolveMonsterWandBolt } from "../monsters.js";
+import {
+  FLOCK_BOSS, FLOCK_DEATH_LINES, FLOCK_SPELL_LINES, FLOCK_TELEPORT_LINES,
+  makeMonsterFromBase, monsterAI, _resolveMonsterWandBolt,
+} from "../monsters.js";
+import { killMonster } from "../items.js";
 import { BOSS_UNIQUE_DROP_RULES } from "../bossDropRules.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, drawTile } from "../render.js";
 import { DAWNLIKE_FALLBACKS, MONSTER_SHEET_MAP } from "../tilesetMap.js";
@@ -25,6 +29,7 @@ describe("超上級B10Fボス：フロック", () => {
     const legendFloor = genDungeon(9, "legend");
     const flock = legendFloor.monsters.find(monster => monster.isBoss);
     expect(flock.baseKind).toBe("boss_flock");
+    expect(flock.name).toBe("自称・深淵の大魔導士「フロック」");
     expect(flock.dormant).toBe(true);
     expect(flock.float).toBe(true);
     expect(legendFloor.monsters.filter(monster => monster !== flock && monster.dormant)).toHaveLength(0);
@@ -47,13 +52,35 @@ describe("超上級B10Fボス：フロック", () => {
 
         expect(effects).toEqual([expectedSpell]);
         expect(flock.turnAttacks).toBe(1);
-        expect(messages.some(message => message.includes("フロックは「") && message.includes("と唱えた！"))).toBe(true);
+        expect(messages.some(message => message.includes("自称・深淵の大魔導士") && message.includes("と唱えた！"))).toBe(true);
         expect(flockDistance(flock, player)).toBe(3);
       } finally {
         random.mockRestore();
       }
     },
   );
+
+  it("同じ魔法でも詠唱台詞を複数からランダムに選ぶ", () => {
+    const castFireLine = (lineRandom) => {
+      const { dungeon, flock, player } = makeFlockScene();
+      const messages = [];
+      const random = vi.spyOn(Math, "random")
+        .mockReturnValueOnce(0.01)
+        .mockReturnValueOnce(lineRandom)
+        .mockReturnValue(0.01);
+      try {
+        monsterAI(flock, dungeon, player, messages, { monsterWandFn: vi.fn() });
+        return messages.find(message => message.includes("と唱えた！"));
+      } finally {
+        random.mockRestore();
+      }
+    };
+
+    for (const spell of FLOCK_SPELLS) expect(FLOCK_SPELL_LINES[spell].length).toBeGreaterThan(1);
+    expect(FLOCK_TELEPORT_LINES.length).toBeGreaterThan(1);
+    expect(FLOCK_DEATH_LINES.length).toBeGreaterThan(1);
+    expect(castFireLine(0.01)).not.toBe(castFireLine(0.99));
+  });
 
   it("4マス離れた直線上でも唱え、プレイヤーに近づかない", () => {
     const { dungeon, flock, player } = makeFlockScene({ playerX: 12 });
@@ -96,7 +123,23 @@ describe("超上級B10Fボス：フロック", () => {
     expect(escape.flock.x !== before.x || escape.flock.y !== before.y).toBe(true);
     monsterAI(escape.flock, escape.dungeon, escape.player, messages, { attackOnly: true, monsterWandFn });
     expect(monsterWandFn).not.toHaveBeenCalled();
-    expect(messages.some(message => message.includes("近い近い") && message.includes("紫電転移"))).toBe(true);
+    expect(messages.some(message => FLOCK_TELEPORT_LINES.some(line => message.includes(line)))).toBe(true);
+
+    const teleportLine = (lineRandom) => {
+      const state = makeFlockScene({ playerX: 9 });
+      const logs = [];
+      const random = vi.spyOn(Math, "random")
+        .mockReturnValueOnce(0.01)
+        .mockReturnValueOnce(lineRandom)
+        .mockReturnValue(0.01);
+      try {
+        monsterAI(state.flock, state.dungeon, state.player, logs, { moveOnly: true, monsterWandFn: vi.fn() });
+        return logs.find(message => message.includes("紫の閃光"));
+      } finally {
+        random.mockRestore();
+      }
+    };
+    expect(teleportLine(0.01)).not.toBe(teleportLine(0.99));
   });
 
   it("距離調整の経路探索では壁を通らず、魔法外の台詞もランダムに話す", () => {
@@ -107,7 +150,7 @@ describe("超上級B10Fボス：フロック", () => {
         moveOnly: true, monsterWandFn: vi.fn(),
       });
       expect(chatter.dungeon.monsters[0].hp).toBe(FLOCK_BOSS.hp);
-      expect(chatter.dungeon.messages.some(message => message.startsWith("フロック「"))).toBe(true);
+      expect(chatter.dungeon.messages.some(message => message.startsWith(`${FLOCK_BOSS.name}「`))).toBe(true);
     } finally {
       random.mockRestore();
     }
@@ -175,6 +218,25 @@ describe("超上級B10Fボス：フロック", () => {
       if (previous) customTileImages[257] = previous;
       else delete customTileImages[257];
     }
+  });
+
+  it("倒される時にランダムな言い残しを表示する", () => {
+    const lastWords = (randomValue) => {
+      const { dungeon, flock, player } = makeFlockScene();
+      flock.hp = 0;
+      const messages = [];
+      const random = vi.spyOn(Math, "random").mockReturnValue(randomValue);
+      try {
+        killMonster(flock, dungeon, player, messages, () => {}, true);
+        const line = messages.find(message => message.includes("と言い残した！"));
+        expect(line).toBeDefined();
+        expect(FLOCK_DEATH_LINES.some(quote => line.includes(quote))).toBe(true);
+        return line;
+      } finally {
+        random.mockRestore();
+      }
+    };
+    expect(lastWords(0.01)).not.toBe(lastWords(0.99));
   });
 });
 
