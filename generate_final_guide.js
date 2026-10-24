@@ -834,7 +834,7 @@ function monTraits(m) {
   if (m.isBoss && m.tile >= 137 && m.tile <= 144) t.push(`スタイル3専用画像（tile_${m.tile}.png）`);
   if (m.float) t.push('浮遊');
   if (m.flightOnly) t.push('飛行のみ（重力下では自発移動不可。攻撃・特技は可能）');
-  if (m.waterOnly) t.push('水タイルのみ');
+  if (m.waterOnly) t.push('水タイル・泉のみ（壁・外周・石像など通行不能マスには入らない）');
   if (m.floodedOnly) t.push('水浸しフロア専用');
   if (m.subtype === 'waterFlower') t.push('水中でのみ出現。移動せず、同じ部屋で20%の誘導弾を射つ');
   if (m.subtype === 'giantEel') t.push('水中でのみ出現。隣接すると拘束し、水中呼吸の指輪がなければ拘束中に毎ターン溺水ダメージ');

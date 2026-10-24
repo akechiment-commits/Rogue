@@ -8541,7 +8541,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* わてりは水タイル・泉のみ、ワッカ系は水タイルも含む歩行可能マスへ移動 */
     const _wateriFilter = m.waterOnly
       ? (nx, ny) => {
-          if (!inBounds(nx, ny)) return false;
+          if (!inBounds(nx, ny) || !isWalkable(map, nx, ny, dg)) return false;
           return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
         }
       : m.waterWalker
