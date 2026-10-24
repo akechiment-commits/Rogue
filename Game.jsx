@@ -5931,10 +5931,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const ml = installPlayerHpMessageHook([], p2);
     p2.gold -= GACHA_COST;
     const prizeRarity = rollGachaRarity();
-    const prize = makeGachaPrize(prizeRarity, {
-      dungeonType: dg2?.dungeonType ?? p2?.dungeonType ?? null,
-      floor: Number.isFinite(p2?.depth) ? p2.depth : 99,
-    });
+    const prize = makeGachaPrize(prizeRarity);
     placeItemAt(dg2, machine.x, machine.y, prize, ml, new Set(), 0, p2);
     const resultLabel = prize.rarity === "A" ? "大当たり！" : prize.rarity === "B" ? "当たり！" : "";
     ml.push(resultLabel

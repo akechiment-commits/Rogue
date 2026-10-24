@@ -36,9 +36,9 @@ describe("超上級ダンジョンの出現段階", () => {
     expect(bbPoolForDungeon("legend", 1).map((entry) => entry.kind)).toEqual(BB_TYPES.map((entry) => entry.kind));
   });
 
-  it("道具のレア度は超上級の長い進行に合わせて解禁する", () => {
-    expect(lootAllowedInDungeon(ITEMS.find((item) => item.effect === "doping"), "legend", 1)).toBe(false);
-    expect(lootAllowedInDungeon(WANDS.find((wand) => wand.effect === "wish"), "legend", 1)).toBe(false);
+  it("道具は超上級の階に関係なく全種類を許可する", () => {
+    expect(lootAllowedInDungeon(ITEMS.find((item) => item.effect === "doping"), "legend", 1)).toBe(true);
+    expect(lootAllowedInDungeon(WANDS.find((wand) => wand.effect === "wish"), "legend", 1)).toBe(true);
     expect(lootAllowedInDungeon(SPELLBOOKS.find((book) => book.spell === "time_stop_magic"), "legend", 50)).toBe(true);
   });
 });

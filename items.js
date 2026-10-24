@@ -1444,7 +1444,7 @@ function dungeonLootPool(pool, options = {}) {
 
 export function makePot(context = "floor", options = {}) {
   const pool = dungeonLootPool(POTS, options);
-  const t = pickLootFromPool(pool, context);
+  const t = pickLootFromPool(pool, context) || pick(pool);
   if (!t) return null;
   return { ...t, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(t.potEffect) };
 }
@@ -1503,22 +1503,13 @@ export function makeChangeBoxItem(context = "change", options = {}) {
 }
 
 /** ガチャマシーンの景品を生成する。指定レア度はそのレア度、未指定はD/Eから抽選する。 */
-export function makeGachaPrize(rarity = null, options = {}) {
+export function makeGachaPrize(rarity = null) {
   const all = [...ITEMS, ...WANDS, ...POTS, ...SPELLBOOKS, ...RINGS,
     EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, ARROW_T]
     .filter((item) => item && item.type !== "gem" && item.type !== "goal" && item.effect !== "wish" && item.potEffect !== "wish_pot");
   const targetRarities = ["A", "B", "C", "D", "E"].includes(rarity) ? [rarity] : ["D", "E"];
-  const { dungeonType, floor } = dungeonLootOptions(options);
-  const allowed = all.filter((item) => lootAllowedInDungeon(item, dungeonType, floor));
-  let pool = allowed.filter((item) => targetRarities.includes(item.rarity));
-  if (!pool.length && ["A", "B", "C", "D", "E"].includes(rarity)) {
-    const ranks = ["A", "B", "C", "D", "E"];
-    const requestedRank = ranks.indexOf(rarity);
-    for (let i = requestedRank + 1; i < ranks.length && !pool.length; i++) {
-      pool = allowed.filter((item) => item.rarity === ranks[i]);
-    }
-  }
-  const tmpl = pickGachaTemplate(pool) || makeChangeBoxItem("floor", options);
+  const pool = all.filter((item) => targetRarities.includes(item.rarity));
+  const tmpl = pickGachaTemplate(pool.length ? pool : all) || makeChangeBoxItem("floor");
   if (tmpl.type === "food") return { ...genFood(), id: uid() };
   if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(tmpl.potEffect) };
   if (tmpl.type === "ring") return applyGeneratedRingPlus({ ...tmpl, id: uid() });
@@ -1535,10 +1526,7 @@ export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
   if (machine.shopId != null && p) {
     declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを壊した！泥棒扱いになった！" });
   }
-  const prize = makeGachaPrize(null, {
-    dungeonType: dg?.dungeonType ?? p?.dungeonType ?? null,
-    floor: Number.isFinite(p?.depth) ? p.depth : 99,
-  });
+  const prize = makeGachaPrize();
   const ft = new Set();
   placeItemAt(dg, x, y, prize, ml, ft, 0, p);
   ml.push(`${machine.name || "ガチャマシーン"}が壊れた！${resolveItemName(prize, nameFn)}が1個落ちた！`);
@@ -6180,7 +6168,6 @@ export function monsterDrop(m, dg, ml, p = null) {
   if (m.isBoss) {
     const _tier = Math.max(1, Math.floor(Number(m.bossTier) || 1));
     const _ft = new Set();
-    const _bossPool = (pool) => lootPoolForDungeon(pool, _dropDungeonType, _dropFloor);
     /* 金 */
     const _goldByTier = [600, 1500, 3000, 6000, 12000];
     const _goldBase = _goldByTier[_tier - 1] ??
@@ -6188,59 +6175,48 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _gv = _goldBase + rng(0, 100 * _tier);
     placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 22, id: uid() }, ml, _ft, 0, p);
     /* 強化武器 (+tier+1) */
-    const _weapons = _bossPool(ITEMS.filter(i => i.type === "weapon"));
-    const _wpPool = _weapons.filter(i => ["C", "B", "A", "S"].includes(i.rarity));
+    const _wpPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity));
     placeItemAt(dg, m.x, m.y,
-      { ...pick(_wpPool.length ? _wpPool : _weapons), plus: _tier + 1, id: uid() },
+      { ...pick(_wpPool.length ? _wpPool : ITEMS.filter(i => i.type === "weapon")), plus: _tier + 1, id: uid() },
       ml, _ft, 0, p);
     /* 強化防具 (+tier、tier2+) */
     if (_tier >= 2) {
-      const _armors = _bossPool(ITEMS.filter(i => i.type === "armor"));
-      const _arPool = _armors.filter(i => ["C", "B", "A", "S"].includes(i.rarity));
+      const _arPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity));
       placeItemAt(dg, m.x, m.y,
-        { ...pick(_arPool.length ? _arPool : _armors), plus: _tier, id: uid() },
+        { ...pick(_arPool.length ? _arPool : ITEMS.filter(i => i.type === "armor")), plus: _tier, id: uid() },
         ml, _ft, 0, p);
     }
     /* 高レア巻物 (B/A 中心、S があれば15%) */
-    const _scrolls = _bossPool(ITEMS.filter(i => i.type === "scroll"));
-    const _scAPool = _scrolls.filter(i => i.rarity === "A" || i.rarity === "B");
-    const _scSPool = _scrolls.filter(i => i.rarity === "S");
-    const _scFallback = _scrolls.filter(i => i.rarity !== "E" && i.rarity !== "D");
+    const _scAPool = ITEMS.filter(i => i.type === "scroll" && (i.rarity === "A" || i.rarity === "B"));
+    const _scSPool = ITEMS.filter(i => i.type === "scroll" && i.rarity === "S");
+    const _scFallback = ITEMS.filter(i => i.type === "scroll" && i.rarity !== "E" && i.rarity !== "D");
     for (let _si = 0; _si < _tier; _si++) {
       const _useS = _scSPool.length > 0 && _scAPool.length > 0 && Math.random() < 0.15;
       const _scPick = _useS ? pick(_scSPool) : pick(_scAPool.length ? _scAPool : _scFallback);
-      if (_scPick) placeItemAt(dg, m.x, m.y, { ..._scPick, id: uid() }, ml, _ft, 0, p);
+      placeItemAt(dg, m.x, m.y, { ..._scPick, id: uid() }, ml, _ft, 0, p);
     }
     /* 強化の薬 (tier2+) */
     if (_tier >= 2) {
-      const _enhPot = POTS.find(pt => pt.potEffect === "enhance" && lootAllowedInDungeon(pt, _dropDungeonType, _dropFloor));
+      const _enhPot = POTS.find(pt => pt.potEffect === "enhance");
       if (_enhPot) placeItemAt(dg, m.x, m.y, { ..._enhPot, id: uid() }, ml, _ft, 0, p);
     }
     /* 杖 (tier3+) */
     if (_tier >= 3) {
-      const _wands = _bossPool(WANDS);
-      if (_wands.length) {
-        placeItemAt(dg, m.x, m.y,
-          { ...pick(_wands), id: uid(), charges: rng(3, 5) },
-          ml, _ft, 0, p);
-      }
+      placeItemAt(dg, m.x, m.y,
+        { ...pick(WANDS), id: uid(), charges: rng(3, 5) },
+        ml, _ft, 0, p);
     }
     /* リング (tier4) */
     if (_tier >= 4) {
-      const _rings = _bossPool(RINGS);
-      const _rPool = _rings.filter(r => ["A", "B"].includes(r.rarity));
-      if (_rings.length) {
-        placeItemAt(dg, m.x, m.y,
-          applyGeneratedRingPlus({ ...pick(_rPool.length ? _rPool : _rings), id: uid() }),
-          ml, _ft, 0, p);
-      }
+      const _rPool = RINGS.filter(r => ["A","B"].includes(r.rarity));
+      placeItemAt(dg, m.x, m.y,
+        applyGeneratedRingPlus({ ...pick(_rPool.length ? _rPool : RINGS), id: uid() }),
+        ml, _ft, 0, p);
     }
     /* 収納上手の巻物（tier1=5階ボスのみ確定） */
     if (_tier === 1) {
       const _expandScroll = ITEMS.find(i => i.effect === "expand_inv");
-      if (_expandScroll && lootAllowedInDungeon(_expandScroll, _dropDungeonType, _dropFloor)) {
-        placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
-      }
+      if (_expandScroll) placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
     }
     ml.push(`★ ${m.name}を倒した！豪華な戦利品が現れた！`);
     return;

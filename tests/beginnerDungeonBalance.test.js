@@ -175,7 +175,7 @@ describe("初心者ダンジョンの出現制限", () => {
     expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "rockfall"), "legend", 1)).toBe(false);
     expect(trapAllowedInDungeon(TRAPS.find((t) => t.effect === "explode"), "legend", 11)).toBe(true);
     expect(bbAllowedInDungeon(BB_TYPES.find((b) => b.kind === "nitro"), "legend", 1)).toBe(true);
-    expect(lootAllowedInDungeon(ITEMS.find((i) => i.effect === "doping"), "legend", 1)).toBe(false);
+    expect(lootAllowedInDungeon(ITEMS.find((i) => i.effect === "doping"), "legend", 1)).toBe(true);
   });
 });
 
