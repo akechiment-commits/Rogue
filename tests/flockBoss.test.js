@@ -108,9 +108,15 @@ describe("超上級B10Fボス：フロック", () => {
     for (const [x, y] of [[8, 10], [9, 10], [10, 10], [10, 9], [10, 8], [10, 7]]) {
       boxed.dungeon.map[y][x] = T.FLOOR;
     }
-    monsterAI(boxed.flock, boxed.dungeon, boxed.player, [], { moveOnly: true, monsterWandFn: vi.fn() });
+    const boxedMessages = [];
+    const boxedEffects = [];
+    const boxedWand = vi.fn(monster => boxedEffects.push(monster.wandEffect));
+    monsterAI(boxed.flock, boxed.dungeon, boxed.player, boxedMessages, { moveOnly: true, monsterWandFn: boxedWand });
     expect(boxed.dungeon.map[boxed.flock.y]?.[boxed.flock.x]).toBe(T.FLOOR);
     expect({ x: boxed.flock.x, y: boxed.flock.y }).toEqual({ x: 8, y: 10 });
+    monsterAI(boxed.flock, boxed.dungeon, boxed.player, boxedMessages, { attackOnly: true, monsterWandFn: boxedWand });
+    expect(boxedWand).toHaveBeenCalledTimes(1);
+    expect(FLOCK_SPELLS).toContain(boxedEffects[0]);
   });
 
   it("炎の魔法弾は命中した位置を着弾点として返す", () => {

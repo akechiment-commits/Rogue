@@ -1621,7 +1621,7 @@ export const FLOCK_BOSS = {
   name: "フロック", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
   isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true,
-  desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マスの距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。隣接するとテレポートで逃げ、視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
+  desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS];
@@ -5790,15 +5790,29 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const canUseMagic = !!opts.monsterWandFn && !m.sealed && !isAttackSealed(m) &&
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
     const canCast = canSeePlayer && canUseMagic && inLine && distance >= 3 && distance <= 10;
+    const reserveOrCastSpell = (cornered = false) => {
+      const spell = pick(FLOCK_MAGIC_EFFECTS);
+      if (_moveOnly) {
+        m._flockPendingSpell = spell;
+        m._flockPendingCorneredSpell = cornered;
+        m._rangedAttackThisTurn = true;
+      } else {
+        m.turnAttacks++;
+        castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), spell, ml);
+      }
+    };
 
     if (_attackOnly) {
       const escaped = !!m._flockEscapedThisTurn;
       const pendingSpell = m._flockPendingSpell;
+      const pendingCorneredSpell = !!m._flockPendingCorneredSpell;
       delete m._flockEscapedThisTurn;
       delete m._flockPendingSpell;
+      delete m._flockPendingCorneredSpell;
       delete m._rangedAttackThisTurn;
       if (escaped) return;
-      if (pendingSpell && canCast && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      const canUseCorneredSpell = pendingCorneredSpell && canSeePlayer && canUseMagic && inLine && distance >= 1 && distance <= 3;
+      if (pendingSpell && (canCast || canUseCorneredSpell) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
         castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), pendingSpell, ml);
         return;
@@ -5810,6 +5824,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     delete m._flockPendingSpell;
+    delete m._flockPendingCorneredSpell;
     delete m._flockEscapedThisTurn;
     if (distance <= 1 && canSeePlayer && canUseMagic) {
       if (teleportFlockAway(m, dg, pl, ml)) {
@@ -5818,18 +5833,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (canCast && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-      const spell = pick(FLOCK_MAGIC_EFFECTS);
-      if (_moveOnly) {
-        m._flockPendingSpell = spell;
-        m._rangedAttackThisTurn = true;
-        return;
-      }
-      m.turnAttacks++;
-      castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), spell, ml);
+      reserveOrCastSpell();
       return;
     }
     if (canSeePlayer && !(inLine && distance > 10)) {
-      moveFlockToThreeTileRange(m, dg, pl);
+      const repositioned = moveFlockToThreeTileRange(m, dg, pl);
+      const canCastWhileCornered = !repositioned && inLine && distance >= 1 && distance <= 3 &&
+        canUseMagic && m.turnAttacks < monEffectiveMaxAttacks(m);
+      if (canCastWhileCornered) {
+        reserveOrCastSpell(true);
+        return;
+      }
     }
     if (canSeePlayer && Math.random() < 0.30) ml.push(`${m.name}「${pick(FLOCK_IDLE_LINES)}」`);
     return;
