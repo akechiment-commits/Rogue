@@ -6169,14 +6169,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     if (_isFlockRevenge && sameRoom && canSeePlayer && canUseMagic) {
-      const roomEffects = FLOCK_REVENGE_ROOM_EFFECTS.filter(effect => {
+      if (m.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic && Math.random() < 0.50) {
+        reserveOrCastSpell("lightning_magic");
+        return;
+      }
+      const roomBuffEffects = FLOCK_REVENGE_ROOM_EFFECTS.filter(effect => effect !== "lightning_magic").filter(effect => {
         if (effect === "reflect_magic" && (m.flockReflectTurns || 0) > 0) return false;
         if (effect === "guard_magic" && (m.flockGuardTurns || 0) > 0) return false;
         if (effect === "flame_mantle" && (m.flameMantleTurns || 0) > 0) return false;
         return m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10);
       });
-      if (roomEffects.length > 0) {
-        reserveOrCastSpell(pick(roomEffects));
+      const roomActions = [...roomBuffEffects, ...(canCast ? availableAttacks : [])];
+      if (roomActions.length > 0) {
+        reserveOrCastSpell(pick(roomActions));
         return;
       }
     }

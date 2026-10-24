@@ -1412,8 +1412,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onPlayerReflect: () => drain(m, pl),
           });
         } else if (_we === "reflect_magic" && m.baseKind === "boss_flock_revenge") {
-          m.flockReflectTurns = Math.max(m.flockReflectTurns || 0, 50);
-          ml.push(`${m.name}は反射の魔法で魔法反射状態になった！(50ターン)`);
+          m.flockReflectTurns = Math.max(m.flockReflectTurns || 0, 10);
+          ml.push(`${m.name}は反射の魔法で魔法反射状態になった！(10ターン)`);
         } else if (_we === "guard_magic" && m.baseKind === "boss_flock_revenge") {
           if (!(m.flockGuardDefBonus > 0)) {
             const bonus = 16;
@@ -1421,11 +1421,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             if (m._debuffOrigDef !== undefined) m._debuffOrigDef += bonus;
             m.flockGuardDefBonus = bonus;
           }
-          m.flockGuardTurns = Math.max(m.flockGuardTurns || 0, 50);
-          ml.push(`${m.name}は守護の魔法で防御力が上がった！(+${m.flockGuardDefBonus}、50ターン)`);
+          m.flockGuardTurns = Math.max(m.flockGuardTurns || 0, 10);
+          ml.push(`${m.name}は守護の魔法で防御力が上がった！(+${m.flockGuardDefBonus}、10ターン)`);
         } else if (_we === "flame_mantle" && m.baseKind === "boss_flock_revenge") {
-          m.flameMantleTurns = Math.max(m.flameMantleTurns || 0, 50);
-          ml.push(`${m.name}は炎上の魔法で炎をまとった！(50ターン)`);
+          m.flameMantleTurns = Math.max(m.flameMantleTurns || 0, 10);
+          ml.push(`${m.name}は炎上の魔法で炎をまとった！(10ターン)`);
         } else if (_we === "clone_magic" && m.baseKind === "boss_flock_revenge") {
           const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [1, 1], [-1, 1]];
           const spot = dirs.map(([ox, oy]) => ({ x: m.x + ox, y: m.y + oy })).find(({ x, y }) =>
