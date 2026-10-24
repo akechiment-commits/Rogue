@@ -14,6 +14,7 @@ export const BOSS_UNIQUE_DROP_RULES = Object.freeze({
   boss_abyssgod: categoryDrop("wand", "ランダムな杖"),
 
   boss_gwen: Object.freeze({ type: "food", label: "ランダム食料" }),
+  boss_gwen_veteran: Object.freeze({ type: "food", label: "ランダム食料" }),
   boss_batteringram: categoryDrop("armor", "ランダムな防具"),
   boss_taisaijin: categoryDrop("spellbook", "ランダムな魔法書"),
   boss_chiranikuttsunnoku: categoryDrop("weapon", "ランダムな武器"),

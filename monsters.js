@@ -76,6 +76,7 @@ const MONSTER_SPECIAL_RATE = Object.freeze({
 const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.125 });
 export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand", "teleport_wand", "slow_wand"]);
 export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "ice_wand"]);
+const GWEN_VETERAN_WAND_EFFECTS = Object.freeze(["slow_wand", "confuse_wand", "sleep_wand", "darkness_wand"]);
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
@@ -1593,7 +1594,14 @@ export const GWEN_BOSS = {
   desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。生存中にプレイヤーの視界内で4ターン行動するごとに、B5Fの通常出現候補からモンスターを1体、隣接する空き床へ呼び出す。視界外では召喚間隔が進まない。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS];
+export const GWEN_VETERAN_BOSS = {
+  name: "勤勉で勇敢な少女「グウェン」", hp: 900, atk: 73, def: 41, exp: 5000,
+  speed: 1, tile: 256, kind: "humanoid", baseKind: "boss_gwen_veteran", subtype: "gwen_veteran",
+  isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, gwenWandCharges: 6,
+  desc: "超上級B20Fのボス。通常攻撃に加え、B5Fと同じ4ターンごとの召喚を行う。視界内の直線上へ50%で貫きの矢（12本）、50%で鈍足・混乱・眠り・暗闇の杖を振る（4種の杖を合計6回まで）。隣接時も20%で杖を使う。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -2031,11 +2039,12 @@ function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   return true;
 }
 
-const MONSTER_PROJECTILE_SUBTYPES = new Set(["archer", "stonethrow", "potionthrow", "potionhealer"]);
+const MONSTER_PROJECTILE_SUBTYPES = new Set(["archer", "stonethrow", "potionthrow", "potionhealer", "gwen_veteran"]);
 
 /* 飛び道具を使う敵は、生成時に8〜12回分の弾薬を持つ。 */
 function createMonsterProjectileAmmo(mon) {
   if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return null;
+  if (mon.subtype === "gwen_veteran") return makePiercingArrow(12);
   const count = rng(8, 12);
   if (mon.subtype === "potionthrow" || mon.subtype === "potionhealer") {
     return { type: "potion", count };
@@ -4958,8 +4967,9 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
 
 function summonGwenMonster(gwen, dg, pl, ml) {
   if (!Array.isArray(dg.monsters)) dg.monsters = [];
-  const { base, spawnLevel } = pickMonsterDef(4, "legend", true, { excludeLarge: true });
-  if (!base || !legendMonsterAllowed(base.baseKind, 5)) return false;
+  const floor = gwen.baseKind === "boss_gwen_veteran" ? 20 : 5;
+  const { base, spawnLevel } = pickMonsterDef(floor - 1, "legend", true, { excludeLarge: true });
+  if (!base || !legendMonsterAllowed(base.baseKind, floor)) return false;
 
   const offsets = shuffle([[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]);
   const occupiedObjects = [dg.items, dg.traps, dg.springs, dg.bigboxes, dg.pentacles, dg.statues,
@@ -4982,16 +4992,34 @@ function summonGwenMonster(gwen, dg, pl, ml) {
   return false;
 }
 
+function useGwenVeteranWand(monster, player, opts, dx, dy, effect) {
+  if (!opts.monsterWandFn || (monster.gwenWandCharges || 0) <= 0) return false;
+  monster.gwenWandCharges--;
+  monster.turnAttacks++;
+  const previousEffect = monster.wandEffect;
+  monster.wandEffect = effect;
+  try {
+    opts.monsterWandFn(monster, dx, dy);
+  } finally {
+    if (previousEffect === undefined) delete monster.wandEffect;
+    else monster.wandEffect = previousEffect;
+  }
+  return true;
+}
+
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _isGwen = m.baseKind === "boss_gwen";
-  if (_isGwen && (m.hp <= 0 || opts.attackOnly)) return;
+  const _isGwenVeteran = m.baseKind === "boss_gwen_veteran";
+  const _isGwenVariant = _isGwen || _isGwenVeteran;
+  if (_isGwenVariant && m.hp <= 0) return;
+  if (_isGwen && opts.attackOnly) return;
   /* ボス階のまとめて行動する経路でも、グウェンは移動と召喚だけを行う。 */
   if (_isGwen && !opts.moveOnly) opts = { ...opts, moveOnly: true };
   if (m.isPlayerClone && m.hp <= 0) return;
   m.turnAttacks = m.turnAttacks || 0;
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
-  if (_isGwen && !_attackOnly && dg.visible?.[m.y]?.[m.x]) {
+  if (_isGwenVariant && !_attackOnly && dg.visible?.[m.y]?.[m.x]) {
     m.gwenVisibleTurns = Math.min(4, (m.gwenVisibleTurns || 0) + 1);
   }
   let _rangedAttackReady = false;
@@ -5645,6 +5673,111 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
     if (!_isPerm && m.fleeingTurns <= 0) { ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
+  }
+
+  if (_isGwenVeteran) {
+    try {
+      if (m.gwenWandCharges == null) m.gwenWandCharges = 6;
+      const dx = pl.x - m.x, dy = pl.y - m.y;
+      const distance = Math.max(Math.abs(dx), Math.abs(dy));
+      const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+      const playerHidden = _plPotHidden || (pl.invisibleTurns || 0) > 0;
+      const canSeePlayer = !!dg.visible?.[m.y]?.[m.x] && !playerHidden;
+      const adjacent = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+      const canUseWand = !!opts.monsterWandFn && m.gwenWandCharges > 0 && !m.sealed &&
+        !isAttackSealed(m) && !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
+      const canUseArrow = !m.sealed && !isAttackSealed(m) && !_plOnBlessedSanc && hasMonsterProjectileAmmo(m);
+      const useArrow = () => {
+        if (!canUseArrow || m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
+        m.turnAttacks++;
+        monsterShootArrow(m, dg, pl, ml, opts);
+        return true;
+      };
+      const useWand = (effect) => {
+        if (!canUseWand || m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
+        return useGwenVeteranWand(m, pl, opts, Math.sign(dx), Math.sign(dy), effect);
+      };
+      const chooseRangedAction = () => {
+        if (canUseArrow && canUseWand) return Math.random() < 0.5 ? "arrow" : "wand";
+        if (canUseArrow) return "arrow";
+        if (canUseWand) return "wand";
+        return null;
+      };
+      const reserveOrUse = (action) => {
+        if (_moveOnly) {
+          m._gwenPendingAction = action;
+          if (action === "wand") m._gwenPendingWandEffect = pick(GWEN_VETERAN_WAND_EFFECTS);
+          m._rangedAttackThisTurn = true;
+          return true;
+        }
+        if (action === "arrow") return useArrow();
+        return useWand(pick(GWEN_VETERAN_WAND_EFFECTS));
+      };
+
+      if (_attackOnly) {
+        const pendingAction = m._gwenPendingAction;
+        const pendingWandEffect = m._gwenPendingWandEffect;
+        delete m._gwenPendingAction;
+        delete m._gwenPendingWandEffect;
+        delete m._rangedAttackThisTurn;
+        if (pendingAction === "arrow") {
+          useArrow();
+          return;
+        }
+        if (pendingAction === "wand") {
+          const effect = pendingWandEffect || pick(GWEN_VETERAN_WAND_EFFECTS);
+          useWand(effect);
+          return;
+        }
+        if (adjacent && !playerHidden && !_plOnSanc && !isAttackSealed(m) &&
+            m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          m.turnAttacks++;
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, {
+            onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn,
+          });
+        }
+        return;
+      }
+
+      delete m._gwenPendingAction;
+      delete m._gwenPendingWandEffect;
+      const rangedAction = canSeePlayer && inLine && distance >= 2 && distance <= 10
+        ? chooseRangedAction()
+        : null;
+      if (rangedAction) {
+        reserveOrUse(rangedAction);
+        return;
+      }
+      if (adjacent) {
+        if (canSeePlayer && canUseWand && !_plOnSanc && Math.random() < 0.20) {
+          reserveOrUse("wand");
+          return;
+        }
+        if (_moveOnly || playerHidden || _plOnSanc || isAttackSealed(m) ||
+            m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, {
+          onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn,
+        });
+        return;
+      }
+      if (chebyshevDistance(m, pl) > 1) {
+        const next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,
+          60, dg.pentacles, false, null, true, dg.rooms, dg);
+        if (next && (next.x !== pl.x || next.y !== pl.y) &&
+            !dg.monsters.some(other => other !== m && monsterOccupiesCell(other, next.x, next.y))) {
+          m.dir = { x: next.x - m.x, y: next.y - m.y };
+          m.x = next.x;
+          m.y = next.y;
+          m._movedThisTurn = true;
+        }
+      }
+      return;
+    } finally {
+      if (m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] && summonGwenMonster(m, dg, pl, ml)) {
+        m.gwenVisibleTurns = 0;
+      }
+    }
   }
 
   if (_isGwen) {

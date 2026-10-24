@@ -150,6 +150,7 @@ export const TILE_NAMES = {
   224: "king_behinmos",
   225: "haunted_willow",
   255: "gwen",
+  256: "gwen_veteran",
   [TI.STONE_PROJECTILE]: "stone_projectile",
   [TI.ICE_CHUNK]: "ice_chunk",
   230: "loxonin",
@@ -385,6 +386,7 @@ export const TILE_RENDER = {
   224: { bg: null, fg: "#c288e8", ch: "B" }, /* キングベヒんもス */
   225: { bg: null, fg: "#70a060", ch: "W" }, /* お化け柳 */
   255: { bg: null, fg: "#d8e5ff", ch: "G" }, /* グウェン */
+  256: { bg: null, fg: "#f0d478", ch: "G" }, /* 勤勉なグウェン */
   226: { bg: null, fg: "#90b85a", ch: "A" }, /* 冒険者・女性剣士 */
   227: { bg: null, fg: "#60a8d0", ch: "A" }, /* 冒険者・女性術師 */
   228: { bg: null, fg: "#d07050", ch: "A" }, /* 冒険者・男性剣士 */

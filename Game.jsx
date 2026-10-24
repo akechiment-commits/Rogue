@@ -1582,6 +1582,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(_prev > 0 ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)` : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
           });
+        } else if (_we === "darkness_wand") {
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "darkness_wand", reflectColor: "#334466", wandLabel: "暗闇",
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}暗闇の杖を振った！`,
+            proofAbility: "darkness_proof",
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => _applyMonsterWandEffect("darkness", "player", pl, dx, dy, mlx),
+            onMonsterHit: (mon, mlx) => _applyMonsterWandEffect("darkness", "monster", mon, dx, dy, mlx),
+            onWallReflect: (mlx) => _applyMonsterWandEffect("darkness", "monster", m, -dx, -dy, mlx),
+            onMagicReflect: (refl, mlx) => _applyMonsterWandEffect("darkness", "monster", m, -dx, -dy, mlx),
+            onPlayerReflect: (mlx) => _applyMonsterWandEffect("darkness", "monster", m, -dx, -dy, mlx),
+            onBigbox: (bb, mlx) => _applyMonsterWandEffect("darkness", "bigbox", bb, dx, dy, mlx),
+            onItem: (it, mlx) => _applyMonsterWandEffect("darkness", "item", it, dx, dy, mlx),
+            onTrap: (trap, mlx) => _applyMonsterWandEffect("darkness", "trap", trap, dx, dy, mlx),
+          });
         } else if (_we === "teleport_wand") {
           const _tpRand = (exX, exY, targetMon = null) =>
             randomTeleportDest(dg, exX, exY, (x, y) =>
