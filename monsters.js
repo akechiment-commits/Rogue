@@ -1586,7 +1586,14 @@ export const MIREU = {
   desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤー（体の端マスと直線なら撃ち返し可能）に50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに使用者の攻撃力の2倍の威力を持つ隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU];
+export const GWEN_BOSS = {
+  name: "無邪気な少女「グウェン」", hp: 150, atk: 0, def: 16, exp: 500,
+  speed: 1, tile: 255, kind: "humanoid", baseKind: "boss_gwen",
+  isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 0,
+  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。生存中にプレイヤーの視界内で4ターン行動するごとに、B5Fの通常出現候補からモンスターを1体、隣接する空き床へ呼び出す。視界外では召喚間隔が進まない。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -4949,11 +4956,44 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   m.y = _next.y;
 }
 
+function summonGwenMonster(gwen, dg, pl, ml) {
+  if (!Array.isArray(dg.monsters)) dg.monsters = [];
+  const { base, spawnLevel } = pickMonsterDef(4, "legend", true, { excludeLarge: true });
+  if (!base || !legendMonsterAllowed(base.baseKind, 5)) return false;
+
+  const offsets = shuffle([[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]);
+  const occupiedObjects = [dg.items, dg.traps, dg.springs, dg.bigboxes, dg.pentacles, dg.statues,
+    dg.vents, dg.oilyTiles, dg.gachaMachines, dg.altars, dg.dimensionalVaults];
+  for (const [dx, dy] of offsets) {
+    const x = gwen.x + dx, y = gwen.y + dy;
+    const cells = monsterBodyCells(base, x, y);
+    const hasObject = cells.some(cell => occupiedObjects.some(list =>
+      list?.some(object => object.x === cell.x && object.y === cell.y)));
+    if (cells.some(cell => dg.map[cell.y]?.[cell.x] !== T.FLOOR) || hasObject ||
+        !canPlaceMonsterBody(dg, base, x, y, pl)) continue;
+
+    const summoned = makeMonsterFromBase(base, spawnLevel, x, y, {
+      aware: true, lastPx: pl.x, lastPy: pl.y,
+    });
+    dg.monsters.push(summoned);
+    ml.push(`グウェンの隣に${summoned.name}が現れた！`);
+    return true;
+  }
+  return false;
+}
+
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
+  const _isGwen = m.baseKind === "boss_gwen";
+  if (_isGwen && (m.hp <= 0 || opts.attackOnly)) return;
+  /* ボス階のまとめて行動する経路でも、グウェンは移動と召喚だけを行う。 */
+  if (_isGwen && !opts.moveOnly) opts = { ...opts, moveOnly: true };
   if (m.isPlayerClone && m.hp <= 0) return;
   m.turnAttacks = m.turnAttacks || 0;
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
+  if (_isGwen && !_attackOnly && dg.visible?.[m.y]?.[m.x]) {
+    m.gwenVisibleTurns = Math.min(4, (m.gwenVisibleTurns || 0) + 1);
+  }
   let _rangedAttackReady = false;
   const _luFn = opts.luFn || (() => {});
   const _canMoveTo = (x, y) => (monsterBodySize(m) === 1 || canPlaceMonsterBody(dg, m, x, y, pl)) && (m.waterOnly
@@ -5604,6 +5644,25 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (!_isPerm && m.fleeingTurns <= 0) { ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
+    return;
+  }
+
+  if (_isGwen) {
+    if (!_attackOnly && chebyshevDistance(m, pl) > 1) {
+      const next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,
+        60, dg.pentacles, false, null, true, dg.rooms, dg);
+      if (next && (next.x !== pl.x || next.y !== pl.y) &&
+          !dg.monsters.some(other => other !== m && monsterOccupiesCell(other, next.x, next.y))) {
+        m.dir = { x: next.x - m.x, y: next.y - m.y };
+        m.x = next.x;
+        m.y = next.y;
+        m._movedThisTurn = true;
+      }
+    }
+    if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] &&
+        summonGwenMonster(m, dg, pl, ml)) {
+      m.gwenVisibleTurns = 0;
+    }
     return;
   }
 

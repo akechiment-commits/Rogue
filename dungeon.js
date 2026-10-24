@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodyCells } from "./monsterGeometry.js";
 import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -2390,7 +2390,14 @@ function genBossFloor(depth, dungeonType = null) {
   /* ボス配置 */
   const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
-  const bt = dungeonType === "advanced" && depth === 29 ? MIREU : dungeonType === "advanced" && depth === 24 ? OHPLENTY : dungeonType === "advanced" && depth === 19 ? KING_BEHINMOS : dungeonType === "advanced" && depth === 14 ? CHIRANIKUTSUNNOKU : dungeonType === "advanced" && depth === 9 ? TAISAIJIN : dungeonType === "advanced" && depth === 4 ? BATTERING_RAM : _bossPool[bossIdx];
+  const bt = dungeonType === "legend" && depth === 4 ? GWEN_BOSS
+    : dungeonType === "advanced" && depth === 29 ? MIREU
+    : dungeonType === "advanced" && depth === 24 ? OHPLENTY
+    : dungeonType === "advanced" && depth === 19 ? KING_BEHINMOS
+    : dungeonType === "advanced" && depth === 14 ? CHIRANIKUTSUNNOKU
+    : dungeonType === "advanced" && depth === 9 ? TAISAIJIN
+    : dungeonType === "advanced" && depth === 4 ? BATTERING_RAM
+    : _bossPool[bossIdx];
   let bossX = main.cx;
   let bossY = main.cy;
   if (map[bossY]?.[bossX] !== T.FLOOR) {
@@ -2427,6 +2434,7 @@ function genBossFloor(depth, dungeonType = null) {
   /* { baseKind, level }[] の配列でボスごとに取り巻き種を定義 */
   const _minionSpec = (() => {
     switch (bt.baseKind) {
+      case "boss_gwen":          return [];
       case "im_boss_salamander": return [{ bk: "skeleton", lv: 1 }, { bk: "skeleton", lv: 1 }];
       case "im_boss_titan":      return [{ bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }];
       case "im_boss_kraken":     return [{ bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }];
