@@ -23,7 +23,7 @@ export const BOSS_UNIQUE_DROP_RULES = Object.freeze({
   boss_kingbehinmos: categoryDrop("ring", "ランダムな指輪"),
   boss_ohplenty: categoryDrop("spellbook", "ランダムな魔法書"),
   boss_mireu: categoryDrop("weapon", "ランダムな武器"),
-  boss_korgon: categoryDrop("armor", "ランダムな防具"),
+  boss_korgon: categoryDrop("ring", "ランダムな指輪"),
 
   im_boss_salamander: categoryDrop("weapon", "ランダムな武器"),
   im_boss_titan: categoryDrop("wand", "ランダムな杖"),
