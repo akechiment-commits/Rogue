@@ -6270,7 +6270,6 @@ export function monsterDrop(m, dg, ml, p = null) {
       : makeBossRewardItem(_uniqueTemplate);
     if (_uniqueDrop) {
       placeItemAt(dg, m.x, m.y, _uniqueDrop, ml, _ft, 0, p);
-      ml.push(`${m.name}の固有ドロップ「${resolveItemName(_uniqueDrop)}」が落ちた！`);
     }
 
     /* 最初のボスだけ、収納上手の巻物を固定報酬にする。 */
