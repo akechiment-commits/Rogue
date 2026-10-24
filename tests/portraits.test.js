@@ -171,6 +171,14 @@ describe("portraits", () => {
     expect(findItemActionKey(["ワッカが石を投げた！", "ワッカの石が命中！8ダメージ！"])).toBeNull();
   });
 
+  it("敵の弓ログでは射撃立ち絵を出さず、プレイヤーの矢射撃は判定する", () => {
+    const enemyShot = "弓の達人の貫きの矢がつらら小僧に命中！76ダメージ！";
+    expect(msgToActionKey(enemyShot)).toBeNull();
+    expect(findItemActionKey([enemyShot])).toBeNull();
+    expect(msgToActionKey("強矢を射った！")).toBe("act_bow");
+    expect(msgToActionKey("矢を射る方向を選んでください...")).toBe("act_bow");
+  });
+
   it("敵に食べさせた腐敗食料ではプレイヤーの食事立ち絵を出さない", () => {
     expect(findItemActionKey([
       "腐った極小のキウイが遺物の番人に命中！13ダメージ！",

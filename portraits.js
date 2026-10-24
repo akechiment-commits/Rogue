@@ -147,7 +147,8 @@ export function msgToActionKey(msg, recentMsgs = []) {
   /* プレイヤー自身が描いたときだけ（敵「〜が足元に〜を描いた」は除外） */
   if (/^足元に.+を描いた|魔方陣を描いた瞬間|ペンで/.test(msg)) return "act_pen";
   if (/魔法を放/.test(msg)) return "act_magic";
-  if (/矢を射|弓/.test(msg)) return "act_bow";
+  /* プレイヤーの射撃操作ログだけを対象にし、敵名「弓の達人」などの言及では反応しない。 */
+  if (/矢を射る方向を選んでください|(?:矢|弾|石|氷塊)を射った[。！]/.test(msg)) return "act_bow";
   /* 敵の「ワッカが石を投げた」などはプレイヤーの投擲ではない。 */
   if (/投げた|投擲/.test(msg) && !/^[^！\n]*が.+(?:投げ|投擲)/.test(msg)) return "act_throw";
   /* プレイヤーが壺を操作したときだけ。
