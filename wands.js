@@ -726,7 +726,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${_flName}が吹き飛んだ！`);
         const _pushResult = pushStair(dg, target, dx, dy, d);
         if (_pushResult.destroyed) ml.push(`${_flName}は水に沈んで消えた！`);
-        else ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
+        ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
         break;
       }
       break;
@@ -1083,6 +1083,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             _swapPlayerTo(fromX, fromY);
             ml.push(`${_flName}と位置が入れ替わった！${_stairLandingTile === T.WATER ? `${_flName}は水に沈んで消えた！` : `${_flName}は壁に埋まって壊れた！`}`);
             if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+            ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
             break;
           }
           if (!moveStairTo(dg, target, ox, oy)) {
