@@ -3011,8 +3011,8 @@ export function createDimensionalVaultAt(dg, room, depth, randomFn = Math.random
     });
   }
   const pickVaultItem = buildUniPool(depth, dg.dungeonType);
-  /* 宝物庫には最低1個、B以上の品を保証する。候補は通常の道具から
-   * 抽選するため、同じ景品の固定配置にはしない。 */
+  /* 階層制限内にB以上の候補がある場合は1個保証する。低階では
+   * 通常プールから抽選し、解禁前のレア度を抜け道で出さない。 */
   const guaranteedHighPool = ITEMS.filter((item) =>
     ["B", "A", "S"].includes(item.rarity) &&
     !["food", "gold", "goal"].includes(item.type) &&

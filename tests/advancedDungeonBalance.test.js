@@ -43,8 +43,8 @@ describe("上級ダンジョンの出現段階", () => {
     expect(bbPoolForDungeon("advanced", 15).map((entry) => entry.kind)).toEqual(BB_TYPES.map((entry) => entry.kind));
   });
 
-  it("道具は上級の階に関係なく全種類を許可する", () => {
-    expect(lootAllowedInDungeon(ITEMS.find((item) => item.effect === "bigbox_summon"), "advanced", 1)).toBe(true);
+  it("道具のレア度は上級の階層に合わせて解禁する", () => {
+    expect(lootAllowedInDungeon(ITEMS.find((item) => item.effect === "bigbox_summon"), "advanced", 1)).toBe(false);
     expect(lootAllowedInDungeon(SPELLBOOKS.find((book) => book.spell === "time_stop_magic"), "advanced", 30)).toBe(true);
   });
 });

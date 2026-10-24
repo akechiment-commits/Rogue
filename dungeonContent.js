@@ -43,6 +43,34 @@ function rarityRank(rarity) {
   return { E: 0, D: 1, C: 2, B: 3, A: 4, S: 5 }[rarity] ?? 0;
 }
 
+/* 高レア品は各ダンジョンの進行段階に合わせて解禁する。 */
+const LOOT_RARITY_STAGES = Object.freeze({
+  intermediate: Object.freeze([
+    { through: 5, max: "C" },
+    { through: 10, max: "B" },
+    { through: 20, max: "A" },
+  ]),
+  advanced: Object.freeze([
+    { through: 5, max: "C" },
+    { through: 10, max: "B" },
+    { through: 20, max: "A" },
+    { through: 30, max: "S" },
+  ]),
+  legend: Object.freeze([
+    { through: 10, max: "C" },
+    { through: 20, max: "B" },
+    { through: 35, max: "A" },
+    { through: 50, max: "S" },
+  ]),
+});
+
+function lootRarityAllowedAtFloor(item, dungeonType, floor) {
+  const stages = LOOT_RARITY_STAGES[dungeonType];
+  if (!stages || !item?.rarity) return true;
+  const stage = stages.find((entry) => floor <= entry.through) || stages[stages.length - 1];
+  return rarityRank(item.rarity) <= rarityRank(stage.max);
+}
+
 /** 初心者に出す基本道具。武器・防具は別扱い（A/S以外の通常装備を許可）。 */
 const BEGINNER_LOOT_ALLOW = new Set([
   "potion:heal", "potion:heal_big", "potion:superheal", "potion:poison", "potion:fire",
@@ -179,8 +207,8 @@ export function bbAllowedInDungeon(box, dungeonType, floor) {
 /**
  * 初心者：白リスト＋通常の武器防具（能力付き含む）。A/Sは出さない。
  * 1〜5階は E/D、6階から C/B。つるはしと穴掘りの杖は1階から。
- * 中級：Sと一部の上級道具はそもそも出さない。出るものは階でレア度を分けず weight 抽選。
- * 上級・超上級：道具は階に関係なく全種類。
+ * 中級：Sと一部の上級道具は出さず、1〜5階Cまで、6〜10階Bまで、11階からA。
+ * 上級：Cまで→B→A→Sを5/10/20階で解禁。超上級は10/20/35階で同じ段階を進める。
  */
 export function lootAllowedInDungeon(item, dungeonType, floor) {
   if (!item) return false;
@@ -198,7 +226,10 @@ export function lootAllowedInDungeon(item, dungeonType, floor) {
     if (item.type === "gold_nugget" || item.type === "marker") return false;
     const id = beginnerLootId(item);
     if (INTERMEDIATE_LOOT_BAN.has(id)) return false;
-    return rarityRank(item.rarity) < 5;
+    return rarityRank(item.rarity) < 5 && lootRarityAllowedAtFloor(item, dungeonType, floor);
+  }
+  if (dungeonType === "advanced" || dungeonType === "legend") {
+    return lootRarityAllowedAtFloor(item, dungeonType, floor);
   }
   return true;
 }
@@ -216,5 +247,6 @@ export function bbPoolForDungeon(dungeonType, floor, pool = BB_TYPES) {
 export function lootPoolForDungeon(pool, dungeonType, floor) {
   if (!pool?.length) return pool || [];
   const filtered = pool.filter((it) => lootAllowedInDungeon(it, dungeonType, floor));
-  return filtered.length ? filtered : pool.filter((it) => lootAllowedInDungeon(it, dungeonType, 99));
+  /* 候補が空でも階層制限を越える代替品は混ぜない。 */
+  return filtered;
 }
