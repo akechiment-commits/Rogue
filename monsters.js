@@ -77,6 +77,13 @@ const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.1
 export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand", "teleport_wand", "slow_wand"]);
 export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "ice_wand"]);
 const GWEN_VETERAN_WAND_EFFECTS = Object.freeze(["slow_wand", "confuse_wand", "sleep_wand", "darkness_wand"]);
+const FLOCK_MAGIC_EFFECTS = Object.freeze(["fire_bolt", "ice_wand", "poison_bolt", "curse_wand"]);
+const FLOCK_SPELL_LINES = Object.freeze({
+  fire_bolt: "深紅の焔よ、我が敵を灰燼に帰せ！",
+  ice_wand: "氷獄の鎖よ、時を止めて跪かせよ！",
+  poison_bolt: "紫毒の霧よ、魂まで蝕め！",
+  curse_wand: "禁忌の契約よ、その運命を呪縛せよ！",
+});
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
@@ -1601,7 +1608,14 @@ export const GWEN_VETERAN_BOSS = {
   desc: "超上級B20Fのボス。通常攻撃に加え、B5Fと同じ4ターンごとの召喚を行う。視界内の直線上へ50%で貫きの矢（12本）、50%で鈍足・混乱・眠り・暗闇の杖を振る（4種の杖を合計6回まで）。隣接時も20%で杖を使う。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS];
+export const FLOCK_BOSS = {
+  name: "フロック", hp: 380, atk: 42, def: 24, exp: 1400,
+  speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1,
+  desc: "超上級B10Fのボス。眼帯をしたゴスロリの女性。プレイヤーと3マスの距離を保ち、直線上にいると炎（着弾点で爆発）・氷・毒・呪いの魔法を唱える。隣接するとテレポートで逃げる。厨二病的な詠唱をする。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -3479,6 +3493,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
  *   onBigbox(bb, mlx): 大箱命中時（任意）
  *   onItem(it, mlx): アイテム命中時（任意）
  *   onTrap(trap, mlx): 罠命中時（任意）
+ *   onImpact(kind, target, x, y, mlx): 衝突地点の独自効果（指定時は通常の対象効果を置き換える）
+ *   ignoreStatusProtection: ダメージ系魔法など、状態防止で直接ダメージを止めない時に指定
  *   itemNameFn(it): 表示名関数（任意、未指定なら .name）
  *   bbNameFn(bb): 大箱表示名関数（任意、未指定なら .name）
  */
@@ -3499,6 +3515,8 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     onBigbox = null,
     onItem = null,
     onTrap = null,
+    onImpact = null,
+    ignoreStatusProtection = false,
     itemNameFn = null,
     bbNameFn = (bb) => bb.name,
   } = opts;
@@ -3521,7 +3539,8 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     }
     /* 壁/境界：跳ね返って射手に効果 */
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) {
-      onWallReflect(ml);
+      if (onImpact) onImpact("wall", null, _tx, _ty, ml);
+      else onWallReflect(ml);
       _hit = true; break;
     }
     /* 石像：敵の杖弾は有害効果なので破壊 */
@@ -3530,6 +3549,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
         breaks: true,
         itemDeps: getFixtureItemDeps(),
       });
+      if (onImpact) onImpact("statue", null, _tx, _ty, ml);
       _hit = true; break;
     }
     /* プレイヤー命中 */
@@ -3540,13 +3560,14 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
         onPlayerReflect(ml);
       } else if (!inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
         ml.push(`祝福された聖域の加護が${wandLabel}の魔法を防いだ！`);
-      } else if ((pl.statusImmune || 0) > 0) {
+      } else if (!ignoreStatusProtection && (pl.statusImmune || 0) > 0) {
         ml.push(`${wandLabel}の魔法弾を受けた！しかし状態防止中のため効かなかった！`);
-      } else if (proofAbility && hasAbility(pl.armor, proofAbility)) {
+      } else if (!ignoreStatusProtection && proofAbility && hasAbility(pl.armor, proofAbility)) {
         ml.push(`${wandLabel}の魔法弾を受けた！しかし防具が防いだ！`);
       } else {
         weakenOrClearParalysis(pl, ml);
-        onPlayerHit(ml);
+        if (onImpact) onImpact("player", pl, _tx, _ty, ml);
+        else onPlayerHit(ml);
       }
       _hit = true; break;
     }
@@ -3563,6 +3584,8 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
       } else if (monReflectsMagic(_mon)) {
         ml.push(`${_mon.name}が${wandLabel}の魔法弾を反射した！`);
         onMagicReflect(_mon, ml);
+      } else if (onImpact) {
+        onImpact("monster", _mon, _tx, _ty, ml);
       } else if (consumeBarrier(_mon, ml)) {
         /* バリア術師：1回分のバリアで消滅 */
       } else {
@@ -3573,21 +3596,24 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     /* 大箱：弾道停止＋カスタム効果 or「効果なし」 */
     const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
     if (_bb) {
-      if (onBigbox) onBigbox(_bb, ml);
+      if (onImpact) onImpact("bigbox", _bb, _tx, _ty, ml);
+      else if (onBigbox) onBigbox(_bb, ml);
       else ml.push(`${wandLabel}の魔法弾が${bbNameFn(_bb)}に命中したが効果がなかった。`);
       _hit = true; break;
     }
     /* アイテム */
     const _it = itemAt(dg, _tx, _ty);
     if (_it) {
-      if (onItem) onItem(_it, ml);
+      if (onImpact) onImpact("item", _it, _tx, _ty, ml);
+      else if (onItem) onItem(_it, ml);
       else ml.push(`${wandLabel}の魔法弾が${itemNameFn(_it)}に命中したが効果がなかった。`);
       _hit = true; break;
     }
     /* 罠 */
     const _tr = dg.traps?.find(t => t.x === _tx && t.y === _ty);
     if (_tr) {
-      if (onTrap) onTrap(_tr, ml);
+      if (onImpact) onImpact("trap", _tr, _tx, _ty, ml);
+      else if (onTrap) onTrap(_tr, ml);
       else { _tr.revealed = true; trackTrap(_tr); ml.push(`${wandLabel}の魔法弾が${_tr.name}に命中したが効果がなかった。`); }
       _hit = true; break;
     }
@@ -5007,10 +5033,78 @@ function useGwenVeteranWand(monster, player, opts, dx, dy, effect) {
   return true;
 }
 
+function flockDistance(x1, y1, x2, y2) {
+  return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
+}
+
+function moveFlockToThreeTileRange(monster, dungeon, player) {
+  const goals = [];
+  for (let y = Math.max(1, player.y - 3); y <= Math.min(MH - 2, player.y + 3); y++) {
+    for (let x = Math.max(1, player.x - 3); x <= Math.min(MW - 2, player.x + 3); x++) {
+      if (flockDistance(x, y, player.x, player.y) !== 3 ||
+          !(x === player.x || y === player.y || Math.abs(x - player.x) === Math.abs(y - player.y)) ||
+          dungeon.map[y]?.[x] !== T.FLOOR ||
+          !hasLOS(dungeon.map, x, y, player.x, player.y) ||
+          dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, x, y))) continue;
+      goals.push({ x, y, distance: flockDistance(monster.x, monster.y, x, y) });
+    }
+  }
+  goals.sort((a, b) => a.distance - b.distance);
+
+  for (const goal of goals) {
+    const next = bfsNext(dungeon.map, dungeon.monsters || [], monster.x, monster.y, goal.x, goal.y, monster,
+      60, dungeon.pentacles, false,
+      (x, y) => flockDistance(x, y, player.x, player.y) >= 3,
+      false, dungeon.rooms, dungeon);
+    if (!next || (next.x === player.x && next.y === player.y) ||
+        dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, next.x, next.y))) continue;
+    monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
+    monster.x = next.x;
+    monster.y = next.y;
+    monster._movedThisTurn = true;
+    return true;
+  }
+  return false;
+}
+
+function teleportFlockAway(monster, dungeon, player, messages) {
+  const destination = randomTeleportDest(dungeon, monster.x, monster.y, (x, y) =>
+    flockDistance(x, y, player.x, player.y) >= 4 &&
+    !dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, x, y))
+  );
+  if (!destination) return false;
+  const fromX = monster.x, fromY = monster.y;
+  monster.x = destination.x;
+  monster.y = destination.y;
+  monster.lastPx = player.x;
+  monster.lastPy = player.y;
+  monster._movedThisTurn = true;
+  pushAnim({ type: "flash", x: fromX, y: fromY, color: "#bd72ff" });
+  pushAnim({ type: "flash", x: destination.x, y: destination.y, color: "#bd72ff" });
+  messages.push(`${monster.name}は「ふっ、我に触れられると思ったか！」と唱え、紫の閃光とともに消えた！`);
+  return true;
+}
+
+function castFlockSpell(monster, opts, dx, dy, effect, messages) {
+  if (!opts.monsterWandFn) return false;
+  messages.push(`${monster.name}は「${FLOCK_SPELL_LINES[effect]}」と唱えた！`);
+  const previousEffect = monster.wandEffect;
+  monster.wandEffect = effect;
+  try {
+    opts.monsterWandFn(monster, dx, dy);
+  } finally {
+    if (previousEffect === undefined) delete monster.wandEffect;
+    else monster.wandEffect = previousEffect;
+  }
+  return true;
+}
+
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
+  const _isFlockBoss = m.baseKind === "boss_flock";
   const _isGwen = m.baseKind === "boss_gwen";
   const _isGwenVeteran = m.baseKind === "boss_gwen_veteran";
   const _isGwenVariant = _isGwen || _isGwenVeteran;
+  if (_isFlockBoss && m.hp <= 0) return;
   if (_isGwenVariant && m.hp <= 0) return;
   if (_isGwen && opts.attackOnly) return;
   /* ボス階のまとめて行動する経路でも、グウェンは移動と召喚だけを行う。 */
@@ -5672,6 +5766,57 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (!_isPerm && m.fleeingTurns <= 0) { ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
+    return;
+  }
+
+  if (_isFlockBoss) {
+    const dx = pl.x - m.x, dy = pl.y - m.y;
+    const distance = flockDistance(m.x, m.y, pl.x, pl.y);
+    const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+    const playerHidden = _plPotHidden || (pl.invisibleTurns || 0) > 0;
+    const canSeePlayer = !!dg.visible?.[m.y]?.[m.x] && !playerHidden && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    const canUseMagic = !!opts.monsterWandFn && !m.sealed && !isAttackSealed(m) &&
+      !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
+    const canCast = canSeePlayer && canUseMagic && inLine && distance === 3;
+
+    if (_attackOnly) {
+      const escaped = !!m._flockEscapedThisTurn;
+      const pendingSpell = m._flockPendingSpell;
+      delete m._flockEscapedThisTurn;
+      delete m._flockPendingSpell;
+      delete m._rangedAttackThisTurn;
+      if (escaped) return;
+      if (pendingSpell && canCast && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        m.turnAttacks++;
+        castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), pendingSpell, ml);
+        return;
+      }
+      if (distance <= 1 && canSeePlayer && canUseMagic) {
+        if (teleportFlockAway(m, dg, pl, ml)) m._flockEscapedThisTurn = true;
+      }
+      return;
+    }
+
+    delete m._flockPendingSpell;
+    delete m._flockEscapedThisTurn;
+    if (distance <= 1 && canSeePlayer && canUseMagic) {
+      if (teleportFlockAway(m, dg, pl, ml)) {
+        m._flockEscapedThisTurn = true;
+        return;
+      }
+    }
+    if (canCast && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      const spell = pick(FLOCK_MAGIC_EFFECTS);
+      if (_moveOnly) {
+        m._flockPendingSpell = spell;
+        m._rangedAttackThisTurn = true;
+        return;
+      }
+      m.turnAttacks++;
+      castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), spell, ml);
+      return;
+    }
+    if (canSeePlayer) moveFlockToThreeTileRange(m, dg, pl);
     return;
   }
 

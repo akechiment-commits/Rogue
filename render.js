@@ -151,6 +151,7 @@ export const TILE_NAMES = {
   225: "haunted_willow",
   255: "gwen",
   256: "gwen_veteran",
+  257: "flock",
   [TI.STONE_PROJECTILE]: "stone_projectile",
   [TI.ICE_CHUNK]: "ice_chunk",
   230: "loxonin",
@@ -183,6 +184,7 @@ export const customTileImages = {};
 /* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
 const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 const GWEN_SPRITE_TILE_IDS = new Set([255, 256]);
+const CRISP_MONSTER_TILE_IDS = new Set([257]);
 export function clearCustomTileImages() {
   for (const k of Object.keys(customTileImages)) delete customTileImages[k];
 }
@@ -388,6 +390,7 @@ export const TILE_RENDER = {
   225: { bg: null, fg: "#70a060", ch: "W" }, /* お化け柳 */
   255: { bg: null, fg: "#d8e5ff", ch: "G" }, /* グウェン */
   256: { bg: null, fg: "#f0d478", ch: "G" }, /* 勤勉なグウェン */
+  257: { bg: null, fg: "#bd8dff", ch: "F" }, /* フロック */
   226: { bg: null, fg: "#90b85a", ch: "A" }, /* 冒険者・女性剣士 */
   227: { bg: null, fg: "#60a8d0", ch: "A" }, /* 冒険者・女性術師 */
   228: { bg: null, fg: "#d07050", ch: "A" }, /* 冒険者・男性剣士 */
@@ -441,6 +444,14 @@ export function drawTile(ctx, ts, idx, dx, dy, sz, options = null) {
       ctx.imageSmoothingEnabled = false;
       try {
         ctx.drawImage(ci, dx - (drawWidth - sz) / 2, dy, drawWidth, drawHeight);
+      } finally {
+        ctx.imageSmoothingEnabled = previousSmoothing;
+      }
+    } else if (CRISP_MONSTER_TILE_IDS.has(idx)) {
+      const previousSmoothing = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      try {
+        ctx.drawImage(ci, dx, dy, sz, sz);
       } finally {
         ctx.imageSmoothingEnabled = previousSmoothing;
       }

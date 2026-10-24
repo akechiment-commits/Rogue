@@ -1376,12 +1376,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(_wandBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
             _wbItemNameFn, m, _wandBlessed, opts.fireTrapFn);
+        } else if (_we === "fire_bolt") {
+          const _flockFireImpact = (x, y, mlx) => {
+            doExplosion(x, y, dg, pl, mlx, _wbItemNameFn, "炎の魔法", null, lu,
+              false, false, false, false, { radius: 1, killerMon: m });
+          };
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "fire_wand", reflectColor: "#ff6622", wandLabel: "炎の魔法",
+            fireMsg: m.baseKind === "boss_flock" ? null : `${m.name}が炎の魔法を唱えた！`,
+            ignoreStatusProtection: true,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onImpact: (_kind, _target, x, y, mlx) => _flockFireImpact(x, y, mlx),
+            onPlayerReflect: (mlx) => _flockFireImpact(m.x, m.y, mlx),
+            onMagicReflect: (_reflector, mlx) => _flockFireImpact(m.x, m.y, mlx),
+          });
         } else if (_we === "fire_wand" || _we === "ice_wand") {
           const _wandLabel = _we === "fire_wand" ? "炎" : "氷";
           const _wandColor = _we === "fire_wand" ? "#ff6622" : "#80ddff";
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: _we, reflectColor: _wandColor, wandLabel: _wandLabel,
-            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}${_wandLabel}の杖を振った！`,
+            fireMsg: m.baseKind === "boss_flock"
+              ? null
+              : `${m.name}が${_wandBlessed ? "祝福された" : ""}${_wandLabel}の杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => _applyMonsterWandEffect(_we, "player", pl, dx, dy, mlx),
             onMonsterHit: (mon, mlx) => _applyMonsterWandEffect(_we, "monster", mon, dx, dy, mlx),
@@ -1404,10 +1420,42 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onMagicReflect: (refl, mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
             onPlayerReflect: (mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
           });
+        } else if (_we === "poison_bolt") {
+          const _applyPoisonBolt = (target, kind, mlx) => {
+            if (kind === "player") {
+              if (hasRingEffect(pl, "antidote_ring")) {
+                mlx.push("毒の魔法が命中したが、毒消しの指輪が毒を消した！");
+                return;
+              }
+              const poison = applyPlayerPoison(pl);
+              if (poison.blocked) mlx.push("毒の魔法が命中したが、状態防止中のため毒にならなかった！");
+              else mlx.push(poison.newlyApplied
+                ? `毒の魔法に侵された！(${poison.turns}ターン) 攻撃力が${poison.atkLoss}下がった！`
+                : `毒の魔法で毒が強まった！(残り${poison.remaining}ターン)`);
+              return;
+            }
+            if (blockLargeMonsterStatus(target, "poison", mlx)) return;
+            startLargeMonsterStatusCooldown(target, "poison");
+            const turns = monsterStatusTurns("poison", { kind: "monster", target });
+            target.poisonedTurns = (target.poisonedTurns || 0) + turns;
+            mlx.push(`毒の魔法が${target.name}に命中！毒に侵された！(${turns}ターン)`);
+          };
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "poison_wand", reflectColor: "#70d050", wandLabel: "毒の魔法",
+            fireMsg: m.baseKind === "boss_flock" ? null : `${m.name}が毒の魔法を唱えた！`,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => _applyPoisonBolt(pl, "player", mlx),
+            onMonsterHit: (mon, mlx) => _applyPoisonBolt(mon, "monster", mlx),
+            onWallReflect: (mlx) => _applyPoisonBolt(m, "monster", mlx),
+            onMagicReflect: (_reflector, mlx) => _applyPoisonBolt(m, "monster", mlx),
+            onPlayerReflect: (mlx) => _applyPoisonBolt(m, "monster", mlx),
+          });
         } else if (_we === "curse_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "curse_wand", reflectColor: "#9020b0", wandLabel: "呪い",
-            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}呪いの杖を振った！`,
+            fireMsg: m.baseKind === "boss_flock"
+              ? null
+              : `${m.name}が${_wandBlessed ? "祝福された" : ""}呪いの杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => _applyMonsterWandEffect("curse_wand", "player", pl, dx, dy, mlx),
             onMonsterHit: (mon, mlx) => {
