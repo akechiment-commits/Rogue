@@ -376,7 +376,7 @@ function dragonBreathOrigin(monster, target) {
     .filter(cell => {
       const dx = target.x - cell.x, dy = target.y - cell.y;
       const distance = Math.max(Math.abs(dx), Math.abs(dy));
-      return distance >= 2 && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy));
+      return distance >= 1 && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy));
     })
     .sort((a, b) => Math.max(Math.abs(target.x - a.x), Math.abs(target.y - a.y)) -
       Math.max(Math.abs(target.x - b.x), Math.abs(target.y - b.y)))[0] || null;
