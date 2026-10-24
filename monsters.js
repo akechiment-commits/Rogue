@@ -7891,7 +7891,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
         }
       }
-      const _dragonRdy = m._rangedAttackThisTurn;
+      /* 共通の遠距離攻撃判定が予約フラグを先に消費するため、コルゴンは保持された判定結果も引き継ぐ。 */
+      const _dragonRdy = m.baseKind === "boss_korgon"
+        ? (_rangedAttackReady || m._rangedAttackThisTurn)
+        : m._rangedAttackThisTurn;
       if (_dragonRdy) delete m._rangedAttackThisTurn;
       const _breathChosen = m.baseKind === "boss_korgon"
         ? _dragonRdy
