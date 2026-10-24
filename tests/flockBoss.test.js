@@ -71,6 +71,15 @@ describe("超上級B10Fボス：フロック", () => {
     }
   });
 
+  it("射線がない時は3〜10マスの射線を作れる位置へ積極的に移動する", () => {
+    const { dungeon, flock, player } = makeFlockScene({ flockX: 8, flockY: 8, playerX: 12, playerY: 10 });
+    const before = { x: flock.x, y: flock.y };
+    monsterAI(flock, dungeon, player, [], { moveOnly: true, monsterWandFn: vi.fn() });
+
+    expect(flock.x !== before.x || flock.y !== before.y).toBe(true);
+    expect(flockDistance(flock, player)).toBeGreaterThanOrEqual(3);
+  });
+
   it("3マスより近づかず、近接されたらテレポートで4マス以上離れる", () => {
     const retreat = makeFlockScene({ playerX: 10 });
     monsterAI(retreat.flock, retreat.dungeon, retreat.player, [], {

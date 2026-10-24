@@ -1621,7 +1621,7 @@ export const FLOCK_BOSS = {
   name: "フロック", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
   isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true,
-  desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
+  desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS];
@@ -5046,22 +5046,20 @@ function flockDistance(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
 }
 
-function moveFlockToThreeTileRange(monster, dungeon, player) {
+function moveFlockToFiringLine(monster, dungeon, player) {
   const flockFloat = monEffectiveFloat(monster) &&
     (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, monster.x, monster.y));
   const tileCanEnter = (x, y) => canEnter(dungeon.map, x, y, flockFloat, dungeon, monster.waterWalker);
   const goals = [];
-  for (let y = Math.max(1, player.y - 3); y <= Math.min(MH - 2, player.y + 3); y++) {
-    for (let x = Math.max(1, player.x - 3); x <= Math.min(MW - 2, player.x + 3); x++) {
-      if (flockDistance(x, y, player.x, player.y) !== 3 ||
-          !(x === player.x || y === player.y || Math.abs(x - player.x) === Math.abs(y - player.y)) ||
-          dungeon.map[y]?.[x] !== T.FLOOR ||
-          !hasLOS(dungeon.map, x, y, player.x, player.y) ||
+  for (let range = 3; range <= 10; range++) {
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const x = player.x + dx * range, y = player.y + dy * range;
+      if (!tileCanEnter(x, y) || !hasLOS(dungeon.map, x, y, player.x, player.y) ||
           dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, x, y))) continue;
-      goals.push({ x, y, distance: flockDistance(monster.x, monster.y, x, y) });
+      goals.push({ x, y, distance: flockDistance(monster.x, monster.y, x, y), range });
     }
   }
-  goals.sort((a, b) => a.distance - b.distance);
+  goals.sort((a, b) => a.distance - b.distance || a.range - b.range);
 
   for (const goal of goals) {
     const next = bfsNext(dungeon.map, dungeon.monsters || [], monster.x, monster.y, goal.x, goal.y, monster,
@@ -5837,7 +5835,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
     if (canSeePlayer && !(inLine && distance > 10)) {
-      const repositioned = moveFlockToThreeTileRange(m, dg, pl);
+      const repositioned = moveFlockToFiringLine(m, dg, pl);
       const canCastWhileCornered = !repositioned && inLine && distance >= 1 && distance <= 3 &&
         canUseMagic && m.turnAttacks < monEffectiveMaxAttacks(m);
       if (canCastWhileCornered) {
