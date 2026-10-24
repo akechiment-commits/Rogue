@@ -434,12 +434,13 @@ export function drawTile(ctx, ts, idx, dx, dy, sz, options = null) {
       const drawSz = sz * 1.25;
       ctx.drawImage(ci, dx - (drawSz - sz) / 2, dy - (drawSz - sz), drawSz, drawSz);
     } else if (GWEN_SPRITE_TILE_IDS.has(idx)) {
-      /* 小サイズでも顔・武器が読めるよう、少し大きく最近傍で表示する。 */
-      const drawSz = sz * 1.2;
+      /* 低身長の印象を保ちつつ、顔・武器が読めるよう横幅だけ少し広げる。 */
+      const drawWidth = sz * 1.2;
+      const drawHeight = sz;
       const previousSmoothing = ctx.imageSmoothingEnabled;
       ctx.imageSmoothingEnabled = false;
       try {
-        ctx.drawImage(ci, dx - (drawSz - sz) / 2, dy - (drawSz - sz), drawSz, drawSz);
+        ctx.drawImage(ci, dx - (drawWidth - sz) / 2, dy, drawWidth, drawHeight);
       } finally {
         ctx.imageSmoothingEnabled = previousSmoothing;
       }

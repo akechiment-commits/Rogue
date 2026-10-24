@@ -169,7 +169,7 @@ describe("超上級B20Fボス：勤勉で勇敢なグウェン", () => {
     expect(MONS.some(monster => monster.baseKind === "boss_gwen_veteran")).toBe(false);
   });
 
-  it("両方のスプライトを少し拡大し、輪郭をぼかさず描画する", () => {
+  it("両方のスプライトを横だけ少し広げ、輪郭をぼかさず描画する", () => {
     const previousImages = [customTileImages[255], customTileImages[256]];
     const drawCalls = [];
     const ctx = {
@@ -187,11 +187,13 @@ describe("超上級B20Fボス：勤勉で勇敢なグウェン", () => {
       drawTile(ctx, null, 256, 50, 20, 32);
 
       expect(drawCalls[0][1]).toBeCloseTo(6.8);
-      expect(drawCalls[0][2]).toBeCloseTo(13.6);
+      expect(drawCalls[0][2]).toBe(20);
       expect(drawCalls[0][3]).toBeCloseTo(38.4);
+      expect(drawCalls[0][4]).toBe(32);
       expect(drawCalls[1][1]).toBeCloseTo(46.8);
-      expect(drawCalls[1][2]).toBeCloseTo(13.6);
+      expect(drawCalls[1][2]).toBe(20);
       expect(drawCalls[1][3]).toBeCloseTo(38.4);
+      expect(drawCalls[1][4]).toBe(32);
       expect(ctx.imageSmoothingEnabled).toBe(true);
     } finally {
       if (previousImages[0]) customTileImages[255] = previousImages[0];
