@@ -6150,26 +6150,18 @@ const BOSS_RANDOM_FOOD_TEMPLATE = Object.freeze({
   rarity: "C",
   weight: 4,
 });
-function bossRandomRewardPool() {
-  return [
-    ...ITEMS,
-    ...WANDS,
-    ...POTS,
-    ...RINGS,
-    ...SPELLBOOKS,
-  ].filter((item) => {
-    if (!BOSS_RANDOM_REWARD_TYPES.has(item?.type) || !isRarityAtLeast(item, "C")) return false;
-    if (item.wallDropOnly || item.type === "gold_nugget" || item.type === "goal") return false;
-    if (item.specialBook === "gedo") return false;
-    const effect = item.effect || item.potEffect || item.spell;
-    return !BOSS_RANDOM_REWARD_EXCLUDED_EFFECTS[item.type]?.has(effect);
-  }).concat(BOSS_RANDOM_FOOD_TEMPLATE);
+function isBossRewardTemplate(item, includeEquipment = false) {
+  const allowedType = BOSS_RANDOM_REWARD_TYPES.has(item?.type) ||
+    (includeEquipment && ["weapon", "armor"].includes(item?.type));
+  if (!allowedType || !isRarityAtLeast(item, "C")) return false;
+  if (item.wallDropOnly || item.type === "gold_nugget" || item.type === "goal") return false;
+  if (item.specialBook === "gedo") return false;
+  const effect = item.effect || item.potEffect || item.spell;
+  return !BOSS_RANDOM_REWARD_EXCLUDED_EFFECTS[item.type]?.has(effect);
 }
 
-function bossUniqueDropTemplate(monster) {
-  const rule = BOSS_UNIQUE_DROP_RULES[monster?.baseKind];
-  if (!rule || rule.type === "food") return null;
-  const catalogs = {
+function bossRewardCatalogs() {
+  return {
     potion: ITEMS.filter((item) => item.type === "potion"),
     scroll: ITEMS.filter((item) => item.type === "scroll"),
     weapon: ITEMS.filter((item) => item.type === "weapon"),
@@ -6181,7 +6173,23 @@ function bossUniqueDropTemplate(monster) {
     ring: RINGS,
     spellbook: SPELLBOOKS,
   };
-  return catalogs[rule.type]?.find((item) => item[rule.field] === rule.value) || null;
+}
+
+function bossRandomRewardPool() {
+  return [
+    ...ITEMS,
+    ...WANDS,
+    ...POTS,
+    ...RINGS,
+    ...SPELLBOOKS,
+  ].filter((item) => isBossRewardTemplate(item)).concat(BOSS_RANDOM_FOOD_TEMPLATE);
+}
+
+function bossUniqueDropTemplate(monster) {
+  const rule = BOSS_UNIQUE_DROP_RULES[monster?.baseKind];
+  if (!rule || rule.type === "food") return null;
+  const candidates = (bossRewardCatalogs()[rule.type] || []).filter((item) => isBossRewardTemplate(item, true));
+  return pickLootFromPool(candidates, "drop") || null;
 }
 
 function makeBossRewardItem(template) {

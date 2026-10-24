@@ -16,8 +16,7 @@ function dropFor(boss) {
 }
 
 function matchesUniqueDrop(item, rule) {
-  if (rule.type === "food") return item.type === "food";
-  return item.type === rule.type && item[rule.field] === rule.value;
+  return item.type === rule.type;
 }
 
 describe("ボス報酬", () => {
@@ -66,6 +65,6 @@ describe("ボス報酬", () => {
     );
     expect(upgradedEquipment).toHaveLength(1);
     expect(upgradedEquipment[0].plus).toBe(upgradedEquipment[0].type === "weapon" ? 7 : 6);
-    expect(items.some(item => item.type === "weapon" && item.name === "ドラゴンキラー")).toBe(true);
+    expect(items.some(item => item.type === "weapon" && !Number(item.plus))).toBe(true);
   });
 });

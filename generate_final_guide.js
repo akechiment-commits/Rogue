@@ -1017,7 +1017,7 @@ for (const b of SPECIAL_BOSSES) {
 monsterData.push(Array(11).fill(''));
 monsterData.push(['─── ボス報酬 ───', '', '', '', '', '', '', '', '', '', '']);
 monsterData.push(['共通報酬', '-', '-', '-', '-', '-', '-', 'bossTier', '-', '',
-  `ボスの財宝＋強化値付き装備1つ。Tier1だけ収納上手の巻物を固定し、他はTierに応じて${BOSS_RANDOM_DROP_COUNT.min}〜${BOSS_RANDOM_DROP_COUNT.max}個の有益な候補からランダム抽選。強化の壺・杖・指輪の固定段階報酬は廃止。固有ドロップはボスごとに1つ保証する。`]);
+  `ボスの財宝＋強化値付き装備1つ。Tier1だけ収納上手の巻物を固定し、他はTierに応じて${BOSS_RANDOM_DROP_COUNT.min}〜${BOSS_RANDOM_DROP_COUNT.max}個の有益な候補からランダム抽選。強化の壺・杖・指輪の固定段階報酬は廃止。固有品もボスごとのカテゴリから1つ抽選する。`]);
 for (const boss of [...BOSSES, ...SPECIAL_BOSSES, ...INTERMEDIATE_BOSSES]) {
   const drop = BOSS_UNIQUE_DROP_RULES[boss.baseKind];
   if (!drop) continue;
