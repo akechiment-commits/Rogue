@@ -6665,11 +6665,13 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* 実際に撃破が確定した個体だけを、共通の撃破処理で一度だけ記録する。 */
   trackMonster(mon);
-  if (mon.baseKind === "boss_flock" && !mon._flockDeathQuoteShown) {
-    mon._flockDeathQuoteShown = true;
-    const deathLines = Array.isArray(mon.deathLines) && mon.deathLines.length > 0
-      ? mon.deathLines
-      : ["こんなところで……第二形態の台詞を用意していない！"];
+  const fallbackDeathLines = mon.baseKind === "boss_gwen" ? ["どうして、そんなことするの？"]
+    : mon.baseKind === "boss_gwen_veteran" ? ["守るって決めたのに……ごめんなさい……"]
+      : mon.baseKind === "boss_flock" ? ["こんなところで……第二形態の台詞を用意していない！"]
+        : [];
+  const deathLines = Array.isArray(mon.deathLines) && mon.deathLines.length > 0 ? mon.deathLines : fallbackDeathLines;
+  if (deathLines.length > 0 && !mon._deathQuoteShown) {
+    mon._deathQuoteShown = true;
     ml.push(`${mon.name}は『${pick(deathLines)}』と言い残した！`);
   }
   const _suicide = !!(killerMon && killerMon === mon);

@@ -1629,10 +1629,34 @@ export const MIREU = {
   desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤー（体の端マスと直線なら撃ち返し可能）に50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに使用者の攻撃力の2倍の威力を持つ隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
 };
 
+const GWEN_DIALOGUE_CHANCE = 0.25;
+export const GWEN_IDLE_DIALOGUE_LINES = Object.freeze([
+  "この花の冠はお母さんに編んでもらったの",
+  "赤って好きな色なの～",
+  "ざっつあぷりちーふらわー",
+  "るるる♪",
+  "あー…かわいいお花！",
+  "サンドラさんの赤いケープほしい…",
+]);
+export const GWEN_DEATH_LINES = Object.freeze(["どうして、そんなことするの？"]);
+export const GWEN_VETERAN_IDLE_DIALOGUE_LINES = Object.freeze([
+  "今日の鍛錬、まだ日課の半分だよ！",
+  "盾はみんなを守るためにあるんだよ！",
+  "怖くても、一歩ずつ前へ！",
+  "剣の手入れは毎晩欠かさないよ！",
+  "お母さんの教え、ちゃんと覚えてるよ！",
+  "あと素振り千回……え、今は戦闘中？",
+]);
+export const GWEN_VETERAN_DEATH_LINES = Object.freeze([
+  "守るって決めたのに……ごめんなさい……",
+  "まだ……鍛錬が足りなかったんだ……",
+]);
+
 export const GWEN_BOSS = {
   name: "無邪気な少女「グウェン」", hp: 150, atk: 0, def: 16, exp: 500,
   speed: 1, tile: 255, kind: "humanoid", baseKind: "boss_gwen",
   isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 0,
+  dialogueLines: GWEN_IDLE_DIALOGUE_LINES, deathLines: GWEN_DEATH_LINES,
   desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。生存中にプレイヤーの視界内で4ターン行動するごとに、B5Fの通常出現候補からモンスターを1体、隣接する空き床へ呼び出す。視界外では召喚間隔が進まない。",
 };
 
@@ -1640,6 +1664,7 @@ export const GWEN_VETERAN_BOSS = {
   name: "勤勉で勇敢な少女「グウェン」", hp: 900, atk: 73, def: 41, exp: 5000,
   speed: 1, tile: 256, kind: "humanoid", baseKind: "boss_gwen_veteran", subtype: "gwen_veteran",
   isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, gwenWandCharges: 6,
+  dialogueLines: GWEN_VETERAN_IDLE_DIALOGUE_LINES, deathLines: GWEN_VETERAN_DEATH_LINES,
   desc: "超上級B20Fのボス。通常攻撃に加え、B5Fと同じ4ターンごとの召喚を行う。視界内の直線上へ50%で貫きの矢（12本）、50%で鈍足・混乱・眠り・暗闇の杖を振る（4種の杖を合計6回まで）。隣接時も20%で杖を使う。",
 };
 
@@ -5975,6 +6000,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] && summonGwenMonster(m, dg, pl, ml)) {
         m.gwenVisibleTurns = 0;
       }
+      if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {
+        ml.push(`${m.name}「${pick(m.dialogueLines || GWEN_VETERAN_IDLE_DIALOGUE_LINES)}」`);
+      }
     }
   }
 
@@ -5993,6 +6021,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] &&
         summonGwenMonster(m, dg, pl, ml)) {
       m.gwenVisibleTurns = 0;
+    }
+    if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {
+      ml.push(`${m.name}「${pick(m.dialogueLines || GWEN_IDLE_DIALOGUE_LINES)}」`);
     }
     return;
   }
