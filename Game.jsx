@@ -1377,6 +1377,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (!room || findRoom(dg.rooms, pl.x, pl.y) !== room) return;
           ml.push(`${m.name}が同じ部屋に雷の魔法を放った！`);
           _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
+          if (pl.hp <= 0) pl.deathCause = `${m.name}の雷の魔法により`;
           for (const target of [...dg.monsters]) {
             if (target === m || target.baseKind === "boss_flock_revenge" || target.hp <= 0 ||
                 findRoom(dg.rooms, target.x, target.y) !== room) continue;

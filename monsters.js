@@ -5254,7 +5254,7 @@ function teleportFlockAway(monster, dungeon, player, messages) {
   monster._movedThisTurn = true;
   pushAnim({ type: "flash", x: fromX, y: fromY, color: "#bd72ff" });
   pushAnim({ type: "flash", x: destination.x, y: destination.y, color: "#bd72ff" });
-  messages.push(`${monster.name}は『${pick(FLOCK_TELEPORT_LINES)}』と唱え、紫の閃光とともに消えた！(MP-${cost}、残り${monster.mp}/${monster.maxMp})`);
+  messages.push(`${monster.name}は『${pick(FLOCK_TELEPORT_LINES)}』と唱え、紫の閃光とともに消えた！(MP-${cost})`);
   return true;
 }
 
@@ -5315,7 +5315,7 @@ function castFlockSpell(monster, opts, dx, dy, effect, messages, { invoke = true
     ? FLOCK_REVENGE_SPELL_LINES[effect] || FLOCK_SPELL_LINES[effect]
     : FLOCK_SPELL_LINES[effect];
   const quote = quotePool?.length ? pick(quotePool) : "詠唱成功！効果の説明は台本に書き忘れた！";
-  messages.push(`${monster.name}は『${quote}』と唱えた！(MP-${cost}、残り${monster.mp}/${monster.maxMp})`);
+  messages.push(`${monster.name}は『${quote}』と唱えた！(MP-${cost})`);
   if (!invoke) return true;
   const previousEffect = monster.wandEffect;
   monster.wandEffect = effect;
