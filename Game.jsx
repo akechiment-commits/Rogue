@@ -1449,8 +1449,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const cloneHp = Math.max(1, Math.ceil((m.maxHp || m.hp) / 2));
           const clone = {
             ...m, id: uid(), name: "フロックの分身", x: spot.x, y: spot.y,
-            hp: cloneHp, maxHp: cloneHp, exp: 0, isBoss: false, bossTier: 0, noDrop: true,
-            _flockRevengeClone: true, _flockCloneSummoned: true, turnAttacks: 0, turnAccum: 0,
+            hp: cloneHp, maxHp: cloneHp, isBoss: false, bossTier: 0,
+            _flockRevengeClone: true, _flockCloneSummoned: true, _flockHpDialogueSnapshot: cloneHp,
+            _flockRevengeParentId: m.id,
+            turnAttacks: 0, turnAccum: 0,
           };
           delete clone._flockPendingSpell;
           delete clone._flockPendingCorneredSpell;

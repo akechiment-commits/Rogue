@@ -193,6 +193,30 @@ const FLOCK_REVENGE_EMPTY_MP_LINES = Object.freeze([
   "まだ呪文はある！……MPが戻ればの話だ！",
   "う、動けない！これは魔力切れであって恐怖ではない！",
 ]);
+const FLOCK_HURT_LINES = Object.freeze([
+  "いてっ！？今のは演出じゃない！",
+  "ぐっ……ダメージ表示が本物だと！？",
+  "この傷は計算外！計画書にもない！",
+  "痛い！いや、深淵の痛覚が反応しただけ！",
+]);
+const FLOCK_CRITICAL_LINES = Object.freeze([
+  "HPが赤い！画面の警告が容赦ない！",
+  "我が深淵が……浅くなっている！？",
+  "ま、まだ第二形態の前段階！予定は未定！",
+  "倒れるわけには……台詞がまだ残っている！",
+]);
+const FLOCK_REVENGE_HURT_LINES = Object.freeze([
+  "復讐計画に被弾の欄はなかった！",
+  "やるな……分身しても痛みは半分じゃない！",
+  "今度こそ本気のはずなのに！",
+  "反撃の前にまずHPを確認させて！",
+]);
+const FLOCK_REVENGE_CRITICAL_LINES = Object.freeze([
+  "復讐の炎よりHPバーが赤い！？",
+  "ここで倒れたら二度目の再戦が……！",
+  "まだ魔力はある！体力がないだけだ！",
+  "分身しても本体のHPは増えないの！？",
+]);
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
@@ -1745,17 +1769,17 @@ export const GWEN_VETERAN_BOSS = {
 export const FLOCK_BOSS = {
   name: "自称・深淵の大魔導士「フロック」", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
-  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, mp: 72, maxMp: 72, deathLines: FLOCK_DEATH_LINES,
-  desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, mp: 720, maxMp: 720, deathLines: FLOCK_DEATH_LINES,
+  desc: "超上級B10Fの浮遊ボス。最大MP720。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
 export const FLOCK_REVENGE_BOSS = {
   name: "逆襲のフロック", hp: 1280, atk: 88, def: 56, exp: 11000,
   speed: 1, tile: 258, kind: "humanoid", baseKind: "boss_flock_revenge", subtype: "flockRevengeBoss",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, float: true,
-  mp: 180, maxMp: 180, flockEmpowered: true, flockMagicPowerMultiplier: 2,
+  mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 2,
   deathLines: FLOCK_REVENGE_DEATH_LINES,
-  desc: "超上級B25Fの浮遊ボス。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋では雷の部屋攻撃、魔法反射・守護・炎まといから状況に応じて詠唱し、封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
+  desc: "超上級B25Fの浮遊ボス。最大MP1800。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋では雷の部屋攻撃、魔法反射・守護・炎まといから状況に応じて詠唱し、封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
@@ -2242,6 +2266,7 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(st.subtype === "sleepingLion" ? { dormant: true, _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
@@ -2256,6 +2281,7 @@ export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, las
   const isSleepingLion = st.subtype === "sleepingLion";
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({ windDx, windDy }) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant: isSleepingLion || dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
@@ -5233,7 +5259,13 @@ function teleportFlockAway(monster, dungeon, player, messages) {
 }
 
 function ensureFlockMp(monster) {
-  const defaultMax = monster.baseKind === "boss_flock_revenge" ? 180 : 72;
+  const isRevenge = monster.baseKind === "boss_flock_revenge";
+  const legacyMax = isRevenge ? 180 : 72;
+  const defaultMax = isRevenge ? 1800 : 720;
+  if (monster.maxMp === legacyMax) {
+    monster.maxMp = defaultMax;
+    if (Number.isFinite(monster.mp)) monster.mp *= 10;
+  }
   if (!Number.isFinite(monster.maxMp)) monster.maxMp = defaultMax;
   if (!Number.isFinite(monster.mp)) monster.mp = monster.maxMp;
   monster.maxMp = Math.max(0, Math.floor(monster.maxMp));
@@ -5241,14 +5273,38 @@ function ensureFlockMp(monster) {
   return monster.mp;
 }
 
-function flockHasNoManaTurn(monster, messages, attackOnly = false) {
-  if (ensureFlockMp(monster) > 0) return false;
-  if (!attackOnly) {
+function flockHasNoManaTurn(monster, dungeon, messages, attackOnly = false) {
+  if (ensureFlockMp(monster) > 0) {
+    delete monster._flockOutOfMpDialogueShown;
+    return false;
+  }
+  const visible = !!dungeon?.visible?.[monster.y]?.[monster.x];
+  if (!attackOnly && visible) {
     const lines = monster.baseKind === "boss_flock_revenge" ? FLOCK_REVENGE_EMPTY_MP_LINES : FLOCK_EMPTY_MP_LINES;
-    messages.push(`${monster.name}は魔力切れで震えている……「${pick(lines)}」`);
+    const firstEmptyTurn = !monster._flockOutOfMpDialogueShown;
+    if (firstEmptyTurn || Math.random() < 0.30) {
+      messages.push(`${monster.name}は魔力切れで震えている……「${pick(lines)}」`);
+      monster._flockOutOfMpDialogueShown = true;
+    }
+  }
+  if (!attackOnly) {
     monster._movedThisTurn = true;
   }
   return true;
+}
+
+function flockHpChangeDialogue(monster, dungeon, messages, attackOnly = false) {
+  if (attackOnly || !dungeon?.visible?.[monster.y]?.[monster.x]) return;
+  const previousHp = Number.isFinite(monster._flockHpDialogueSnapshot)
+    ? monster._flockHpDialogueSnapshot
+    : (monster.maxHp || monster.hp);
+  monster._flockHpDialogueSnapshot = monster.hp;
+  if (monster.hp >= previousHp) return;
+  const critical = monster.hp <= (monster.maxHp || monster.hp) * 0.25;
+  const lines = monster.baseKind === "boss_flock_revenge"
+    ? (critical ? FLOCK_REVENGE_CRITICAL_LINES : FLOCK_REVENGE_HURT_LINES)
+    : (critical ? FLOCK_CRITICAL_LINES : FLOCK_HURT_LINES);
+  if (Math.random() < (critical ? 0.50 : 0.35)) messages.push(`${monster.name}「${pick(lines)}」`);
 }
 
 function castFlockSpell(monster, opts, dx, dy, effect, messages, { invoke = true } = {}) {
@@ -5338,6 +5394,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (_isFlockVariant) ensureFlockMp(m);
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
+  if (_isFlockVariant) flockHpChangeDialogue(m, dg, ml, _attackOnly);
   if (_isFlockRevenge && _attackOnly && m._flockEarlySpellPending) {
     const effect = m._flockEarlySpellPending;
     delete m._flockEarlySpellPending;
@@ -5466,7 +5523,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.pacifistTurns || 0) > 0) {
     if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - 1);
     if (m.pacifistTurns <= 0) { ml.push(`${m.name}の平和主義状態が解けた！`); m.turnAccum = 0; }
-    else if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
+    else if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     else if (_attackOnly || isStationaryMonster(m)) return;
     else if (!_attackOnly) {
       const _pdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -5934,7 +5991,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.immobileTurns||0) > 0) {
     if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - 1);
     if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
-    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     else _attackOnly = true;
   }
   /* ===== 混乱・酩酊・酔い：ランダム方向に移動・攻撃 ===== */
@@ -5943,7 +6000,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (_isConfused || _alcoholDirectionRandomized) {
     const _disorientedLabel = _isConfused ? "混乱した" : (m.drunkenTurns || 0) > 0 ? "酩酊した" : "酔った";
     if (_isConfused && !_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
-    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     if (isStationaryMonster(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -5979,7 +6036,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - 1);
-    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (isStationaryMonster(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (!m.darkDir) {
@@ -6021,7 +6078,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - 1);
-    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (isStationaryMonster(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
@@ -6088,7 +6145,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     delete m._flockPendingCorneredSpell;
     delete m._flockEscapedThisTurn;
     if (m.mp <= 0) {
-      flockHasNoManaTurn(m, ml, false);
+      flockHasNoManaTurn(m, dg, ml, false);
       return;
     }
 

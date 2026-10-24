@@ -6212,7 +6212,6 @@ function makeBossRewardItem(template) {
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
-  if (m?.noDrop) return;
   if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, p)) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
     return;
@@ -6694,6 +6693,17 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
      既に倒れた同じモンスターを骨の衝突対象として再処理しない。 */
   removeMonster(dg, mon);
   triggerPetalDeathSleep(mon, dg, p, ml);
+  if (mon.baseKind === "boss_flock_revenge" && !mon._flockRevengeClone) {
+    const linkedClones = (dg.monsters || []).filter(clone =>
+      clone._flockRevengeClone &&
+      (clone._flockRevengeParentId === mon.id || (!clone._flockRevengeParentId && clone.baseKind === mon.baseKind)) &&
+      clone.hp > 0,
+    );
+    for (const clone of linkedClones) {
+      ml.push(`${clone.name}は本体の消滅とともに倒れた！`);
+      killMonster(clone, dg, p, ml, luFn, noExp, killerMon);
+    }
+  }
   /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
   if (mon.carriedItem) {
     const _held = mon.carriedItem;
