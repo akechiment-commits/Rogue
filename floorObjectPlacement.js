@@ -109,15 +109,34 @@ export function moveStairTo(dg, stair, nx, ny) {
   if (stair.stairDir === "up") {
     if (dg.stairUp) { dg.stairUp.x = nx; dg.stairUp.y = ny; }
     else dg.stairUp = { x: nx, y: ny };
+    delete dg.stairUpDestroyed;
   } else {
     if (dg.stairDown) { dg.stairDown.x = nx; dg.stairDown.y = ny; }
     else dg.stairDown = { x: nx, y: ny };
+    delete dg.stairDownDestroyed;
   }
   return true;
 }
 
+/** 階段を地形に潰されたときに消し、同種の階段が残っていなければ復元対象から外す。 */
+export function destroyStair(dg, stair) {
+  if (!dg?.map || !stair || !["up", "down"].includes(stair.stairDir)) return false;
+  const tileType = stair.stairDir === "up" ? T.SU : T.SD;
+  if (dg.map[stair.y]?.[stair.x] !== tileType) return false;
+  dg.map[stair.y][stair.x] = T.FLOOR;
+
+  const remaining = _scanStairTiles(dg, tileType);
+  const isUp = stair.stairDir === "up";
+  const refKey = isUp ? "stairUp" : "stairDown";
+  const destroyedKey = isUp ? "stairUpDestroyed" : "stairDownDestroyed";
+  dg[refKey] = remaining[0] ? { x: remaining[0].x, y: remaining[0].y } : null;
+  if (remaining.length) delete dg[destroyedKey];
+  else dg[destroyedKey] = true;
+  return true;
+}
+
 /**
- * 階段を吹き飛ばし方向へスライド（重なり手前で停止）。
+ * 階段を吹き飛ばし方向へスライド（重なり手前で停止、水に入ると破壊）。
  */
 export function pushStair(dg, stair, dx, dy, dist) {
   if (!stair || (!dx && !dy)) return { x: stair?.x, y: stair?.y };
@@ -126,6 +145,10 @@ export function pushStair(dg, stair, dx, dy, dist) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
     const tile = dg.map[ny]?.[nx];
+    if (tile === T.WATER) {
+      const destroyed = destroyStair(dg, stair);
+      return { x: nx, y: ny, destroyed };
+    }
     if (tile === T.WALL || tile === T.BWALL) break;
     if (isFloorOccupancyBlocked(dg, nx, ny, { allowPlayer: true, allowMonster: true })) break;
     cx = nx; cy = ny;
@@ -156,13 +179,19 @@ function _placeStairTile(dg, dir, p) {
   const cell = pickFreeFloorObjectCell(dg, null, p, p?.x ?? 1, p?.y ?? 1);
   if (!cell) return false;
   dg.map[cell.y][cell.x] = tileType;
-  if (dir === "up") dg.stairUp = { x: cell.x, y: cell.y };
-  else dg.stairDown = { x: cell.x, y: cell.y };
+  if (dir === "up") {
+    dg.stairUp = { x: cell.x, y: cell.y };
+    delete dg.stairUpDestroyed;
+  } else {
+    dg.stairDown = { x: cell.x, y: cell.y };
+    delete dg.stairDownDestroyed;
+  }
   return true;
 }
 
 /**
- * 階段が消えていた／マップと参照が食い違っていたら復元する。
+ * 意図せず階段が消えていた／マップと参照が食い違っていたら復元する。
+ * stairUpDestroyed / stairDownDestroyed が立った階段は意図的な破壊なので復元しない。
  * 最深層（isLastFloor）・宝部屋は下り階段を要求しない。
  *
  * @param {object} dg
@@ -172,8 +201,8 @@ function _placeStairTile(dg, dir, p) {
 export function ensureStairsPresent(dg, opts = {}) {
   if (!dg?.map) return { fixedUp: false, fixedDown: false };
   const isLast = !!(opts.isLastFloor || dg.isLastFloor || dg.isTreasureRoom);
-  const needUp = opts.needUp !== false;
-  const needDown = opts.needDown !== undefined ? !!opts.needDown : !isLast;
+  const needUp = opts.needUp !== false && !dg.stairUpDestroyed;
+  const needDown = (opts.needDown !== undefined ? !!opts.needDown : !isLast) && !dg.stairDownDestroyed;
   let fixedUp = false;
   let fixedDown = false;
 

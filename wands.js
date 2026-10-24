@@ -36,6 +36,7 @@ import {
   floorMoveLabel,
   stairRefAt,
   moveStairTo,
+  destroyStair,
   pushStair,
   ensureStairsPresent,
 } from './floorObjectPlacement.js';
@@ -723,8 +724,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "stair") {
         const _flName = floorMoveLabel(kind, target);
         ml.push(`${_flName}が吹き飛んだ！`);
-        pushStair(dg, target, dx, dy, d);
-        ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
+        const _pushResult = pushStair(dg, target, dx, dy, d);
+        if (_pushResult.destroyed) ml.push(`${_flName}は水に沈んで消えた！`);
+        else ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
         break;
       }
       break;
@@ -1062,14 +1064,27 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _flName = floorMoveLabel(kind, target);
         if (kind === "trap" && target.permanent) { ml.push(`${_flName}は動かせない！`); break; }
         const [ox, oy] = [p.x, p.y];
+        const _stairLandingTile = dg.map[oy]?.[ox];
+        const _destroysStair = kind === "stair" &&
+          (_stairLandingTile === T.WALL || _stairLandingTile === T.BWALL || _stairLandingTile === T.WATER);
         /* プレイヤーがいたマスに床物体を置けるか（プレイヤーは離れるので除外） */
-        if (isFloorOccupancyBlocked(dg, ox, oy, { ignore: kind === "stair" ? null : target, allowPlayer: true, allowMonster: true })) {
+        if (!_destroysStair && isFloorOccupancyBlocked(dg, ox, oy, { ignore: kind === "stair" ? null : target, allowPlayer: true, allowMonster: true })) {
           ml.push(`${_flName}を動かせなかった。`);
           break;
         }
         /* 階段はマップタイル移動 */
         if (kind === "stair") {
           const fromX = target.x, fromY = target.y;
+          if (_destroysStair) {
+            if (!destroyStair(dg, target)) {
+              ml.push(`${_flName}を動かせなかった。`);
+              break;
+            }
+            _swapPlayerTo(fromX, fromY);
+            ml.push(`${_flName}と位置が入れ替わった！${_stairLandingTile === T.WATER ? `${_flName}は水に沈んで消えた！` : `${_flName}は壁に埋まって壊れた！`}`);
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+            break;
+          }
           if (!moveStairTo(dg, target, ox, oy)) {
             ml.push(`${_flName}を動かせなかった。`);
             break;
