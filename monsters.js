@@ -79,11 +79,20 @@ export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "
 const GWEN_VETERAN_WAND_EFFECTS = Object.freeze(["slow_wand", "confuse_wand", "sleep_wand", "darkness_wand"]);
 const FLOCK_MAGIC_EFFECTS = Object.freeze(["fire_bolt", "ice_wand", "poison_bolt", "curse_wand"]);
 const FLOCK_SPELL_LINES = Object.freeze({
-  fire_bolt: "深紅の焔よ、我が敵を灰燼に帰せ！",
-  ice_wand: "氷獄の鎖よ、時を止めて跪かせよ！",
-  poison_bolt: "紫毒の霧よ、魂まで蝕め！",
-  curse_wand: "禁忌の契約よ、その運命を呪縛せよ！",
+  fire_bolt: "紅蓮よ、周囲ごと灰燼に帰せ！巻き込み？それは演出だ！",
+  ice_wand: "絶対零度の氷獄よ！このあと衣替えする！",
+  poison_bolt: "紫毒よ、魂まで蝕め！解毒薬は持っていない！",
+  curse_wand: "禁忌の契約よ、その運命を呪縛せよ！まず持ち物からだ！",
 });
+const FLOCK_IDLE_LINES = Object.freeze([
+  "この眼帯は封印具！……ただのゴム紐ではない！",
+  "我が右目の封印が疼く……あれ、眼帯は左だったか？",
+  "世界の終焉を見届ける！まずは昼食の後だ！",
+  "我が力は無限！ただし詠唱は一日三回まで！",
+  "深淵が告げている……お腹が空いたと！",
+  "ククク、この程度の傷……いや、普通に痛い！",
+  "見よ、この完璧な作戦！細部はこれから考える！",
+]);
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
@@ -1611,8 +1620,8 @@ export const GWEN_VETERAN_BOSS = {
 export const FLOCK_BOSS = {
   name: "フロック", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
-  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1,
-  desc: "超上級B10Fのボス。眼帯をしたゴスロリの女性。プレイヤーと3マスの距離を保ち、直線上にいると炎（着弾点で爆発）・氷・毒・呪いの魔法を唱える。隣接するとテレポートで逃げる。厨二病的な詠唱をする。",
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true,
+  desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マスの距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。隣接するとテレポートで逃げ、視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS];
@@ -5038,6 +5047,9 @@ function flockDistance(x1, y1, x2, y2) {
 }
 
 function moveFlockToThreeTileRange(monster, dungeon, player) {
+  const flockFloat = monEffectiveFloat(monster) &&
+    (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, monster.x, monster.y));
+  const tileCanEnter = (x, y) => canEnter(dungeon.map, x, y, flockFloat, dungeon, monster.waterWalker);
   const goals = [];
   for (let y = Math.max(1, player.y - 3); y <= Math.min(MH - 2, player.y + 3); y++) {
     for (let x = Math.max(1, player.x - 3); x <= Math.min(MW - 2, player.x + 3); x++) {
@@ -5053,10 +5065,10 @@ function moveFlockToThreeTileRange(monster, dungeon, player) {
 
   for (const goal of goals) {
     const next = bfsNext(dungeon.map, dungeon.monsters || [], monster.x, monster.y, goal.x, goal.y, monster,
-      60, dungeon.pentacles, false,
-      (x, y) => flockDistance(x, y, player.x, player.y) >= 3,
+      60, dungeon.pentacles, flockFloat,
+      (x, y) => tileCanEnter(x, y) && flockDistance(x, y, player.x, player.y) >= 3,
       false, dungeon.rooms, dungeon);
-    if (!next || (next.x === player.x && next.y === player.y) ||
+    if (!next || !tileCanEnter(next.x, next.y) || (next.x === player.x && next.y === player.y) ||
         dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, next.x, next.y))) continue;
     monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
     monster.x = next.x;
@@ -5081,7 +5093,7 @@ function teleportFlockAway(monster, dungeon, player, messages) {
   monster._movedThisTurn = true;
   pushAnim({ type: "flash", x: fromX, y: fromY, color: "#bd72ff" });
   pushAnim({ type: "flash", x: destination.x, y: destination.y, color: "#bd72ff" });
-  messages.push(`${monster.name}は「ふっ、我に触れられると思ったか！」と唱え、紫の閃光とともに消えた！`);
+  messages.push(`${monster.name}は「近い近い！……こほん、紫電転移！」と唱え、紫の閃光とともに消えた！`);
   return true;
 }
 
@@ -5777,7 +5789,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const canSeePlayer = !!dg.visible?.[m.y]?.[m.x] && !playerHidden && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     const canUseMagic = !!opts.monsterWandFn && !m.sealed && !isAttackSealed(m) &&
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
-    const canCast = canSeePlayer && canUseMagic && inLine && distance === 3;
+    const canCast = canSeePlayer && canUseMagic && inLine && distance >= 3 && distance <= 10;
 
     if (_attackOnly) {
       const escaped = !!m._flockEscapedThisTurn;
@@ -5816,7 +5828,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), spell, ml);
       return;
     }
-    if (canSeePlayer) moveFlockToThreeTileRange(m, dg, pl);
+    if (canSeePlayer && !(inLine && distance > 10)) {
+      moveFlockToThreeTileRange(m, dg, pl);
+    }
+    if (canSeePlayer && Math.random() < 0.30) ml.push(`${m.name}「${pick(FLOCK_IDLE_LINES)}」`);
     return;
   }
 

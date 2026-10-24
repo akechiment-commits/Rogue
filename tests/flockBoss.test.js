@@ -26,6 +26,7 @@ describe("超上級B10Fボス：フロック", () => {
     const flock = legendFloor.monsters.find(monster => monster.isBoss);
     expect(flock.baseKind).toBe("boss_flock");
     expect(flock.dormant).toBe(true);
+    expect(flock.float).toBe(true);
     expect(legendFloor.monsters.filter(monster => monster !== flock && monster.dormant)).toHaveLength(0);
 
     expect(genDungeon(9, "advanced").monsters.find(monster => monster.isBoss).baseKind).toBe("boss_taisaijin");
@@ -54,6 +55,22 @@ describe("超上級B10Fボス：フロック", () => {
     },
   );
 
+  it("4マス離れた直線上でも唱え、プレイヤーに近づかない", () => {
+    const { dungeon, flock, player } = makeFlockScene({ playerX: 12 });
+    const effects = [];
+    const monsterWandFn = vi.fn(monster => effects.push(monster.wandEffect));
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      monsterAI(flock, dungeon, player, [], { moveOnly: true, monsterWandFn });
+      monsterAI(flock, dungeon, player, [], { attackOnly: true, monsterWandFn });
+      expect(flockDistance(flock, player)).toBe(4);
+      expect(flock.x).toBe(8);
+      expect(effects).toHaveLength(1);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it("3マスより近づかず、近接されたらテレポートで4マス以上離れる", () => {
     const retreat = makeFlockScene({ playerX: 10 });
     monsterAI(retreat.flock, retreat.dungeon, retreat.player, [], {
@@ -70,7 +87,30 @@ describe("超上級B10Fボス：フロック", () => {
     expect(escape.flock.x !== before.x || escape.flock.y !== before.y).toBe(true);
     monsterAI(escape.flock, escape.dungeon, escape.player, messages, { attackOnly: true, monsterWandFn });
     expect(monsterWandFn).not.toHaveBeenCalled();
-    expect(messages.some(message => message.includes("触れられると思ったか"))).toBe(true);
+    expect(messages.some(message => message.includes("近い近い") && message.includes("紫電転移"))).toBe(true);
+  });
+
+  it("距離調整の経路探索では壁を通らず、魔法外の台詞もランダムに話す", () => {
+    const chatter = makeFlockScene({ playerX: 10, playerY: 9 });
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      monsterAI(chatter.flock, chatter.dungeon, chatter.player, chatter.dungeon.messages ||= [], {
+        moveOnly: true, monsterWandFn: vi.fn(),
+      });
+      expect(chatter.dungeon.monsters[0].hp).toBe(FLOCK_BOSS.hp);
+      expect(chatter.dungeon.messages.some(message => message.startsWith("フロック「"))).toBe(true);
+    } finally {
+      random.mockRestore();
+    }
+
+    const boxed = makeFlockScene({ flockX: 8, flockY: 10, playerX: 10, playerY: 10 });
+    boxed.dungeon.map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+    for (const [x, y] of [[8, 10], [9, 10], [10, 10], [10, 9], [10, 8], [10, 7]]) {
+      boxed.dungeon.map[y][x] = T.FLOOR;
+    }
+    monsterAI(boxed.flock, boxed.dungeon, boxed.player, [], { moveOnly: true, monsterWandFn: vi.fn() });
+    expect(boxed.dungeon.map[boxed.flock.y]?.[boxed.flock.x]).toBe(T.FLOOR);
+    expect({ x: boxed.flock.x, y: boxed.flock.y }).toEqual({ x: 8, y: 10 });
   });
 
   it("炎の魔法弾は命中した位置を着弾点として返す", () => {
