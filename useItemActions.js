@@ -36,7 +36,7 @@ import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
-import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle } from "./monTraits.js";
+import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
@@ -1220,10 +1220,10 @@ export function useItemActions({
             }
             if (consumeBarrier(_m, ml)) continue;
             let _dmg = rollElementScrollDamage(it);
-            if (_m.elemWeak === "thunder") _dmg = Math.round(_dmg * 1.5);
+            if (monHasElementWeakness(_m, "thunder")) _dmg = Math.round(_dmg * 1.5);
             _dmg = multiplyMagicDamage(_dmg, p.weapon, _m, dg);
             _m.hp -= _dmg;
-            ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${_m.elemWeak === "thunder" ? "雷弱点！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
+            ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${monHasElementWeakness(_m, "thunder") ? "雷弱点！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
             if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }
@@ -1438,12 +1438,12 @@ export function useItemActions({
               continue;
             }
             let _flDmg = rollElementScrollDamage(it);
-            if (_m.elemWeak === "fire") _flDmg = Math.round(_flDmg * 1.5);
+            if (monHasElementWeakness(_m, "fire")) _flDmg = Math.round(_flDmg * 1.5);
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
             _flDmg = scaleMonFireDmg(_m, multiplyMagicDamage(_flDmg, p.weapon, _m, dg));
             _m.hp -= _flDmg;
-            ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_m.elemWeak === "fire" ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
+            ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${monHasElementWeakness(_m, "fire") ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
             if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }

@@ -283,12 +283,12 @@ export { wakeIfDormant } from "./monsterRuntime.js";
 export {
   monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
-  monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility,
+  monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility, monHasElementWeakness,
 } from "./monTraits.js";
 import {
   monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks,
-  monCanUseExplosiveAbility,
+  monCanUseExplosiveAbility, monHasElementWeakness,
 } from "./monTraits.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -350,14 +350,17 @@ function canEnter(map, x, y, float = false, dg = null, waterWalker = false) {
 /* ===== プレイヤー防御力計算ヘルパー ===== */
 /** モンスターの炎耐性倍率（elemResist:"fire" → 半減）。火ダルマの吸収は別処理 */
 export function monFireDmgMult(m) {
+  if (m?.fireImmune) return 0;
   if (monHasFlameMantle(m) || m?.elemResist === "fire" || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
   return 1;
 }
 export function monFireDmgLabel(m) {
+  if (m?.fireImmune) return "(炎無効)";
   return monFireDmgMult(m) < 1 ? "(炎半減)" : "";
 }
 /** 炎ダメージを耐性適用して返す（最低1） */
 export function scaleMonFireDmg(m, dmg) {
+  if (m?.fireImmune) return 0;
   const mult = monFireDmgMult(m);
   if (mult >= 1) return Math.max(1, dmg | 0);
   return Math.max(1, Math.floor((dmg | 0) * mult));
@@ -368,6 +371,17 @@ function calcPlayerDef(pl) {
 }
 
 /* ===== ドラゴン炎ブレス（風で曲がる物理ブレス） ===== */
+function dragonBreathOrigin(monster, target) {
+  return monsterBodyCells(monster)
+    .filter(cell => {
+      const dx = target.x - cell.x, dy = target.y - cell.y;
+      const distance = Math.max(Math.abs(dx), Math.abs(dy));
+      return distance >= 2 && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy));
+    })
+    .sort((a, b) => Math.max(Math.abs(target.x - a.x), Math.abs(target.y - a.y)) -
+      Math.max(Math.abs(target.x - b.x), Math.abs(target.y - b.y)))[0] || null;
+}
+
 function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
   if (isFireExplosionNullified(dg, pl)) {
@@ -377,15 +391,16 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     return;
   }
   const _fLvl = m.monLevel || 1;
-  let _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
+  const _origin = m.baseKind === "boss_korgon" ? (dragonBreathOrigin(m, pl) || { x: m.x, y: m.y }) : { x: m.x, y: m.y };
+  let _fdx = Math.sign(pl.x - _origin.x), _fdy = Math.sign(pl.y - _origin.y);
   if (_fdx === 0 && _fdy === 0) _fdy = 1;
-  const _breathPath = [{ x: m.x, y: m.y }];
+  const _breathPath = [{ x: _origin.x, y: _origin.y }];
   const _emitBreathAnim = () => {
     if (_breathPath.length <= 1) return;
     const end = _breathPath[_breathPath.length - 1];
-    pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: end.x, toY: end.y, color: "#ff6622", path: _breathPath });
+    pushAnim({ type: "monProjectile", fromX: _origin.x, fromY: _origin.y, toX: end.x, toY: end.y, color: "#ff6622", path: _breathPath });
   };
-  let _cx = m.x, _cy = m.y, _windMsg = false;
+  let _cx = _origin.x, _cy = _origin.y, _windMsg = false;
   const _applyFireToMon = (_fBlock) => {
     wakeIfDormant(_fBlock, ml);
     const _fDmgBase = calcAtkDefDmg(m.atk, _fBlock.def || 0, { defWeight: 1 });
@@ -434,7 +449,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) { _emitBreathAnim(); return; }
     _breathPath.push({ x: _fx, y: _fy });
     /* 風で自分に戻った */
-    if (_fx === m.x && _fy === m.y) {
+    if (monsterOccupiesCell(m, _fx, _fy)) {
       _applyFireToMon(m);
       _emitBreathAnim();
       return;
@@ -477,7 +492,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   let _cx = m.x, _cy = m.y, _windMsg = false;
   const _hitIceMon = (_iBlock) => {
     let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
-    const _iIsWeak = _iBlock.elemWeak === "ice";
+    const _iIsWeak = monHasElementWeakness(_iBlock, "ice");
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
     _iBlock.hp -= _iDmg;
     const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
@@ -1727,6 +1742,16 @@ export const MIREU = {
   desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤー（体の端マスと直線なら撃ち返し可能）に50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに使用者の攻撃力の2倍の威力を持つ隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
 };
 
+/* 超上級15階専用ボス。鋼鉄の巨体で物理攻撃と爆発に耐え、属性攻撃で崩す。 */
+export const KORGON_BOSS = {
+  name: "鋼鉄竜「コルゴン」", hp: 820, atk: 62, def: 42, exp: 4200,
+  speed: 1, tile: 259, kind: "dragon", baseKind: "boss_korgon",
+  isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
+  fixedDamageOnly: true, fireImmune: true, explosionImmune: true,
+  elemWeak: "ice", elemWeak2: "thunder",
+  desc: "超上級B15Fの2×2マスの鋼鉄竜。水晶スライムと同じく物理攻撃のダメージは最大1。炎と爆発を無効化し、氷と雷に弱い。視界内でプレイヤーと直線上に並ぶと50%で炎ブレスを吐く。",
+};
+
 const GWEN_DIALOGUE_CHANCE = 0.25;
 export const GWEN_IDLE_DIALOGUE_LINES = Object.freeze([
   "この花の冠はお母さんに編んでもらったの",
@@ -1782,7 +1807,7 @@ export const FLOCK_REVENGE_BOSS = {
   desc: "超上級B25Fの浮遊ボス。最大MP1800。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋では雷の部屋攻撃、魔法反射・守護・炎まといから状況に応じて詠唱し、封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -7449,8 +7474,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         });
       const _waterFlowerRdy = m.subtype === "waterFlower" && !m.sealed && _sameRoom && _rAtks;
       const _dfLvl0 = m.monLevel || 1;
-      const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
-        (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 3 ? true : _dfLvl0 >= 2 ? _sameRoom : _rLine));
+      const _korgonBreathOrigin = m.baseKind === "boss_korgon" ? dragonBreathOrigin(m, pl) : null;
+      const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander" || m.baseKind === "boss_korgon") && !m.sealed && _rAtks &&
+        (m.baseKind === "boss_korgon"
+          ? !!_korgonBreathOrigin
+          : _rLen >= 2 && (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 3 ? true : _dfLvl0 >= 2 ? _sameRoom : _rLine)));
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
         Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) === 1;
       const _mtLvl0 = m.monLevel || 1;
@@ -7844,12 +7872,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── ドラゴン炎ブレス（Lv1:一直線50% / Lv2:同部屋20% / Lv3:同フロア10%）＋サラマンダー ── */
-    if (!_moveOnly && (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (!_moveOnly && (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander" || m.baseKind === "boss_korgon") && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       const _dfAdx = pl.x - m.x, _dfAdy = pl.y - m.y;
       const _dfDist = Math.max(Math.abs(_dfAdx), Math.abs(_dfAdy));
       const _dfLvl = m.monLevel || 1;
       let _canFire = false;
-      if (_dfDist >= 2) {
+      if (m.baseKind === "boss_korgon") {
+        _canFire = canSee && !!dragonBreathOrigin(m, pl);
+      } else if (_dfDist >= 2) {
         if (m.baseKind === "im_boss_salamander") {
           _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
         } else if (_dfLvl >= 3) {
@@ -7863,7 +7893,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       const _dragonRdy = m._rangedAttackThisTurn;
       if (_dragonRdy) delete m._rangedAttackThisTurn;
-      if (_canFire && !_plOnBlessedSanc && (_dragonRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m))) {
+      const _breathChosen = m.baseKind === "boss_korgon"
+        ? _dragonRdy
+        : (_dragonRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m));
+      if (_canFire && !_plOnBlessedSanc && _breathChosen) {
         if (_dfLvl >= 3) {
           m.aware = true;
           m.lastPx = pl.x;

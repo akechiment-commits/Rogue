@@ -9,6 +9,13 @@ export function monIsSealed(m) {
   return !!(m && m.sealed);
 }
 
+/** 主弱点・副弱点のどちらに対しても属性弱点判定を行う。 */
+export function monHasElementWeakness(m, element) {
+  if (!m || !element) return false;
+  const weaknesses = [m.elemWeak, m.elemWeak2].flatMap(value => Array.isArray(value) ? value : [value]);
+  return weaknesses.includes(element);
+}
+
 /** 火ダルマの固有炎特性または爆発から伝わった炎まといが有効か。 */
 export function monHasFlameMantle(m) {
   return !!(m && !m.sealed && !(m.soakedTurns > 0) &&

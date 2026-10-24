@@ -3,7 +3,7 @@ import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.j
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
-import { monEffectiveFloat, monEffectiveWallWalker } from "./monTraits.js";
+import { monEffectiveFloat, monEffectiveWallWalker, monHasElementWeakness } from "./monTraits.js";
 
 /** 攻撃後のモンスター回復・状態タイマー・地形と魔方陣の継続効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
@@ -183,7 +183,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
       continue;
     }
 
-    const weaknessMultiplier = monster.elemWeak === "thunder" ? 1.5 : 1;
+    const weaknessMultiplier = monHasElementWeakness(monster, "thunder") ? 1.5 : 1;
     const cursedSealMultiplier = inCursedMagicSealRoom(pentacle.x, pentacle.y, dungeon) ? 2 : 1;
     const damage = Math.round((pentacle.blessed ? 50 : 25) * weaknessMultiplier * cursedSealMultiplier);
     monster.hp -= damage;

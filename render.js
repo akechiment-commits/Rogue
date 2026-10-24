@@ -179,13 +179,14 @@ export const TILE_NAMES = {
   252: "taisaijin",
   253: "ohplenty",
   254: "mireu",
+  259: "korgon",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
 /* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
 const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 const GWEN_SPRITE_TILE_IDS = new Set([255, 256]);
-const CRISP_MONSTER_TILE_IDS = new Set([257, 258]);
+const CRISP_MONSTER_TILE_IDS = new Set([257, 258, 259]);
 export function clearCustomTileImages() {
   for (const k of Object.keys(customTileImages)) delete customTileImages[k];
 }
@@ -420,6 +421,7 @@ export const TILE_RENDER = {
   252: { bg: null, fg: "#c060d0", ch: "T" }, /* タイサイジン */
   253: { bg: null, fg: "#ffd700", ch: "C" }, /* オープレンティ */
   254: { bg: null, fg: "#33aaff", ch: "D" }, /* ミレウ */
+  259: { bg: null, fg: "#c9d5e4", ch: "K" }, /* コルゴン */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

@@ -23,7 +23,7 @@ import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectB
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
-import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
@@ -760,7 +760,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _lBlessMult = blMult > 1 ? 2 : 1;
       let dmg = Math.max(1, Math.round(rng(20, 30) * _lBlessMult));
       if (kind === "monster") {
-        const _lWeakMult = target.elemWeak === "thunder" ? 1.5 : 1;
+        const _lWeakMult = monHasElementWeakness(target, "thunder") ? 1.5 : 1;
         const _lFinalDmg = _magicDamage(Math.round(dmg * _lWeakMult));
         target.hp -= _lFinalDmg;
         ml.push(`雷撃が${target.name}に命中！${_lFinalDmg}ダメージ！${_lWeakMult > 1 ? "雷弱点！" : ""}`);
@@ -1909,7 +1909,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _iwBlessMult = _iwBlessed ? 2 : 1;
       if (kind === "monster") {
         const _iwTurns = statusTurns("immobile", { kind: "monster", blessed: _iwBlessed, target });
-        const _iwIceMult = target.elemWeak === "ice" ? 2 : 1;
+        const _iwIceMult = monHasElementWeakness(target, "ice") ? 2 : 1;
         let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwIceMult));
         _iwDmg = _magicDamage(_iwDmg);
         target.hp -= _iwDmg;

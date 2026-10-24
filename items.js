@@ -31,7 +31,7 @@ export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
-  monEffectiveFixedDamageOnly, monSubmergesProjectiles,
+  monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness,
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
@@ -2271,6 +2271,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           _largeMonstersHit.add(m);
         }
         wakeIfDormant(m, ml);
+        if (m.explosionImmune) {
+          ml.push(`${m.name}は爆発を受け付けない！`);
+          continue;
+        }
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
         if (m.baseKind === "firedemon" && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -9168,14 +9172,14 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         const _iceStatusBlocked = isStatusImmune(target, ml, target.name) || (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "immobile", ml));
         if (!_iceStatusBlocked && monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "immobile");
-        if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
+        if (monHasElementWeakness(target, "ice")) dmg = Math.floor(dmg * 1.5);
         dmg = _enemyMagicDamage(dmg);
         target.hp -= dmg;
         if (_iceStatusBlocked) {
-          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！移動封じは効かなかった！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！移動封じは効かなかった！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}`);
         } else {
           target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
-          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}`);
         }
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
@@ -9198,7 +9202,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
             pushLightningAnim(p.x, p.y);
             continue;
           }
-          const _lweak = _lm.elemWeak === "thunder" ? 1.5 : 1;
+          const _lweak = monHasElementWeakness(_lm, "thunder") ? 1.5 : 1;
           const _ld = _enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm);
           _lm.hp -= _ld;
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}`);

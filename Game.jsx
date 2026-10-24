@@ -1,5 +1,5 @@
 import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
-import { monHasFlameMantle } from "./monTraits.js";
+import { monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
 import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
@@ -3001,11 +3001,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _hasFireElem  = _hasFireElem2 || wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
               const _fireElemMult = _hasFireElem2 ? 2.0 : 1.5;
               if (_hasFireElem) {
-                if (monHasFlameMantle(attackMon)) {
+                if (attackMon.fireImmune) {
+                  /* 炎属性分は無効。物理攻撃の基礎ダメージは通る。 */
+                } else if (monHasFlameMantle(attackMon)) {
                   d = Math.max(1, Math.floor(d * 0.5));
                 } else if (attackMon.elemResist === "fire") {
                   d = Math.max(1, Math.floor(d * 0.5));
-                } else if (attackMon.elemWeak === "fire") {
+                } else if (monHasElementWeakness(attackMon, "fire")) {
                   d = Math.floor(d * _fireElemMult);
                 } else {
                   const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
@@ -3016,14 +3018,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _hasIceElem2 = wab === "ice_elem_2" || p.weapon?.abilities?.some(a => a === "ice_elem_2");
               const _hasIceElem  = _hasIceElem2 || wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
               const _iceElemMult = _hasIceElem2 ? 2.0 : 1.5;
-              if (_hasIceElem && attackMon.elemWeak === "ice") {
+              if (_hasIceElem && monHasElementWeakness(attackMon, "ice")) {
                 d = Math.floor(d * _iceElemMult);
               }
               /* 雷属性武器：thunder弱点×(1.5/2) */
               const _hasThunderElem2 = wab === "thunder_elem_2" || p.weapon?.abilities?.some(a => a === "thunder_elem_2");
               const _hasThunderElem  = _hasThunderElem2 || wab === "thunder_elem" || p.weapon?.abilities?.some(a => a === "thunder_elem");
               const _thunderElemMult = _hasThunderElem2 ? 2.0 : 1.5;
-              if (_hasThunderElem && attackMon.elemWeak === "thunder") {
+              if (_hasThunderElem && monHasElementWeakness(attackMon, "thunder")) {
                 d = Math.floor(d * _thunderElemMult);
               }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減（魔法無効モンスターには無効） */
@@ -3077,10 +3079,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 (crit ? "会心！" : "") +
                 (_isBane ? (_baneMult >= 2 ? "上位特効！" : "特効！") : "") +
                 (_hasFireElem && (monHasFlameMantle(attackMon) || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
-                (_hasFireElem && attackMon.elemWeak === "fire" ? (_hasFireElem2 ? "炎弱点×2！" : "炎弱点×1.5！") : "") +
-                (_hasFireElem && !monHasFlameMantle(attackMon) && attackMon.elemResist !== "fire" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? `油まみれ炎×${_hasFireElem2 ? "2" : "1.5"}！` : "") +
-                (_hasIceElem && attackMon.elemWeak === "ice" ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
-                (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
+                (_hasFireElem && attackMon.fireImmune ? "炎無効！" : "") +
+                (_hasFireElem && !attackMon.fireImmune && monHasElementWeakness(attackMon, "fire") ? (_hasFireElem2 ? "炎弱点×2！" : "炎弱点×1.5！") : "") +
+                (_hasFireElem && !attackMon.fireImmune && !monHasFlameMantle(attackMon) && attackMon.elemResist !== "fire" && !monHasElementWeakness(attackMon, "fire") && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? `油まみれ炎×${_hasFireElem2 ? "2" : "1.5"}！` : "") +
+                (_hasIceElem && monHasElementWeakness(attackMon, "ice") ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
+                (_hasThunderElem && monHasElementWeakness(attackMon, "thunder") ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               triggerMushroomCounterSpore(attackMon, dg, p, ml);
