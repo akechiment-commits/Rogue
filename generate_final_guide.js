@@ -2,7 +2,8 @@ import path from 'path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
-import { MONS, BOSSES, SPECIAL_BOSSES, STATUS_WAND_EFFECTS } from './monsters.js';
+import { MONS, BOSSES, SPECIAL_BOSSES, INTERMEDIATE_BOSSES, STATUS_WAND_EFFECTS } from './monsters.js';
+import { BOSS_UNIQUE_DROP_RULES, BOSS_RANDOM_DROP_COUNT } from './bossDropRules.js';
 import { POT_CAT_LABELS, RAW_FOODS, COOKED_FOODS } from './foodData.js';
 import { FOOD_DESCRIPTIONS, foodGuideDetails } from './foodDescriptions.js';
 import { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
@@ -1012,6 +1013,16 @@ for (const b of SPECIAL_BOSSES) {
     monsterData.push([b.name, 1, b.hp, b.atk, b.def, b.exp, b.speed, b.baseKind, '上級B30F（魔王と入替）', '',
       '3×3マス（中心基準）の巨大な青い龍のボス。等速・1回行動（ドラゴン系、tile 254）。必中でない通常攻撃・飛び道具・投擲を50%の確率で回避する（必中状態や必中道具、睡眠・金縛り・凍結・移動封じ・鈍足などの状態異常中は回避不可）。遠距離直線上にいる時（プレイヤーの矢が体の端に当たる位置なら、そのマスから一直線上にブレスを撃ち返せる）は50%で「ハイパーサーミックブレス」を放つ。青白く燃え盛る超高温の防御力無視の固定70ダメージ炎属性ブレス（通常防御力は引かず、炎耐性でのみ軽減、油まみれで2倍の140ダメージ、炎耐性なし時は所持品ロースト、呪われた爆発魔方陣で打ち消し）。隣接時は25%で「スパイクフレイル」を発動し、自身周囲1マス（外周マス）に無差別攻撃（3倍ダメージ、必中ではなく通常攻撃同様に回避可能）を与え、被弾者をランダムな空きマスへ吹き飛ばしてテレポートさせる（聖域で防御可能）。プレイヤーが視界内にいる時は10%で「メテオ」を詠唱（3×3マスに使用者の攻撃力の2倍の威力〈ミレウなら105×2=210〉を持つ隕石、自身はメテオ無効）、10%で「アブソルートテラー」を発動し、深淵の咆哮でプレイヤーに鈍足と移動封じを付与する（耐鈍足・耐影縫い・体幹の指輪で防御可能、聖域で遮断）。スタイル3では威厳と迫力に満ちた巨大青龍のレトロRPGピクセルアート（tile 254、透過PNG）を使う。']);
   }
+}
+monsterData.push(Array(11).fill(''));
+monsterData.push(['─── ボス報酬 ───', '', '', '', '', '', '', '', '', '', '']);
+monsterData.push(['共通報酬', '-', '-', '-', '-', '-', '-', 'bossTier', '-', '',
+  `ボスの財宝＋強化値付き装備1つ。Tier1だけ収納上手の巻物を固定し、他はTierに応じて${BOSS_RANDOM_DROP_COUNT.min}〜${BOSS_RANDOM_DROP_COUNT.max}個の有益な候補からランダム抽選。強化の壺・杖・指輪の固定段階報酬は廃止。固有ドロップはボスごとに1つ保証する。`]);
+for (const boss of [...BOSSES, ...SPECIAL_BOSSES, ...INTERMEDIATE_BOSSES]) {
+  const drop = BOSS_UNIQUE_DROP_RULES[boss.baseKind];
+  if (!drop) continue;
+  monsterData.push([boss.name, '-', '-', '-', '-', '-', '-', boss.baseKind, `Tier ${boss.bossTier || 1}`, '',
+    `固有ドロップ: ${drop.label}（確定）`]);
 }
 addSheet('11_モンスター', monsterData);
 

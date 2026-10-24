@@ -24,6 +24,7 @@ import {
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
 import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
+import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
@@ -6133,6 +6134,73 @@ export function monsterItemDropsSuppressed(m, p = null) {
   return (p?.unluckTurns || 0) > 0 || !!m?.dropItemsSuppressed || (m?.dropNoItemTurns || 0) > 0;
 }
 
+const BOSS_RANDOM_REWARD_TYPES = new Set(["potion", "scroll", "pen", "arrow", "wand", "pot", "ring", "spellbook"]);
+const BOSS_RANDOM_REWARD_EXCLUDED_EFFECTS = Object.freeze({
+  potion: new Set(["poison", "sleep", "slow", "paralyze", "seal", "confuse", "darkness", "bewitch", "milk", "sake", "fire", "water"]),
+  scroll: new Set(["sleep_scroll", "confusion", "bind", "trap_scatter", "self_destruct", "monster_house", "debuff"]),
+  pen: new Set(["trap_gen", "vulnerability", "explosion"]),
+  wand: new Set(["curse_wand"]),
+  pot: new Set(["curse_pot", "weaken", "gunpowder"]),
+  ring: new Set(["explode_ring", "slow_ring", "hunger_ring", "miss_throw_ring", "footstep_ring", "markup_ring", "vanity_ring", "darkness_ring", "peace_ring"]),
+  spellbook: new Set(["curse_magic", "self_destruct_magic", "earthquake_magic", "gedo_book"]),
+});
+const BOSS_RANDOM_FOOD_TEMPLATE = Object.freeze({
+  name: "ランダム食料",
+  type: "boss_random_food",
+  rarity: "C",
+  weight: 4,
+});
+function bossRandomRewardPool() {
+  return [
+    ...ITEMS,
+    ...WANDS,
+    ...POTS,
+    ...RINGS,
+    ...SPELLBOOKS,
+  ].filter((item) => {
+    if (!BOSS_RANDOM_REWARD_TYPES.has(item?.type) || !isRarityAtLeast(item, "C")) return false;
+    if (item.wallDropOnly || item.type === "gold_nugget" || item.type === "goal") return false;
+    if (item.specialBook === "gedo") return false;
+    const effect = item.effect || item.potEffect || item.spell;
+    return !BOSS_RANDOM_REWARD_EXCLUDED_EFFECTS[item.type]?.has(effect);
+  }).concat(BOSS_RANDOM_FOOD_TEMPLATE);
+}
+
+function bossUniqueDropTemplate(monster) {
+  const rule = BOSS_UNIQUE_DROP_RULES[monster?.baseKind];
+  if (!rule || rule.type === "food") return null;
+  const catalogs = {
+    potion: ITEMS.filter((item) => item.type === "potion"),
+    scroll: ITEMS.filter((item) => item.type === "scroll"),
+    weapon: ITEMS.filter((item) => item.type === "weapon"),
+    armor: ITEMS.filter((item) => item.type === "armor"),
+    arrow: ITEMS.filter((item) => item.type === "arrow"),
+    pen: ITEMS.filter((item) => item.type === "pen"),
+    wand: WANDS,
+    pot: POTS,
+    ring: RINGS,
+    spellbook: SPELLBOOKS,
+  };
+  return catalogs[rule.type]?.find((item) => item[rule.field] === rule.value) || null;
+}
+
+function makeBossRewardItem(template) {
+  if (template?.type === "food" || template?.type === "boss_random_food") {
+    return { ...genFood(), id: uid() };
+  }
+  if (!template) return null;
+  const item = { ...template, id: uid() };
+  if (item.type === "wand") item.charges = item.effect === "wish" ? Math.max(1, template.charges || 1) : rng(3, 5);
+  if (item.type === "pen") item.charges = penInitialCharges(item);
+  if (item.type === "pot") {
+    item.capacity = randPotCapacity(item.potEffect);
+    item.contents = [];
+    item.confinedMonsters = [];
+  }
+  if (item.type === "ring") return applyGeneratedRingPlus(item);
+  return item;
+}
+
 export function monsterDrop(m, dg, ml, p = null) {
   if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, p)) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
@@ -6174,49 +6242,42 @@ export function monsterDrop(m, dg, ml, p = null) {
       (_tier > _goldByTier.length ? _goldByTier.at(-1) * 2 ** (_tier - _goldByTier.length) : _goldByTier[0]);
     const _gv = _goldBase + rng(0, 100 * _tier);
     placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 22, id: uid() }, ml, _ft, 0, p);
-    /* 強化武器 (+tier+1) */
-    const _wpPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity));
-    placeItemAt(dg, m.x, m.y,
-      { ...pick(_wpPool.length ? _wpPool : ITEMS.filter(i => i.type === "weapon")), plus: _tier + 1, id: uid() },
-      ml, _ft, 0, p);
-    /* 強化防具 (+tier、tier2+) */
-    if (_tier >= 2) {
-      const _arPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity));
-      placeItemAt(dg, m.x, m.y,
-        { ...pick(_arPool.length ? _arPool : ITEMS.filter(i => i.type === "armor")), plus: _tier, id: uid() },
-        ml, _ft, 0, p);
+    /* どの階級でも、強化値付き装備を1つだけ保証する。 */
+    const _weaponPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity));
+    const _armorPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity));
+    const _equipmentPool = [..._weaponPool, ..._armorPool];
+    const _equipment = pick(_equipmentPool.length ? _equipmentPool : ITEMS.filter(i => i.type === "weapon" || i.type === "armor"));
+    if (_equipment) {
+      const _equipmentPlus = _tier + (_equipment.type === "weapon" ? 1 : 0);
+      placeItemAt(dg, m.x, m.y, { ..._equipment, plus: _equipmentPlus, id: uid() }, ml, _ft, 0, p);
     }
-    /* 高レア巻物 (B/A 中心、S があれば15%) */
-    const _scAPool = ITEMS.filter(i => i.type === "scroll" && (i.rarity === "A" || i.rarity === "B"));
-    const _scSPool = ITEMS.filter(i => i.type === "scroll" && i.rarity === "S");
-    const _scFallback = ITEMS.filter(i => i.type === "scroll" && i.rarity !== "E" && i.rarity !== "D");
-    for (let _si = 0; _si < _tier; _si++) {
-      const _useS = _scSPool.length > 0 && _scAPool.length > 0 && Math.random() < 0.15;
-      const _scPick = _useS ? pick(_scSPool) : pick(_scAPool.length ? _scAPool : _scFallback);
-      placeItemAt(dg, m.x, m.y, { ..._scPick, id: uid() }, ml, _ft, 0, p);
+
+    /* ボスごとの固有品。グウェンの固有品は毎回生成する食料。 */
+    const _uniqueRule = BOSS_UNIQUE_DROP_RULES[m.baseKind];
+    const _uniqueTemplate = bossUniqueDropTemplate(m);
+    const _uniqueDrop = _uniqueRule?.type === "food"
+      ? makeBossRewardItem(BOSS_RANDOM_FOOD_TEMPLATE)
+      : makeBossRewardItem(_uniqueTemplate);
+    if (_uniqueDrop) {
+      placeItemAt(dg, m.x, m.y, _uniqueDrop, ml, _ft, 0, p);
+      ml.push(`${m.name}の固有ドロップ「${resolveItemName(_uniqueDrop)}」が落ちた！`);
     }
-    /* 強化の薬 (tier2+) */
-    if (_tier >= 2) {
-      const _enhPot = POTS.find(pt => pt.potEffect === "enhance");
-      if (_enhPot) placeItemAt(dg, m.x, m.y, { ..._enhPot, id: uid() }, ml, _ft, 0, p);
-    }
-    /* 杖 (tier3+) */
-    if (_tier >= 3) {
-      placeItemAt(dg, m.x, m.y,
-        { ...pick(WANDS), id: uid(), charges: rng(3, 5) },
-        ml, _ft, 0, p);
-    }
-    /* リング (tier4) */
-    if (_tier >= 4) {
-      const _rPool = RINGS.filter(r => ["A","B"].includes(r.rarity));
-      placeItemAt(dg, m.x, m.y,
-        applyGeneratedRingPlus({ ...pick(_rPool.length ? _rPool : RINGS), id: uid() }),
-        ml, _ft, 0, p);
-    }
-    /* 収納上手の巻物（tier1=5階ボスのみ確定） */
-    if (_tier === 1) {
-      const _expandScroll = ITEMS.find(i => i.effect === "expand_inv");
-      if (_expandScroll) placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
+
+    /* 最初のボスだけ、収納上手の巻物を固定報酬にする。 */
+    const _expandScroll = _tier === 1 ? ITEMS.find(i => i.effect === "expand_inv") : null;
+    if (_expandScroll) placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
+
+    /* 強化壺・杖・指輪の階級固定をやめ、有益な候補から複数抽選する。 */
+    const _excludedTemplates = new Set([_uniqueTemplate, _expandScroll].filter(Boolean));
+    if (_uniqueRule?.type === "food") _excludedTemplates.add(BOSS_RANDOM_FOOD_TEMPLATE);
+    let _bonusPool = bossRandomRewardPool().filter(item => !_excludedTemplates.has(item));
+    const _bonusMax = Math.min(BOSS_RANDOM_DROP_COUNT.max, 2 + Math.ceil(_tier / 2));
+    const _bonusCount = rng(BOSS_RANDOM_DROP_COUNT.min, Math.max(BOSS_RANDOM_DROP_COUNT.min, _bonusMax));
+    for (let _bi = 0; _bi < _bonusCount && _bonusPool.length > 0; _bi++) {
+      const _bonusTemplate = pickLootFromPool(_bonusPool, "drop");
+      _bonusPool = _bonusPool.filter(item => item !== _bonusTemplate);
+      const _bonus = makeBossRewardItem(_bonusTemplate);
+      if (_bonus) placeItemAt(dg, m.x, m.y, _bonus, ml, _ft, 0, p);
     }
     ml.push(`★ ${m.name}を倒した！豪華な戦利品が現れた！`);
     return;
