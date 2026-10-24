@@ -32,7 +32,7 @@ import {
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
+  hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
@@ -1376,8 +1376,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const room = findRoom(dg.rooms, m.x, m.y);
           if (!room || findRoom(dg.rooms, pl.x, pl.y) !== room) return;
           ml.push(`${m.name}が同じ部屋に雷の魔法を放った！`);
-          _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
-          if (pl.hp <= 0) pl.deathCause = `${m.name}の雷の魔法により`;
+          if (hasPlayerMagicReflect(pl)) {
+            ml.push(`${playerMagicReflectLabel(pl)}が${m.name}の雷の魔法を跳ね返した！`);
+            _applyMonsterWandEffect("lightning", "monster", m, 0, 0, ml);
+          } else {
+            _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
+            if (pl.hp <= 0) pl.deathCause = `${m.name}の雷の魔法により`;
+          }
           for (const target of [...dg.monsters]) {
             if (target === m || target.baseKind === "boss_flock_revenge" || target.hp <= 0 ||
                 findRoom(dg.rooms, target.x, target.y) !== room) continue;
