@@ -182,6 +182,7 @@ export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
 /* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
 const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
+const GWEN_SPRITE_TILE_IDS = new Set([255, 256]);
 export function clearCustomTileImages() {
   for (const k of Object.keys(customTileImages)) delete customTileImages[k];
 }
@@ -432,6 +433,16 @@ export function drawTile(ctx, ts, idx, dx, dy, sz, options = null) {
     if (LARGE_FIXTURE_TILE_IDS.has(idx)) {
       const drawSz = sz * 1.25;
       ctx.drawImage(ci, dx - (drawSz - sz) / 2, dy - (drawSz - sz), drawSz, drawSz);
+    } else if (GWEN_SPRITE_TILE_IDS.has(idx)) {
+      /* 小サイズでも顔・武器が読めるよう、少し大きく最近傍で表示する。 */
+      const drawSz = sz * 1.2;
+      const previousSmoothing = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      try {
+        ctx.drawImage(ci, dx - (drawSz - sz) / 2, dy - (drawSz - sz), drawSz, drawSz);
+      } finally {
+        ctx.imageSmoothingEnabled = previousSmoothing;
+      }
     } else {
       ctx.drawImage(ci, dx, dy, sz, sz);
     }

@@ -23,7 +23,8 @@ describe("超上級B5Fボス：グウェン", () => {
     const gwen = legend.monsters.find(monster => monster.isBoss);
     expect(gwen.baseKind).toBe("boss_gwen");
     expect(gwen.dormant).toBe(true);
-    expect(legend.monsters).toHaveLength(1);
+    expect(legend.monsters.filter(monster => monster.isBoss)).toHaveLength(1);
+    expect(legend.monsters.filter(monster => monster !== gwen && monster.dormant)).toHaveLength(0);
 
     expect(genDungeon(4, "beginner").monsters.find(monster => monster.isBoss).baseKind).toBe("boss_blaze");
     expect(genDungeon(4, "advanced").monsters.find(monster => monster.isBoss).baseKind).toBe("boss_batteringram");

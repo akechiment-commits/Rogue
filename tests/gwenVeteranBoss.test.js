@@ -3,7 +3,7 @@ import fs from "fs";
 import { genDungeon } from "../dungeon.js";
 import { GWEN_VETERAN_BOSS, makeMonsterFromBase, MONS, monsterAI, resolveMonsterWandEffect } from "../monsters.js";
 import { legendMonsterAllowed } from "../legendMonsterRules.js";
-import { TILE_NAMES, TILE_RENDER } from "../render.js";
+import { TILE_NAMES, TILE_RENDER, customTileImages, drawTile } from "../render.js";
 import { DAWNLIKE_FALLBACKS, MONSTER_SHEET_MAP } from "../tilesetMap.js";
 import { MH, MW, T } from "../utils.js";
 import { BOSS_UNIQUE_DROP_RULES } from "../bossDropRules.js";
@@ -33,7 +33,8 @@ describe("超上級B20Fボス：勤勉で勇敢なグウェン", () => {
     expect(veteran.baseKind).toBe("boss_gwen_veteran");
     expect(veteran.projectileAmmo).toMatchObject({ count: 12, pierce: true });
     expect(veteran.gwenWandCharges).toBe(6);
-    expect(veteranFloor.monsters).toHaveLength(1);
+    expect(veteranFloor.monsters.filter(monster => monster.isBoss)).toHaveLength(1);
+    expect(veteranFloor.monsters.filter(monster => monster !== veteran && monster.dormant)).toHaveLength(0);
 
     expect(genDungeon(4, "legend").monsters.find(monster => monster.isBoss).baseKind).toBe("boss_gwen");
     expect(genDungeon(19, "advanced").monsters.find(monster => monster.isBoss).baseKind).toBe("boss_kingbehinmos");
@@ -166,5 +167,37 @@ describe("超上級B20Fボス：勤勉で勇敢なグウェン", () => {
     expect(sprite.readUInt32BE(16)).toBe(128);
     expect(sprite.readUInt32BE(20)).toBe(128);
     expect(MONS.some(monster => monster.baseKind === "boss_gwen_veteran")).toBe(false);
+  });
+
+  it("両方のスプライトを少し拡大し、輪郭をぼかさず描画する", () => {
+    const previousImages = [customTileImages[255], customTileImages[256]];
+    const drawCalls = [];
+    const ctx = {
+      imageSmoothingEnabled: true,
+      drawImage: (...args) => {
+        expect(ctx.imageSmoothingEnabled).toBe(false);
+        drawCalls.push(args);
+      },
+    };
+    customTileImages[255] = { id: 255 };
+    customTileImages[256] = { id: 256 };
+
+    try {
+      drawTile(ctx, null, 255, 10, 20, 32);
+      drawTile(ctx, null, 256, 50, 20, 32);
+
+      expect(drawCalls[0][1]).toBeCloseTo(6.8);
+      expect(drawCalls[0][2]).toBeCloseTo(13.6);
+      expect(drawCalls[0][3]).toBeCloseTo(38.4);
+      expect(drawCalls[1][1]).toBeCloseTo(46.8);
+      expect(drawCalls[1][2]).toBeCloseTo(13.6);
+      expect(drawCalls[1][3]).toBeCloseTo(38.4);
+      expect(ctx.imageSmoothingEnabled).toBe(true);
+    } finally {
+      if (previousImages[0]) customTileImages[255] = previousImages[0];
+      else delete customTileImages[255];
+      if (previousImages[1]) customTileImages[256] = previousImages[1];
+      else delete customTileImages[256];
+    }
   });
 });
