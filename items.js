@@ -9189,7 +9189,16 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         if (_ltTargets.length === 0) { ml.push("雷が走るが、視界に敵はいない。"); break; }
         for (const _lm of _ltTargets) {
           if (_lm.hp <= 0) continue;
+          if (monEffectiveMagicImmune(_lm)) { ml.push(`魔法は${_lm.name}に効かない！`); continue; }
           if (consumeBarrier(_lm, ml)) continue;
+          if (monReflectsMagic(_lm)) {
+            const _reflectedDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _lvF), p, dg);
+            p.hp -= _reflectedDamage;
+            p.deathCause = `${_lm.name}に雷の魔法を跳ね返されて`;
+            ml.push(`${_lm.name}が雷の魔法を反射した！${_reflectedDamage}ダメージ！`);
+            pushLightningAnim(p.x, p.y);
+            continue;
+          }
           const _lweak = _lm.elemWeak === "thunder" ? 1.5 : 1;
           const _ld = _enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm);
           _lm.hp -= _ld;
