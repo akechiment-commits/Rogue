@@ -152,6 +152,7 @@ export const TILE_NAMES = {
   255: "gwen",
   256: "gwen_veteran",
   257: "flock",
+  258: "flock_revenge",
   [TI.STONE_PROJECTILE]: "stone_projectile",
   [TI.ICE_CHUNK]: "ice_chunk",
   230: "loxonin",
@@ -184,7 +185,7 @@ export const customTileImages = {};
 /* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
 const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 const GWEN_SPRITE_TILE_IDS = new Set([255, 256]);
-const CRISP_MONSTER_TILE_IDS = new Set([257]);
+const CRISP_MONSTER_TILE_IDS = new Set([257, 258]);
 export function clearCustomTileImages() {
   for (const k of Object.keys(customTileImages)) delete customTileImages[k];
 }
@@ -391,6 +392,7 @@ export const TILE_RENDER = {
   255: { bg: null, fg: "#d8e5ff", ch: "G" }, /* グウェン */
   256: { bg: null, fg: "#f0d478", ch: "G" }, /* 勤勉なグウェン */
   257: { bg: null, fg: "#bd8dff", ch: "F" }, /* フロック */
+  258: { bg: null, fg: "#ff4770", ch: "R" }, /* 逆襲のフロック */
   226: { bg: null, fg: "#90b85a", ch: "A" }, /* 冒険者・女性剣士 */
   227: { bg: null, fg: "#60a8d0", ch: "A" }, /* 冒険者・女性術師 */
   228: { bg: null, fg: "#d07050", ch: "A" }, /* 冒険者・男性剣士 */

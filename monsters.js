@@ -78,6 +78,18 @@ export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", 
 export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "ice_wand"]);
 const GWEN_VETERAN_WAND_EFFECTS = Object.freeze(["slow_wand", "confuse_wand", "sleep_wand", "darkness_wand"]);
 const FLOCK_MAGIC_EFFECTS = Object.freeze(["fire_bolt", "ice_wand", "poison_bolt", "curse_wand"]);
+export const FLOCK_MAGIC_MP_COSTS = Object.freeze({
+  fire_bolt: 10, ice_wand: 10, poison_bolt: 8, curse_wand: 10, teleport_magic: 8,
+  sleep_bolt: 8, drain_hp: 14, lightning_magic: 18, reflect_magic: 12,
+  guard_magic: 12, flame_mantle: 12, purify_magic: 10, clone_magic: 20,
+  self_destruct_magic: 7,
+});
+const FLOCK_REVENGE_ATTACK_EFFECTS = Object.freeze([
+  ...FLOCK_MAGIC_EFFECTS, "drain_hp", "sleep_bolt",
+]);
+const FLOCK_REVENGE_ROOM_EFFECTS = Object.freeze([
+  "lightning_magic", "reflect_magic", "guard_magic", "flame_mantle",
+]);
 export const FLOCK_SPELL_LINES = Object.freeze({
   fire_bolt: Object.freeze([
     "紅蓮よ、周囲ごと灰燼に帰せ！巻き込み？それは演出だ！",
@@ -110,6 +122,11 @@ export const FLOCK_DEATH_LINES = Object.freeze([
   "馬鹿な！眼帯を外せば真の力が……え、外れない！？",
   "我が深淵、ここに潰える……ところで経験値は入った？",
 ]);
+export const FLOCK_REVENGE_DEATH_LINES = Object.freeze([
+  "逆襲の計画が……第一段階で終わった！？",
+  "二人になっても勝てないとは……分身会議が必要だ！",
+  "まだ魔力は……あれ、空っぽだった！",
+]);
 const FLOCK_IDLE_LINES = Object.freeze([
   "この眼帯は封印具！……ただのゴム紐ではない！",
   "我が右目の封印が疼く……あれ、眼帯は左だったか？",
@@ -118,6 +135,63 @@ const FLOCK_IDLE_LINES = Object.freeze([
   "深淵が告げている……お腹が空いたと！",
   "ククク、この程度の傷……いや、普通に痛い！",
   "見よ、この完璧な作戦！細部はこれから考える！",
+]);
+export const FLOCK_REVENGE_SPELL_LINES = Object.freeze({
+  drain_hp: Object.freeze([
+    "魂の残量をいただく！返済期限は……考えていない！",
+    "生命力よ、こちらへ！えっ、吸いすぎ注意？",
+    "汝のHPを我が糧に！領収書は出ない！",
+  ]),
+  sleep_bolt: Object.freeze([
+    "眠りの帳よ落ちよ！寝坊したら自己責任だ！",
+    "夢の底へ沈め！枕は各自で用意せよ！",
+    "安らかな眠りを……戦闘中だけど！",
+  ]),
+  lightning_magic: Object.freeze([
+    "雷よ部屋ごと貫け！避雷針は……私も持ってない！",
+    "天雷よ全員に平等を！敵味方の区別？今は後回し！",
+    "この部屋に落雷を！天井の修理代は知らない！",
+  ]),
+  reflect_magic: Object.freeze([
+    "魔法反射の結界！跳ね返ったら自己責任！",
+    "鏡界よ開け！姿見としては使えないぞ！",
+    "あらゆる魔法を返す盾！返品対応は不可！",
+  ]),
+  guard_magic: Object.freeze([
+    "鉄壁の守護よ！気持ちの上では完全防御！",
+    "防御力を上げる！数値はあとで確認する！",
+    "守りの結界！請求は戦闘終了後に！",
+  ]),
+  flame_mantle: Object.freeze([
+    "我が身を炎で包め！熱くない、たぶん！",
+    "紅蓮の衣よ燃え上がれ！洗濯はできない！",
+    "炎のまとい！火加減は最大で！",
+  ]),
+  purify_magic: Object.freeze([
+    "不浄なる状態よ去れ！封印だけは対象外！",
+    "浄化の光よ、デバフを洗い流せ！汚れ落ちは保証外！",
+    "状態異常を解除！眼帯の向きはそのままで！",
+  ]),
+  clone_magic: Object.freeze([
+    "我が影よ二人に増えよ！交代で宿題をしてくれ！",
+    "分身の術！どちらが本物かは本人にも不明！",
+    "増えよ、我！報酬は一人分で頼む！",
+  ]),
+  self_destruct_magic: Object.freeze([
+    "転移の詠唱は……あれ？自爆の方を唱えていた！",
+    "空間よ逃がせ！違う、これは爆発の詠唱だ！",
+    "紫電転移！……なぜ私のHPが1になった！？",
+  ]),
+});
+const FLOCK_EMPTY_MP_LINES = Object.freeze([
+  "ま、魔力切れ……これは戦略的静止！",
+  "震えてなどいない！深淵が共鳴しているだけだ！",
+  "魔力が空っぽ！？今のは聞かなかったことに！",
+]);
+const FLOCK_REVENGE_EMPTY_MP_LINES = Object.freeze([
+  "逆襲の魔力が……MP欄に残っていない！？",
+  "まだ呪文はある！……MPが戻ればの話だ！",
+  "う、動けない！これは魔力切れであって恐怖ではない！",
 ]);
 
 export function isStatusWandUser(m) {
@@ -1671,11 +1745,20 @@ export const GWEN_VETERAN_BOSS = {
 export const FLOCK_BOSS = {
   name: "自称・深淵の大魔導士「フロック」", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
-  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, deathLines: FLOCK_DEATH_LINES,
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, mp: 72, maxMp: 72, deathLines: FLOCK_DEATH_LINES,
   desc: "超上級B10Fの浮遊ボス。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS];
+export const FLOCK_REVENGE_BOSS = {
+  name: "逆襲のフロック", hp: 1280, atk: 88, def: 56, exp: 11000,
+  speed: 1, tile: 258, kind: "humanoid", baseKind: "boss_flock_revenge", subtype: "flockRevengeBoss",
+  isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, float: true,
+  mp: 180, maxMp: 180, flockEmpowered: true, flockMagicPowerMultiplier: 2,
+  deathLines: FLOCK_REVENGE_DEATH_LINES,
+  desc: "超上級B25Fの浮遊ボス。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋では雷の部屋攻撃、魔法反射・守護・炎まといから状況に応じて詠唱し、封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -5129,11 +5212,14 @@ function moveFlockToFiringLine(monster, dungeon, player) {
 }
 
 function teleportFlockAway(monster, dungeon, player, messages) {
+  const cost = FLOCK_MAGIC_MP_COSTS.teleport_magic;
+  if (ensureFlockMp(monster) < cost) return false;
   const destination = randomTeleportDest(dungeon, monster.x, monster.y, (x, y) =>
     flockDistance(x, y, player.x, player.y) >= 4 &&
     !dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, x, y))
   );
   if (!destination) return false;
+  monster.mp -= cost;
   const fromX = monster.x, fromY = monster.y;
   monster.x = destination.x;
   monster.y = destination.y;
@@ -5142,13 +5228,39 @@ function teleportFlockAway(monster, dungeon, player, messages) {
   monster._movedThisTurn = true;
   pushAnim({ type: "flash", x: fromX, y: fromY, color: "#bd72ff" });
   pushAnim({ type: "flash", x: destination.x, y: destination.y, color: "#bd72ff" });
-  messages.push(`${monster.name}は『${pick(FLOCK_TELEPORT_LINES)}』と唱え、紫の閃光とともに消えた！`);
+  messages.push(`${monster.name}は『${pick(FLOCK_TELEPORT_LINES)}』と唱え、紫の閃光とともに消えた！(MP-${cost}、残り${monster.mp}/${monster.maxMp})`);
   return true;
 }
 
-function castFlockSpell(monster, opts, dx, dy, effect, messages) {
-  if (!opts.monsterWandFn) return false;
-  messages.push(`${monster.name}は『${pick(FLOCK_SPELL_LINES[effect])}』と唱えた！`);
+function ensureFlockMp(monster) {
+  const defaultMax = monster.baseKind === "boss_flock_revenge" ? 180 : 72;
+  if (!Number.isFinite(monster.maxMp)) monster.maxMp = defaultMax;
+  if (!Number.isFinite(monster.mp)) monster.mp = monster.maxMp;
+  monster.maxMp = Math.max(0, Math.floor(monster.maxMp));
+  monster.mp = clamp(Math.floor(monster.mp), 0, monster.maxMp);
+  return monster.mp;
+}
+
+function flockHasNoManaTurn(monster, messages, attackOnly = false) {
+  if (ensureFlockMp(monster) > 0) return false;
+  if (!attackOnly) {
+    const lines = monster.baseKind === "boss_flock_revenge" ? FLOCK_REVENGE_EMPTY_MP_LINES : FLOCK_EMPTY_MP_LINES;
+    messages.push(`${monster.name}は魔力切れで震えている……「${pick(lines)}」`);
+    monster._movedThisTurn = true;
+  }
+  return true;
+}
+
+function castFlockSpell(monster, opts, dx, dy, effect, messages, { invoke = true } = {}) {
+  const cost = FLOCK_MAGIC_MP_COSTS[effect] ?? 10;
+  if (ensureFlockMp(monster) < cost || (invoke && !opts.monsterWandFn)) return false;
+  monster.mp -= cost;
+  const quotePool = monster.baseKind === "boss_flock_revenge"
+    ? FLOCK_REVENGE_SPELL_LINES[effect] || FLOCK_SPELL_LINES[effect]
+    : FLOCK_SPELL_LINES[effect];
+  const quote = quotePool?.length ? pick(quotePool) : "詠唱成功！効果の説明は台本に書き忘れた！";
+  messages.push(`${monster.name}は『${quote}』と唱えた！(MP-${cost}、残り${monster.mp}/${monster.maxMp})`);
+  if (!invoke) return true;
   const previousEffect = monster.wandEffect;
   monster.wandEffect = effect;
   try {
@@ -5160,20 +5272,80 @@ function castFlockSpell(monster, opts, dx, dy, effect, messages) {
   return true;
 }
 
+function hasFlockPurgeableStatus(monster) {
+  return !!(
+    (monster.poisonedTurns || 0) > 0 || monster.poisonHalfAtk ||
+    (monster.slowTurns || 0) > 0 || (monster.bossSlowTurns || 0) > 0 || monster._preSlowSpeed !== undefined ||
+    (monster.confusedTurns || 0) > 0 || (monster.drunkenTurns || 0) > 0 ||
+    (monster.darknessTurns || 0) > 0 || (monster.fleeingTurns || 0) > 0 ||
+    monster.blind || (monster.blindTurns || 0) > 0 || monster.bewitched || (monster.bewitchedTurns || 0) > 0 ||
+    (monster.immobileTurns || 0) > 0 || (monster.pacifistTurns || 0) > 0 ||
+    (monster.attackSealTurns || 0) > 0 || (monster.oilyTurns || 0) > 0 || (monster.soakedTurns || 0) > 0 ||
+    (monster.caswackTurns || 0) > 0 || (monster.debuffAtkHalfTurns || 0) > 0 || (monster.debuffDefHalfTurns || 0) > 0
+  );
+}
+
+function purifyFlockStatus(monster, messages) {
+  const hadStatus = hasFlockPurgeableStatus(monster);
+  if (!hadStatus) return false;
+  if (monster.poisonHalfAtk) monster.atk = monster.poisonOrigAtk ?? monster.atk;
+  if (monster._preSlowSpeed !== undefined) monster.speed = monster._preSlowSpeed;
+  if ((monster.debuffAtkHalfTurns || 0) > 0 && monster._debuffOrigAtk !== undefined) monster.atk = monster._debuffOrigAtk;
+  if ((monster.debuffDefHalfTurns || 0) > 0 && monster._debuffOrigDef !== undefined) monster.def = monster._debuffOrigDef;
+  for (const key of [
+    "poisonedTurns", "poisonHalfAtk", "poisonOrigAtk", "slowTurns", "bossSlowTurns", "_preSlowSpeed",
+    "confusedTurns", "drunkenTurns", "darknessTurns", "darkDir", "fleeingTurns",
+    "blind", "blindTurns", "bewitched", "bewitchedTurns", "immobileTurns", "pacifistTurns",
+    "attackSealTurns", "oilyTurns", "soakedTurns", "caswackTurns",
+    "debuffAtkHalfTurns", "debuffDefHalfTurns", "_debuffOrigAtk", "_debuffOrigDef",
+  ]) delete monster[key];
+  messages.push(`${monster.name}は浄化の魔法で行動不能以外の状態異常を解除した！`);
+  return true;
+}
+
+function hasFreeFlockCloneCell(monster, dungeon, player) {
+  const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [1, 1], [-1, 1]];
+  return dirs.some(([dx, dy]) => {
+    const x = monster.x + dx, y = monster.y + dy;
+    return dungeon.map?.[y]?.[x] === T.FLOOR && !(x === player.x && y === player.y) &&
+      !dungeon.monsters?.some(other => monsterOccupiesCell(other, x, y)) &&
+      !dungeon.items?.some(item => item.x === x && item.y === y) &&
+      !dungeon.traps?.some(trap => trap.x === x && trap.y === y) &&
+      !dungeon.springs?.some(spring => spring.x === x && spring.y === y) &&
+      !dungeon.bigboxes?.some(box => box.x === x && box.y === y) &&
+      !dungeon.pentacles?.some(pc => pc.x === x && pc.y === y) &&
+      !dungeon.gachaMachines?.some(machine => machine.x === x && machine.y === y) &&
+      !dungeon.altars?.some(altar => altar.x === x && altar.y === y) &&
+      !dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y) &&
+      !dungeon.statues?.some(statue => statue.x === x && statue.y === y);
+  });
+}
+
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _isFlockBoss = m.baseKind === "boss_flock";
+  const _isFlockRevenge = m.baseKind === "boss_flock_revenge";
+  const _isFlockVariant = _isFlockBoss || _isFlockRevenge;
   const _isGwen = m.baseKind === "boss_gwen";
   const _isGwenVeteran = m.baseKind === "boss_gwen_veteran";
   const _isGwenVariant = _isGwen || _isGwenVeteran;
-  if (_isFlockBoss && m.hp <= 0) return;
+  if (_isFlockVariant && m.hp <= 0) return;
   if (_isGwenVariant && m.hp <= 0) return;
   if (_isGwen && opts.attackOnly) return;
   /* ボス階のまとめて行動する経路でも、グウェンは移動と召喚だけを行う。 */
   if (_isGwen && !opts.moveOnly) opts = { ...opts, moveOnly: true };
   if (m.isPlayerClone && m.hp <= 0) return;
   m.turnAttacks = m.turnAttacks || 0;
+  if (_isFlockVariant) ensureFlockMp(m);
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
+  if (_isFlockRevenge && _attackOnly && m._flockEarlySpellPending) {
+    const effect = m._flockEarlySpellPending;
+    delete m._flockEarlySpellPending;
+    delete m._rangedAttackThisTurn;
+    m.turnAttacks++;
+    if (castFlockSpell(m, opts, 0, 0, effect, ml, { invoke: false })) purifyFlockStatus(m, ml);
+    return;
+  }
   if (_isGwenVariant && !_attackOnly && dg.visible?.[m.y]?.[m.x]) {
     m.gwenVisibleTurns = Math.min(4, (m.gwenVisibleTurns || 0) + 1);
   }
@@ -5240,6 +5412,20 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
   }
+  if (_isFlockRevenge && !_attackOnly && hasFlockPurgeableStatus(m) &&
+      !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
+      !!opts.monsterWandFn && !m.sealed &&
+      !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
+      ensureFlockMp(m) >= FLOCK_MAGIC_MP_COSTS.purify_magic) {
+    if (_moveOnly) {
+      m._flockEarlySpellPending = "purify_magic";
+      m._rangedAttackThisTurn = true;
+      return;
+    }
+    m.turnAttacks++;
+    if (castFlockSpell(m, opts, 0, 0, "purify_magic", ml, { invoke: false })) purifyFlockStatus(m, ml);
+    return;
+  }
   /* 状態異常防止：毎ターンカウントダウン */
   if ((m.statusImmune || 0) > 0 && !_attackOnly) {
     m.statusImmune = Math.max(0, m.statusImmune - 1);
@@ -5262,10 +5448,25 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.flameMantleTurns = Math.max(0, m.flameMantleTurns - 1);
     if (m.flameMantleTurns <= 0) ml.push(`${m.name}を包んでいた炎が消えた！`);
   }
+  if ((m.flockReflectTurns || 0) > 0 && !_attackOnly) {
+    m.flockReflectTurns = Math.max(0, m.flockReflectTurns - 1);
+    if (m.flockReflectTurns <= 0) ml.push(`${m.name}の魔法反射結界が消えた！`);
+  }
+  if ((m.flockGuardTurns || 0) > 0 && !_attackOnly) {
+    m.flockGuardTurns = Math.max(0, m.flockGuardTurns - 1);
+    if (m.flockGuardTurns <= 0) {
+      const bonus = Math.max(0, Number(m.flockGuardDefBonus) || 0);
+      m.def = Math.max(0, m.def - bonus);
+      if (m._debuffOrigDef !== undefined) m._debuffOrigDef = Math.max(0, m._debuffOrigDef - bonus);
+      delete m.flockGuardDefBonus;
+      ml.push(`${m.name}の守護結界が消えた！`);
+    }
+  }
   /* 平和主義状態：攻撃できず、ランダムに1歩移動して終了 */
   if ((m.pacifistTurns || 0) > 0) {
     if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - 1);
     if (m.pacifistTurns <= 0) { ml.push(`${m.name}の平和主義状態が解けた！`); m.turnAccum = 0; }
+    else if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
     else if (_attackOnly || isStationaryMonster(m)) return;
     else if (!_attackOnly) {
       const _pdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -5733,6 +5934,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.immobileTurns||0) > 0) {
     if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - 1);
     if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
+    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
     else _attackOnly = true;
   }
   /* ===== 混乱・酩酊・酔い：ランダム方向に移動・攻撃 ===== */
@@ -5741,6 +5943,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (_isConfused || _alcoholDirectionRandomized) {
     const _disorientedLabel = _isConfused ? "混乱した" : (m.drunkenTurns || 0) > 0 ? "酩酊した" : "酔った";
     if (_isConfused && !_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
+    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     if (isStationaryMonster(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -5776,6 +5979,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - 1);
+    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (isStationaryMonster(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (!m.darkDir) {
@@ -5817,6 +6021,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - 1);
+    if (_isFlockVariant && flockHasNoManaTurn(m, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (isStationaryMonster(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
@@ -5830,7 +6035,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
 
-  if (_isFlockBoss) {
+  if (_isFlockVariant) {
+    ensureFlockMp(m);
     const dx = pl.x - m.x, dy = pl.y - m.y;
     const distance = flockDistance(m.x, m.y, pl.x, pl.y);
     const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
@@ -5838,9 +6044,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const canSeePlayer = !!dg.visible?.[m.y]?.[m.x] && !playerHidden && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     const canUseMagic = !!opts.monsterWandFn && !m.sealed && !isAttackSealed(m) &&
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
-    const canCast = canSeePlayer && canUseMagic && inLine && distance >= 3 && distance <= 10;
-    const reserveOrCastSpell = (cornered = false) => {
-      const spell = pick(FLOCK_MAGIC_EFFECTS);
+    const room = findRoom(dg.rooms, m.x, m.y);
+    const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
+    const availableAttacks = (_isFlockRevenge ? FLOCK_REVENGE_ATTACK_EFFECTS : FLOCK_MAGIC_EFFECTS)
+      .filter(effect => m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10));
+    const canCast = canSeePlayer && canUseMagic && inLine && distance >= (_isFlockRevenge ? 2 : 3) && distance <= 10 &&
+      availableAttacks.length > 0;
+    const reserveOrCastSpell = (spell, cornered = false) => {
       if (_moveOnly) {
         m._flockPendingSpell = spell;
         m._flockPendingCorneredSpell = cornered;
@@ -5859,14 +6069,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._flockPendingSpell;
       delete m._flockPendingCorneredSpell;
       delete m._rangedAttackThisTurn;
-      if (escaped) return;
+      if (escaped && pendingSpell !== "self_destruct_magic") return;
       const canUseCorneredSpell = pendingCorneredSpell && canSeePlayer && canUseMagic && inLine && distance >= 1 && distance <= 3;
-      if (pendingSpell && (canCast || canUseCorneredSpell) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (pendingSpell && m.turnAttacks < monEffectiveMaxAttacks(m) && (canCast || canUseCorneredSpell ||
+          pendingSpell === "clone_magic" || pendingSpell === "lightning_magic" || pendingSpell === "reflect_magic" ||
+          pendingSpell === "guard_magic" || pendingSpell === "flame_mantle" || pendingSpell === "self_destruct_magic")) {
         m.turnAttacks++;
         castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), pendingSpell, ml);
         return;
       }
-      if (distance <= 1 && canSeePlayer && canUseMagic) {
+      if (!_isFlockRevenge && distance <= 1 && canSeePlayer && canUseMagic) {
         if (teleportFlockAway(m, dg, pl, ml)) m._flockEscapedThisTurn = true;
       }
       return;
@@ -5875,22 +6087,52 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     delete m._flockPendingSpell;
     delete m._flockPendingCorneredSpell;
     delete m._flockEscapedThisTurn;
+    if (m.mp <= 0) {
+      flockHasNoManaTurn(m, ml, false);
+      return;
+    }
+
+    if (_isFlockRevenge && m.hp < m.maxHp / 2 && !m._flockCloneSummoned && canUseMagic &&
+        m.mp >= FLOCK_MAGIC_MP_COSTS.clone_magic && hasFreeFlockCloneCell(m, dg, pl)) {
+      reserveOrCastSpell("clone_magic");
+      if (!_moveOnly) m._flockCloneSummoned = true;
+      return;
+    }
+
     if (distance <= 1 && canSeePlayer && canUseMagic) {
+      if (_isFlockRevenge && m.mp >= FLOCK_MAGIC_MP_COSTS.self_destruct_magic && Math.random() < 0.10) {
+        reserveOrCastSpell("self_destruct_magic");
+        m._flockEscapedThisTurn = true;
+        return;
+      }
       if (teleportFlockAway(m, dg, pl, ml)) {
         m._flockEscapedThisTurn = true;
         return;
       }
     }
+
+    if (_isFlockRevenge && sameRoom && canSeePlayer && canUseMagic) {
+      const roomEffects = FLOCK_REVENGE_ROOM_EFFECTS.filter(effect => {
+        if (effect === "reflect_magic" && (m.flockReflectTurns || 0) > 0) return false;
+        if (effect === "guard_magic" && (m.flockGuardTurns || 0) > 0) return false;
+        if (effect === "flame_mantle" && (m.flameMantleTurns || 0) > 0) return false;
+        return m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10);
+      });
+      if (roomEffects.length > 0) {
+        reserveOrCastSpell(pick(roomEffects));
+        return;
+      }
+    }
     if (canCast && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-      reserveOrCastSpell();
+      reserveOrCastSpell(pick(availableAttacks));
       return;
     }
     if (canSeePlayer && !(inLine && distance > 10)) {
       const repositioned = moveFlockToFiringLine(m, dg, pl);
       const canCastWhileCornered = !repositioned && inLine && distance >= 1 && distance <= 3 &&
-        canUseMagic && m.turnAttacks < monEffectiveMaxAttacks(m);
+        canUseMagic && availableAttacks.length > 0 && m.turnAttacks < monEffectiveMaxAttacks(m);
       if (canCastWhileCornered) {
-        reserveOrCastSpell(true);
+        reserveOrCastSpell(pick(availableAttacks), true);
         return;
       }
     }

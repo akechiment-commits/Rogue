@@ -33,7 +33,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
-  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
+  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
@@ -1365,21 +1365,119 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       },
       monsterWandFn: (m, dx, dy) => {
         const _we = resolveMonsterWandEffect(m);
-        const _wandBlessed = (m.monLevel || 1) >= 3;
+        const _wandBlessed = (m.monLevel || 1) >= 3 || !!m.flockEmpowered;
         const _wandBlMult = _wandBlessed ? 2 : 1;
         const _wbItemNameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
         const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx) =>
           applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
             _wandBlMult, _wbItemNameFn, m.atk, m, _wbBbNameFn, false, m, opts.fireTrapFn);
-        if (_we === "lightning") {
+        if (_we === "lightning_magic" && m.baseKind === "boss_flock_revenge") {
+          const room = findRoom(dg.rooms, m.x, m.y);
+          if (!room || findRoom(dg.rooms, pl.x, pl.y) !== room) return;
+          ml.push(`${m.name}が同じ部屋に雷の魔法を放った！`);
+          _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
+          for (const target of [...dg.monsters]) {
+            if (target === m || target.baseKind === "boss_flock_revenge" || target.hp <= 0 ||
+                findRoom(dg.rooms, target.x, target.y) !== room) continue;
+            _applyMonsterWandEffect("lightning", "monster", target, 0, 0, ml);
+          }
+        } else if (_we === "sleep_bolt" && m.baseKind === "boss_flock_revenge") {
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "sleep_wand", reflectColor: "#bc86ff", wandLabel: "眠りの魔法",
+            onPlayerHit: (mlx) => _applyMonsterWandEffect("sleep", "player", pl, dx, dy, mlx),
+            onMonsterHit: (target, mlx) => _applyMonsterWandEffect("sleep", "monster", target, dx, dy, mlx),
+            onWallReflect: (mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
+            onMagicReflect: (_reflector, mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
+            onPlayerReflect: (mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
+          });
+        } else if (_we === "drain_hp" && m.baseKind === "boss_flock_revenge") {
+          const drain = (target, recipient) => {
+            if (!target || target.hp <= 0 || consumeBarrier(target, ml)) return;
+            const power = Math.max(1, Number(m.flockMagicPowerMultiplier) || 1);
+            const damage = Math.max(1, multiplyCursedMagicDamage(Math.round(rng(18, 28) * power), target, dg));
+            target.hp -= damage;
+            if (target === pl) target.deathCause = `${m.name}のHP吸収の魔法により`;
+            const healed = Math.min(damage, Math.max(0, (recipient.maxHp || recipient.hp) - recipient.hp));
+            recipient.hp += healed;
+            ml.push(`HP吸収の魔法が${target.name || "プレイヤー"}に命中！${damage}ダメージ、${healed}HP吸収！`);
+            if (target.hp <= 0 && target !== pl) killMonster(target, dg, pl, ml, lu, false, m);
+          };
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "#d452ff", reflectColor: "#d452ff", wandLabel: "HP吸収の魔法",
+            onPlayerHit: () => drain(pl, m),
+            onMonsterHit: (target) => drain(target, m),
+            onWallReflect: () => drain(m, m),
+            onMagicReflect: (reflector) => drain(m, reflector),
+            onPlayerReflect: () => drain(m, pl),
+          });
+        } else if (_we === "reflect_magic" && m.baseKind === "boss_flock_revenge") {
+          m.flockReflectTurns = Math.max(m.flockReflectTurns || 0, 50);
+          ml.push(`${m.name}は反射の魔法で魔法反射状態になった！(50ターン)`);
+        } else if (_we === "guard_magic" && m.baseKind === "boss_flock_revenge") {
+          if (!(m.flockGuardDefBonus > 0)) {
+            const bonus = 16;
+            m.def = (m.def || 0) + bonus;
+            if (m._debuffOrigDef !== undefined) m._debuffOrigDef += bonus;
+            m.flockGuardDefBonus = bonus;
+          }
+          m.flockGuardTurns = Math.max(m.flockGuardTurns || 0, 50);
+          ml.push(`${m.name}は守護の魔法で防御力が上がった！(+${m.flockGuardDefBonus}、50ターン)`);
+        } else if (_we === "flame_mantle" && m.baseKind === "boss_flock_revenge") {
+          m.flameMantleTurns = Math.max(m.flameMantleTurns || 0, 50);
+          ml.push(`${m.name}は炎上の魔法で炎をまとった！(50ターン)`);
+        } else if (_we === "clone_magic" && m.baseKind === "boss_flock_revenge") {
+          const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [1, 1], [-1, 1]];
+          const spot = dirs.map(([ox, oy]) => ({ x: m.x + ox, y: m.y + oy })).find(({ x, y }) =>
+            dg.map?.[y]?.[x] === T.FLOOR && !(x === pl.x && y === pl.y) &&
+            !dg.monsters.some(other => monsterOccupiesCell(other, x, y)) &&
+            !dg.items?.some(item => item.x === x && item.y === y) &&
+            !dg.traps?.some(trap => trap.x === x && trap.y === y) &&
+            !dg.springs?.some(spring => spring.x === x && spring.y === y) &&
+            !dg.bigboxes?.some(box => box.x === x && box.y === y) &&
+            !dg.pentacles?.some(pc => pc.x === x && pc.y === y) &&
+            !dg.gachaMachines?.some(machine => machine.x === x && machine.y === y) &&
+            !dg.altars?.some(altar => altar.x === x && altar.y === y) &&
+            !dg.dimensionalVaults?.some(vault => vault.x === x && vault.y === y) &&
+            !dg.statues?.some(statue => statue.x === x && statue.y === y),
+          );
+          if (!spot) {
+            m.mp = Math.min(m.maxMp || 180, (m.mp || 0) + 20);
+            ml.push("分身を出す場所がなかった！魔力は消費しなかった。");
+            return;
+          }
+          const cloneHp = Math.max(1, Math.ceil((m.maxHp || m.hp) / 2));
+          const clone = {
+            ...m, id: uid(), name: "フロックの分身", x: spot.x, y: spot.y,
+            hp: cloneHp, maxHp: cloneHp, exp: 0, isBoss: false, bossTier: 0, noDrop: true,
+            _flockRevengeClone: true, _flockCloneSummoned: true, turnAttacks: 0, turnAccum: 0,
+          };
+          delete clone._flockPendingSpell;
+          delete clone._flockPendingCorneredSpell;
+          delete clone._flockEarlySpellPending;
+          delete clone._rangedAttackThisTurn;
+          delete clone.wandEffect;
+          dg.monsters.push(clone);
+          m._flockCloneSummoned = true;
+          ml.push(`逆襲のフロックは分身の魔法で2人に増えた！分身のHPは${cloneHp}！`);
+        } else if (_we === "self_destruct_magic" && m.baseKind === "boss_flock_revenge") {
+          doExplosion(m.x, m.y, dg, pl, ml, _wbItemNameFn, "自爆の魔法", null, lu, false, false, false, false, {
+            radius: 1, killerMon: m, excludeMonsterId: m.id,
+            damageMultiplier: Math.max(1, Number(m.flockMagicPowerMultiplier) || 1),
+          });
+          m.hp = 1;
+          ml.push(`${m.name}は自爆の魔法を誤って唱え、HPが1になった！`);
+        } else if (_we === "lightning") {
           ml.push(_wandBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
             _wbItemNameFn, m, _wandBlessed, opts.fireTrapFn);
         } else if (_we === "fire_bolt") {
           const _flockFireImpact = (x, y, mlx) => {
             doExplosion(x, y, dg, pl, mlx, _wbItemNameFn, "炎の魔法", null, lu,
-              false, false, false, false, { radius: 1, killerMon: m });
+              false, false, false, false, {
+                radius: 1, killerMon: m,
+                damageMultiplier: Math.max(1, Number(m.flockMagicPowerMultiplier) || 1),
+              });
           };
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, range: 10, boltColor: "fire_wand", reflectColor: "#ff6622", wandLabel: "炎の魔法",

@@ -2177,6 +2177,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
   const _instantMonsterKill = options.instantMonsterKill === true;
+  const _damageMultiplier = Math.max(0, Number(options.damageMultiplier) || 1);
+  const _excludeMonsterId = options.excludeMonsterId ?? null;
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む爆発範囲内） */
   const _playerSafeInWater = options.playerSafeInWater && dg.map?.[cy]?.[cx] === T.WATER;
@@ -2193,9 +2195,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     const _oilyMineSurvival = mineExplosion && _oilyMult > 1 && !_hasFireProt && !_playerHpOne;
     const rawDmg = _oilyMineSurvival ? Math.max(0, _playerHpBefore - 1)
       : _playerHpOne ? Math.max(0, _playerHpBefore - 1)
-      : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+        : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
         : proportional ? Math.max(1, Math.floor(p.hp / 2))
-        : rng(10, 20)) * _oilyMult);
+        : rng(10, 20)) * _oilyMult * _damageMultiplier);
     const dmg = _oilyMineSurvival || _playerHpOne ? rawDmg : _projectileDmg != null
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
@@ -2254,10 +2256,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
       /* モンスターダメージ */
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
-      const _blastMonsters = dg.monsters.filter(m => !m.disguisedAsItem && monsterOccupiesCell(m, ax, ay));
+      const _blastMonsters = dg.monsters.filter(m => m.id !== _excludeMonsterId && !m.disguisedAsItem && monsterOccupiesCell(m, ax, ay));
       if (ddx === 0 && ddy === 0) {
         for (const forcedMonster of options.forcedMonsters || []) {
-          if (forcedMonster && !(_blastMonsters.includes(forcedMonster)) && (forcedMonster.hp ?? 1) > 0) {
+          if (forcedMonster && forcedMonster.id !== _excludeMonsterId && !(_blastMonsters.includes(forcedMonster)) && (forcedMonster.hp ?? 1) > 0) {
             _blastMonsters.push(forcedMonster);
           }
         }
@@ -2311,7 +2313,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         } else {
           if (consumeBarrier(m, ml)) continue;
           if (blockLargeMonsterDamage(m, p, ml)) continue;
-          let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
+          let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
           md = scaleMonFireDmg(m, md);
           m.hp -= md;
           retaliateAgainstExplosionSource(m);
@@ -6210,6 +6212,7 @@ function makeBossRewardItem(template) {
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
+  if (m?.noDrop) return;
   if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, p)) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
     return;

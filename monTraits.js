@@ -52,7 +52,8 @@ export function monReflectsProjectiles(m) {
 export function monReflectsMagic(m) {
   return !!(m && !m.sealed && (
     m.subtype === "magicreflect" ||
-    (m.baseKind === "runner" && (m.monLevel || 1) >= 3)
+    (m.baseKind === "runner" && (m.monLevel || 1) >= 3) ||
+    (m.flockReflectTurns || 0) > 0
   ));
 }
 
