@@ -3471,7 +3471,12 @@ export function InventoryModal({
   containerRef, penMergeMode,
   doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorAltar, doFloorItemAction, doFloorOpenPutMode, doFloorItemOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const potContentsRef = useRef(null);
+  useEffect(() => {
+    if (show && potContentsRef.current) {
+      potContentsRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [show, selIdx, invPage]);
   if (!show) return null;
   /* 足元のアイテム・罠・風穴・魔方陣・泉・大箱 */
   const _fl = listFloorInventoryEntries(gs?.dungeon, p.x, p.y, {
@@ -3544,10 +3549,6 @@ export function InventoryModal({
     a.push({ label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) });
     return a;
   };
-  const _previewIdx = hoveredIdx !== null ? hoveredIdx : selIdx;
-  const _previewItem = _previewIdx !== null ? (_isFloorPg ? null : p.inventory[invPage * 10 + _previewIdx]) : null;
-  const _selItem = selIdx !== null ? (_isFloorPg ? null : p.inventory[invPage * 10 + selIdx]) : null;
-  const _previewPot = _selItem?.type === "pot" ? _selItem : null;
   return (
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#12121c", border: "1px solid #4a4a5a", zIndex: 10,
@@ -3651,7 +3652,7 @@ export function InventoryModal({
               : _fRole === "stair" ? "#8a8"
               : "#aaa";
             return (
-              <div key={entry.id || `${_fRole}-${j}`} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
+              <div key={entry.id || `${_fRole}-${j}`}
                 style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
                 <div onClick={() => { setSelIdx(selIdx === j ? null : j); setInvMenuSel(null); setShowDesc(null); setTimeout(() => containerRef?.current?.focus(), 0); }}
                   style={{ padding: "7px 8px", cursor: "pointer", fontSize: mobile ? 13 : 12,
@@ -3732,8 +3733,12 @@ export function InventoryModal({
             if (isBcInstanceType(it)) return !it.fullIdent && !it.bcKnown;
             const _kk = getIdentKey(it); return !!(_kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown);
           })();
+          const _potContents = it.type === "pot" ? [
+            ...(it.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
+            ...(it.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
+          ] : [];
           return (
-            <div key={i} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
+            <div key={i}
               style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
               <div onClick={() => {
                 if (dropModeRef.current) { doDropItem(i); setTimeout(() => containerRef.current?.focus(), 0); return; }
@@ -3769,6 +3774,26 @@ export function InventoryModal({
                     ))}
                   </div>
                   {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
+                  {it.type === "pot" && selIdx === j && (
+                    <div ref={potContentsRef} style={{
+                      marginTop: 6, padding: "8px 10px", background: "#0e0e1a", border: "1px solid #8a6a20",
+                      borderRadius: 6, width: "100%", boxSizing: "border-box", whiteSpace: "normal",
+                      overflowWrap: "anywhere", wordBreak: "break-word",
+                    }}>
+                      <div style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
+                        {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(it)}/{it.capacity}]
+                      </div>
+                      {_potContents.length === 0 ? (
+                        <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
+                      ) : (
+                        _potContents.map((entry) => (
+                          <div key={entry.key} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em", overflowWrap: "anywhere" }}>
+                            · {entry.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                   {showDesc === i && (
                     <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
                       <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>
@@ -3793,12 +3818,6 @@ export function InventoryModal({
                       {it.potionEffects?.length > 0 && (
                         <div style={{ color: "#fc6", marginTop: 3 }}>薬効果：{it.potionEffects.map(foodPotionEffectLabel).join("・")}</div>
                       )}
-                      {it.type === "pot" && ((it.contents?.length || 0) > 0 || (it.confinedMonsters?.length || 0) > 0) && (
-                        <div style={{ color: "#ca8", marginTop: 3 }}>中身: {[
-                          ...(it.contents || []).map((c) => itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)),
-                          ...(it.confinedMonsters || []).map((c) => c.name || "モンスター"),
-                        ].join(", ")}</div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -3808,30 +3827,6 @@ export function InventoryModal({
         })
       )}
     </div>
-    {_previewPot && (
-      <div style={{
-        position: "absolute", right: mobile ? 8 : 212, top: "50%", transform: "translateY(-50%)",
-        background: "#0e0e1a", border: "1px solid #8a6a20", borderRadius: 6,
-        padding: "8px 12px", zIndex: 5, minWidth: 130, maxWidth: 180,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
-      }}>
-        <div style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
-          {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(_previewPot)}/{_previewPot.capacity}]
-        </div>
-        {potOccupancyCount(_previewPot) === 0 ? (
-          <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
-        ) : (
-          [
-            ...(_previewPot.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
-            ...(_previewPot.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
-          ].map((entry) => (
-            <div key={entry.key} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
-              · {entry.name}
-            </div>
-          ))
-        )}
-      </div>
-    )}
     </div>
   );
 }
