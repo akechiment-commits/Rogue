@@ -1780,7 +1780,7 @@ export const GWEN_BOSS = {
   speed: 1, tile: 255, kind: "humanoid", baseKind: "boss_gwen",
   isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 0,
   dialogueLines: GWEN_IDLE_DIALOGUE_LINES, deathLines: GWEN_DEATH_LINES,
-  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、ゾンビ・分裂スライム・ワッカ・キノコ系から1体、25%で2体を隣接する空き床へ呼び出す。召喚候補はB10F相当の強さ。毒キノコの毒胞子は受けない。視界外では召喚間隔が進まない。",
+  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、B10F相当のゾンビ・分裂スライム・ワッカから1体、25%で2体を隣接する空き床へ呼び出す。毒胞子で味方を巻き込むキノコは召喚対象外。視界外では召喚間隔が進まない。",
 };
 
 export const GWEN_VETERAN_BOSS = {
@@ -4243,11 +4243,6 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
 
   for (const target of targets) {
     const isPlayer = target === p;
-    if (!isPlayer && sporeType === "poison" &&
-        (target.baseKind === "boss_gwen" || target.baseKind === "boss_gwen_veteran")) {
-      ml.push(`${target.name}は毒胞子をはねのけた！`);
-      continue;
-    }
     if (inMagicSealRoom(target.x, target.y, dg)) {
       ml.push(`${isPlayer ? "プレイヤー" : target.name}は魔封じの魔方陣に守られた！`);
       continue;
@@ -5192,7 +5187,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   m.y = _next.y;
 }
 
-const GWEN_B5_SUMMON_BASE_KINDS = new Set(["zombie", "slime", "wokka", "mushroom"]);
+const GWEN_B5_SUMMON_BASE_KINDS = new Set(["zombie", "slime", "wokka"]);
 
 function summonGwenMonster(gwen, dg, pl, ml) {
   if (!Array.isArray(dg.monsters)) dg.monsters = [];
