@@ -6362,6 +6362,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs(prev => [...prev.slice(-80), "その壺にはアイテムを入れられない。"]);
       return;
     }
+    if (item.itemMimicId) {
+      const ml = [];
+      if (revealItemMimicAt(_dg, _p.x, _p.y, _p, ml, lu)) {
+        setPutMode(null);
+        endTurn(s, _p, ml);
+        setMsgs(prev => [...prev.slice(-80), ...ml]);
+        sr.current = { ...s }; setGs({ ...s });
+        setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null);
+        return;
+      }
+    }
     _dg.items = _dg.items.filter(entry => entry !== item);
     clearDimensionalVaultItemCounter(item);
     delete item.wallEmbedded;
