@@ -3500,14 +3500,22 @@ export function InventoryModal({
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>所持品 ({p.inventory.length}/{p.maxInventory || 30})</span>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={sortInventory}
-            style={{ background: "#1a2a1a", color: "#6c6", border: "1px solid #3a5a3a", borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation" }}>整頓[S]</button>
+            style={{ background: "#1a2a1a", color: "#6c6", border: "1px solid #3a5a3a", borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation" }}>整頓[X/S]</button>
           <button onClick={() => { const newMode = !dropModeRef.current; dropModeRef.current = newMode; setDropMode(newMode); }}
             style={{ background: dropMode ? "#2a1a1a" : "#1a1a2a", color: dropMode ? "#f88" : "#aaa",
-              border: `1px solid ${dropMode ? "#8a3030" : "#3a3a5a"}`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation", fontWeight: dropMode ? "bold" : "normal" }}>置く[D]</button>
+              border: `1px solid ${dropMode ? "#8a3030" : "#3a3a5a"}`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation", fontWeight: dropMode ? "bold" : "normal" }}>置く[Y/D]</button>
           <button onClick={() => { setShowInv(false); dropModeRef.current = false; setDropMode(false); setSelIdx(null); setShowDesc(null); setInvPage(0); setInvMenuSel(null); }}
             style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
         </div>
       </div>
+      {dropMode && (
+        <div role="status" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", alignItems: "center",
+          color: "#fff0e8", background: "#5b2020", border: "2px solid #ff6868", borderRadius: 5,
+          padding: "7px 10px", marginBottom: 8, fontSize: 14, fontWeight: "bold" }}>
+          <span>⚠ 置くモード中</span>
+          <span>持ち物を選ぶと足元に置きます（Yで解除）</span>
+        </div>
+      )}
       {p.weapon && (
         <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
           武器: <span style={{ color: "#fa0" }}>{p.weapon.name}{formatPlusSuffix(p.weapon.plus)}</span> (攻+{p.weapon.atk + (p.weapon.plus || 0)})

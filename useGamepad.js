@@ -116,6 +116,10 @@ export function useGamepad({
   doDash,
   dead,
   showInv,
+  sortInventory,
+  dropModeRef,
+  setDropMode,
+  setInvMenuSel,
   lookMode,
   mapMode,
   msgLogMode,
@@ -525,6 +529,23 @@ export function useGamepad({
         return;
       }
 
+      /* インベントリ中はXで整頓、Yで「置く」モードを切り替える。 */
+      if (showInvRef.current) {
+        if (edgeDown(prev, next, BTN.X)) {
+          sortInventory?.();
+          prevBtnRef.current = next;
+          return;
+        }
+        if (edgeDown(prev, next, BTN.Y)) {
+          const nextDropMode = !dropModeRef?.current;
+          if (dropModeRef) dropModeRef.current = nextDropMode;
+          setDropMode?.(nextDropMode);
+          setInvMenuSel?.(null);
+          prevBtnRef.current = next;
+          return;
+        }
+      }
+
       /* LTコード：通常プレイ中だけ有効。モーダル・死亡・クリア後は背景へ操作を通さない。 */
       if (lt && !anyModalUi() && !dead && !facingModeRef.current) {
         if (edgeDown(prev, next, BTN.A)) act?.("interact");
@@ -787,6 +808,10 @@ export function useGamepad({
     act,
     doDash,
     dead,
+    sortInventory,
+    dropModeRef,
+    setDropMode,
+    setInvMenuSel,
     anyModalUi,
     openLook,
     openMsgLog,
