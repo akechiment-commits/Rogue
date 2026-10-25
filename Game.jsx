@@ -102,6 +102,7 @@ import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDue
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
+import { applyLegendMonsterStatPressure } from "./legendMonsterRules.js";
 import { placeFallenEntities } from "./pitfallPlacement.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed, applyMonsterParalyze, applyMonsterBewitch } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
@@ -838,6 +839,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _resumeFloors = resumeState.floors || {};
       restoreRelicGuardianBossTraits(_resumeDungeon);
       Object.values(_resumeFloors).forEach(restoreRelicGuardianBossTraits);
+      if (resumeState.dungeonType === "legend") {
+        const applySavedFloorPressure = (floorDungeon, floor) => {
+          for (const monster of floorDungeon?.monsters || []) {
+            if (!monster) continue;
+            Object.assign(monster, applyLegendMonsterStatPressure(monster, "legend", floor));
+          }
+        };
+        applySavedFloorPressure(_resumeDungeon, _resumePlayer.depth || 1);
+        for (const [floor, floorDungeon] of Object.entries(_resumeFloors)) {
+          applySavedFloorPressure(floorDungeon, Number(floor) || 1);
+        }
+      }
       setDungeonAllBcKnown(_resumeDungeon, _resumeAllBcKnown);
       Object.values(_resumeFloors).forEach(floor => setDungeonAllBcKnown(floor, _resumeAllBcKnown));
       const _resumeIdentifiedBigboxes = new Set(resumeState.identifiedBigboxes || []);

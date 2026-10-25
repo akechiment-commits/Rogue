@@ -94,3 +94,109 @@ export function legendMonsterSpawnLevel(base, floor) {
   if (!base?.baseKind) return 1;
   return _levels[floor]?.get(base.baseKind) ?? 1;
 }
+
+/* ボス撃破後のプレイヤー成長に対して、超上級の通常敵だけが序盤形態のまま
+ * 取り残されないようにするための階別能力値ベンチマーク。既にこの数値を
+ * 上回る敵は変えず、下回る能力だけを一定割合で近づける。 */
+export const LEGEND_MONSTER_STAT_BENCHMARKS = Object.freeze([
+  Object.freeze({ floor: 6, hp: 42, atk: 17, def: 5 }),
+  Object.freeze({ floor: 11, hp: 75, atk: 28, def: 10 }),
+  Object.freeze({ floor: 16, hp: 100, atk: 32, def: 12 }),
+  Object.freeze({ floor: 21, hp: 150, atk: 42, def: 16 }),
+  Object.freeze({ floor: 26, hp: 190, atk: 48, def: 20 }),
+  Object.freeze({ floor: 31, hp: 230, atk: 56, def: 24 }),
+  Object.freeze({ floor: 36, hp: 280, atk: 62, def: 28 }),
+  Object.freeze({ floor: 41, hp: 350, atk: 70, def: 32 }),
+  Object.freeze({ floor: 46, hp: 400, atk: 78, def: 36 }),
+  Object.freeze({ floor: 50, hp: 450, atk: 82, def: 38 }),
+]);
+
+export const LEGEND_MONSTER_STAT_PRESSURE = Object.freeze({
+  normal: 0.60,
+  abilityHpDef: 0.45,
+  abilityAttack: 0.35,
+  multiAttack: 0.20,
+});
+
+const LEGEND_MONSTER_STAT_PRESSURE_VERSION = 1;
+
+function benchmarkAtFloor(floor) {
+  const checkpoints = LEGEND_MONSTER_STAT_BENCHMARKS;
+  if (floor <= checkpoints[0].floor) return checkpoints[0];
+  if (floor >= checkpoints.at(-1).floor) return checkpoints.at(-1);
+  for (let i = 1; i < checkpoints.length; i++) {
+    const upper = checkpoints[i];
+    if (floor > upper.floor) continue;
+    const lower = checkpoints[i - 1];
+    const t = (floor - lower.floor) / (upper.floor - lower.floor);
+    return {
+      hp: lower.hp + (upper.hp - lower.hp) * t,
+      atk: lower.atk + (upper.atk - lower.atk) * t,
+      def: lower.def + (upper.def - lower.def) * t,
+    };
+  }
+  return checkpoints.at(-1);
+}
+
+function catchUpStat(value, target, rate) {
+  const current = Math.max(0, Number(value) || 0);
+  if (current >= target) return current;
+  return Math.round(current + (target - current) * rate);
+}
+
+/**
+ * 超上級の通常敵を階層の能力値目安へ近づける。
+ * ボス、逃走役、物理ダメージ1固定の敵は個性を守るため除外する。
+ * 既存セーブの敵にも到着時に一度だけ適用できるよう、処理版を個体に記録する。
+ */
+export function applyLegendMonsterStatPressure(monster, dungeonType, floor) {
+  if (!monster || dungeonType !== "legend") return monster;
+  if (monster._legendStatPressureVersion >= LEGEND_MONSTER_STAT_PRESSURE_VERSION) return monster;
+
+  const appliedFloor = Math.max(1, Math.min(50, Math.floor(Number(floor) || 1)));
+  const marker = {
+    _legendStatPressureVersion: LEGEND_MONSTER_STAT_PRESSURE_VERSION,
+    _legendStatFloor: appliedFloor,
+  };
+  if (appliedFloor < 6 || !monster.baseKind || monster.isBoss || monster.isPlayerClone ||
+      monster.isWanderingMerchant || monster.isWanderingAdventurer || monster.relicGuardian ||
+      monster.type === "shopkeeper" || monster.penaltyOnly || monster.baseKind === "runner" || monster.fixedDamageOnly) {
+    return { ...monster, ...marker };
+  }
+
+  const target = benchmarkAtFloor(appliedFloor);
+  const hasGimmick = !!monster.subtype;
+  const hpDefRate = hasGimmick
+    ? LEGEND_MONSTER_STAT_PRESSURE.abilityHpDef
+    : LEGEND_MONSTER_STAT_PRESSURE.normal;
+  const attackRate = (Number(monster.maxAttacks) || 1) > 1
+    ? LEGEND_MONSTER_STAT_PRESSURE.multiAttack
+    : hasGimmick
+      ? LEGEND_MONSTER_STAT_PRESSURE.abilityAttack
+      : LEGEND_MONSTER_STAT_PRESSURE.normal;
+
+  const oldMaxHp = Math.max(1, Number(monster.maxHp ?? monster.hp) || 1);
+  const oldHp = Number.isFinite(monster.hp) ? monster.hp : oldMaxHp;
+  const maxHp = monster.baseKind === "runner"
+    ? oldMaxHp
+    : catchUpStat(oldMaxHp, target.hp, hpDefRate);
+  const hp = Number.isFinite(monster.maxHp)
+    ? (oldHp <= 0 ? oldHp : Math.max(1, Math.min(maxHp, Math.round(oldHp * maxHp / oldMaxHp))))
+    : (oldHp <= 0 ? oldHp : maxHp);
+  const atk = (Number(monster.atk) || 0) <= 0
+    ? (Number(monster.atk) || 0)
+    : catchUpStat(monster.atk, target.atk, attackRate);
+  const def = catchUpStat(monster.def, target.def, hpDefRate);
+
+  return {
+    ...monster,
+    hp,
+    ...(Number.isFinite(monster.maxHp) ? { maxHp } : {}),
+    ...(Number.isFinite(monster._dormantHp)
+      ? { _dormantHp: catchUpStat(monster._dormantHp, target.hp, hpDefRate) }
+      : {}),
+    atk,
+    def,
+    ...marker,
+  };
+}

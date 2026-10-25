@@ -52,7 +52,7 @@ import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { advancedMonsterAllowed, advancedMonsterSpawnLevel } from "./advancedMonsterRules.js";
-import { legendMonsterAllowed, legendMonsterSpawnLevel } from "./legendMonsterRules.js";
+import { legendMonsterAllowed, legendMonsterSpawnLevel, applyLegendMonsterStatPressure } from "./legendMonsterRules.js";
 import { isWanderingNpc } from "./wanderingAdventurer.js";
 import { beginNpcRetaliation } from "./npcRetaliation.js";
 import {
@@ -1569,17 +1569,20 @@ export function monLevelUp(mon, dg, ml) {
   }
   const hpRatio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
   const oldName = mon.name;
+  const statTemplate = mon._legendStatPressureVersion
+    ? applyLegendMonsterStatPressure(template, "legend", mon._legendStatFloor)
+    : template;
   const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
   const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
   delete mon.overBoost;
   delete mon._baseAtk;
   delete mon._baseExp;
   mon.name   = template.name;
-  mon.atk    = template.atk + diamondWeaponBonus;
-  mon.def    = template.def + armorBreathBonus;
+  mon.atk    = statTemplate.atk + diamondWeaponBonus;
+  mon.def    = statTemplate.def + armorBreathBonus;
   mon.exp    = template.exp;
-  mon.maxHp  = template.hp;
-  mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
+  mon.maxHp  = statTemplate.hp;
+  mon.hp     = Math.max(1, Math.round(statTemplate.hp * hpRatio));
   mon.monLevel = nextLevel;
   mon.speed = levelTemplateSpeed(mon, template, nextLevel);
   mon.baseSpeed = mon.speed;
@@ -1613,17 +1616,20 @@ export function monLevelDown(mon, dg, ml) {
   if (!template) return false;
   const hpRatio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
   const oldName = mon.name;
+  const statTemplate = mon._legendStatPressureVersion
+    ? applyLegendMonsterStatPressure(template, "legend", mon._legendStatFloor)
+    : template;
   const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
   const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
   delete mon.overBoost;
   delete mon._baseAtk;
   delete mon._baseExp;
   mon.name   = template.name;
-  mon.atk    = template.atk + diamondWeaponBonus;
-  mon.def    = template.def + armorBreathBonus;
+  mon.atk    = statTemplate.atk + diamondWeaponBonus;
+  mon.def    = statTemplate.def + armorBreathBonus;
   mon.exp    = template.exp;
-  mon.maxHp  = template.hp;
-  mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
+  mon.maxHp  = statTemplate.hp;
+  mon.hp     = Math.max(1, Math.round(statTemplate.hp * hpRatio));
   mon.monLevel = prevLevel;
   mon.speed = levelTemplateSpeed(mon, template, prevLevel);
   mon.baseSpeed = mon.speed;
@@ -2023,6 +2029,9 @@ const TRANSFORM_DEFINITION_KEYS = new Set(MONS.flatMap(base =>
 /** 定義にない元の固有特性を消し、座標・時計・状態異常など個体情報は保つ。 */
 export function applyMonsterTransformation(target, definition, _dungeon = null, _player = null) {
   if (!definition || monsterBodySize(definition) > 1) return false;
+  const transformedDefinition = target._legendStatPressureVersion
+    ? applyLegendMonsterStatPressure(definition, "legend", target._legendStatFloor)
+    : definition;
   if (!("bodySize" in definition)) delete target.bodySize;
   for (const key of TRANSFORM_DEFINITION_KEYS) {
     if (!(key in definition)) delete target[key];
@@ -2041,8 +2050,8 @@ export function applyMonsterTransformation(target, definition, _dungeon = null, 
   delete target._gelBoost;
   delete target._gelBaseAtk;
   delete target.atkBuffed;
-  Object.assign(target, definition, {
-    maxHp: definition.hp, baseSpeed: definition.speed ?? 1, turnAccum: 0,
+  Object.assign(target, transformedDefinition, {
+    maxHp: transformedDefinition.hp, baseSpeed: transformedDefinition.speed ?? 1, turnAccum: 0,
   });
   if (target.subtype === "itemMimic") target.disguisedAsItem = false;
   if (_dungeon) ensureItemMimicFloorItems(_dungeon);
@@ -2126,11 +2135,13 @@ const POT_RAIDER_HERMIT_CRAB_BASE = Object.freeze({
   tile: 235, kind: "beast", baseKind: "hermitCrab", monLevel: 1, elemWeak: "thunder", subtype: "hermitCrab",
 });
 
-function makePotRaiderHermitCrab(mon, player) {
+function makePotRaiderHermitCrab(mon, player, dungeon) {
   return makeMonsterFromBase(POT_RAIDER_HERMIT_CRAB_BASE, 1, mon.x, mon.y, {
     aware: true,
     lastPx: player?.x ?? mon.x,
     lastPy: player?.y ?? mon.y,
+    dungeonType: dungeon?.dungeonType ?? null,
+    floor: player?.depth ?? dungeon?.depth ?? null,
   });
 }
 
@@ -2214,7 +2225,7 @@ function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   if (targets.length === 0) return false;
   const pot = pick(targets);
   mon.turnAttacks++;
-  const crab = makePotRaiderHermitCrab(mon, player);
+  const crab = makePotRaiderHermitCrab(mon, player, dungeon);
   if (!Array.isArray(dungeon.monsters)) dungeon.monsters = [];
   dungeon.monsters.push(crab);
 
@@ -2286,7 +2297,8 @@ function consumeMonsterProjectileAmmo(mon) {
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
 export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, excludeLarge = false, poolFloor = null } = {}) {
   const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { excludeLarge, poolFloor });
-  const st = buildMonStats(base, spawnLevel);
+  const spawnFloor = poolFloor != null ? poolFloor : depth + 1;
+  const st = applyLegendMonsterStatPressure(buildMonStats(base, spawnLevel), dungeonType, spawnFloor);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
@@ -2299,8 +2311,8 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
 }
 
 /** 指定のベース定義・レベルでモンスターを生成する（固定取り巻き用） */
-export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false, windDx = null, windDy = null } = {}) {
-  const st = buildMonStats(base, spawnLevel);
+export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false, windDx = null, windDy = null, dungeonType = null, floor = null } = {}) {
+  const st = applyLegendMonsterStatPressure(buildMonStats(base, spawnLevel), dungeonType, floor);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const isSleepingLion = st.subtype === "sleepingLion";
@@ -2341,6 +2353,8 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
       aware: true,
       lastPx: p?.x ?? mx,
       lastPy: p?.y ?? my,
+      dungeonType: dg.dungeonType ?? null,
+      floor: _poolFloor,
     });
     dg.monsters.push(mon);
     ml.push(`${mon.name}が現れた！`);
@@ -5218,6 +5232,7 @@ function summonGwenMonster(gwen, dg, pl, ml) {
 
     const summoned = makeMonsterFromBase(base, spawnLevel, x, y, {
       aware: true, lastPx: pl.x, lastPy: pl.y,
+      dungeonType: "legend", floor: poolFloor,
     });
     dg.monsters.push(summoned);
     ml.push(`グウェンの隣に${summoned.name}が現れた！`);
