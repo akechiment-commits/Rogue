@@ -3471,12 +3471,6 @@ export function InventoryModal({
   containerRef, penMergeMode,
   doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorAltar, doFloorItemAction, doFloorOpenPutMode, doFloorItemOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
-  const potContentsRef = useRef(null);
-  useEffect(() => {
-    if (show && potContentsRef.current) {
-      potContentsRef.current.scrollIntoView({ block: "nearest" });
-    }
-  }, [show, selIdx, invPage]);
   if (!show) return null;
   /* 足元のアイテム・罠・風穴・魔方陣・泉・大箱 */
   const _fl = listFloorInventoryEntries(gs?.dungeon, p.x, p.y, {
@@ -3493,6 +3487,13 @@ export function InventoryModal({
   const _invTotalPg = Math.ceil(p.inventory.length / 10) || 1;
   const _totalPg = _invTotalPg + (_hasFl ? 1 : 0);
   const _isFloorPg = _hasFl && invPage === _invTotalPg;
+  const _selectedPot = !_isFloorPg && selIdx !== null
+    ? p.inventory[invPage * 10 + selIdx]
+    : null;
+  const _selectedPotContents = _selectedPot?.type === "pot" ? [
+    ...(_selectedPot.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
+    ...(_selectedPot.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
+  ] : [];
   const _getFloorActs = (entry) => {
     const _role = floorEntryRole(entry, _flItems, _flTraps);
     const _descAct = { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) };
@@ -3733,10 +3734,6 @@ export function InventoryModal({
             if (isBcInstanceType(it)) return !it.fullIdent && !it.bcKnown;
             const _kk = getIdentKey(it); return !!(_kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown);
           })();
-          const _potContents = it.type === "pot" ? [
-            ...(it.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
-            ...(it.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
-          ] : [];
           return (
             <div key={i}
               style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
@@ -3774,26 +3771,6 @@ export function InventoryModal({
                     ))}
                   </div>
                   {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
-                  {it.type === "pot" && selIdx === j && (
-                    <div ref={potContentsRef} style={{
-                      marginTop: 6, padding: "8px 10px", background: "#0e0e1a", border: "1px solid #8a6a20",
-                      borderRadius: 6, width: "100%", boxSizing: "border-box", whiteSpace: "normal",
-                      overflowWrap: "anywhere", wordBreak: "break-word",
-                    }}>
-                      <div style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
-                        {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(it)}/{it.capacity}]
-                      </div>
-                      {_potContents.length === 0 ? (
-                        <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
-                      ) : (
-                        _potContents.map((entry) => (
-                          <div key={entry.key} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em", overflowWrap: "anywhere" }}>
-                            · {entry.name}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
                   {showDesc === i && (
                     <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
                       <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>
@@ -3827,6 +3804,38 @@ export function InventoryModal({
         })
       )}
     </div>
+    {_selectedPot?.type === "pot" && (
+      <div role="region" aria-label="壺の中身" style={{
+        position: "absolute", left: mobile ? 8 : "50%", right: mobile ? 8 : undefined,
+        bottom: mobile ? 8 : 16, transform: mobile ? undefined : "translateX(-50%)",
+        width: mobile ? "auto" : "min(360px, calc(100% - 32px))", maxWidth: "calc(100% - 16px)",
+        maxHeight: mobile ? "38dvh" : "36dvh", display: "flex", flexDirection: "column",
+        background: "#0e0e1a", border: "1px solid #8a6a20", borderRadius: 7,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.9)", zIndex: 12, boxSizing: "border-box",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+          padding: "8px 10px", borderBottom: "1px solid #4a3a10", flexShrink: 0 }}>
+          <span style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", overflowWrap: "anywhere" }}>
+            {itemDisplayName(_selectedPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(_selectedPot)}/{_selectedPot.capacity}]
+          </span>
+          <button onClick={() => { setSelIdx(null); setInvMenuSel(null); }}
+            aria-label="壺の中身を閉じる"
+            style={{ background: "#25202a", color: "#ddd", border: "1px solid #59451b", borderRadius: 4,
+              padding: "2px 8px", cursor: "pointer", flexShrink: 0 }}>✕</button>
+        </div>
+        <div style={{ padding: "6px 10px 8px", overflowY: "auto", minHeight: 0, overflowWrap: "anywhere" }}>
+          {_selectedPotContents.length === 0 ? (
+            <div style={{ color: "#777", fontSize: 13 }}>（空）</div>
+          ) : (
+            _selectedPotContents.map((entry) => (
+              <div key={entry.key} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em", overflowWrap: "anywhere" }}>
+                · {entry.name}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    )}
     </div>
   );
 }
