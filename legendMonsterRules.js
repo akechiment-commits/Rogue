@@ -87,15 +87,9 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   { min: 40, max: 43, level: 2, kinds: ["bombgoblin", "waterFlower", "hypnotist"] },
   { min: 44, max: 47, level: 1, kinds: ["seaDevil", "disarmer", "lizardman"] },
   { min: 44, max: 47, level: 2, kinds: ["daemon", "puller", "witchdoc", "berserker", "killplaster", "itemThrower", "trapmaster", "magicreflector"] },
-  { min: 48, max: 50, level: 2, kinds: ["lizardman", "dodgemole"] },
-  /* 最終帯は上位形態を増やす。各形態は別名・固定能力値で出現する。 */
-  { min: 48, max: 50, level: 3, kinds: [
-    "dragon", "hypnotist", "potionhealer", "rakugakima", "mushroom", "machodragon", "manaEater",
-    "vampire", "troll", "golem", "darkness", "daemon", "puller", "witchdoc", "berserker",
-    "mimic", "knocker", "walldigger", "potionthrower", "waterFlower", "itemThrower", "trapmaster",
-    "orc", "dangerousPetal", "dreamEater", "rustbug", "charger", "thief", "tattoobird", "serpent",
-    "bombgoblin", "magicreflector",
-  ] },
+  { min: 48, max: 50, level: 2, kinds: ["darkness", "daemon", "mimic", "knocker", "dodgemole"] },
+  /* 最終帯のLv3は当初の7系統に絞り、その他は既存の階帯で出す。 */
+  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "potionhealer", "rakugakima", "mushroom", "machodragon", "manaEater"] },
 ]);
 
 const _pools = Array.from({ length: 51 }, () => []);
