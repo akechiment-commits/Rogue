@@ -44,6 +44,7 @@ import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
+import { isFloorOccupancyBlocked } from "./floorObjectPlacement.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -1781,11 +1782,7 @@ export function useItemActions({
             const _tr = dg.rooms[rng(0, dg.rooms.length - 1)];
             const _tx = rng(_tr.x, _tr.x + _tr.w - 1);
             const _ty = rng(_tr.y, _tr.y + _tr.h - 1);
-            if (_tx === p.x && _ty === p.y) continue;
-            if (dg.map[_ty][_tx] !== T.FLOOR) continue;
-            if (dg.traps.some(t => t.x === _tx && t.y === _ty)) continue;
-            if (dg.items.some(i => i.x === _tx && i.y === _ty)) continue;
-            if (dg.oilyTiles?.some(t => t.x === _tx && t.y === _ty)) continue;
+            if (isFloorOccupancyBlocked(dg, _tx, _ty, { p })) continue;
             const _td = pickTrap();
             dg.traps.push({ ..._td, id: uid(), x: _tx, y: _ty, revealed: false });
             _placed++;
