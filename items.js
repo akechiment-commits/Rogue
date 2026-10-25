@@ -4766,9 +4766,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       break;
     case "slow":
+      if (kind === "monster" && target.baseSpeed == null) target.baseSpeed = target.speed ?? 1;
       if (cursed) {
         // 反転→加速
-        if (kind === "monster") { target.speed = Math.min(2, (target.speed || 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
+        if (kind === "monster") { target.speed = Math.min(2, (target.speed ?? target.baseSpeed ?? 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
         if (kind === "player") {
           const _ht = statusTurns("haste", { kind: "player" });
           grantPlayerHaste(p, _ht);
@@ -4776,8 +4777,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       } else {
         if (kind === "monster") {
-          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
-          target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5));
+          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed ?? target.baseSpeed ?? 1;
+          target.speed = Math.max(0.25, (target.speed ?? target.baseSpeed ?? 1) * (blessed ? 0.25 : 0.5));
           const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed, target }) : 0;
           if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
           ml.push(`${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}${blessed ? "(強鈍足)" : ""}`);
