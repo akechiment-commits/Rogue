@@ -5392,7 +5392,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push("泉の水が勢いよく飛び出した！水の瓶が転がっている。");
     } else if (r < 0.58) {
       // 金貨が飛び出す
-      const _goldRange = springGoldRange(p.depth);
+      const _goldRange = springGoldRange(p.depth - 1);
       const _gv = rng(_goldRange.min, _goldRange.max);
       const _gc = { name: `${_gv}枚の金貨`, type: "gold", value: _gv, tile: 22, id: uid() };
       const _ft2 = new Set();

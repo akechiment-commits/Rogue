@@ -268,7 +268,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (allOcc(ix, iy)) continue;
     const t = pickLootFromPool(lootPool);
     const it = applyInitialItemCharges({ ...t, id: uid(), x: ix, y: iy });
-    if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
+    if (it.type === "gold") it.value = rng(100, 150 + depth * 40);
     applyGeneratedBlessCurse(it, 0.12, 0.28);
     items.push(it);
   }
@@ -833,11 +833,11 @@ function genWallItems(map, depth, items, suspicious = new Set(), chance = 0.70, 
     /* 壁埋めアイテムは75%の確率で埋蔵金（金貨） */
     let it;
     if (Math.random() < 0.75) {
-      it = { name:"金貨", type:"gold", value: rng(80, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
+      it = { name:"金貨", type:"gold", value: rng(100, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
     } else {
       const t = pickLootFromPool(lootPoolForDungeon(ITEMS, dungeonType, depth + 1));
       it = applyInitialItemCharges({ ...t, id: uid(), x: wx, y: wy, wallEmbedded: true });
-      if (it.type === 'gold') it.value = rng(80, 300 + depth * 50);
+      if (it.type === 'gold') it.value = rng(100, 300 + depth * 50);
     }
     items.push(it);
     placed++;
@@ -1495,7 +1495,7 @@ export function genCorridorFloor(depth, dungeonType = null) {
   /* 罠・泉・大箱・階段は小部屋内にのみ配置 */
   const rndRoom = ()=>{ for(let a=0;a<120;a++){const[x,y]=pick(roomTileList);if(!occ(x,y)&&notSt(x,y))return[x,y];}return null;};
   for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold'){const range=ordinaryFloorGoldRange(depth+1);it.value=rng(range.min,range.max);}items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndRoom();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,3);i++){const p=rndRoom();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   for(let i=0;i<rng(1,2);i++){const p=rndRoom();if(p){const bbt=pickBB([], dungeonType, depth);bigboxes.push({id:uid(),x:p[0],y:p[1],tile:TI.BIGBOX,kind:bbt.kind,name:bbt.name,capacity:bbt.cap(),contents:[]});}}
@@ -1644,7 +1644,7 @@ function genRingCorridorFloor(depth, dungeonType = null) {
   };
 
   for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold'){const range=ordinaryFloorGoldRange(depth+1);it.value=rng(range.min,range.max);}items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
@@ -1985,7 +1985,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
     if (cells.some(([x, y]) => rewardAt(x, y))) continue;
     const p = cells.find(([x, y]) => !occ(x, y)) || cells[0];
     if (!p) continue;
-    items.push({ name: "金貨", type: "gold", value: rng(80, 220), tile: 22, id: uid(), x: p[0], y: p[1] });
+    items.push({ name: "金貨", type: "gold", value: rng(100, 220), tile: 22, id: uid(), x: p[0], y: p[1] });
   }
   const { visible, explored } = mkVis();
   return {
@@ -2545,7 +2545,7 @@ function genBossFloor(depth, dungeonType = null) {
     const p = rndBossFloor(itemOcc, true);
     if (!p) break;
     const _it = applyInitialItemCharges({ ...pickLootFromPool(lootPool), id: uid(), x: p[0], y: p[1] });
-    if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
+    if (_it.type === "gold") _it.value = rng(100, 100 + depth * 30);
     else applyGeneratedBlessCurse(_it, 0.10, 0.25);
     items.push(_it);
   }
