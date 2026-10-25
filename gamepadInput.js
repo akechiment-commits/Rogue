@@ -33,6 +33,9 @@ export const DEFAULT_DEADZONE = 0.35;
 export const A_TAP_MS = 220;
 export const MOVE_REPEAT_MS = 110;
 export const MOVE_REPEAT_DELAY_MS = 280;
+/* ゲームプレイ中の長押し移動はメニュー移動より短い間隔で続ける。 */
+export const GAMEPLAY_MOVE_REPEAT_MS = 90;
+export const GAMEPLAY_MOVE_REPEAT_DELAY_MS = 180;
 export const WAIT_STOP_RADIUS = 3;
 
 /** @returns {{ dx: number, dy: number } | null} */

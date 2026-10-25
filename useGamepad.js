@@ -4,6 +4,8 @@ import {
   A_TAP_MS,
   MOVE_REPEAT_MS,
   MOVE_REPEAT_DELAY_MS,
+  GAMEPLAY_MOVE_REPEAT_MS,
+  GAMEPLAY_MOVE_REPEAT_DELAY_MS,
   QUICK_MENU_ITEMS,
   pickFirstGamepad,
   snapshotButtons,
@@ -788,8 +790,8 @@ export function useGamepad({
           !inModal &&
           !rt &&
           !buttonPressed(gp, BTN.LB) &&
-          now - moveFirstAtRef.current >= MOVE_REPEAT_DELAY_MS &&
-          now - moveRepeatAtRef.current >= MOVE_REPEAT_MS
+          now - moveFirstAtRef.current >= GAMEPLAY_MOVE_REPEAT_DELAY_MS &&
+          now - moveRepeatAtRef.current >= GAMEPLAY_MOVE_REPEAT_MS
         ) {
           moveRepeatAtRef.current = now;
           applyMove(move.dx, move.dy, {
