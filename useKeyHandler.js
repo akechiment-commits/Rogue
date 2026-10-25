@@ -14,7 +14,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, formatSoldItemMessage, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
-  extractPotContents, scatterPotContents, reducePotCapacity,
+  extractPotContents, scatterPotContents, reducePotCapacity, getPotInputTargets,
   declareFloorExitTheft,
 } from "./items.js";
 import { prepareLastFloor } from "./dungeon.js";
@@ -525,9 +525,12 @@ export function useKeyHandler({
         }
         if (!sr.current) return;
         const inv4 = sr.current.player.inventory;
-        const pItems4 = inv4
-          .map((it, i) => ({ it, i }))
-          .filter(({ i }) => (putMode.floorPot ? true : i !== putMode.potIdx));
+        const _floorPutTargets = putMode.floorItem
+          ? getPotInputTargets(sr.current.player, sr.current.dungeon)
+          : null;
+        const pItems4 = putMode.floorItem
+          ? _floorPutTargets.map((target) => ({ it: target.pot, i: target.potIdx, target }))
+          : inv4.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
         const _ps4 = 10;
         const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
         const _pg4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4);
@@ -554,7 +557,9 @@ export function useKeyHandler({
           }
           if (_plen4 > 0) {
             const sel4 = _pg4[_localSel];
-            if (sel4.it.type === "pot")
+            if (putMode.floorItem) {
+              invActRef.current?.floorPutItem?.(putMode.floorItem, sel4.target);
+            } else if (sel4.it.type === "pot")
               setMsgs((prev) => [
                 ...prev.slice(-80),
                 "壺の中に壺は入れられない。",
@@ -1544,6 +1549,9 @@ export function useKeyHandler({
           const _isEquipType2 = ["weapon","armor","arrow","ring"].includes(entry.type);
           const acts2 = [];
           acts2.push({ label: "拾う", fn: () => invActRef.current?.floorPickup?.(entry) });
+          if (entry.type !== "pot" && entry.type !== "goal" && entry.shopPrice == null && entry._shopId == null && getPotInputTargets(_p2, _dg2).length > 0) {
+            acts2.push({ label: "壺に入れる", fn: () => invActRef.current?.floorItemOpenPutMode?.(entry) });
+          }
           const _addFloorAct2 = (label, actionFn, skipCap = false, keepInv = false) => {
             acts2.push({ label, fn: () => invActRef.current?.floorItemAction?.(entry, actionFn, skipCap, keepInv) });
           };

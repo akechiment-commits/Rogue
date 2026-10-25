@@ -3006,7 +3006,7 @@ export function useItemActions({
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (!_potFull) {
-        if (activePutMode.hypnosis) {
+        if (activePutMode.hypnosis || activePutMode.closeAfterPut) {
           setPutMode(null);
         } else {
           setPutMode(activePutMode.floorPot ? { floorPot: activePutMode.floorPot } : { potIdx: p.inventory.indexOf(pot) });

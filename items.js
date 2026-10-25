@@ -1152,6 +1152,28 @@ export function potOccupancyCount(pot) {
   return (pot.contents?.length || 0) + (pot.confinedMonsters?.length || 0);
 }
 
+/** 所持品の中から、道具を受け入れられる壺を選ぶ。 */
+export function canAcceptPotItem(pot) {
+  return !!pot && pot.type === "pot" && pot.potEffect !== "imprison" &&
+    pot.shopPrice == null && pot._shopId == null &&
+    potOccupancyCount(pot) < (pot.capacity ?? 3);
+}
+
+/** 足元アイテムの投入先にできる、所持中または足元の壺。 */
+export function getPotInputTargets(player, dungeon) {
+  const targets = [];
+  for (let i = 0; i < (player?.inventory || []).length; i++) {
+    const pot = player.inventory[i];
+    if (canAcceptPotItem(pot)) targets.push({ pot, potIdx: i, floorPot: null });
+  }
+  for (const pot of dungeon?.items || []) {
+    if (pot?.type === "pot" && pot.x === player?.x && pot.y === player?.y && canAcceptPotItem(pot)) {
+      targets.push({ pot, potIdx: null, floorPot: pot });
+    }
+  }
+  return targets;
+}
+
 /* 容量不足の判定を道具・閉じ込め敵で共通化する。通常の道具は従来どおり床へ出す。 */
 export function reducePotCapacity(pot, amount, dg, p, ml, nameFn = null) {
   const next = Math.max(0, (pot.capacity ?? 1) - amount);
