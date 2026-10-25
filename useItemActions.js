@@ -2,7 +2,7 @@ import { isStatusImmune, statusResultMessage, monsterStatusTurns, applyPlayerPar
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
@@ -2916,15 +2916,24 @@ export function useItemActions({
               applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
               pushSplashAnim(_bm.x, _bm.y, _potClr);
             }
-            const _boilBurnSet = [];
             for (const _bi of dg.items.filter(
               (fi) => fi.x >= _boilRoom.x && fi.x < _boilRoom.x + _boilRoom.w &&
                       fi.y >= _boilRoom.y && fi.y < _boilRoom.y + _boilRoom.h,
             )) {
+              if (sr.current.dungeon !== dg) break;
+              if (!dg.items.includes(_bi)) continue;
               const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml, it.cursed || false, dnameRef, it.blessed || false);
-              if (_br === "burn") _boilBurnSet.push(_bi);
+              if (_br === "burn") {
+                removeFloorItem(dg, _bi);
+                chargeShopItem(_bi, dg, ml, p);
+              } else if (_br === "changed") {
+                chargeShopItem(_bi, dg, ml, p);
+              } else if (_br === "gunpowder_explode") {
+                removeFloorItem(dg, _bi);
+                chargeShopItem(_bi, dg, ml, p);
+                doGunpowderExplosion(_bi.x, _bi.y, dg, p, ml, lu, dnameRef(_bi));
+              }
             }
-            if (_boilBurnSet.length > 0) dg.items = dg.items.filter((fi) => !_boilBurnSet.includes(fi));
           } else {
             ml.push("（回廊では薬効が拡散しにくい…自分にだけ効いた）");
             applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
