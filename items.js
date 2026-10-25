@@ -2271,6 +2271,13 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       beginNpcRetaliation(monster, killerMon, ml);
     }
   };
+  const killBlastedMonster = (monster, noExp = noExpKills || ringExplosion) => {
+    if (mineExplosion || noExpKills) {
+      killMonsterByTrap(monster, dg, p, ml, luFn, `${srcLabel}の爆発`);
+    } else {
+      killMonster(monster, dg, p, ml, luFn, noExp, killerMon);
+    }
+  };
   for (let ddx = -_blastRadius; ddx <= _blastRadius && !floorChanged(); ddx++) {
     for (let ddy = -_blastRadius; ddy <= _blastRadius && !floorChanged(); ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
@@ -2333,11 +2340,11 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             m.hp -= _bd;
             retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
-            if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion, killerMon); }
+            if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion); }
             continue;
           }
           m.hp = 0;
-          _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion, killerMon);
+          _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion);
         } else if (options.projectileAtk != null) {
           /* 特殊弾の爆発：通常命中と同じ攻撃力計算を、爆心地を含む各敵へ一度だけ適用する。 */
           if (consumeBarrier(m, ml)) continue;
@@ -2346,7 +2353,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           m.hp -= md;
           retaliateAgainstExplosionSource(m);
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills, killerMon); }
+          if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
         } else {
           if (consumeBarrier(m, ml)) continue;
           if (blockLargeMonsterDamage(m, p, ml)) continue;
@@ -2355,7 +2362,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           m.hp -= md;
           retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills, killerMon); }
+          if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
         }
       }
       /* アイテム破壊 */
@@ -2684,12 +2691,12 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, true); }
+          if (m.hp <= 0) { _killed.add(m); killMonsterByTrap(m, dg, p, ml, luFn, "時限爆弾の罠の爆発"); }
           continue;
         }
         m.hp = 0;
         _killed.add(m);
-        killMonster(m, dg, p, ml, luFn, true);
+        killMonsterByTrap(m, dg, p, ml, luFn, "時限爆弾の罠の爆発");
       }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
@@ -2877,10 +2884,7 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
       const _rfd2 = clampDmgFixed(_rfm, rng(15, 25));
       _rfm.hp -= _rfd2;
       ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
-      if (_rfm.hp <= 0) {
-        ml.push(`${_rfm.name}は倒れた！`);
-        killMonster(_rfm, dg, p, ml, null, true);
-      }
+      if (_rfm.hp <= 0) killMonsterByTrap(_rfm, dg, p, ml, null, trap?.name || "落石の罠");
     }
   }
   if (p && p.x === tx && p.y === ty) {
@@ -3315,7 +3319,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
             ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
           }
           if (m.hp <= 0) {
-            killMonster(m, dg, p, ml, null, true, null, false, false, false, trap?.name || `${label}の罠`);
+            killMonsterByTrap(m, dg, p, ml, null, trap?.name || `${label}の罠`);
           }
         }
       }
@@ -3369,8 +3373,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           if (!blockLargeMonsterDamage(_pfm, p, ml)) {
             const _bd = bossInstantDeathDamage(_pfm);
             _pfm.hp -= _bd;
-            ml.push(`${_pfm.name}は落とし穴をものともしなかった！${_bd}ダメージ！`);
-            if (_pfm.hp <= 0) killMonster(_pfm, dg, p, ml, luFn);
+            ml.push(`${_pfm.name}は落とし穴の衝撃で${_bd}ダメージを受けた！`);
+            if (_pfm.hp <= 0) killMonsterByTrap(_pfm, dg, p, ml, luFn, trap?.name || "落とし穴");
           }
         } else {
           removeMonster(dg, _pfm);
@@ -3624,14 +3628,16 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_trm) {
         const _td = rng(3, 8);
         _trm.hp -= _td;
-        if (blockLargeMonsterStatus(_trm, "knockdown", ml)) {
+        if (_trm.hp <= 0) {
+          ml.push(`${_trm.name}が転んだ！${_td}ダメージ！`);
+          killMonsterByTrap(_trm, dg, p, ml, luFn, trap?.name || "転倒の罠");
+        } else if (blockLargeMonsterStatus(_trm, "knockdown", ml)) {
           ml.push(`${_trm.name}は転倒耐性で踏みとどまった！${_td}ダメージ！`);
         } else {
           startLargeMonsterStatusCooldown(_trm, "knockdown");
           _trm.knockdownTurns = Math.max(_trm.knockdownTurns || 0, 2);
           ml.push(`${_trm.name}が転んだ！${_td}ダメージ！(2ターン行動不能)`);
         }
-        if (_trm.hp <= 0) killMonster(_trm, dg, p, ml, luFn);
       }
       if (p && p.x === tx && p.y === ty) {
         applyPlayerTrip(p, dg, ml, {
@@ -3702,14 +3708,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_bbm.name}が吹き飛ばされた！`);
           if (_bbHitWall) { _bbm.hp -= 10; ml.push(`${_bbm.name}が壁に激突！10ダメージ！`); }
           if (_bbHitOther) { _bbm.hp -= 10; _bbHitOther.hp -= 10; ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！お互いに10ダメージ！`); }
-          if (_bbm.hp <= 0) {
-            ml.push(`${_bbm.name}は倒れた！`);
-            killMonster(_bbm, dg, p, ml, null, true);
-          }
-          if (_bbHitOther?.hp <= 0) {
-            ml.push(`${_bbHitOther.name}は倒れた！`);
-            killMonster(_bbHitOther, dg, p, ml, null, true);
-          }
+          if (_bbm.hp <= 0) killMonsterByTrap(_bbm, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
+          if (_bbHitOther?.hp <= 0) killMonsterByTrap(_bbHitOther, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
         }
       }
       if (p && p.x === tx && p.y === ty) {
@@ -3731,8 +3731,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           _pHitMon.hp -= 10;
           ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`);
           if (_pHitMon.hp <= 0) {
-            ml.push(`${_pHitMon.name}は倒れた！`);
-            killMonster(_pHitMon, dg, p, ml, null, true);
+            killMonsterByTrap(_pHitMon, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           }
         }
         else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
@@ -3905,8 +3904,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           if (!blockLargeMonsterDamage(_rtm, p, ml)) {
             const _bd = bossInstantDeathDamage(_rtm);
             _rtm.hp -= _bd;
-            ml.push(`${_rtm.name}は腐敗に耐えたが${_bd}ダメージを受けた！`);
-            if (_rtm.hp <= 0) killMonster(_rtm, dg, p, ml, luFn);
+            ml.push(`${_rtm.name}は腐敗に蝕まれた！${_bd}ダメージ！`);
+            if (_rtm.hp <= 0) killMonsterByTrap(_rtm, dg, p, ml, luFn, trap?.name || "腐敗の罠");
           }
         } else {
           trackMonster(_rtm);
@@ -3979,7 +3978,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _boneDmg = rng(5, 12);
         _boneM.hp -= _boneDmg;
         ml.push(`骨が${_boneM.name}に激突！${_boneDmg}ダメージ！`);
-        if (_boneM.hp <= 0) killMonster(_boneM, dg, p, ml, luFn);
+        if (_boneM.hp <= 0) killMonsterByTrap(_boneM, dg, p, ml, luFn, "飛んできた骨");
       } else if (p && p.x === tx && p.y === ty) {
         const _boneDmg = rng(5, 12);
         p.deathCause = "飛んできた骨に激突して";
@@ -6667,6 +6666,10 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
   }
 }
 
+function killMonsterByTrap(mon, dg, p, ml, luFn, cause) {
+  killMonster(mon, dg, p, ml, luFn, true, null, false, false, false, cause);
+}
+
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false, noExpCause = null) {
@@ -6744,7 +6747,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     );
     for (const clone of linkedClones) {
       ml.push(`${clone.name}は本体の消滅とともに倒れた！`);
-      killMonster(clone, dg, p, ml, luFn, noExp, killerMon);
+      killMonster(clone, dg, p, ml, luFn, noExp, killerMon, false, false, false, noExpCause);
     }
   }
   /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */

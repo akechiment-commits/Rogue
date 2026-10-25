@@ -332,7 +332,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
           _bbHitMon.hp -= 10;
           ml.push(`${_bbHitMon.name}に激突！お互いに10ダメージ！`);
           if (_bbHitMon.hp <= 0) {
-            ml.push(`${_bbHitMon.name}は倒れた！`);
+            ml.push(`${_bbHitMon.name}は${trap.name}の衝突で倒れた！（経験値なし）`);
             trackMonster(_bbHitMon);
             monsterDrop(_bbHitMon, dg, ml, p);
             removeMonster(dg, _bbHitMon);
