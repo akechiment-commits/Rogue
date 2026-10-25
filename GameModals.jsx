@@ -901,8 +901,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     const _newNick = (nick ?? '').trim() || null;
     if (_newNick) sr.current.nicknames[_k] = _newNick;
     else delete sr.current.nicknames[_k];
-    /* 一度名前を付けた大箱の種類は、名前を消しても冒険中は識別済みのまま */
-    if (_isBigbox && _newNick) markBigboxKindIdentified(sr.current, _k.slice(3));
+    /* 大箱のニックネームは表示名だけを変え、識別状態には影響させない。 */
     if (_k.startsWith('n:')) {
       const _updatePentacles = (dg) => {
         if (!dg?.pentacles) return;
