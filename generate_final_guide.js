@@ -829,6 +829,7 @@ function monTraits(m) {
   if (m.baseKind === 'boss_abyssgod') t.push('毎ターン回復。4ターンごとに手下を2体召喚。近接攻撃命中時、金縛り25%・防御半減25%');
   if (m.baseKind === 'im_boss_titan') t.push('近接攻撃命中時25%で移動封じ。毎ターン回復');
   if (m.baseKind === 'serpent') t.push('隣接時25%で毒撃（1回攻撃）。命中時は毒薬と同じ攻撃力-1と毎ターンダメージ。不発時は通常の二回攻撃。封印中は毒撃なし');
+  if (m.baseKind === 'zombie') t.push('速度0.5で行動が遅い代わりに、一撃が重く体力も多い。炎弱点に加え、アンデッド特効やアンデッドにダメージを与える回復効果も弱点');
   if (m.baseKind === 'dragon' || m.baseKind === 'icedragon') {
     const breath = m.baseKind === 'dragon' ? '炎' : '氷';
     t.push(`${breath}ブレス（Lv1は一直線で通常の遠距離特技率50%、Lv2は同部屋で20%、Lv3は同フロアで10%。Lv2/Lv3は1マスごとにプレイヤーを追尾。Lv3は未認識でも発射し、発射時にプレイヤーを認識する）`);

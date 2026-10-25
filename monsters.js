@@ -1062,10 +1062,10 @@ export const MONS = [
       { name: "コイトフクマル",     hp: 24,  atk: 0,  def: 0,  exp: 500, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "ゾンビ",       hp: 45,  atk: 14, def: 2,  exp: 22,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 7, max: 10 }, advanced: { min: 5, max: 14 } },
+  { name: "ゾンビ",       hp: 60,  atk: 24, def: 4,  exp: 36,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", desc: "歩みは遅いが、一撃が重い。", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 7, max: 10 }, advanced: { min: 5, max: 14 } },
     levels: [
-      { name: "中ゾンビ",           hp: 110,  atk: 24, def: 4, exp: 75,  dungeonFloors: { advanced: { min: 17, max: 21 } } },
-      { name: "強ゾンビ",           hp: 210, atk: 36, def: 7, exp: 240, dungeonFloors: { advanced: { min: 22, max: 24 } } },
+      { name: "中ゾンビ",           hp: 135,  atk: 36, def: 7, exp: 100,  dungeonFloors: { advanced: { min: 17, max: 21 } } },
+      { name: "強ゾンビ",           hp: 250, atk: 50, def: 11, exp: 320, dungeonFloors: { advanced: { min: 22, max: 24 } } },
     ],
   },
   { name: "ワッカ",       hp: 20,  atk: 11, def: 2,  exp: 18,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, waterWalker: true, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 }, advanced: { min: 6, max: 14 } },
