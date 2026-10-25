@@ -1780,7 +1780,7 @@ export const GWEN_BOSS = {
   speed: 1, tile: 255, kind: "humanoid", baseKind: "boss_gwen",
   isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 0,
   dialogueLines: GWEN_IDLE_DIALOGUE_LINES, deathLines: GWEN_DEATH_LINES,
-  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。生存中にプレイヤーの視界内で4ターン行動するごとに、B5Fの通常出現候補からモンスターを1体、隣接する空き床へ呼び出す。視界外では召喚間隔が進まない。",
+  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、ゾンビ・分裂スライム・ワッカ・キノコ系から1体、25%で2体を隣接する空き床へ呼び出す。召喚候補はB10F相当の強さ。視界外では召喚間隔が進まない。",
 };
 
 export const GWEN_VETERAN_BOSS = {
@@ -5185,11 +5185,23 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   m.y = _next.y;
 }
 
+const GWEN_B5_SUMMON_BASE_KINDS = new Set(["zombie", "slime", "wokka", "mushroom"]);
+
 function summonGwenMonster(gwen, dg, pl, ml) {
   if (!Array.isArray(dg.monsters)) dg.monsters = [];
   const floor = gwen.baseKind === "boss_gwen_veteran" ? 20 : 5;
-  const { base, spawnLevel } = pickMonsterDef(floor - 1, "legend", true, { excludeLarge: true });
-  if (!base || !legendMonsterAllowed(base.baseKind, floor)) return false;
+  const poolFloor = gwen.baseKind === "boss_gwen_veteran" ? floor : 10;
+  let base, spawnLevel;
+  if (gwen.baseKind === "boss_gwen") {
+    const summonPool = MONS.filter(monster => GWEN_B5_SUMMON_BASE_KINDS.has(monster.baseKind) &&
+      legendMonsterAllowed(monster.baseKind, poolFloor) && (monster.bodySize || 1) <= 1);
+    if (summonPool.length === 0) return false;
+    base = pick(summonPool);
+    spawnLevel = legendMonsterSpawnLevel(base, poolFloor);
+  } else {
+    ({ base, spawnLevel } = pickMonsterDef(poolFloor - 1, "legend", true, { excludeLarge: true }));
+  }
+  if (!base || !legendMonsterAllowed(base.baseKind, poolFloor)) return false;
 
   const offsets = shuffle([[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]);
   const occupiedObjects = [dg.items, dg.traps, dg.springs, dg.bigboxes, dg.pentacles, dg.statues,
@@ -5210,6 +5222,16 @@ function summonGwenMonster(gwen, dg, pl, ml) {
     return true;
   }
   return false;
+}
+
+function summonGwenWave(gwen, dg, pl, ml) {
+  const summonCount = gwen.baseKind === "boss_gwen" && Math.random() < 0.25 ? 2 : 1;
+  let summonedAny = false;
+  for (let i = 0; i < summonCount; i++) {
+    if (!summonGwenMonster(gwen, dg, pl, ml)) break;
+    summonedAny = true;
+  }
+  return summonedAny;
 }
 
 function useGwenVeteranWand(monster, player, opts, dx, dy, effect) {
@@ -6348,7 +6370,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] &&
-        summonGwenMonster(m, dg, pl, ml)) {
+        summonGwenWave(m, dg, pl, ml)) {
       m.gwenVisibleTurns = 0;
     }
     if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {

@@ -2440,7 +2440,7 @@ function genBossFloor(depth, dungeonType = null) {
   /* { baseKind, level }[] の配列でボスごとに取り巻き種を定義 */
   const _minionSpec = (() => {
     switch (bt.baseKind) {
-      case "boss_gwen":          return [];
+      case "boss_gwen":          return [{ bk: "zombie", lv: 1 }, { bk: "slime", lv: 1 }, { bk: "wokka", lv: 1 }];
       case "boss_gwen_veteran":  return [];
       case "boss_flock":         return [];
       case "boss_flock_revenge": return [];
