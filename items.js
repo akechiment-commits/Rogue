@@ -225,6 +225,15 @@ let _pitfallBag = null;
 export function setPitfallBag(bag) { _pitfallBag = bag; }
 export function clearPitfallBag() { _pitfallBag = null; }
 
+export function applyFallImpactDamage(p, ml, deathCause, messagePrefix) {
+  if (!p) return 0;
+  const damage = rng(1, 5);
+  p.deathCause = deathCause;
+  p.hp -= damage;
+  ml.push(`${messagePrefix}${damage}ダメージ！`);
+  return damage;
+}
+
 /* ===== ITEM TILES ===== */
 export const ITEM_TILES = {
   potion_heal: 16, potion_big: 17, scroll: 18, food: 19, food_icecream: 209,
@@ -497,7 +506,7 @@ export const ITEMS = [
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱。\n呪い：混乱解除＋必中。投げると敵の混乱解除。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：飲むと敵感知100T。投げると敵の暗闇解除。", tile:16 },
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：飲むと罠看破。投げると敵の幻惑解除。", tile:16 },
-  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：飲むと1階上へ。投げると敵がレベルダウン。", tile:17 },
+  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：天井を突き破って1階上へ（1～5ダメージ）。投げると敵がレベルダウン。", tile:17 },
   { name:"金貨",             type:"gold",   value:1,                     desc:"金貨。",                           tile:22 },
   { ...GOLD_NUGGET_T },
   { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"D", weight:8,  sellPrice:250,
@@ -819,7 +828,7 @@ export const WANDS = [
   { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:4,  sellPrice:400,  desc:"振ると対象を眠りに落とす。\n呪い：自分はフロアの敵が見える。敵に当たると眠り解除。",                                   tile:24 },
   { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:1, rarity:"A", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:1, rarity:"A", weight:1,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
-  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"B", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：自分は1階上へワープ、敵はレベルダウン。", tile:24 },
+  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"B", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：天井を突き破って自分は1階上へ（1～5ダメージ）、敵はレベルダウン。", tile:24 },
   { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。", tile:24 },
   { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：自分はフロア全体が見える。敵に当たると暗闇解除。", tile:24 },
   { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：自分は罠が見える。敵に当たると幻惑解除。", tile:24 },
@@ -3397,7 +3406,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       } else if (item?._ephemeralTrapTrigger) {
         ml.push(`${trap.name}が発動！`);
       }
-      if (p && p.x === tx && p.y === ty) return "pitfall_player";
+      if (p && p.x === tx && p.y === ty) {
+        if (isPlayerFloating(p, dg)) {
+          ml.push(`浮遊しているので${trap.name}に落ちなかった！`);
+          return "destroyed";
+        }
+        return "pitfall_player";
+      }
       return "destroyed";
     }
     case "rust": {
@@ -4955,9 +4970,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "levelup":
       if (kind === "player") {
         if (cursed) {
-          // 呪い：1階上へワープ（フラグ経由でGame.jsx側が処理）
-          p._pendingWarpUp = true;
-          ml.push("呪われたレベルアップの薬！天井を突き破って上の階へ飛ばされた！【呪】");
+          applyFallImpactDamage(p, ml, "呪われたレベルアップで天井を突き破った衝撃で", "天井を突き破る衝撃！");
+          if (p.hp > 0) {
+            // 呪い：1階上へワープ（フラグ経由でGame.jsx側が処理）
+            p._pendingWarpUp = true;
+            ml.push("呪われたレベルアップの薬！天井を突き破って上の階へ飛ばされた！【呪】");
+          } else {
+            ml.push("呪われたレベルアップの薬！天井を突き破った衝撃で倒れた！【呪】");
+          }
         } else {
           const _times = blessed ? 2 : 1;
           for (let _i = 0; _i < _times; _i++) {

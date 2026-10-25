@@ -3,7 +3,7 @@ import { adjustPlayerBaseMaxHp, setPlayerItemProperties } from "./equipmentEffec
 import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
-  resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft, declareShopTheft,
+  resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft, declareShopTheft, applyFallImpactDamage,
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
   soakItemIntoSpring, splashPotion, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, withParalysisHit,
@@ -1754,8 +1754,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         if (_luCursed) {
-          p._pendingWarpUp = true;
-          ml.push("呪われた杖！天井を突き破って上の階へ飛ばされた！【呪】");
+          applyFallImpactDamage(p, ml, "呪われたレベルアップで天井を突き破った衝撃で", "天井を突き破る衝撃！");
+          if (p.hp > 0) {
+            p._pendingWarpUp = true;
+            ml.push("呪われた杖！天井を突き破って上の階へ飛ばされた！【呪】");
+          } else {
+            ml.push("呪われた杖！天井を突き破った衝撃で倒れた！【呪】");
+          }
         } else {
           const _times = _luBlessed ? 2 : 1;
           for (let _i = 0; _i < _times; _i++) { p.exp = p.nextExp; luFn(p, ml); }

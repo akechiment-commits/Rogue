@@ -7,7 +7,7 @@ import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueL
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
-  gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger,
+  gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
@@ -512,20 +512,29 @@ export function useItemActions({
           // 呪い：1階上へワープ（1階なら効果なし）
           if (p.depth <= 1) {
             if (onReturnToHub) {
-              ml.push(`${_useItemName}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
-              setMsgs((prev) => [...prev.slice(-80), ...ml]);
-              sr.current = { ...sr.current };
-              clearGameSave();
-              const _hasGoalP = p.inventory.some(i => i.type === "goal");
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
-              return;
+              applyFallImpactDamage(p, ml, "呪われたレベルアップで天井を突き破った衝撃で", "天井を突き破る衝撃！");
+              if (p.hp > 0) {
+                ml.push(`${_useItemName}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
+                setMsgs((prev) => [...prev.slice(-80), ...ml]);
+                sr.current = { ...sr.current };
+                clearGameSave();
+                const _hasGoalP = p.inventory.some(i => i.type === "goal");
+                onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
+                return;
+              }
+              ml.push(`${_useItemName}を飲んだ。天井を突き破った衝撃で倒れた！【呪】`);
             } else {
               ml.push(`${_useItemName}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
             }
           } else {
-            ml.push(`${_useItemName}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
-            const _luNd = chgFloor(p, -1, true);
-            if (_luNd) sr.current.dungeon = _luNd;
+            applyFallImpactDamage(p, ml, "呪われたレベルアップで天井を突き破った衝撃で", "天井を突き破る衝撃！");
+            if (p.hp > 0) {
+              ml.push(`${_useItemName}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
+              const _luNd = chgFloor(p, -1, true);
+              if (_luNd) sr.current.dungeon = _luNd;
+            } else {
+              ml.push(`${_useItemName}を飲んだ。天井を突き破った衝撃で倒れた！【呪】`);
+            }
           }
         } else {
           const _luTimes = it.blessed ? 2 : 1;
