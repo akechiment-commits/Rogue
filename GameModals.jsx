@@ -7,7 +7,7 @@ import { getForgeAbilityIds, removeForgeAbility } from "./forgeAbilityRules.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
-import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, getPotInputTargets, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
+import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T } from "./items.js";
 import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
@@ -3094,13 +3094,22 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
   const pot = mode.floorPot || p.inventory[mode.potIdx];
   if (!pot) return null;
   const _cancel = onCancel || (() => setMode(null));
-  const pItems = p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx);
+  const _floorPotItems = listFloorInventoryEntries(gs?.dungeon, p.x, p.y).items
+    .filter(isPotStorableItem)
+    .map((it) => ({ it, i: null, floorItem: it }));
+  const pItems = [
+    ...p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx),
+    ..._floorPotItems,
+  ];
   const _psp = 10;
   const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
   const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
   const _potKey = getIdentKey(pot);
   const _potKnown = !!(gs?.allBcKnown || pot.fullIdent || (_potKey && gs?.ident?.has(_potKey)));
   const isCancelSel = putMenuSel >= _pgp.length;
+  const _floorPutTarget = mode.floorPot
+    ? { pot, floorPot: mode.floorPot, closeAfterPut: false }
+    : { pot, potIdx: mode.potIdx, closeAfterPut: false };
   return (
     <div
       style={{
@@ -3137,13 +3146,17 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
               <span>({putPage * _psp + 1}〜{Math.min((putPage + 1) * _psp, pItems.length)}件)</span>
             </div>
           )}
-          {_pgp.map(({ it: it2, i: i2 }, vi) => {
+          {_pgp.map(({ it: it2, i: i2, floorItem: _floorItem }, vi) => {
             const isPot = it2.type === "pot";
             const isSel = vi === putMenuSel;
             const isDisabled = isPot;
             const isEff = _potKnown && isPotEffective(pot.potEffect, it2);
             return (
-              <div key={i2} onClick={() => { if (!isDisabled) doPutItem(i2); }}
+              <div key={_floorItem ? `floor-${_floorItem.id ?? vi}` : i2} onClick={() => {
+                if (isDisabled) return;
+                if (_floorItem) doPutFloorItem(_floorItem, _floorPutTarget);
+                else doPutItem(i2);
+              }}
                 style={{
                   padding: "5px 8px", margin: "2px 0",
                   background: isSel ? (isDisabled ? "#3a1a1a" : isEff ? "#1a3a1a" : "#28285a")
@@ -3154,7 +3167,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
                   opacity: isDisabled ? 0.5 : 1,
                 }}
               >
-                {iLabel(it2)}{isDisabled && " (入れられない)"}
+                {_floorItem ? `【足元】${iLabel(it2)}` : iLabel(it2)}{isDisabled && " (入れられない)"}
               </div>
             );
           })}

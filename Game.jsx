@@ -36,7 +36,7 @@ import {
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
-  releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, getPotInputTargets,
+  releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
 } from "./items.js";
 import { applyWandEffect, triggerWandBreakEffect, monsterFireLightning } from "./wands.js";
@@ -6307,6 +6307,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs(prev => [...prev.slice(-80), "店の商品は壺に入れられない！先に代金を払ってください。"]);
       return;
     }
+    if (!isPotStorableItem(item)) {
+      setMsgs(prev => [...prev.slice(-80), "このアイテムは壺に入れられない。"]);
+      return;
+    }
     if (getPotInputTargets(_p, _dg).length === 0) {
       setMsgs(prev => [...prev.slice(-80), "入れられる壺がない。"]);
       return;
@@ -6323,7 +6327,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const s = sr.current;
     if (!s) return;
     const { player: _p, dungeon: _dg } = s;
-    if (!item || !_dg.items?.includes(item) || item.x !== _p.x || item.y !== _p.y ||
+    if (!item || !_dg.items?.includes(item) || item.x !== _p.x || item.y !== _p.y || item.noPickup ||
         floorEntryRole(item, _dg.items, _dg.traps) !== "item" || typeof item.type !== "string") {
       setPutMode(null);
       setMsgs(prev => [...prev.slice(-80), "そのアイテムはもう足元にない。"]);
@@ -6344,6 +6348,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs(prev => [...prev.slice(-80), "店の商品は壺に入れられない！先に代金を払ってください。"]);
       return;
     }
+    if (!isPotStorableItem(item)) {
+      setPutMode(null);
+      setMsgs(prev => [...prev.slice(-80), "このアイテムは壺に入れられない。"]);
+      return;
+    }
     const pot = target?.floorPot || _p.inventory[target?.potIdx];
     const _targetStillPresent = target?.floorPot
       ? _dg.items?.includes(target.floorPot) && target.floorPot.x === _p.x && target.floorPot.y === _p.y
@@ -6359,9 +6368,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (item.type !== "gold") trackItem(item);
     const itemIdx = _p.inventory.length;
     _p.inventory.push(item);
+    const _closeAfterPut = target.closeAfterPut !== false;
     const _putOptions = target.floorPot
-      ? { floorPot: target.floorPot, closeAfterPut: true }
-      : { potIdx: target.potIdx, closeAfterPut: true };
+      ? { floorPot: target.floorPot, closeAfterPut: _closeAfterPut }
+      : { potIdx: target.potIdx, closeAfterPut: _closeAfterPut };
     doPutItem(itemIdx, _putOptions);
   };
   /* 壺入れをやめる：所持品から開いた場合は壺にカーソルを戻して所持品を再表示 */
@@ -7014,12 +7024,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         : null;
                       const _putItems = putMode.floorItem
                         ? _floorPutTargets.map((target) => ({ it: target.pot, i: target.potIdx, target }))
-                        : _putInv.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
+                        : [
+                            ..._putInv.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx),
+                            ...listFloorInventoryEntries(sr.current.dungeon, sr.current.player.x, sr.current.player.y).items
+                              .filter(isPotStorableItem)
+                              .map((floorItem) => ({ it: floorItem, i: null, floorItem })),
+                          ];
                       const _pgItems = _putItems.slice(putPage * 10, (putPage + 1) * 10);
                       const _putLocal = Math.min(putMenuSel, _pgItems.length); /* length = やめる */
                       if (_putLocal >= _pgItems.length) { cancelPutMode(); return; }
                       const _putSel = _pgItems[_putLocal];
                       if (putMode.floorItem && _putSel) _doPutFloorItem(putMode.floorItem, _putSel.target);
+                      else if (_putSel?.floorItem) {
+                        const _target = putMode.floorPot
+                          ? { pot: putMode.floorPot, floorPot: putMode.floorPot, closeAfterPut: false }
+                          : { pot: _putInv[putMode.potIdx], potIdx: putMode.potIdx, closeAfterPut: false };
+                        _doPutFloorItem(_putSel.floorItem, _target);
+                      }
                       else if (_putSel && _putSel.it.type !== "pot") doPutItem(_putSel.i);
                       return;
                     }

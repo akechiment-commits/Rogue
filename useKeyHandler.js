@@ -14,7 +14,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, formatSoldItemMessage, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
-  extractPotContents, scatterPotContents, reducePotCapacity, getPotInputTargets,
+  extractPotContents, scatterPotContents, reducePotCapacity, isPotStorableItem, getPotInputTargets,
   declareFloorExitTheft,
 } from "./items.js";
 import { prepareLastFloor } from "./dungeon.js";
@@ -530,7 +530,12 @@ export function useKeyHandler({
           : null;
         const pItems4 = putMode.floorItem
           ? _floorPutTargets.map((target) => ({ it: target.pot, i: target.potIdx, target }))
-          : inv4.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
+          : [
+              ...inv4.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx),
+              ...listFloorInventoryEntries(sr.current.dungeon, sr.current.player.x, sr.current.player.y).items
+                .filter(isPotStorableItem)
+                .map((floorItem) => ({ it: floorItem, i: null, floorItem })),
+            ];
         const _ps4 = 10;
         const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
         const _pg4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4);
@@ -559,6 +564,11 @@ export function useKeyHandler({
             const sel4 = _pg4[_localSel];
             if (putMode.floorItem) {
               invActRef.current?.floorPutItem?.(putMode.floorItem, sel4.target);
+            } else if (sel4.floorItem) {
+              const _target = putMode.floorPot
+                ? { pot: putMode.floorPot, floorPot: putMode.floorPot, closeAfterPut: false }
+                : { pot: inv4[putMode.potIdx], potIdx: putMode.potIdx, closeAfterPut: false };
+              invActRef.current?.floorPutItem?.(sel4.floorItem, _target);
             } else if (sel4.it.type === "pot")
               setMsgs((prev) => [
                 ...prev.slice(-80),

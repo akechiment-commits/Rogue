@@ -1152,11 +1152,17 @@ export function potOccupancyCount(pot) {
   return (pot.contents?.length || 0) + (pot.confinedMonsters?.length || 0);
 }
 
-/** 所持品の中から、道具を受け入れられる壺を選ぶ。 */
+/** 壺がアイテムを受け入れられる状態か。 */
 export function canAcceptPotItem(pot) {
   return !!pot && pot.type === "pot" && pot.potEffect !== "imprison" &&
     pot.shopPrice == null && pot._shopId == null &&
     potOccupancyCount(pot) < (pot.capacity ?? 3);
+}
+
+/** 通常の壺へ入れられるアイテム（入れ子・キー品・店の商品を除く）。 */
+export function isPotStorableItem(item) {
+  return !!item && typeof item.type === "string" && item.type !== "pot" && item.type !== "goal" &&
+    item.shopPrice == null && item._shopId == null;
 }
 
 /** 足元アイテムの投入先にできる、所持中または足元の壺。 */
