@@ -1780,7 +1780,7 @@ export const GWEN_BOSS = {
   speed: 1, tile: 255, kind: "humanoid", baseKind: "boss_gwen",
   isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 0,
   dialogueLines: GWEN_IDLE_DIALOGUE_LINES, deathLines: GWEN_DEATH_LINES,
-  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、B10F相当のゾンビ・分裂スライム・ワッカから1体、25%で2体を隣接する空き床へ呼び出す。毒胞子で味方を巻き込むキノコは召喚対象外。視界外では召喚間隔が進まない。",
+  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、B10F相当のゾンビ・分裂スライム・ワッカから1体、25%で2体を隣接する空き床へ呼び出す。呼び出された敵は出現したターンには行動しない。毒胞子で味方を巻き込むキノコは召喚対象外。視界外では召喚間隔が進まない。",
 };
 
 export const GWEN_VETERAN_BOSS = {
@@ -1788,7 +1788,7 @@ export const GWEN_VETERAN_BOSS = {
   speed: 1, tile: 256, kind: "humanoid", baseKind: "boss_gwen_veteran", subtype: "gwen_veteran",
   isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, gwenWandCharges: 6,
   dialogueLines: GWEN_VETERAN_IDLE_DIALOGUE_LINES, deathLines: GWEN_VETERAN_DEATH_LINES,
-  desc: "超上級B20Fのボス。通常攻撃に加え、B5Fと同じ4ターンごとの召喚を行う。視界内の直線上へ50%で貫きの矢（12本）、50%で鈍足・混乱・眠り・暗闇の杖を振る（4種の杖を合計6回まで）。隣接時も20%で杖を使う。",
+  desc: "超上級B20Fのボス。通常攻撃に加え、B5Fと同じ4ターンごとの召喚を行う。呼び出された敵は出現したターンには行動しない。視界内の直線上へ50%で貫きの矢（12本）、50%で鈍足・混乱・眠り・暗闇の杖を振る（4種の杖を合計6回まで）。隣接時も20%で杖を使う。",
 };
 
 export const FLOCK_BOSS = {
@@ -5219,6 +5219,8 @@ function summonGwenMonster(gwen, dg, pl, ml) {
     const summoned = makeMonsterFromBase(base, spawnLevel, x, y, {
       aware: true, lastPx: pl.x, lastPy: pl.y,
     });
+    /* moveOnlyで召喚した敵が同ターンのattackOnlyで動かず、次ターンから行動時計を進める。 */
+    summoned.actionTime = Number.isFinite(pl?.actionTime) ? pl.actionTime : 0;
     dg.monsters.push(summoned);
     ml.push(`グウェンの隣に${summoned.name}が現れた！`);
     return true;
