@@ -1780,7 +1780,7 @@ export const GWEN_BOSS = {
   speed: 1, tile: 255, kind: "humanoid", baseKind: "boss_gwen",
   isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 0,
   dialogueLines: GWEN_IDLE_DIALOGUE_LINES, deathLines: GWEN_DEATH_LINES,
-  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、ゾンビ・分裂スライム・ワッカ・キノコ系から1体、25%で2体を隣接する空き床へ呼び出す。召喚候補はB10F相当の強さ。視界外では召喚間隔が進まない。",
+  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、ゾンビ・分裂スライム・ワッカ・キノコ系から1体、25%で2体を隣接する空き床へ呼び出す。召喚候補はB10F相当の強さ。毒キノコの毒胞子は受けない。視界外では召喚間隔が進まない。",
 };
 
 export const GWEN_VETERAN_BOSS = {
@@ -4243,6 +4243,11 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
 
   for (const target of targets) {
     const isPlayer = target === p;
+    if (!isPlayer && sporeType === "poison" &&
+        (target.baseKind === "boss_gwen" || target.baseKind === "boss_gwen_veteran")) {
+      ml.push(`${target.name}は毒胞子をはねのけた！`);
+      continue;
+    }
     if (inMagicSealRoom(target.x, target.y, dg)) {
       ml.push(`${isPlayer ? "プレイヤー" : target.name}は魔封じの魔方陣に守られた！`);
       continue;
@@ -4286,6 +4291,8 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
         startLargeMonsterStatusCooldown(target, "poison");
         const turns = statusTurns("poison", { kind: "monster", target });
         target.poisonedTurns = (target.poisonedTurns || 0) + turns;
+        target.sporePoisonKillerId = mon.id;
+        target.sporePoisonKillerName = mon.name;
         if (!target.poisonHalfAtk) {
           target.poisonOrigAtk = target.atk;
           target.poisonHalfAtk = true;
@@ -5397,6 +5404,7 @@ function purifyFlockStatus(monster, messages) {
   if ((monster.debuffDefHalfTurns || 0) > 0 && monster._debuffOrigDef !== undefined) monster.def = monster._debuffOrigDef;
   for (const key of [
     "poisonedTurns", "poisonHalfAtk", "poisonOrigAtk", "slowTurns", "bossSlowTurns", "_preSlowSpeed",
+    "sporePoisonKillerId", "sporePoisonKillerName",
     "confusedTurns", "drunkenTurns", "darknessTurns", "darkDir", "fleeingTurns",
     "blind", "blindTurns", "bewitched", "bewitchedTurns", "immobileTurns", "pacifistTurns",
     "attackSealTurns", "oilyTurns", "soakedTurns", "caswackTurns",
@@ -5593,11 +5601,21 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _pdmg = Math.floor(m.hp * 0.1) + 5;
       m.hp -= _pdmg;
       ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
-      if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
+      if (m.hp <= 0) {
+        const _sporeKiller = m.sporePoisonKillerId
+          ? (dg.monsters.find(other => other.id === m.sporePoisonKillerId) || {
+              id: m.sporePoisonKillerId, name: m.sporePoisonKillerName || "毒キノコ", hp: 0,
+            })
+          : null;
+        killMonster(m, dg, pl, ml, _luFn, false, _sporeKiller);
+        return;
+      }
     }
     if (m.poisonedTurns <= 0) {
       ml.push(`${m.name}の毒が切れた。`);
       if (m.poisonHalfAtk) { m.atk = m.poisonOrigAtk ?? m.atk; delete m.poisonHalfAtk; delete m.poisonOrigAtk; }
+      delete m.sporePoisonKillerId;
+      delete m.sporePoisonKillerName;
     }
   }
   /* 盲目状態（ボスのみターン経過で解除） */

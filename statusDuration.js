@@ -280,6 +280,8 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.drunkenTurns = 0;
   entity.poisoned = false;
   entity.poisonedTurns = 0;
+  delete entity.sporePoisonKillerId;
+  delete entity.sporePoisonKillerName;
   entity.sealedTurns = 0;
   entity.sealed = false;
   entity.attackSealTurns = 0;

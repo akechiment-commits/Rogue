@@ -4407,6 +4407,8 @@ export function cureBlessedHealAilments(entity, kind = "player") {
   } else if (entity.poisoned || (entity.poisonedTurns || 0) > 0) {
     entity.poisoned = false;
     entity.poisonedTurns = 0;
+    delete entity.sporePoisonKillerId;
+    delete entity.sporePoisonKillerName;
     if (entity.poisonHalfAtk) {
       entity.atk = entity.poisonOrigAtk ?? entity.atk;
       delete entity.poisonHalfAtk;
@@ -5256,6 +5258,8 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
         } else if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
           target.poisoned = false;
           target.poisonedTurns = 0;
+          delete target.sporePoisonKillerId;
+          delete target.sporePoisonKillerName;
           if (target.poisonHalfAtk) {
             target.atk = target.poisonOrigAtk ?? target.atk;
             delete target.poisonHalfAtk;
@@ -5483,6 +5487,8 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
         if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
           target.poisoned = false;
           target.poisonedTurns = 0;
+          delete target.sporePoisonKillerId;
+          delete target.sporePoisonKillerName;
           if (target.poisonHalfAtk) {
             target.atk = target.poisonOrigAtk ?? target.atk;
             delete target.poisonHalfAtk;
