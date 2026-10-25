@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { QUICK_MENU_ITEMS } from "./gamepadInput.js";
 
 export const QUICK_MENU_COLS = 2;
@@ -39,7 +40,6 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <span style={{ color: "#fff", fontWeight: "bold", fontSize: 15 }}>クイックメニュー</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "#666", fontSize: 11 }}>決定 / 閉じる</span>
             {onClose && (
               <button
                 onClick={onClose}
@@ -60,6 +60,7 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
             )}
           </div>
         </div>
+        <div style={{ color: "#777", fontSize: 11, textAlign: "right" }}>十字 / 左スティック:選択　B:決定　A/Y:閉じる</div>
         <div
           style={{
             display: "grid",
@@ -91,6 +92,111 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
               </div>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CONTROL_SECTIONS = [
+  {
+    title: "移動・戦闘",
+    rows: [
+      ["十字キー / 左スティック", "移動・メニュー選択"],
+      ["A 短押し", "アイテム欄を開く / メニューを戻る"],
+      ["Aを押しながら方向", "ダッシュ"],
+      ["B", "攻撃・アクション / メニュー決定"],
+      ["X + 方向", "向きだけ変更（移動しない）"],
+      ["X 短押し", "隣接する敵へ向きを切り替え"],
+      ["LB + 方向", "その方向へ矢を射る"],
+      ["LB", "向いている方向へ矢を射る"],
+      ["RB + 斜め方向", "斜め移動だけに固定"],
+      ["A + B 長押し", "足踏み。敵が近づくと自動停止"],
+    ],
+  },
+  {
+    title: "便利操作",
+    rows: [
+      ["LT + A", "足元の道具・階段などを操作"],
+      ["LT + B", "罠を探る"],
+      ["LT + X", "見渡す"],
+      ["LT + Y", "冒険ログ"],
+      ["RT + 方向", "便利ダッシュ。道具や出口まで進む"],
+      ["右スティック", "見渡す / 見渡し中にカーソル移動"],
+      ["Select", "マップ"],
+      ["Start", "登録アイテムを使う"],
+      ["Y", "クイックメニューを開く"],
+    ],
+  },
+  {
+    title: "画面ごとの操作",
+    rows: [
+      ["メニュー全般", "十字/左スティックで選択、Bで決定、Aで戻る"],
+      ["クイックメニュー", "Yで開く。十字/左スティックで選択、Bで実行、A/Yで閉じる"],
+      ["アイテム欄のX", "所持品を整頓"],
+      ["アイテム欄のY", "置くモードを切替。赤い表示中に所持品を選ぶと足元へ置く"],
+      ["拠点・ダンジョン選択", "十字/左スティックで選択、B/Startで決定、Aで戻る"],
+      ["拠点のLB / Select", "持参品と倉庫のタブを切替"],
+      ["拠点のY", "ページ送り"],
+    ],
+  },
+];
+
+/** Yクイックメニューから開く、ゲームパッド操作の一覧。 */
+export function GamepadControlsGuide({ open, onClose }) {
+  const panelRef = useRef(null);
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
+  if (!open) return null;
+  return (
+    <div
+      onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
+      style={{ position: "fixed", inset: 0, zIndex: 240, display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 12, boxSizing: "border-box", background: "rgba(0,0,0,0.82)" }}
+    >
+      <div
+        data-gamepad-controls-guide
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="コントローラー操作ガイド"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === "Escape") { event.preventDefault(); onClose?.(); }
+        }}
+        style={{ width: 680, maxWidth: "96vw", maxHeight: "88dvh", overflowY: "auto", outline: "none",
+          background: "#10101b", border: "1px solid #56617c", borderRadius: 9, padding: 14,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.75)", color: "#dde5f5" }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <div>
+            <div style={{ color: "#9cc8ff", fontSize: 19, fontWeight: "bold" }}>コントローラー操作ガイド</div>
+            <div style={{ color: "#78839b", fontSize: 11, marginTop: 2 }}>Yメニュー → 操作ガイド（標準配列 / Xbox表記）</div>
+          </div>
+          <button onClick={onClose} style={{ background: "#242432", color: "#ddd", border: "1px solid #4b4b60",
+            borderRadius: 4, padding: "5px 10px", cursor: "pointer", fontSize: 12 }}>閉じる</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 9 }}>
+          {CONTROL_SECTIONS.map((section) => (
+            <section key={section.title} style={{ background: "#151522", border: "1px solid #303044", borderRadius: 6, padding: "8px 10px" }}>
+              <div style={{ color: "#f4c975", fontWeight: "bold", fontSize: 13, borderBottom: "1px solid #343044", paddingBottom: 5, marginBottom: 5 }}>
+                {section.title}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(92px, auto) 1fr", gap: "4px 9px", fontSize: 11, lineHeight: 1.45 }}>
+                {section.rows.map(([button, action]) => (
+                  <div key={button} style={{ display: "contents" }}>
+                    <span style={{ color: "#b5c9ee", fontWeight: "bold" }}>{button}</span>
+                    <span style={{ color: "#bec2cf" }}>{action}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+        <div style={{ color: "#71798c", textAlign: "center", fontSize: 11, marginTop: 10 }}>
+          十字キー / 左スティック:スクロール　A・B・X・Y:閉じる
         </div>
       </div>
     </div>

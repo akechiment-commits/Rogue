@@ -416,8 +416,9 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       {/* 操作ガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, lineHeight:"1.8em", marginBottom:10,
         padding:"5px 8px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:4 }}>
-        <div>Shift:タブ切替　↑↓/テンキー8・2:選択　←→/テンキー4・6:操作切替　Enter/Z:実行　D:チェック</div>
-        <div>F:まとめて持参/倉庫へ　S:まとめて売る（確認あり）　X:閉じる</div>
+        <div>選択: ↑↓ / 十字 / 左スティック　操作切替: ←→</div>
+        <div>決定: Enter/Z/B/Start　戻る: A　タブ: Shift/LB/Select</div>
+        <div>D:チェック　F:まとめて持参　S:全売却　Y:ページ送り</div>
       </div>
 
       {/* 所持金 */}
@@ -1166,7 +1167,8 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
     <Panel title="ダンジョン入口" onClose={onClose}>
       {/* 操作ガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        ↑↓/テンキー8・2:ダンジョン選択　Z/Enter:出発　X:閉じる
+        <div>選択: ↑↓ / 十字 / 左スティック　出発: Z/Enter/B/Start</div>
+        <div>ページ: Y　閉じる: A</div>
       </div>
       {warehouseOver && (
         <div style={{ marginBottom:10, padding:"8px 10px", background:"#2a1a0d",

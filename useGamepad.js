@@ -156,12 +156,15 @@ export function useGamepad({
 }) {
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickSel, setQuickSel] = useState(0);
+  const [controllerGuideOpen, setControllerGuideOpen] = useState(false);
   const [ltHeld, setLtHeld] = useState(false);
   const ltHeldUiRef = useRef(false);
   const [rbHeld, setRbHeld] = useState(false);
   const rbHeldUiRef = useRef(false);
   const quickOpenRef = useRef(false);
   quickOpenRef.current = quickOpen;
+  const controllerGuideRef = useRef(false);
+  controllerGuideRef.current = controllerGuideOpen;
   const quickSelRef = useRef(0);
   quickSelRef.current = quickSel;
   const facingModeRef = useRef(!!facingMode);
@@ -217,6 +220,7 @@ export function useGamepad({
        spellList/tpSelect/look/map/floorSelect/identify/nickname/reveal/debugSpell など全部 */
     return !!(
       quickOpenRef.current ||
+      controllerGuideRef.current ||
       showInvRef.current ||
       lookModeRef.current ||
       mapModeRef.current ||
@@ -293,6 +297,9 @@ export function useGamepad({
         case "traps":
           act?.("search_traps");
           break;
+        case "controls":
+          setControllerGuideOpen(true);
+          break;
         case "interrupt":
           setExitHubConfirm?.(true);
           break;
@@ -310,6 +317,7 @@ export function useGamepad({
       setShowSettings,
       setShowScores,
       setShowTileEditor,
+      setControllerGuideOpen,
       setExitHubConfirm,
     ],
   );
@@ -487,6 +495,35 @@ export function useGamepad({
         }
         if (edgeDown(prev, next, BTN.A) || edgeDown(prev, next, BTN.Y)) {
           setQuickOpen(false);
+        }
+        prevBtnRef.current = next;
+        return;
+      }
+
+      /* 操作ガイド表示中は背景操作を止め、方向入力で内容をスクロールする。 */
+      if (controllerGuideRef.current) {
+        const closeByButton = [BTN.A, BTN.B, BTN.X, BTN.Y, BTN.START].find((button) => edgeDown(prev, next, button));
+        if (closeByButton !== undefined) {
+          if (closeByButton === BTN.A) { aDownAtRef.current = now; aUsedDashRef.current = true; }
+          if (closeByButton === BTN.X) xUsedDirRef.current = true;
+          if (waitChord) { waitHeldRef.current = true; waitStoppedRef.current = true; }
+          setControllerGuideOpen(false);
+        } else {
+          const direction = readMoveDir(gp);
+          const directionKey = direction ? `controls:${direction.dx},${direction.dy}` : null;
+          if (!directionKey) {
+            moveHeldRef.current = null;
+          } else if (moveHeldRef.current !== directionKey) {
+            moveHeldRef.current = directionKey;
+            moveFirstAtRef.current = now;
+            moveRepeatAtRef.current = now;
+            const guide = typeof document !== "undefined" ? document.querySelector("[data-gamepad-controls-guide]") : null;
+            guide?.scrollBy({ left: direction.dx * 120, top: direction.dy * 120 });
+          } else if (now - moveFirstAtRef.current >= MOVE_REPEAT_DELAY_MS && now - moveRepeatAtRef.current >= MOVE_REPEAT_MS) {
+            moveRepeatAtRef.current = now;
+            const guide = typeof document !== "undefined" ? document.querySelector("[data-gamepad-controls-guide]") : null;
+            guide?.scrollBy({ left: direction.dx * 120, top: direction.dy * 120 });
+          }
         }
         prevBtnRef.current = next;
         return;
@@ -817,6 +854,7 @@ export function useGamepad({
     openMsgLog,
     runQuickAction,
     tryRegisteredItem,
+    setControllerGuideOpen,
     applyMove,
     cancelModal,
     setFacingMode,
@@ -826,7 +864,7 @@ export function useGamepad({
     sr,
   ]);
 
-  return { quickOpen, quickSel, setQuickOpen, runQuickAction, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld };
+  return { quickOpen, quickSel, setQuickOpen, runQuickAction, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld, controllerGuideOpen, setControllerGuideOpen };
 }
 
 export { dirToArrow, modalDirToArrow, getGamepadArrow };

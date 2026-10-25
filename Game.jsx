@@ -85,7 +85,7 @@ import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { useGamepad, getGamepadArrow } from './useGamepad.js';
-import { GamepadQuickMenu, GamepadLtHint } from './GamepadQuickMenu.jsx';
+import { GamepadQuickMenu, GamepadControlsGuide, GamepadLtHint } from './GamepadQuickMenu.jsx';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
@@ -5813,7 +5813,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doOfferFood: doOfferFoodProxy, doMerchantBuy: doMerchantBuyProxy, doMerchantSell: doMerchantSellProxy,
     pastIdent, discoveredItems,
   });
-  const { quickOpen: gamepadQuickOpen, quickSel: gamepadQuickSel, setQuickOpen: setGamepadQuickOpen, runQuickAction, ltHeld: gamepadLtHeld } = useGamepad({
+  const { quickOpen: gamepadQuickOpen, quickSel: gamepadQuickSel, setQuickOpen: setGamepadQuickOpen,
+    runQuickAction, ltHeld: gamepadLtHeld, controllerGuideOpen: gamepadControlsOpen,
+    setControllerGuideOpen: setGamepadControlsOpen } = useGamepad({
     enabled: true,
     aRef,
     shiftRef,
@@ -6294,7 +6296,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   execRef.current = execDirection;
   const isModalActive = !!(
-    modal.type || gamepadQuickOpen || showInv || msgLogMode || showScores || showSettings ||
+    modal.type || gamepadQuickOpen || gamepadControlsOpen || showInv || msgLogMode || showScores || showSettings ||
     showSound || showSign || miniTip || showTileEditor || exitHubConfirm || dead || showEnding
   );
   const isAnyModalActive = isModalActive || !!throwMode;
@@ -7244,6 +7246,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         onCancel={() => setExitHubConfirm(false)}
         mobile={mobile} />
       <GamepadQuickMenu open={gamepadQuickOpen} sel={gamepadQuickSel} onSelect={runQuickAction} onClose={() => setGamepadQuickOpen(false)} />
+      <GamepadControlsGuide open={gamepadControlsOpen} onClose={() => setGamepadControlsOpen(false)} />
       <GamepadLtHint show={gamepadLtHeld} />
     </div>
   );

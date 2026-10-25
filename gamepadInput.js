@@ -122,5 +122,6 @@ export const QUICK_MENU_ITEMS = [
   { id: "scores", label: "冒険記録" },
   { id: "tiles", label: "タイル" },
   { id: "traps", label: "罠探る" },
+  { id: "controls", label: "操作ガイド" },
   { id: "interrupt", label: "中断" },
 ];
