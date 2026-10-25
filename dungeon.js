@@ -9,6 +9,7 @@ import {
 } from './items.js';
 import { scatterFloorGimmicks, makeAltar } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
+import { ordinaryFloorGoldRange } from "./springRules.js";
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
@@ -599,7 +600,10 @@ function buildUniPool(depth, dungeonType) {
     { w:  6, fn: () => lootOrFood(iPool.filter(i => i.type === "weapon")) },
     { w:  5, fn: () => lootOrFood(iPool.filter(i => i.type === "armor")) },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
-    { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
+    { w: 14, fn: () => {
+      const range = ordinaryFloorGoldRange(depth + 1);
+      return { name:"金貨", type:"gold", value: rng(range.min, range.max), tile:22, id: uid() };
+    } },
     { w:  4, fn: () => lootOrFood(sbPool) },
     { w:  4, fn: () => {
       const t = pickLootFromPool(potPool);
@@ -3531,7 +3535,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     { w:  6, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "weapon")) },
     { w:  5, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "armor")) },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
-    { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
+    { w: 14, fn: () => {
+      const range = ordinaryFloorGoldRange(depth + 1);
+      return { name:"金貨", type:"gold", value: rng(range.min, range.max), tile:22, id: uid() };
+    } },
     { w:  4, fn: () => lootOrFood(_SB_POOL) },
     { w:  4, fn: () => {
       const t = pickLootFromPool(_POT_POOL);

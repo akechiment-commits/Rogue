@@ -24,6 +24,7 @@ import {
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
 import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
+import { ordinaryFloorGoldRange } from "./springRules.js";
 import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
@@ -1500,6 +1501,10 @@ export function makeChangeBoxItem(context = "change", options = {}) {
   }
   const pool = dungeonLootPool(kindPool(rt), options);
   const tmpl = pickLootFromPool(pool, context) || pick(pool);
+  if (rt === "gold") {
+    const range = ordinaryFloorGoldRange(options.floor);
+    return { ...tmpl, id: uid(), value: rng(range.min, range.max) };
+  }
   return { ...tmpl, id: uid() };
 }
 
