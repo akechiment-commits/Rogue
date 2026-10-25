@@ -14,7 +14,6 @@ import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
 import { specialFixtureRate } from './specialFixtures.js';
 import { assignWanderingAdventurerKnowledge, assignWanderingAdventurerPersonality, createWanderingAdventurerIdentity, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
-import { applyLegendMonsterStatPressure } from "./legendMonsterRules.js";
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -875,10 +874,9 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
     ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType, true, _pickOpts));
   }
   const { levels: _lvls, ...mt } = base;
-  const rawStats = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
+  const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
     ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }
     : mt;
-  const st = applyLegendMonsterStatPressure(rawStats, dungeonType, depth + 1);
   const randomlyDormant = Math.random() < dormantRate;
   return {
     ...st, id: uid(), x, y, maxHp: st.hp, turnAccum: 0, aware: false,
@@ -1913,7 +1911,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
       pickedWaterMonster.spawnLevel,
       p[0],
       p[1],
-      { dormant: Math.random() < 0.12, dungeonType, floor: depth + 1 },
+      { dormant: Math.random() < 0.12 },
     ));
   }
   const itemTiles = islandTiles.length ? islandTiles : dryTiles;
@@ -3718,7 +3716,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         pickedWaterMonster.spawnLevel,
         _wx,
         _wy,
-        { dormant: false, dungeonType, floor: depth + 1 },
+        { dormant: false },
       ));
     }
   }

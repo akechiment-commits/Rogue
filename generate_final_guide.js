@@ -11,7 +11,6 @@ import { GOAL_ITEMS } from './dungeon.js';
 import { FIRST_ENCOUNTER_TIPS } from './firstEncounterTips.js';
 import { ALL_BGM_TRACKS, ALL_SE_LIST } from './musicData.js';
 import { soundEffectDuration } from './soundEffectData.js';
-import { LEGEND_MONSTER_STAT_BENCHMARKS, LEGEND_MONSTER_STAT_PRESSURE } from './legendMonsterRules.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
@@ -946,14 +945,6 @@ const monsterData = [
   ['【モンスターのレベル別カラー】', '', '', '', '', '', '', '', '', '', '全モンスターのLv2・Lv3に対して専用のパーツ別色分けスプライト（スタイル3）およびスタイル1の文字色連動を実装。体色（肌・毛・骨・翼など）はLv1青緑系・Lv2警戒黄色系・Lv3危険赤黒系を基本としつつ、服・パンツ・武器・盾・生体パーツ（顔・お腹）は体色と同化させず個別に差別化（例：ゴブリンの紺／漆黒金パンツ、スケルトンの白銀剣維持＋赤／深紫金盾など）。青バット（鮮烈青翼＋白腹）、緑／赤分裂スライム、赤錆虫、暗黒ヘビ、ゴールドタイガー、黒曜ガーゴイル、レッドドラゴンなど名前に色が入っている例外種は名前の色を最優先で適用する。'],
   ['─── 通常モンスター ───', '', '', '', '', '', '', '', '', '', ''],
 ];
-
-const legendStatBenchmarkText = LEGEND_MONSTER_STAT_BENCHMARKS
-  .map(({ floor, hp, atk, def }) => `B${floor}F HP${hp}/攻${atk}/防${def}`)
-  .join('、');
-monsterData.push([
-  '【超上級通常敵の階層補正】', '', '', '', '', '', '', '', '', '',
-  `超上級の通常敵はB6F以降、階層別の基準値へ能力を近づける。各能力が基準値より低い場合、HP・防御は通常敵で差の${Math.round(LEGEND_MONSTER_STAT_PRESSURE.normal * 100)}%、subtypeを持つ能力敵で差の${Math.round(LEGEND_MONSTER_STAT_PRESSURE.abilityHpDef * 100)}%を加算し、攻撃は通常敵で差の${Math.round(LEGEND_MONSTER_STAT_PRESSURE.normal * 100)}%、能力敵で${Math.round(LEGEND_MONSTER_STAT_PRESSURE.abilityAttack * 100)}%、複数回攻撃で${Math.round(LEGEND_MONSTER_STAT_PRESSURE.multiAttack * 100)}%を加算する。攻撃力0は0のまま。基準以上の能力、逃走役、物理ダメージ1固定、ボス、店主・冒険者、長居ペナルティ専用の敵は補正しない。階層基準（HP/攻撃/防御）：${legendStatBenchmarkText}。経験値・特技・行動速度・敵の生成数は変えず、形態変化・変換後も補正を維持する。旧セーブの敵は階到着時または再開時に一度だけ補正する。`,
-]);
 
 for (const m of MONS) {
   const spd = m.speed ?? 1;

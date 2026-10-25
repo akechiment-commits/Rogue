@@ -3026,8 +3026,6 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
       aware: true,
       lastPx: p?.x || mx,
       lastPy: p?.y || my,
-      dungeonType: dg.dungeonType ?? null,
-      floor: poolFloor,
     });
     dg.monsters.push(mon);
     n++;
