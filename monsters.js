@@ -5221,6 +5221,7 @@ function summonGwenMonster(gwen, dg, pl, ml) {
     });
     /* moveOnlyで召喚した敵が同ターンのattackOnlyで動かず、次ターンから行動時計を進める。 */
     summoned.actionTime = Number.isFinite(pl?.actionTime) ? pl.actionTime : 0;
+    summoned._gwenSummonedAtActionTime = summoned.actionTime;
     dg.monsters.push(summoned);
     ml.push(`グウェンの隣に${summoned.name}が現れた！`);
     return true;

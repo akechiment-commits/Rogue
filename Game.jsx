@@ -1866,6 +1866,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _phase = phaseMode || "both"; // "moveOnly" | "attackOnly" | "both"
     dg.monsters.forEach((m) => {
       if (sr.current?.dungeon !== dg || m.hp <= 0) return;
+      if (Number.isFinite(m._gwenSummonedAtActionTime)) {
+        if ((pl.actionTime || 0) <= m._gwenSummonedAtActionTime) return;
+        delete m._gwenSummonedAtActionTime;
+      }
       if (_phase === "attackOnly") {
         /* 移動した敵は攻撃フェーズをスキップ（speed<=1のみ。倍速敵は移動後も攻撃できる） */
         if (m._movedThisTurn) { delete m._movedThisTurn; return; }
