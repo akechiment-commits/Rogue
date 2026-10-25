@@ -2851,6 +2851,15 @@ export function useItemActions({
         setPutMode(null);
         return;
       }
+      const potStillAvailable = () => activePutMode.floorPot
+        ? !!sr.current?.dungeon?.items?.includes(pot) &&
+          pot.x === sr.current.player.x && pot.y === sr.current.player.y
+        : !!sr.current?.player?.inventory?.includes(pot);
+      if (!potStillAvailable()) {
+        setPutMode(null);
+        setMsgs(prev => [...prev.slice(-80), "その壺はもう使える場所にない。"]);
+        return;
+      }
       if (pot.potEffect === "imprison") {
         setMsgs((prev) => [...prev.slice(-80), "この壺に道具は入れられない。"]);
         setPutMode(null);
@@ -3015,7 +3024,7 @@ export function useItemActions({
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (!_potFull) {
-        if (activePutMode.hypnosis || activePutMode.closeAfterPut) {
+        if (activePutMode.hypnosis || activePutMode.closeAfterPut || !potStillAvailable() || potOccupancyCount(pot) >= pot.capacity) {
           setPutMode(null);
         } else {
           setPutMode(activePutMode.floorPot ? { floorPot: activePutMode.floorPot } : { potIdx: p.inventory.indexOf(pot) });
