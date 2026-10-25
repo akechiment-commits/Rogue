@@ -18,7 +18,7 @@ import {
   wakeIfDormant,
   triggerMushroomCounterSpore,
 } from './monsterRuntime.js';
-import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushItemFlyAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
+import { pushAnim, pushLightningAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushItemFlyAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
