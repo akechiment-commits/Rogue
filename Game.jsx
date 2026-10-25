@@ -3906,8 +3906,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       } else act("move", fd.dx, fd.dy);
     } else {
-      /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
-      if (ny > 0 && ny < MH - 1 && nx > 0 && nx < MW - 1 && dg.map[ny]?.[nx] === T.BWALL) {
+      const _frontTile = dg.map[ny]?.[nx];
+      const _frontWeapon = sr.current.player.weapon;
+      const _frontInside = nx > 0 && nx < MW - 1 && ny > 0 && ny < MH - 1;
+      const _attacksWall = _frontInside && (_frontTile === T.BWALL ||
+        (_frontTile === T.WALL && hasAbility(_frontWeapon, "pickaxe")));
+      if (_attacksWall && isAttackSealed(p)) {
+        act("wait");
+        setMsgs((prev) => [...prev.slice(-80), `攻撃が封印されている！(残り${p.attackSealTurns}ターン)`]);
+      } else if (ny > 0 && ny < MH - 1 && nx > 0 && nx < MW - 1 && dg.map[ny]?.[nx] === T.BWALL) {
+        /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
         dg.map[ny][nx] = T.FLOOR;
         wallBreakDrop(dg, nx, ny);
         act("wait");
