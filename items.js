@@ -3315,8 +3315,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
             ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
           }
           if (m.hp <= 0) {
-            ml.push(`${m.name}は倒れた！`);
-            killMonster(m, dg, p, ml, null, true);
+            killMonster(m, dg, p, ml, null, true, null, false, false, false, trap?.name || `${label}の罠`);
           }
         }
       }
@@ -6670,7 +6669,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
 
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
-export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false) {
+export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false, noExpCause = null) {
   const mx = mon.x, my = mon.y;
   if (mon.isPlayerClone) {
     if (dg?.monsters?.includes(mon)) {
@@ -6724,7 +6723,9 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   } else if (killerMon) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
   } else if (noExp || !p) {
-    ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
+    ml.push(noExpCause
+      ? `${mon.name}は${noExpCause}で倒れた！（経験値なし）`
+      : `${mon.name}は消し飛んだ！(経験値なし)`);
   } else {
     const _soyMul = (p.soyExpTurns || 0) > 0 ? 1.3 : 1;
     const _expGain = Math.floor(mon.exp * _soyMul);
