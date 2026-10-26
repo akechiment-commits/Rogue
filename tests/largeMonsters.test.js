@@ -27,10 +27,17 @@ describe('巨大敵の体の命中判定', () => {
     expect(monsterAreaHitCount(m,x-1,y-1,3)).toBe(hits);
   });
   it('実際に飛ばした薬は体の端で割れ、正面中央なら6ヒット', () => {
-    vi.spyOn(Math,'random').mockReturnValue(0);
+    vi.spyOn(Math,'random').mockReturnValue(0.05);
     const m=giant(), dg=makeEmptyDg({monsters:[m]}), p=makePlayer({x:5,y:10});
     throwItemAlongLine(p,dg,{id:'potion',name:'炎の薬',type:'potion',effect:'fire',value:50},1,0,15,[],p,()=>{},{isPlayerShooter:true});
     expect(m.hp).toBe(1730);
+  });
+  it('薬瓶を回避した巨大敵には、遠くで割れた飛沫は届かない', () => {
+    vi.spyOn(Math,'random').mockReturnValue(0);
+    const m=giant(), dg=makeEmptyDg({monsters:[m]}), p=makePlayer({x:5,y:10});
+    const result=throwItemAlongLine(p,dg,{id:'potion',name:'炎の薬',type:'potion',effect:'fire',value:50},1,0,15,[],p,()=>{});
+    expect(result).toMatchObject({x:20,y:10,splash:true});
+    expect(m.hp).toBe(2000);
   });
   it('範囲の途中で倒れても経験値・撃破処理は1体分', () => {
     vi.spyOn(Math,'random').mockReturnValue(0);
