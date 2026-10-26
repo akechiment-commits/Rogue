@@ -8312,6 +8312,29 @@ export function getSpellPowerMultiplier(level = 1) {
   return 1 + (_level - 1) * 0.3;
 }
 
+/** 炎の魔法の着弾爆風。通常詠唱と魔法書の自動発動で共通にする。 */
+export function applyFireSpellBlast(dg, p, landing, ml, luFn, level = 1) {
+  if (landing.hitType === "sealed" || isFireExplosionNullified(dg, p)) return;
+  const multiplier = getSpellPowerMultiplier(level);
+  pushExplosionAnim(landing.x, landing.y);
+  if (landing.hitType !== "void") ml.push("爆発！");
+  if (Math.max(Math.abs(p.x - landing.x), Math.abs(p.y - landing.y)) <= 1) {
+    const damage = multiplyCursedMagicDamage(Math.round(rng(10, 15) * multiplier), p, dg);
+    p.deathCause = "炎の魔法の爆風で";
+    p.hp -= damage;
+    ml.push(`爆風を受けた！${damage}ダメージ！`);
+  }
+  for (const monster of monsterAreaTargets(dg.monsters,
+    (x, y) => Math.max(Math.abs(x - landing.x), Math.abs(y - landing.y)) <= 1)) {
+    if (monster.hp <= 0) continue;
+    if (consumeBarrier(monster, ml)) continue;
+    const damage = multiplyMagicDamage(Math.round(rng(8, 14) * multiplier), p.weapon, monster, dg);
+    monster.hp -= damage;
+    ml.push(`爆風で${monster.name}に${damage}ダメージ！`);
+    if (monster.hp <= 0) killMonster(monster, dg, p, ml, luFn);
+  }
+}
+
 export function getSpellBuffDuration(baseDuration, level = 1) {
   const _level = Number.isFinite(level) ? Math.max(1, level) : 1;
   return baseDuration + (_level - 1) * 5;

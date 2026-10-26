@@ -12,7 +12,7 @@ import {
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
-  inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect,
+  inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect, applyFireSpellBlast,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, potOccupancyCount,
@@ -2639,24 +2639,7 @@ export function useItemActions({
       if (_spell.needsDir) {
         pushBoltAnim(p.x, p.y, _fdx, _fdy, dg, _spell.effect);
         const _land = castSpellBolt(p, dg, _spell, _fdx, _fdy, ml, lu, _lv);
-        if (_spell.effect === "fire_bolt" && _land.hitType !== "sealed" && !isFireExplosionNullified(dg, p)) {
-          pushExplosionAnim(_land.x, _land.y);
-          if (_land.hitType !== "void") ml.push("爆発！");
-          if (Math.max(Math.abs(p.x - _land.x), Math.abs(p.y - _land.y)) <= 1) {
-            const _selfBlast = multiplyCursedMagicDamage(Math.round(rng(10, 15) * getSpellPowerMultiplier(_lv)), p, dg);
-            p.deathCause = "炎の魔法の爆風で";
-            p.hp -= _selfBlast;
-            ml.push(`爆風を受けた！${_selfBlast}ダメージ！`);
-          }
-          for (const _monster of [...dg.monsters]) {
-            if (_monster.hp <= 0 || Math.max(Math.abs(_monster.x - _land.x), Math.abs(_monster.y - _land.y)) > 1) continue;
-            if (consumeBarrier(_monster, ml)) continue;
-            const _blastDamage = multiplyMagicDamage(Math.round(rng(8, 14) * getSpellPowerMultiplier(_lv)), p.weapon, _monster, dg);
-            _monster.hp -= _blastDamage;
-            ml.push(`爆風で${_monster.name}に${_blastDamage}ダメージ！`);
-            if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, lu);
-          }
-        }
+        if (_spell.effect === "fire_bolt") applyFireSpellBlast(dg, p, _land, ml, lu, _lv);
         return;
       }
 
@@ -3715,31 +3698,8 @@ export function useItemActions({
           if (spellDef.id === "fire_bolt") {
             /* 炎の魔法：着弾点で爆発（周囲8マスにも爆風） */
             pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff4400");
-            const _fbLvF = getSpellPowerMultiplier(_csLv);
             const _fbLand = castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
-            if (_fbLand.hitType !== "sealed" && !isFireExplosionNullified(dg, p)) {
-              pushExplosionAnim(_fbLand.x, _fbLand.y);
-              if (_fbLand.hitType !== "void") ml.push("爆発！");
-              /* プレイヤー爆風 */
-              if (Math.max(Math.abs(p.x - _fbLand.x), Math.abs(p.y - _fbLand.y)) <= 1) {
-                const _fpd = multiplyCursedMagicDamage(Math.round(rng(10, 15) * _fbLvF), p, dg);
-                p.deathCause = "炎の魔法の爆風で";
-                p.hp -= _fpd;
-                ml.push(`爆風を受けた！${_fpd}ダメージ！`);
-              }
-              /* 周囲モンスター爆風（直撃対象は既にapplySpellEffectで処理済みなので除外） */
-              const _fbHitPos = _fbLand.hitType === "monster" || _fbLand.hitType === "item";
-              for (const _fem of monsterAreaTargets(dg.monsters, (x, y) => Math.max(Math.abs(x - _fbLand.x), Math.abs(y - _fbLand.y)) <= 1)) {
-                if (_fem.hp <= 0) continue;
-
-                /* 直撃タイルのモンスターは直撃ダメージ済み（爆弾矢と同様に爆風も当てる） */
-                if (consumeBarrier(_fem, ml)) continue;
-                const _fmd = multiplyMagicDamage(Math.round(rng(8, 14) * _fbLvF), p.weapon, _fem, dg);
-                _fem.hp -= _fmd;
-                ml.push(`爆風で${_fem.name}に${_fmd}ダメージ！`);
-                if (_fem.hp <= 0) killMonster(_fem, dg, p, ml, lu);
-              }
-            }
+            applyFireSpellBlast(dg, p, _fbLand, ml, lu, _csLv);
           } else {
             pushBoltAnim(p.x, p.y, dx, dy, dg, "#60a0ff");
             castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
