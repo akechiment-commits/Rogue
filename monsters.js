@@ -3314,6 +3314,8 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
  * pierce: trueなら壁・敵・プレイヤー・大箱・泉を貫通して飛び続ける（farcastと同等の挙動）
  * reflectorRange: reflector反射時の最大飛距離（デフォルト20）
+ * onReflectedMonHit(mon, ml, x, y, reflector, dx, dy): 反射後の敵命中を専用処理へ渡す。
+ *   指定時は通常弾ダメージとonFlyOffを適用しない（薬・杖・壺などの共通投擲用）。
  * customPlHit(ml, isReflected, reflectorMon): プレイヤー命中時のカスタム処理。指定するとデフォルトの
  *   ダメージ計算・deathCause・メッセージ・sleep解除をスキップして全てカスタム実装に委ねる。
  *   壺投げで割れて中身散乱、杖の効果発動など、ダメージ以外の処理を行いたい場合に使う。
@@ -3347,6 +3349,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     calcMonDmg = (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
     onPlHit = null,
     onMonHit = null,
+    onReflectedMonHit = null,
     onMiss = null,
     onBigbox = null,
     onGacha = null,
@@ -3588,7 +3591,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
             return; /* プレイヤー命中時は弾消滅（onFlyOff呼ばない） */
           }
           /* 実体ある射手のみ反射弾の衝突対象。仮想射手（hp未定義）はその位置を素通り */
-          if (m.hp != null && _rnx === m.x && _rny === m.y) {
+          if (m.hp != null && monsterOccupiesCell(m, _rnx, _rny)) {
+            if (onReflectedMonHit) {
+              onReflectedMonHit(m, ml, _rnx, _rny, _mon, -dx, -dy);
+              return;
+            }
             const _rrdmg = calcMonDmg(m);
             m.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
@@ -3598,6 +3605,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           }
           const _rrMon = dg.monsters.find(o => monsterOccupiesCell(o, _rnx, _rny) && o !== m && o !== _mon);
           if (_rrMon) {
+            if (onReflectedMonHit) {
+              onReflectedMonHit(_rrMon, ml, _rnx, _rny, _mon, -dx, -dy);
+              return;
+            }
             wakeIfDormant(_rrMon, ml);
             const _rrdmg = calcMonDmg(_rrMon);
             _rrMon.hp -= _rrdmg;

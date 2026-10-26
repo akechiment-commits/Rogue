@@ -6856,7 +6856,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     bbFn = null,
     nameFn = null,
     applyWandFn = null,
-    killerMon = null,
+    killerMon: initialKillerMon = null,
     reflectorRange = range,
     homingTarget = null,
     bypassDodgemole = false,
@@ -6879,6 +6879,11 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     noHitLandMsg = null,         /* (lx, ly, item) => string|null（壁/末端で何にも当たらず着地時） */
     deathCausePhrase = `飛んできた${resolveItemName(item)}に`,
   } = opts;
+
+  let killerMon = initialKillerMon;
+  let reflectedBy = null;
+  let reflectedDirection = null;
+  const sourceIsPlayer = () => reflectedBy ? false : (opts.sourceIsPlayer ?? !killerMon);
 
   const _isPotion = item.type === "potion";
   const _isPot = item.type === "pot";
@@ -6909,6 +6914,24 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   /* 壺は補正攻撃力5で通常の投擲ダメージ計算を使う */
   const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
 
+  const hitMonster = (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
+    if (shooter === p && !reflectedBy && mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, mlx);
+    if (_isPotion) {
+      if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
+      res.consumed = true; res.splash = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
+      return;
+    }
+    if (_isWand) {
+      if (wandHitMsg) { const _m = wandHitMsg(mon); if (_m) mlx.push(_m); }
+      res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
+      return;
+    }
+    applyThrownItemToMonster(item, mon, dg, p, mlx, luFn, {
+      nameFn, killerMon, hitMessage: _isPot ? potHitMsg : monHitMsg,
+    });
+    res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
+  };
+
   _resolveBolt(shooter, dg, p, ml, luFn, {
     isPlayerShooter: shooter === p,
     dx, dy,
@@ -6923,24 +6946,11 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     onMiss: (lx, ly) => {
       res.x = lx; res.y = ly; res.missedPlayer = true;
     },
-    onMonHit: (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
-      if (shooter === p && mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, mlx);
-      if (_isPotion) {
-        if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
-        res.consumed = true; res.splash = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
-        return;
-      }
-      if (_isWand) {
-        if (wandHitMsg) { const _m = wandHitMsg(mon); if (_m) mlx.push(_m); }
-        res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
-        return;
-      }
-      applyThrownItemToMonster(item, mon, dg, p, mlx, luFn, {
-        nameFn,
-        killerMon,
-        hitMessage: _isPot ? potHitMsg : monHitMsg,
-      });
-      res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
+    onMonHit: hitMonster,
+    onReflectedMonHit: (mon, mlx, hitX, hitY, reflector, hitDx, hitDy) => {
+      killerMon = reflectedBy = reflector;
+      reflectedDirection = { dx: hitDx, dy: hitDy };
+      hitMonster(mon, mlx, hitX, hitY, hitX, hitY);
     },
     customPlHit: (mlx) => {
       if (_isPotion) {
@@ -7060,7 +7070,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
   } else if (res.bigbox) {
     if (bbFn) bbFn(res.bigbox, item, dg, ml, {
-      killerMon, sourceIsPlayer: opts.sourceIsPlayer ?? !killerMon, fireTrapFn: opts.fireTrapFn,
+      killerMon, sourceIsPlayer: sourceIsPlayer(), fireTrapFn: opts.fireTrapFn,
     });
     else { const ft = new Set(); placeItemAt(dg, res.x, res.y, item, ml, ft); }
   } else if (res.gacha) {
@@ -7079,19 +7089,19 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     const hpBeforeBreak = p?.hp;
     res.consumed = true;
     scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn, {
-      killerMon, sourceIsPlayer: opts.sourceIsPlayer ?? !killerMon, fireTrapFn: opts.fireTrapFn,
+      killerMon, sourceIsPlayer: sourceIsPlayer(), fireTrapFn: opts.fireTrapFn,
     });
     if (res.missedPlayer && p && p.hp < hpBeforeBreak) res.hitPlayer = true;
   } else if (_isWand) {
     if (res.hitMonster || res.hitPlayer) {
       const _twSnap = { type: "wand", effect: item.effect, charges: item.charges ?? 0, blessed: !!item.blessed, cursed: !!item.cursed, name: item.name };
-      const _twDx = Math.sign(res.x - shooter.x) || 1;
-      const _twDy = Math.sign(res.y - shooter.y) || 0;
+      const _twDx = reflectedDirection?.dx ?? (Math.sign(res.x - shooter.x) || 1);
+      const _twDy = reflectedDirection?.dy ?? (Math.sign(res.y - shooter.y) || 0);
       const _twOpts = res.hitMonster
         ? { singleTargetKind: "monster", singleTarget: res.hitMonster, effectDx: _twDx, effectDy: _twDy }
         : { singleTargetKind: "player", singleTarget: p, effectDx: -_twDx, effectDy: -_twDy };
       _triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, {
-        ..._twOpts, killerMon, sourceIsPlayer: opts.sourceIsPlayer ?? !killerMon,
+        ..._twOpts, killerMon, sourceIsPlayer: sourceIsPlayer(),
         fireTrapFn: opts.fireTrapFn, nameFn,
       });
     } else if (!res.hitStatue) {
