@@ -2333,6 +2333,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               dungeonType: _dg.dungeonType ?? null,
               excludeWaterOnly: true,
               poolFloor: _poolFloor,
+              existingMonsters: _dg.monsters,
             }));
           }
           const _spawnRingCount = (p.rings || []).filter(r => r && r.effect === "spawn_ring").length;

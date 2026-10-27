@@ -11,6 +11,13 @@ import { GOAL_ITEMS } from './dungeon.js';
 import { FIRST_ENCOUNTER_TIPS } from './firstEncounterTips.js';
 import { ALL_BGM_TRACKS, ALL_SE_LIST } from './musicData.js';
 import { soundEffectDuration } from './soundEffectData.js';
+import {
+  LEGEND_MONSTER_FLOOR_POOLS,
+  LEGEND_MONSTER_SYNERGY_GROUPS,
+  LEGEND_MONSTER_STAT_OVERRIDES,
+  legendMonsterSpawnLevel,
+  legendMonsterSpawnWeight,
+} from './legendMonsterRules.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
@@ -1407,10 +1414,29 @@ const dungeonSpawnData = [
   ['中級者', '敵', '浅層は3〜9種、深層は8〜14種。各基礎種は最低3階にわたって出現する。初心者では出ないアイテムモドキ（8〜10階）・突進角獣（9〜11階）・コソドロ（9〜12階）・錆虫（10〜12階）を序盤から段階的に追加する。15〜16階の竜系能力敵は分散し、スネークマンは16〜18階、竜騎士は17〜19階に出す。深層は同じ種族の上位形態（ラクガキ妖精・スカーバード・ものまね名優）を出す。ボルガ・岩砕き・にじりヘビ・杖術師・タヌキ・ベア・バリア蟹・ウィンドメイジ・引きダコ・火ダルマ・水中花・トロルは上級まで出さない。からめ鬼のLv2/Lv3は能力の飛びを抑えて調整'],
   ['中級者', '床ギミック', '石像・風穴・祭壇・ガチャを出す'],
   ['上級', '出現', '道具は全種類を1階から出す。罠は1〜5階で地雷・時限爆弾・落石を除外、6〜10階で落石、11階から全罠。大箱は1〜5階が合成・満腹・充填・鑑定、6〜14階で変化・強化・拡散・分裂・祝福、15階から全種類。敵は階別プールで3階単位に入れ替える。ネズミ・バット・ムカデは10〜12階、つらら小僧・ゴブリン・スケルトンは13〜15階、インプ・ゾンビ・ウルフは16〜18階にLv2で再登場し、能力は強いが素の数値が控えめな危険な花びら・夢喰い・土下座鈴木右衛門・巨大ウナギ・うみのあくまも中盤以降に再登場させる。上級の自然出現はLv2まで、Lv3は超上級で解禁し、後半の候補は通常敵最大13種と巨大雑魚分'],
-  ['超上級', '出現', '開始はレベル1・短剣と革鎧。罠は上級と同じ、大箱は全種類。敵は階ごとの候補表から選び、通常敵の初期配置数を増やさず、同名個体の能力値は階で変えない。ボス撃破を進行条件にせず、6階以降は弱い形態だけが長く残らないよう既存の上位形態を順次配置する。'],
+  ['超上級', '出現', '50階。候補・形態レベル・個別重みは階別プールを使う。同一基礎種の連続出現は最大3階。B1〜2は通常型のみ、B3以降の非ボス階は特技敵を初期配置に最低1体含める。合成獣はB8〜9の通常階に配置する。特技は既存実装を維持し、能力値上書きは超上級だけに適用する。ボス階・ボス能力は既存仕様のまま。'],
 ];
-dungeonSpawnData.push(['超上級', '通常敵の形態配置', 'ネズミ・バット・ムカデはLv1=1〜5階、Lv2=6〜10階、Lv3=16〜20階。コボルトはLv1=3〜7階、Lv2=8〜11階、Lv3=18〜22階。ゴブリンはLv1=3〜8階、Lv2=9〜12階、Lv3=19〜23階。スケルトンはLv1=5〜9階、Lv2=10〜13階、Lv3=20〜24階。インプはLv1=5〜10階、Lv2=11〜14階、Lv3=24〜28階。ゾンビはLv1=7〜12階、Lv2=13〜16階、Lv3=25〜29階。ウルフはLv1=17〜20階、Lv2=21〜24階、Lv3=29〜32階。弓の達人はLv1=5〜8階、Lv2=12〜16階、Lv3=24〜29階。足払い鬼・からめ鬼Lv2=17〜20階。薬師・ロキソ忍Lv2=18〜21階、Lv3=36〜43階。アイテムモドキ・突進角獣Lv2=24〜27階（アイテムモドキLv3=36〜39階、突進角獣Lv3=32〜35階）。錆虫・ウィザードLv2=24〜28階、Lv3=36〜39階。タトゥーバード・レプラコーンLv2=26〜29階、Lv3=36〜39階。サーペントLv2=31〜34階。ヴァンパイア・トロルLv2=36〜43階。ゴーレム・ダークネス・ものまね師・ハンマーオーガ・岩砕きLv2=40〜43階。デーモン・引きダコ・杖術師・バーサーカーLv2=44〜47階。通常敵の追加帯で48〜50階に置くLv3はドラゴン・土下座鈴木右衛門・ロキソ忍・ラクガキ魔・ドクキノコ・マッチョドラゴン・マナイーターの7系統に絞る。別個の階帯のお化け柳・眠れる獅子・ヤドカリ壺荒らしは従来の形態配置を維持する。各名前の能力値はMONSの共通定義を使い、階による個体補正は行わない。']);
-dungeonSpawnData.push(['超上級', '見直した共通形態能力値', 'HP/攻撃/防御: 殺人ネズミ28/22/2、ものすごいネズミ40/42/3、青バット28/15/3、ゴルァバット48/26/5、巨大ムカデ32/13/16、重装甲ムカデ52/20/38、氷柱鬼38/19/6、永久凍土鬼65/30/10、ゴブリン頭44/21/6、ゴブリン王80/32/11、骸骨戦士46/27/4、アンデッドナイ75/44/6、レッサーインプ36/17/4、アークインプ60/28/6。同じ名前は全ダンジョンで同じ能力値。']);
+const legendGuideLevelName = (base, level) => level > 1 ? (base?.levels?.[level - 2]?.name || base?.name || base?.baseKind) : (base?.name || base?.baseKind);
+for (let floor = 1; floor <= 50; floor++) {
+  const entries = LEGEND_MONSTER_FLOOR_POOLS[floor].map(kind => {
+    const base = MONS.find(monster => monster.baseKind === kind);
+    const level = legendMonsterSpawnLevel(base, floor);
+    return `${legendGuideLevelName(base, level)} (Lv${level},重み${legendMonsterSpawnWeight(kind, floor)})`;
+  });
+  dungeonSpawnData.push(['超上級', `B${floor}敵候補`, entries.join('、')]);
+}
+const legendSynergyDescription = LEGEND_MONSTER_SYNERGY_GROUPS.map(group => {
+  const floorLabel = group.min === group.max ? `${group.min}階` : `${group.min}〜${group.max}階`;
+  const names = group.kinds.map(kind => MONS.find(monster => monster.baseKind === kind)?.name || kind);
+  return `${floorLabel} ${names.join("＋")}（${group.sameRoom ? "同室・" : ""}距離${group.maxDistance}以内、確率${Math.round(group.chance * 100)}%）`;
+}).join("。") + "。";
+dungeonSpawnData.push(['超上級', '特技連携配置', `${legendSynergyDescription}配置時は初期配置の敵2体と置き換える。通常湧きでは同じ連携相手が生存中に候補重みを2倍にする。`]);
+dungeonSpawnData.push(['超上級', '特技敵の保証', 'B1〜2は通常型のみ。B3以降の非ボス階は、階別プールにある特技種を初期配置へ最低1体保証する。']);
+const legendOverrideDescription = Object.entries(LEGEND_MONSTER_STAT_OVERRIDES).flatMap(([kind, levels]) => {
+  const base = MONS.find(monster => monster.baseKind === kind);
+  return Object.entries(levels).map(([level, stats]) => `${legendGuideLevelName(base, Number(level))}(Lv${level}) HP${stats.hp}/攻${stats.atk}/防${stats.def}/EXP${stats.exp}`);
+}).join("。") + "。ここにない形態はMONSの形態定義値を使う。";
+dungeonSpawnData.push(['超上級', '超上級専用能力値', legendOverrideDescription]);
 dungeonSpawnData.push(['超上級', 'B5Fボス', '白髪の少女グウェン。周囲にゾンビ・分裂スライム・ワッカの3体を初期配置。プレイヤーへ近づくが攻撃しない。行動可能な視界内ターンごとに25%で花や赤色についての台詞6種からランダムに話し、死亡時は「どうして、そんなことするの？」と言い残す。生存中かつ視界内で4ターンごとに、B10F相当のゾンビ・分裂スライム・ワッカから1体、25%で2体を隣接空き床へ召喚する。召喚敵は出現ターンには行動せず、次のプレイヤー行動から動く。毒胞子で味方を巻き込むキノコは召喚しない。空きが1マスなら1体を出現させる。視界外では時計を止め、召喚可能な空き床がない時は保留する。']);
 dungeonSpawnData.push(['超上級', 'B10Fボス', '自称・深淵の大魔導士「フロック」。眼帯のゴスロリ女性。浮遊、最大MP720。炎10・氷10・毒8・呪い10MP、テレポート8MP。3マス以上の間合いを保ち、4〜10マスの直線上なら近づかず炎・氷・毒・呪いから1つを詠唱。射線がない時は壁を避けて射線を作れる位置へ積極的に動く。退避できない時は3マス以内でも直線魔法を使う。炎は着弾点の周囲8マスで爆発。隣接時はテレポート。MPが0なら動かず震え、最初は専用台詞を必ず言い、その後は30%で枯渇台詞をランダムに言う。魔法を唱えない視界内行動でも30%で台詞を言う。']);
 dungeonSpawnData.push(['超上級', 'B15Fボス', '鋼鉄竜「コルゴン」。2×2マス、HP820・攻62・防42。水晶スライムと同じく物理ダメージは最大1。炎・爆発無効、氷・雷弱点。視界内で体のいずれかと一直線上なら行動ごとに50%で炎ブレスを選び、成功時はその場でブレスを放つ。隣接距離でも射線が通れば使う。ブレスは体の端から発射して風穴で曲がり、壁・敵・石像で止まる。初期取り巻きなし。']);

@@ -52,7 +52,13 @@ import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { advancedMonsterAllowed, advancedMonsterSpawnLevel } from "./advancedMonsterRules.js";
-import { legendMonsterAllowed, legendMonsterSpawnLevel } from "./legendMonsterRules.js";
+import {
+  legendMonsterAllowed,
+  legendMonsterSpawnLevel,
+  legendMonsterSpawnWeight,
+  legendMonsterAffinityMultiplier,
+  legendMonsterStatOverride,
+} from "./legendMonsterRules.js";
 import { isWanderingNpc } from "./wanderingAdventurer.js";
 import { beginNpcRetaliation } from "./npcRetaliation.js";
 import {
@@ -1844,7 +1850,23 @@ export function makeGuard(x, y, plx, ply) {
  * スポーンレベル (1〜3) を返す共通ロジック。
  * progress = (floor - minFloor) / range で lv2/lv3 の確率が上がる。
  */
-export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false, excludeLarge = false, poolFloor = null } = {}) {
+function pickWeightedMonster(candidates, weightFor) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  const weighted = candidates.map((candidate) => ({
+    candidate,
+    weight: Math.max(0, Number(weightFor(candidate)) || 0),
+  }));
+  const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+  if (total <= 0) return pick(candidates);
+  let roll = Math.random() * total;
+  for (const entry of weighted) {
+    roll -= entry.weight;
+    if (roll < 0) return entry.candidate;
+  }
+  return weighted.at(-1)?.candidate ?? pick(candidates);
+}
+
+export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false, excludeLarge = false, poolFloor = null, existingMonsters = [] } = {}) {
   const floor = poolFloor != null ? poolFloor : depth + 1;
   const eligible = MONS.filter(m => {
     if (m.penaltyOnly) return false;
@@ -1854,7 +1876,14 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
     return isMonsterDefAllowedAtFloor(m, floor, dungeonType);
   });
   const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (!excludeItemMimic || m.baseKind !== "itemMimic") && (!excludeLarge || (m.bodySize || 1) <= 1));
-  const base = eligible.length > 0 ? pick(eligible) : (fallback[0] ?? MONS[0]);
+  const base = eligible.length > 0
+    ? dungeonType === "legend"
+      ? pickWeightedMonster(eligible, (monster) => (
+        legendMonsterSpawnWeight(monster.baseKind, floor) *
+        legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+      ))
+      : pick(eligible)
+    : (fallback[0] ?? MONS[0]);
 
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
      高レベルから順にチェックし、最初に条件を満たしたレベルを採用する */
@@ -1937,11 +1966,16 @@ export function isMonsterDefAvailableAt(base, depth, dungeonType = null, { poolF
 }
 
 /** 水場に置く水棲限定敵を、通常湧きと同じ階別プールから抽選する。 */
-export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor = null } = {}) {
+export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor = null, existingMonsters = [] } = {}) {
   const floor = poolFloor != null ? poolFloor : depth + 1;
   const eligible = MONS.filter((m) => m.waterOnly && isMonsterDefAllowedAtFloor(m, floor, dungeonType));
   if (!eligible.length) return null;
-  const base = pick(eligible);
+  const base = dungeonType === "legend"
+    ? pickWeightedMonster(eligible, (monster) => (
+      legendMonsterSpawnWeight(monster.baseKind, floor) *
+      legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+    ))
+    : pick(eligible);
   return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType) };
 }
 
@@ -1949,7 +1983,7 @@ export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor =
  * 水浸し特殊フロア用。通常フロアの出現帯とは別に、水棲敵を階層相応で必ず供給する。
  * 初心者は水浸しフロア自体を通常抽選から除外するため、ここでも候補を返さない。
  */
-export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloor = null } = {}) {
+export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloor = null, existingMonsters = [] } = {}) {
   const floor = poolFloor != null ? poolFloor : depth + 1;
   if (dungeonType === "beginner" || dungeonType === "tutorial") return null;
   const candidates = MONS.filter((m) => {
@@ -1973,14 +2007,24 @@ export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloo
     ? [...regular, ...inBaseRange.filter((m) => !regular.includes(m))]
     : [];
   if (regularWithNeighbors.length > 0) {
-    const base = pick(regularWithNeighbors);
+    const base = dungeonType === "legend"
+      ? pickWeightedMonster(regularWithNeighbors, (monster) => (
+        legendMonsterSpawnWeight(monster.baseKind, floor) *
+        legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+      ))
+      : pick(regularWithNeighbors);
     return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
   }
 
   /* 浅層など通常プールが空の階は、基礎出現帯が最も近い水棲敵を選ぶ。 */
   const nearestDistance = Math.min(...candidates.map(distanceToBaseRange));
   const nearest = candidates.filter((m) => distanceToBaseRange(m) === nearestDistance);
-  const base = pick(nearest);
+  const base = dungeonType === "legend"
+    ? pickWeightedMonster(nearest, (monster) => (
+      legendMonsterSpawnWeight(monster.baseKind, floor) *
+      legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+    ))
+    : pick(nearest);
   return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
 }
 
@@ -2013,7 +2057,7 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
   const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (m.bodySize || 1) <= 1);
   const base = pick(compatible.length > 0 ? compatible : eligible.length > 0 ? eligible : fallback.length > 0 ? fallback : MONS);
   const availableLevel = Math.min(targetLevel, (base.levels?.length || 0) + 1);
-  return buildMonStats(base, availableLevel);
+  return buildMonStats(base, availableLevel, dungeonType);
 }
 
 const TRANSFORM_DEFINITION_KEYS = new Set(MONS.flatMap(base =>
@@ -2064,15 +2108,18 @@ export function applyMonsterTransformation(target, definition, _dungeon = null, 
 }
 
 /** depth/spawnLevel からモンスターのステータスオブジェクトを作る */
-function buildMonStats(base, spawnLevel) {
+function buildMonStats(base, spawnLevel, dungeonType = null) {
   const { levels: _lvls, ...mt } = base;
+  let stats = mt;
   if (spawnLevel >= 2 && base.levels?.[spawnLevel - 2]) {
-    const stats = { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel };
+    stats = { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel };
     // ゼラチンキューブはLv3で等速になる。直接Lv3湧きでも同じ速度にする。
     if (base.baseKind === "gelcube" && spawnLevel === 3) stats.speed = 1;
-    return stats;
   }
-  return mt;
+  const override = dungeonType === "legend"
+    ? legendMonsterStatOverride(base.baseKind, spawnLevel)
+    : null;
+  return override ? { ...stats, ...override, monLevel: spawnLevel } : stats;
 }
 
 function hasInventorySpaceForMonsterGift(player) {
@@ -2284,9 +2331,9 @@ function consumeMonsterProjectileAmmo(mon) {
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
-export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, excludeLarge = false, poolFloor = null } = {}) {
-  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { excludeLarge, poolFloor });
-  const st = buildMonStats(base, spawnLevel);
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, excludeLarge = false, poolFloor = null, existingMonsters = [] } = {}) {
+  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { excludeLarge, poolFloor, existingMonsters });
+  const st = buildMonStats(base, spawnLevel, dungeonType);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
@@ -2299,8 +2346,8 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
 }
 
 /** 指定のベース定義・レベルでモンスターを生成する（固定取り巻き用） */
-export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false, windDx = null, windDy = null } = {}) {
-  const st = buildMonStats(base, spawnLevel);
+export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false, windDx = null, windDy = null, dungeonType = null } = {}) {
+  const st = buildMonStats(base, spawnLevel, dungeonType);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const isSleepingLion = st.subtype === "sleepingLion";
@@ -2335,12 +2382,15 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
   }
   try {
     const _poolFloor = resolveRuntimeSpawnPoolFloor(dg, d + 1);
-    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false, { excludeLarge: true, poolFloor: _poolFloor });
+    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false, {
+      excludeLarge: true, poolFloor: _poolFloor, existingMonsters: dg.monsters,
+    });
     const boosted = Math.min(3, (spawnLevel || 1) + 1);
     const mon = makeMonsterFromBase(base, boosted, mx, my, {
       aware: true,
       lastPx: p?.x ?? mx,
       lastPy: p?.y ?? my,
+      dungeonType: dg.dungeonType ?? null,
     });
     dg.monsters.push(mon);
     ml.push(`${mon.name}が現れた！`);
@@ -2361,7 +2411,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
     if (spawned >= count) break;
     const nx = centerX + dx, ny = centerY + dy;
     if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, nx, ny)) && (!p || nx !== p.x || ny !== p.y)) {
-      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor }));
+      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor, existingMonsters: dg.monsters }));
       spawned++;
     }
   }
@@ -2373,7 +2423,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
       const sx = rng(room.x + 1, room.x + room.w - 2);
       const sy = rng(room.y + 1, room.y + room.h - 2);
       if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, sx, sy)) && (!p || sx !== p.x || sy !== p.y)) {
-        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor }));
+        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor, existingMonsters: dg.monsters }));
         spawned++;
         break;
       }
@@ -5209,10 +5259,15 @@ function summonGwenMonster(gwen, dg, pl, ml) {
     const summonPool = MONS.filter(monster => GWEN_B5_SUMMON_BASE_KINDS.has(monster.baseKind) &&
       legendMonsterAllowed(monster.baseKind, poolFloor) && (monster.bodySize || 1) <= 1);
     if (summonPool.length === 0) return false;
-    base = pick(summonPool);
+    base = pickWeightedMonster(summonPool, (monster) => (
+      legendMonsterSpawnWeight(monster.baseKind, poolFloor) *
+      legendMonsterAffinityMultiplier(monster.baseKind, poolFloor, dg.monsters)
+    ));
     spawnLevel = legendMonsterSpawnLevel(base, poolFloor);
   } else {
-    ({ base, spawnLevel } = pickMonsterDef(poolFloor - 1, "legend", true, { excludeLarge: true }));
+    ({ base, spawnLevel } = pickMonsterDef(poolFloor - 1, "legend", true, {
+      excludeLarge: true, existingMonsters: dg.monsters,
+    }));
   }
   if (!base || !legendMonsterAllowed(base.baseKind, poolFloor)) return false;
 
@@ -5229,6 +5284,7 @@ function summonGwenMonster(gwen, dg, pl, ml) {
 
     const summoned = makeMonsterFromBase(base, spawnLevel, x, y, {
       aware: true, lastPx: pl.x, lastPy: pl.y,
+      dungeonType: "legend",
     });
     /* moveOnlyで召喚した敵が同ターンのattackOnlyで動かず、次ターンから行動時計を進める。 */
     summoned.actionTime = Number.isFinite(pl?.actionTime) ? pl.actionTime : 0;

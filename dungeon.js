@@ -1,4 +1,4 @@
-import { monsterOccupiesCell, monsterBodyCells } from "./monsterGeometry.js";
+import { monsterOccupiesCell, monsterBodyCells, monsterBodySize } from "./monsterGeometry.js";
 import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
@@ -9,6 +9,14 @@ import {
 } from './items.js';
 import { scatterFloorGimmicks, makeAltar } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
+import {
+  legendMonsterStatOverride,
+  legendMonsterKindsAtFloor,
+  legendMonsterSpawnLevel,
+  legendMonsterSpawnWeight,
+  legendMonsterSynergyGroupsAtFloor,
+  LEGEND_ACTIVE_SPECIAL_KINDS,
+} from "./legendMonsterRules.js";
 import { ordinaryFloorGoldRange } from "./springRules.js";
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
@@ -878,9 +886,13 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
     ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType, true, _pickOpts));
   }
   const { levels: _lvls, ...mt } = base;
-  const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
+  const baseStats = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
     ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }
     : mt;
+  const legendOverride = dungeonType === "legend"
+    ? legendMonsterStatOverride(base.baseKind, spawnLevel)
+    : null;
+  const st = legendOverride ? { ...baseStats, ...legendOverride, monLevel: spawnLevel } : baseStats;
   const randomlyDormant = Math.random() < dormantRate;
   return {
     ...st, id: uid(), x, y, maxHp: st.hp, turnAccum: 0, aware: false,
@@ -1908,14 +1920,14 @@ export function genFloodedFloor(depth, dungeonType = null) {
   }
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 3); i++) {
     const p = rnd(waterTiles);
-    const pickedWaterMonster = pickFloodedWaterMonsterDef(depth, dungeonType);
+    const pickedWaterMonster = pickFloodedWaterMonsterDef(depth, dungeonType, { existingMonsters: mons });
     if (!p || !pickedWaterMonster) continue;
     mons.push(makeMonsterFromBase(
       pickedWaterMonster.base,
       pickedWaterMonster.spawnLevel,
       p[0],
       p[1],
-      { dormant: Math.random() < 0.12 },
+      { dormant: Math.random() < 0.12, dungeonType },
     ));
   }
   const itemTiles = islandTiles.length ? islandTiles : dryTiles;
@@ -2473,7 +2485,9 @@ function genBossFloor(depth, dungeonType = null) {
         const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
         if (map[_my]?.[_mx] !== _wantTile) continue;
         if (_occ(_mx, _my)) continue;
-        minionMonsters.push(makeMonsterFromBase(_base, spec.lv, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY }));
+        minionMonsters.push(makeMonsterFromBase(_base, spec.lv, _mx, _my, {
+          dormant: true, aware: true, lastPx: bossX, lastPy: bossY, dungeonType,
+        }));
         break;
       }
     }
@@ -3267,10 +3281,131 @@ function attachDebugSpecialFixtures(dg, depth) {
   return dg;
 }
 
+function legendOpenFloorTiles(dg) {
+  const shopRooms = [dg.shop?.room, ...(dg.shops || []).map(shop => shop?.room)].filter(Boolean);
+  const reservedRooms = [
+    ...(dg.hiddenRooms || []),
+    ...(dg.dimensionalVaults || []).map(vault => vault?.room),
+  ].filter(Boolean);
+  const blockers = [
+    dg.items, dg.traps, dg.springs, dg.bigboxes, dg.pentacles, dg.statues,
+    dg.vents, dg.oilyTiles, dg.gachaMachines, dg.altars, dg.dimensionalVaults,
+  ];
+  const tiles = [];
+  for (let y = 1; y < MH - 1; y++) {
+    for (let x = 1; x < MW - 1; x++) {
+      if (dg.map?.[y]?.[x] !== T.FLOOR) continue;
+      if (shopRooms.some(room => isInsideRoom(room, x, y))) continue;
+      if (reservedRooms.some(room => isInsideRoom(room, x, y))) continue;
+      if (blockers.some(list => list?.some(object => object.x === x && object.y === y))) continue;
+      const occupant = (dg.monsters || []).find(monster => monsterOccupiesCell(monster, x, y));
+      if (occupant && monsterBodySize(occupant) > 1) continue;
+      const roomIndex = (dg.rooms || []).findIndex(room => isInsideRoom(room, x, y));
+      tiles.push({ x, y, roomIndex, occupant });
+    }
+  }
+  return tiles;
+}
+
+function isReplaceableLegendMonster(monster) {
+  return !!monster && monsterBodySize(monster) <= 1 && !monster.type && monster.state !== "friendly" && !monster.isNpc;
+}
+
+function pickLegendWeighted(candidates, floor) {
+  if (!candidates.length) return null;
+  const total = candidates.reduce((sum, base) => sum + legendMonsterSpawnWeight(base.baseKind, floor), 0);
+  let roll = Math.random() * total;
+  for (const base of candidates) {
+    roll -= legendMonsterSpawnWeight(base.baseKind, floor);
+    if (roll < 0) return base;
+  }
+  return candidates[candidates.length - 1];
+}
+
+/** B3F以降は初期配置に特技敵を最低1体含め、通常は既存個体と置き換える。 */
+function ensureLegendSpecialSpawn(dg, floor) {
+  if ((dg.monsters || []).some(monster => monster.hp > 0 && LEGEND_ACTIVE_SPECIAL_KINDS.has(monster.baseKind))) return true;
+  const candidates = MONS.filter(base =>
+    LEGEND_ACTIVE_SPECIAL_KINDS.has(base.baseKind) &&
+    legendMonsterKindsAtFloor(floor).includes(base.baseKind) &&
+    !base.penaltyOnly && !base.floodedOnly && !base.waterOnly &&
+    (!base.dungeons || base.dungeons.includes("legend")) && monsterBodySize(base) <= 1,
+  );
+  const base = pickLegendWeighted(candidates, floor);
+  if (!base) return false;
+  const spawnLevel = legendMonsterSpawnLevel(base, floor);
+  const replaceIndex = (dg.monsters || []).findIndex(isReplaceableLegendMonster);
+  if (replaceIndex >= 0) {
+    const old = dg.monsters[replaceIndex];
+    dg.monsters[replaceIndex] = makeMonsterFromBase(base, spawnLevel, old.x, old.y, {
+      dormant: !!old.dormant,
+      dungeonType: "legend",
+    });
+    return true;
+  }
+  const tile = pick(legendOpenFloorTiles(dg));
+  if (!tile) return false;
+  dg.monsters.push(makeMonsterFromBase(base, spawnLevel, tile.x, tile.y, { dungeonType: "legend" }));
+  return true;
+}
+
+/** 特技同士の連携ペアを、設定確率で同室の近距離へ配置する。 */
+function placeLegendSynergyPair(dg, floor) {
+  const group = legendMonsterSynergyGroupsAtFloor(floor).find(entry =>
+    entry.kinds.every(kind => legendMonsterKindsAtFloor(floor).includes(kind)),
+  );
+  if (!group || Math.random() >= group.chance) return false;
+  const bases = group.kinds.map(kind => MONS.find(base => base.baseKind === kind));
+  if (bases.some(base => !base || base.penaltyOnly || base.floodedOnly || base.waterOnly || monsterBodySize(base) > 1)) return false;
+  const tiles = legendOpenFloorTiles(dg);
+  if (tiles.length < 2 || (dg.monsters || []).filter(isReplaceableLegendMonster).length < 2) return false;
+
+  const tileByKey = new Map(tiles.map(tile => [`${tile.x},${tile.y}`, tile]));
+  let pair = null;
+  let pairCount = 0;
+  for (const first of tiles) {
+    for (let dy = -group.maxDistance; dy <= group.maxDistance; dy++) {
+      for (let dx = -group.maxDistance; dx <= group.maxDistance; dx++) {
+        const distance = Math.max(Math.abs(dx), Math.abs(dy));
+        if (distance === 0 || distance > group.maxDistance) continue;
+        const second = tileByKey.get(`${first.x + dx},${first.y + dy}`);
+        if (!second) continue;
+        if (group.sameRoom && (first.roomIndex < 0 || first.roomIndex !== second.roomIndex)) continue;
+        if (first.y > second.y || (first.y === second.y && first.x >= second.x)) continue;
+        pairCount++;
+        if (Math.random() < 1 / pairCount) pair = [first, second];
+      }
+    }
+  }
+  if (!pair) return false;
+
+  const removed = new Set(pair.map(tile => tile.occupant).filter(Boolean));
+  const replaceable = (dg.monsters || []).filter(monster => isReplaceableLegendMonster(monster) && !removed.has(monster));
+  while (removed.size < 2 && replaceable.length) removed.add(replaceable.splice(rng(0, replaceable.length - 1), 1)[0]);
+  if (removed.size < 2) return false;
+  dg.monsters = dg.monsters.filter(monster => !removed.has(monster));
+
+  for (let i = 0; i < 2; i++) {
+    const tile = pair[i];
+    const spawnLevel = legendMonsterSpawnLevel(bases[i], floor);
+    dg.monsters.push(makeMonsterFromBase(bases[i], spawnLevel, tile.x, tile.y, {
+      dungeonType: "legend",
+    }));
+  }
+  return true;
+}
+
 /** 偽階段・風穴・石像・固定転送・ガチャマシーンをフロアにばら撒く */
 function attachFloorGimmicks(dg, depth) {
   if (!dg) return dg;
   settleLargeMonsterSpawns(dg);
+  if (dg.dungeonType === "legend" && depth % 5 !== 4) {
+    const floor = depth + 1;
+    if (floor >= 3) {
+      placeLegendSynergyPair(dg, floor);
+      ensureLegendSpecialSpawn(dg, floor);
+    }
+  }
   dg.vents = dg.vents || [];
   dg.statues = dg.statues || [];
   dg.pentacles = dg.pentacles || [];
@@ -3716,14 +3851,14 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       const _idx = rng(0, _waterTiles.length - 1);
       const [_wx, _wy] = _waterTiles.splice(_idx, 1)[0];
       if (mons.some(mn => mn.x === _wx && mn.y === _wy)) continue;
-      const pickedWaterMonster = pickWaterOnlyMonsterDef(depth, dungeonType);
+      const pickedWaterMonster = pickWaterOnlyMonsterDef(depth, dungeonType, { existingMonsters: mons });
       if (!pickedWaterMonster) continue;
       mons.push(makeMonsterFromBase(
         pickedWaterMonster.base,
         pickedWaterMonster.spawnLevel,
         _wx,
         _wy,
-        { dormant: false },
+        { dormant: false, dungeonType },
       ));
     }
   }

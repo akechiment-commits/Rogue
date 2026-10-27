@@ -1,105 +1,96 @@
-/* ===== 超上級ダンジョンの階別モンスター候補 ===== */
-/*
- * 超上級も開始はレベル1・短剣と革鎧。1階から盗賊や竜は出さない。
- * 序盤は殴れる雑魚、道具が揃ってから盗む・錆びる・爆発。
- * 同じ種族の上位形態は段階的に配置し、初登場は必ずLv1にする。
- */
+/* 超上級だけの階別候補・抽選重み・連携・数値上書き。 */
+const band = (min, max, level, weights) => Object.freeze({
+  min, max, level,
+  kinds: Object.freeze(Object.keys(weights)),
+  weights: Object.freeze({ ...weights }),
+});
+
 export const LEGEND_MONSTER_BANDS = Object.freeze([
-  { min: 20, max: 29, level: 1, kinds: ["hauntedWillow"] },
-  { min: 35, max: 39, level: 2, kinds: ["hauntedWillow"] },
-  { min: 44, max: 50, level: 3, kinds: ["hauntedWillow"] },
-  { min: 26, max: 30, level: 1, kinds: ["sleepingLion"] },
-  { min: 35, max: 39, level: 2, kinds: ["sleepingLion"] },
-  { min: 44, max: 50, level: 3, kinds: ["sleepingLion"] },
-  { min: 23, max: 26, level: 1, kinds: ["potRaider"] },
-  { min: 36, max: 39, level: 2, kinds: ["potRaider"] },
-  { min: 48, max: 50, level: 3, kinds: ["potRaider"] },
-  { min: 19, max: 22, level: 1, kinds: ["sylph"] },
-  { min: 29, max: 32, level: 2, kinds: ["sylph"] },
-  { min: 44, max: 47, level: 3, kinds: ["sylph"] },
-  /* B1〜5は基本形中心。B6以降は弱い形態だけが長く残らないよう上位形態を順次混ぜる。 */
-  { min: 1, max: 5, level: 1, kinds: ["rat", "bat", "centipede"] },
-  { min: 6, max: 10, level: 2, kinds: ["rat", "bat", "centipede"] },
-  { min: 16, max: 20, level: 3, kinds: ["rat", "bat", "centipede"] },
-  { min: 3, max: 7, level: 1, kinds: ["kobold"] },
-  { min: 8, max: 11, level: 2, kinds: ["kobold"] },
-  { min: 18, max: 22, level: 3, kinds: ["kobold"] },
-  { min: 3, max: 8, level: 1, kinds: ["goblin"] },
-  { min: 9, max: 12, level: 2, kinds: ["goblin"] },
-  { min: 19, max: 23, level: 3, kinds: ["goblin"] },
-  { min: 5, max: 9, level: 1, kinds: ["skeleton"] },
-  { min: 10, max: 13, level: 2, kinds: ["skeleton"] },
-  { min: 20, max: 24, level: 3, kinds: ["skeleton"] },
-  { min: 5, max: 10, level: 1, kinds: ["imp"] },
-  { min: 11, max: 14, level: 2, kinds: ["imp"] },
-  { min: 24, max: 28, level: 3, kinds: ["imp"] },
-  { min: 7, max: 12, level: 1, kinds: ["runner", "zombie", "mushroom"] },
-  { min: 13, max: 16, level: 2, kinds: ["zombie"] },
-  { min: 25, max: 29, level: 3, kinds: ["zombie"] },
-  { min: 5, max: 8, level: 1, kinds: ["archer"] },
-  { min: 7, max: 11, level: 1, kinds: ["slime"] },
-  { min: 9, max: 12, level: 1, kinds: ["wokka"] },
-  { min: 11, max: 16, level: 1, kinds: ["grabber", "tripper"] },
-  { min: 17, max: 20, level: 2, kinds: ["grabber", "tripper"] },
-  { min: 12, max: 16, level: 2, kinds: ["archer"] },
-  { min: 13, max: 18, level: 1, kinds: ["bombslime"] },
-  { min: 17, max: 23, level: 2, kinds: ["slime"] },
-  { min: 18, max: 23, level: 2, kinds: ["wokka"] },
-  { min: 24, max: 29, level: 3, kinds: ["archer"] },
-  { min: 24, max: 30, level: 2, kinds: ["bombslime"] },
-  { min: 31, max: 38, level: 3, kinds: ["slime"] },
-  { min: 32, max: 37, level: 3, kinds: ["wokka"] },
-  { min: 38, max: 45, level: 3, kinds: ["bombslime"] },
-  /* 13〜22 薬と魔方陣、化ける、突進。盗賊・錆は装備が付いてから */
-  { min: 13, max: 17, level: 1, kinds: ["potionthrower", "potionhealer", "rakugakima"] },
-  { min: 18, max: 21, level: 2, kinds: ["potionthrower", "potionhealer"] },
-  { min: 15, max: 18, level: 1, kinds: ["itemMimic", "charger", "manaEater"] },
-  { min: 21, max: 24, level: 2, kinds: ["manaEater"] },
-  { min: 24, max: 27, level: 2, kinds: ["itemMimic", "charger"] },
-  { min: 32, max: 35, level: 3, kinds: ["charger"] },
-  { min: 17, max: 20, level: 1, kinds: ["thief", "tattoobird", "wolf"] },
-  { min: 19, max: 22, level: 1, kinds: ["rustbug", "wizard"] },
-  { min: 24, max: 28, level: 2, kinds: ["rustbug", "wizard"] },
-  { min: 26, max: 29, level: 2, kinds: ["leprechaun", "tattoobird"] },
-  { min: 36, max: 39, level: 3, kinds: ["itemMimic", "wizard", "leprechaun", "tattoobird", "rustbug", "potionthrower", "potionhealer"] },
-  { min: 21, max: 24, level: 1, kinds: ["leprechaun", "bombgoblin", "orc", "dangerousPetal", "dreamEater"] },
-  { min: 21, max: 24, level: 2, kinds: ["mushroom"] },
-  { min: 23, max: 26, level: 1, kinds: ["itemThrower", "trapmaster", "serpent"] },
-  { min: 31, max: 34, level: 2, kinds: ["serpent"] },
-  { min: 25, max: 27, level: 1, kinds: ["hypnotist", "dodgemole", "waterFlower", "machodragon"] },
-  { min: 21, max: 24, level: 2, kinds: ["wolf"] },
-  { min: 29, max: 32, level: 3, kinds: ["wolf"] },
-  /* 28〜40 ドラゴンは装備が付いてからLv1で出す */
-  { min: 28, max: 31, level: 1, kinds: ["dragon", "troll", "killplaster"] },
-  /* 32〜43は中堅種の上位形態を重ね、低ステータスの新顔だけに偏らせない。 */
-  { min: 32, max: 35, level: 1, kinds: ["vampire", "giantEel", "mimic", "knocker", "walldigger"] },
-  { min: 32, max: 35, level: 2, kinds: ["thief"] },
-  { min: 33, max: 36, level: 2, kinds: ["rakugakima"] },
-  { min: 34, max: 37, level: 1, kinds: ["icedragon"] },
-  { min: 36, max: 39, level: 1, kinds: ["golem", "darkness", "magicreflector"] },
-  { min: 36, max: 39, level: 2, kinds: ["dangerousPetal", "dreamEater", "grabber", "orc"] },
-  { min: 36, max: 43, level: 2, kinds: ["vampire", "troll"] },
-  { min: 38, max: 43, level: 2, kinds: ["dragon", "machodragon"] },
-  { min: 40, max: 43, level: 2, kinds: ["golem", "darkness", "mimic", "knocker", "walldigger"] },
-  /* 40〜47は重戦士・術師・引き寄せ役を順に上位形態へ移す。 */
-  { min: 40, max: 43, level: 1, kinds: ["daemon", "puller", "witchdoc", "berserker"] },
-  { min: 40, max: 43, level: 3, kinds: ["potionthrower", "potionhealer"] },
-  { min: 40, max: 43, level: 2, kinds: ["bombgoblin", "waterFlower", "hypnotist"] },
-  { min: 44, max: 47, level: 1, kinds: ["seaDevil", "disarmer", "lizardman"] },
-  { min: 44, max: 47, level: 2, kinds: ["daemon", "puller", "witchdoc", "berserker", "killplaster", "itemThrower", "trapmaster", "magicreflector"] },
-  { min: 48, max: 50, level: 2, kinds: ["darkness", "daemon", "mimic", "knocker", "dodgemole"] },
-  /* 最終帯のLv3は当初の7系統に絞り、その他は既存の階帯で出す。 */
-  { min: 48, max: 50, level: 3, kinds: ["dragon", "hypnotist", "potionhealer", "rakugakima", "mushroom", "machodragon", "manaEater"] },
+  band(1, 3, 1, { rat: 4, bat: 3, centipede: 3 }),
+  band(3, 4, 1, { kobold: 3, goblin: 3, archer: 8 }),
+  band(4, 6, 1, { skeleton: 2, zombie: 2, slime: 3, wokka: 4 }),
+  band(5, 7, 1, { imp: 2, tripper: 4, grabber: 3, mushroom: 1, runner: 1, wolf: 2 }),
+
+  /* B8の合成節目。B10ではB5グウェン召喚用のLv2ゾンビ・スライム・ワッカも候補。 */
+  band(8, 10, 2, { rat: 2, bat: 2, centipede: 2, kobold: 3 }),
+  band(8, 10, 1, { synthmonster: 4, itemMimic: 3, charger: 3, manaEater: 2 }),
+  band(10, 12, 2, { goblin: 3, skeleton: 2, zombie: 3, slime: 3, wokka: 3 }),
+  band(11, 13, 2, { archer: 3 }),
+  band(13, 15, 1, { wizard: 2 }),
+  band(13, 15, 1, { bombslime: 2, potionthrower: 2, potionhealer: 2, rakugakima: 2, leprechaun: 1 }),
+  band(13, 15, 2, { imp: 3 }),
+  band(16, 18, 2, { tripper: 2, grabber: 2, mushroom: 1 }),
+  band(16, 18, 1, { tattoobird: 2, serpent: 2, waterFlower: 1, wolf: 2 }),
+  band(17, 19, 1, { thief: 1, rustbug: 1 }),
+  band(19, 21, 2, { potionthrower: 2 }),
+  band(19, 21, 3, { goblin: 2, imp: 2, zombie: 2 }),
+  band(20, 22, 3, { kobold: 2, skeleton: 2 }),
+  band(21, 23, 3, { rat: 2, bat: 2, centipede: 2 }),
+  band(19, 21, 1, { sylph: 2, lizardman: 2 }),
+
+  band(22, 24, 1, { dangerousPetal: 4, dreamEater: 4, orc: 2, bombgoblin: 2 }),
+  band(22, 24, 2, { manaEater: 2, wolf: 2 }),
+  band(25, 27, 2, { bombslime: 2 }),
+  band(23, 25, 1, { potRaider: 2, itemThrower: 2, trapmaster: 2, serpent: 2 }),
+  band(25, 27, 2, { rustbug: 1, itemMimic: 2, charger: 2, tattoobird: 2, waterFlower: 1 }),
+  band(25, 27, 1, { hypnotist: 1, dodgemole: 2, machodragon: 2 }),
+  band(26, 28, 1, { hauntedWillow: 1 }),
+  band(28, 30, 1, { sleepingLion: 1 }),
+  band(28, 30, 2, { dreamEater: 3, lizardman: 2 }),
+  band(28, 30, 1, { troll: 2, killplaster: 2, dragon: 2 }),
+  band(29, 31, 2, { sylph: 2, wolf: 2, wizard: 2, leprechaun: 1 }),
+
+  band(31, 33, 3, { archer: 2, slime: 2, wokka: 2 }),
+  band(31, 33, 2, { serpent: 2, dangerousPetal: 2 }),
+  band(32, 34, 1, { mimic: 2, vampire: 2, giantEel: 1, walldigger: 2 }),
+  band(32, 34, 2, { charger: 2, itemThrower: 2 }),
+  band(34, 36, 1, { icedragon: 2, golem: 1, darkness: 2, magicreflector: 2, shaman: 2 }),
+  band(37, 39, 2, { potionhealer: 2 }),
+  band(34, 36, 2, { machodragon: 2 }),
+  band(38, 40, 2, { potRaider: 2 }),
+  band(34, 36, 3, { dreamEater: 2 }),
+  band(37, 39, 3, { itemMimic: 1 }),
+  band(37, 39, 2, { dragon: 2, hauntedWillow: 1, sleepingLion: 1 }),
+  band(38, 40, 2, { vampire: 2, mimic: 2 }),
+  band(37, 39, 1, { berserker: 2, puller: 2, witchdoc: 2 }),
+
+  band(40, 42, 1, { daemon: 2 }),
+  band(40, 42, 2, { shaman: 2, golem: 1, darkness: 2, magicreflector: 2, hypnotist: 1, dodgemole: 2, troll: 1, walldigger: 2, icedragon: 2 }),
+  band(41, 43, 2, { bombslime: 2, serpent: 2, orc: 1 }),
+  band(43, 45, 1, { disarmer: 1, seaDevil: 1 }),
+  band(43, 45, 2, { berserker: 2, puller: 2, witchdoc: 2, trapmaster: 2, itemThrower: 2, killplaster: 2 }),
+  band(43, 45, 3, { lizardman: 1, dangerousPetal: 1 }),
+  band(44, 46, 3, { sylph: 1, vampire: 1 }),
+  band(46, 48, 3, { sleepingLion: 1, hauntedWillow: 1, golem: 1, darkness: 1, magicreflector: 1, troll: 1, walldigger: 1 }),
+
+  band(48, 50, 3, { dragon: 1 }),
+  band(49, 50, 3, { hypnotist: 1, potionhealer: 1, rakugakima: 1, mushroom: 1, machodragon: 1, manaEater: 1, mimic: 1, potRaider: 1, shaman: 1 }),
+  band(49, 50, 2, { disarmer: 1, seaDevil: 1 }),
 ]);
 
 const _pools = Array.from({ length: 51 }, () => []);
 const _levels = Array.from({ length: 51 }, () => new Map());
-for (const band of LEGEND_MONSTER_BANDS) {
-  for (let floor = band.min; floor <= band.max; floor++) {
-    for (const kind of band.kinds) {
+const _weights = Array.from({ length: 51 }, () => new Map());
+for (const entry of LEGEND_MONSTER_BANDS) {
+  for (let floor = entry.min; floor <= entry.max; floor++) {
+    for (const kind of entry.kinds) {
       if (!_pools[floor].includes(kind)) _pools[floor].push(kind);
-      _levels[floor].set(kind, band.level);
+      _levels[floor].set(kind, entry.level);
+      _weights[floor].set(kind, entry.weights[kind] ?? 3);
     }
+  }
+}
+
+for (let floor = 1; floor <= 50; floor++) {
+  const largeCount = ["hauntedWillow", "sleepingLion"].filter(kind => _pools[floor].includes(kind)).length;
+  const limit = 13 + largeCount;
+  if (_pools[floor].length <= limit) continue;
+  const keep = new Set([..._pools[floor]]
+    .sort((a, b) => (_weights[floor].get(b) ?? 3) - (_weights[floor].get(a) ?? 3))
+    .slice(0, limit));
+  _pools[floor] = _pools[floor].filter(kind => keep.has(kind));
+  for (const kind of _levels[floor].keys()) {
+    if (!keep.has(kind)) { _levels[floor].delete(kind); _weights[floor].delete(kind); }
   }
 }
 
@@ -118,4 +109,57 @@ export function legendMonsterAllowed(baseKind, floor) {
 export function legendMonsterSpawnLevel(base, floor) {
   if (!base?.baseKind) return 1;
   return _levels[floor]?.get(base.baseKind) ?? 1;
+}
+
+export function legendMonsterSpawnWeight(baseKind, floor) {
+  return _weights[floor]?.get(baseKind) ?? 1;
+}
+
+export const LEGEND_ACTIVE_SPECIAL_KINDS = new Set([
+  "archer", "wokka", "slime", "tripper", "grabber", "mushroom", "synthmonster",
+  "itemMimic", "charger", "manaEater", "thief", "rustbug", "wizard", "bombslime",
+  "potionthrower", "potionhealer", "rakugakima", "trapmaster", "leprechaun",
+  "itemThrower", "tattoobird", "serpent", "waterFlower", "sylph", "lizardman",
+  "dangerousPetal", "dreamEater", "orc", "bombgoblin", "hypnotist", "dodgemole",
+  "potRaider", "sleepingLion", "hauntedWillow", "dragon", "troll", "killplaster",
+  "vampire", "giantEel", "mimic", "knocker", "walldigger", "icedragon", "golem",
+  "darkness", "magicreflector", "shaman", "daemon", "berserker", "puller", "witchdoc",
+  "disarmer", "seaDevil",
+]);
+
+export const LEGEND_MONSTER_SYNERGY_GROUPS = Object.freeze([
+  Object.freeze({ min: 6, max: 6, chance: 0.35, maxDistance: 3, sameRoom: true, kinds: Object.freeze(["wokka", "tripper"]) }),
+  Object.freeze({ min: 22, max: 24, chance: 0.30, maxDistance: 6, sameRoom: true, kinds: Object.freeze(["dangerousPetal", "dreamEater"]) }),
+  Object.freeze({ min: 28, max: 28, chance: 0.25, maxDistance: 8, sameRoom: true, kinds: Object.freeze(["sleepingLion", "dreamEater"]) }),
+  Object.freeze({ min: 32, max: 33, chance: 0.25, maxDistance: 1, sameRoom: true, kinds: Object.freeze(["mimic", "archer"]) }),
+  Object.freeze({ min: 40, max: 42, chance: 0.40, maxDistance: 3, sameRoom: true, kinds: Object.freeze(["shaman", "daemon"]) }),
+]);
+
+export function legendMonsterSynergyGroupsAtFloor(floor) {
+  return LEGEND_MONSTER_SYNERGY_GROUPS.filter(group => group.min <= floor && floor <= group.max);
+}
+
+export function legendMonsterAffinityMultiplier(baseKind, floor, existingMonsters = []) {
+  const kinds = new Set((existingMonsters || []).filter(monster => monster?.hp > 0).map(monster => monster.baseKind));
+  for (const group of legendMonsterSynergyGroupsAtFloor(floor)) {
+    if (group.kinds.includes(baseKind) && group.kinds.some(kind => kind !== baseKind && kinds.has(kind))) return 2;
+  }
+  return 1;
+}
+
+export const LEGEND_MONSTER_STAT_OVERRIDES = Object.freeze({
+  archer: Object.freeze({ 1: Object.freeze({ hp: 16, atk: 9, def: 1, exp: 10 }), 2: Object.freeze({ hp: 30, atk: 16, def: 2, exp: 40 }) }),
+  zombie: Object.freeze({ 1: Object.freeze({ hp: 42, atk: 18, def: 4, exp: 26 }), 2: Object.freeze({ hp: 100, atk: 18, def: 8, exp: 80 }) }),
+  tripper: Object.freeze({ 1: Object.freeze({ hp: 22, atk: 10, def: 2, exp: 18 }) }),
+  grabber: Object.freeze({ 1: Object.freeze({ hp: 24, atk: 11, def: 3, exp: 20 }) }),
+  synthmonster: Object.freeze({ 1: Object.freeze({ hp: 40, atk: 15, def: 4, exp: 45 }) }),
+  kobold: Object.freeze({ 2: Object.freeze({ hp: 38, atk: 16, def: 8, exp: 35 }) }),
+  goblin: Object.freeze({ 2: Object.freeze({ hp: 50, atk: 16, def: 10, exp: 50 }) }),
+  skeleton: Object.freeze({ 2: Object.freeze({ hp: 46, atk: 18, def: 8, exp: 55 }) }),
+  slime: Object.freeze({ 2: Object.freeze({ hp: 52, atk: 20, def: 6, exp: 65 }) }),
+  wokka: Object.freeze({ 2: Object.freeze({ hp: 38, atk: 16, def: 4, exp: 45 }) }),
+});
+
+export function legendMonsterStatOverride(baseKind, level) {
+  return LEGEND_MONSTER_STAT_OVERRIDES[baseKind]?.[level] ?? null;
 }
