@@ -5082,9 +5082,25 @@ function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
   return false;
 }
 
+function rememberLethalPlayerCause(player) {
+  if (!player || player.hp > 0 || player._lethalDamageCause) return;
+  Object.defineProperty(player, "_lethalDamageCause", {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: player.deathCause || "不明の原因により",
+  });
+}
+
 /** モンスターAI。移動後は重力罠。長時間動けなければ別方向へ強制移動。 */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _sx = m.x, _sy = m.y;
+  const _playerHpBeforeAI = pl?.hp;
+  const _deathCauseBeforeAI = pl?.deathCause;
+  if (_playerHpBeforeAI > 0) delete pl._lethalDamageCause;
+  else rememberLethalPlayerCause(pl);
+  const _previousDamageSourceName = pl?._activeDamageSourceName;
+  if (pl) pl._activeDamageSourceName = m.name;
   const _movedThisTurn = m._movedThisTurn;
   const _shopkeeperHpBefore = new Map((dg.monsters || [])
     .filter(other => other !== m && other.type === "shopkeeper" && other.hp > 0)
@@ -5109,6 +5125,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   try {
     _monsterAIBody(m, dg, pl, ml, _aiOpts);
   } finally {
+    /* 個別の特技処理が死因を書き忘れていても、致死行動をした敵名は残す。 */
+    if (_playerHpBeforeAI > 0 && pl?.hp <= 0) {
+      const cause = String(pl.deathCause || "");
+      const namesThisMonster = [`${m.name}の`, `${m.name}に`, `${m.name}が`, `${m.name}から`];
+      if (!namesThisMonster.some((name) => cause.includes(name))) {
+        const hasSpecificCause = cause && cause !== _deathCauseBeforeAI && cause !== "不明の原因により";
+        pl.deathCause = hasSpecificCause
+          ? `${m.name}の行動で${cause}`
+          : `${m.name}の攻撃で`;
+      }
+    }
+    if (pl?.hp <= 0) {
+      rememberLethalPlayerCause(pl);
+      if (pl._lethalDamageCause) pl.deathCause = pl._lethalDamageCause;
+    }
     /* AIの直接攻撃で受けたダメージだけを報復対象にする。罠の発火で受けた分は差し引く。 */
     if (m.hp > 0 && dg.monsters.includes(m) && !m.isPlayerClone) {
       for (const [npc, hpBefore] of _shopkeeperHpBefore) {
@@ -5190,6 +5221,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           }
         }
       }
+    }
+    if (pl) {
+      if (_previousDamageSourceName === undefined) delete pl._activeDamageSourceName;
+      else pl._activeDamageSourceName = _previousDamageSourceName;
     }
   }
 }

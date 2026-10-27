@@ -208,12 +208,15 @@ export function advanceEarlyStatusTimers(player, messages) {
     }
     player.poisonedTurns--;
     if (player.hp > 0) {
-      player.deathCause = "毒により";
+      player.deathCause = player.poisonSourceName
+        ? `${player.poisonSourceName}の毒により`
+        : "毒により";
       player.hp--;
       messages.push("毒に冒されている！1ダメージ！");
     }
     if (player.poisonedTurns <= 0) {
       player.poisoned = false;
+      delete player.poisonSourceName;
       messages.push("毒の効果が切れた。攻撃力の低下は残っている...");
     }
   }

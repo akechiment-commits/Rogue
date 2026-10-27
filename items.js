@@ -2245,7 +2245,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
       : _applySoakedFireReduction(rawDmg, p);
-    p.deathCause = `${srcLabel}により`;
+    p.deathCause = killerMon?.name ? `${killerMon.name}の${srcLabel}により` : `${srcLabel}により`;
     if (_oilyMineSurvival) {
       setPlayerHpForFixedEffect(p, 1);
       ml.push(`${srcLabel}！油まみれのためHPが1残った！`);
@@ -2500,7 +2500,9 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           const _hasFireProt = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4)) * oilyDamageMult(dg, p);
           const dmg = reduceFireDamage(rawDmg, p);
-          p.deathCause = `${srcLabel}の爆発により`;
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の${srcLabel}の爆発により`
+            : `${srcLabel}の爆発により`;
           p.hp -= dmg;
           ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true,
@@ -4540,7 +4542,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       if (kind === "player") {
         if (cursed) {
-          p.deathCause = "呪われた水の飛散により";
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の呪われた水の飛散により`
+            : "呪われた水の飛散により";
           p.hp -= amt;
           ml.push(`変な薬を浴びた！${amt}ダメージ！【呪】`);
         } else {
@@ -4567,7 +4571,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             _monKill(target);
           }
         }
-        if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
+        if (kind === "player") {
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の呪われた回復薬の飛散により`
+            : "呪われた回復薬の飛散により";
+          p.hp -= d;
+          ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`);
+        }
       } else {
         const _mult = blessed ? 2 : 1;
         if (kind === "monster") {
@@ -4616,7 +4626,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             _monKill(target);
           }
         }
-        if (kind === "player") { p.deathCause = "呪われた超回復薬の飛散により"; p.hp -= _shd; ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`); }
+        if (kind === "player") {
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の呪われた超回復薬の飛散により`
+            : "呪われた超回復薬の飛散により";
+          p.hp -= _shd;
+          ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`);
+        }
       } else if (kind === "monster") {
         if (target.kind === "undead") {
           const _shUd = Math.max(1, Math.round(val * _shMult));
@@ -4730,7 +4746,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const _oilyMult = _oilyCheck(p) ? 2 : 1;
           const rd = Math.max(1, Math.round(dmg * (blessed ? 2 : 1) * _oilyMult));
           const fd = reduceFireDamage(rd, p);
-          p.deathCause = "炎の薬の飛散により";
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の炎の薬の飛散により`
+            : "炎の薬の飛散により";
           p.hp -= fd;
           ml.push(`炎に包まれた！${fd}ダメージ！${fireResistDamageLabel(p)}${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
           applyLightningToInventory(p, dg, ml, luFn, null, true, { killerMon, sourceIsPlayer: !killerMon });
@@ -5802,7 +5820,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       });
     }
     if (p && x === p.x && y === p.y) {
-      applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
+      applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed, killerMon);
       if (eff === "water") applySoakedStatus(p, ml);
     }
     if (eff === "water") washOilyFromWater(dg, x, y, mon || (p && x === p.x && y === p.y ? p : null), ml);
@@ -6966,7 +6984,11 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       }
       let dmg = _isPot ? _potDmg(0) : _projDmg(0);
       dmg = applyFrozenPhysicalMult(dmg, p);
-      p.deathCause = deathCausePhrase;
+      p.deathCause = reflectedBy?.name
+        ? `${reflectedBy.name}に跳ね返された${resolveItemName(item, nameFn)}に当たって`
+        : killerMon?.name
+          ? `${killerMon.name}が投げた${resolveItemName(item, nameFn)}に当たって`
+          : deathCausePhrase;
       p.hp -= dmg;
       const _plHit = (_isPot ? potPlHitMsg(dmg) : plHitMsg(dmg)) + frozenPhysicalLabel(p);
       mlx.push(_plHit);
@@ -7144,7 +7166,13 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
       if (kind === "monster") { entity.hp -= 5; ml.push(`${entity.name}は壁に叩きつけられた！5ダメージ！`); }
-      if (kind === "player")  { p.deathCause = "吹き飛ばされての壁への激突により"; p.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！"); }
+      if (kind === "player")  {
+        p.deathCause = killerMon?.name
+          ? `${killerMon.name}に吹き飛ばされての壁への激突により`
+          : "吹き飛ばされての壁への激突により";
+        p.hp -= 5;
+        ml.push("壁に叩きつけられた！5ダメージ！");
+      }
       break;
     }
     /* 飛んでいる罠がキャラクターに命中 → 呼び出し元でfireTrapを処理できるよう即返却 */

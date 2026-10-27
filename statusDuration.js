@@ -162,9 +162,10 @@ export function statusResultMessage(result, message) {
  * 毒の再付与では攻撃力低下を重ねず、持続だけ加算する。
  * 攻撃力低下は解毒処理で戻すため poisonAtkLoss に記録する。
  */
-export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOverride } = {}) {
+export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOverride, sourceName = null } = {}) {
   if (!player) return { newlyApplied: false, atkLoss: 0, turns: 0, remaining: 0 };
   if (isStatusImmune(player)) return { blocked: true, newlyApplied: false, atkLoss: 0, turns: 0, remaining: player.poisonedTurns || 0 };
+  player.poisonSourceName = sourceName || player._activeDamageSourceName || null;
   const newlyApplied = !player.poisoned;
   const turns = statusTurns("poison", { kind: "player", blessed });
   player.poisoned = true;
@@ -221,6 +222,7 @@ export function clearPlayerPoison(player) {
   const hadPoison = !!player.poisoned || (player.poisonedTurns || 0) > 0;
   player.poisoned = false;
   player.poisonedTurns = 0;
+  delete player.poisonSourceName;
   if ((player.poisonAtkLoss || 0) > 0) {
     player.atk += player.poisonAtkLoss;
     player.poisonAtkLoss = 0;
