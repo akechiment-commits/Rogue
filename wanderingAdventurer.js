@@ -42,13 +42,76 @@ export const WANDERING_ADVENTURER_KNOWLEDGE = Object.freeze([
   Object.freeze({ recipe: "万能キラー3本を合成すると", result: "全能キラー" }),
   Object.freeze({ recipe: "アサメ3本を合成すると", result: "マジックベーン" }),
   Object.freeze({ recipe: "ドラゴンメイル・氷竜のウロコ・ゴムゴムの胴のいずれかをベースに三属性の耐性をそろえると", result: "元素王の鎧" }),
+  Object.freeze({ tip: "5階ごとにボスが現れる" }),
+  Object.freeze({ tip: "超上級の通常階に最初から置かれる道具は3〜6個で、敵のドロップは別判定" }),
+  Object.freeze({ tip: "超上級の通常敵は一般ランダムドロップが2〜5%で、固有ドロップは別判定" }),
+  Object.freeze({ tip: "ボスは倒すと金貨と強化値付きの装備を必ず落とす" }),
+  Object.freeze({ tip: "MPが残り復活を封じられていなければ、HP0でも残りMP分のHPで復活する" }),
+  Object.freeze({ tip: "毒状態ではターンごとにHPが1減る。毒消しの指輪なら毒を防げる" }),
+  Object.freeze({ tip: "転倒の罠は未装備の持ち物を2〜4個落とす。装備中の品は落ちない" }),
+  Object.freeze({ tip: "店の商品は代金を払う前に店の外へ持ち出すと泥棒扱いになる" }),
+  Object.freeze({ tip: "ボス階以外では、B2Fから25%で特殊なフロアが選ばれる" }),
 ]);
+
+const WANDERING_ADVENTURER_TIP_VOICES = Object.freeze({
+  rumor_monger: Object.freeze({
+    before: ["ねえ、聞いた話なんだけどさ、", "酒場で耳にしたんだ。", "師匠から聞いたんだけど、"],
+    after: ["らしいよ。", "ってさ。", "んだって。"],
+  }),
+  excited_discoverer: Object.freeze({
+    before: ["聞いてくれ！", "やったぞ！", "この話、君にも伝えたかったんだ。"],
+    after: ["！知った時は声が出たよ！", "！これは覚えておくといい！", "！冒険の助けになるはずだ！"],
+  }),
+  practical: Object.freeze({
+    before: ["要点だけだ。", "無駄話は苦手だが、これは役に立つ。", "忘れるな。"],
+    after: ["。覚えておけ。", "。", "。以上だ。"],
+  }),
+  cautious: Object.freeze({
+    before: ["間違っていたらごめんね。", "確かな話かは分からないんだけど……", "役に立つか分からないけど、"],
+    after: ["らしいよ。念のため気をつけて。", "と聞いたの。", "覚えておいて。"],
+  }),
+  proud: Object.freeze({
+    before: ["ふふん、私が確かめたよ。", "これを知っている人は少ないんだ。", "聞いて驚きな。"],
+    after: ["。私の調査に間違いはないよ。", "。覚えておくといい。", "。私が言うんだから確かさ。"],
+  }),
+  scholar: Object.freeze({
+    before: ["記録によれば、", "確認済みの情報だ。", "手帳にも書いておいたよ。"],
+    after: ["。", "。", "。忘れないように。"],
+  }),
+  sleepy: Object.freeze({
+    before: ["ふあぁ……たしか、", "ん……起きてるよ。", "眠くて頭が回らないけど……"],
+    after: ["。たぶんね。", "って聞いた……。", "。忘れないうちに言えた……。"],
+  }),
+  optimistic: Object.freeze({
+    before: ["いいこと教えるね！", "これを知ったら冒険がもっと楽しくなるよ。", "大丈夫、きっと役に立つよ！"],
+    after: ["よ。試すのが楽しみ！", "よ！", "よ。"],
+  }),
+  veteran: Object.freeze({
+    before: ["長く潜ってりゃ分かる。", "若い頃に聞いた話だが、", "焦らず聞け。"],
+    after: ["。準備は怠るなよ。", "。覚えておいて損はない。", "。急ぐなよ。"],
+  }),
+  poetic: Object.freeze({
+    before: ["風の便りに聞いたよ。", "冒険の道標は、", "迷宮の石壁が囁いている。"],
+    after: ["。", "。", "。忘れずに進もう。"],
+  }),
+  timid: Object.freeze({
+    before: ["あ、あのね……", "小声で言うね。", "誰かに聞いたんだけど……"],
+    after: ["らしいんだ。怖いけど、備えておこう。", "って。魔物に聞かれないように……。", "みたいだよ。たぶん大丈夫……だよね。"],
+  }),
+});
+
+function wanderingAdventurerTipLine(personalityKey, tip, variant) {
+  const voice = WANDERING_ADVENTURER_TIP_VOICES[personalityKey];
+  return `${voice.before[variant]}${tip}${voice.after[variant]}`;
+}
 
 const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "rumor_monger",
     label: "噂好き",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("rumor_monger", fact.tip, variant)
+      : [
       `ねえ、聞いた話なんだけどさ、${fact.recipe}『${fact.result}』になるらしいよ。`,
       `酒場で耳にしたんだ。${fact.recipe}『${fact.result}』になるってさ。`,
       `師匠から聞いたんだけど、${fact.recipe}『${fact.result}』になるんだって。`,
@@ -63,7 +126,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "excited_discoverer",
     label: "発見に興奮する",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("excited_discoverer", fact.tip, variant)
+      : [
       `聞いてくれ！${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだ。自分で見つけた時は声が出たよ！`,
       `やったぞ！${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだ！初めて知った時は興奮したなあ。`,
       `この発見、君にも伝えたかったんだ。${discoveredRecipePhrase(fact.recipe)}『${fact.result}』になったんだよ！`,
@@ -78,7 +143,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "practical",
     label: "実務的",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("practical", fact.tip, variant)
+      : [
       `要点だけだ。${fact.recipe}『${fact.result}』になる。覚えておけよ。`,
       `無駄話は苦手なんだが、これは役立つ。${fact.recipe}『${fact.result}』だ。`,
       `忘れるな。${fact.recipe}『${fact.result}』になる。以上だ。`,
@@ -93,7 +160,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "cautious",
     label: "慎重派",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("cautious", fact.tip, variant)
+      : [
       `間違っていたらごめんね。${fact.recipe}『${fact.result}』らしいよ。私はまだ試せていないけど。`,
       `確かな話かは分からないんだけど……${fact.recipe}『${fact.result}』になるって聞いたの。`,
       `役に立つか分からないけど、${fact.recipe}『${fact.result}』みたい。念のため覚えておいて。`,
@@ -108,7 +177,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "proud",
     label: "自信家",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("proud", fact.tip, variant)
+      : [
       `ふふん、私が自分で確かめたよ。${fact.recipe}『${fact.result}』だ。`,
       `これを見つけるのに苦労したんだ。${fact.recipe}『${fact.result}』、覚えておくといい。`,
       `聞いて驚け。${fact.recipe}『${fact.result}』になる。私の調査に間違いはないよ。`,
@@ -123,7 +194,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "scholar",
     label: "研究熱心",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("scholar", fact.tip, variant)
+      : [
       `記録によれば、${fact.recipe}『${fact.result}』となる。材料の数を間違えないように。`,
       `確認済みの手順だ。${fact.recipe}『${fact.result}』になる。`,
       `手帳にも書いておいたよ。${fact.recipe}『${fact.result}』だ。`,
@@ -138,7 +211,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "sleepy",
     label: "眠たがり",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("sleepy", fact.tip, variant)
+      : [
       `ふあぁ……たしか、${fact.recipe}『${fact.result}』だったよ。たぶんね。`,
       `ん……起きてるよ。${fact.recipe}『${fact.result}』、それだけ伝えたかったんだ……。`,
       `眠くて頭が回らないけど……${fact.recipe}『${fact.result}』。忘れないうちに言えた……。`,
@@ -153,7 +228,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "optimistic",
     label: "楽天家",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("optimistic", fact.tip, variant)
+      : [
       `いいこと教えるね！${fact.recipe}『${fact.result}』になるんだって。試すのが楽しみ！`,
       `これを知ったら冒険がもっと楽しくなるよ。${fact.recipe}『${fact.result}』だって！`,
       `大丈夫、きっと役に立つよ！${fact.recipe}『${fact.result}』になるんだ。`,
@@ -168,7 +245,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "veteran",
     label: "ベテラン",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("veteran", fact.tip, variant)
+      : [
       `長く潜ってりゃ分かる。${fact.recipe}『${fact.result}』になるそうだ。準備は怠るなよ。`,
       `若い頃に聞いた話だが、${fact.recipe}『${fact.result}』になる。覚えておいて損はない。`,
       `焦らず試せ。${fact.recipe}『${fact.result}』だ。急ぐと素材を無駄にするぞ。`,
@@ -183,7 +262,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "poetic",
     label: "詩人気質",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("poetic", fact.tip, variant)
+      : [
       `風の便りに聞いたよ。${discoveredRecipePhrase(fact.recipe)}『${fact.result}』と。`,
       `素材が出会うと姿を変える。${fact.recipe}『${fact.result}』になるんだ。`,
       `剣にも鎧にも縁がある。${fact.recipe}『${fact.result}』と、私は覚えているよ。`,
@@ -198,7 +279,9 @@ const WANDERING_ADVENTURER_PERSONALITIES = Object.freeze([
   Object.freeze({
     key: "timid",
     label: "怖がり",
-    infoLine: (fact, variant) => [
+    infoLine: (fact, variant) => fact.tip
+      ? wanderingAdventurerTipLine("timid", fact.tip, variant)
+      : [
       `あ、あのね……${fact.recipe}『${fact.result}』になるらしいんだ。怖いけど、試す価値はあると思う。`,
       `小声で言うね。${fact.recipe}『${fact.result}』だって。魔物に聞かれないように……。`,
       `誰かに聞いたんだけど、${fact.recipe}『${fact.result}』になるそうだよ。たぶん大丈夫……だよね。`,

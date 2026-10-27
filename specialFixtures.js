@@ -22,7 +22,7 @@ export function dimensionalVaultItemTurns(item) {
 export const SPECIAL_FIXTURE_RATES = Object.freeze({
   dimensionalVault: 0.03,
   wanderingMerchant: 0.05,
-  wanderingAdventurer: 0.05,
+  wanderingAdventurer: 0.50,
   altar: 0.05,
 });
 

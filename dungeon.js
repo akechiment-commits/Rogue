@@ -3169,9 +3169,11 @@ export function placeWanderingMerchant(dg, depth, randomFn = Math.random) {
   return merchant;
 }
 
-/** 友好的な冒険者を部屋へ配置する。話しかけると特殊合成のヒントを教える。 */
+/** 友好的な冒険者を1〜4階へ配置する。会話では合成または攻略情報を一つ教える。 */
 export function placeWanderingAdventurer(dg, depth, randomFn = Math.random) {
   if (!dg?.map || dg.dungeonType === "tutorial" || dg.isTreasureRoom) return null;
+  const floor = Math.floor(Number(depth)) + 1;
+  if (!Number.isFinite(floor) || floor < 1 || floor > 4) return null;
   if (dg.monsters?.some((monster) => monster.isWanderingAdventurer) ||
       randomFn() >= specialFixtureRate("wanderingAdventurer", dg)) return null;
   const shops = getShops(dg);
@@ -3214,7 +3216,8 @@ export function placeWanderingAdventurer(dg, depth, randomFn = Math.random) {
     type: "shopkeeper",
     state: "friendly",
     isWanderingAdventurer: true,
-    desc: "フロアを巡回する冒険者。話しかけると隠し合成のヒントを教えてくれる。",
+    desc: "フロアを巡回する冒険者。話しかけると合成や攻略の情報を一つ教え、ときどき道具をくれる。",
+    adventurerGiftChecked: false,
     x: cell.x,
     y: cell.y,
     turnAccum: 0,

@@ -25,7 +25,7 @@ import {
 import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
-  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
+  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
   setPitfallBag, clearPitfallBag,
@@ -3895,7 +3895,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
         if (mon.isWanderingAdventurer) {
           const dialogue = nextWanderingAdventurerDialogue(mon);
-          setMsgs((prev) => [...prev.slice(-80), `${mon.name}：「${dialogue}」`]);
+          const talkMessages = [`${mon.name}：「${dialogue}」`];
+          if (!mon.adventurerGiftChecked) {
+            mon.adventurerGiftChecked = true;
+            if (Math.random() < 0.20) {
+              const gift = makeWanderingAdventurerGift(
+                dg.dungeonType || sr.current?.dungeonType || p.dungeonType || null,
+                Number.isFinite(p.depth) ? p.depth : 99,
+              );
+              if (gift) {
+                const giftName = itemDisplayName(gift, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                if (p.inventory.length < (p.maxInventory || 30)) {
+                  p.inventory.push(gift);
+                  talkMessages.push(`${mon.name}が${giftName}を1個くれた！`);
+                } else {
+                  const giftMessages = [];
+                  placeItemAt(dg, mon.x, mon.y, gift, giftMessages, new Set(), 0, p);
+                  talkMessages.push(`${mon.name}は${giftName}をくれたが、持ち物がいっぱいなので目の前に置いた。`);
+                  talkMessages.push(...giftMessages);
+                }
+              }
+            }
+          }
+          setMsgs((prev) => [...prev.slice(-80), ...talkMessages]);
           return;
         }
         const dg6 = sr.current.dungeon;

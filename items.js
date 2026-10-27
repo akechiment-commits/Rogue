@@ -558,6 +558,22 @@ export function makeRandomPotion(randomFn = Math.random, dungeonType = null, flo
   return { ...potion, id: uid() };
 }
 
+/** さすらいの冒険者が会話で渡す品。撃破時の確定ドロップと同じ抽選・階制限を使う。 */
+export function makeWanderingAdventurerGift(dungeonType = null, floor = 99) {
+  const pool = lootPoolForDungeon([
+    ...ITEMS.filter(item => item.type !== "gold" && item.type !== "goal"),
+    ...WANDS,
+    ...RINGS,
+  ], dungeonType, floor);
+  const template = pickLootFromPool(pool, "drop");
+  if (!template) return null;
+  const item = { ...template, id: uid() };
+  applyGeneratedRingPlus(item);
+  if (item.type === "pen") item.charges = penInitialCharges(item);
+  else if (item.type === "wand") item.charges = Math.max(1, (item.charges || 1) + rng(-1, 1));
+  return item;
+}
+
 export function getBlessMultiplier(it) {
   if (!it) return 1;
   if (it.blessed) return 2;
