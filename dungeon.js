@@ -3693,9 +3693,15 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     for (const g of _ugGens) { r -= g.w; if (r <= 0) return g.fn(); }
     return _ugGens[_ugGens.length - 1].fn();
   };
-  /* 床落ちアイテム数：最低を確保しつつ上限を抑える（1個フロアを避ける） */
-  const _totalItems = dungeonType === "advanced" || dungeonType === "legend"
-    ? rng(3, 6) : dungeonType === "intermediate" ? rng(4, 9) : rng(4, 8);
+  /* 最序盤の通常フロアは、超上級を7〜8個にし、他難易度も現行より増やす。 */
+  const _earlyFloor = depth <= 2;
+  const _totalItems = _earlyFloor
+    ? dungeonType === "legend" ? rng(7, 8)
+      : dungeonType === "advanced" ? rng(5, 8)
+        : dungeonType === "intermediate" ? rng(6, 11)
+          : rng(6, 10)
+    : dungeonType === "advanced" || dungeonType === "legend"
+      ? rng(3, 6) : dungeonType === "intermediate" ? rng(4, 9) : rng(4, 8);
   for (let i = 0; i < _totalItems; i++) {
     const rm = pick(rooms);
     for (let _a = 0; _a < 30; _a++) {
@@ -3762,11 +3768,13 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
-  /* 大箱: 通常は55%→0個, 30%→1個, 10%→2個, 5%→3-4個。超上級は62%→0, 26%→1, 8%→2, 4%→3-4 */
+  /* B1〜3の通常フロアは大箱を出やすくする。B4以降は難易度別の従来抽選。 */
   const _bbRoll = Math.random();
-  const _bbCount = dungeonType === "legend"
-    ? (_bbRoll < 0.04 ? rng(3, 4) : _bbRoll < 0.12 ? 2 : _bbRoll < 0.38 ? 1 : 0)
-    : (_bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.15 ? 2 : _bbRoll < 0.45 ? 1 : 0);
+  const _bbCount = depth <= 2
+    ? (_bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.20 ? 2 : _bbRoll < 0.55 ? 1 : 0)
+    : dungeonType === "legend"
+      ? (_bbRoll < 0.04 ? rng(3, 4) : _bbRoll < 0.12 ? 2 : _bbRoll < 0.38 ? 1 : 0)
+      : (_bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.15 ? 2 : _bbRoll < 0.45 ? 1 : 0);
   const bigboxes = [];
   for (let bi = 0; bi < _bbCount; bi++) {
     const br = pick(rooms);
