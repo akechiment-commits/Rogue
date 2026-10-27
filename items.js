@@ -1,5 +1,6 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { ensureSynthMonsterBox, speedUpSynthMonster } from './synthMonster.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -7990,6 +7991,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       _ensureShopPeeled();
       return;
     }
+    if (_wakkaTarget.baseKind === "synthmonster" && !_isPierce && !_isFc && !st.bombArrow && !forceMiss) {
+      const synthBox = ensureSynthMonsterBox(_wakkaTarget);
+      if (bbFn) bbFn(synthBox, _dropItem(), dg, ml);
+      else synthBox.contents.push(_dropItem());
+      speedUpSynthMonster(_wakkaTarget, ml);
+      _ensureShopPeeled();
+      return;
+    }
     const _wakkaDmg = clampDmgFixed(_wakkaTarget, calcProjectileDmg(p, _arAtk, _wakkaTarget.def), true);
     _wakkaTarget.hp -= _wakkaDmg;
     let _wakkaPoisonT = 0;
@@ -8065,6 +8074,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
         const _missFt = new Set();
         placeItemAt(dg, tx, ty, _dropItem(), ml, _missFt, 0, p);
+        hit = true;
+        break;
+      }
+      if (!_pierceMode && !st.bombArrow && m.baseKind === "synthmonster") {
+        const synthBox = ensureSynthMonsterBox(m);
+        if (bbFn) bbFn(synthBox, _dropItem(), dg, ml);
+        else synthBox.contents.push(_dropItem());
+        speedUpSynthMonster(m, ml);
         hit = true;
         break;
       }

@@ -40,6 +40,7 @@ import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monH
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
+import { ensureSynthMonsterBox, speedUpSynthMonster } from "./synthMonster.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
@@ -138,15 +139,6 @@ function _forceUnequip(p, it) {
 /* 指輪のHP増加は、装備操作を始めた時点で満タンだった場合だけ現HPにも反映する。 */
 function _applyRingHpBonus(p, it, wasFullHp) {
   adjustRingHp(p, ringHpBonus(it), wasFullHp);
-}
-
-/* 合成獣：アイテムを飲み込むたびに速度を上げる */
-function _synthMonsterSpeedup(m, ml) {
-  const prev = m.speed || 0.5;
-  m.speed = Math.min(3, prev + 0.5);
-  /* maxAttacks を速度に合わせて更新：倍速・三倍速の際に複数回攻撃できるように */
-  m.maxAttacks = Math.ceil(m.speed);
-  if (m.speed !== prev) ml.push(`${m.name}の動きが速くなった！(速度${m.speed})`);
 }
 
 export function useItemActions({
@@ -3442,6 +3434,11 @@ export function useItemActions({
               mlx.push(`${_arName}が${mon.name}に飲み込まれた！（攻撃力×${mon._gelBoost.toFixed(2)}→${mon.atk}）`);
               return;
             }
+            if (mon.baseKind === "synthmonster" && !_arIsPierce && !_isFcM && !_forceMiss) {
+              bigboxAddItem(ensureSynthMonsterBox(mon), _arDropItem(), dg, mlx);
+              speedUpSynthMonster(mon, mlx);
+              return;
+            }
             /* 命中率: dodge魔方陣・必中状態を考慮 */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
             const _arDodgePcMode = getDodgePentacleMode(dg, mon.x, mon.y);
@@ -4131,10 +4128,8 @@ export function useItemActions({
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else if (m.baseKind === "synthmonster") {
                 /* 合成獣：薬を飲み込んで合成 */
-                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
-                m.synthBox.capacity = 99; /* trySynthesizeがcapacityを縮小→breakBigbox防止 */
-                bigboxAddItem(m.synthBox, it, dg, ml);
-                _synthMonsterSpeedup(m, ml);
+                bigboxAddItem(ensureSynthMonsterBox(m), it, dg, ml);
+                speedUpSynthMonster(m, ml);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else if (monReflectsProjectiles(m)) {
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
@@ -4227,10 +4222,8 @@ export function useItemActions({
               }
               if (!_isFarcast && m.baseKind === "synthmonster") {
                 /* 合成獣：壺を飲み込んで合成（ミス判定なし） */
-                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
-                m.synthBox.capacity = 99;
-                bigboxAddItem(m.synthBox, it, dg, ml);
-                _synthMonsterSpeedup(m, ml);
+                bigboxAddItem(ensureSynthMonsterBox(m), it, dg, ml);
+                speedUpSynthMonster(m, ml);
                 lx = tx; ly = ty; _potFdBurned = true; break;
               }
               if (!_isFarcast && monReflectsProjectiles(m)) {
@@ -4431,10 +4424,8 @@ export function useItemActions({
               }
               if (!_isFarcast && m.baseKind === "synthmonster") {
                 /* 合成獣：種別を問わずアイテムを飲み込んで合成 */
-                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
-                m.synthBox.capacity = 99; /* trySynthesizeがcapacityを縮小→breakBigbox防止 */
-                bigboxAddItem(m.synthBox, it, dg, ml);
-                _synthMonsterSpeedup(m, ml);
+                bigboxAddItem(ensureSynthMonsterBox(m), it, dg, ml);
+                speedUpSynthMonster(m, ml);
                 lx = tx; ly = ty; hit = true;
                 if (it.type === "wand") _wandFiredEffect = true; /* 杖の二重配置を防止 */
                 break;

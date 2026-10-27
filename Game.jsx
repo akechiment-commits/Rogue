@@ -99,6 +99,7 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
+import { ensureSynthMonsterBox, speedUpSynthMonster } from "./synthMonster.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -3413,6 +3414,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         _srPeel();
                       },
                       onMonHit: (mon, mlx) => {
+                        if (mon.baseKind === "synthmonster" && !_isPierce && !_srFarcast && !_srForceMiss) {
+                          bigboxAddItem(ensureSynthMonsterBox(mon), _srDrop(), dg, mlx);
+                          speedUpSynthMonster(mon, mlx);
+                          _srPeel();
+                          return;
+                        }
                         /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
                         if (_srForceMiss || checkMonsterEvasion(mon, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.25 })) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
@@ -4768,16 +4775,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const effectContext = { ...context, killerMon, sourceIsPlayer };
       const initialDepth = sr.current.player.depth;
       const floorChanged = () => sr.current.player.depth !== initialDepth;
-      trackBigbox(bb);
+      const internalMonsterSynthesis = bb.internalMonsterSynthesis === true;
+      if (!internalMonsterSynthesis) trackBigbox(bb);
       const wasFull = bb.contents.length >= bb.capacity;
       bb.contents.push(item);
       const _idn = itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-      const _bbIsRev = isBigboxKindIdentified(bb, sr.current);
-      const _bbDN = bbDisplayName(bb, sr.current);
-      ml.push(_bbIsRev
-        ? `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`
-        : `${_idn}を${_bbDN}に入れた。`,
-      );
+      if (internalMonsterSynthesis) {
+        ml.push(`${bb.name}が${_idn}を飲み込んだ！`);
+      } else {
+        const _bbIsRev = isBigboxKindIdentified(bb, sr.current);
+        const _bbDN = bbDisplayName(bb, sr.current);
+        ml.push(_bbIsRev
+          ? `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`
+          : `${_idn}を${_bbDN}に入れた。`,
+        );
+      }
       if (bb.kind === "nitro") {
         detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, killerMon, effectContext);
         return;
