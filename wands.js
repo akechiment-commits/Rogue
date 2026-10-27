@@ -2575,6 +2575,11 @@ function _centerWandTarget(dg, cx, cy, p) {
   return null;
 }
 
+function _floorItemsAt(dg, x, y) {
+  itemAt(dg, x, y); /* materialize and synchronize item-mimic floor items */
+  return (dg.items || []).filter(item => item.x === x && item.y === y);
+}
+
 /** 壊し効果の中心から見た周囲8マスの対象（プレイヤー含む） */
 function _collectBreakAdjacentTargets(dg, cx, cy, p) {
   const targets = [];
@@ -2583,6 +2588,9 @@ function _collectBreakAdjacentTargets(dg, cx, cy, p) {
     if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
     if (p.x === ax && p.y === ay) {
       targets.push({ kind: "player", t: p, dx: adx, dy: ady });
+      for (const item of _floorItemsAt(dg, ax, ay)) {
+        targets.push({ kind: "item", t: item, dx: adx, dy: ady });
+      }
       continue;
     }
     const mon = monsterAt(dg, ax, ay);
@@ -2680,7 +2688,6 @@ function _applySageBreakEffect(kind, target, dg, p, ml, sageContext = {}) {
 
 function _pitfallBlockedAt(dg, cx, cy) {
   return dg.traps.find(t => t.x === cx && t.y === cy) ||
-    dg.items.some(i => i.x === cx && i.y === cy) ||
     dg.springs?.some(s => s.x === cx && s.y === cy) ||
     dg.bigboxes?.some(b => b.x === cx && b.y === cy) ||
     dg.gachaMachines?.some(g => g.x === cx && g.y === cy) ||
@@ -2688,6 +2695,24 @@ function _pitfallBlockedAt(dg, cx, cy) {
     dg.oilyTiles?.some(t => t.x === cx && t.y === cy) ||
     statueAt(dg, cx, cy) ||
     dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU;
+}
+
+function _consumeWandPitfallItems(dg, cx, cy, p, ml, nameFn = null) {
+  for (const item of _floorItemsAt(dg, cx, cy)) {
+    if (!dg.items.includes(item)) continue;
+    const itemName = resolveItemName(item, nameFn);
+    chargeShopItem(item, dg, ml, p);
+    removeFloorItem(dg, item);
+    ml.push(`${itemName}は落とし穴に落ちて消えた！`);
+  }
+}
+
+function _createWandPitfall(dg, cx, cy, p, ml, nameFn = null) {
+  if (_pitfallBlockedAt(dg, cx, cy)) return false;
+  _consumeWandPitfallItems(dg, cx, cy, p, ml, nameFn);
+  dg.traps.push({ name: "落とし穴", effect: "pitfall", tile: 27, id: uid(), x: cx, y: cy, revealed: true });
+  ml.push(p.x === cx && p.y === cy ? "足元に落とし穴ができた！" : "その場に落とし穴ができた！");
+  return true;
 }
 
 function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, label, context = {}) {
@@ -2783,6 +2808,13 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       sageContext.nameFn || null, 0, killerMon, sageContext.bigboxNameFn || null,
       sourceIsPlayer, sageContext.breaker || (sourceIsPlayer ? p : killerMon), sageContext.fireTrapFn || null);
   };
+  const _applyCenterFloorItems = (effect, items, excluded = null, dx = 0, dy = 0) => {
+    for (const item of items) {
+      if (floorChanged()) return;
+      if (item === excluded || !dg.items?.includes(item)) continue;
+      _applyBreakEffect(effect, "item", item, dx, dy);
+    }
+  };
   const _breakMagicDamage = (amount, monster) => sourceIsPlayer
     ? multiplyMagicDamage(amount, p?.weapon, monster, dg)
     : multiplyCursedMagicDamage(amount, monster, dg);
@@ -2791,6 +2823,8 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
   if (eff === "dig") {
     if (blMult < 1) {
       /* 呪われた穴掘りの杖を壊した：周囲8方向を壊せる壁で囲む（敵がいたらダメージのみ） */
+      _applyCenterFloorItems("dig", _floorItemsAt(dg, cx, cy));
+      if (floorChanged()) return;
       let walled = 0;
       for (const [adx, ady] of _BW_DIRS) {
         const wx = cx + adx, wy = cy + ady;
@@ -2825,15 +2859,16 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
         dg.map[wy][wx] = T.FLOOR;
       }
     }
-    if (!_pitfallBlockedAt(dg, cx, cy)) {
-      dg.traps.push({ name:"落とし穴", effect:"pitfall", tile:27, id:uid(), x:cx, y:cy, revealed:true });
-      ml.push(p.x === cx && p.y === cy ? "足元に落とし穴ができた！" : "その場に落とし穴ができた！");
+    if (!_createWandPitfall(dg, cx, cy, p, ml, sageContext.nameFn)) {
+      _applyCenterFloorItems("dig", _floorItemsAt(dg, cx, cy));
     }
     return;
   }
   if (eff === "soften") {
     if (blMult < 1) {
       /* 呪われた軟化の杖を壊した：周囲8方向を壊せる壁で囲む（呪われた穴掘りと同一挙動） */
+      _applyCenterFloorItems("soften", _floorItemsAt(dg, cx, cy));
+      if (floorChanged()) return;
       let _sfcWalled = 0;
       for (const [adx, ady] of _BW_DIRS) {
         const wx = cx + adx, wy = cy + ady;
@@ -2858,6 +2893,10 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       return;
     }
     /* 通常/祝福：中心の防御半減＋落とし穴＋周囲に軟化効果（壁は食料に変化） */
+    if (!_pitfallBlockedAt(dg, cx, cy)) {
+      _consumeWandPitfallItems(dg, cx, cy, p, ml, sageContext.nameFn);
+    }
+    const _sfcCenterItems = _floorItemsAt(dg, cx, cy);
     const _sfcEnt = _centerWandTarget(dg, cx, cy, p);
     if (_sfcEnt?.kind === "player") {
       if (!isStatusImmune(p, ml)) {
@@ -2878,10 +2917,10 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       ml.push("軟化の杖が壊れた！");
     }
     if (floorChanged()) return;
-    if (!_pitfallBlockedAt(dg, cx, cy)) {
-      dg.traps.push({ name:"落とし穴", effect:"pitfall", tile:27, id:uid(), x:cx, y:cy, revealed:true });
-      ml.push(p.x === cx && p.y === cy ? "足元に落とし穴ができた！" : "その場に落とし穴ができた！");
+    if (!_createWandPitfall(dg, cx, cy, p, ml, sageContext.nameFn)) {
+      _applyCenterFloorItems("soften", _sfcCenterItems, _sfcEnt?.kind === "item" ? _sfcEnt.t : null);
     }
+    if (floorChanged()) return;
     for (const [adx, ady] of _BW_DIRS) {
       if (floorChanged()) return;
       const ax = cx + adx, ay = cy + ady;
@@ -2895,7 +2934,13 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
         ml.push(`壁が溶けて${_sfbFood.name}が現れた！`);
         continue;
       }
-      if (p.x === ax && p.y === ay) { _applyBreakEffect("soften", "player", p, adx, ady); continue; }
+      if (p.x === ax && p.y === ay) {
+        _applyBreakEffect("soften", "player", p, adx, ady);
+        for (const _sfbFootItem of _floorItemsAt(dg, ax, ay)) {
+          _applyBreakEffect("soften", "item", _sfbFootItem, adx, ady);
+        }
+        continue;
+      }
       const _sfbMon = monsterAt(dg, ax, ay);
       if (_sfbMon) { _applyBreakEffect("soften", "monster", _sfbMon, adx, ady); continue; }
       const _sfbIt = itemAt(dg, ax, ay);
@@ -2923,8 +2968,11 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     if (frozenCount > 0) ml.push(`周囲${frozenCount}マスの水や泉が凍りついた！`);
   }
   if (eff === "warp") {
+    const _warpCenterItems = _floorItemsAt(dg, cx, cy);
     const _wCenter = _centerWandTarget(dg, cx, cy, p);
     if (_wCenter) _applyBreakEffect(eff, _wCenter.kind, _wCenter.t, 0, 0);
+    if (floorChanged()) return;
+    _applyCenterFloorItems(eff, _warpCenterItems, _wCenter?.kind === "item" ? _wCenter.t : null);
     if (floorChanged()) return;
     for (const { kind, t } of _collectBreakAdjacentTargets(dg, cx, cy, p)) {
       _applyBreakEffect(eff, kind, t, 0, 0);
@@ -2950,16 +2998,25 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     return;
   }
   if (eff === "sage") {
+    const _sageCenterItems = _floorItemsAt(dg, cx, cy);
     const _sageCenter = _centerWandTarget(dg, cx, cy, p);
     if (_sageCenter) _applySageBreakEffect(_sageCenter.kind, _sageCenter.t, dg, p, ml, sageContext);
+    for (const item of _sageCenterItems) {
+      if (item !== _sageCenter?.t && dg.items?.includes(item)) {
+        _applySageBreakEffect("item", item, dg, p, ml, sageContext);
+      }
+    }
     for (const { kind, t } of _collectBreakAdjacentTargets(dg, cx, cy, p)) {
       _applySageBreakEffect(kind, t, dg, p, ml, sageContext);
     }
     return;
   }
   const rd = pick(_BW_DIRS);
+  const _centerItems = _floorItemsAt(dg, cx, cy);
   const _defCenter = _centerWandTarget(dg, cx, cy, p);
   if (_defCenter) _applyBreakEffect(eff, _defCenter.kind, _defCenter.t, rd[0], rd[1]);
+  if (floorChanged()) return;
+  _applyCenterFloorItems(eff, _centerItems, _defCenter?.kind === "item" ? _defCenter.t : null, rd[0], rd[1]);
   if (floorChanged()) return;
   const targets = _collectBreakAdjacentTargets(dg, cx, cy, p);
   const _footBb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
