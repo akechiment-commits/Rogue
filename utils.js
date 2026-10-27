@@ -336,7 +336,10 @@ export function setItemMimicDisguiseCatalog(catalog) {
 }
 
 function pickItemMimicDisguise(preferredTile = null) {
-  const tile = Number.isFinite(Number(preferredTile)) ? Number(preferredTile) : null;
+  const parsedTile = preferredTile == null || preferredTile === "" ? null : Number(preferredTile);
+  const tile = Number.isFinite(parsedTile) && ITEM_MIMIC_DISGUISE_TILES.includes(parsedTile)
+    ? parsedTile
+    : null;
   const catalog = _itemMimicDisguiseCatalog.filter((item) =>
     ITEM_MIMIC_DISGUISE_TILES.includes(item.tile) && (tile === null || item.tile === tile));
   if (catalog.length > 0) {
@@ -367,17 +370,19 @@ export function ensureItemMimicFloorItems(dg) {
     mimic.disguisedAsItem = true;
     const itemId = mimic.disguiseItemId || `item-mimic-${mimic.id}`;
     let item = dg.items.find(i => i.itemMimicId === mimic.id || i.id === itemId);
-    const preferredTile = mimic.disguiseTile ?? item?.disguiseTile ?? null;
+    const storedTiles = [item?.disguiseTile, item?.tile, mimic.disguiseTile];
+    const preferredTile = storedTiles.find((candidate) =>
+      candidate != null && ITEM_MIMIC_DISGUISE_TILES.includes(Number(candidate)));
     const disguise = pickItemMimicDisguise(preferredTile);
     if (!item) {
-      const disguiseTile = mimic.disguiseTile || disguise.tile;
+      const disguiseTile = preferredTile == null ? disguise.tile : Number(preferredTile);
       item = {
         id: itemId,
         name: "アイテムモドキ",
         type: ITEM_MIMIC_ITEM_TYPE,
         tile: disguiseTile,
         disguiseTile,
-        disguiseName: mimic.disguiseName || disguise.name,
+        disguiseName: preferredTile == null ? disguise.name : mimic.disguiseName || disguise.name,
         x: mimic.x,
         y: mimic.y,
         discovered: true,
@@ -385,8 +390,14 @@ export function ensureItemMimicFloorItems(dg) {
       };
       dg.items.unshift(item);
     } else {
-      if (!item.disguiseTile) item.disguiseTile = mimic.disguiseTile || disguise.tile;
-      if (!item.disguiseName) item.disguiseName = mimic.disguiseName || disguise.name;
+      const storedItemTile = Number(item.disguiseTile ?? item.tile);
+      if (!ITEM_MIMIC_DISGUISE_TILES.includes(storedItemTile)) {
+        item.disguiseTile = disguise.tile;
+        item.disguiseName = disguise.name;
+      } else {
+        if (!item.disguiseTile) item.disguiseTile = storedItemTile;
+        if (!item.disguiseName) item.disguiseName = mimic.disguiseName || disguise.name;
+      }
       item.itemMimicId = mimic.id;
       item.type = ITEM_MIMIC_ITEM_TYPE;
       item.name = "アイテムモドキ";
