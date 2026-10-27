@@ -147,6 +147,11 @@ const FLOCK_IDLE_LINES = Object.freeze([
   "見よ、この完璧な作戦！細部はこれから考える！",
 ]);
 export const FLOCK_REVENGE_SPELL_LINES = Object.freeze({
+  summon_monster: Object.freeze([
+    "逆襲の軍勢よ集え！今度こそ数で押す！",
+    "B25Fの魔物よ、反撃の時だ！配置は現場に任せる！",
+    "我が復讐に加われ！出欠確認は後だ！",
+  ]),
   drain_hp: Object.freeze([
     "魂の残量をいただく！返済期限は……考えていない！",
     "生命力よ、こちらへ！えっ、吸いすぎ注意？",
@@ -1814,7 +1819,7 @@ export const FLOCK_REVENGE_BOSS = {
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, float: true,
   mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 2,
   deathLines: FLOCK_REVENGE_DEATH_LINES,
-  desc: "超上級B25Fの浮遊ボス。最大MP1800。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋では雷の部屋攻撃、魔法反射・守護・炎まといから状況に応じて詠唱し、封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
+  desc: "超上級B25Fの浮遊ボス。最大MP1800。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。雷は反射の鎧／魔法反射状態に跳ね返される。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
@@ -5414,7 +5419,10 @@ function summonFlockMonster(monster, dungeon, player, messages) {
   }
 
   monster.mp -= cost;
-  messages.push(`${monster.name}は『${pick(FLOCK_SPELL_LINES.summon_monster)}』と唱えた！(MP-${cost})`);
+  const spellLines = monster.baseKind === "boss_flock_revenge"
+    ? FLOCK_REVENGE_SPELL_LINES.summon_monster
+    : FLOCK_SPELL_LINES.summon_monster;
+  messages.push(`${monster.name}は『${pick(spellLines)}』と唱えた！(MP-${cost})`);
   const summoned = makeMonsterFromBase(placement.base, placement.spawnLevel, placement.x, placement.y, {
     aware: true, lastPx: player.x, lastPy: player.y,
   });
@@ -6364,7 +6372,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     if (_isFlockRevenge && sameRoom && canSeePlayer && canUseMagic) {
-      if (m.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic && Math.random() < 0.50) {
+      const canUseRoomLightning = m.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic;
+      const canUseSummon = m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster;
+      if (canUseRoomLightning && canUseSummon) {
+        reserveOrCastSpell(Math.random() < 0.50 ? "lightning_magic" : "summon_monster");
+        return;
+      }
+      if (canUseRoomLightning) {
         reserveOrCastSpell("lightning_magic");
         return;
       }
