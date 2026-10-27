@@ -84,7 +84,7 @@ export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "
 const GWEN_VETERAN_WAND_EFFECTS = Object.freeze(["slow_wand", "confuse_wand", "sleep_wand", "darkness_wand"]);
 const FLOCK_MAGIC_EFFECTS = Object.freeze(["fire_bolt", "ice_wand", "poison_bolt", "curse_wand"]);
 export const FLOCK_MAGIC_MP_COSTS = Object.freeze({
-  fire_bolt: 10, ice_wand: 10, poison_bolt: 8, curse_wand: 10, teleport_magic: 8,
+  fire_bolt: 10, ice_wand: 10, poison_bolt: 8, curse_wand: 10, teleport_magic: 8, summon_monster: 20,
   sleep_bolt: 8, drain_hp: 14, lightning_magic: 18, reflect_magic: 12,
   guard_magic: 12, flame_mantle: 12, purify_magic: 10, clone_magic: 20,
   self_destruct_magic: 7,
@@ -115,6 +115,11 @@ export const FLOCK_SPELL_LINES = Object.freeze({
     "禁忌の契約よ、その運命を呪縛せよ！まず持ち物からだ！",
     "呪われし運命よ！呪う品はちゃんと選んでね！",
     "深淵の呪詛！本当に呪われると困るのは私も同じ！",
+  ]),
+  summon_monster: Object.freeze([
+    "深淵の眷属よ集え！数は……来た者に任せる！",
+    "我が魔力に応えよ！この階の誰か、至急集合！",
+    "召喚陣よ開け！名簿は現地調達だ！",
   ]),
 });
 export const FLOCK_TELEPORT_LINES = Object.freeze([
@@ -1800,7 +1805,7 @@ export const FLOCK_BOSS = {
   name: "自称・深淵の大魔導士「フロック」", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
   isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, mp: 720, maxMp: 720, deathLines: FLOCK_DEATH_LINES,
-  desc: "超上級B10Fの浮遊ボス。最大MP720。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
+  desc: "超上級B10Fの浮遊ボス。最大MP720。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。これらの直線魔法の射程外にプレイヤーが見えている場合は20%で召喚魔法（MP20）を唱え、B10F通常敵候補から重み付きで1体を隣接する空き床へ召喚する。召喚された敵は出現ターンには行動せず、次のプレイヤー行動から動く。召喚場所がない場合はMPを消費しない。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
 export const FLOCK_REVENGE_BOSS = {
@@ -5371,6 +5376,55 @@ function teleportFlockAway(monster, dungeon, player, messages) {
   return true;
 }
 
+function pickFlockSummonPlacement(monster, dungeon, player) {
+  if (!dungeon?.map || !player || !Array.isArray(dungeon.monsters)) return null;
+  const floor = Math.max(1, Math.floor(Number(player.depth) || 1));
+  const dungeonType = dungeon.dungeonType ?? "legend";
+  const { base, spawnLevel } = pickMonsterDef(floor - 1, dungeonType, true, {
+    excludeLarge: true,
+    poolFloor: floor,
+    existingMonsters: dungeon.monsters,
+  });
+  if (!base || !legendMonsterAllowed(base.baseKind, floor)) return null;
+
+  const occupiedObjects = [
+    dungeon.items, dungeon.traps, dungeon.springs, dungeon.bigboxes, dungeon.pentacles,
+    dungeon.statues, dungeon.vents, dungeon.oilyTiles, dungeon.gachaMachines,
+    dungeon.altars, dungeon.dimensionalVaults,
+  ];
+  const offsets = shuffle([[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]);
+  for (const [dx, dy] of offsets) {
+    const x = monster.x + dx, y = monster.y + dy;
+    const cells = monsterBodyCells(base, x, y);
+    if (cells.some(cell => dungeon.map[cell.y]?.[cell.x] !== T.FLOOR ||
+        occupiedObjects.some(list => list?.some(object => object.x === cell.x && object.y === cell.y)))) continue;
+    if (!canPlaceMonsterBody(dungeon, base, x, y, player)) continue;
+    return { base, spawnLevel, x, y };
+  }
+  return null;
+}
+
+function summonFlockMonster(monster, dungeon, player, messages) {
+  const cost = FLOCK_MAGIC_MP_COSTS.summon_monster;
+  if (ensureFlockMp(monster) < cost) return false;
+  const placement = pickFlockSummonPlacement(monster, dungeon, player);
+  if (!placement) {
+    messages.push(`${monster.name}は召喚しようとしたが、隣接する空き床がない！魔力は消費しなかった。`);
+    return false;
+  }
+
+  monster.mp -= cost;
+  messages.push(`${monster.name}は『${pick(FLOCK_SPELL_LINES.summon_monster)}』と唱えた！(MP-${cost})`);
+  const summoned = makeMonsterFromBase(placement.base, placement.spawnLevel, placement.x, placement.y, {
+    aware: true, lastPx: player.x, lastPy: player.y,
+  });
+  summoned.actionTime = Number.isFinite(player.actionTime) ? player.actionTime : 0;
+  summoned._summonedAtActionTime = summoned.actionTime;
+  dungeon.monsters.push(summoned);
+  messages.push(`${monster.name}の召喚魔法で${summoned.name}が現れた！`);
+  return true;
+}
+
 function ensureFlockMp(monster) {
   const isRevenge = monster.baseKind === "boss_flock_revenge";
   const legacyMax = isRevenge ? 180 : 72;
@@ -6238,7 +6292,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._rangedAttackThisTurn = true;
       } else {
         m.turnAttacks++;
-        castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), spell, ml);
+        if (spell === "summon_monster") summonFlockMonster(m, dg, pl, ml);
+        else castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), spell, ml);
       }
     };
 
@@ -6251,6 +6306,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._flockPendingCorneredSpell;
       delete m._rangedAttackThisTurn;
       if (escaped && pendingSpell !== "self_destruct_magic") return;
+      if (pendingSpell === "summon_monster") {
+        if (canSeePlayer && canUseMagic && m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster &&
+            m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          m.turnAttacks++;
+          summonFlockMonster(m, dg, pl, ml);
+        }
+        return;
+      }
       const canUseCorneredSpell = pendingCorneredSpell && canSeePlayer && canUseMagic && inLine && distance >= 1 && distance <= 3;
       if (pendingSpell && m.turnAttacks < monEffectiveMaxAttacks(m) && (canCast || canUseCorneredSpell ||
           pendingSpell === "clone_magic" || pendingSpell === "lightning_magic" || pendingSpell === "reflect_magic" ||
@@ -6290,6 +6353,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._flockEscapedThisTurn = true;
         return;
       }
+    }
+
+    const ordinaryMagicInRange = canSeePlayer && inLine && distance >= 3 && distance <= 10;
+    if (!_isFlockRevenge && canSeePlayer && canUseMagic && !ordinaryMagicInRange &&
+        m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster &&
+        m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < 0.20) {
+      reserveOrCastSpell("summon_monster");
+      return;
     }
 
     if (_isFlockRevenge && sameRoom && canSeePlayer && canUseMagic) {

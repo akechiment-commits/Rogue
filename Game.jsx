@@ -1867,8 +1867,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _phase = phaseMode || "both"; // "moveOnly" | "attackOnly" | "both"
     dg.monsters.forEach((m) => {
       if (sr.current?.dungeon !== dg || m.hp <= 0) return;
-      if (Number.isFinite(m._gwenSummonedAtActionTime)) {
-        if ((pl.actionTime || 0) <= m._gwenSummonedAtActionTime) return;
+      const _summonedAtActionTime = Number.isFinite(m._summonedAtActionTime)
+        ? m._summonedAtActionTime
+        : m._gwenSummonedAtActionTime;
+      if (Number.isFinite(_summonedAtActionTime)) {
+        if ((pl.actionTime || 0) <= _summonedAtActionTime) return;
+        delete m._summonedAtActionTime;
         delete m._gwenSummonedAtActionTime;
       }
       if (_phase === "attackOnly") {
