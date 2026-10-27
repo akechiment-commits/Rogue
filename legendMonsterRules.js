@@ -146,20 +146,3 @@ export function legendMonsterAffinityMultiplier(baseKind, floor, existingMonster
   }
   return 1;
 }
-
-export const LEGEND_MONSTER_STAT_OVERRIDES = Object.freeze({
-  archer: Object.freeze({ 1: Object.freeze({ hp: 16, atk: 9, def: 1, exp: 10 }), 2: Object.freeze({ hp: 30, atk: 16, def: 2, exp: 40 }) }),
-  zombie: Object.freeze({ 1: Object.freeze({ hp: 42, atk: 18, def: 4, exp: 26 }), 2: Object.freeze({ hp: 100, atk: 18, def: 8, exp: 80 }) }),
-  tripper: Object.freeze({ 1: Object.freeze({ hp: 22, atk: 10, def: 2, exp: 18 }) }),
-  grabber: Object.freeze({ 1: Object.freeze({ hp: 24, atk: 11, def: 3, exp: 20 }) }),
-  synthmonster: Object.freeze({ 1: Object.freeze({ hp: 40, atk: 15, def: 4, exp: 45 }) }),
-  kobold: Object.freeze({ 2: Object.freeze({ hp: 38, atk: 16, def: 8, exp: 35 }) }),
-  goblin: Object.freeze({ 2: Object.freeze({ hp: 50, atk: 16, def: 10, exp: 50 }) }),
-  skeleton: Object.freeze({ 2: Object.freeze({ hp: 46, atk: 18, def: 8, exp: 55 }) }),
-  slime: Object.freeze({ 2: Object.freeze({ hp: 52, atk: 20, def: 6, exp: 65 }) }),
-  wokka: Object.freeze({ 2: Object.freeze({ hp: 38, atk: 16, def: 4, exp: 45 }) }),
-});
-
-export function legendMonsterStatOverride(baseKind, level) {
-  return LEGEND_MONSTER_STAT_OVERRIDES[baseKind]?.[level] ?? null;
-}

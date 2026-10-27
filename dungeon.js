@@ -10,7 +10,6 @@ import {
 import { scatterFloorGimmicks, makeAltar } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
 import {
-  legendMonsterStatOverride,
   legendMonsterKindsAtFloor,
   legendMonsterSpawnLevel,
   legendMonsterSpawnWeight,
@@ -886,13 +885,9 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
     ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType, true, _pickOpts));
   }
   const { levels: _lvls, ...mt } = base;
-  const baseStats = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
+  const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
     ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }
     : mt;
-  const legendOverride = dungeonType === "legend"
-    ? legendMonsterStatOverride(base.baseKind, spawnLevel)
-    : null;
-  const st = legendOverride ? { ...baseStats, ...legendOverride, monLevel: spawnLevel } : baseStats;
   const randomlyDormant = Math.random() < dormantRate;
   return {
     ...st, id: uid(), x, y, maxHp: st.hp, turnAccum: 0, aware: false,
@@ -1927,7 +1922,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
       pickedWaterMonster.spawnLevel,
       p[0],
       p[1],
-      { dormant: Math.random() < 0.12, dungeonType },
+      { dormant: Math.random() < 0.12 },
     ));
   }
   const itemTiles = islandTiles.length ? islandTiles : dryTiles;
@@ -2486,7 +2481,7 @@ function genBossFloor(depth, dungeonType = null) {
         if (map[_my]?.[_mx] !== _wantTile) continue;
         if (_occ(_mx, _my)) continue;
         minionMonsters.push(makeMonsterFromBase(_base, spec.lv, _mx, _my, {
-          dormant: true, aware: true, lastPx: bossX, lastPy: bossY, dungeonType,
+          dormant: true, aware: true, lastPx: bossX, lastPy: bossY,
         }));
         break;
       }
@@ -3339,13 +3334,12 @@ function ensureLegendSpecialSpawn(dg, floor) {
     const old = dg.monsters[replaceIndex];
     dg.monsters[replaceIndex] = makeMonsterFromBase(base, spawnLevel, old.x, old.y, {
       dormant: !!old.dormant,
-      dungeonType: "legend",
     });
     return true;
   }
   const tile = pick(legendOpenFloorTiles(dg));
   if (!tile) return false;
-  dg.monsters.push(makeMonsterFromBase(base, spawnLevel, tile.x, tile.y, { dungeonType: "legend" }));
+  dg.monsters.push(makeMonsterFromBase(base, spawnLevel, tile.x, tile.y));
   return true;
 }
 
@@ -3388,9 +3382,7 @@ function placeLegendSynergyPair(dg, floor) {
   for (let i = 0; i < 2; i++) {
     const tile = pair[i];
     const spawnLevel = legendMonsterSpawnLevel(bases[i], floor);
-    dg.monsters.push(makeMonsterFromBase(bases[i], spawnLevel, tile.x, tile.y, {
-      dungeonType: "legend",
-    }));
+    dg.monsters.push(makeMonsterFromBase(bases[i], spawnLevel, tile.x, tile.y));
   }
   return true;
 }
@@ -3858,7 +3850,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         pickedWaterMonster.spawnLevel,
         _wx,
         _wy,
-        { dormant: false, dungeonType },
+        { dormant: false },
       ));
     }
   }
