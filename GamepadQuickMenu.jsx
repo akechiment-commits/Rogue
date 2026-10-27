@@ -6,7 +6,7 @@ export const QUICK_MENU_COLS = 2;
 /**
  * Yボタン/モバイル「メニュー」のクイックメニュー（2列グリッド、方向で選択、B/タップで決定）
  */
-export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose }) {
+export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose, dungeonLabel = "", noCarry = false }) {
   if (!open) return null;
   return (
     <div
@@ -59,6 +59,22 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
               </button>
             )}
           </div>
+        </div>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+          padding: "7px 9px",
+          borderRadius: 4,
+          border: "1px solid #2b2b3d",
+          background: "#171721",
+          color: "#ddd",
+          fontSize: 12,
+          fontWeight: "bold",
+        }}>
+          <span>{dungeonLabel || "ダンジョン不明"}</span>
+          {noCarry && <span style={{ color: "#ffd875", whiteSpace: "nowrap" }}>☆持ち込みなし</span>}
         </div>
         <div style={{ color: "#777", fontSize: 11, textAlign: "right" }}>十字 / 左スティック:選択　B:決定　A/Y:閉じる</div>
         <div

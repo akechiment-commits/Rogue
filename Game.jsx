@@ -5,6 +5,8 @@ import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } fro
 import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
+import { dungeonScoreLabel } from "./adventureScores.js";
+import { isCarryInRun } from "./rankingClient.js";
 import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
 import {
   findRoom,
@@ -7415,7 +7417,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         onConfirm={performExitToHub}
         onCancel={() => setExitHubConfirm(false)}
         mobile={mobile} />
-      <GamepadQuickMenu open={gamepadQuickOpen} sel={gamepadQuickSel} onSelect={runQuickAction} onClose={() => setGamepadQuickOpen(false)} />
+      <GamepadQuickMenu
+        open={gamepadQuickOpen}
+        sel={gamepadQuickSel}
+        onSelect={runQuickAction}
+        onClose={() => setGamepadQuickOpen(false)}
+        dungeonLabel={dungeonScoreLabel(sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner")}
+        noCarry={!isCarryInRun(dungeonConfig)}
+      />
       <GamepadControlsGuide open={gamepadControlsOpen} onClose={() => setGamepadControlsOpen(false)} />
       <GamepadLtHint show={gamepadLtHeld} />
     </div>
