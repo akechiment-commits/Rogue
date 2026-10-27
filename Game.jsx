@@ -5048,7 +5048,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _sdx = Math.sign(m.x - bb.x), _sdy = Math.sign(m.y - bb.y);
               if (!dg.monsters.includes(m) || m.hp <= 0) continue;
               ml.push(`${_idn}が${m.name}に命中！`);
-              triggerWandBreakEffect({
+              withPitfallBag(() => triggerWandBreakEffect({
                 type: "wand", effect: item.effect, charges: item.charges ?? 0,
                 blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
               }, m.x, m.y, dg, p, ml, lu, {
@@ -5061,12 +5061,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 trackBigboxFn: trackBigbox,
                 nameFn: _scDnFn,
                 bigboxNameFn: (bx) => bbDisplayName(bx, sr.current),
-              });
+              }));
             }
             if (_scPInRoom && !floorChanged()) {
               const _sdx = Math.sign(p.x - bb.x), _sdy = Math.sign(p.y - bb.y);
               ml.push(`${_idn}が${pl()}に命中！`);
-              triggerWandBreakEffect({
+              withPitfallBag(() => triggerWandBreakEffect({
                 type: "wand", effect: item.effect, charges: item.charges ?? 0,
                 blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
               }, p.x, p.y, dg, p, ml, lu, {
@@ -5079,7 +5079,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 trackBigboxFn: trackBigbox,
                 nameFn: _scDnFn,
                 bigboxNameFn: (bx) => bbDisplayName(bx, sr.current),
-              });
+              }));
             }
           } else if (item.type === "pot") {
             /* 壺：種類に応じた破壊効果（中身は散乱しない） */

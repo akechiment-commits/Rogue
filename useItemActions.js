@@ -2359,14 +2359,14 @@ export function useItemActions({
         return;
       }
       try {
-        triggerWandBreakEffect(it, p.x, p.y, dg, p, ml, lu, {
+        withPitfallBag(() => triggerWandBreakEffect(it, p.x, p.y, dg, p, ml, lu, {
           identSet: sr.current.ident,
           identState: sr.current,
           trackItemFn: trackItem,
           trackBigboxFn: trackBigbox,
           nameFn: dnameRef,
           bigboxNameFn: (bb) => bbDisplayName(bb, sr.current),
-        });
+        }));
         /* 呪われたレベルアップの杖の壊し：上の階へワープ */
         if (p._pendingWarpUp) {
           delete p._pendingWarpUp;
@@ -4481,9 +4481,9 @@ export function useItemActions({
                   }
                   if (it.type === "wand") {
                     const _rfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-                    triggerWandBreakEffect(_rfSnap, p.x, p.y, dg, p, ml, lu, {
+                    withPitfallBag(() => triggerWandBreakEffect(_rfSnap, p.x, p.y, dg, p, ml, lu, {
                       singleTargetKind: "player", singleTarget: p, effectDx: -_rfdx || 1, effectDy: -_rfdy || 0,
-                    });
+                    }));
                   }
                   /* プレイヤーに当たったアイテムは消滅（床には残らない） */
                 } else if (_rfx !== tx || _rfy !== ty) {
@@ -4518,9 +4518,9 @@ export function useItemActions({
                   markWanderingNpcHostile(m, dg, p, ml);
                   ml.push(`${lb}が${m.name}に命中！`);
                   const _twSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-                  triggerWandBreakEffect(_twSnap, tx, ty, dg, p, ml, lu, {
+                  withPitfallBag(() => triggerWandBreakEffect(_twSnap, tx, ty, dg, p, ml, lu, {
                     singleTargetKind: "monster", singleTarget: m, effectDx: dx, effectDy: dy,
-                  });
+                  }));
                   _wandFiredEffect = true;
                   if (p._pendingWarpUp) {
                     delete p._pendingWarpUp;
@@ -4594,9 +4594,9 @@ export function useItemActions({
             ml.push(`風に煽られた${lb}が自分に当たった！`);
             if (it.type === "wand") {
               const _sfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-              triggerWandBreakEffect(_sfSnap, p.x, p.y, dg, p, ml, lu, {
+              withPitfallBag(() => triggerWandBreakEffect(_sfSnap, p.x, p.y, dg, p, ml, lu, {
                 singleTargetKind: "player", singleTarget: p, effectDx: 0, effectDy: 0,
-              });
+              }));
               _wandFiredEffect = true;
             } else if (it.type === "arrow" && it.bombArrow) {
               doExplosion(p.x, p.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu, false, false, false, false, { projectileAtk: it.atk || 6 });
@@ -4630,7 +4630,7 @@ export function useItemActions({
                   ? { singleTargetKind: "player", singleTarget: p, effectDx: -dx || 1, effectDy: -dy || 0 }
                   : {};
               if (_fcMon) markWanderingNpcHostile(_fcMon, dg, p, ml);
-              triggerWandBreakEffect(_fcSnap, lx, ly, dg, p, ml, lu, _fcOpts);
+              withPitfallBag(() => triggerWandBreakEffect(_fcSnap, lx, ly, dg, p, ml, lu, _fcOpts));
               _wandFiredEffect = true;
             }
             ml.push(`${lb}を投げた。${lb}は消滅した。`);

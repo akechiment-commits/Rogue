@@ -225,6 +225,11 @@ export function withParalysisHit(mon, ml, hit) {
 let _pitfallBag = null;
 export function setPitfallBag(bag) { _pitfallBag = bag; }
 export function clearPitfallBag() { _pitfallBag = null; }
+export function addPitfallBagEntry(entry) {
+  if (!_pitfallBag || !entry?.entity) return false;
+  _pitfallBag.push(entry);
+  return true;
+}
 
 export function applyFallImpactDamage(p, ml, deathCause, messagePrefix) {
   if (!p) return 0;

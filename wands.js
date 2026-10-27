@@ -14,7 +14,7 @@ import {
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, makeChangeBoxItem, makeIceChunk, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
-  setWandBreakEffectHandler, reducePotCapacity, releaseConfinedMonstersFromPot,
+  setWandBreakEffectHandler, addPitfallBagEntry, reducePotCapacity, releaseConfinedMonstersFromPot,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
@@ -2697,19 +2697,19 @@ function _pitfallBlockedAt(dg, cx, cy) {
     dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU;
 }
 
-function _consumeWandPitfallItems(dg, cx, cy, p, ml, nameFn = null) {
+function _dropWandPitfallItemsToNextFloor(dg, cx, cy, ml, nameFn = null) {
   for (const item of _floorItemsAt(dg, cx, cy)) {
     if (!dg.items.includes(item)) continue;
     const itemName = resolveItemName(item, nameFn);
-    chargeShopItem(item, dg, ml, p);
+    if (!addPitfallBagEntry({ kind: "item", entity: item })) continue;
     removeFloorItem(dg, item);
-    ml.push(`${itemName}は落とし穴に落ちて消えた！`);
+    ml.push(`${itemName}は落とし穴に落ちて次の階へ落下した！`);
   }
 }
 
 function _createWandPitfall(dg, cx, cy, p, ml, nameFn = null) {
   if (_pitfallBlockedAt(dg, cx, cy)) return false;
-  _consumeWandPitfallItems(dg, cx, cy, p, ml, nameFn);
+  _dropWandPitfallItemsToNextFloor(dg, cx, cy, ml, nameFn);
   dg.traps.push({ name: "落とし穴", effect: "pitfall", tile: 27, id: uid(), x: cx, y: cy, revealed: true });
   ml.push(p.x === cx && p.y === cy ? "足元に落とし穴ができた！" : "その場に落とし穴ができた！");
   return true;
@@ -2894,7 +2894,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     }
     /* 通常/祝福：中心の防御半減＋落とし穴＋周囲に軟化効果（壁は食料に変化） */
     if (!_pitfallBlockedAt(dg, cx, cy)) {
-      _consumeWandPitfallItems(dg, cx, cy, p, ml, sageContext.nameFn);
+      _dropWandPitfallItemsToNextFloor(dg, cx, cy, ml, sageContext.nameFn);
     }
     const _sfcCenterItems = _floorItemsAt(dg, cx, cy);
     const _sfcEnt = _centerWandTarget(dg, cx, cy, p);
