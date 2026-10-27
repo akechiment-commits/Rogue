@@ -4552,8 +4552,11 @@ export function useItemActions({
                       const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
                       m.confusedTurns = (m.confusedTurns || 0) + _yConfuseT;
                       m.fleeingTurns = (m.fleeingTurns || 0) + _yBewitchT;
+                      if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
                       m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-                      ml.push(`${m.name}は毒(${_yPoison.turns}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足(永続)状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`);
+                      const _ySlowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
+                      if (m.isBoss) m.bossSlowTurns = (m.bossSlowTurns || 0) + _ySlowT;
+                      ml.push(`${m.name}は毒(${_yPoison.turns}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${m.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`);
                     }
                   }
                   if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt && m.hp > 0) {
