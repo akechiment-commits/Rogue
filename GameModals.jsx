@@ -95,6 +95,7 @@ function isBbEffective(kind, item, bb) {
 }
 /* 泉に浸すと有益な変化があるアイテムか判定 */
 function isSpringEffective(item) {
+  if (item.type === "bottle") return true;
   if (item.type === "scroll" && item.effect !== "blank") return true;
   if (item.type === "spellbook" && item.spell) return true;
   if (item.type === "pot" && item.potEffect === "gunpowder") return true;
