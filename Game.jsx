@@ -1,6 +1,7 @@
 import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
 import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { releaseInvalidCapture } from "./captureRules.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
@@ -2836,34 +2837,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           /* 攻撃はできる：そのまま攻撃処理へ進む */
         }
         /* ===== 捕獲状態：からめ鬼を倒すまで移動不可（攻撃は可） ===== */
+        releaseInvalidCapture(p, dg, ml);
         if (p.capturedBy) {
           const _capMon = dg.monsters.find((m) => m.id === p.capturedBy);
-          if (!_capMon) {
-            p.capturedBy = null; /* 既に倒されていたらクリア */
-          } else {
-            /* 距離が離れた or 捕獲者が状態異常なら即解放 */
-            const _capDist = Math.max(Math.abs(p.x - _capMon.x), Math.abs(p.y - _capMon.y));
-            const _capBadStatus = (_capMon.sleepTurns || 0) > 0 || _capMon.paralyzed || (_capMon.confusedTurns || 0) > 0 ||
-              (_capMon.darknessTurns || 0) > 0 || (_capMon.fleeingTurns || 0) > 0 || _capMon.sealed || _capMon.bewitched ||
-              (_capMon.poisonedTurns || 0) > 0 || (_capMon.immobileTurns || 0) > 0 || _capMon.blind || (_capMon.oilyTurns || 0) > 0;
-            if (_capDist > 1 || _capBadStatus) {
-              p.capturedBy = null;
-              ml.push("捕獲から解放された！");
-              /* そのまま移動処理へ進む */
-            } else {
-              const _capNx = p.x + dx, _capNy = p.y + dy;
-              const _capTarget = monsterAt(dg, _capNx, _capNy);
-              if (!_capTarget) {
-                /* 敵がいない方向への移動は不可（隣接する敵への攻撃は可） */
-                ml.push(`${_capMon.name}に${_capMon.subtype === "giantEel" ? "拘束されている" : "捕まっている"}！倒さなければ逃げられない！`);
-                endTurn(st, p, ml);
-                setMsgs((prev) => [...prev.slice(-80), ...ml]);
-                sr.current = { ...st };
-                setGs({ ...st });
-                return;
-              }
-              /* 隣接している敵（からめ鬼でなくても）への攻撃は可 */
-            }
+          const _capTarget = monsterAt(dg, p.x + dx, p.y + dy);
+          if (!_capTarget) {
+            /* 敵がいない方向への移動は不可（隣接する敵への攻撃は可） */
+            ml.push(`${_capMon.name}に${_capMon.subtype === "giantEel" ? "拘束されている" : "捕まっている"}！倒さなければ逃げられない！`);
+            endTurn(st, p, ml);
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            sr.current = { ...st };
+            setGs({ ...st });
+            return;
           }
         }
         /* ===== 混乱状態：移動方向をランダム化 ===== */

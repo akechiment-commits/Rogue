@@ -1,5 +1,6 @@
 import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { releaseInvalidCapture } from "./captureRules.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { castPetroBreath, canCastPetroBreath } from './petroBreath.js';
 import {
@@ -5826,14 +5827,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* ── 拘束解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
   if ((m.subtype === "grabber" || m.subtype === "giantEel") && pl.capturedBy === m.id) {
-    const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-    const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 || (m.drunkenTurns || 0) > 0 ||
-      (m.darknessTurns || 0) > 0 || (m.fleeingTurns || 0) > 0 || m.sealed || m.bewitched ||
-      (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || m.blind || (m.oilyTurns || 0) > 0;
-    if (_gRelDist > 1 || _gBadStatus) {
-      pl.capturedBy = null;
-      ml.push(m.subtype === "giantEel" ? `${m.name}の拘束が解けた！` : `${m.name}の捕獲が解けた！`);
-    }
+    releaseInvalidCapture(pl, dg, ml);
   }
 
   /* 石化状態：4ターンの間、攻撃・移動ともにできない。 */

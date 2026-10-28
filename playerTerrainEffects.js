@@ -1,6 +1,7 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { MH, MW, T } from "./utils.js";
 import { canPlayerWalkOnWater, hasWaterBreathRing } from "./items.js";
+import { releaseInvalidCapture } from "./captureRules.js";
 
 const ADJACENT_DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
 
@@ -58,6 +59,7 @@ export function advancePlayerTerrainEffects(player, dungeon, messages) {
   const onSpring = !!dungeon.springs?.some((spring) => spring.x === player.x && spring.y === player.y);
   const confinedInPot = (player.potConfinedTurns || 0) > 0;
   const canWalkWater = canPlayerWalkOnWater(player, dungeon);
+  releaseInvalidCapture(player, dungeon, messages);
   const _captor = player.capturedBy
     ? dungeon.monsters?.find((monster) => monster.id === player.capturedBy)
     : null;
