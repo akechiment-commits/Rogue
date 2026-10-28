@@ -1810,17 +1810,17 @@ export const GWEN_VETERAN_BOSS = {
 export const FLOCK_BOSS = {
   name: "自称・深淵の大魔導士「フロック」", hp: 380, atk: 42, def: 24, exp: 1400,
   speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
-  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, mp: 720, maxMp: 720, deathLines: FLOCK_DEATH_LINES,
-  desc: "超上級B10Fの浮遊ボス。最大MP720。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。これらの直線魔法の射程外にプレイヤーが見えている場合は20%で召喚魔法（MP20）を唱え、B10F通常敵候補から重み付きで1体を隣接する空き床へ召喚する。召喚された敵は出現ターンには行動せず、次のプレイヤー行動から動く。召喚場所がない場合はMPを消費しない。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, mp: 400, maxMp: 400, deathLines: FLOCK_DEATH_LINES,
+  desc: "超上級B10Fの浮遊ボス。最大MP400（通常交戦で魔法約40回分）。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。これらの直線魔法の射程外にプレイヤーが見えている場合は20%で召喚魔法（MP20）を唱え、B10F通常敵候補から重み付きで1体を隣接する空き床へ召喚する。召喚された敵は出現ターンには行動せず、次のプレイヤー行動から動く。召喚場所がない場合はMPを消費しない。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
 };
 
 export const FLOCK_REVENGE_BOSS = {
   name: "逆襲のフロック", hp: 1280, atk: 88, def: 56, exp: 11000,
   speed: 1, tile: 258, kind: "humanoid", baseKind: "boss_flock_revenge", subtype: "flockRevengeBoss",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, float: true,
-  mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 2,
+  mp: 1300, maxMp: 1300, flockEmpowered: true, flockMagicPowerMultiplier: 2,
   deathLines: FLOCK_REVENGE_DEATH_LINES,
-  desc: "超上級B25Fの浮遊ボス。最大MP1800。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。雷は反射の鎧／魔法反射状態に跳ね返される。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
+  desc: "超上級B25Fの浮遊ボス。最大MP1300（同室交戦で魔法約70回分）。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。雷は反射の鎧／魔法反射状態に跳ね返される。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
@@ -5472,10 +5472,13 @@ function summonFlockMonster(monster, dungeon, player, messages) {
 function ensureFlockMp(monster) {
   const isRevenge = monster.baseKind === "boss_flock_revenge";
   const legacyMax = isRevenge ? 180 : 72;
-  const defaultMax = isRevenge ? 1800 : 720;
-  if (monster.maxMp === legacyMax) {
+  const previousMax = isRevenge ? 1800 : 720;
+  const defaultMax = isRevenge ? 1300 : 400;
+  if (monster.maxMp === legacyMax || monster.maxMp === previousMax) {
+    const previousCap = monster.maxMp;
+    const previousMp = Number.isFinite(monster.mp) ? monster.mp : previousCap;
     monster.maxMp = defaultMax;
-    if (Number.isFinite(monster.mp)) monster.mp *= 10;
+    monster.mp = Math.round(previousMp / previousCap * defaultMax);
   }
   if (!Number.isFinite(monster.maxMp)) monster.maxMp = defaultMax;
   if (!Number.isFinite(monster.mp)) monster.mp = monster.maxMp;
