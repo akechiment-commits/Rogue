@@ -93,9 +93,9 @@ function isBbEffective(kind, item, bb) {
   }
   return false;
 }
-/* 泉に浸すと有益な変化があるアイテムか判定 */
+/* 泉に浸すと変化または呪い解除があるアイテムか判定 */
 function isSpringEffective(item) {
-  if (item.type === "bottle") return true;
+  if (item.type === "bottle" || item.cursed) return true;
   if (item.type === "scroll" && item.effect !== "blank") return true;
   if (item.type === "spellbook" && item.spell) return true;
   if (item.type === "pot" && item.potEffect === "gunpowder") return true;
@@ -2481,11 +2481,11 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
                   <div key={absI} onClick={() => { springDoSoak(absI); setPage(0); setMenuSel(0); }}
                     style={{
                       padding: "5px 8px", margin: "2px 0", borderRadius: 4, cursor: "pointer", fontSize: 13,
-                      background: isSel ? (isEff ? "#1a3a1a" : isRust ? "#4a2a2a" : "#2a2a4a")
-                                         : (isEff ? "#111f11" : isRust ? "#2a1a1a" : "#18182a"),
-                      border: "1px solid " + (isSel ? (isEff ? "#4aaa4a" : isRust ? "#fa6a6a" : "#6a6afa")
-                                                     : (isEff ? "#2a5a2a" : isRust ? "#6a3a3a" : "#3a3a5a")),
-                      color: isEff ? "#6f6" : isRust ? "#f88" : "#aab",
+                      background: isSel ? (isRust ? "#4a2a2a" : isEff ? "#1a3a1a" : "#2a2a4a")
+                                         : (isRust ? "#2a1a1a" : isEff ? "#111f11" : "#18182a"),
+                      border: "1px solid " + (isSel ? (isRust ? "#fa6a6a" : isEff ? "#4aaa4a" : "#6a6afa")
+                                                     : (isRust ? "#6a3a3a" : isEff ? "#2a5a2a" : "#3a3a5a")),
+                      color: isRust ? "#f88" : isEff ? "#6f6" : "#aab",
                       fontWeight: isSel ? "bold" : "normal",
                     }}
                   >
