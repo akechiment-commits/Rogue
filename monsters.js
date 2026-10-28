@@ -5751,11 +5751,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
   }
-  /* 毒状態：毎行動、現HP×5%+5ダメージ */
+  /* 毒状態：毎行動、現HP×6%+6ダメージ */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
     m.poisonedTurns = Math.max(0, m.poisonedTurns - 1);
     if (!blockLargeMonsterDamage(m, pl, ml)) {
-      const _pdmg = Math.floor(m.hp * 0.05) + 5;
+      const _pdmg = Math.floor(m.hp * 0.06) + 6;
       m.hp -= _pdmg;
       ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
       if (m.hp <= 0) {

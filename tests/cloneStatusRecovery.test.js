@@ -46,12 +46,12 @@ describe("分身の状態異常解除", () => {
   it("毒は毎拍ダメージを与え、期限で攻撃力も元に戻る", () => {
     const state = setup({ poisonedTurns: 2, poisonHalfAtk: true, poisonOrigAtk: 20, atk: 10 });
     turn(state);
-    expect(state.clone).toMatchObject({ hp: 43, poisonedTurns: 1, atk: 10 });
+    expect(state.clone).toMatchObject({ hp: 41, poisonedTurns: 1, atk: 10 });
     turn(state);
-    expect(state.clone).toMatchObject({ hp: 36, poisonedTurns: 0, atk: 20 });
+    expect(state.clone).toMatchObject({ hp: 33, poisonedTurns: 0, atk: 20 });
     expect(state.clone.poisonHalfAtk).toBeUndefined();
     turn(state);
-    expect(state.clone.hp).toBe(36);
+    expect(state.clone.hp).toBe(33);
   });
 
   it("毒で倒れた分身は攻撃しない", () => {
