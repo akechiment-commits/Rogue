@@ -88,7 +88,7 @@ const BASE_PORTRAIT_CATEGORIES = [
   {
     id: "status",
     label: "状態異常",
-    desc: "毒・睡眠・呪いなど付与中",
+    desc: "毒・睡眠・石化・呪いなど付与中",
     group: null,
     slots: [
       { file: "status_poison", label: "毒", group: "status_poison" },
@@ -97,11 +97,13 @@ const BASE_PORTRAIT_CATEGORIES = [
 
       { file: "status_blind", label: "暗闇・盲目", group: "status_blind" },
       { file: "status_drunk", label: "酔い", group: "status_drunk" },
+      { file: "status_vomiting", label: "嘔吐", group: "status_vomiting" },
       { file: "status_oiled", label: "油まみれ", group: "status_oiled" },
       { file: "status_submerged", label: "水没", group: "status_submerged" },
       { file: "status_soaked", label: "ずぶ濡れ", group: "status_soaked" },
       { file: "status_relaxed", label: "リラックス", group: "status_relaxed" },
       { file: "status_paralyze", label: "金縛り", group: "status_paralyze" },
+      { file: "status_petrified", label: "石化", group: "status_petrified" },
       { file: "status_bound", label: "拘束状態", group: "status_bound" },
       { file: "status_confined", label: "閉じ込め状態", group: "status_confined" },
       { file: "status_hypnosis", label: "催眠術を受けた時", group: "status_hypnosis" },

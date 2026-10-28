@@ -1,5 +1,14 @@
+import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
+import { monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
+import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { releaseInvalidCapture } from "./captureRules.js";
+import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
+import { reducePotCapacity } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
+import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
+import { dungeonScoreLabel } from "./adventureScores.js";
+import { isCarryInRun } from "./rankingClient.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -13,26 +22,29 @@ import {
   _resolveMonsterWandBolt,
   monReflectsProjectiles,
   resolveMonsterWandEffect,
+  monsterCanInteractAtRange,
+  triggerMushroomCounterSpore,
 } from "./monsters.js";
 import {
-  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
+  weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
-  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
-  makeArrowUnitFromStack, peelShopArrowUnit,
-  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool,
+  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
+  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
+  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
   setPitfallBag, clearPitfallBag,
-  checkShopTheft, declareShopTheft, calmShopkeeperIfFullyHealed, applyLightningToInventory,
+  checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
-  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
-  applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
-  itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
-  releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
+  hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
+  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
+  applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
+  itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
+  releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
 } from "./items.js";
 import { applyWandEffect, triggerWandBreakEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
+import { finishTrapActivationTurn } from "./trapActivationTurn.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
@@ -40,26 +52,27 @@ import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
+import { isDashModifierKey } from "./inputKeys.js";
+import { PEN_ITEM_ASSET_NAMES, POTION_ITEM_ASSET_NAMES } from "./gameAssetManifest.js";
 import { initialDungeonSpells, initialDungeonSpellLevels } from "./startingSpells.js";
+import { saveImage, loadImage, deleteImage } from "./imageStorage.js";
+import SoundModal from "./SoundModal.jsx";
+import { updateDungeonBgm, createMessageSoundObserver, queueAnimationSounds, triggerSE, unlockAudio, stopBgm } from "./soundEvents.js";
+import { useInterfaceSounds } from "./useInterfaceSounds.js";
+import { isWanderingNpc, nextWanderingAdventurerDialogue } from "./wanderingAdventurer.js";
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
-const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
+const SHARED_TILE_OVERRIDE_IDS = new Set([37, 59, 207, 208, TI.STONE_PROJECTILE, TI.ICE_CHUNK, 234, 235, 236, 237]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
-const SHARED_FIXTURE_ASSET_VERSION = "20260909-v12";
+const SHARED_FIXTURE_ASSET_VERSION = "20261017-v22";
 /* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
 const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213, 216];
 const PUBLIC_SPECIAL_PROJECTILE_TILE_IDS = [218, 219, 220];
 const HYPNOSIS_ACTION_DELAY_MS = 600;
 
-function markWanderingMerchantHostile(monster, dungeon, player, messages) {
-  if (!monster?.isWanderingMerchant || monster.state === "hostile") return false;
-  declareShopTheft(player, dungeon, messages, {
-    merchantId: monster.id,
-    angerOnly: true,
-    message: "行商人が怒った！",
-  });
-  return true;
+function markWanderingNpcHostile(monster, dungeon, player, messages) {
+  return markShopkeeperHostileToPlayer(monster, dungeon, player, messages);
 }
 
 setItemMimicDisguiseCatalog([
@@ -74,13 +87,13 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { useGamepad } from './useGamepad.js';
-import { GamepadQuickMenu, GamepadLtHint } from './GamepadQuickMenu.jsx';
+import { useGamepad, getGamepadArrow } from './useGamepad.js';
+import { GamepadQuickMenu, GamepadControlsGuide, GamepadLtHint } from './GamepadQuickMenu.jsx';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
-import { _invActCount, bbDisplayName, isBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
+import { bbDisplayName, isBigboxKindIdentified, markBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
@@ -89,8 +102,15 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
+import { ensureSynthMonsterBox, speedUpSynthMonster } from "./synthMonster.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
-import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
+import { generateSessionFloor } from "./floorGeneration.js";
+import { synchronizeFloorArrival } from "./floorArrival.js";
+import { placeFallenEntities } from "./pitfallPlacement.js";
+import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed, applyMonsterParalyze, applyMonsterBewitch } from "./statusDuration.js";
+import { isAlcoholDirectionRandomized } from "./intoxication.js";
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
+import { withLargeMonsterDamageTurn } from "./largeMonsterDamage.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -109,7 +129,7 @@ import { buildRunResultExtras } from "./runScore.js";
 import { recordAdventureScore } from "./adventureScores.js";
 import { createRunTimer } from "./runTimer.js";
 import { SPRING_CONFUSION_TURNS, springGoldRange } from "./springRules.js";
-import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
@@ -127,6 +147,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
   const newMiniTipMessagesRef = useRef([]);
+  const messageSoundObserverRef = useRef(null);
+  if (!messageSoundObserverRef.current) messageSoundObserverRef.current = createMessageSoundObserver(msgs);
   /* フロアターン付きメッセージ追加ラッパー */
   const setMsgs = useCallback((updater) => {
     const t = sr.current?.floorTurns ?? 0;
@@ -178,6 +200,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const identifyConfirmRef = useRef(null);
   const identifyCancelRef = useRef(null);
   const spellConfirmRef = useRef(null);
+  const shopActionsRef = useRef(null);
   const nicknameModeRef = useRef(null);
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
@@ -236,9 +259,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setMarkerMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'marker', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
   const setMarkerPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { markerPage: typeof v === 'function' ? v(modal.markerPage ?? 0) : v } });
-  const setSpellListMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
-  const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel) : v } });
-  const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage) : v } });
+  const setSpellListMode = (v) => {
+    const next = typeof v === 'function' ? v(modal.type === 'spellList') : v;
+    next ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: next }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  };
+  const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel ?? 0) : v } });
+  const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage ?? 0) : v } });
   const setTpSelectMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'tpSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setLookMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'look', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setMapMode       = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'map', data: true }) : dispatchModal({ type: 'CLOSE_MODAL' });
@@ -280,6 +306,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const showTileEditorRef = useRef(false);
   showTileEditorRef.current = showTileEditor;
   const [showSettings, setShowSettings] = useState(false);
+  const [showSound, setShowSound] = useState(false);
+  const showSoundRef = useRef(false);
+  showSoundRef.current = showSound;
   const showSettingsRef = useRef(false);
   showSettingsRef.current = showSettings;
   const showScoresRef = useRef(false);
@@ -288,10 +317,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [exitHubSel, setExitHubSel] = useState(0);
   const exitHubConfirmRef = useRef(false);
   exitHubConfirmRef.current = exitHubConfirm;
-  const [currentTileset, setCurrentTileset] = useState(() => localStorage.getItem('roguelike_tileset') || 'default');
-  const [desktopVW, setDesktopVW] = useState(() => parseInt(localStorage.getItem('roguelike_desktop_vw') || '25'));
+  const [currentTileset, setCurrentTileset] = useState(() => readPreference('roguelike_tileset', 'default') || 'default');
+  const [desktopVW, setDesktopVW] = useState(readDesktopViewportWidth);
   const [landscape, setLandscape] = useState(false);
   const [portraitSrc, setPortraitSrc] = useState(null);
+
+  /* フロア変更・ゲームオーバー・クリア・モンスターハウス状態に応じたBGM自動更新 */
+  useEffect(() => {
+    if (gs) {
+      updateDungeonBgm(gs, { gameOver: dead, gameClear: showEnding });
+    }
+  }, [gs, dead, showEnding]);
+  useEffect(() => () => stopBgm(), []);
   const loadCustomTile = (idx, file) => {
     const r = new FileReader();
     r.onload = (e) => {
@@ -310,9 +347,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           body: JSON.stringify({ name, data: d }),
         }).catch(() => {});
       }
-      try {
-        localStorage.setItem(`roguelike_tile_${idx}`, d);
-      } catch (e) {}
+      saveImage(`roguelike_tile_${idx}`, d).catch(() => {});
     };
     r.readAsDataURL(file);
   };
@@ -327,7 +362,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         body: JSON.stringify({ name }),
       }).catch(() => {});
     }
-    localStorage.removeItem(`roguelike_tile_${idx}`);
+    deleteImage(`roguelike_tile_${idx}`).catch(() => {});
   };
 
   /* ===== タイルセット一括読み込み ===== */
@@ -355,8 +390,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     })));
 
     if (name === 'default') {
-      /* デフォルトの手続き描画でも、視認性を優先した共通ギミック画像を使う。 */
-      await Promise.all([...SHARED_FIXTURE_TILE_IDS].map((id) => new Promise((res) => {
+      /* デフォルトの手続き描画でも、共通タイル画像を使う。 */
+      await Promise.all([...SHARED_TILE_OVERRIDE_IDS].map((id) => new Promise((res) => {
         const tileName = TILE_NAMES[id];
         const img = new Image();
         img.onload = () => {
@@ -371,7 +406,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       })));
       await loadPublicNamedTiles([...PUBLIC_TRAP_TILE_IDS, ...PUBLIC_SPECIAL_PROJECTILE_TILE_IDS]);
       setCurrentTileset('default');
-      localStorage.setItem('roguelike_tileset', 'default');
+      writePreference('roguelike_tileset', 'default');
       setCtLoaded(c => c + 1);
       return;
     }
@@ -387,8 +422,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _loadTile = (id) => new Promise((res) => {
       /* mon1のtile 42はpenSpriteMapで別途上書きするのでスキップ */
       if (name === 'mon1' && id === 42) { res(); return; }
-      /* 店主・警備員・祭壇・宝物庫は共通の視認性重視画像を全タイルセットで優先する。 */
-      const paths = SHARED_FIXTURE_TILE_IDS.has(id) && TILE_NAMES[id]
+      /* 店主・警備員・祭壇・宝物庫・石／氷系飛び道具は共通画像を優先する。 */
+      const paths = SHARED_TILE_OVERRIDE_IDS.has(id) && TILE_NAMES[id]
         ? [`/tiles/${TILE_NAMES[id]}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`, `/tiles/sprites/${name}/tile_${id}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`]
         : [`/tiles/sprites/${name}/tile_${id}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`];
       if (name === 'mon1' && VENT_TILE_IDS.has(id) && TILE_NAMES[id]) {
@@ -418,6 +453,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
 
     try {
       await Promise.all(uniqueIds.map(_loadTile));
+      if (name === 'mon1') {
+        const monTiles = [...new Set(MONS.map(m => m.tile).filter(Boolean))];
+        const lvLoaders = [];
+        for (const tid of monTiles) {
+          for (const lv of [2, 3]) {
+            lvLoaders.push(new Promise((res) => {
+              const key = `${tid}_lv${lv}`;
+              const img = new Image();
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width; canvas.height = img.height;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                customTileImages[key] = canvas;
+                res();
+              };
+              img.onerror = () => res();
+              img.src = `/tiles/sprites/mon1/tile_${tid}_lv${lv}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
+            }));
+          }
+        }
+        await Promise.all(lvLoaders);
+      }
       if (name === 'dawnlike') {
         for (const [rawId, fallbackId] of Object.entries(DAWNLIKE_FALLBACKS)) {
           const id = Number(rawId);
@@ -426,11 +483,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         }
       }
+      if (!customTileImages[234] && customTileImages[147]) customTileImages[234] = customTileImages[147];
+      if (!customTileImages[235] && customTileImages[147]) customTileImages[235] = customTileImages[147];
+      if (!customTileImages[236] && customTileImages[165]) customTileImages[236] = customTileImages[165];
       /* スタイル3(mon1)は専用のtile_210〜216を優先し、
        * DawnLike／デフォルトだけpublic/tilesの16pxマップアイコンを使う。 */
       if (name !== 'mon1') await loadPublicNamedTiles([...PUBLIC_TRAP_TILE_IDS, ...PUBLIC_SPECIAL_PROJECTILE_TILE_IDS]);
       setCurrentTileset(name);
-      localStorage.setItem('roguelike_tileset', name);
+      writePreference('roguelike_tileset', name);
       setCtLoaded(c => c + 1);
     } catch (e) {
       console.error('Tileset load failed:', e);
@@ -441,24 +501,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* mon1タイルセット使用時、全9種のペンスプライトを customTileImages[2001..2009] にロード */
   useEffect(() => {
     if (currentTileset !== 'mon1') return;
-    for (let i = 1; i <= 9; i++) {
-      const col = String(i).padStart(2, '0');
+    PEN_ITEM_ASSET_NAMES.forEach((name, i) => {
       const img = new Image();
-      const idx = 2000 + i;
+      const idx = 2001 + i;
       img.onload = () => { customTileImages[idx] = img; setCtLoaded(c => c + 1); };
-      img.src = `/tiles/items/item_r01_c${col}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
-    }
+      img.src = `/tiles/items/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
+    });
     /* 薬スプライト25種を customTileImages[3001..3025] にロード */
-    const POTION_POOL = [
-      'item_r04_c07','item_r04_c10','item_r04_c11','item_r04_c14',
-      'item_r05_c01','item_r05_c02','item_r05_c03','item_r05_c04',
-      'item_r05_c05','item_r05_c06','item_r05_c08','item_r05_c12','item_r05_c14',
-      'item_r03_c01','item_r03_c02','item_r03_c03','item_r03_c04',
-      'item_r03_c05','item_r03_c15',
-      'item_r04_c01','item_r04_c02','item_r04_c03','item_r04_c04',
-      'item_r04_c05','item_r04_c06',
-    ];
-    POTION_POOL.forEach((name, i) => {
+    POTION_ITEM_ASSET_NAMES.forEach((name, i) => {
       const img = new Image();
       const idx = 3001 + i;
       img.onload = () => { customTileImages[idx] = img; setCtLoaded(c => c + 1); };
@@ -478,9 +528,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: d }),
       }).catch(() => {});
-      try {
-        localStorage.setItem("roguelike_portrait", d);
-      } catch (ex) {}
+      saveImage("roguelike_portrait", d).catch(() => {});
     };
     r.readAsDataURL(file);
   };
@@ -490,7 +538,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     }).catch(() => {});
-    localStorage.removeItem("roguelike_portrait");
+    deleteImage("roguelike_portrait").catch(() => {});
     portraitControlsRef.current?.resumeDynamic();
   };
   const ref = useRef(null),
@@ -561,7 +609,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, []);
   /* Generate procedural pixel art as default tiles, then override with saved tileset or custom PNGs */
   useEffect(() => {
-    const _savedTileset = localStorage.getItem('roguelike_tileset') || 'default';
+    const _savedTileset = readPreference('roguelike_tileset', 'default') || 'default';
     if (_savedTileset !== 'default') {
       /* 保存されたプリセットタイルセットを復元 */
       loadTileset(_savedTileset);
@@ -585,17 +633,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         setCtLoaded((c) => c + 1);
       };
       img.onerror = () => {
-        const saved = localStorage.getItem(`roguelike_tile_${idx}`);
-        if (saved) {
-          const i2 = new Image();
-          i2.onload = () => {
-            customTileImages[iidx] = i2;
-            setCtLoaded((c) => c + 1);
-          };
-          i2.src = saved;
-        }
+        loadImage(`roguelike_tile_${idx}`).then((saved) => {
+          if (saved) {
+            const i2 = new Image();
+            i2.onload = () => {
+              customTileImages[iidx] = i2;
+              setCtLoaded((c) => c + 1);
+            };
+            i2.src = saved;
+          }
+        });
       };
-      img.src = SHARED_FIXTURE_TILE_IDS.has(iidx)
+      img.src = SHARED_TILE_OVERRIDE_IDS.has(iidx)
         ? `/tiles/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`
         : `/tiles/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
     });
@@ -667,6 +716,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       sleepInterruptedTurns: 0,
       paralyzeTurns: 0,
       frozenTurns: 0,
+      petrifiedTurns: 0,
       hypnosisPending: 0,
       slowTurns: 0,
       slowSkip: false,
@@ -674,6 +724,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       hasteUsed: false,
       actionTime: 0,
       confusedTurns: 0,
+      drunkTurns: 0,
+      drunkenTurns: 0,
       poisoned: false,
       poisonedTurns: 0,
       poisonAtkLoss: 0,
@@ -704,7 +756,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     installPlayerHpReverseHook(p);
     if (dungeonConfig?.startInventory?.length) {
       for (const it of dungeonConfig.startInventory) {
-        if (p.inventory.length < (p.maxInventory || 100)) p.inventory.push({ ...it, id: uid() });
+        if (p.inventory.length < (p.maxInventory || 100)) {
+          const copy = { ...it, id: uid() };
+          if (it.type === "pot") {
+            copy.contents = [...(it.contents || [])];
+            copy.confinedMonsters = [...(it.confinedMonsters || [])];
+          }
+          p.inventory.push(copy);
+        }
       }
     }
     /* 持ち込み装備を優先して自動装備。装備品がなければ短剣・革の鎧を補給する。 */
@@ -822,7 +881,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       syncSpawnFloorMeta(rs, rs.dungeon);
       sr.current = rs;
       setGs(rs);
-      setMsgs(resumeState.msgs || [{ text: "冒険を再開した。", turn: 0 }]);
+      const restoredMessages = applyMessageUpdate([], resumeState.msgs || [{ text: "冒険を再開した。", turn: 0 }], rs.floorTurns);
+      messageSoundObserverRef.current(restoredMessages, { reset: true });
+      setMsgs(restoredMessages);
       ref.current?.focus();
     } else {
       init();
@@ -888,6 +949,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
 
   const playAnim = useCallback(async (data) => {
     if (!data || !canvasRef.current) return;
+    queueAnimationSounds(data);
     animBusyRef.current = true;
     try {
     const _easeOut = (t) => t * t * (3 - 2 * t); /* smoothstep */
@@ -1109,7 +1171,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       else if (e.type === "monProjectile") (d.monProjectiles = d.monProjectiles || []).push(e);
       else if (e.type === "monProjectileReturn") (d.monProjectileReturns = d.monProjectileReturns || []).push(e);
       else if (e.type === "splash") (d.splashes = d.splashes || []).push(e);
-      else if (e.type === "explosion" || e.type === "lightning" || e.type === "heal") d.explosions.push(e);
+      else if (e.type === "explosion" || e.type === "lightning" || e.type === "heal" || e.type === "flameMantle" || e.type === "refresh" || e.type === "caswack" || e.type === "deathTrap") d.explosions.push(e);
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
       else if (e.type === "playerKnockback") d.playerKnockback = e;
@@ -1128,9 +1190,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.level++;
       p.exp -= p.nextExp;
       p.nextExp = Math.floor(p.nextExp * 1.5);
-      p.maxHp += 5;
+      adjustPlayerBaseMaxHp(p, 5);
       p.hp = Math.min(p.hp + 10, p.maxHp);
-      p.atk++;
+      p.atk += (p.level % 2 === 0) ? 2 : 1;
       if (p.level % 3 === 0) { p.def++; p.maxMp++; }
       ml.push(`レベルアップ！Lv.${p.level}！`);
     }
@@ -1172,8 +1234,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ml.push(`${it.value}枚の金貨を拾った！`);
         removeFloorItem(dg, it);
         go = true;
-      } else if (it.type === "arrow" && (it.stone || it.magicStone) && !it.shopPrice) {
-        if (addStonesInv(p.inventory, it.count, !!it.magicStone, p.maxInventory || 30, it)) {
+      } else if (it.type === "arrow" && (it.stone || it.magicStone || it.iceChunk) && !it.shopPrice) {
+        const _added = it.iceChunk
+          ? addIceChunksInv(p.inventory, it.count, p.maxInventory || 30, it)
+          : addStonesInv(p.inventory, it.count, !!it.magicStone, p.maxInventory || 30, it);
+        if (_added) {
           showFirstEncounterTip("item_arrow");
           ml.push(`${it.name}(${it.count}個)を拾った。`);
           removeFloorItem(dg, it);
@@ -1195,6 +1260,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       } else if (it.type === "goal") {
         clearDimensionalVaultItemCounter(it);
+        delete it.wallEmbedded;
         p.inventory.push(it);
         showFirstEncounterTip("goal_item");
         ml.push(`★${it.name}を手に入れた！地上に持ち帰ろう！★`);
@@ -1206,6 +1272,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } else if (p.inventory.length < (p.maxInventory || 30)) {
         if (sr.current.allBcKnown) { it.fullIdent = true; it.bcKnown = true; }
         clearDimensionalVaultItemCounter(it);
+        delete it.wallEmbedded;
         p.inventory.push(it);
         maybeTipForItem(it);
         {
@@ -1269,9 +1336,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       return null;
     }
     if (isPlayerFloating(p, dg)) {
-      trap.revealed = true;
-      trackTrap(trap);
-      ml.push(`浮遊しているので${trap.name}を回避した！`);
+      if (trap.revealed) ml.push(`浮遊しているので${trap.name}を回避した！`);
       return null;
     }
     showFirstEncounterTip("trap");
@@ -1292,28 +1357,157 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (_tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
           if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
+        } else if (_tr === "deferred_explosion" && dg2._pendingMineExplosion) {
+          /* 敵の特技は攻撃フェーズ中にも罠を起動する。
+             通常の発火フェーズを待つと次のプレイヤー行動まで持ち越されるため即時解決する。 */
+          const pendingMine = dg2._pendingMineExplosion;
+          delete dg2._pendingMineExplosion;
+          ml2.push(`${pendingMine.name}が発動！`);
+          runMineExplosion(dg2, pendingMine, p, ml2, lu);
         }
         return _tr;
       },
       monsterWandFn: (m, dx, dy) => {
         const _we = resolveMonsterWandEffect(m);
-        const _wandBlessed = (m.monLevel || 1) >= 3;
+        const _wandBlessed = (m.monLevel || 1) >= 3 || !!m.flockEmpowered;
         const _wandBlMult = _wandBlessed ? 2 : 1;
         const _wbItemNameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
         const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx) =>
           applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
-            _wandBlMult, _wbItemNameFn, m.atk, m, _wbBbNameFn, false, m);
-        if (_we === "lightning") {
+            _wandBlMult, _wbItemNameFn, m.atk, m, _wbBbNameFn, false, m, opts.fireTrapFn);
+        if (_we === "lightning_magic" && m.baseKind === "boss_flock_revenge") {
+          const room = findRoom(dg.rooms, m.x, m.y);
+          if (!room || findRoom(dg.rooms, pl.x, pl.y) !== room) return;
+          ml.push(`${m.name}が同じ部屋に雷の魔法を放った！`);
+          if (hasPlayerMagicReflect(pl)) {
+            ml.push(`${playerMagicReflectLabel(pl)}が${m.name}の雷の魔法を跳ね返した！`);
+            _applyMonsterWandEffect("lightning", "monster", m, 0, 0, ml);
+          } else {
+            _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
+            if (pl.hp <= 0) pl.deathCause = `${m.name}の雷の魔法により`;
+          }
+          for (const target of [...dg.monsters]) {
+            if (target === m || target.baseKind === "boss_flock_revenge" || target.hp <= 0 ||
+                findRoom(dg.rooms, target.x, target.y) !== room) continue;
+            _applyMonsterWandEffect("lightning", "monster", target, 0, 0, ml);
+          }
+        } else if (_we === "sleep_bolt" && m.baseKind === "boss_flock_revenge") {
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "sleep_wand", reflectColor: "#bc86ff", wandLabel: "眠りの魔法",
+            onPlayerHit: (mlx) => _applyMonsterWandEffect("sleep", "player", pl, dx, dy, mlx),
+            onMonsterHit: (target, mlx) => _applyMonsterWandEffect("sleep", "monster", target, dx, dy, mlx),
+            onWallReflect: (mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
+            onMagicReflect: (_reflector, mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
+            onPlayerReflect: (mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
+          });
+        } else if (_we === "drain_hp" && m.baseKind === "boss_flock_revenge") {
+          const drain = (target, recipient) => {
+            if (!target || target.hp <= 0 || consumeBarrier(target, ml)) return;
+            const power = Math.max(1, Number(m.flockMagicPowerMultiplier) || 1);
+            const damage = Math.max(1, multiplyCursedMagicDamage(Math.round(rng(18, 28) * power), target, dg));
+            target.hp -= damage;
+            if (target === pl) target.deathCause = `${m.name}のHP吸収の魔法により`;
+            const healed = Math.min(damage, Math.max(0, (recipient.maxHp || recipient.hp) - recipient.hp));
+            recipient.hp += healed;
+            ml.push(`HP吸収の魔法が${target.name || "プレイヤー"}に命中！${damage}ダメージ、${healed}HP吸収！`);
+            if (target.hp <= 0 && target !== pl) killMonster(target, dg, pl, ml, lu, false, m);
+          };
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "#d452ff", reflectColor: "#d452ff", wandLabel: "HP吸収の魔法",
+            onPlayerHit: () => drain(pl, m),
+            onMonsterHit: (target) => drain(target, m),
+            onWallReflect: () => drain(m, m),
+            onMagicReflect: (reflector) => drain(m, reflector),
+            onPlayerReflect: () => drain(m, pl),
+          });
+        } else if (_we === "reflect_magic" && m.baseKind === "boss_flock_revenge") {
+          m.flockReflectTurns = Math.max(m.flockReflectTurns || 0, 10);
+          ml.push(`${m.name}は反射の魔法で魔法反射状態になった！(10ターン)`);
+        } else if (_we === "guard_magic" && m.baseKind === "boss_flock_revenge") {
+          if (!(m.flockGuardDefBonus > 0)) {
+            const bonus = 16;
+            m.def = (m.def || 0) + bonus;
+            if (m._debuffOrigDef !== undefined) m._debuffOrigDef += bonus;
+            m.flockGuardDefBonus = bonus;
+          }
+          m.flockGuardTurns = Math.max(m.flockGuardTurns || 0, 10);
+          ml.push(`${m.name}は守護の魔法で防御力が上がった！(+${m.flockGuardDefBonus}、10ターン)`);
+        } else if (_we === "flame_mantle" && m.baseKind === "boss_flock_revenge") {
+          m.flameMantleTurns = Math.max(m.flameMantleTurns || 0, 10);
+          ml.push(`${m.name}は炎上の魔法で炎をまとった！(10ターン)`);
+        } else if (_we === "clone_magic" && m.baseKind === "boss_flock_revenge") {
+          const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [1, 1], [-1, 1]];
+          const spot = dirs.map(([ox, oy]) => ({ x: m.x + ox, y: m.y + oy })).find(({ x, y }) =>
+            dg.map?.[y]?.[x] === T.FLOOR && !(x === pl.x && y === pl.y) &&
+            !dg.monsters.some(other => monsterOccupiesCell(other, x, y)) &&
+            !dg.items?.some(item => item.x === x && item.y === y) &&
+            !dg.traps?.some(trap => trap.x === x && trap.y === y) &&
+            !dg.springs?.some(spring => spring.x === x && spring.y === y) &&
+            !dg.bigboxes?.some(box => box.x === x && box.y === y) &&
+            !dg.pentacles?.some(pc => pc.x === x && pc.y === y) &&
+            !dg.gachaMachines?.some(machine => machine.x === x && machine.y === y) &&
+            !dg.altars?.some(altar => altar.x === x && altar.y === y) &&
+            !dg.dimensionalVaults?.some(vault => vault.x === x && vault.y === y) &&
+            !dg.statues?.some(statue => statue.x === x && statue.y === y),
+          );
+          if (!spot) {
+            m.mp = Math.min(m.maxMp || 180, (m.mp || 0) + 20);
+            ml.push("分身を出す場所がなかった！魔力は消費しなかった。");
+            return;
+          }
+          const cloneHp = Math.max(1, Math.ceil((m.maxHp || m.hp) / 2));
+          const clone = {
+            ...m, id: uid(), name: "フロックの分身", x: spot.x, y: spot.y,
+            hp: cloneHp, maxHp: cloneHp, isBoss: false, bossTier: 0,
+            _flockRevengeClone: true, _flockCloneSummoned: true, _flockHpDialogueSnapshot: cloneHp,
+            _flockRevengeParentId: m.id,
+            turnAttacks: 0, turnAccum: 0,
+          };
+          delete clone._flockPendingSpell;
+          delete clone._flockPendingCorneredSpell;
+          delete clone._flockEarlySpellPending;
+          delete clone._rangedAttackThisTurn;
+          delete clone.wandEffect;
+          dg.monsters.push(clone);
+          m._flockCloneSummoned = true;
+          ml.push(`逆襲のフロックは分身の魔法で2人に増えた！分身のHPは${cloneHp}！`);
+        } else if (_we === "self_destruct_magic" && m.baseKind === "boss_flock_revenge") {
+          doExplosion(m.x, m.y, dg, pl, ml, _wbItemNameFn, "自爆の魔法", null, lu, false, false, false, false, {
+            radius: 1, killerMon: m, excludeMonsterId: m.id,
+            damageMultiplier: Math.max(1, Number(m.flockMagicPowerMultiplier) || 1),
+          });
+          m.hp = 1;
+          ml.push(`${m.name}は自爆の魔法を誤って唱え、HPが1になった！`);
+        } else if (_we === "lightning") {
           ml.push(_wandBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
-            _wbItemNameFn, m, _wandBlessed);
+            _wbItemNameFn, m, _wandBlessed, opts.fireTrapFn);
+        } else if (_we === "fire_bolt") {
+          const _flockFireImpact = (x, y, mlx) => {
+            doExplosion(x, y, dg, pl, mlx, _wbItemNameFn, "炎の魔法", null, lu,
+              false, false, false, false, {
+                radius: 1, killerMon: m,
+                damageMultiplier: Math.max(1, Number(m.flockMagicPowerMultiplier) || 1),
+              });
+          };
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "fire_wand", reflectColor: "#ff6622", wandLabel: "炎の魔法",
+            fireMsg: m.baseKind === "boss_flock" ? null : `${m.name}が炎の魔法を唱えた！`,
+            ignoreStatusProtection: true,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onImpact: (_kind, _target, x, y, mlx) => _flockFireImpact(x, y, mlx),
+            onPlayerReflect: (mlx) => _flockFireImpact(m.x, m.y, mlx),
+            onMagicReflect: (_reflector, mlx) => _flockFireImpact(m.x, m.y, mlx),
+          });
         } else if (_we === "fire_wand" || _we === "ice_wand") {
           const _wandLabel = _we === "fire_wand" ? "炎" : "氷";
           const _wandColor = _we === "fire_wand" ? "#ff6622" : "#80ddff";
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: _we, reflectColor: _wandColor, wandLabel: _wandLabel,
-            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}${_wandLabel}の杖を振った！`,
+            fireMsg: m.baseKind === "boss_flock"
+              ? null
+              : `${m.name}が${_wandBlessed ? "祝福された" : ""}${_wandLabel}の杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => _applyMonsterWandEffect(_we, "player", pl, dx, dy, mlx),
             onMonsterHit: (mon, mlx) => _applyMonsterWandEffect(_we, "monster", mon, dx, dy, mlx),
@@ -1336,13 +1530,47 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onMagicReflect: (refl, mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
             onPlayerReflect: (mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
           });
+        } else if (_we === "poison_bolt") {
+          const _applyPoisonBolt = (target, kind, mlx) => {
+            if (kind === "player") {
+              if (hasRingEffect(pl, "antidote_ring")) {
+                mlx.push("毒の魔法が命中したが、毒消しの指輪が毒を消した！");
+                return;
+              }
+              const poison = applyPlayerPoison(pl);
+              if (poison.blocked) mlx.push("毒の魔法が命中したが、状態防止中のため毒にならなかった！");
+              else mlx.push(poison.newlyApplied
+                ? `毒の魔法に侵された！(${poison.turns}ターン) 攻撃力が${poison.atkLoss}下がった！`
+                : `毒の魔法で毒が強まった！(残り${poison.remaining}ターン)`);
+              return;
+            }
+            if (blockLargeMonsterStatus(target, "poison", mlx)) return;
+            startLargeMonsterStatusCooldown(target, "poison");
+            const turns = monsterStatusTurns("poison", { kind: "monster", target });
+            target.poisonedTurns = (target.poisonedTurns || 0) + turns;
+            mlx.push(`毒の魔法が${target.name}に命中！毒に侵された！(${turns}ターン)`);
+          };
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, range: 10, boltColor: "poison_wand", reflectColor: "#70d050", wandLabel: "毒の魔法",
+            fireMsg: m.baseKind === "boss_flock" ? null : `${m.name}が毒の魔法を唱えた！`,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => _applyPoisonBolt(pl, "player", mlx),
+            onMonsterHit: (mon, mlx) => _applyPoisonBolt(mon, "monster", mlx),
+            onWallReflect: (mlx) => _applyPoisonBolt(m, "monster", mlx),
+            onMagicReflect: (_reflector, mlx) => _applyPoisonBolt(m, "monster", mlx),
+            onPlayerReflect: (mlx) => _applyPoisonBolt(m, "monster", mlx),
+          });
         } else if (_we === "curse_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "curse_wand", reflectColor: "#9020b0", wandLabel: "呪い",
-            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}呪いの杖を振った！`,
+            fireMsg: m.baseKind === "boss_flock"
+              ? null
+              : `${m.name}が${_wandBlessed ? "祝福された" : ""}呪いの杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => _applyMonsterWandEffect("curse_wand", "player", pl, dx, dy, mlx),
             onMonsterHit: (mon, mlx) => {
+              if (blockLargeMonsterStatus(mon, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(mon, "slow");
               if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
               mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
               const _slowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
@@ -1350,6 +1578,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(`呪いの魔法弾が${mon.name}に命中！鈍足になった！${mon.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onWallReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "slow");
               if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
               const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
@@ -1357,6 +1587,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(`呪いの魔法弾が壁に跳ね返り${m.name}に命中！鈍足になった！${m.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (blockLargeMonsterStatus(m, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "slow");
               if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
               const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
@@ -1364,6 +1596,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(`呪いが${m.name}に反射！鈍足になった！${m.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onPlayerReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "slow", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "slow");
               if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
               const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
@@ -1372,7 +1606,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             },
             onBigbox: (bb, mlx) => {
               const _hbbDN = _wbBbNameFn(bb);
-              const _newCap = Math.max(0, (bb.capacity || 1) - 1);
+              const _newCap = Math.max(0, (bb.capacity ?? 1) - 1);
               if ((bb.contents?.length || 0) > _newCap) {
                 breakBigboxContents(bb, dg, mlx, _wbItemNameFn, null, null, { player: pl, luFn: lu });
                 mlx.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
@@ -1401,37 +1635,33 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               if (hasGravityPentacle(dg, pl.x, pl.y)) { mlx.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); return; }
-              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
+              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, m, null, false, m, opts.fireTrapFn);
               interruptPlayerSleep(pl, mlx);
               if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; mlx.push("衝撃で金縛りが解けた！"); }
             },
             onMonsterHit: (mon, mlx) => {
               applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, m, null, false);
-              if (mon.hp <= 0) { killMonster(mon, dg, pl, mlx, lu, false, m); }
             },
             onWallReflect: (mlx) => {
               mlx.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`);
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
-              if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onMagicReflect: (refl, mlx) => {
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
-              if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onPlayerReflect: (mlx) => {
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, pl.atk || 3, null, null, false);
-              if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onItem: (it, mlx) => {
-              applyWandEffect("knockback", "item", it, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
+              _applyMonsterWandEffect("knockback", "item", it, dx, dy, mlx);
             },
             onBigbox: (bb, mlx) => {
-              applyWandEffect("knockback", "bigbox", bb, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
+              _applyMonsterWandEffect("knockback", "bigbox", bb, dx, dy, mlx);
             },
             onTrap: (trap, mlx) => {
               trap.revealed = true;
               trackTrap(trap);
-              applyWandEffect("knockback", "trap", trap, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
+              applyWandEffect("knockback", "trap", trap, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false, m, opts.fireTrapFn);
             },
           });
         } else if (_we === "confuse_wand") {
@@ -1446,19 +1676,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(_prev > 0 ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)` : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
+              if (blockLargeMonsterStatus(mon, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(mon, "confuse");
               const _prev = mon.confusedTurns || 0;
               mon.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: mon });
               mlx.push(_prev > 0 ? `混乱の魔法弾が${mon.name}に命中！混乱が延長された！(混乱${mon.confusedTurns}ターン)` : `混乱の魔法弾が${mon.name}に命中！混乱した！(混乱${mon.confusedTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "confuse");
               m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`混乱の魔法弾が壁に跳ね返り${m.name}に命中！混乱した！(混乱${m.confusedTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (blockLargeMonsterStatus(m, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "confuse");
               m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "confuse", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "confuse");
               const _prev = m.confusedTurns || 0;
               m.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(_prev > 0 ? `混乱が${m.name}に反射した！混乱が延長された！(混乱${m.confusedTurns}ターン)` : `混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
@@ -1476,28 +1714,51 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               mlx.push(_prev > 0 ? `眠りの魔法弾を受けた！眠りが延長された！(眠り${pl.sleepTurns}ターン)` : `眠りの魔法弾を受けた！眠ってしまった！(眠り${pl.sleepTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
+              if (blockLargeMonsterStatus(mon, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(mon, "sleep");
               const _prev = mon.sleepTurns || 0;
               mon.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: mon });
               mlx.push(_prev > 0 ? `眠りの魔法弾が${mon.name}に命中！眠りが延長された！(眠り${mon.sleepTurns}ターン)` : `眠りの魔法弾が${mon.name}に命中！眠ってしまった！(眠り${mon.sleepTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "sleep");
               m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`眠りの魔法弾が壁に跳ね返り${m.name}に命中！眠ってしまった！(眠り${m.sleepTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (blockLargeMonsterStatus(m, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "sleep");
               m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
+              if (blockLargeMonsterStatus(m, "sleep", mlx)) return;
+              startLargeMonsterStatusCooldown(m, "sleep");
               const _prev = m.sleepTurns || 0;
               m.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(_prev > 0 ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)` : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
           });
+        } else if (_we === "darkness_wand") {
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "darkness_wand", reflectColor: "#334466", wandLabel: "暗闇",
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}暗闇の杖を振った！`,
+            proofAbility: "darkness_proof",
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => _applyMonsterWandEffect("darkness", "player", pl, dx, dy, mlx),
+            onMonsterHit: (mon, mlx) => _applyMonsterWandEffect("darkness", "monster", mon, dx, dy, mlx),
+            onWallReflect: (mlx) => _applyMonsterWandEffect("darkness", "monster", m, -dx, -dy, mlx),
+            onMagicReflect: (refl, mlx) => _applyMonsterWandEffect("darkness", "monster", m, -dx, -dy, mlx),
+            onPlayerReflect: (mlx) => _applyMonsterWandEffect("darkness", "monster", m, -dx, -dy, mlx),
+            onBigbox: (bb, mlx) => _applyMonsterWandEffect("darkness", "bigbox", bb, dx, dy, mlx),
+            onItem: (it, mlx) => _applyMonsterWandEffect("darkness", "item", it, dx, dy, mlx),
+            onTrap: (trap, mlx) => _applyMonsterWandEffect("darkness", "trap", trap, dx, dy, mlx),
+          });
         } else if (_we === "teleport_wand") {
-          const _tpRand = (exX, exY) =>
+          const _tpRand = (exX, exY, targetMon = null) =>
             randomTeleportDest(dg, exX, exY, (x, y) =>
-              !dg.monsters.some(o => o.x === x && o.y === y) &&
+              (targetMon ? canPlaceMonsterBody(dg, targetMon, x, y, pl) : !dg.monsters.some(o => monsterOccupiesCell(o, x, y))) &&
               !(x === pl.x && y === pl.y));
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
@@ -1508,50 +1769,68 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "player", pl, dx, dy, mlx);
                 return;
               }
-              if (dg.pentacles?.some(pc => pc.kind === "teleport" && pc.cursed)) {
+              if (hasCursedTeleportPentacle(dg)) {
                 mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
               }
               const _rp = _tpRand(pl.x, pl.y);
               if (_rp) {
                 const _tpFromX = pl.x, _tpFromY = pl.y;
                 pl.x = _rp.x; pl.y = _rp.y;
+                pl.immobileTurns = 0;
+                pl.potConfinedTurns = 0;
                 pushPlayerTeleportAnim(_tpFromX, _tpFromY, pl.x, pl.y);
                 mlx.push("テレポートの魔法弾を受けた！どこかへテレポートした！");
               }
               else mlx.push("テレポートに失敗した。");
             },
             onMonsterHit: (mon, mlx) => {
+              if (mon.forcedMoveImmune) { mlx.push(`${mon.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", mon, dx, dy, mlx);
                 return;
               }
-              const _rp = _tpRand(mon.x, mon.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(mon.x, mon.y, mon);
               if (_rp) { mon.x = _rp.x; mon.y = _rp.y; mlx.push(`テレポートの魔法弾が${mon.name}に命中！どこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");
             },
             onWallReflect: (mlx) => {
+              if (m.forcedMoveImmune) { mlx.push(`${m.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              const _rp = _tpRand(m.x, m.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中！どこかへテレポートした！`); }
               else mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中したが失敗した！`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (m.forcedMoveImmune) { mlx.push(`${m.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              const _rp = _tpRand(m.x, m.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
             onPlayerReflect: (mlx) => {
+              if (m.forcedMoveImmune) { mlx.push(`${m.name}は強制移動を受けない！`); return; }
               if (_wandBlessed) {
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              const _rp = _tpRand(m.x, m.y);
+              if (hasCursedTeleportPentacle(dg)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
+              }
+              const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
             onBigbox: (bb, mlx) => {
@@ -1559,7 +1838,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _bbPts = [];
               for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
                 if (dg.map[_fy][_fx] === T.FLOOR &&
-                    !dg.monsters.some(o => o.x === _fx && o.y === _fy) &&
+                    !dg.monsters.some(o => monsterOccupiesCell(o, _fx, _fy)) &&
                     !dg.bigboxes.some(b => b !== bb && b.x === _fx && b.y === _fy) &&
                     !(_fx === pl.x && _fy === pl.y) && !(_fx === bb.x && _fy === bb.y))
                   _bbPts.push({ x: _fx, y: _fy });
@@ -1590,7 +1869,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     );
     const _phase = phaseMode || "both"; // "moveOnly" | "attackOnly" | "both"
     dg.monsters.forEach((m) => {
-      if (m.hp <= 0) return;
+      if (sr.current?.dungeon !== dg || m.hp <= 0) return;
+      const _summonedAtActionTime = Number.isFinite(m._summonedAtActionTime)
+        ? m._summonedAtActionTime
+        : m._gwenSummonedAtActionTime;
+      if (Number.isFinite(_summonedAtActionTime)) {
+        if ((pl.actionTime || 0) <= _summonedAtActionTime) return;
+        delete m._summonedAtActionTime;
+        delete m._gwenSummonedAtActionTime;
+      }
       if (_phase === "attackOnly") {
         /* 移動した敵は攻撃フェーズをスキップ（speed<=1のみ。倍速敵は移動後も攻撃できる） */
         if (m._movedThisTurn) { delete m._movedThisTurn; return; }
@@ -1603,7 +1890,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         delete m._movesMadeThisPhase;
         m.turnAttacks = 0;
         for (let _ai = 0; _ai < _atkBudget; _ai++) {
-          if (m.hp <= 0) break;
+          if (sr.current?.dungeon !== dg || m.hp <= 0) break;
           monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
         }
         return;
@@ -1618,17 +1905,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       });
       const _monsterTurnRate = _eqPcM
         ? (_eqPcM.cursed ? 0.5 : (_eqPcM.blessed ? 2 : 1))
-        : (m.sealed ? 1 : m.speed);
+        : Math.min(3, (m.sealed ? 1 : m.speed) * ((m.foodHasteTurns || 0) > 0 ? (m.foodHasteMultiplier || 2) : 1));
       m.turnAttacks = 0;
       const _due = takeDueActions(m, pl.actionTime || 0, _monsterTurnRate);
       let _actionCount = 0;
       let _moveCount = 0; /* 実際に位置が変わったアクション数 */
       for (let _ai = 0; _ai < _due; _ai++) {
+        if (sr.current?.dungeon !== dg) break;
         _actionCount++;
         if (m.hp <= 0) break;
         if (_phase === "moveOnly") {
           const _bx = m.x, _by = m.y;
-          const _wasSleeping = (m.sleepTurns || 0) > 0;
+          const _wasSleeping = (m.sleepTurns || 0) > 0 || (m.subtype === "sleepingLion" && m.dormant);
           monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
           if (m.x !== _bx || m.y !== _by) _moveCount++;
           /* 等速の敵だけはプレイヤーと同時に目覚める扱いにして、
@@ -1658,7 +1946,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         pc.kind === "fixed_portal" && pc.pairId === _fp.pairId &&
         !(pc.x === _fp.x && pc.y === _fp.y));
       if (!_pair) { ml.push(`${_fp.name}が反応したが、繋がる先がない…`); return false; }
-      if (dg.monsters.some(m => m.x === _pair.x && m.y === _pair.y)) {
+      if (dg.monsters.some(m => monsterOccupiesCell(m, _pair.x, _pair.y))) {
         ml.push("対の転送陣が塞がっていて出られなかった！");
         return false;
       }
@@ -1719,7 +2007,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     let _dest = null;
     for (let _off = 1; _off < _cycle.length; _off++) {
       const _cand = _cycle[(_idx + _off) % _cycle.length];
-      if (_cand.dg.monsters.some(m => m.x === _cand.portal.x && m.y === _cand.portal.y)) continue;
+      if (_cand.dg.monsters.some(m => monsterOccupiesCell(m, _cand.portal.x, _cand.portal.y))) continue;
       _dest = _cand; break;
     }
     if (!_dest) { ml.push("どのポータルも塞がっていて出られなかった！"); return false; }
@@ -1727,6 +2015,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.x = _dest.portal.x; p.y = _dest.portal.y;
       ml.push(`ポータルから${_dest.portal.name}へ抜けた！`);
     } else {
+      declareFloorExitTheft(p, sr.current.dungeon, ml);
       sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
       _dest.dg.monsters = _dest.dg.monsters.filter((monster) => !monster.isPlayerClone);
       suspendFloor(sr.current.dungeon, p);
@@ -1736,6 +2025,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       st.dungeon = _dest.dg;
       p.depth = _dest.depth;
       p.x = _dest.portal.x; p.y = _dest.portal.y;
+      synchronizeFloorArrival(st, _dest.dg);
+      sr.current.floorTurns = st.floorTurns;
+      sr.current.maxReachedFloor = st.maxReachedFloor;
       resumeFloor(_dest.dg, p);
       refreshFOV(_dest.dg, p);
       ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
@@ -1758,14 +2050,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _isLastFloorPitfall = pitfall && _maxD !== null && pl.depth >= _maxD && dir > 0;
     if (!sr.current.floors) sr.current.floors = {};
     /* 店の商品を持ったまま階層を離脱した場合は即座に泥棒状態にする */
-    const _hasUnpaidItems = pl.inventory.some(ci => ci.shopPrice);
-    const _chgShops = getShops(sr.current.dungeon);
-    const _wasInUnpaidShop = _chgShops.some(s => (s.unpaidTotal || 0) > 0 && s.room &&
-      pl.x >= s.room.x && pl.x < s.room.x + s.room.w &&
-      pl.y >= s.room.y && pl.y < s.room.y + s.room.h);
-    if (_hasUnpaidItems || _wasInUnpaidShop) {
-      declareShopTheft(pl, sr.current.dungeon, null, { message: null });
-    }
+    declareFloorExitTheft(pl, sr.current.dungeon);
     sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
     suspendFloor(sr.current.dungeon, pl, { stairs });
     sr.current.floors[pl.depth] = sr.current.dungeon;
@@ -1773,18 +2058,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     let d;
     if (_isLastFloorPitfall) {
       /* 隠し宝部屋を生成 */
-      d = _saved || genTreasureRoom(pl.depth, sr.current.dungeonType || null);
+      d = _saved || generateSessionFloor(sr.current, nd, { pitfall });
       if (_saved) delete sr.current.floors[nd];
     } else if (_saved) {
       d = _saved;
       delete sr.current.floors[nd];
-    } else if (sr.current.dungeonType === "tutorial") {
-      const _chgMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
-      d = genTutorialFloor(nd, { mobile: _chgMobile });
-    } else if (sr.current.isDebugRun && nd >= 2) {
-      d = genDebugFloorByDepth(nd, sr.current.dungeonType || "beginner");
     } else {
-      d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
+      d = generateSessionFloor(sr.current, nd, { pitfall });
     }
     setDungeonAllBcKnown(d, !!sr.current.allBcKnown);
     if (!sr.current.allBcKnown) {
@@ -1798,7 +2078,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       prepareLastFloor(d, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
-    syncSpawnFloorMeta(sr.current, d);
     /* 最深層に到着時、goalアイテムが所持品にもフロアにもなければ再配置 */
     if (_maxD !== null && nd >= _maxD && d.isLastFloor && sr.current.dungeonType !== "tutorial") {
       const _hasGoalInv = pl.inventory?.some(i => i.type === "goal");
@@ -1842,18 +2121,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     refreshFOV(d, pl);
     /* 落とし穴・ランダム階層移動は同座標でも、落下してから出現する待機を必ず入れる */
     if (pitfall) pushPlayerTeleportAnim(_pitfallFromX, _pitfallFromY, pl.x, pl.y, true);
-    if (sr.current.dungeonType !== "tutorial") d.nextSpawnTurn = pl.turns + 30;
+    synchronizeFloorArrival(sr.current, d);
     d._firstVisit = !_saved;
-    sr.current.floorTurns = 0; /* 階層移動でフロアターンをリセット */
     return d;
   }, []);
   const withPitfallBag = useCallback((fn) => {
     const _pfBag = [];
+    const sourceDepth = sr.current.player.depth;
     setPitfallBag(_pfBag);
-    fn();
-    clearPitfallBag();
+    try { fn(); } finally { clearPitfallBag(); }
     if (!sr.current.floors) sr.current.floors = {};
-    processPitfallBag(_pfBag, sr.current.floors, sr.current.player.depth);
+    processPitfallBag(_pfBag, sr.current.floors, sourceDepth, sr.current);
   }, []);
   const spawnRelicGuardian = useCallback((st, p, dg, ml) => {
     if (!st || !p || !dg || st.dungeonType === "tutorial" || !p.inventory?.some((item) => item.type === "goal")) return false;
@@ -1862,7 +2140,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       for (let x = 0; x < MW; x++) {
         if (dg.map[y]?.[x] !== T.FLOOR) continue;
         if (x === p.x && y === p.y) continue;
-        if (dg.monsters?.some((monster) => monster.x === x && monster.y === y)) continue;
+        if (dg.monsters?.some((monster) => monsterOccupiesCell(monster, x, y))) continue;
         candidates.push([x, y]);
       }
     }
@@ -1875,10 +2153,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     return true;
   }, []);
   const endTurn = useCallback(
-    (st, p, ml, extraOpts = {}) => {
+    (st, p, ml, extraOpts = {}) => withLargeMonsterDamageTurn(p, () => {
       installPlayerHpMessageHook(ml, p);
+      placeFallenEntities(st.dungeon, [], { player: p, actionTime: p.actionTime || 0 });
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
+      const _etSourceDepth = p.depth;
       setPitfallBag(_etPfBag);
       const _etStartHp = p.hp;
       const _clock = beginPlayerTurnClock(p, { idleBeat: !!extraOpts.idleBeat });
@@ -1905,7 +2185,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           killMonster: (monster) => killMonster(monster, st.dungeon, p, ml, lu),
         });
         advanceEarlyStatusTimers(p, ml);
-        advancePlayerTerrainEffects(p, st.dungeon, ml);
+        const _terrainTrap = advancePlayerTerrainEffects(p, st.dungeon, ml, {
+          fireTrapFn: (trap, player, dungeon, messages) => {
+            trackTrap(trap);
+            showFirstEncounterTip("trap");
+            return fireTrapPlayer(trap, player, dungeon, messages,
+              (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames), lu, { ident: st.ident });
+          },
+        });
+        if (_terrainTrap === "pitfall" && p.hp > 0) {
+          const nextDungeon = chgFloor(p, 1, true);
+          if (nextDungeon) {
+            st.dungeon = nextDungeon;
+            ml.push(`地下${p.depth}階に落ちた！`);
+          }
+        }
         resolvePlayerPentacleEffects(p, st.dungeon, ml, {
           inMagicSealRoom,
           inCursedMagicSealRoom,
@@ -1966,6 +2260,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             lu,
             ident: sr.current?.ident,
             tickTimedEffects: _worldTick,
+            worldTicks: _clock.worldTicks,
           });
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _attackPhase = runMonsterAttackPhase(st.dungeon, p, ml, {
@@ -1984,8 +2279,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           hasCursedExplosionPentacle,
           inMagicSealRoom,
           inCursedMagicSealRoom,
-          onMonsterDefeated: (monster) => {
-            killMonster(monster, st.dungeon, p, ml, lu);
+          onMonsterDefeated: (monster, { killerMon = null } = {}) => {
+            killMonster(monster, st.dungeon, p, ml, lu, false, killerMon);
           },
         });
         /* ===== 新ペン魔方陣の毎ターン効果 ===== */
@@ -2060,6 +2355,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               dungeonType: _dg.dungeonType ?? null,
               excludeWaterOnly: true,
               poolFloor: _poolFloor,
+              existingMonsters: _dg.monsters,
             }));
           }
           const _spawnRingCount = (p.rings || []).filter(r => r && r.effect === "spawn_ring").length;
@@ -2240,7 +2536,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       /* 落下エンティティを次の階に配置 */
       clearPitfallBag();
       if (!st.floors) st.floors = {};
-      processPitfallBag(_etPfBag, st.floors, p.depth);
+      processPitfallBag(_etPfBag, st.floors, _etSourceDepth, st);
       /* 階段が杖などで消えた場合の復元（最深層・宝部屋は下りを要求しない） */
       const _maxDEt = st.maxDepth;
       ensureStairsPresent(st.dungeon, {
@@ -2254,14 +2550,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       });
       /* ピンチアラート：このターンの全ダメージ（薬・罠・敵含む）で再度受けたら死ぬ場合に警告 */
       if (p.hp > 0) {
+        flushPlayerGutsMessage(ml, p);
         const _etDmg = Math.max(0, _etStartHp - p.hp);
         if (_etDmg > 0 && p.hp <= _etDmg) {
           ml.push({ text: "【ピンチ】このまま同じダメージを受けるとHPが0になる！", color: "#ff3333" });
           signalPinchAlert();
         }
       }
-    },
-    [moveMons, lu, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
+      finishTrapActivationTurn(st);
+    }),
+    [moveMons, lu, chgFloor, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
   );
 
   /* auto-advance turns while player is sleeping, paralyzed, or slow-skipping */
@@ -2270,13 +2568,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     /* HP0後に残った状態異常があっても、死亡処理中に自動ターンを再実行しない。 */
     if (gs.player.hp <= 0) return;
     if (shopMode) return;
-    if (miniTip) return;
+    if (miniTip || showSound) return;
     if (!hasForcedTurn(gs.player)) return;
     setShowInv(false);
     setThrowMode(null);
     /* Wait for any running animation to finish before advancing */
     const tryAdvance = () => {
-      if (!sr.current) return;
+      if (!sr.current || showSoundRef.current) return;
       if (animBusyRef.current) {
         /* Animation still running — poll until it finishes */
         setTimeout(tryAdvance, 50);
@@ -2305,8 +2603,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       const _drainedEvts = drainAnims();
       for (const _de of _drainedEvts) {
-        if (_de.type === "splash") (_ad.splashes = _ad.splashes || []).push(_de);
-        else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        if (_de.type === "splash" || _de.type === "petroBreath") (_ad.splashes = _ad.splashes || []).push(_de);
+        else if (_de.type === "explosion" || _de.type === "lightning" || _de.type === "heal" || _de.type === "flameMantle" || _de.type === "refresh" || _de.type === "caswack" || _de.type === "deathTrap") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
         else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
@@ -2327,7 +2625,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _advDelay = (gs.player.potConfinedTurns || 0) > 0 ? 120 : 400;
     const timer = setTimeout(tryAdvance, _advDelay);
     return () => clearTimeout(timer);
-  }, [gs, shopMode, miniTip, endTurn, playAnim, lu]);
+  }, [gs, shopMode, miniTip, showSound, endTurn, playAnim, lu]);
 
   const performExitToHub = useCallback(() => {
     if (!onReturnToHub || !sr.current) return;
@@ -2406,7 +2704,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const lastMoveAtRef = useRef(0);
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
-      if (dead || !sr.current) return;
+      if (dead || !sr.current || showSoundRef.current) return;
       if (animBusyRef.current) {
         /* 移動以外・interact以外のアクション（wait・罠探し等）はアニメ終了後に実行するためバッファ。
            interactは階段降下後のアニメ中にバッファすると昇り階段を踏んで逆行する問題があるため除外。 */
@@ -2489,7 +2787,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       };
       /* 催眠中はキー入力を受け付けず、自動実行される強制行動を待つ。 */
       if ((p.hypnosisPending || 0) > 0) return;
-      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
+      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || (p.petrifiedTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
       if (type === "inventory") {
         setSpellListMode(false);
         setShowInv((v) => {
@@ -2553,42 +2851,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           /* 攻撃はできる：そのまま攻撃処理へ進む */
         }
         /* ===== 捕獲状態：からめ鬼を倒すまで移動不可（攻撃は可） ===== */
+        releaseInvalidCapture(p, dg, ml);
         if (p.capturedBy) {
           const _capMon = dg.monsters.find((m) => m.id === p.capturedBy);
-          if (!_capMon) {
-            p.capturedBy = null; /* 既に倒されていたらクリア */
-          } else {
-            /* 距離が離れた or 捕獲者が状態異常なら即解放 */
-            const _capDist = Math.max(Math.abs(p.x - _capMon.x), Math.abs(p.y - _capMon.y));
-            const _capBadStatus = (_capMon.sleepTurns || 0) > 0 || _capMon.paralyzed || (_capMon.confusedTurns || 0) > 0 ||
-              (_capMon.darknessTurns || 0) > 0 || (_capMon.fleeingTurns || 0) > 0 || _capMon.sealed || _capMon.bewitched ||
-              (_capMon.poisonedTurns || 0) > 0 || (_capMon.immobileTurns || 0) > 0 || _capMon.blind || (_capMon.oilyTurns || 0) > 0;
-            if (_capDist > 1 || _capBadStatus) {
-              p.capturedBy = null;
-              ml.push("捕獲から解放された！");
-              /* そのまま移動処理へ進む */
-            } else {
-              const _capNx = p.x + dx, _capNy = p.y + dy;
-              const _capTarget = monsterAt(dg, _capNx, _capNy);
-              if (!_capTarget) {
-                /* 敵がいない方向への移動は不可（隣接する敵への攻撃は可） */
-                ml.push(`${_capMon.name}に${_capMon.subtype === "giantEel" ? "拘束されている" : "捕まっている"}！倒さなければ逃げられない！`);
-                endTurn(st, p, ml);
-                setMsgs((prev) => [...prev.slice(-80), ...ml]);
-                sr.current = { ...st };
-                setGs({ ...st });
-                return;
-              }
-              /* 隣接している敵（からめ鬼でなくても）への攻撃は可 */
-            }
+          const _capTarget = monsterAt(dg, p.x + dx, p.y + dy);
+          if (!_capTarget) {
+            /* 敵がいない方向への移動は不可（隣接する敵への攻撃は可） */
+            ml.push(`${_capMon.name}に${_capMon.subtype === "giantEel" ? "拘束されている" : "捕まっている"}！倒さなければ逃げられない！`);
+            endTurn(st, p, ml);
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            sr.current = { ...st };
+            setGs({ ...st });
+            return;
           }
         }
         /* ===== 混乱状態：移動方向をランダム化 ===== */
-        if ((p.confusedTurns || 0) > 0) {
+        if ((p.confusedTurns || 0) > 0 || isAlcoholDirectionRandomized(p)) {
           const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
           const _crd = pick(_cdirs);
           dx = _crd[0]; dy = _crd[1];
-          ml.push("混乱して違う方向に動いた！");
+          ml.push((p.confusedTurns || 0) > 0
+            ? "混乱して違う方向に動いた！"
+            : (p.drunkenTurns || 0) > 0 ? "酩酊して違う方向に動いた！" : "酔って違う方向に動いた！");
         }
         const nx = p.x + dx,
           ny = p.y + dy;
@@ -2618,8 +2902,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               reachMon =
                 monsterAt(dg, rx, ry) || null;
           }
-          const attackMon = mon || reachMon;
-          if (attackMon) {
+          const candidateAttackMon = mon || reachMon;
+          const giantAttackBlocked = !!candidateAttackMon && candidateAttackMon.bodySize > 1 &&
+            !monsterCanInteractAtRange(
+              candidateAttackMon,
+              dg,
+              p.x,
+              p.y,
+              candidateAttackMon === reachMon ? 2 : 1,
+              (p.wallWalkTurns || 0) > 0,
+            );
+          const attackMon = giantAttackBlocked ? null : candidateAttackMon;
+          if (giantAttackBlocked) {
+            ml.push(`${candidateAttackMon.name}は壁の向こうにいるため攻撃できない！`);
+            /* 壁に阻まれた入力では時間を進めない。 */
+          } else if (attackMon) {
             if (attackMon.isPlayerClone) {
               /* 分身へ歩き込むと、行商人と同じく互いの位置を入れ替える。 */
               if (mon === attackMon && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
@@ -2635,23 +2932,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               acted = true;
             } else if (
               attackMon.type === "shopkeeper" &&
-              attackMon.state !== "hostile"
+              (attackMon.state !== "hostile" || attackMon._npcRetaliationTargetId)
             ) {
-              if (attackMon.isWanderingMerchant) {
-                /* 体当たりでは会話せず、行商人と位置を入れ替えて進む。 */
+              if (isWanderingNpc(attackMon)) {
+                /* 敵を追っている間もプレイヤーに敵対していなければ、体当たりで場所を入れ替える。 */
                 if (Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
                   attackMon.x = p.x;
                   attackMon.y = p.y;
                   p.x = nx;
                   p.y = ny;
                   _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
-                  ml.push("行商人と場所を入れ替えた。");
+                  ml.push(`${attackMon.name}と場所を入れ替えた。`);
                 } else {
-                  ml.push("行商人には体当たりできない。前を調べて話しかけよう。");
+                  ml.push(`${attackMon.name}には体当たりできない。前を調べて話しかけよう。`);
                 }
                 acted = true;
               }
-              const _bumpShop = !attackMon.isWanderingMerchant && getShops(dg).find(s => s.shopkeeperId === attackMon.id);
+              const _bumpShop = !isWanderingNpc(attackMon) && getShops(dg).find(s => s.shopkeeperId === attackMon.id);
               if (_bumpShop) {
                 const _bumpFis = dg.items.filter(
                   (i) => !i.shopPrice && i.x >= _bumpShop.room.x && i.x < _bumpShop.room.x + _bumpShop.room.w &&
@@ -2677,16 +2974,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             } else {
               /* 近接命中率95%（必中状態なら100%） */
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
-              if (!_meleeSureHit && !isEvasionDisabledByStatus(attackMon) && Math.random() >= 0.95) {
-                ml.push(`${attackMon.name}への攻撃は外れた！`);
+              if (checkMonsterEvasion(attackMon, { sureHit: _meleeSureHit, baseMissRate: 0.05 })) {
+                ml.push(attackMon.baseKind === "boss_mireu" ? `${attackMon.name}は攻撃をかわした！` : `${attackMon.name}への攻撃は外れた！`);
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
                 _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
                 acted = true;
               } else {
-              if (attackMon.paralyzed) {
-                attackMon.paralyzed = false;
-                ml.push(`${attackMon.name}の金縛りが解けた！`);
-              }
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
               let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1) * playerDopingMultiplier(p)));
               if ((p.garlicDmgTurns || 0) > 0) ap += 5;
@@ -2719,11 +3012,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _hasFireElem  = _hasFireElem2 || wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
               const _fireElemMult = _hasFireElem2 ? 2.0 : 1.5;
               if (_hasFireElem) {
-                if (attackMon.baseKind === "firedemon" && !attackMon.sealed) {
+                if (attackMon.fireImmune) {
+                  /* 炎属性分は無効。物理攻撃の基礎ダメージは通る。 */
+                } else if (monHasFlameMantle(attackMon)) {
                   d = Math.max(1, Math.floor(d * 0.5));
                 } else if (attackMon.elemResist === "fire") {
                   d = Math.max(1, Math.floor(d * 0.5));
-                } else if (attackMon.elemWeak === "fire") {
+                } else if (monHasElementWeakness(attackMon, "fire")) {
                   d = Math.floor(d * _fireElemMult);
                 } else {
                   const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
@@ -2734,14 +3029,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _hasIceElem2 = wab === "ice_elem_2" || p.weapon?.abilities?.some(a => a === "ice_elem_2");
               const _hasIceElem  = _hasIceElem2 || wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
               const _iceElemMult = _hasIceElem2 ? 2.0 : 1.5;
-              if (_hasIceElem && attackMon.elemWeak === "ice") {
+              if (_hasIceElem && monHasElementWeakness(attackMon, "ice")) {
                 d = Math.floor(d * _iceElemMult);
               }
               /* 雷属性武器：thunder弱点×(1.5/2) */
               const _hasThunderElem2 = wab === "thunder_elem_2" || p.weapon?.abilities?.some(a => a === "thunder_elem_2");
               const _hasThunderElem  = _hasThunderElem2 || wab === "thunder_elem" || p.weapon?.abilities?.some(a => a === "thunder_elem");
               const _thunderElemMult = _hasThunderElem2 ? 2.0 : 1.5;
-              if (_hasThunderElem && attackMon.elemWeak === "thunder") {
+              if (_hasThunderElem && monHasElementWeakness(attackMon, "thunder")) {
                 d = Math.floor(d * _thunderElemMult);
               }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減（魔法無効モンスターには無効） */
@@ -2765,6 +3060,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 ml.push(`ガーディアンが${attackMon.name}をかばった！`);
                 if (!consumeBarrier(_guardMon, ml)) {
                   _guardMon.hp -= d;
+                  weakenOrClearParalysis(_guardMon, ml);
                   ml.push(`ガーディアンに${d}ダメージ！`);
                 }
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
@@ -2788,22 +3084,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 ml.push(`フェザーガード！${attackMon.name}はダメージを半減した！`);
               }
               attackMon.hp -= d;
-              if (attackMon.type === "shopkeeper" && attackMon.state !== "hostile") {
-                if (!markWanderingMerchantHostile(attackMon, dg, p, ml)) {
-                  attackMon.state = "hostile";
-                  ml.push("店主が怒った！");
-                }
-              }
+              weakenOrClearParalysis(attackMon, ml);
+              if (attackMon.type === "shopkeeper") markWanderingNpcHostile(attackMon, dg, p, ml);
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (_isBane ? (_baneMult >= 2 ? "上位特効！" : "特効！") : "") +
-                (_hasFireElem && (attackMon.baseKind === "firedemon" || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
-                (_hasFireElem && attackMon.elemWeak === "fire" ? (_hasFireElem2 ? "炎弱点×2！" : "炎弱点×1.5！") : "") +
-                (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemResist !== "fire" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? `油まみれ炎×${_hasFireElem2 ? "2" : "1.5"}！` : "") +
-                (_hasIceElem && attackMon.elemWeak === "ice" ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
-                (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
+                (_hasFireElem && (monHasFlameMantle(attackMon) || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
+                (_hasFireElem && attackMon.fireImmune ? "炎無効！" : "") +
+                (_hasFireElem && !attackMon.fireImmune && monHasElementWeakness(attackMon, "fire") ? (_hasFireElem2 ? "炎弱点×2！" : "炎弱点×1.5！") : "") +
+                (_hasFireElem && !attackMon.fireImmune && !monHasFlameMantle(attackMon) && attackMon.elemResist !== "fire" && !monHasElementWeakness(attackMon, "fire") && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? `油まみれ炎×${_hasFireElem2 ? "2" : "1.5"}！` : "") +
+                (_hasIceElem && monHasElementWeakness(attackMon, "ice") ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
+                (_hasThunderElem && monHasElementWeakness(attackMon, "thunder") ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
+              triggerMushroomCounterSpore(attackMon, dg, p, ml);
               /* 吸血の指輪：通常の敵には与ダメの1/8を吸収し、アンデッドには反動を受ける */
               if (hasRingEffect(p, "vampire_ring")) {
                 const _vamp = Math.max(1, Math.floor(d / 8));
@@ -2834,9 +3128,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   ky >= 0 &&
                   ky < MH &&
                   dg.map[ky][kx] !== T.WALL && dg.map[ky][kx] !== T.BWALL &&
-                  !dg.monsters.some(
-                    (m2) => m2 !== attackMon && m2.x === kx && m2.y === ky,
-                  )
+                  canPlaceMonsterBody(dg, attackMon, kx, ky, p)
                 ) {
                   attackMon.x = kx;
                   attackMon.y = ky;
@@ -2857,7 +3149,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       attackMon.hp -= 5; ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
                       break;
                     }
-                    if (dg.monsters.some(m2 => m2 !== attackMon && m2.x === _knx && m2.y === _kny)) {
+                    if (!canPlaceMonsterBody(dg, attackMon, _knx, _kny, p)) {
                       attackMon.hp -= 5; ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
                       break;
                     }
@@ -2870,12 +3162,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 武器の状態異常付与（10%） */
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
-                  ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); const _st = attackMon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.bossSlowTurns = Math.max(attackMon.bossSlowTurns || 0, _st); ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? `(${_st}ターン)` : "(永続)"}`); }],
-                  ["inflict_paralyze", () => { attackMon.paralyzed = true; const _pt = attackMon.isBoss ? statusTurns("paralyze", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns || 0, _pt); attackMon._paralyzeHp = attackMon.hp; ml.push(`${attackMon.name}は金縛りになった！${attackMon.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`); }],
-                  ["inflict_sleep",    () => { const _st = statusTurns("sleep", { kind: "monster", target: attackMon }); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _st; ml.push(`${attackMon.name}は眠りに落ちた！(${_st}ターン)`); }],
-                  ["inflict_darkness", () => { const _dt = statusTurns("darkness", { kind: "monster", target: attackMon }); attackMon.blind = true; attackMon.blindTurns = Math.max(attackMon.blindTurns || 0, _dt); ml.push(`${attackMon.name}は暗闇になった！(${_dt}ターン)`); }],
-                  ["inflict_confuse",  () => { const _ct = statusTurns("confuse", { kind: "monster", target: attackMon }); attackMon.confusedTurns = (attackMon.confusedTurns || 0) + _ct; ml.push(`${attackMon.name}は混乱した！(${_ct}ターン)`); }],
-                  ["inflict_bewitch",  () => { const _bt = statusTurns("bewitch", { kind: "monster", target: attackMon }); attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + _bt; ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${_bt}ターン)`); }],
+                  ["inflict_slow",     () => { if (blockLargeMonsterStatus(attackMon, "slow", ml)) return; startLargeMonsterStatusCooldown(attackMon, "slow"); if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); const _st = attackMon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.bossSlowTurns = Math.max(attackMon.bossSlowTurns || 0, _st); ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? `(${_st}ターン)` : "(永続)"}`); }],
+                  ["inflict_paralyze", () => { applyMonsterParalyze(attackMon, { ml }); }],
+                  ["inflict_sleep",    () => { if (blockLargeMonsterStatus(attackMon, "sleep", ml)) return; startLargeMonsterStatusCooldown(attackMon, "sleep"); const _st = statusTurns("sleep", { kind: "monster", target: attackMon }); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _st; ml.push(`${attackMon.name}は眠りに落ちた！(${_st}ターン)`); }],
+                  ["inflict_darkness", () => { if (blockLargeMonsterStatus(attackMon, "darkness", ml)) return; startLargeMonsterStatusCooldown(attackMon, "darkness"); const _dt = statusTurns("darkness", { kind: "monster", target: attackMon }); attackMon.blind = true; attackMon.blindTurns = Math.max(attackMon.blindTurns || 0, _dt); ml.push(`${attackMon.name}は暗闇になった！(${_dt}ターン)`); }],
+                  ["inflict_confuse",  () => { if (blockLargeMonsterStatus(attackMon, "confuse", ml)) return; startLargeMonsterStatusCooldown(attackMon, "confuse"); const _ct = statusTurns("confuse", { kind: "monster", target: attackMon }); attackMon.confusedTurns = (attackMon.confusedTurns || 0) + _ct; ml.push(`${attackMon.name}は混乱した！(${_ct}ターン)`); }],
+                  ["inflict_bewitch",  () => { const _bt = statusTurns("bewitch", { kind: "monster", target: attackMon }); if (applyMonsterBewitch(attackMon, _bt, ml) > 0) ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${_bt}ターン)`); }],
                   ["inflict_seal",     () => { applyMonsterSeal(attackMon, dg, p, ml, lu); }],
                 ];
                 for (const [abId, fn] of _inflicts) {
@@ -2883,9 +3175,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
                 /* 影縫い：25%の確率で移動封じ3ターン */
                 if (attackMon.hp > 0 && wabHas("inflict_immobile") && Math.random() < 0.25) {
-                  const _it = statusTurns("immobile", { kind: "monster", target: attackMon });
-                  attackMon.immobileTurns = (attackMon.immobileTurns || 0) + _it;
-                  ml.push(`${attackMon.name}は影に縫い止められた！(${_it}ターン)`);
+                  if (!blockLargeMonsterStatus(attackMon, "immobile", ml)) {
+                    startLargeMonsterStatusCooldown(attackMon, "immobile");
+                    const _it = statusTurns("immobile", { kind: "monster", target: attackMon });
+                    attackMon.immobileTurns = (attackMon.immobileTurns || 0) + _it;
+                    ml.push(`${attackMon.name}は影に縫い止められた！(${_it}ターン)`);
+                  }
                 }
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { killMonster(attackMon, dg, p, ml, lu); }
@@ -2893,6 +3188,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (wabHas("double_strike") && attackMon.hp > 0 && dg.monsters.includes(attackMon)) {
                 const _d2 = Math.max(1, Math.floor(d * 0.6));
                 attackMon.hp -= _d2;
+                weakenOrClearParalysis(attackMon, ml);
                 ml.push(`連撃！${attackMon.name}にさらに${_d2}ダメージ！`);
                 _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: _d2, color: "#ff8800" });
                 if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) {
@@ -2925,7 +3221,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 for (let _si = 0; _si < _srCount; _si++) {
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
-                  if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile) {
+                  if (_srAr.specialProjectile) {
+                    shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+                      forceMiss: _srForceMiss,
+                    });
+                    if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+                    continue;
+                  }
+                  if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile &&
+                      (dg.monsters || []).some(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
+                        Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)) {
                     shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
                       forceMiss: _srForceMiss,
                       wakka: true,
@@ -2942,20 +3247,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   };
                   const _srPeel = () => { if (!_srUnit) peelShopArrowUnit(_srAr); };
                   /* ── 石 ── */
-                  if (_srAr.stone) {
+                  if (_srAr.stone || _srAr.iceChunk) {
                     pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
                     const _stRange = _srCursedFc ? 1 : 3;
                     let _stLx = p.x, _stLy = p.y;
                     let _stHitStatue = false;
+                    let _stHitEnemyProjectile = false;
                     for (let _d = 1; _d <= _stRange; _d++) {
                       const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
                       if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
                       if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                       _stLx = _tx; _stLy = _ty;
-                      if (statueAt(dg, _tx, _ty)) { _stHitStatue = true; break; }
+                    }
+                    if (_stLx !== p.x || _stLy !== p.y) {
+                      _stHitEnemyProjectile = destroyEnemyHomingProjectileAt(dg, _stLx, _stLy, ml, _arName);
+                      if (!_stHitEnemyProjectile && statueAt(dg, _stLx, _stLy)) _stHitStatue = true;
                     }
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
-                    if (_stHitStatue) {
+                    if (_stHitEnemyProjectile) {
+                      _srPeel();
+                    } else if (_stHitStatue) {
                       ml.push(`${_arName}が石像に命中！`);
                       hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
                         breaks: true,
@@ -2984,10 +3295,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       } else {
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, _srDrop(), ml, _stRft);
                       }
-                    } else if (_stM && !_srForceMiss && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
+                    } else if (_stM && !_srForceMiss && !checkMonsterEvasion(_stM, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 })) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                      if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { if (!markWanderingMerchantHostile(_stM, dg, p, ml)) { _stM.state = "hostile"; ml.push("店主が怒った！"); } }
+                      if (_stM.type === "shopkeeper") markWanderingNpcHostile(_stM, dg, p, ml);
                       _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                       if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
                       _srPeel();
@@ -3000,11 +3311,40 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   } else if (_srAr.magicStone) {
                     pushBoltAnim(p.x, p.y, dx, dy, dg, "#cc88ff", true);
                     const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
-                    const _msTarget = [...dg.monsters].filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
+                    const _msTarget = [...dg.monsters].filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 && Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (!_msTarget) {
-                      ml.push(`近くに敵がいない！${_arName}は消えた。`);
-                      _srPeel();
+                      ml.push(`近くに敵がいない！${_arName}は石と同じ距離を飛んだ。`);
+                      const _msRange = _srCursedFc ? 1 : 3;
+                      let _msLx = p.x, _msLy = p.y;
+                      for (let _d = 1; _d <= _msRange; _d++) {
+                        const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
+                        if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
+                        if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
+                        _msLx = _tx; _msLy = _ty;
+                      }
+                      const _msHitEnemyProjectile = (_msLx !== p.x || _msLy !== p.y)
+                        && destroyEnemyHomingProjectileAt(dg, _msLx, _msLy, ml, _arName);
+                      const _msHitStatue = !_msHitEnemyProjectile && statueAt(dg, _msLx, _msLy);
+                      if (_msHitEnemyProjectile) {
+                        _srPeel();
+                      } else if (_msHitStatue) {
+                        ml.push(`${_arName}が石像に命中！`);
+                        hitStatueWithAction(dg, _msLx, _msLy, p, ml, lu, p?.depth, {
+                          breaks: true,
+                          itemDeps: getFixtureItemDeps(),
+                        });
+                        _srPeel();
+                      } else {
+                        const _msSpring = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
+                        const _msBigbox = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
+                        if (_msSpring) soakItemIntoSpring(_msSpring, _srDrop(), ml, dg, null);
+                        else if (_msBigbox) bigboxAddItem(_msBigbox, _srDrop(), dg, ml);
+                        else {
+                          const _msft = new Set();
+                          withPitfallBag(() => placeItemAt(dg, _msLx, _msLy, _srDrop(), ml, _msft, 0, p));
+                        }
+                      }
                     } else if (monReflectsProjectiles(_msTarget)) {
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
@@ -3037,7 +3377,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         if (_baM && !_srForceMiss) {
                           const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                          if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { if (!markWanderingMerchantHostile(_baM, dg, p, ml)) { _baM.state = "hostile"; ml.push("店主が怒った！"); } }
+                          if (_baM.type === "shopkeeper") markWanderingNpcHostile(_baM, dg, p, ml);
                           _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
                           if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
                           _baLx = _tx; _baLy = _ty; break;
@@ -3074,13 +3414,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       onPlHit: (mlx) => {
                         if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
                           const _poison = applyPlayerPoison(p);
-                          mlx.push(`毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                          mlx.push(statusResultMessage(_poison, `毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                         }
                         _srPeel();
                       },
                       onMonHit: (mon, mlx) => {
+                        if (mon.baseKind === "synthmonster" && !_isPierce && !_srFarcast && !_srForceMiss) {
+                          bigboxAddItem(ensureSynthMonsterBox(mon), _srDrop(), dg, mlx);
+                          speedUpSynthMonster(mon, mlx);
+                          _srPeel();
+                          return;
+                        }
                         /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
-                        if (_srForceMiss || (!isEvasionDisabledByStatus(mon) && Math.random() >= 0.75)) {
+                        if (_srForceMiss || checkMonsterEvasion(mon, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.25 })) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
                           mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
                           const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _srDrop(), mlx, _mft);
@@ -3088,9 +3434,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         }
                         const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
                         mon.hp -= _srDmg;
-                        if (mon.type === "shopkeeper" && mon.state !== "hostile") { if (!markWanderingMerchantHostile(mon, dg, p, mlx)) { mon.state = "hostile"; mlx.push("店主が怒った！"); } }
+                        if (mon.type === "shopkeeper") markWanderingNpcHostile(mon, dg, p, mlx);
                         let _poisonT = 0;
-                        if (_isPoison) {
+                        const _poisonApplied = _isPoison && !isStatusImmune(mon, mlx, mon.name);
+                        if (_poisonApplied) {
                           if (mon.isBoss) {
                             _poisonT = mon.bossPoisonHalfAtk ? (mon.bossPoisonHalfAtkTurns || monsterStatusTurns(10, mon)) : monsterStatusTurns(10, mon);
                             if (!mon.bossPoisonHalfAtk) { mon.bossPoisonOrigAtk = mon.atk; mon.bossPoisonHalfAtk = true; mon.bossPoisonHalfAtkTurns = _poisonT; }
@@ -3099,7 +3446,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                             mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
                           }
                         }
-                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${mon.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_poisonApplied ? `攻撃力が半減した！${mon.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+                        triggerMushroomCounterSpore(mon, dg, p, mlx);
                         _ad.damages.push({ type: "damage", x: mon.x, y: mon.y, value: _srDmg, color: _arColor });
                         if (mon.hp <= 0) { _ad.damages.push({ type: "flash", x: mon.x, y: mon.y, color: "#ff2200", duration: 150 }); killMonster(mon, dg, p, mlx, lu, false); }
                         if (!_isPierce) _srPeel();
@@ -3374,8 +3722,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               showFirstEncounterTip("item_gold");
               ml.push(`${_grIt.value}枚の金貨を拾った！`);
               removeFloorItem(dg, _grIt);
-            } else if (_grIt.type === "arrow" && (_grIt.stone || _grIt.magicStone) && !_grIt.shopPrice) {
-              if (addStonesInv(p.inventory, _grIt.count, !!_grIt.magicStone, p.maxInventory || 30, _grIt)) {
+            } else if (_grIt.type === "arrow" && (_grIt.stone || _grIt.magicStone || _grIt.iceChunk) && !_grIt.shopPrice) {
+              const _added = _grIt.iceChunk
+                ? addIceChunksInv(p.inventory, _grIt.count, p.maxInventory || 30, _grIt)
+                : addStonesInv(p.inventory, _grIt.count, !!_grIt.magicStone, p.maxInventory || 30, _grIt);
+              if (_added) {
                 showFirstEncounterTip("item_arrow");
                 ml.push(`${_grIt.name}(${_grIt.count}個)を拾った。`);
                 removeFloorItem(dg, _grIt);
@@ -3392,6 +3743,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
               clearDimensionalVaultItemCounter(_grIt);
               trackItem(_grIt);
+              delete _grIt.wallEmbedded;
               p.inventory.push(_grIt);
               if (_grIt.type === "goal") showFirstEncounterTip("goal_item");
               else if (!_grIt.shopPrice) maybeTipForItem(_grIt);
@@ -3430,8 +3782,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             /* 足元の罠を起動 */
             const _trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
             if (_trapHere) {
-              if (hasRingEffect(p, "float_ring")) {
-                ml.push("浮遊の指輪を付けているので罠を作動させられない！");
+              if (isPlayerFloating(p, dg)) {
+                if (_trapHere.revealed) ml.push("浮遊しているので罠を作動させられない！");
               } else {
                 const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                 showFirstEncounterTip("trap");
@@ -3468,7 +3820,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         else if (_de.type === "projectileReturn") (_ad.projectileReturns = _ad.projectileReturns || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
-        else if (_de.type === "splash") (_ad.splashes = _ad.splashes || []).push(_de);
+        else if (_de.type === "splash" || _de.type === "petroBreath") (_ad.splashes = _ad.splashes || []).push(_de);
         else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "damage") _ad.damages.push(_de);
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
@@ -3483,7 +3835,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       sr.current = { ...st };
       setGs({ ...st });
-      if (drainHungerWarn() || drainPinchAlert()) setRevealMode({ pendingMsgs: [] });
+      if (drainHungerWarn() || drainPinchAlert()) {
+        triggerSE("alert");
+        setRevealMode({ pendingMsgs: [] });
+      }
+      updateDungeonBgm(st);
       /* Play animations if any were queued */
       const _hasAnim = _ad.playerMove || _ad.playerKnockback || _ad.playerTeleport || _ad.trapWait || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
       if (_hasAnim) {
@@ -3520,7 +3876,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   showSignRef.current = showSign;
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
   const doExamineFront = useCallback(() => {
-    if (!sr.current) return;
+    if (!sr.current || showSoundRef.current) return;
     if (lookMode || mapMode) return;
     if (bigboxModeRef.current || gachaModeRef.current) return;
     if (nicknameModeRef.current) return;
@@ -3529,13 +3885,40 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const nx = p.x + fd.dx, ny = p.y + fd.dy;
     const mon = monsterAt(dg, nx, ny);
     if (mon) {
-      if (mon.type === "shopkeeper" && mon.state !== "hostile") {
+      if (mon.type === "shopkeeper" && (mon.state !== "hostile" || mon._npcRetaliationTargetId)) {
         if (mon.isWanderingMerchant) {
           merchantRef.current = mon;
           setMerchantMode("menu");
           setMerchantMenuSel(0);
           showFirstEncounterTip("wandering_merchant");
           setMsgs((prev) => [...prev.slice(-80), "行商人：「何かお探しかい？」"]);
+          return;
+        }
+        if (mon.isWanderingAdventurer) {
+          const dialogue = nextWanderingAdventurerDialogue(mon);
+          const talkMessages = [`${mon.name}：「${dialogue}」`];
+          if (!mon.adventurerGiftChecked) {
+            mon.adventurerGiftChecked = true;
+            if (Math.random() < 0.20) {
+              const gift = makeWanderingAdventurerGift(
+                dg.dungeonType || sr.current?.dungeonType || p.dungeonType || null,
+                Number.isFinite(p.depth) ? p.depth : 99,
+              );
+              if (gift) {
+                const giftName = itemDisplayName(gift, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                if (p.inventory.length < (p.maxInventory || 30)) {
+                  p.inventory.push(gift);
+                  talkMessages.push(`${mon.name}が${giftName}を1個くれた！`);
+                } else {
+                  const giftMessages = [];
+                  placeItemAt(dg, mon.x, mon.y, gift, giftMessages, new Set(), 0, p);
+                  talkMessages.push(`${mon.name}は${giftName}をくれたが、持ち物がいっぱいなので目の前に置いた。`);
+                  talkMessages.push(...giftMessages);
+                }
+              }
+            }
+          }
+          setMsgs((prev) => [...prev.slice(-80), ...talkMessages]);
           return;
         }
         const dg6 = sr.current.dungeon;
@@ -3558,8 +3941,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       } else act("move", fd.dx, fd.dy);
     } else {
-      /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
-      if (ny > 0 && ny < MH - 1 && nx > 0 && nx < MW - 1 && dg.map[ny]?.[nx] === T.BWALL) {
+      const _frontTile = dg.map[ny]?.[nx];
+      const _frontWeapon = sr.current.player.weapon;
+      const _frontInside = nx > 0 && nx < MW - 1 && ny > 0 && ny < MH - 1;
+      const _attacksWall = _frontInside && (_frontTile === T.BWALL ||
+        (_frontTile === T.WALL && hasAbility(_frontWeapon, "pickaxe")));
+      if (_attacksWall && isAttackSealed(p)) {
+        act("wait");
+        setMsgs((prev) => [...prev.slice(-80), `攻撃が封印されている！(残り${p.attackSealTurns}ターン)`]);
+      } else if (ny > 0 && ny < MH - 1 && nx > 0 && nx < MW - 1 && dg.map[ny]?.[nx] === T.BWALL) {
+        /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
         dg.map[ny][nx] = T.FLOOR;
         wallBreakDrop(dg, nx, ny);
         act("wait");
@@ -3583,7 +3974,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             setMsgs((prev) => [...prev.slice(-80), `壁を掘った！(耐久: ${_pweapon.durability})`]);
           }
         } else {
-          act("wait");
           setMsgs((prev) => [...prev.slice(-80), "壁を叩いた。ゴツン！"]);
         }
       } else {
@@ -3615,11 +4005,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setAltarMode("menu"); setAltarMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), "祭壇がある。何を捧げる？"]);
         } else if (vault6) {
-          p.x = nx;
-          p.y = ny;
-          acted = true;
-          showFirstEncounterTip("dimensional_vault");
-          ml.push(`${vault6.name || "次元宝物庫"}の入口に入った。`);
+          act("move", fd.dx, fd.dy);
         } else if (_statueFront) {
           setMsgs((prev) => [...prev.slice(-80), "石像がある。"]);
         } else {
@@ -3657,11 +4043,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (animBusyRef.current) return;
       if (springMode || wishMode || gachaModeRef.current || altarMode || merchantMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || showScoresRef.current || exitHubConfirmRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showSoundRef.current || showTileEditorRef.current || showScoresRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
-      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
+      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0 || (p.drunkenTurns || 0) > 0) return;
       const ml = installPlayerHpMessageHook([], p);
+      if (isAlcoholDirectionRandomized(p)) {
+        const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        [dx, dy] = pick(_cdirs);
+        ml.push("酔ってダッシュの方向が乱れた！");
+      }
       let steps = 0;
       let dashMimicRevealed = false;
       let dashTrapWaitEffect = null;
@@ -3716,6 +4107,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _dBbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _dBbMap.set(_dk(b.x, b.y), b);
       const _dPentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _dPentMap.set(_dk(pc.x, pc.y), pc);
       while (steps < 50) {
+        if (showSoundRef.current) break;
         if (convenientRoute) {
           if (routeIndex >= convenientRoute.length) break;
           [stepDx, stepDy] = convenientRoute[routeIndex];
@@ -3842,7 +4234,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
               if (_ns2.length) _lbl += " [" + _ns2.join("・") + "]";
             } else if (_dashIt.type === "arrow") {
-              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone || _dashIt.specialProjectile ? "個" : "本"})`;
+              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone || _dashIt.iceChunk || _dashIt.specialProjectile ? "個" : "本"})`;
             } else if (_dashIt.type === "gold") {
               _lbl += `(${_dashIt.value}枚)`;
             }
@@ -4006,17 +4398,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     return false;
   }, []);
-  const breakBigbox = useCallback((bb, dg, ml) => {
+  const breakBigbox = useCallback((bb, dg, ml, context = {}) => {
     if (bb.kind === "nitro") {
-      detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+      detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, context.killerMon || null, context);
       return;
     }
     if (bb.kind === "monster") {
-      breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: sr.current.player, luFn: lu });
+      breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { ...context, player: sr.current.player, luFn: lu });
       return;
     }
     ml.push(`${bbDisplayName(bb, sr.current)}が壊れた！中身がばらまかれた！`);
-    breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: sr.current.player, luFn: lu });
+    breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { ...context, player: sr.current.player, luFn: lu });
   }, [lu]);
   const trySynthesize = useCallback(
     (bb, ml) => {
@@ -4404,19 +4796,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     [uid],
   );
   const bigboxAddItem = useCallback(
-    (bb, item, dg, ml) => {
-      trackBigbox(bb);
+    (bb, item, dg, ml, context = {}) => {
+      const killerMon = context.killerMon || null;
+      const sourceIsPlayer = context.sourceIsPlayer ?? !killerMon;
+      const effectContext = { ...context, killerMon, sourceIsPlayer };
+      const initialDepth = sr.current.player.depth;
+      const floorChanged = () => sr.current.player.depth !== initialDepth;
+      const internalMonsterSynthesis = bb.internalMonsterSynthesis === true;
+      if (!internalMonsterSynthesis) trackBigbox(bb);
       const wasFull = bb.contents.length >= bb.capacity;
       bb.contents.push(item);
       const _idn = itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-      const _bbIsRev = isBigboxKindIdentified(bb, sr.current);
-      const _bbDN = bbDisplayName(bb, sr.current);
-      ml.push(_bbIsRev
-        ? `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`
-        : `${_idn}を${_bbDN}に入れた。`,
-      );
+      if (internalMonsterSynthesis) {
+        ml.push(`${bb.name}が${_idn}を飲み込んだ！`);
+      } else {
+        const _bbIsRev = isBigboxKindIdentified(bb, sr.current);
+        const _bbDN = bbDisplayName(bb, sr.current);
+        ml.push(_bbIsRev
+          ? `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`
+          : `${_idn}を${_bbDN}に入れた。`,
+        );
+      }
       if (bb.kind === "nitro") {
-        detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
+        detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, killerMon, effectContext);
         return;
       } else if (bb.kind === "greed") {
         const _conv = convertGreedBoxItem(bb, item);
@@ -4456,7 +4858,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
           ml.push(`${_idn}が強化された！(${fp(before)}→${fp(item.plus)})`);
         } else if (item.type === "pot") {
-          item.capacity = (item.capacity || 1) + 1;
+          item.capacity = (item.capacity ?? 1) + 1;
           ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           ml.push(`${_idn}には効果がなかった。`);
@@ -4564,8 +4966,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           delete _clone._encyclopediaTracked;
           if (_clone.abilities) _clone.abilities = [..._clone.abilities];
           if (_clone.contents) _clone.contents = [..._clone.contents];
-          /* 中身入り壺：クローンは空にする */
-          if (item.type === "pot" && item.contents?.length > 0) _clone.contents = [];
+          /* 中身や閉じ込めた敵入りの壺：クローンは空にする */
+          if (item.type === "pot") {
+            _clone.contents = [];
+            _clone.confinedMonsters = [];
+          }
           /* +値は半減 */
           if ((_clone.plus || 0) !== 0) _clone.plus = Math.floor(_clone.plus / 2);
           if ((item.plus || 0) !== 0) item.plus = Math.floor(item.plus / 2);
@@ -4583,7 +4988,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (item.type === "goal" || item.type === "gold_nugget") {
           ml.push(`${_idn}には効果がなかった。`);
         } else if (item.type === "pot") {
-          item.capacity = (item.capacity || 1) + 1;
+          item.capacity = (item.capacity ?? 1) + 1;
           ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           item.blessed = true;
@@ -4595,7 +5000,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (item.type === "goal" || item.type === "gold" || item.type === "gold_nugget") {
           ml.push(`${_idn}には効果がなかった。`);
         } else if (item.type === "pot") {
-          const _newCap = Math.max(0, (item.capacity || 1) - 1);
+          const _newCap = Math.max(0, (item.capacity ?? 1) - 1);
           item.capacity = _newCap;
           ml.push(`${_idn}の容量が1減った！(${_newCap})`);
         } else if (item.type === "food") {
@@ -4621,7 +5026,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const p = sr.current.player;
         const _scRoom = findRoom(dg.rooms, bb.x, bb.y);
         const _scMons = _scRoom
-          ? dg.monsters.filter(m => m.x >= _scRoom.x && m.x < _scRoom.x + _scRoom.w && m.y >= _scRoom.y && m.y < _scRoom.y + _scRoom.h)
+          ? dg.monsters.filter(m => !m.disguisedAsItem && monsterBodyCells(m).some(c => c.x >= _scRoom.x && c.x < _scRoom.x + _scRoom.w && c.y >= _scRoom.y && c.y < _scRoom.y + _scRoom.h))
           : [];
         const _scPInRoom = _scRoom && p.x >= _scRoom.x && p.x < _scRoom.x + _scRoom.w && p.y >= _scRoom.y && p.y < _scRoom.y + _scRoom.h;
         const _scDnFn = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -4631,19 +5036,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(`${_idn}が部屋中に拡散した！`);
           if (item.type === "potion") {
             for (const m of [..._scMons]) {
-              applyPotionEffect(item.effect, item.value || 0, "monster", m, dg, p, ml, lu, item.blessed || false, item.cursed || false);
-              if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
+              if (floorChanged()) break;
+              if (!dg.monsters.includes(m) || m.hp <= 0) continue;
+              applyPotionEffect(item.effect, item.value || 0, "monster", m, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
             }
-            if (_scPInRoom) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false);
+            if (_scPInRoom && !floorChanged()) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
           } else if (item.type === "wand") {
             for (const m of [..._scMons]) {
+              if (floorChanged()) break;
               const _sdx = Math.sign(m.x - bb.x), _sdy = Math.sign(m.y - bb.y);
               if (!dg.monsters.includes(m) || m.hp <= 0) continue;
               ml.push(`${_idn}が${m.name}に命中！`);
-              triggerWandBreakEffect({
+              withPitfallBag(() => triggerWandBreakEffect({
                 type: "wand", effect: item.effect, charges: item.charges ?? 0,
                 blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
               }, m.x, m.y, dg, p, ml, lu, {
+                ...effectContext,
                 singleTargetKind: "monster", singleTarget: m,
                 effectDx: _sdx || 1, effectDy: _sdy,
                 identSet: sr.current?.ident,
@@ -4652,15 +5060,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 trackBigboxFn: trackBigbox,
                 nameFn: _scDnFn,
                 bigboxNameFn: (bx) => bbDisplayName(bx, sr.current),
-              });
+              }));
             }
-            if (_scPInRoom) {
+            if (_scPInRoom && !floorChanged()) {
               const _sdx = Math.sign(p.x - bb.x), _sdy = Math.sign(p.y - bb.y);
               ml.push(`${_idn}が${pl()}に命中！`);
-              triggerWandBreakEffect({
+              withPitfallBag(() => triggerWandBreakEffect({
                 type: "wand", effect: item.effect, charges: item.charges ?? 0,
                 blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
               }, p.x, p.y, dg, p, ml, lu, {
+                ...effectContext,
                 singleTargetKind: "player", singleTarget: p,
                 effectDx: -(_sdx || 1), effectDy: -_sdy,
                 identSet: sr.current?.ident,
@@ -4669,23 +5078,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 trackBigboxFn: trackBigbox,
                 nameFn: _scDnFn,
                 bigboxNameFn: (bx) => bbDisplayName(bx, sr.current),
-              });
+              }));
             }
           } else if (item.type === "pot") {
             /* 壺：種類に応じた破壊効果（中身は散乱しない） */
-            const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+            const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
+            const _potOccupancy = potOccupancyCount(item);
+            if (item.potEffect !== "imprison" && item.confinedMonsters?.length) {
+              releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
+            }
             if (item.potEffect === "gunpowder") {
               ml.push(`${_idn}が飛び散って各生き物のもとで爆発した！`);
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _gnMon of [..._scMons]) {
-                  doGunpowderExplosion(_gnMon.x, _gnMon.y, dg, p, ml, lu);
+                  if (floorChanged()) break;
+                  doGunpowderExplosion(_gnMon.x, _gnMon.y, dg, p, ml, lu, "火薬壺", killerMon, effectContext);
                 }
-                if (_scPInRoom) doGunpowderExplosion(p.x, p.y, dg, p, ml, lu);
+                if (_scPInRoom && !floorChanged()) doGunpowderExplosion(p.x, p.y, dg, p, ml, lu, "火薬壺", killerMon, effectContext);
               } else {
                 announceFireExplosionNullified(dg, p, ml, "爆発");
               }
               _bbExploded = true;
-            } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity || 3)) {
+            } else if (_oilMap[item.potEffect] && _potOccupancy < (item.capacity ?? 3)) {
               ml.push(`${_idn}が割れて${_oilMap[item.potEffect]}が飛び散った！`);
               dg.oilyTiles = dg.oilyTiles || [];
               const _addOilArea = (cx, cy) => {
@@ -4699,15 +5113,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
               };
               for (const m of [..._scMons]) {
-                const _oilT = statusTurns("oily", { kind: "monster", target: m });
-                m.oilyTurns = (m.oilyTurns || 0) + _oilT;
-                ml.push(`${m.name}は油まみれになった！(${_oilT}ターン)`);
+                if (!isStatusImmune(m, ml, m.name)) {
+                  const _oilT = statusTurns("oily", { kind: "monster", target: m });
+                  m.oilyTurns = (m.oilyTurns || 0) + _oilT;
+                  ml.push(`${m.name}は油まみれになった！(${_oilT}ターン)`);
+                }
                 _addOilArea(m.x, m.y);
               }
-              if (_scPInRoom) {
-                const _oilT = statusTurns("oily", { kind: "player" });
-                p.oilyTurns = (p.oilyTurns || 0) + _oilT;
-                ml.push(`油を浴びた！炎ダメージが2倍になる！(${_oilT}ターン)`);
+              if (_scPInRoom && !floorChanged()) {
+                if (!isStatusImmune(p, ml)) {
+                  const _oilT = statusTurns("oily", { kind: "player" });
+                  p.oilyTurns = (p.oilyTurns || 0) + _oilT;
+                  ml.push(`油を浴びた！炎ダメージが2倍になる！(${_oilT}ターン)`);
+                }
                 _addOilArea(p.x, p.y);
               }
               /* 油をbox周囲にも飛散 */
@@ -4725,8 +5143,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
             } else {
               const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
-              const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity || 3) - (item.contents?.length || 0)) * 100 : 0;
+              const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity ?? 3) - _potOccupancy) * 100 : 0;
               for (const m of [..._scMons]) {
+                if (floorChanged()) break;
+                if (!dg.monsters.includes(m) || m.hp <= 0) continue;
                 if (consumeBarrier(m, ml)) continue;
                 const _itd = clampDmgFixed(m, _potDmg(m.def), true);
                 m.hp -= _itd;
@@ -4742,9 +5162,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     calmShopkeeperIfFullyHealed(m, dg, p, ml);
                   }
                 }
-                if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
+                if (m.hp <= 0) { killMonster(m, dg, p, ml, lu, false, killerMon); }
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPotPlayerDmg = _potDmg(0);
                 p.hp -= _scPotPlayerDmg;
@@ -4763,18 +5183,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 拡散の大箱：這いずり爆弾は対象マスに接触した扱いで即時爆発 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               for (const _cbMon of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(_cbMon) || _cbMon.hp <= 0) continue;
                 detonateCrawlingBomb(
                   { name: _idn, kind: "crawling_bomb", x: _cbMon.x, y: _cbMon.y, bundleCount: 1 },
                   dg, p, ml, lu,
                   `${_idn}が${_cbMon.name}に触れて爆発した！`,
+                  effectContext,
                 );
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 detonateCrawlingBomb(
                   { name: _idn, kind: "crawling_bomb", x: p.x, y: p.y, bundleCount: 1 },
                   dg, p, ml, lu,
                   `${_idn}が${pl()}に触れて爆発した！`,
+                  effectContext,
                 );
               }
               _bbExploded = true;
@@ -4782,16 +5205,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 拡散の大箱：魚雷は対象マスに着弾した扱いで即時爆発 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ着弾した！`);
               for (const _torMon of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(_torMon) || _torMon.hp <= 0) continue;
                 detonateTorpedo(
                   { name: _idn, kind: "torpedo", x: _torMon.x, y: _torMon.y, atk: item.atk || 1 },
-                  dg, p, ml, lu, _torMon,
+                  dg, p, ml, lu, _torMon, effectContext,
                 );
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 detonateTorpedo(
                   { name: _idn, kind: "torpedo", x: p.x, y: p.y, atk: item.atk || 1 },
-                  dg, p, ml, lu,
+                  dg, p, ml, lu, null, effectContext,
                 );
               }
               _bbExploded = true;
@@ -4800,18 +5224,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               for (const _baMon of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(_baMon) || _baMon.hp <= 0) continue;
                 applyThrownItemToMonster(item, _baMon, dg, p, ml, lu, {
+                  killerMon,
                   nameFn: _baNF,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
               }
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _baMon of [..._scMons]) {
-                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { projectileAtk: item.atk || 6 });
+                  if (floorChanged()) break;
+                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { ...effectContext, projectileAtk: item.atk || 6 });
                 }
-                if (_scPInRoom) {
-                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { projectileAtk: item.atk || 6 });
+                if (_scPInRoom && !floorChanged()) {
+                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { ...effectContext, projectileAtk: item.atk || 6 });
                 }
               } else {
                 announceFireExplosionNullified(dg, p, ml, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`);
@@ -4819,13 +5246,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               _bbExploded = true;
             } else {
               for (const m of [..._scMons]) {
+                if (floorChanged()) break;
                 if (!dg.monsters.includes(m) || m.hp <= 0) continue;
                 applyThrownItemToMonster(item, m, dg, p, ml, lu, {
+                  killerMon,
                   nameFn: _scDnFn,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
               }
-              if (_scPInRoom) {
+              if (_scPInRoom && !floorChanged()) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPDmg = calcProjectileDmg(p, thrownItemAttack(item), 0);
                 p.hp -= _scPDmg;
@@ -4844,41 +5273,44 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
                     const _poison = applyYabaiPoison(p, "player");
-                    ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
+                    ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
                   }
                   const _yConfuseT = statusTurns("confuse", { kind: "player" });
                   const _ySlowT = statusTurns("slow", { kind: "player" });
-                  p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
-                  p.slowTurns = (p.slowTurns || 0) + _ySlowT;
-                  ml.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+                  if (!isStatusImmune(p, ml)) {
+                    p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
+                    p.slowTurns = (p.slowTurns || 0) + _ySlowT;
+                    ml.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+                  }
                 } else if (item.type === "food" && item.rotten && !item.yabai) {
                   if (hasRingEffect(p, "antidote_ring")) {
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
                     const _poison = applyPlayerPoison(p);
-                    ml.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                    ml.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                   }
                 }
+                applyFoodEffectsOnHit(item, "player", p, dg, p, ml, lu);
               }
             }
           }
         }
         /* 爆発系は箱ごと破壊、それ以外は容量を1減らす */
-        if (_bbExploded) {
-          breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { player: p });
+        if (_bbExploded && dg.bigboxes.includes(bb) && !floorChanged()) {
+          breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, null, { ...effectContext, player: p, luFn: lu });
           if (bb.contents?.length > 0) ml.push(`${bbDisplayName(bb, sr.current)}が壊れ中身が飛び出した！`);
           else ml.push(`${bbDisplayName(bb, sr.current)}が爆発で壊れた！`);
-        } else {
-          bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
+        } else if (!_bbExploded) {
+          bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
         }
       } else if (bb.kind === "trash") {
         /* 入れたアイテムを即削除（消滅）し容量を1減らす */
         const _trIdx = bb.contents.indexOf(item);
         if (_trIdx >= 0) bb.contents.splice(_trIdx, 1);
-        bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
+        bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
         ml.push(`${_idn}は消えてしまった。`);
       }
-      if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);
+      if ((wasFull || bb.contents.length > bb.capacity) && dg.bigboxes.includes(bb) && !floorChanged()) breakBigbox(bb, dg, ml, effectContext);
     },
     [trySynthesize, breakBigbox, lu],
   );
@@ -4987,8 +5419,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push("体が強くなった気がする。防御力+1");
     } else if (r < 0.34) {
       // 最大HP+3
-      p.maxHp += 3;
-      p.hp += 3;
+      p.hp += adjustPlayerBaseMaxHp(p, 3);
       ml.push("生命力が満ちてきた。最大HP+3");
     } else if (r < 0.39) {
       // 満腹度回復
@@ -5013,7 +5444,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push("泉の水が勢いよく飛び出した！水の瓶が転がっている。");
     } else if (r < 0.58) {
       // 金貨が飛び出す
-      const _goldRange = springGoldRange(p.depth);
+      const _goldRange = springGoldRange(p.depth - 1);
       const _gv = rng(_goldRange.min, _goldRange.max);
       const _gc = { name: `${_gv}枚の金貨`, type: "gold", value: _gv, tile: 22, id: uid() };
       const _ft2 = new Set();
@@ -5028,9 +5459,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           _bi.capacity += 1;
           ml.push(`${dnameRef(_bi)}が光り輝いた！容量が1増えた！(${_bi.capacity})`);
         } else {
-          _bi.blessed = true;
-          _bi.cursed = false;
-          _bi.bcKnown = true;
+          setPlayerItemProperties(p, _bi, { blessed: true, cursed: false, bcKnown: true });
           ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
         }
       } else {
@@ -5055,9 +5484,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
     } else if (r < 0.76) {
       // 混乱になる
-      const _springConfuseT = SPRING_CONFUSION_TURNS;
-      p.confusedTurns = (p.confusedTurns || 0) + _springConfuseT;
-      ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
+      if (!isStatusImmune(p, ml)) {
+        const _springConfuseT = SPRING_CONFUSION_TURNS;
+        p.confusedTurns = (p.confusedTurns || 0) + _springConfuseT;
+        ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
+      }
     } else if (r < 0.84) {
       // ダメージ
       const d = rng(3, 8);
@@ -5070,7 +5501,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ml.push("なんか変な味がした...しかし毒消しの指輪が泉の毒を無効化した！");
       } else {
         const _poison = applyPlayerPoison(p);
-        ml.push(`なんか変な味がした...毒だ！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+        ml.push(statusResultMessage(_poison, `なんか変な味がした...毒だ！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
       }
     } else if (r < 0.95) {
       // 所持品がランダムで呪われる（壺は容量-1）
@@ -5078,12 +5509,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (_cursable.length > 0) {
         const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
         if (_ci.type === "pot") {
-          _ci.capacity = Math.max(0, _ci.capacity - 1);
-          ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})`);
+          const result = reducePotCapacity(_ci, 1, dg, p, ml, dnameRef);
+          if (!result.broken) ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})`);
         } else {
-          _ci.cursed = true;
-          _ci.blessed = false;
-          _ci.bcKnown = true;
+          setPlayerItemProperties(p, _ci, { cursed: true, blessed: false, bcKnown: true });
           ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
         }
       } else {
@@ -5100,7 +5529,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         let _placed = false;
         for (const [dy, dx] of DIRS8) {
           const nx = p.x + dx, ny = p.y + dy;
-          if ((dg.map[ny]?.[nx] === T.FLOOR) && !dg.monsters.some(m => m.x === nx && m.y === ny)) {
+          if ((dg.map[ny]?.[nx] === T.FLOOR) && !dg.monsters.some(m => monsterOccupiesCell(m, nx, ny))) {
             _wm.x = nx; _wm.y = ny;
             dg.monsters.push(_wm);
             _placed = true;
@@ -5259,19 +5688,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         return;
       }
       /* 大箱に入れる前に装備スロットを解除（指輪は命の指輪maxHp処理含む） */
-      if (p.weapon === it) p.weapon = null;
-      if (p.armor  === it) p.armor  = null;
-      if (p.arrow  === it) p.arrow  = null;
-      if (p.rings?.includes(it)) {
-        p.rings = p.rings.filter(r => r !== it);
-        if (it.effect === "life_ring") {
-          const _bonus = (it.plus || 0) * 5;
-          p.maxHp = Math.max(1, p.maxHp - _bonus);
-          p.hp = Math.min(p.hp, p.maxHp);
-        }
-        if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
-        if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
-      }
+      unequipPlayerItem(p, it);
       p.inventory.splice(itemIdx, 1);
       bigboxAddItem(bb, it, dg, ml);
       endTurn(sr.current, p, ml);
@@ -5302,7 +5719,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setGs({ ...sr.current });
   }, []);
   const shiftRef = useRef(false);
+  const keyboardShiftRef = useRef(false);
+  const gamepadShiftRef = useRef(false);
   const aRef = useRef(false);
+  const keyboardDashRef = useRef(false);
+  const gamepadDashRef = useRef(false);
   const arrowHeldRef = useRef({});
   const floorPenDropRef = useRef(null);
   const floorWandRef = useRef(null);
@@ -5316,16 +5737,34 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const doMerchantBuyProxy = useCallback((...args) => doMerchantBuyRef.current?.(...args), []);
   const doMerchantSellProxy = useCallback((...args) => doMerchantSellRef.current?.(...args), []);
   useEffect(() => {
+    const clearHeldKeys = () => {
+      keyboardShiftRef.current = false;
+      keyboardDashRef.current = false;
+      shiftRef.current = gamepadShiftRef.current;
+      aRef.current = gamepadDashRef.current;
+      arrowHeldRef.current = {};
+    };
     const onUp = (e) => {
-      if (e.key === "Shift") { shiftRef.current = false; arrowHeldRef.current = {}; }
-      if (e.key === "a" || e.key === "A") aRef.current = false;
+      if (e.key === "Shift") {
+        keyboardShiftRef.current = false;
+        shiftRef.current = gamepadShiftRef.current;
+        arrowHeldRef.current = {};
+      }
+      if (isDashModifierKey(e)) {
+        keyboardDashRef.current = false;
+        aRef.current = gamepadDashRef.current;
+      }
       const _arDir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
       if (_arDir[e.key]) arrowHeldRef.current[_arDir[e.key]] = false;
       const _npmDir = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
       if (_npmDir[e.code]) arrowHeldRef.current[_npmDir[e.code]] = false;
     };
     window.addEventListener("keyup", onUp);
-    return () => window.removeEventListener("keyup", onUp);
+    window.addEventListener("blur", clearHeldKeys);
+    return () => {
+      window.removeEventListener("keyup", onUp);
+      window.removeEventListener("blur", clearHeldKeys);
+    };
   }, []);
   /* 足元矢/杖の射撃・振りキャンセル時にアイテムを足元に戻す
      成功時は execDirection 内で既に ref が null 化されているので no-op */
@@ -5359,15 +5798,55 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     placeItemAt(s.dungeon, s.player.x, s.player.y, it, _ml, _ft, 0, s.player);
     if (_ml.length) setMsgs((prev) => [...prev.slice(-80), ..._ml]);
   }, [markerMode]);
+  const modalState = {
+    modal,
+    dispatchModal,
+    springMode, springMenuSel, springPage,
+    wishMode,
+    putMode, putMenuSel, putPage,
+    markerMode, markerMenuSel, markerPage,
+    spellListMode, spellMenuSel, spellPage,
+    shopMode, shopMenuSel,
+    bigboxMode, bigboxMenuSel, bigboxPage,
+    gachaMode, gachaMenuSel,
+    altarMode, altarMenuSel,
+    merchantMode, merchantMenuSel,
+    nicknameMode,
+    identifyMode,
+    revealMode,
+    tpSelectMode,
+    floorSelectMode,
+    lookMode,
+    mapMode,
+    debugSpellMode,
+    debugSpellMenuSel,
+    setFloorSelectMode, setTpSelectMode,
+    setLookMode, setMapMode,
+    setNicknameMode, setNicknameInput,
+    setSpringMode, setSpringMenuSel, setSpringPage,
+    setPutMode, setPutMenuSel, setPutPage,
+    setMarkerMode, setMarkerMenuSel, setMarkerPage,
+    setSpellListMode, setSpellMenuSel, setSpellPage,
+    setShopMode, setShopMenuSel,
+    setBigboxMode, setBigboxMenuSel, setBigboxPage,
+    setGachaMode, setGachaMenuSel,
+    setAltarMode, setAltarMenuSel,
+    setMerchantMode, setMerchantMenuSel,
+    setIdentifyMode, setRevealMode,
+    setDebugSpellMode, setDebugSpellMenuSel,
+  };
+  const invState = {
+    showInv, selIdx, invPage, invMenuSel, showDesc, throwMode, dropMode,
+    setShowInv, setSelIdx, setInvPage, setInvMenuSel, setShowDesc, setThrowMode, setDropMode,
+  };
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+    sr, shiftRef, aRef, keyboardShiftRef, keyboardDashRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, shopActionsRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
     // state values
-    gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
-    facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
-    markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
-    bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, altarMode, altarMenuSel, merchantMode, merchantMenuSel, nicknameMode, identifyMode, revealMode,
-    tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
+    gs, dead, showEnding, showScores, showSound, gameOverSel, gameOverView, endingSel, endingView,
+    facingMode,
+    modalState,
+    invState,
     msgLogMode, msgLogScrollTop, msgsRef,
     showSign, miniTip,
     exitHubConfirm, exitHubSel,
@@ -5375,13 +5854,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     performGameOverReturnToHub,
     onDismissEnding: performEndingDismiss,
     // state setters
-    setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setFloorSelectMode, setTpSelectMode,
-    setLookMode, setMapMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
-    setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
-    setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
-    setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
-    setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setAltarMode, setAltarMenuSel, setMerchantMode, setMerchantMenuSel, setIdentifyMode,
-    setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
+    setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setShowSound,
+    setFacingMode,
     setMsgLogMode, setMsgLogScrollTop,
     setShowSign, closeMiniTip,
     setExitHubConfirm, setExitHubSel, performExitToHub,
@@ -5391,10 +5865,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doOfferFood: doOfferFoodProxy, doMerchantBuy: doMerchantBuyProxy, doMerchantSell: doMerchantSellProxy,
     pastIdent, discoveredItems,
   });
-  const { quickOpen: gamepadQuickOpen, quickSel: gamepadQuickSel, ltHeld: gamepadLtHeld } = useGamepad({
+  const { quickOpen: gamepadQuickOpen, quickSel: gamepadQuickSel, setQuickOpen: setGamepadQuickOpen,
+    runQuickAction, ltHeld: gamepadLtHeld, controllerGuideOpen: gamepadControlsOpen,
+    setControllerGuideOpen: setGamepadControlsOpen } = useGamepad({
     enabled: true,
     aRef,
     shiftRef,
+    keyboardDashRef,
+    gamepadDashRef,
+    keyboardShiftRef,
+    gamepadShiftRef,
     arrowHeldRef,
     sr,
     invActRef,
@@ -5402,12 +5882,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doDash,
     dead,
     showInv,
+    sortInventory,
+    dropModeRef,
+    setDropMode,
+    setInvMenuSel,
     lookMode,
     mapMode,
     msgLogMode,
     spellListMode,
     exitHubConfirm,
     showSettings,
+    showSound,
     showScores,
     throwMode,
     debugSpellMode,
@@ -5425,7 +5910,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setSpellListMode,
     setSpellMenuSel,
     setShowSettings,
+    setShowSound,
     setShowScores,
+    setShowTileEditor,
     setExitHubConfirm,
     setFacingMode,
     setGs,
@@ -5450,6 +5937,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     dnameRef, bigboxAddItem,
     onReturnToHub: returnToHubFromItem, dropModeRef, setFloorSelectMode, setTpSelectMode,
     floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
+    pastIdent, discoveredItems,
   });
   const doOfferFood = useCallback((foodRef) => {
     const s = sr.current;
@@ -5489,13 +5977,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     ];
     const template = pickAltarRewardTemplate(rewardPool, altar.offerCount);
     const reward = template ? { ...template, id: uid() } : null;
-    if (reward?.type === "pot") reward.contents = [];
+    if (reward?.type === "pot") {
+      reward.contents = [];
+      reward.confinedMonsters = [];
+    }
     if (reward?.type === "arrow") reward.count = rng(3, 12);
     if (reward?.type === "wand") reward.charges = reward.effect === "curse_wand" || reward.effect === "bless_wand" || reward.effect === "wish" ? 1 : Math.max(1, reward.charges || 5);
     if (reward?.type === "pen") reward.charges = reward.charges || 3;
-    if (reward?.type === "ring") {
-      reward.plus = reward.plus ?? (reward.effect === "power_ring" || reward.effect === "defense_ring" || reward.effect === "life_ring" ? rng(1, 3) : reward.plus);
-    }
+    applyGeneratedRingPlus(reward);
     const ml = [`${itemDisplayName(food, s.fakeNames, s.ident, s.nicknames)}を祭壇に捧げた。（${altar.offerCount}回目）`];
     if (reward) {
       if (p.inventory.length < (p.maxInventory || 30)) {
@@ -5520,7 +6009,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const merchant = merchantRef.current;
     const shop = s?.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
     const item = shop?.stock?.[stockIndex];
-    if (!s || !merchant || merchant.state === "hostile" || !shop || !item) return;
+    if (!s || !merchant || (merchant.state === "hostile" && !merchant._npcRetaliationTargetId) || !shop || !item) return;
     const p = s.player;
     if (p.inventory.length >= (p.maxInventory || 30)) {
       setMsgs((prev) => [...prev.slice(-80), "持ち物がいっぱいだ！"]);
@@ -5549,7 +6038,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const merchant = merchantRef.current;
     const shop = s?.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
     const item = s?.player?.inventory?.[inventoryIndex];
-    if (!s || !merchant || merchant.state === "hostile" || !shop || !item || item.type === "gold" || item.type === "goal") return;
+    if (!s || !merchant || (merchant.state === "hostile" && !merchant._npcRetaliationTargetId) || !shop || !item || item.type === "gold" || item.type === "goal") return;
     const p = s.player;
     const equipped = p.weapon === item || p.armor === item || p.arrow === item || (p.rings || []).includes(item);
     if (equipped) {
@@ -5571,11 +6060,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* 催眠術を受けたら、短い待機の後に状態異常による自動ターン処理とは別に1行動を実行する。 */
   useEffect(() => {
     const p = gs?.player;
-    if (!p || (p.hypnosisPending || 0) <= 0 || dead || showEnding || shopMode || miniTip) return;
+    if (!p || (p.hypnosisPending || 0) <= 0 || dead || showEnding || shopMode || miniTip || showSound) return;
     if (hasForcedTurn(p)) return;
     let timer = null;
     const run = () => {
-      if (!sr.current) return;
+      if (!sr.current || showSoundRef.current) return;
       if (animBusyRef.current) {
         timer = setTimeout(run, 50);
         return;
@@ -5586,7 +6075,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     };
     timer = setTimeout(run, HYPNOSIS_ACTION_DELAY_MS);
     return () => { if (timer !== null) clearTimeout(timer); };
-  }, [gs, dead, showEnding, shopMode, miniTip, doHypnotizedAction]);
+  }, [gs, dead, showEnding, shopMode, miniTip, showSound, doHypnotizedAction]);
   doMarkerWriteRef.current = doMarkerWrite;
   /* ===== 足元ページ用コールバック ===== */
   const _doFloorPickup = (item) => {
@@ -5603,6 +6092,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     trackItem(item);
+    delete item.wallEmbedded;
     _p.inventory.push(item);
     if (item.type === "goal") showFirstEncounterTip("goal_item");
     else if (!item.shopPrice) maybeTipForItem(item);
@@ -5627,7 +6117,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const _doFloorTrap = (trap) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon, ml = [];
-    if (hasRingEffect(_p, "float_ring")) { setMsgs(prev => [...prev.slice(-80), "浮遊の指輪を付けているので罠を作動させられない！"]); return; }
+    if (isPlayerFloating(_p, _dg)) { setMsgs(prev => [...prev.slice(-80), "浮遊しているので罠を作動させられない！"]); return; }
     const _tnFn = (it) => itemDisplayName(it, s.fakeNames, s.ident, s.nicknames);
     showFirstEncounterTip("trap");
     trackTrap(trap);
@@ -5748,6 +6238,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (!skipCapCheck && _wasInvFull) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     /* 店のアイテムを床から直接使う場合は代金を請求 */
     _chargeShopFloorItem(item, _p, _dg, s);
+    const wasWallEmbedded = !!item.wallEmbedded;
+    delete item.wallEmbedded;
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
@@ -5759,6 +6251,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _si2 = sr.current.player.inventory.indexOf(item);
         if (_si2 !== -1) {
           sr.current.player.inventory.splice(_si2, 1);
+          if (wasWallEmbedded) item.wallEmbedded = true;
           sr.current.dungeon.items.push(item);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
         }
@@ -5798,6 +6291,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
+    delete item.wallEmbedded;
     trackItem(item);
     _p.inventory.push(item);
     floorWandRef.current = item;
@@ -5813,13 +6307,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
+    delete item.wallEmbedded;
     trackItem(item);
     _p.inventory.push(item);
     floorPenDropRef.current = item;
     doUseMarker(_idx);
   };
   const _doFloorOpenPutMode = (pot) => {
-    if ((pot.contents?.length || 0) >= pot.capacity) {
+    if (potOccupancyCount(pot) >= pot.capacity) {
       setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`]);
       return;
     }
@@ -5830,6 +6325,105 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setSelIdx(null);
     setShowDesc(null);
     setMsgs(prev => [...prev.slice(-80), "入れるアイテムを選んでください。"]);
+  };
+  const _doFloorItemOpenPutMode = (item) => {
+    const s = sr.current;
+    if (!s) return;
+    const { player: _p, dungeon: _dg } = s;
+    if (!item || !_dg.items?.includes(item) || item.x !== _p.x || item.y !== _p.y || item.noPickup ||
+        floorEntryRole(item, _dg.items, _dg.traps) !== "item" || typeof item.type !== "string") {
+      setMsgs(prev => [...prev.slice(-80), "アイテム以外は壺に入れられない。"]);
+      return;
+    }
+    if (item.type === "pot") {
+      setMsgs(prev => [...prev.slice(-80), "壺の中に壺は入れられない。"]);
+      return;
+    }
+    if (item.type === "goal") {
+      setMsgs(prev => [...prev.slice(-80), "大事なものは壺に入れられない！"]);
+      return;
+    }
+    if (item.shopPrice != null || item._shopId != null) {
+      setMsgs(prev => [...prev.slice(-80), "店の商品は壺に入れられない！先に代金を払ってください。"]);
+      return;
+    }
+    if (!isPotStorableItem(item)) {
+      setMsgs(prev => [...prev.slice(-80), "このアイテムは壺に入れられない。"]);
+      return;
+    }
+    if (getPotInputTargets(_p, _dg).length === 0) {
+      setMsgs(prev => [...prev.slice(-80), "入れられる壺がない。"]);
+      return;
+    }
+    setPutMode({ floorItem: item });
+    setPutMenuSel(0);
+    setPutPage(0);
+    setShowInv(false);
+    setSelIdx(null);
+    setShowDesc(null);
+    setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を入れる壺を選んでください。`]);
+  };
+  const _doPutFloorItem = (item, target) => {
+    const s = sr.current;
+    if (!s) return;
+    const { player: _p, dungeon: _dg } = s;
+    if (!item || !_dg.items?.includes(item) || item.x !== _p.x || item.y !== _p.y || item.noPickup ||
+        floorEntryRole(item, _dg.items, _dg.traps) !== "item" || typeof item.type !== "string") {
+      setPutMode(null);
+      setMsgs(prev => [...prev.slice(-80), "そのアイテムはもう足元にない。"]);
+      return;
+    }
+    if (item.type === "pot") {
+      setPutMode(null);
+      setMsgs(prev => [...prev.slice(-80), "壺の中に壺は入れられない。"]);
+      return;
+    }
+    if (item.type === "goal") {
+      setPutMode(null);
+      setMsgs(prev => [...prev.slice(-80), "大事なものは壺に入れられない！"]);
+      return;
+    }
+    if (item.shopPrice != null || item._shopId != null) {
+      setPutMode(null);
+      setMsgs(prev => [...prev.slice(-80), "店の商品は壺に入れられない！先に代金を払ってください。"]);
+      return;
+    }
+    if (!isPotStorableItem(item)) {
+      setPutMode(null);
+      setMsgs(prev => [...prev.slice(-80), "このアイテムは壺に入れられない。"]);
+      return;
+    }
+    const pot = target?.floorPot || _p.inventory[target?.potIdx];
+    const _targetStillPresent = target?.floorPot
+      ? _dg.items?.includes(target.floorPot) && target.floorPot.x === _p.x && target.floorPot.y === _p.y
+      : Number.isInteger(target?.potIdx) && _p.inventory[target.potIdx] === target?.pot;
+    if (!_targetStillPresent || !canAcceptPotItem(pot)) {
+      setPutMode(null);
+      setMsgs(prev => [...prev.slice(-80), "その壺にはアイテムを入れられない。"]);
+      return;
+    }
+    if (item.itemMimicId) {
+      const ml = [];
+      if (revealItemMimicAt(_dg, _p.x, _p.y, _p, ml, lu)) {
+        setPutMode(null);
+        endTurn(s, _p, ml);
+        setMsgs(prev => [...prev.slice(-80), ...ml]);
+        sr.current = { ...s }; setGs({ ...s });
+        setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null);
+        return;
+      }
+    }
+    _dg.items = _dg.items.filter(entry => entry !== item);
+    clearDimensionalVaultItemCounter(item);
+    delete item.wallEmbedded;
+    if (item.type !== "gold") trackItem(item);
+    const itemIdx = _p.inventory.length;
+    _p.inventory.push(item);
+    const _closeAfterPut = target.closeAfterPut !== false;
+    const _putOptions = target.floorPot
+      ? { floorPot: target.floorPot, closeAfterPut: _closeAfterPut }
+      : { potIdx: target.potIdx, closeAfterPut: _closeAfterPut };
+    doPutItem(itemIdx, _putOptions);
   };
   /* 壺入れをやめる：所持品から開いた場合は壺にカーソルを戻して所持品を再表示 */
   const cancelPutMode = () => {
@@ -5847,11 +6441,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setShowDesc(null);
     }
   };
-  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorGacha: _doFloorGacha, floorAltar: _doFloorAltar, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
+  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorGacha: _doFloorGacha, floorAltar: _doFloorAltar, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorItemOpenPutMode: _doFloorItemOpenPutMode, floorPutItem: _doPutFloorItem, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
   /* fixtures.js 等（render 循環回避）から未識別名でメッセージを出す用 */
   globalThis.__rogueItemNameFn = (it) =>
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   execRef.current = execDirection;
+  const isModalActive = !!(
+    modal.type || gamepadQuickOpen || gamepadControlsOpen || showInv || msgLogMode || showScores || showSettings ||
+    showSound || showSign || miniTip || showTileEditor || exitHubConfirm || dead || showEnding
+  );
+  const isAnyModalActive = isModalActive || !!throwMode;
+  const dispatchModalKeyDown = (key, code) => {
+    window.dispatchEvent(new KeyboardEvent("keydown", {
+      key,
+      code,
+      bubbles: true,
+      cancelable: true,
+    }));
+  };
+  useInterfaceSounds(isModalActive);
+  // 道具使用のアニメーション収集後に、ログ・実際の変化・アニメーションをまとめて鳴らす。
+  useEffect(() => { messageSoundObserverRef.current(msgs, { state: gs }); }, [msgs, gs]);
   if (!gs) return null;
   const { player: p } = gs;
   const _tutorialHasProof = gs.dungeonType === "tutorial"
@@ -5912,11 +6522,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       {l}
     </button>
   );
+
   return (
     <div
       ref={ref}
       tabIndex={0}
-      onClick={() => ref.current?.focus()}
+      onClick={() => { unlockAudio(); ref.current?.focus(); }}
       style={{
         width: "100%",
         maxWidth: mobile ? "100%" : 1200,
@@ -5926,7 +6537,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         fontFamily: "'Courier New','MS Gothic',monospace",
         fontSize: mobile ? "13px" : "14px",
         padding: mobile ? "4px" : "8px",
-        paddingRight: mobile ? (landscape ? 148 : 4) : 228,
+        paddingRight: mobile ? (landscape ? 148 : 4) : 308,
         outline: "none",
         userSelect: "none",
         position: "relative",
@@ -5990,7 +6601,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         <span>
           食:
           <span style={{ color: hunP > 40 ? "#0a0" : "#f80" }}>
-            {p.hunger}/{p.maxHunger}
+            {Math.floor(p.hunger)}/{p.maxHunger}
           </span>
         </span>{" "}
         <span style={{ color: "#ffd700" }}>${p.gold}</span>{" "}
@@ -6009,7 +6620,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {p.arrow && (
           <span style={{ color: "#dda050" }}>
-            {p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.specialProjectile ? p.arrow.name : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
+            {p.arrow.iceChunk ? "氷塊" : p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.specialProjectile ? p.arrow.name : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
           </span>
         )}{" "}
         {(p.rings || []).map((r, i) => (
@@ -6026,14 +6637,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         {(p.slowTurns || 0) > 0 && (
           <span style={{ color: "#80c0ff" }}>🐢{p.slowTurns}</span>
         )}{" "}
+        {(p.floatTurns || 0) > 0 && (
+          <span style={{ color: "#80e0ff" }} title="浮遊：残りターン">🪶{p.floatTurns}</span>
+        )}{" "}
         {(p.hasteTurns || 0) > 0 && (
           <span style={{ color: "#ff4040" }}>⚡{(p.hasteSpeed || 2) >= 3 ? "3x" : ""}{p.hasteTurns}</span>
         )}{" "}
         {(p.confusedTurns || 0) > 0 && (
           <span style={{ color: "#ff9020" }}>🌀{p.confusedTurns}</span>
         )}{" "}
+        {(p.drunkTurns || 0) > 0 && (
+          <span style={{ color: "#d89b55" }} title="酔い：残りターン">🍶{p.drunkTurns}</span>
+        )}{" "}
+        {(p.drunkenTurns || 0) > 0 && (
+          <span style={{ color: "#e07080" }} title="酩酊：残りターン">🥴{p.drunkenTurns}</span>
+        )}{" "}
         {(p.darknessTurns || 0) > 0 && (
           <span style={{ color: "#4040a0" }}>🌑{p.darknessTurns}</span>
+        )}{" "}
+        {(p.caswackTurns || 0) > 0 && (
+          <span style={{ color: "#d040e0" }} title="カスワック：重複被弾で即死！">💀{p.caswackTurns}</span>
         )}{" "}
         {(p.statusImmune || 0) > 0 && (
           <span style={{ color: "#40c080" }}>🛡{p.statusImmune}</span>
@@ -6147,6 +6770,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}
         {(p.frozenTurns || 0) > 0 && (
           <span style={{ color: "#80ddff" }}>🧊{p.frozenTurns}</span>
+        )}
+        {(p.petrifiedTurns || 0) > 0 && (
+          <span style={{ color: "#a0a0a0" }}>🗿{p.petrifiedTurns}</span>
         )}
         {(p.oilyTurns || 0) > 0 && (
           <span style={{ color: "#e0a020" }}>🛢{p.oilyTurns}</span>
@@ -6289,254 +6915,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 setRevealMode(null);
                 return;
               }
-              /* === 見渡しモード === */
-              if (lookMode) {
-                const ncx = Math.max(0, Math.min(MW - 1, lookMode.cx + dx));
-                const ncy = Math.max(0, Math.min(MH - 1, lookMode.cy + dy));
-                setLookMode({ cx: ncx, cy: ncy });
-                const { dungeon: _ld } = sr.current || {};
-                if (_ld) {
-                  const _desc = getLookDesc(ncx, ncy, _ld);
-                  if (_desc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_desc}`]);
-                }
-                return;
-              }
-              /* === テレポート先選択モード === */
-              if (tpSelectMode) {
-                setTpSelectMode({ cx: Math.max(0, Math.min(MW - 1, tpSelectMode.cx + dx)), cy: Math.max(0, Math.min(MH - 1, tpSelectMode.cy + dy)) });
-                return;
-              }
-              if (merchantMode) {
-                const _merchant = merchantRef.current;
-                const _mshop = sr.current?.dungeon?.merchantShops?.find((entry) => entry.id === _merchant?.merchantShopId);
-                const _sellCount = (sr.current?.player?.inventory || []).filter((item) => item.type !== "gold" && item.type !== "goal" && sr.current.player.weapon !== item && sr.current.player.armor !== item && sr.current.player.arrow !== item && !(sr.current.player.rings || []).includes(item)).length;
-                const _merchantItems = merchantMode === "buy" ? (_mshop?.stock?.length || 0) : _sellCount;
-                const _merchantPages = Math.max(1, Math.ceil(_merchantItems / 10));
-                if (dx !== 0 && merchantMode !== "menu") {
-                  setMerchantMenuSel((value) => {
-                    const currentPage = value >= _merchantItems ? _merchantPages - 1 : Math.floor(value / 10);
-                    const nextPage = (currentPage + (dx > 0 ? 1 : -1) + _merchantPages) % _merchantPages;
-                    return Math.min(nextPage * 10, _merchantItems);
-                  });
-                } else if (dy !== 0) {
-                  const _merchantLen = merchantMode === "menu" ? 3 : _merchantItems + 1;
-                  if (_merchantLen > 0) setMerchantMenuSel((value) => (value + dy + _merchantLen) % _merchantLen);
-                }
-                return;
-              }
-              if (altarMode) {
-                const _altarFoods = (sr.current?.player?.inventory || []).filter((item) => item.type === "food").length;
-                const _altarLen = _altarFoods + 1;
-                if (dy !== 0) setAltarMenuSel((value) => (value + dy + _altarLen) % _altarLen);
-                return;
-              }
-              /* === インベントリ表示中 === */
-              if (showInv) {
-                const inv = sr.current?.player?.inventory || [];
-                const _invOnlyPg = Math.ceil(inv.length / 10) || 1;
-                const _dg2 = sr.current?.dungeon;
-                const _p2 = sr.current?.player;
-                const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
-                  allBcKnown: !!sr.current?.allBcKnown,
-                  bbFakeNames: sr.current?.bbFakeNames,
-                  ident: sr.current?.ident,
-                  identifiedBigboxes: sr.current?.identifiedBigboxes,
-                }) : { items: [], traps: [], all: [] };
-                const _flItems2 = _fl2.items;
-                const _flTraps2 = _fl2.traps;
-                const _flAll2 = _fl2.all;
-                const _hasFl2 = _flAll2.length > 0;
-                const totalPages = _invOnlyPg + (_hasFl2 ? 1 : 0);
-                const _isFloorPg2 = _hasFl2 && invPage === _invOnlyPg;
-                /* 足元ページ */
-                if (_isFloorPg2) {
-                  const _flLen2 = _flAll2.length;
-                  if (invMenuSel !== null && selIdx !== null && selIdx < _flLen2) {
-                    const _fle2 = _flAll2[selIdx];
-                    const _flN2 = floorEntryActionCount(_fle2, _flItems2, _flTraps2, canUse);
-                    if (dx !== 0 && dy === 0) { setInvMenuSel((s) => (s + dx + _flN2) % _flN2); }
-                    else if (dy !== 0 && dx === 0) { setInvMenuSel(null); setSelIdx((prev) => prev === null ? (dy > 0 ? 0 : _flLen2 - 1) : (prev + dy + _flLen2) % _flLen2); setShowDesc(null); }
-                    return;
-                  }
-                  if (dy !== 0 && dx === 0 && _flLen2 > 0) {
-                    setSelIdx((prev) => { if (prev === null) return dy > 0 ? 0 : _flLen2 - 1; return (prev + dy + _flLen2) % _flLen2; });
-                    setShowDesc(null); setInvMenuSel(null);
-                  } else if (dx !== 0 && dy === 0 && totalPages > 1) {
-                    setInvPage((p) => (p + dx + totalPages) % totalPages);
-                    setSelIdx(0); setInvMenuSel(null); setShowDesc(null);
-                  }
-                  return;
-                }
-                const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
-                const len = pageItems.length;
-                /* サブメニュー表示中: 左右でメニュー選択、上下でアイテム選択に戻す */
-                if (invMenuSel !== null && selIdx !== null && pageItems[selIdx]) {
-                  const _it = pageItems[selIdx];
-                  const _n = _invActCount(_it, invPage * 10 + selIdx, canUse, gs);
-                  if (dx !== 0 && dy === 0) {
-                    setInvMenuSel((s) => (s + dx + _n) % _n);
-                  } else if (dy !== 0 && dx === 0) {
-                    setInvMenuSel(null);
-                    setSelIdx((prev) => prev === null ? (dy > 0 ? 0 : len - 1) : (prev + dy + len) % len);
-                    setShowDesc(null);
-                  }
-                  return;
-                }
-                if (dy !== 0 && dx === 0 && len > 0) {
-                  setSelIdx((prev) => {
-                    if (prev === null) return dy > 0 ? 0 : len - 1;
-                    return (prev + dy + len) % len;
-                  });
-                  setShowDesc(null); setInvMenuSel(null);
-                } else if (dx !== 0 && dy === 0 && totalPages > 1) {
-                  setInvPage((p) => (p + dx + totalPages) % totalPages);
-                  setSelIdx(0); setInvMenuSel(null); setShowDesc(null);
-                }
-                return;
-              }
-              /* === 識別モード：上下で選択、左右でページ送り === */
-              if (identifyMode) {
-                if (!sr.current) return;
-                const _p = sr.current.player;
-                const _isBCMode_t = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
-                const _filt = _p.inventory
-                  .map((_it, _i) => ({ it: _it, i: _i }))
-                  .filter(({ it, i }) => {
-                    return isScrollTargetCandidate(identifyMode, it, i, sr.current.ident);
-                  });
-                const _hasBbTgt = !!(identifyMode.bbFootId && !_isBCMode_t && identifyMode.mode !== 'unidentify' && sr.current?.dungeon?.bigboxes?.find(b => b.id === identifyMode.bbFootId));
-                const _len = _filt.length + (_hasBbTgt ? 1 : 0);
-                const _idPg_t = identifyMode.page || 0;
-                const _idTotalPg_t = Math.max(1, Math.ceil(_len / 10));
-                const _idPgLen_t = Math.min(10, Math.max(0, _len - _idPg_t * 10));
-                if (dy !== 0 && dx === 0 && _idPgLen_t > 0) {
-                  setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + dy + _idPgLen_t) % _idPgLen_t });
-                } else if (dx !== 0 && dy === 0 && _idTotalPg_t > 1) {
-                  setIdentifyMode({ ...identifyMode, page: ((_idPg_t + dx) + _idTotalPg_t) % _idTotalPg_t, sel: 0 });
-                }
-                return;
-              }
-              /* === 壺に入れるモード：上下で選択、左右でページ送り === */
-              if (putMode) {
-                if (!sr.current) return;
-                const inv4 = sr.current.player.inventory;
-                const pItems4 = inv4.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
-                const _ps4 = 10;
-                const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
-                const _plen4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4).length;
-                const _selCount4 = _plen4 + 1; /* やめる */
-                if (dy !== 0 && dx === 0 && _selCount4 > 0) {
-                  setPutMenuSel((s) => (s + dy + _selCount4) % _selCount4);
-                } else if (dx !== 0 && dy === 0 && _tp4 > 1) {
-                  setPutPage((p) => (p + dx + _tp4) % _tp4);
-                  setPutMenuSel(0);
-                }
-                return;
-              }
-              /* === マーカーモード：上下で選択 === */
-              if (markerMode) {
-                if (!sr.current) return;
-                const _mps = 10;
-                const inv5 = sr.current.player.inventory;
-                const _mIdent5 = sr.current.ident ?? new Set();
-                const _mCurDisc5 = getDiscoveries().items;
-                const _mInvEff5 = new Set(inv5.filter(it => it.type === "scroll" && it.effect !== "blank").map(it => it.effect));
-                let fullList = [];
-                if (markerMode.step === "select_blank") {
-                  fullList = inv5.filter(it => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell));
-                } else if (markerMode.step === "select_type") {
-                  fullList = ITEMS.filter(it => it.type === "scroll" && it.effect !== "blank" && (_mIdent5.has(`s:${it.effect}`) || _mCurDisc5[it.effect] || _mInvEff5.has(it.effect)));
-                } else if (markerMode.step === "select_spellbook_type") {
-                  fullList = SPELLBOOKS.filter(it => it.spell && _mIdent5.has(`b:${it.spell}`));
-                }
-                const _mTotalPages = Math.max(1, Math.ceil(fullList.length / _mps));
-                if (dy !== 0 && dx === 0) {
-                  const _pageLen = Math.min(_mps, fullList.length - markerPage * _mps);
-                  if (_pageLen > 0) setMarkerMenuSel((s) => (s + dy + _pageLen) % _pageLen);
-                } else if (dx !== 0 && dy === 0 && _mTotalPages > 1) {
-                  setMarkerPage((p) => (p + dx + _mTotalPages) % _mTotalPages);
-                  setMarkerMenuSel(0);
-                }
-                return;
-              }
-              /* === 店モード：上下で選択 === */
-              if (shopMode === "pay") {
-                if (dy !== 0 && dx === 0) setShopMenuSel((p) => (p + dy + 2) % 2);
-                return;
-              }
-              if (shopMode === "sell") {
-                if (!sr.current) return;
-                const { player: _sp2, dungeon: _sd2 } = sr.current;
-                const _ss2 = getShops(_sd2).find(s => s.room &&
-                  _sp2.x >= s.room.x && _sp2.x < s.room.x + s.room.w &&
-                  _sp2.y >= s.room.y && _sp2.y < s.room.y + s.room.h);
-                const _sf2 = _ss2 ? _sd2.items.filter(
-                  (i) => !i.shopPrice &&
-                    i.x >= _ss2.room.x && i.x < _ss2.room.x + _ss2.room.w &&
-                    i.y >= _ss2.room.y && i.y < _ss2.room.y + _ss2.room.h,
-                ) : [];
-                const _slen2 = _sf2.length + 1;
-                if (dy !== 0 && dx === 0 && _slen2 > 0) {
-                  setShopMenuSel((p) => (p + dy + _slen2) % _slen2);
-                }
-                return;
-              }
-              if (shopMode === "browse" || shopMode === "browseConfirm") {
-                if (dy !== 0 && dx === 0) setShopMenuSel((p) => (p + dy + 2) % 2);
-                return;
-              }
-              /* === 大箱モード：上下で選択、左右でページ送り === */
-              if (bigboxMode) {
-                if (bigboxMode === "menu") {
-                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 4) % 4);
-                } else if (bigboxMode === "put") {
-                  const inv2 = sr.current?.player?.inventory || [];
-                  const _ps = 10;
-                  const _tp = Math.max(1, Math.ceil(inv2.length / _ps));
-                  const _pil = inv2.slice(bigboxPage * _ps, (bigboxPage + 1) * _ps).length;
-                  if (dy !== 0 && dx === 0 && _pil > 0) {
-                    setBigboxMenuSel((p) => (p + dy + _pil) % _pil);
-                  } else if (dx !== 0 && dy === 0 && _tp > 1) {
-                    setBigboxPage((p) => (p + dx + _tp) % _tp);
-                    setBigboxMenuSel(0);
-                  }
-                }
-                return;
-              }
-              /* === 泉モード：上下で選択、左右でページ送り(soak) === */
-              if (springMode) {
-                if (springMode === "menu") {
-                  if (dy !== 0 && dx === 0) setSpringMenuSel((p) => (p + dy + 3) % 3);
-                } else if (springMode === "soak") {
-                  const inv = sr.current?.player?.inventory || [];
-                  if (dy !== 0 && dx === 0 && inv.length > 0) {
-                    const totalPg = Math.max(1, Math.ceil(inv.length / 10));
-                    const curPg = Math.min(springPage, totalPg - 1);
-                    const pgLen = inv.slice(curPg * 10, (curPg + 1) * 10).length;
-                    setSpringMenuSel((s) => (s + dy + pgLen) % pgLen);
-                  } else if (dx !== 0 && dy === 0 && inv.length > 10) {
-                    const totalPg = Math.max(1, Math.ceil(inv.length / 10));
-                    setSpringPage((p) => (p + dx + totalPg) % totalPg);
-                    setSpringMenuSel(0);
-                  }
-                }
-                return;
-              }
-              /* === 魔法選択モード：上下で選択 === */
-              if (spellListMode) {
-                if (dy !== 0 && dx === 0) {
-                  const knownSpells = sr.current?.player?.spells || [];
-                  const slen = knownSpells.length;
-                  if (slen > 0) setSpellMenuSel((s) => (s + dy + slen) % slen);
-                }
-                return;
-              }
               if (facingMode) {
                 if (sr.current) {
                   sr.current.player.facing = { dx, dy };
                   setGs({ ...sr.current });
                 }
                 setFacingMode(false);
+                return;
+              }
+              if (isModalActive) {
+                const arrow = getGamepadArrow({
+                  isLook: !!lookMode,
+                  isThrow: !!throwMode,
+                  isTpSelect: modal.type === "tpSelect" || !!tpSelectMode,
+                }, dx, dy);
+                if (arrow) dispatchModalKeyDown(arrow.key, arrow.code);
                 return;
               }
               if (throwMode) execDirection(dx, dy);
@@ -6568,20 +6961,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   small
                   label="矢"
                   sub="射る"
-                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
-                  color={p.arrow ? "#fc0" : "#555"}
+                  onClick={() => {
+                    if (isAnyModalActive) return;
+                    act("shoot_arrow");
+                  }}
+                  color={isAnyModalActive ? "#334455" : (p.arrow ? "#fc0" : "#555")}
                 />
                 <AB
                   small
-                  label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : altarMode ? "閉" : merchantMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : altarMode ? "閉じる" : merchantMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
+                  label={debugSpellMode ? (debugSpellMode.category ? "戻" : "閉") : gamepadQuickOpen ? "閉" : miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : altarMode ? "閉" : merchantMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={debugSpellMode ? (debugSpellMode.category ? "戻る" : "閉じる") : gamepadQuickOpen ? "閉じる" : miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : altarMode ? "閉じる" : merchantMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
-                    if (mapMode) return;
+                    if (debugSpellMode) { dispatchModalKeyDown("x", "KeyX"); return; }
+                    if (gamepadQuickOpen) { setGamepadQuickOpen(false); return; }
                     if (miniTip) { closeMiniTip(); return; }
                     if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
-                    if (shopMode === "browseConfirm") { setShopMode("browse"); setShopMenuSel(0); return; }
-                    if (shopMode === "browse") { setShopMode(null); return; }
+                    if (shopMode) { shopActionsRef.current?.cancel(); return; }
                     if (putMode) { cancelPutMode(); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
@@ -6592,24 +6988,30 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (springMode === "soak") { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); return; }
                     if (springMode) { setSpringMode(null); setSpringMenuSel(0); return; }
                     if (identifyMode) { identifyCancelRef.current?.(); setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
+                    if (mapMode) { setMapMode(null); return; }
+                    if (wishMode) { cancelWish(); return; }
+                    if (msgLogMode) { setMsgLogMode(false); return; }
+                    if (showScores) { setShowScores(false); return; }
+                    if (showSettings) { setShowSettings(false); return; }
+                    if (showSound) { setShowSound(false); return; }
+                    if (showTileEditor) { setShowTileEditor(false); return; }
+                    if (showInv) { act("inventory"); return; }
+                    if (isAnyModalActive) return;
                     act("inventory");
                   }}
-                  color={miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode || altarMode || merchantMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                  color={debugSpellMode ? "#f88" : gamepadQuickOpen ? "#f88" : miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode || altarMode || merchantMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : (isAnyModalActive ? "#334455" : "#ff0")}
                 />
                 <AB
                   small
                   label="見"
                   sub="見渡す"
                   onClick={() => {
-                    if (mapMode) return;
-                    if (spellListMode) return;
-                    if (revealMode) return;
-                    if (showInv || springMode || identifyMode || putMode) return;
                     if (lookMode) {
                       setLookMode(null);
                       setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
                       return;
                     }
+                    if (isAnyModalActive) return;
                     const { player: _lp, dungeon: _ld } = sr.current || {};
                     if (_lp && _ld) {
                       setLookMode({ cx: _lp.x, cy: _lp.y });
@@ -6617,14 +7019,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       setMsgs(prev => [...prev.slice(-80), `[見渡す] Dパッドで移動、もう一度タップでキャンセル / ${_initDesc}`]);
                     }
                   }}
-                  color={lookMode ? "#00e5ff" : "#08f"}
+                  color={lookMode ? "#00e5ff" : (isAnyModalActive ? "#334455" : "#08f")}
                 />
-              </div>{" "}
+              </div> {" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
-                  sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : altarMode || merchantMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
+                  label={debugSpellMode ? "決" : shopMode ? "決" : spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
+                  sub={debugSpellMode ? "決定" : shopMode ? "決定" : spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : altarMode || merchantMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
+                    if (debugSpellMode) { dispatchModalKeyDown("z", "KeyZ"); return; }
                     if (mapMode) return;
                     if (altarMode) {
                       const _foods = (sr.current?.player?.inventory || []).map((it, i) => ({ it, i })).filter(({ it }) => it.type === "food");
@@ -6664,41 +7067,32 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       else { setGachaMode(null); gachaRef.current = null; setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
                       return;
                     }
-                    if (shopMode === "browse" || shopMode === "browseConfirm") {
-                      if (shopMode === "browse") {
-                        if (shopMenuSel === 0) { setShopMode(null); }
-                        else if (sr.current) {
-                          const { player: _bp, dungeon: _bd } = sr.current;
-                          const _bsi = _bp.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-                          const _bsh = getShops(_bd).find(s => s.room && _bp.x >= s.room.x && _bp.x < s.room.x + s.room.w && _bp.y >= s.room.y && _bp.y < s.room.y + s.room.h);
-                          if (_bsi.length > 0 && _bsh) { setShopMode("browseConfirm"); setShopMenuSel(0); }
-                        }
-                      } else {
-                        if (shopMenuSel === 0) { setShopMode("browse"); setShopMenuSel(0); }
-                        else if (sr.current) {
-                          const { player: _bp2, dungeon: _bd2 } = sr.current;
-                          const _toSell = _bp2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-                          const _bsh2 = getShops(_bd2).find(s => s.room && _bp2.x >= s.room.x && _bp2.x < s.room.x + s.room.w && _bp2.y >= s.room.y && _bp2.y < s.room.y + s.room.h) || getShops(_bd2)[0];
-                          if (_toSell.length > 0 && _bsh2) {
-                            const _earn = sellInventoryItemsToShop(_toSell, _bp2, _bsh2);
-                            const _sk3 = _bd2.monsters.find(m => m.id === _bsh2.shopkeeperId && m.state === "friendly");
-                            if (_sk3) _sk3.state = "blocking";
-                            setMsgs(prev => [...prev.slice(-80), `所持品 ${_toSell.length} 件が店の商品になった。${_earn.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
-                            sr.current = { ...sr.current }; setGs({ ...sr.current });
-                          }
-                          setShopMode(null);
-                        }
-                      }
-                      return;
-                    }
+                    if (shopMode) { shopActionsRef.current?.confirm(shopMenuSel); return; }
                     if (putMode) {
                       const _putInv = sr.current?.player?.inventory || [];
-                      const _putItems = _putInv.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
+                      const _floorPutTargets = putMode.floorItem
+                        ? getPotInputTargets(sr.current?.player, sr.current?.dungeon)
+                        : null;
+                      const _putItems = putMode.floorItem
+                        ? _floorPutTargets.map((target) => ({ it: target.pot, i: target.potIdx, target }))
+                        : [
+                            ..._putInv.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx),
+                            ...listFloorInventoryEntries(sr.current.dungeon, sr.current.player.x, sr.current.player.y).items
+                              .filter(isPotStorableItem)
+                              .map((floorItem) => ({ it: floorItem, i: null, floorItem })),
+                          ];
                       const _pgItems = _putItems.slice(putPage * 10, (putPage + 1) * 10);
                       const _putLocal = Math.min(putMenuSel, _pgItems.length); /* length = やめる */
                       if (_putLocal >= _pgItems.length) { cancelPutMode(); return; }
                       const _putSel = _pgItems[_putLocal];
-                      if (_putSel && _putSel.it.type !== "pot") doPutItem(_putSel.i);
+                      if (putMode.floorItem && _putSel) _doPutFloorItem(putMode.floorItem, _putSel.target);
+                      else if (_putSel?.floorItem) {
+                        const _target = putMode.floorPot
+                          ? { pot: putMode.floorPot, floorPot: putMode.floorPot, closeAfterPut: false }
+                          : { pot: _putInv[putMode.potIdx], potIdx: putMode.potIdx, closeAfterPut: false };
+                        _doPutFloorItem(_putSel.floorItem, _target);
+                      }
+                      else if (_putSel && _putSel.it.type !== "pot") doPutItem(_putSel.i);
                       return;
                     }
                     if (springMode === "menu") {
@@ -6727,6 +7121,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           bbFakeNames: sr.current?.bbFakeNames,
                           ident: sr.current?.ident,
                           identifiedBigboxes: sr.current?.identifiedBigboxes,
+                          allowEmbeddedItems: (_p3.wallWalkTurns || 0) > 0 && [T.WALL, T.BWALL].includes(_dg3.map?.[_p3.y]?.[_p3.x]),
                         }) : { items: [], traps: [], all: [] };
                         const _flItems3 = _fl3.items;
                         const _flTraps3 = _fl3.traps;
@@ -6764,6 +7159,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                               _fns3.push(() => invActRef.current?.floorPickup?.(_fle3));
                               const _isEq3 = ["weapon","armor","arrow","ring"].includes(_fle3.type);
                               const _kInv3 = _isEq3 || _fle3.type === "scroll";
+                              if (_fle3.type !== "pot" && _fle3.type !== "goal" && _fle3.shopPrice == null && _fle3._shopId == null && getPotInputTargets(_p3, _dg3).length > 0) {
+                                _fns3.push(() => invActRef.current?.floorItemOpenPutMode?.(_fle3));
+                              }
                               if (_fle3.type === "pot") _fns3.push(() => invActRef.current?.floorOpenPutMode?.(_fle3));
                               else if (_fle3.type === "marker") _fns3.push(() => invActRef.current?.floorPen?.(_fle3));
                               else if (canUse(_fle3)) _fns3.push(() => invActRef.current?.floorItemAction?.(_fle3, (i3) => invActRef.current?.use?.(i3), !_isEq3, _kInv3));
@@ -6804,62 +7202,78 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           setInvMenuSel(0);
                         }
                       }
-                    } else { act("interact"); }
+                    } else {
+                      if (isAnyModalActive) return;
+                      act("interact");
+                    }
                   }}
-                  color={spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode || altarMode || merchantMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : "#0ff"}
+                  color={debugSpellMode ? "#fc0" : spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode || altarMode || merchantMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : (isAnyModalActive ? "#334455" : "#0ff")}
                 />
                 <AB
                   label={bigboxMode === "put" ? "決" : gachaMode ? "戻" : altarMode || merchantMode ? "戻" : showInv ? "置" : "前"}
                   sub={bigboxMode === "put" ? "決定" : gachaMode ? "閉じる" : altarMode || merchantMode ? "閉じる" : showInv ? "置く" : "調べる"}
                   onClick={() => {
-                    if (mapMode) return;
-                    if (spellListMode) return;
                     if (bigboxMode === "put") { bigboxPutItem(bigboxPage * 10 + bigboxMenuSel); return; }
                     if (gachaMode) { setGachaMode(null); gachaRef.current = null; return; }
                     if (altarMode) { setAltarMode(null); altarRef.current = null; return; }
                     if (merchantMode) { setMerchantMode(null); merchantRef.current = null; return; }
-                    if (springMode || identifyMode || putMode) return;
-                    if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); }
+                    if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); return; }
+                    if (isAnyModalActive) return;
+                    doExamineFront();
                   }}
-                  color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
+                  color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : (isAnyModalActive ? "#334455" : "#4af")}
                 />
                 <AB
                   label={showInv ? "整" : mapMode ? "閉" : "地図"}
                   sub={showInv ? "整理" : mapMode ? "閉じる" : "マップ"}
-                  onClick={() => { if (mapMode) { setMapMode(null); return; } if (spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; if (showInv) { sortInventory(); } else { setMapMode(true); } }}
-                  color={showInv ? "#8f8" : mapMode ? "#9ed0ff" : "#6688aa"}
+                  onClick={() => {
+                    if (mapMode) { setMapMode(null); return; }
+                    if (showInv) { sortInventory(); return; }
+                    if (isAnyModalActive) return;
+                    setMapMode(true);
+                  }}
+                  color={showInv ? "#8f8" : mapMode ? "#9ed0ff" : (isAnyModalActive ? "#334455" : "#6688aa")}
                 />
                 <AB
                   label="罠"
                   sub="探る"
-                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; act("search_traps"); }}
-                  color="#fa0"
+                  onClick={() => {
+                    if (isAnyModalActive) return;
+                    act("search_traps");
+                  }}
+                  color={isAnyModalActive ? "#334455" : "#fa0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "ダッシュ"}
-                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (revealMode) return; if (springMode || identifyMode || putMode) return; setDashMode((v) => !v); }}
-                  color={dashMode ? "#f44" : "#a8f"}
+                  onClick={() => {
+                    if (isAnyModalActive) return;
+                    setDashMode((v) => !v);
+                  }}
+                  color={isAnyModalActive ? "#334455" : (dashMode ? "#f44" : "#a8f")}
                 />
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (mapMode || altarMode || merchantMode) return; if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode || springMode || identifyMode || putMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
-                  color={spellListMode ? "#4af" : "#60a0e0"}
+                  onClick={() => {
+                    if (spellListMode) { setSpellListMode(false); return; }
+                    if (isAnyModalActive) return;
+                    setSpellListMode(true);
+                    setSpellMenuSel(0);
+                  }}
+                  color={spellListMode ? "#4af" : (isAnyModalActive ? "#334455" : "#60a0e0")}
                 />
                 <AB
-                  label="🎨"
-                  sub="タイル"
-                  onClick={() => { if (mapMode || revealMode) return; setShowTileEditor(true); }}
-                  color="#888"
-                />
-                <AB
-                  label="📜"
-                  sub="記録"
-                  onClick={() => { if (mapMode || revealMode) return; setShowScores(true); }}
-                  color="#8cf"
+                  label="☰"
+                  sub="メニュー"
+                  onClick={() => {
+                    if (gamepadQuickOpen) { setGamepadQuickOpen(false); return; }
+                    if (isAnyModalActive) return;
+                    setGamepadQuickOpen(true);
+                  }}
+                  color={gamepadQuickOpen ? "#f0b040" : (isAnyModalActive ? "#334455" : "#f0b040")}
                 />
               </div>{" "}
             </div>
@@ -6880,7 +7294,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               <div style={{ color: "#a66", fontSize: 14 }}>
                 {tmI ? dname(tmI) : "?"}
                 {tmI?.type === "arrow"
-                  ? ` (${tmI.count}本)`
+                  ? ` (${tmI.count}${tmI.stone || tmI.magicStone || tmI.iceChunk || tmI.specialProjectile ? "個" : "本"})`
                   : tmI?.type === "wand" && tmI.fullIdent
                     ? ` [${tmI.charges}回]`
                     : ""}
@@ -6946,14 +7360,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       )}{" "}
       <TpSelectModal mode={tpSelectMode} setMode={setTpSelectMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} mobile={mobile} />{" "}
       <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
-      <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} onCancel={cancelPutMode} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
+      <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} doPutFloorItem={_doPutFloorItem} onCancel={cancelPutMode} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} page={markerPage} setPage={setMarkerPage} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} discoveredItems={discoveredItems} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} spellConfirmRef={spellConfirmRef} />{" "}
-      <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
+      <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} onCancel={() => dispatchModalKeyDown("x", "KeyX")} />
       <SignModal sign={showSign} onClose={() => setShowSign(null)} mobile={mobile} />
       <MiniTipModal tip={miniTip} onClose={closeMiniTip} mobile={mobile} />
-      <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
-      <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
+      <MsgLogModal show={msgLogMode || (dead && gameOverView === "log") || (showEnding && endingView === "log")} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => { if (dead && gameOverView === "log") setGameOverView(null); else if (showEnding && endingView === "log") setEndingView(null); else setMsgLogMode(false); }} mobile={mobile} />
+      <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} shopActionsRef={shopActionsRef} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
       <GachaModal mode={gachaMode} setMode={setGachaMode} gs={gs} gachaRef={gachaRef} menuSel={gachaMenuSel} setMenuSel={setGachaMenuSel} onDraw={doGachaDraw} mobile={mobile} />
       <AltarModal mode={altarMode} setMode={setAltarMode} p={p} menuSel={altarMenuSel} setMenuSel={setAltarMenuSel} onOffer={doOfferFood} mobile={mobile} dname={dnameRef} />
@@ -6962,7 +7376,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <WishModal mode={wishMode} setMode={setWishMode} onConfirm={confirmWish} onCancel={cancelWish} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorGacha={_doFloorGacha} doFloorAltar={_doFloorAltar} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorGacha={_doFloorGacha} doFloorAltar={_doFloorAltar} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorItemOpenPutMode={_doFloorItemOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
       <GameOverModal
         dead={dead && !gameOverView}
         p={p}
@@ -6973,6 +7387,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         portraitSrc={gameOverPortrait}
         onViewMap={() => { setShowScores(false); setGameOverView("map"); }}
         onViewInventory={() => { setShowScores(false); setGameOverView("inventory"); gameOverInventoryRef.current = null; }}
+        onViewMsgLog={() => { setShowScores(false); setGameOverView("log"); setMsgLogScrollTop(Math.max(0, msgs.length - 20)); }}
         onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined}
       />
       <GameOverMapView show={dead && gameOverView === "map"} onReopen={() => setGameOverView(null)} mobile={mobile} />
@@ -6987,19 +7402,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         mobile={mobile}
         onViewMap={() => { setShowScores(false); setEndingView("map"); }}
         onViewInventory={() => { setShowScores(false); setEndingView("inventory"); gameOverInventoryRef.current = null; }}
+        onViewMsgLog={() => { setShowScores(false); setEndingView("log"); setMsgLogScrollTop(Math.max(0, msgs.length - 20)); }}
         onDismiss={performEndingDismiss}
       />
       <GameOverMapView show={showEnding && endingView === "map"} onReopen={() => setEndingView(null)} mobile={mobile} resultLabel="クリア時" returnLabel="クリア画面" />
       <GameOverInventoryModal show={showEnding && endingView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} inventoryRef={gameOverInventoryRef} onReopen={() => setEndingView(null)} resultLabel="クリア時" returnLabel="クリア画面" />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} dungeonType={gameOverResult?.dungeonType || endingResult?.dungeonType || sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner"} />
-      <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} />
+      <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} setShowSound={setShowSound} isAnyModalActive={isAnyModalActive} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />
-      <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); localStorage.setItem('roguelike_desktop_vw', String(v)); }} mobile={mobile} />
+      <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); writePreference('roguelike_desktop_vw', v); }} mobile={mobile} setShowSound={setShowSound} />
+      <SoundModal isOpen={showSound} onClose={() => setShowSound(false)} gameState={gs} scene={{ gameOver: dead, gameClear: showEnding }} />
       <ExitHubConfirmModal show={exitHubConfirm} sel={exitHubSel} setSel={setExitHubSel}
         onConfirm={performExitToHub}
         onCancel={() => setExitHubConfirm(false)}
         mobile={mobile} />
-      <GamepadQuickMenu open={gamepadQuickOpen} sel={gamepadQuickSel} />
+      <GamepadQuickMenu
+        open={gamepadQuickOpen}
+        sel={gamepadQuickSel}
+        onSelect={runQuickAction}
+        onClose={() => setGamepadQuickOpen(false)}
+        dungeonLabel={dungeonScoreLabel(sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner")}
+        noCarry={!isCarryInRun(dungeonConfig)}
+      />
+      <GamepadControlsGuide open={gamepadControlsOpen} onClose={() => setGamepadControlsOpen(false)} />
       <GamepadLtHint show={gamepadLtHeld} />
     </div>
   );

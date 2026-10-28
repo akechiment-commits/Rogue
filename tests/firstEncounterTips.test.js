@@ -66,7 +66,7 @@ describe("first encounter tips", () => {
     expect(Object.keys(FIRST_ENCOUNTER_TIPS).length).toBeGreaterThanOrEqual(40);
     expect(Object.keys(FIRST_ENCOUNTER_TIPS)).toEqual(expect.arrayContaining([
       "unidentified_item", "trap", "shop", "monster_house", "low_hp", "hunger",
-      "poison", "confusion", "magic_seal", "deep_water", "boss", "item_mimic",
+      "poison", "confusion", "intoxication", "magic_seal", "deep_water", "boss", "item_mimic",
       "reflection", "fake_stair", "long_stay", "elemental_combat",
     ]));
     for (const tip of Object.values(FIRST_ENCOUNTER_TIPS)) {

@@ -2,8 +2,9 @@
    ダンジョン途中のゲーム状態をlocalStorageに保存・復元する。
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
-import { installPlayerHpReverseHook } from "./utils.js";
+import { installPlayerHpReverseHook, MW, MH, TI } from "./utils.js";
 import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
+import { unequipPlayerItem } from "./equipmentEffects.js";
 
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 const GAME_SAVE_VERSION = 2;
@@ -20,16 +21,29 @@ function withoutInternalGravityTriggers(dungeon) {
   };
 }
 
+/* 旧セーブの石弾・氷塊も専用タイルへ揃える。 */
+function normalizeProjectileTiles(value, seen = new Set()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return;
+  seen.add(value);
+  if (value.type === "arrow" && (value.stone || value.magicStone)) value.tile = TI.STONE_PROJECTILE;
+  if (value.type === "arrow" && value.iceChunk) value.tile = TI.ICE_CHUNK;
+  for (const child of Object.values(value)) normalizeProjectileTiles(child, seen);
+}
+
 /* ---------- serialize ---------- */
 
 function serializePlayer(p) {
   const inventory = p.inventory.filter(item => !isInternalGravityTrigger(item));
   const out = { ...p, inventory };
+  /* 旧状態で所持品から消えた装備が残っていても、その補正をセーブへ持ち越さない。 */
+  for (const item of [p.weapon, p.armor, p.arrow, ...(p.rings || [])]) {
+    if (item && !inventory.includes(item)) unequipPlayerItem(out, item);
+  }
   /* 装備品をインデックスに変換（inventory内のオブジェクト参照を保存不可能なため） */
-  out._weaponIdx = p.weapon ? inventory.indexOf(p.weapon) : -1;
-  out._armorIdx  = p.armor  ? inventory.indexOf(p.armor)  : -1;
-  out._arrowIdx  = p.arrow  ? inventory.indexOf(p.arrow)  : -1;
-  out._ringIdxs  = (p.rings || []).map(r => inventory.indexOf(r));
+  out._weaponIdx = out.weapon ? inventory.indexOf(out.weapon) : -1;
+  out._armorIdx  = out.armor  ? inventory.indexOf(out.armor)  : -1;
+  out._arrowIdx  = out.arrow  ? inventory.indexOf(out.arrow)  : -1;
+  out._ringIdxs  = (out.rings || []).map(r => inventory.indexOf(r));
   /* シリアライズ用に参照を消す（JSONで循環しないように） */
   delete out.weapon;
   delete out.armor;
@@ -71,11 +85,28 @@ function migrateV1ToV2(data) {
   };
 }
 
+function isSavedDungeon(dungeon) {
+  if (!dungeon || typeof dungeon !== 'object') return false;
+  for (const key of ['map', 'visible', 'explored']) {
+    if (!Array.isArray(dungeon[key]) || dungeon[key].length !== MH ||
+        !dungeon[key].every(row => Array.isArray(row) && row.length === MW)) return false;
+  }
+  return ['monsters', 'items', 'traps'].every(key =>
+    Array.isArray(dungeon[key]) && dungeon[key].every(entry => entry && typeof entry === 'object'));
+}
+
 function normalizeSaveData(data) {
   if (!data || typeof data !== 'object') return null;
   const migrated = data.version === 1 ? migrateV1ToV2(data) : data;
   if (migrated.version !== GAME_SAVE_VERSION) return null;
   if (!migrated.player || !Array.isArray(migrated.player.inventory)) return null;
+  if (!isSavedDungeon(migrated.dungeon) ||
+      !Object.values(migrated.floors || {}).every(isSavedDungeon)) return null;
+  const player = migrated.player;
+  if (!Number.isFinite(player.hp) || !Number.isFinite(player.maxHp) || player.maxHp <= 0 ||
+      !Number.isInteger(player.x) || !Number.isInteger(player.y) ||
+      player.x < 0 || player.x >= MW || player.y < 0 || player.y >= MH ||
+      !player.inventory.every(item => item && typeof item === 'object')) return null;
   const oldInventory = migrated.player.inventory;
   const remapIndex = (index) => {
     if (!Number.isInteger(index) || index < 0 || isInternalGravityTrigger(oldInventory[index])) return -1;
@@ -93,6 +124,7 @@ function normalizeSaveData(data) {
       withoutInternalGravityTriggers(dungeon),
     ]),
   );
+  normalizeProjectileTiles(migrated);
   return migrated;
 }
 
@@ -184,9 +216,9 @@ export function loadGameState() {
 }
 
 export function clearGameSave() {
-  localStorage.removeItem(GAME_SAVE_KEY);
+  try { localStorage.removeItem(GAME_SAVE_KEY); } catch { /* storage unavailable */ }
 }
 
 export function hasGameSave() {
-  return localStorage.getItem(GAME_SAVE_KEY) !== null;
+  try { return localStorage.getItem(GAME_SAVE_KEY) !== null; } catch { return false; }
 }

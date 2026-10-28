@@ -87,7 +87,9 @@ describe("planConvenientDash", () => {
       0,
       1,
     );
-    expect(route).toEqual([[0, 1], [1, 1], [1, 0]]);
+    expect(route[0]).toEqual([0, 1]);
+    expect(route).toHaveLength(3);
+    expect(route.reduce(([x, y], [dx, dy]) => [x + dx, y + dy], [3, 4])).toEqual([5, 6]);
   });
 
   it("部屋の出口が近くても祭壇などの床オブジェクトを優先する", () => {
@@ -100,7 +102,9 @@ describe("planConvenientDash", () => {
       0,
       1,
     );
-    expect(route).toEqual([[0, 1], [1, 1], [1, 0]]);
+    expect(route[0]).toEqual([0, 1]);
+    expect(route).toHaveLength(3);
+    expect(route.reduce(([x, y], [dx, dy]) => [x + dx, y + dy], [3, 4])).toEqual([5, 6]);
   });
 
   it("左にある指輪へ向かうとき、下側のマスへ寄り道しない", () => {

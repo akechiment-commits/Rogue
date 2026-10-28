@@ -64,6 +64,8 @@ describe("うみのあくま", () => {
   });
 
   it("封印中は攻撃が1回に制限される", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
     const base = MONS.find((monster) => monster.baseKind === "seaDevil");
     const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     monster.sealed = true;
@@ -80,5 +82,7 @@ describe("うみのあくま", () => {
 
     expect(monster.turnAttacks).toBe(1);
     expect(messages.filter((message) => message.includes("うみのあくまの攻撃！")).length).toBe(1);
+    expect(player.hp).toBeLessThan(player.maxHp);
+    } finally { random.mockRestore(); }
   });
 });

@@ -12,8 +12,9 @@ export function tagMessage(message, turn) {
 export function applyMessageUpdate(previous, update, turn) {
   if (typeof update === "function") {
     const next = update(previous);
-    const existingLength = Math.min(previous.length, MESSAGE_LOG_LIMIT);
-    return next.map((message, index) => (index < existingLength ? message : tagMessage(message, turn)));
+    // ログを切り詰めた後の追加行は古い配列番号に入ることがある。
+    // 既存オブジェクトのturnはtagMessageが保持し、文字列の追加行はすべて正規化する。
+    return next.map(message => tagMessage(message, turn));
   }
   const messages = Array.isArray(update) ? update : [update];
   return messages.map((message) => tagMessage(message, turn));

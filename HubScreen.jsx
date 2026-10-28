@@ -6,6 +6,9 @@ import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES
 import { clampCarryGold, validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { useHubGamepad } from "./useHubGamepad.js";
+import { useInterfaceSounds } from "./useInterfaceSounds.js";
+import { useHubMusic } from "./useHubMusic.js";
+import { triggerSE } from "./soundEvents.js";
 import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
 import {
   applyFavoriteFoodToSave,
@@ -87,7 +90,7 @@ function hubItemLabel(it) {
   const bc = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
   let s = it.effect === "slow_ring" ? "鈍亀の指輪" : it.name;
   if (it.type === "arrow") {
-    s += ` (${it.count}${(it.stone || it.magicStone) ? "個" : "本"})`;
+    s += ` (${it.count}${(it.stone || it.magicStone || it.iceChunk) ? "個" : "本"})`;
   } else if (it.type === "weapon") {
     if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
     s += ` (攻+${it.atk + (it.plus || 0)})`;
@@ -199,6 +202,8 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   };
 
   const sellFromWarehouse = (idx) => {
+    if (!wh[idx]) return;
+    triggerSE("shopSell");
     updateSave(prev => {
       const warehouse = prev.warehouse || [];
       const item      = warehouse[idx];
@@ -228,6 +233,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
   const bulkSell = () => {
     if (checkedIdxs.size === 0) return;
+    if ([...checkedIdxs].some(index => wh[index])) triggerSE("shopSell");
     updateSave(prev => {
       const warehouse = prev.warehouse || [];
       let earned = 0;
@@ -308,7 +314,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
 
       /* 売却確認ダイアログ中 */
       if (r.sellConfirmOpen) {
@@ -335,12 +341,12 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
           if (r.gold >= r.EXPAND_COST) r.expandWarehouse();
           r.setExpandFocused(false);
         } else if (k === "x" || k === "escape") {
-          r.onClose();
+          e.preventDefault(); r.onClose();
         }
         return;
       }
 
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (k === "shift") {
         e.preventDefault();
         r.switchTab(r.isCarry ? "warehouse" : "carry"); return;
@@ -410,8 +416,9 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       {/* 操作ガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, lineHeight:"1.8em", marginBottom:10,
         padding:"5px 8px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:4 }}>
-        <div>Shift:タブ切替　↑↓/テンキー8・2:選択　←→/テンキー4・6:操作切替　Enter/Z:実行　D:チェック</div>
-        <div>F:まとめて持参/倉庫へ　S:まとめて売る（確認あり）　X:閉じる</div>
+        <div>選択: ↑↓ / 十字 / 左スティック　操作切替: ←→</div>
+        <div>決定: Enter/Z/B/Start　戻る: A　タブ: Shift/LB/Select</div>
+        <div>D:チェック　F:まとめて持参　S:全売却　Y:ページ送り</div>
       </div>
 
       {/* 所持金 */}
@@ -666,7 +673,12 @@ function BankPanel({ saveData, updateSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        if (k === "escape") { e.preventDefault(); e.target.blur(); }
+        return;
+      }
       if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (k === "m") { e.preventDefault(); r.commitCarryGold(Number.MAX_SAFE_INTEGER); return; }
       if (k === "n") { e.preventDefault(); r.commitCarryGold(0); return; }
@@ -819,8 +831,8 @@ function EncyclopediaPanel({ saveData, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      const k = (e.key || "").toLowerCase();
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (k === "shift") {
         e.preventDefault();
         const idx = r.TABS.indexOf(r.tab);
@@ -967,6 +979,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
       }
       return;
     }
+    triggerSE("shopBuy");
     updateSave(prev => ({
       ...prev,
       hubGold:   prev.hubGold - price,
@@ -981,8 +994,8 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      const k = (e.key || "").toLowerCase();
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       if (isKeyUp(e)) {
         e.preventDefault(); r.setFocusIdx(p => Math.max(0, p - 1));
       } else if (isKeyDown(e)) {
@@ -1121,7 +1134,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       if (r.confirmOverwrite) {
         if (isKeyUp(e) || isKeyDown(e)) {
           e.preventDefault(); r.setConfirmSel(p => p === 0 ? 1 : 0);
@@ -1134,7 +1147,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
         }
         return;
       }
-      if (k === "x" || k === "escape") { r.onClose(); return; }
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
       const dtIdx = r.DUNGEON_TYPES.findIndex(dt => dt.id === r.dtype);
       if (isKeyUp(e)) {
         e.preventDefault();
@@ -1154,7 +1167,8 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
     <Panel title="ダンジョン入口" onClose={onClose}>
       {/* 操作ガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        ↑↓/テンキー8・2:ダンジョン選択　Z/Enter:出発　X:閉じる
+        <div>選択: ↑↓ / 十字 / 左スティック　出発: Z/Enter/B/Start</div>
+        <div>ページ: Y　閉じる: A</div>
       </div>
       {warehouseOver && (
         <div style={{ marginBottom:10, padding:"8px 10px", background:"#2a1a0d",
@@ -1348,7 +1362,7 @@ function RankingPanel({ saveData, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       if (k === "x" || k === "escape") {
         e.preventDefault();
         r.onClose();
@@ -1653,7 +1667,7 @@ function PlayerNameModal({ onConfirm }) {
           placeholder="例: しろがね"
           onChange={(e) => { setValue(e.target.value); setError(""); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); submit(); }
+            if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) { e.preventDefault(); submit(); }
           }}
           style={{
             width:"100%", boxSizing:"border-box", padding:"10px 12px",
@@ -1721,7 +1735,7 @@ function FavoriteFoodModal({ onConfirm }) {
           placeholder=""
           onChange={(e) => { setValue(e.target.value); setError(""); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); submit(); }
+            if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) { e.preventDefault(); submit(); }
           }}
           style={{
             width:"100%", boxSizing:"border-box", padding:"10px 12px",
@@ -1763,7 +1777,7 @@ function GraphicStyleModal({ onConfirm }) {
         e.preventDefault();
         selectedRef.current = (selectedRef.current + 1) % GRAPHIC_STYLE_OPTIONS.length;
         setSelected(selectedRef.current);
-      } else if (e.key.toLowerCase() === "z" || e.key === "Enter") {
+      } else if ((e.key || "").toLowerCase() === "z" || e.key === "Enter") {
         e.preventDefault();
         onConfirm(GRAPHIC_STYLE_OPTIONS[selectedRef.current].id);
       }
@@ -1876,7 +1890,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       const tag = (e.target && e.target.tagName) || "";
       const typing = tag === "INPUT" || tag === "TEXTAREA";
 
@@ -1884,7 +1898,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
         if (k === "escape") {
           e.preventDefault();
           r.cancelEdit();
-        } else if ((k === "enter" || k === "z") && !e.nativeEvent?.isComposing) {
+        } else if ((k === "enter" || k === "z") && !e.isComposing && e.keyCode !== 229) {
           /* 入力中の Z は文字として扱う。Enter のみ決定 */
           if (k === "enter") {
             e.preventDefault();
@@ -1978,7 +1992,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
               maxLength={PLAYER_NAME_MAX * 2}
               onChange={(e) => { setNameDraft(e.target.value); setEditError(""); }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) {
                   e.preventDefault();
                   applyEdit();
                 } else if (e.key === "Escape") {
@@ -2014,7 +2028,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
               maxLength={FAVORITE_FOOD_MAX * 2}
               onChange={(e) => { setFoodDraft(e.target.value); setEditError(""); }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.nativeEvent?.isComposing && e.nativeEvent?.keyCode !== 229) {
                   e.preventDefault();
                   applyEdit();
                 } else if (e.key === "Escape") {
@@ -2129,6 +2143,8 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
   useHubGamepad(true);
+  useHubMusic();
+  useInterfaceSounds(true);
 
   const needsName = !String(saveData.playerName || "").trim();
   const needsFood = !String(saveData.favoriteFood || "").trim();
@@ -2190,7 +2206,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       const r = kbRef.current;
       if (r.needsSetup) return; // 名前・食べ物入力中は地上キーを無効
       if (r.panel !== null) return; // 各パネルが自前でハンドリング
-      const k = e.key.toLowerCase();
+      const k = (e.key || "").toLowerCase();
       if (isKeyUp(e) || isKeyLeft(e)) {
         e.preventDefault(); r.setMainFocus(p => Math.max(0, p - 1));
       } else if (isKeyDown(e) || isKeyRight(e)) {

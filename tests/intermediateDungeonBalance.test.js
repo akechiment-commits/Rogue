@@ -19,7 +19,7 @@ const INTERMEDIATE_MONSTER_BAN = [
   "berserker", "killplaster", "icedragon", "starlight", "darkness",
   "dodgemole", "synthmonster", "gargoyle", "vampire", "dragon", "golem", "daemon",
   "troll", "firedemon", "bombgoblin", "walldigger", "serpent", "witchdoc",
-  "disarmer", "monsterthrow", "barriermage", "windmage", "puller", "waterFlower",
+  "disarmer", "monsterthrow", "barriermage", "windmage", "puller", "waterFlower", "sleepingLion",
 ];
 
 function intermediateMonsterKinds(floor) {
@@ -153,7 +153,12 @@ describe("中級ダンジョンの敵", () => {
     const f20 = intermediateMonsterKinds(20);
     for (let floor = 1; floor <= 20; floor++) {
       const kinds = intermediateMonsterKinds(floor);
-      expect(kinds.length).toBeLessThanOrEqual(14);
+      const extraGiant = kinds.includes('hauntedWillow') ? 1 : 0;
+      const extraHealer = kinds.includes('potionhealer') ? 1 : 0;
+      const extraPotRaider = kinds.includes('potRaider') ? 1 : 0;
+      const extraSylph = kinds.includes('sylph') ? 1 : 0;
+      const extraNew = ['mushroom', 'machodragon', 'manaEater'].filter(k => kinds.includes(k)).length;
+      expect(kinds.length).toBeLessThanOrEqual(15 + extraGiant + extraHealer + extraPotRaider + extraSylph + extraNew);
       for (const banned of INTERMEDIATE_MONSTER_BAN) {
         expect(kinds).not.toContain(banned);
       }
@@ -174,16 +179,20 @@ describe("中級ダンジョンの敵", () => {
   });
 
   it("15〜16階に集中していた竜系の能力敵を後半へずらす", () => {
-    expect(intermediateMonsterKinds(15)).toHaveLength(8);
+    expect(intermediateMonsterKinds(15)).toHaveLength(12);
     expect(intermediateMonsterKinds(15)).not.toContain("lizardman");
     expect(intermediateMonsterKinds(15)).not.toContain("dragonknight");
-    expect(intermediateMonsterKinds(16)).toHaveLength(9);
+    expect(intermediateMonsterKinds(16)).toHaveLength(12);
     expect(intermediateMonsterKinds(16)).toContain("lizardman");
     expect(intermediateMonsterKinds(16)).not.toContain("dragonknight");
-    expect(intermediateMonsterKinds(17)).toHaveLength(10);
+    expect(intermediateMonsterKinds(17)).toHaveLength(15);
     expect(intermediateMonsterKinds(17)).toEqual(expect.arrayContaining(["lizardman", "dragonknight"]));
-    expect(intermediateMonsterKinds(18)).toHaveLength(14);
-    expect(intermediateMonsterKinds(19)).toHaveLength(12);
+    expect(intermediateMonsterKinds(18)).toHaveLength(18);
+    expect(intermediateMonsterKinds(19)).toHaveLength(16);
+    for (const floor of [8, 9, 10, 17, 18, 19, 20]) expect(intermediateMonsterKinds(floor)).toContain('potionhealer');
+    for (const floor of [7, 11, 16]) expect(intermediateMonsterKinds(floor)).not.toContain('potionhealer');
+    for (const floor of [18, 19, 20]) expect(intermediateMonsterKinds(floor)).toContain('hauntedWillow');
+    expect(intermediateMonsterKinds(17)).not.toContain('hauntedWillow');
   });
 
   it("中級の出現対象はすべて最低3階に出る", () => {

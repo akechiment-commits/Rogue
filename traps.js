@@ -1,13 +1,23 @@
+import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
-import { statusTurns } from "./statusDuration.js";
+import { statusTurns, resolveParalysisHit } from "./statusDuration.js";
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
+import { claimTrapActivation } from "./trapActivationTurn.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   if ((dg?.timeStopTurns || 0) > 0) return null;
+  /* 手動の足元操作や敵に投げ込まれた場合も、浮遊中は罠を回避する。 */
+  if (p && isPlayerFloating(p, dg)) {
+    if (trap.revealed) {
+      trackTrap(trap);
+      ml.push(`浮遊しているので${trap.name}を回避した！`);
+    }
+    return "avoided_float";
+  }
   /* 偽階段：ランダムな通常罠に化けてから再発動 */
   if (trap?.effect === "fake_stair") {
     const _was = trap.name || "偽の階段";
@@ -15,6 +25,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapPlayer(trap, p, dg, ml, nameFn, luFn, ctx);
   }
+  if (!claimTrapActivation(dg, trap, { reserve: trap.effect === "explode" })) return null;
   trackTrap(trap);
   trap.revealed = true;
   let r = null;
@@ -36,6 +47,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     }
     case "pitfall":
       ml.push(`${trap.name}が発動！穴に落ちた！`);
+      applyFallImpactDamage(p, ml, "落とし穴に落ちた衝撃で", "穴の底に叩きつけられた！");
       r = "pitfall";
       break;
     case "rust": {
@@ -68,7 +80,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     }
     case "spin": {
       const _spinFromX = p.x, _spinFromY = p.y;
-      const _spinDst = randomTeleportDest(dg, p.x, p.y, (x, y) => !dg.monsters.some(m => m.x === x && m.y === y));
+      const _spinDst = randomTeleportDest(dg, p.x, p.y, (x, y) => !dg.monsters.some(m => monsterOccupiesCell(m, x, y)));
       if (_spinDst) {
         p.x = _spinDst.x; p.y = _spinDst.y;
         pushPlayerTeleportAnim(_spinFromX, _spinFromY, p.x, p.y);
@@ -199,6 +211,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "shadow_stitch": {
+      if (blockPlayerStatus(p, ml)) break;
       const _it = statusTurns("immobile", { kind: "player" });
       p.immobileTurns = (p.immobileTurns || 0) + _it;
       ml.push(`${trap.name}が作動！影に縫い付けられた！(${_it}ターン移動不能)`);
@@ -232,6 +245,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "oil_trap": {
+      if (blockPlayerStatus(p, ml)) break;
       const _ot = statusTurns("oily", { kind: "player" });
       p.oilyTurns = (p.oilyTurns || 0) + _ot;
       ml.push(`${trap.name}が発動！油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);
@@ -311,13 +325,15 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
         if (_bbHitWall) {
           p.deathCause = `${trap.name}による壁への衝突により`;
           p.hp -= 10;
+          resolveParalysisHit(p, ml);
           ml.push("壁に激突！10ダメージ！");
         } else if (_bbHitMon) {
           p.hp -= 10;
+          resolveParalysisHit(p, ml);
           _bbHitMon.hp -= 10;
           ml.push(`${_bbHitMon.name}に激突！お互いに10ダメージ！`);
           if (_bbHitMon.hp <= 0) {
-            ml.push(`${_bbHitMon.name}は倒れた！`);
+            ml.push(`${_bbHitMon.name}は${trap.name}の衝突で倒れた！（経験値なし）`);
             trackMonster(_bbHitMon);
             monsterDrop(_bbHitMon, dg, ml, p);
             removeMonster(dg, _bbHitMon);

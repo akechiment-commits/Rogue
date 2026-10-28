@@ -72,6 +72,19 @@ export function worldTicksAfterAdvance(prevTime, nextTime) {
   return Math.floor((nextTime || 0) / ACTION_TIME_BASE) - Math.floor((prevTime || 0) / ACTION_TIME_BASE);
 }
 
+/** 即時の地形ダメージが同じフロア時計拍の継続ダメージと重ならないよう、対象拍を返す。 */
+export function worldTickDamageTurnForCurrentAction(player) {
+  if (!player) return null;
+  const actionTime = Number(player.actionTime) || 0;
+  const clockTick = Math.floor(actionTime / ACTION_TIME_BASE);
+  if (player._largeMonsterDamageTurn != null) {
+    return clockTick >= player._largeMonsterDamageTurn ? player._largeMonsterDamageTurn : null;
+  }
+  const speed = playerActionSpeed(player, { hasteGrantFreeze: !!player._hasteGrantFreeze });
+  const nextClockTick = Math.floor((actionTime + actionCost(speed)) / ACTION_TIME_BASE);
+  return nextClockTick > clockTick ? (Number(player.turns) || 0) + 1 : null;
+}
+
 export function beginPlayerTurnClock(player, { idleBeat = false } = {}) {
   const freezeAtStart = !!player?._hasteGrantFreeze;
   const speed = playerActionSpeed(player, { idleBeat, hasteGrantFreeze: freezeAtStart });

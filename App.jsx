@@ -81,7 +81,7 @@ export default function App() {
         itemsValue: result.itemsValue ?? 0,
       }).catch(() => {});
     }
-  }, [dungeonConfig?.dungeonType, saveData?.playerId, saveData?.playerName]);
+  }, [dungeonConfig, saveData?.playerId, saveData?.playerName]);
 
   /* 死亡直後に、拠点へ戻らなくても今回の記録を永続化する。 */
   const recordGameOver = useCallback((result) => {

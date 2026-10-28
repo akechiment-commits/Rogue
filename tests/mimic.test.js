@@ -170,6 +170,86 @@ describe("ものまね師", () => {
     }
   });
 
+  it("ラクガキ魔の真似：呪われた魔封じの部屋でも魔方陣を描く", () => {
+    const { map, rooms } = makeRoomMap();
+    const mimic = makeMimic(5, 5);
+    const painter = {
+      id: "p1", name: "ラクガキ魔", subtype: "pentaclePainter", baseKind: "rakugakima",
+      x: 6, y: 5, hp: 20, monLevel: 1,
+    };
+    const pl = makePlayer({ x: 9, y: 9 });
+    const dg = makeEmptyDg({
+      map, rooms,
+      monsters: [mimic, painter],
+      traps: [], items: [], pentacles: [{ kind: "magic_seal", x: 8, y: 8, cursed: true }],
+      visible: Array.from({ length: 15 }, () => Array(20).fill(true)),
+    });
+    const ml = [];
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      expect(tryMimicAdjacentSkill(mimic, dg, pl, ml, {}, {
+        canSee: true, sameRoom: true, plOnBlessedSanc: false,
+      })).toBe(true);
+      expect(dg.pentacles.some((pc) => pc.painterId === mimic.id)).toBe(true);
+      expect(ml.some((message) => String(message).includes("魔封じの魔方陣に封じられた"))).toBe(false);
+    } finally {
+      rnd.mockRestore();
+    }
+  });
+
+  it("防御半減魔法の真似：呪われた魔封じの部屋でも効果を与える", () => {
+    const { map, rooms } = makeRoomMap();
+    const mimic = makeMimic(5, 5);
+    const caster = {
+      id: "kp1", name: "ルカチュウ", subtype: "defhalf", baseKind: "killplaster",
+      x: 6, y: 5, hp: 20, monLevel: 1,
+    };
+    const pl = makePlayer({ x: 9, y: 9 });
+    const dg = makeEmptyDg({
+      map, rooms, monsters: [mimic, caster],
+      pentacles: [{ kind: "magic_seal", x: 8, y: 8, cursed: true }],
+      visible: Array.from({ length: 15 }, () => Array(20).fill(true)),
+    });
+    const ml = [];
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      expect(tryMimicAdjacentSkill(mimic, dg, pl, ml, {}, {
+        canSee: true, sameRoom: true, plOnBlessedSanc: false,
+      })).toBe(true);
+      expect((pl.defSoftenedTurns || 0) > 0).toBe(true);
+      expect(ml.some((message) => String(message).includes("魔封じの魔方陣に封じられた"))).toBe(false);
+    } finally {
+      rnd.mockRestore();
+    }
+  });
+
+  it("杖使いの真似：呪われた魔封じの部屋でも杖を振る", () => {
+    const { map, rooms } = makeRoomMap();
+    const mimic = makeMimic(5, 5);
+    const caster = {
+      id: "wand1", name: "ウィザード", subtype: "wanduser", baseKind: "wizard",
+      wandEffect: "lightning", x: 6, y: 5, hp: 20, monLevel: 1,
+    };
+    const pl = makePlayer({ x: 5, y: 8 });
+    const dg = makeEmptyDg({
+      map, rooms, monsters: [mimic, caster],
+      pentacles: [{ kind: "magic_seal", x: 8, y: 8, cursed: true }],
+      visible: Array.from({ length: 15 }, () => Array(20).fill(true)),
+    });
+    const ml = [];
+    const wandFn = vi.fn();
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      expect(tryMimicAdjacentSkill(mimic, dg, pl, ml, { monsterWandFn: wandFn }, {
+        canSee: true, sameRoom: true, plOnBlessedSanc: false,
+      })).toBe(true);
+      expect(wandFn).toHaveBeenCalledTimes(1);
+      expect(ml.some((message) => String(message).includes("魔封じの魔方陣に封じられた"))).toBe(false);
+    } finally {
+      rnd.mockRestore();
+    }
+  });
+
   it("ラクガキ魔の真似：足元に物があれば失敗メッセージで行動消費（通常攻撃しない）", () => {
     const { map, rooms } = makeRoomMap();
     map[5][5] = T.SD; /* 階段上 */

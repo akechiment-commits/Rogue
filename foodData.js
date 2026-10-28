@@ -637,6 +637,7 @@ export const FOOD_DESCS = {
 /* 食料へ付与された薬効果を、ゲーム内説明で表示する日本語名。 */
 export const FOOD_POTION_EFFECT_LABELS = Object.freeze({
   heal: "回復", superheal: "回復", poison: "猛毒", fire: "調理",
+  sake: "酔い", sake_blessed: "酔い",
   sleep: "睡眠", power: "強化", confuse: "混乱", mana: "魔力",
   slow: "鈍足", darkness: "暗闇", bewitch: "幻惑", paralyze: "金縛り",
   levelup: "経験", seal: "封魔", luck: "幸運", panacea: "万能", milk: "ミルク",

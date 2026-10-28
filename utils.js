@@ -1,5 +1,7 @@
 import { clearStatusEffectsOnHpZero } from "./statusDuration.js";
 
+import { monsterOccupiesCell } from "./monsterGeometry.js";
+
 export const MW = 60,
   MH = 30;
 
@@ -52,6 +54,8 @@ export const TI = {
   /* 202〜206 are reserved for additional monster sprites. */
   ALTAR: 207,
   DIMENSIONAL_VAULT: 208,
+  STONE_PROJECTILE: 232,
+  ICE_CHUNK: 233,
   ITEM_POTION: 4001,
   ITEM_BOTTLE: 4002,
   ITEM_PEN: 4003,
@@ -116,6 +120,19 @@ export function playerDopingMultiplier(player) {
   return 1;
 }
 
+/** プレイヤーの実効防御力。敵の通常攻撃・防御参照型範囲攻撃で共有する。 */
+export function calcPlayerDefense(player) {
+  const misoDef = (player?.misoDefTurns || 0) > 0 ? 8 : 0;
+  const base = (player?.def || 0) + (player?.armor?.def || 0) + (player?.armor?.plus || 0)
+    + (player?.rings || []).reduce((sum, ring) => ring.effect === "defense_ring" ? sum + (ring.plus || 0) : sum, 0)
+    + (hasAbility(player?.weapon, "def_bonus") ? 5 : 0) + misoDef;
+  const slowTurtleMult = (player?.rings || []).some(ring => ring.effect === "slow_ring") ? 2 : 1;
+  return Math.floor(base * slowTurtleMult
+    * ((player?.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
+    * ((player?.defDebuffTurns || 0) > 0 ? 0.5 : 1)
+    * playerDopingMultiplier(player));
+}
+
 /** 敵に付与されたドーピングの実効攻防値を更新する。元値は効果終了時に復元する。 */
 export function applyMonsterDopingStats(monster, multiplier) {
   if (!monster) return;
@@ -135,10 +152,52 @@ export function restoreMonsterDopingStats(monster) {
 }
 
 /** 風穴 5x5 内なら風向き、なければ null（dg.vents 依存・循環 import 回避のため utils に置く） */
+export const WIND_AURA_DIRS = Object.freeze([
+  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 1], [1, -1], [-1, 1], [-1, -1],
+]);
+
+/** シルフ系（windAura）の風域半径（チェビシェフ距離）。Lv1=1(3x3), Lv2=2(5x5), Lv3=3(7x7)。封印・死亡・擬態中は0 */
+export function monsterWindAuraRadius(mon) {
+  if (!mon) return 0;
+  if ((mon.hp ?? 1) <= 0) return 0;
+  if (mon.sealed || (mon.sealedTurns || 0) > 0) return 0;
+  if (mon.subtype === "itemMimic" && mon.disguisedAsItem !== false) return 0;
+  if (mon.subtype !== "windAura" && mon.baseKind !== "sylph") return 0;
+  const lv = Math.max(1, Number(mon.monLevel) || 1);
+  return lv >= 3 ? 3 : lv === 2 ? 2 : 1;
+}
+
+/** シルフ系にランダムな8方向の風向きを保証して返す */
+export function ensureMonsterWindDir(mon, randomFn = Math.random) {
+  if (!mon) return { dx: 0, dy: 1 };
+  const dx = Math.sign(Number(mon.windDx) || 0);
+  const dy = Math.sign(Number(mon.windDy) || 0);
+  if (dx !== 0 || dy !== 0) {
+    mon.windDx = dx;
+    mon.windDy = dy;
+    return { dx, dy };
+  }
+  const idx = Math.max(0, Math.min(WIND_AURA_DIRS.length - 1, Math.floor(randomFn() * WIND_AURA_DIRS.length)));
+  const [ndx, ndy] = WIND_AURA_DIRS[idx];
+  mon.windDx = ndx;
+  mon.windDy = ndy;
+  return { dx: ndx, dy: ndy };
+}
+
+/** 風穴 5x5 内またはシルフ系の風域内なら風向き、なければ null（dg.vents / dg.monsters 依存・循環 import 回避のため utils に置く） */
 export function getWindAt(dg, x, y) {
   for (const v of dg?.vents || []) {
     if (Math.abs(x - v.x) <= 2 && Math.abs(y - v.y) <= 2) {
       return { dx: v.dx, dy: v.dy, vent: v };
+    }
+  }
+  for (const m of dg?.monsters || []) {
+    const r = monsterWindAuraRadius(m);
+    if (r <= 0) continue;
+    if (Math.abs(x - m.x) <= r && Math.abs(y - m.y) <= r) {
+      const dir = ensureMonsterWindDir(m);
+      return { dx: dir.dx, dy: dir.dy, monster: m, radius: r };
     }
   }
   return null;
@@ -277,7 +336,10 @@ export function setItemMimicDisguiseCatalog(catalog) {
 }
 
 function pickItemMimicDisguise(preferredTile = null) {
-  const tile = Number.isFinite(Number(preferredTile)) ? Number(preferredTile) : null;
+  const parsedTile = preferredTile == null || preferredTile === "" ? null : Number(preferredTile);
+  const tile = Number.isFinite(parsedTile) && ITEM_MIMIC_DISGUISE_TILES.includes(parsedTile)
+    ? parsedTile
+    : null;
   const catalog = _itemMimicDisguiseCatalog.filter((item) =>
     ITEM_MIMIC_DISGUISE_TILES.includes(item.tile) && (tile === null || item.tile === tile));
   if (catalog.length > 0) {
@@ -308,17 +370,19 @@ export function ensureItemMimicFloorItems(dg) {
     mimic.disguisedAsItem = true;
     const itemId = mimic.disguiseItemId || `item-mimic-${mimic.id}`;
     let item = dg.items.find(i => i.itemMimicId === mimic.id || i.id === itemId);
-    const preferredTile = mimic.disguiseTile ?? item?.disguiseTile ?? null;
+    const storedTiles = [item?.disguiseTile, item?.tile, mimic.disguiseTile];
+    const preferredTile = storedTiles.find((candidate) =>
+      candidate != null && ITEM_MIMIC_DISGUISE_TILES.includes(Number(candidate)));
     const disguise = pickItemMimicDisguise(preferredTile);
     if (!item) {
-      const disguiseTile = mimic.disguiseTile || disguise.tile;
+      const disguiseTile = preferredTile == null ? disguise.tile : Number(preferredTile);
       item = {
         id: itemId,
         name: "アイテムモドキ",
         type: ITEM_MIMIC_ITEM_TYPE,
         tile: disguiseTile,
         disguiseTile,
-        disguiseName: mimic.disguiseName || disguise.name,
+        disguiseName: preferredTile == null ? disguise.name : mimic.disguiseName || disguise.name,
         x: mimic.x,
         y: mimic.y,
         discovered: true,
@@ -326,8 +390,14 @@ export function ensureItemMimicFloorItems(dg) {
       };
       dg.items.unshift(item);
     } else {
-      if (!item.disguiseTile) item.disguiseTile = mimic.disguiseTile || disguise.tile;
-      if (!item.disguiseName) item.disguiseName = mimic.disguiseName || disguise.name;
+      const storedItemTile = Number(item.disguiseTile ?? item.tile);
+      if (!ITEM_MIMIC_DISGUISE_TILES.includes(storedItemTile)) {
+        item.disguiseTile = disguise.tile;
+        item.disguiseName = disguise.name;
+      } else {
+        if (!item.disguiseTile) item.disguiseTile = storedItemTile;
+        if (!item.disguiseName) item.disguiseName = mimic.disguiseName || disguise.name;
+      }
       item.itemMimicId = mimic.id;
       item.type = ITEM_MIMIC_ITEM_TYPE;
       item.name = "アイテムモドキ";
@@ -356,9 +426,9 @@ export function clearDimensionalVaultItemCounter(item) {
   delete item.dimensionalVaultId;
   return item;
 }
-export const monsterAt = (dg, x, y) => {
+export const monsterAt = (dg, x, y, exclude = null) => {
   ensureItemMimicFloorItems(dg);
-  return dg.monsters.find(m => !m.disguisedAsItem && m.x === x && m.y === y);
+  return dg.monsters.find(m => m !== exclude && !m.disguisedAsItem && monsterOccupiesCell(m, x, y));
 };
 export const itemAt = (dg, x, y) => {
   ensureItemMimicFloorItems(dg);
@@ -565,6 +635,59 @@ export function isEvasionDisabledByStatus(target) {
     (target?.frozenTurns || 0) > 0;
 }
 
+/**
+ * 敵の回避判定。必中フラグが真、または対象が回避不能な状態異常（眠り・金縛り・凍結・移動封じ・鈍足）のときは回避不可。
+ * ミレウ（boss_mireu）は必中でない攻撃を50%で回避する。
+ * それ以外の通常モンスターは baseMissRate（近接5%、飛び道具10%など）で判定。
+ */
+export function checkMonsterEvasion(target, { sureHit = false, baseMissRate = 0.05, random = Math.random } = {}) {
+  if (!target) return false;
+  if (sureHit) return false;
+  if (isEvasionDisabledByStatus(target)) return false;
+  const missChance = target.baseKind === "boss_mireu" ? 0.50 : baseMissRate;
+  return random() < missChance;
+}
+
+/**
+ * モンスターの物理攻撃に対するプレイヤーの回避判定。
+ * 見切りの盾（25%）、オリーブオイル（15%）、基礎ミス率（10%）を判定する。
+ * 対象が回避不能な状態異常（睡眠・金縛り・凍結・移動封じ・鈍足）のときは回避不可。
+ * @param {Object} attacker 攻撃モンスター
+ * @param {Object} player プレイヤー
+ * @param {string[]} messages メッセージ配列
+ * @param {Object} [opts] オプション（attackName, onMiss, random）
+ * @returns {boolean} 回避・ミスした場合は true、命中した場合は false
+ */
+export function checkPlayerPhysicalAttackEvasion(attacker, player, messages, { attackName = "攻撃", onMiss = null, random = Math.random } = {}) {
+  if (!player) return false;
+  if (isEvasionDisabledByStatus(player)) return false;
+
+  const attackerName = attacker?.name || "敵";
+
+  // 1. 見切りの盾 (dodge ability): 25% 完全回避
+  if (hasAbility(player.armor, "dodge") && random() < 0.25) {
+    messages?.push(`${attackerName}の${attackName}をひらりとかわした！`);
+    onMiss?.(attacker);
+    return true;
+  }
+
+  // 2. オリーブオイル (oliveEvasionTurns): 15% 完全回避
+  if ((player.oliveEvasionTurns || 0) > 0 && random() < 0.15) {
+    messages?.push(`オリーブオイルの力で${attackerName}の${attackName}をするりとかわした！`);
+    onMiss?.(attacker);
+    return true;
+  }
+
+  // 3. 通常ミス率: 10% (random >= 0.90)
+  if (random() >= 0.90) {
+    messages?.push(`${attackerName}の${attackName}は外れた！`);
+    onMiss?.(attacker);
+    return true;
+  }
+
+  return false;
+}
+
 export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }
@@ -747,7 +870,7 @@ export function clampDmgFixed(m, damage, isPhysical = false) {
 
 /**
  * 最終被ダメ軽減（防具 ability: dmg_reduce）。
- * HP 代入フックでも使う。メッセージ表示前に使うと表示と実減が一致する。
+ * HP代入フックがHP確定前に1回だけ適用する。
  */
 export function reduceFinalPlayerDamage(p, dmg) {
   if (!p || !Number.isFinite(dmg) || dmg <= 0) return dmg;
@@ -801,15 +924,49 @@ export function installPlayerHpMessageHook(messages, p) {
   if (!Array.isArray(messages) || !p || messages._playerHpMessageHook) return messages;
   const rawPush = messages.push.bind(messages);
   Object.defineProperty(messages, "_playerHpMessageHook", { value: true, enumerable: false });
-  messages.push = (...items) => {
-    const effect = p._lastHpEffectForMessage;
-    delete p._lastHpEffectForMessage;
-    const nextItems = effect
-      ? items.map((message) => rewritePlayerHpMessage(message, p, effect))
-      : items;
-    return rawPush(...nextItems);
-  };
+  Object.defineProperty(messages, "push", {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: (...items) => {
+      const effect = p._lastHpEffectForMessage;
+      delete p._lastHpEffectForMessage;
+      const guts = p._lastHpGutsTriggered;
+      delete p._lastHpGutsTriggered;
+      const nextItems = effect
+        ? items.map((message) => rewritePlayerHpMessage(message, p, effect))
+        : [...items];
+      if (guts) {
+        nextItems.push("しかし根性でHP1で踏みとどまった！");
+      }
+      return rawPush(...nextItems);
+    },
+  });
   return messages;
+}
+
+export function flushPlayerGutsMessage(messages, p) {
+  if (!p?._lastHpGutsTriggered || !Array.isArray(messages)) return;
+  delete p._lastHpGutsTriggered;
+  messages.push("しかし根性でHP1で踏みとどまった！");
+}
+
+const playerCapacityHpSetters = new WeakMap();
+const playerFixedHpEffects = new WeakSet();
+
+/* 即死・HP1固定・体力交換は通常ダメージではない。逆転は従来どおり適用する。 */
+export function setPlayerHpForFixedEffect(p, hp) {
+  const nested = playerFixedHpEffects.has(p);
+  playerFixedHpEffects.add(p);
+  try { p.hp = hp; }
+  finally { if (!nested) playerFixedHpEffects.delete(p); }
+}
+
+/* 最大HP補正に伴う現HPの調整は、回復・被ダメージの効果として扱わない。 */
+export function setPlayerHpForCapacityChange(p, hp) {
+  const setter = playerCapacityHpSetters.get(p);
+  if (setter) setter(hp);
+  else p.hp = hp;
 }
 
 /**
@@ -858,27 +1015,26 @@ export function installPlayerHpReverseHook(p) {
           return;
         }
       }
-      /* 最大HP満タン時の根性：敵の攻撃以外で致死量を受けてもHP1で踏みとどまる。
-         絶対値代入（p.hp=0 / p.hp=1）は既存の即死・1残し処理を優先する。 */
-      if (n < raw && raw >= (Number(this.maxHp) || raw) && n <= 0 && !isEnemyDamageContext(this)) {
+      /* HPを確定する前に被ダメージを軽減する。残HPでは通常ダメージと固定効果を判別しない。 */
+      const fixedEffect = playerFixedHpEffects.has(this);
+      const next = n < raw && !fixedEffect
+        ? raw - reduceFinalPlayerDamage(this, raw - n)
+        : n;
+      /* 最大HP満タン時の根性は軽減後に判定する。即死・HP固定には適用しない。 */
+      if (!fixedEffect && next < raw && raw >= (Number(this.maxHp) || raw) && next <= 0 && !isEnemyDamageContext(this)) {
         raw = 1;
+        this._lastHpGutsTriggered = true;
         return;
       }
-      /* 被ダメ軽減：HP が減る代入に適用。
-         p.hp=0 / p.hp=1 のような絶対指定は「即死・1残し」意図なので軽減しない */
-      if (n < raw && hasAbility(this.armor, "dmg_reduce")) {
-        const loss = raw - n;
-        if (loss > 0 && !(n <= 1 && loss > 1)) {
-          const reducedLoss = Math.max(1, Math.floor(loss * 0.9));
-          raw = Math.max(0, raw - reducedLoss);
-          return;
-        }
-      }
-      raw = n;
+      raw = next;
       /* HP0になった瞬間に状態異常を解除する。祭壇の罰など、ダメージ後に
          後続処理が走る場合も、自動ターンの残り物が状態を延長しないようにする。 */
       if (raw <= 0) clearStatusEffectsOnHpZero(this);
     },
+  });
+  playerCapacityHpSetters.set(p, hp => {
+    raw = hp;
+    if (raw <= 0) clearStatusEffectsOnHpZero(p);
   });
   p._hpReverseHook = true;
   return p;

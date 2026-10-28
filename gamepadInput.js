@@ -33,6 +33,9 @@ export const DEFAULT_DEADZONE = 0.35;
 export const A_TAP_MS = 220;
 export const MOVE_REPEAT_MS = 110;
 export const MOVE_REPEAT_DELAY_MS = 280;
+/* ゲームプレイ中の長押し移動はメニュー移動より短い間隔で続ける。 */
+export const GAMEPLAY_MOVE_REPEAT_MS = 90;
+export const GAMEPLAY_MOVE_REPEAT_DELAY_MS = 180;
 export const WAIT_STOP_RADIUS = 3;
 
 /** @returns {{ dx: number, dy: number } | null} */
@@ -113,13 +116,15 @@ export function hasNearbyMonster(player, dungeon, radius = WAIT_STOP_RADIUS) {
 export const QUICK_MENU_ITEMS = [
   { id: "item", label: "アイテム" },
   { id: "map", label: "マップ" },
-  { id: "history", label: "履歴" },
+  { id: "arrow", label: "矢を射る" },
   { id: "look", label: "見渡す" },
   { id: "log", label: "ログ" },
   { id: "underfoot", label: "足元" },
   { id: "magic", label: "魔法" },
   { id: "settings", label: "設定" },
   { id: "scores", label: "冒険記録" },
+  { id: "tiles", label: "タイル" },
   { id: "traps", label: "罠探る" },
+  { id: "controls", label: "操作ガイド" },
   { id: "interrupt", label: "中断" },
 ];

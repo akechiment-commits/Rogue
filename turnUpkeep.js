@@ -1,10 +1,13 @@
+import { isStatusImmune } from "./statusImmunity.js";
 /**
  * プレイヤーのターン開始後に必ず進む基礎状態（ターン数・空腹・自然回復）を更新する。
  * 依存する装備判定は注入し、ゲーム UI や敵行動には依存しない。
  */
+import { monsterAreaHitCount, monsterOccupiesCell } from "./monsterGeometry.js";
 import { statusTurns } from "./statusDuration.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { maintainPlayerHaste } from "./actionClock.js";
+import { DRUNK_VOMIT_HUNGER_LOSS, shouldVomit } from "./intoxication.js";
 
 export function advancePlayerUpkeep(player, messages, {
   hasAbility,
@@ -13,6 +16,8 @@ export function advancePlayerUpkeep(player, messages, {
   onHungerDamageStarted = () => {},
 }) {
   player.turns++;
+  /* 旧セーブに半端な満腹度が残っていても、以後は整数で扱う。 */
+  player.hunger = Math.floor(Math.max(0, Number(player.hunger) || 0));
   /* 回復の指輪は装備個数分だけ +1（2個なら +2）。再生防具とも加算で重複 */
   const regenRingCount = (player.rings || []).filter((r) => r?.effect === "regen_ring").length;
   const hungerRate = calcHungerDrainRate(player);
@@ -24,6 +29,16 @@ export function advancePlayerUpkeep(player, messages, {
 
   if (hasAbility(player.weapon, "gluttony") && player.turns % 5 === 0) {
     player.hunger = Math.max(0, player.hunger - 1);
+  }
+
+  if (shouldVomit(player)) {
+    const lost = Math.min(Math.max(0, player.hunger || 0), DRUNK_VOMIT_HUNGER_LOSS);
+    player.hunger = Math.max(0, (player.hunger || 0) - DRUNK_VOMIT_HUNGER_LOSS);
+    if (lost > 0) {
+      messages.push(`酩酊して嘔吐した！満腹度が${lost}減った！`);
+    } else {
+      messages.push("酩酊して嘔吐したが、空腹で何も出なかった。");
+    }
   }
 
   if (player.hunger === 0) {
@@ -48,12 +63,14 @@ export function advancePlayerUpkeep(player, messages, {
 /** 闘気防具の隣接ダメージを適用し、倒した敵は既存の撃破処理へ渡す。 */
 export function applyArmorAura(player, dungeon, messages, { hasAbility, killMonster }) {
   if (!hasAbility(player.armor, "aura") || dungeon.monsters.length === 0) return;
-  const adjacentMonsters = dungeon.monsters.filter((monster) =>
-    Math.abs(monster.x - player.x) <= 1 && Math.abs(monster.y - player.y) <= 1
-  );
-  for (const monster of adjacentMonsters) {
-    monster.hp -= 2;
-    messages.push(`闘気が${monster.name}に2ダメージ！`);
+  for (const monster of [...dungeon.monsters]) {
+    if (monster.hp <= 0 || monster.isPlayerClone || monster.disguisedAsItem || monster.state === "friendly" ||
+        (monster.type === "shopkeeper" && monster.state !== "hostile")) continue;
+    const adjacentCells = monsterAreaHitCount(monster, player.x - 1, player.y - 1, 3);
+    if (!adjacentCells) continue;
+    const damage = adjacentCells * 2;
+    monster.hp -= damage;
+    messages.push(`闘気が${monster.name}に${damage}ダメージ！`);
     if (monster.hp <= 0 && dungeon.monsters.includes(monster)) {
       killMonster(monster);
     }
@@ -68,7 +85,7 @@ export function advancePentacleWear(player, dungeon, messages) {
     if (pentacle.kind === "fixed_portal" || pentacle.fixed) continue;
     const playerOn = pentacle.x === player.x && pentacle.y === player.y;
     const monsterOn = !playerOn && dungeon.monsters.some((monster) =>
-      monster.hp > 0 && monster.x === pentacle.x && monster.y === pentacle.y
+      monster.hp > 0 && monsterOccupiesCell(monster, pentacle.x, pentacle.y)
     );
     if (!playerOn && !monsterOn) continue;
 
@@ -92,6 +109,7 @@ export function hasForcedTurn(player) {
     (player.sleepInterruptedTurns || 0) > 0 ||
     (player.paralyzeTurns || 0) > 0 ||
     (player.frozenTurns || 0) > 0 ||
+    (player.petrifiedTurns || 0) > 0 ||
     !!player.slowSkip ||
     (player.potConfinedTurns || 0) > 0;
 }
@@ -125,12 +143,24 @@ export function advanceForcedTurn(player, messages) {
   }
   if ((player.paralyzeTurns || 0) > 0) {
     player.paralyzeTurns--;
-    messages.push(player.paralyzeTurns > 0 ? `金縛りにあっている...あと${player.paralyzeTurns}ターン` : "金縛りが解けた！");
+    if (player.paralyzeTurns > 0) {
+      messages.push(`金縛りにあっている...あと${player.paralyzeTurns}ターン`);
+    } else {
+      player.paralyzed = false;
+      player.paralyzeHits = 0;
+      player._paralyzeHp = null;
+      messages.push("金縛りが解けた！");
+    }
     return { advanced: true, exitPotAfterTurn: false };
   }
   if ((player.frozenTurns || 0) > 0) {
     player.frozenTurns--;
     messages.push(player.frozenTurns > 0 ? `凍りついている...あと${player.frozenTurns}ターン` : "氷が解けた！動けるようになった！");
+    return { advanced: true, exitPotAfterTurn: false };
+  }
+  if ((player.petrifiedTurns || 0) > 0) {
+    player.petrifiedTurns--;
+    messages.push(player.petrifiedTurns > 0 ? `体が石化している...あと${player.petrifiedTurns}ターン` : "石化が解けた！動けるようになった！");
     return { advanced: true, exitPotAfterTurn: false };
   }
   if ((player.potConfinedTurns || 0) > 0) {
@@ -178,12 +208,15 @@ export function advanceEarlyStatusTimers(player, messages) {
     }
     player.poisonedTurns--;
     if (player.hp > 0) {
-      player.deathCause = "毒により";
+      player.deathCause = player.poisonSourceName
+        ? `${player.poisonSourceName}の毒により`
+        : "毒により";
       player.hp--;
       messages.push("毒に冒されている！1ダメージ！");
     }
     if (player.poisonedTurns <= 0) {
       player.poisoned = false;
+      delete player.poisonSourceName;
       messages.push("毒の効果が切れた。攻撃力の低下は残っている...");
     }
   }
@@ -204,6 +237,10 @@ export function advanceEarlyStatusTimers(player, messages) {
     player.invisibleTurns--;
     if (player.invisibleTurns === 0) messages.push("透明が解けた！敵に見えるようになった。");
   }
+  if ((player.caswackTurns || 0) > 0) {
+    player.caswackTurns--;
+    if (player.caswackTurns === 0) messages.push("カスワックの呪いが解けた！");
+  }
 }
 
 /** 行動速度と知覚系の基本状態タイマーを更新する。 */
@@ -216,6 +253,8 @@ export function advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlo
   if (hasRingEffect(player, "slow_ring") && !isSlowAutoAdvance) player.slowSkip = true;
   const timedMessages = [
     ["confusedTurns", "混乱が解けた！"],
+    ["drunkTurns", "酔いが覚めた！"],
+    ["drunkenTurns", "酩酊が覚めた！"],
     ["darknessTurns", "暗闇が晴れた！視界が戻った！"],
     ["bewitchedTurns", "幻惑が解けた！周囲の見た目が正常に戻った！"],
     ["defSoftenedTurns", "軟化が解けた！防御力が戻った！"],
@@ -290,9 +329,11 @@ export function advanceConsumableBuffTimers(player, messages) {
   if ((player.dopingTurns || 0) > 0) {
     player.dopingTurns--;
     if (player.dopingTurns <= 0 && player.dopingAftereffectPending) {
-      player.dopingAftereffectTurns = 50;
       player.dopingAftereffectPending = false;
-      messages.push("ドーピングの効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)");
+      if (!isStatusImmune(player, messages)) {
+        player.dopingAftereffectTurns = 50;
+        messages.push("ドーピングの効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)");
+      }
     }
   } else if ((player.dopingAftereffectTurns || 0) > 0) {
     player.dopingAftereffectTurns--;

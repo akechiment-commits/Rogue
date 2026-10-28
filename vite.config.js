@@ -9,8 +9,14 @@ import {
   nextVariantFile,
   PORTRAIT_CATEGORIES,
 } from "./portraitCatalog.js";
+import {
+  PEN_ITEM_ASSET_NAMES,
+  POTION_ITEM_ASSET_NAMES,
+  TILESET_SPRITE_DIRECTORIES,
+} from "./gameAssetManifest.js";
 
 const PORTRAIT_DIR = path.resolve(process.cwd(), "tiles/Character");
+const PORTRAIT_WEBP_DIR = path.resolve(process.cwd(), "tiles/CharacterOptimized");
 const EXTRA_SLOTS_PATH = path.resolve(process.cwd(), "portrait-extra-slots.json");
 const SAFE_PORTRAIT_NAME = /^[a-z][a-z0-9_]*$/;
 
@@ -228,6 +234,29 @@ function serveRootTilesPlugin() {
     }
   }
 
+  function copyPortraitWebpsSync(src, dst, allowedNames) {
+    fs.mkdirSync(dst, { recursive: true });
+    for (const name of allowedNames) {
+      const sourcePath = path.join(src, `${name}.webp`);
+      if (!fs.existsSync(sourcePath)) {
+        throw new Error(`Missing optimized portrait asset: ${sourcePath}. Run npm run portraits:webp.`);
+      }
+      fs.copyFileSync(sourcePath, path.join(dst, `${name}.webp`));
+    }
+  }
+
+  function copyNamedFilesSync(src, dst, names) {
+    fs.mkdirSync(dst, { recursive: true });
+    for (const name of names) {
+      const file = `${name}.png`;
+      const sourcePath = path.join(src, file);
+      if (!fs.existsSync(sourcePath)) {
+        throw new Error(`Missing production tile asset: ${sourcePath}`);
+      }
+      fs.copyFileSync(sourcePath, path.join(dst, file));
+    }
+  }
+
   return {
     name: "serve-root-tiles",
 
@@ -241,9 +270,23 @@ function serveRootTilesPlugin() {
         const publicPath = path.resolve(process.cwd(), "public", url.slice(1));
         if (fs.existsSync(publicPath)) return next();
 
-        const filePath = path.resolve(process.cwd(), url.slice(1));
+        let filePath = path.resolve(process.cwd(), url.slice(1));
         // パストラバーサル防止
         if (!filePath.startsWith(process.cwd())) return next();
+
+        // 開発時は最適化済みWebPが未生成でも、元PNGを同じ表示URLで確認できる。
+        if (
+          !fs.existsSync(filePath) &&
+          url.startsWith("/tiles/Character/") &&
+          url.endsWith(".webp")
+        ) {
+          const name = path.basename(url, ".webp");
+          if (!SAFE_PORTRAIT_NAME.test(name)) return next();
+          const optimizedPath = path.join(PORTRAIT_WEBP_DIR, `${name}.webp`);
+          filePath = fs.existsSync(optimizedPath)
+            ? optimizedPath
+            : path.join(PORTRAIT_DIR, `${name}.png`);
+        }
 
         if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
           const ext = path.extname(filePath).toLowerCase();
@@ -266,10 +309,27 @@ function serveRootTilesPlugin() {
     // プロダクションビルド: dist/tiles/ にコピー
     closeBundle() {
       const distDir = path.resolve(process.cwd(), "dist", "tiles");
-      for (const sub of ["sprites", "items", "chara_clean2", "treasure_final", "pipo", "Character"]) {
-        const src = path.join(TILES_ROOT, sub);
-        if (fs.existsSync(src)) copyDirSync(src, path.join(distDir, sub));
+      const portraitFiles = collectPortraitFiles(mergePortraitCategories(readExtraSlots().slots));
+      for (const spriteSet of TILESET_SPRITE_DIRECTORIES) {
+        const src = path.join(TILES_ROOT, "sprites", spriteSet);
+        if (!fs.existsSync(src)) {
+          throw new Error(`Missing production tileset directory: ${src}`);
+        }
+        copyDirSync(src, path.join(distDir, "sprites", spriteSet));
       }
+
+      copyNamedFilesSync(
+        path.join(TILES_ROOT, "items"),
+        path.join(distDir, "items"),
+        [...PEN_ITEM_ASSET_NAMES, ...POTION_ITEM_ASSET_NAMES],
+      );
+
+      // カタログ登録済みの立ち絵だけ配信し、原本PNG・下書き・未登録候補・バックアップは含めない。
+      copyPortraitWebpsSync(
+        PORTRAIT_WEBP_DIR,
+        path.join(distDir, "Character"),
+        portraitFiles,
+      );
     },
   };
 }

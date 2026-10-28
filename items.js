@@ -1,10 +1,13 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { ensureSynthMonsterBox, speedUpSynthMonster } from './synthMonster.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import {
   findMonsterRoom as findRoom,
   pickTransformMonsterDef,
+  applyMonsterTransformation,
   pickMonsterDef,
   makeMonsterFromBase,
   monLevelDown,
@@ -14,31 +17,42 @@ import {
   scaleMonsterFireDamage as scaleMonFireDmg,
   spawnMonsters,
   wakeIfDormant,
+  triggerMushroomCounterSpore,
 } from './monsterRuntime.js';
-import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
+import { pushAnim, pushLightningAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushItemFlyAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
 import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
+import { ordinaryFloorGoldRange } from "./springRules.js";
+import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
+import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
-  monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
-  monEffectiveFixedDamageOnly, monSubmergesProjectiles,
+  monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
+  monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness,
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
+import { isWanderingNpc } from './wanderingAdventurer.js';
+import { beginNpcRetaliation, clearNpcRetaliation } from "./npcRetaliation.js";
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
-import { grantPlayerHaste, hasteDurationLabel, playerHasteStage } from './actionClock.js';
+import { grantPlayerHaste, hasteDurationLabel, playerHasteStage, worldTickDamageTurnForCurrentAction } from './actionClock.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
+import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
+import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
+import { applySakeEffect } from './intoxication.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
+export { clearNpcRetaliation };
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -94,7 +108,7 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
   if (portal.kind === "fixed_portal") {
     const _pair = findFixedPortalPair(dg, portal);
     if (!_pair) return null;
-    if (dg.monsters?.some(m => m.x === _pair.x && m.y === _pair.y)) return null;
+    if (dg.monsters?.some(m => monsterOccupiesCell(m, _pair.x, _pair.y))) return null;
     ml.push(`${resolveItemName(item)}が${portal.name}に吸い込まれて対の転送陣から出てきた！`);
     return placeItemAt(dg, _pair.x, _pair.y, item, ml, ft, dep + 1, p, _pair.x, _pair.y, true);
   }
@@ -129,7 +143,7 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
   const _idx = _cycle.findIndex(e => e.portal === portal);
   for (let _off = 1; _off < _cycle.length; _off++) {
     const _next = _cycle[(_idx + _off) % _cycle.length];
-    if (_next.dg.monsters?.some(m => m.x === _next.portal.x && m.y === _next.portal.y)) continue;
+    if (_next.dg.monsters?.some(m => monsterOccupiesCell(m, _next.portal.x, _next.portal.y))) continue;
     const _crossFloor = _next.dg !== dg;
     ml.push(_crossFloor
       ? `${resolveItemName(item)}が${portal.name}に吸い込まれて地下${_next.depth}階の${_next.portal.name}から出てきた！`
@@ -166,11 +180,7 @@ function _triggerWandBreakEffect(...args) {
 }
 
 /* ===== 状態異常防止チェックヘルパー ===== */
-export function isStatusImmune(entity, ml, name = null) {
-  if ((entity.statusImmune || 0) <= 0) return false;
-  if (ml) ml.push(name ? `${name}には効かなかった！(状態防止中)` : "状態防止中のため効かなかった！");
-  return true;
-}
+export { isStatusImmune } from "./statusDuration.js";
 
 /** ボスに即死系の環境効果を当てたときの代替ダメージ（爆発と同じ現在HPの1/4）。 */
 export function bossInstantDeathDamage(mon) {
@@ -194,14 +204,18 @@ export function blockPlayerStatus(p, ml, { proofAbility = null, proofMsg = null 
 
 /* ===== 金縛り弱体/解除ヘルパー ===== */
 export function weakenOrClearParalysis(mon, ml) {
-  if (!mon.paralyzed) return;
-  if ((mon.paralyzeHits || 0) > 1) {
-    mon.paralyzeHits--;
-    ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`);
-  } else {
-    mon.paralyzed = false;
-    mon.paralyzeHits = 0;
-    ml.push(`${mon.name}の金縛りが解けた！`);
+  return resolveParalysisHit(mon, ml);
+}
+
+/** 命中前の弱体化と、その命中によるHP変化を1回の被弾として確定する。 */
+export function withParalysisHit(mon, ml, hit) {
+  if (!mon) return hit();
+  const wasParalyzed = !!mon.paralyzed;
+  weakenOrClearParalysis(mon, ml);
+  try {
+    return hit();
+  } finally {
+    if (wasParalyzed && mon.paralyzed) mon._paralyzeHp = mon.hp;
   }
 }
 
@@ -211,6 +225,20 @@ export function weakenOrClearParalysis(mon, ml) {
 let _pitfallBag = null;
 export function setPitfallBag(bag) { _pitfallBag = bag; }
 export function clearPitfallBag() { _pitfallBag = null; }
+export function addPitfallBagEntry(entry) {
+  if (!_pitfallBag || !entry?.entity) return false;
+  _pitfallBag.push(entry);
+  return true;
+}
+
+export function applyFallImpactDamage(p, ml, deathCause, messagePrefix) {
+  if (!p) return 0;
+  const damage = rng(1, 5);
+  p.deathCause = deathCause;
+  p.hp -= damage;
+  ml.push(`${messagePrefix}${damage}ダメージ！`);
+  return damage;
+}
 
 /* ===== ITEM TILES ===== */
 export const ITEM_TILES = {
@@ -407,9 +435,9 @@ export const FAKE_GOLD_NUGGET_T = {
 };
 
 export const ITEMS = [
-  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
-  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
-  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。", tile:17 },
+  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。呪われた薬をアンデッドに投げると回復する。",                                               tile:16 },
+  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。呪われた薬をアンデッドに投げると回復する。",                                               tile:17 },
+  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。呪われた薬をアンデッドに投げると回復する。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n投げると毒液が飛散する。\n呪い：解毒＋攻撃力回復。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:50, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと45〜55の炎ダメージを受ける。祝福：ダメージ2倍。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：45〜55回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
@@ -420,6 +448,7 @@ export const ITEMS = [
   { name:"万能薬",           type:"potion", effect:"panacea", value:0, rarity:"B", weight:2,  sellPrice:2500, desc:"飲むとMP回復禁止以外の状態異常を全て治す。", tile:17 },
   { name:"牛乳",             type:"potion", effect:"milk",    value:15, rarity:"D", weight:8,  sellPrice:100,  desc:"飲むと満腹度+15。", tile:16 },
   { name:"ドーピングコンソメスープ", type:"potion", effect:"doping", value:50, rarity:"A", weight:1, sellPrice:3000, desc:"飲むと50ターン攻撃力と防御力が2倍になり、その後50ターン半減する。", tile:17 },
+  { name:"酒",               type:"potion", effect:"sake",    value:0,  rarity:"D", weight:8, sellPrice:100,  desc:"飲むか浴びると30ターン酔う（行動方向が1/8で乱れる）。酔い中に再び受けると30ターン酩酊（方向が毎回乱れ、低確率で嘔吐）。\n祝福：各効果時間が2倍になる。\n呪い：酔い・酩酊・混乱を治す。\n食料にかけると酒乱の食料になる。", tile:16 },
   { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:8, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：この冒険で訪れた階層を選んで移動できる。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"C", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
@@ -430,10 +459,10 @@ export const ITEMS = [
   { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。", tile:18 },
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。", tile:18 },
   { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"C", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ(30-40)。油まみれの対象は2倍。\n祝福：フロア全体・ダメージ2倍。\n呪い：自分にも同ダメージ。", tile:18 },
-  { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。", tile:18 },
+  { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。\n祝福：敵の攻防を半減（通常敵50T／ボス25T）。", tile:18 },
   { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:4,  sellPrice:300,  desc:"半径10の壁を全て壊す。\n祝福：外周以外のフロア内の壁を全て壊す。\n呪い：周囲を壁に変える。", tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"C", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。", tile:18 },
-  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:1,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n呪い：自分が弾き出され踏むと即死。強制移動されたボスは現在HPの1/4ダメージ。", tile:42 },
+  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:1,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できない。強制移動で乗った通常敵は即死、ボスは現在HPの1/4ダメージ（残っている間も毎ターン）。\n呪い：自分が弾き出されて踏むと即死。", tile:42 },
   { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"C", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。\n同じ部屋にいる者全員の受けるダメージが2倍になる。", tile:42 },
   { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に魔封じの魔方陣を描く。\n部屋内では一切の魔法が無効になる。外からの魔法弾も消える。", tile:42 },
   { name:"雷のペン",         type:"pen",    effect:"thunder_trap",  charges:2, rarity:"D", weight:8,  sellPrice:600,  desc:"足元に雷の魔方陣を描く。真上にいると毎ターン25ダメージ。\n呪い：逆に毎ターン25回復。", tile:42 },
@@ -452,7 +481,7 @@ export const ITEMS = [
   { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n呪い：逆に5ダメージ。", tile:42 },
   { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"A", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n呪い：同じ部屋での蘇りをすべて封じる（MP復活・復活魔方陣・骨からの復活など）。", tile:42 },
   { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n呪い：ランダムワープになる。", tile:42 },
-  { name:"短剣",             type:"weapon", atk:3,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
+  { name:"短剣",             type:"weapon", atk:1,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"C", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
   { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"B", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
@@ -466,7 +495,7 @@ export const ITEMS = [
   { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"C", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"C", weight:4,  sellPrice:1500, desc:"雷属性の剣。雷弱点の敵に1.5倍ダメージ。",             tile:20 },
   { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"C", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
-  { name:"革の鎧",           type:"armor",  def:2,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
+  { name:"革の鎧",           type:"armor",  def:1,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
   { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"D", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。", tile:21 },
   { name:"プレートメイル",   type:"armor",  def:10,                      rarity:"B", weight:2,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
   { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"C", weight:4, sellPrice:1000, desc:"雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。", tile:21 },
@@ -483,7 +512,7 @@ export const ITEMS = [
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱。\n呪い：混乱解除＋必中。投げると敵の混乱解除。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：飲むと敵感知100T。投げると敵の暗闇解除。", tile:16 },
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：飲むと罠看破。投げると敵の幻惑解除。", tile:16 },
-  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：飲むと1階上へ。投げると敵がレベルダウン。", tile:17 },
+  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：天井を突き破って1階上へ（1～5ダメージ）。投げると敵がレベルダウン。", tile:17 },
   { name:"金貨",             type:"gold",   value:1,                     desc:"金貨。",                           tile:22 },
   { ...GOLD_NUGGET_T },
   { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"D", weight:8,  sellPrice:250,
@@ -495,7 +524,7 @@ export const ITEMS = [
   { name:"変換の巻物", type:"scroll", effect:"transform_item",    rarity:"B", weight:2,  sellPrice:700,
     desc:"持ち物から1つ選んで別のアイテムに変える。\n呪い：レアリティが低いものに変化。", tile:18 },
   { name:"錬成の巻物", type:"scroll", effect:"forge_item",        rarity:"B", weight:2,  sellPrice:2000,
-    desc:"持ち物の武器か防具を1つ選んでランダムな能力を付与する。\n呪い：役に立たない能力。", tile:18 },
+    desc:"持ち物の武器か防具を1つ選び、ランダムな能力を付与する。\n呪い：装備の能力を1つ選んで消す。", tile:18 },
   { name:"召喚の巻物", type:"scroll", effect:"summon",            rarity:"E", weight:12, sellPrice:50,
     desc:"敵を4体召喚する。\n呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
   { name:"大箱の巻物", type:"scroll", effect:"bigbox_summon",      rarity:"B", weight:2,  sellPrice:1200,
@@ -534,11 +563,41 @@ export function makeRandomPotion(randomFn = Math.random, dungeonType = null, flo
   return { ...potion, id: uid() };
 }
 
+/** さすらいの冒険者が会話で渡す品。撃破時の確定ドロップと同じ抽選・階制限を使う。 */
+export function makeWanderingAdventurerGift(dungeonType = null, floor = 99) {
+  const pool = lootPoolForDungeon([
+    ...ITEMS.filter(item => item.type !== "gold" && item.type !== "goal"),
+    ...WANDS,
+    ...RINGS,
+  ], dungeonType, floor);
+  const template = pickLootFromPool(pool, "drop");
+  if (!template) return null;
+  const item = { ...template, id: uid() };
+  applyGeneratedRingPlus(item);
+  if (item.type === "pen") item.charges = penInitialCharges(item);
+  else if (item.type === "wand") item.charges = Math.max(1, (item.charges || 1) + rng(-1, 1));
+  return item;
+}
+
 export function getBlessMultiplier(it) {
   if (!it) return 1;
   if (it.blessed) return 2;
   if (it.cursed)  return 0.5;
   return 1;
+}
+
+/** 食事で上限を超えた分は半分だけ満腹度へ加える。戻り値は実際の増加量。 */
+export function addFoodHunger(player, amount) {
+  if (!player) return 0;
+  const maxValue = Number(player.maxHunger ?? 100);
+  const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
+  const before = Math.floor(Math.max(0, Number(player.hunger) || 0));
+  const total = before + Math.max(0, Math.floor(Number(amount) || 0));
+  player.hunger = total > maxHunger
+    ? maxHunger + Math.floor((total - maxHunger) / 2)
+    : total;
+  if (player.hunger > 0) delete player._hungerDmgStarted;
+  return player.hunger - before;
 }
 
 /** 祝福の数値効果は2倍。呪いの反転は通常値のまま（×0.5しない）。 */
@@ -567,7 +626,7 @@ export function recoveryScrollAmount({ blessed = false, cursed = false } = {}) {
   return cursed ? RECOVERY_SCROLL_HEAL : RECOVERY_SCROLL_HEAL * blessAmountMul(blessed);
 }
 
-export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical_cat_claw", sellPrice:3000, desc:"会心の一撃が出やすい武器。", tile:20 };
+export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:8, ability:"critical_cat_claw", sellPrice:3000, desc:"会心の一撃が出やすい武器。", tile:20 };
 export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
 /** カラペン系が押し付ける、置くことも投げることもできない敵専用アイテム */
 export const CHARGED_FUZZBALL_T = {
@@ -620,8 +679,9 @@ export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,         
 export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"D", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
 export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"C", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
 export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"C", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
-export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
-export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
+export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾し、途中の敵や物体を飛び越える。束投げは全個数を消費し、攻撃力が束数分上がる。99個まで束にできる。遠投では消滅、呪われた遠投では1マス先に着弾。",  count:1, tile:TI.STONE_PROJECTILE };
+export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングする。敵がいなければ石と同じ距離を飛ぶ。束投げは全個数を消費し、攻撃力が束数分上がる。99個まで束にできる。",                                    count:1, tile:TI.STONE_PROJECTILE };
+export const ICE_CHUNK_T    = { name:"氷塊",     type:"arrow", atk:3, iceChunk:true, rarity:"E", weight:0, sellPrice:5,   desc:"石と同じように飛び、途中の敵や物体を飛び越える。束投げは全個数を消費し、攻撃力が束数分上がる。炎で優先的に溶ける。", count:1, tile:TI.ICE_CHUNK };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。爆発範囲内の地雷・時限爆弾も誘爆する。\n99本まで束にできる。",                            count:1, tile:23 };
 export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与え、爆発範囲内の地雷・時限爆弾も誘爆する。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。爆発範囲内の地雷・時限爆弾も誘爆する。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
@@ -782,7 +842,7 @@ export const WANDS = [
   { name:"雷の杖",         type:"wand", effect:"lightning", charges:6, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
   { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:4, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
   { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"対象を同じ階層の敵に変える。壊すと周囲全てを変化。",                           tile:24 },
-  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
+  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壁抜けできない通常敵は壁内で即死、水に適応できない通常敵は水没で即死。水中を生存できないボスは水没時、壁抜けできないボスは壁内への移動時に現在HPの1/4ダメージを受け、出られない間は毎ターン同量。壊すと周囲をシャッフル。",                           tile:24 },
   { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"C", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"D", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。\n祝福：敵に飛びついたあと金縛りにする。\n壊しても何も起こらない。",                     tile:24 },
   { name:"テレポートの杖", type:"wand", effect:"warp",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
@@ -790,18 +850,23 @@ export const WANDS = [
   { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:4,  sellPrice:400,  desc:"振ると対象を眠りに落とす。\n呪い：自分はフロアの敵が見える。敵に当たると眠り解除。",                                   tile:24 },
   { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:1, rarity:"A", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:1, rarity:"A", weight:1,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
-  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"B", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：自分は1階上へワープ、敵はレベルダウン。", tile:24 },
+  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"B", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：天井を突き破って自分は1階上へ（1～5ダメージ）、敵はレベルダウン。", tile:24 },
   { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。", tile:24 },
   { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：自分はフロア全体が見える。敵に当たると暗闇解除。", tile:24 },
   { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：自分は罠が見える。敵に当たると幻惑解除。", tile:24 },
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"D", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：魔法封印50T。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：敵の特技100%化、自分は封印解除。", tile:24 },
-  { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
+  { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。通常敵は永続、ボスは25ターン。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
-  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
-  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。ボスには現在HPの1/4ダメージを与え、プレイヤーHPをそのダメージと同値にする。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛び、水路や泉を凍らせる。氷塊が現れることもある。地面の薬は氷塊に変わる。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
+  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。ボスには現在HPの1/4ダメージを与え、プレイヤーHPをそのダメージと同値にする。巨大敵への爆発・割合ダメージは合計で1ターン1回まで。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別（祝福は2個）。\n壊すと周囲のアイテム・大箱にも効果。\n呪い：対象が未識別に戻る。", tile:24 },
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
 ];
+
+/** 所持品ではなく床の大箱として配置・落下させるエンティティ。 */
+export function isBigboxEntity(entity) {
+  return !!entity && Array.isArray(entity.contents) && BB_TYPES.some(template => template.kind === entity.kind);
+}
 
 /** 大箱を巻物などで換金したときの容量1個あたりの基準額。 */
 export function bigboxSellBaseValue(bb) {
@@ -983,7 +1048,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     if (item.type === "pot") {
       delete item.blessed;
       delete item.cursed;
-      item.capacity = (item.capacity || 1) + 1;
+      item.capacity = (item.capacity ?? 1) + 1;
       ml.push(`${_in}の容量が1増えた！(${item.capacity})【祝】`);
     } else {
       item.blessed = true;
@@ -999,7 +1064,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     if (item.type === "pot") {
       delete item.blessed;
       delete item.cursed;
-      item.capacity = Math.max(0, (item.capacity || 1) - 1);
+      item.capacity = Math.max(0, (item.capacity ?? 1) - 1);
       ml.push(`${_in}の容量が1減った！(${item.capacity})【呪】`);
     } else {
       item.cursed  = true;
@@ -1061,25 +1126,120 @@ export function randPotCapacity(potEffect) {
   return rng(3, 5);
 }
 
+/* 複製の巻物は同種の新品を作る。合成能力・強化・消耗・店の請求情報は引き継がない。 */
+export function makeFreshDuplicate(source) {
+  const catalog = [...ITEMS, ...WANDS, ...POTS, ...RINGS, ...SPELLBOOKS,
+    MAGIC_MARKER, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL,
+    ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T,
+    CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T,
+    FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T,
+    GODBANE_SWORD_T, MAGIC_BANE_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
+    GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T];
+  const template = catalog.find(item => item.type === source.type && item.name === source.name);
+  const copy = { ...(template || source), id: uid() };
+  for (const key of ["blessed", "cursed", "bcKnown", "fullIdent", "plus", "_encyclopediaTracked",
+    "shopPrice", "_shopId", "_shopCharge", "_origCharges", "_origCount", "x", "y", "wallEmbedded"]) delete copy[key];
+  if (template?.abilities) copy.abilities = [...template.abilities];
+  else delete copy.abilities;
+  if (!template) delete copy.ability;
+  delete copy.oilProofUses;
+  if (copy.type === "wand" || copy.type === "pen" || copy.type === "marker") {
+    copy.charges = template?.charges ?? source.maxCharges ?? 1;
+  }
+  if (copy.type === "pot") {
+    copy.contents = [];
+    copy.confinedMonsters = [];
+    copy.capacity = randPotCapacity(copy.potEffect);
+  }
+  if (copy.type === "arrow") copy.count = template?.count ?? 1;
+  return copy;
+}
+
+/* 変換の巻物の候補・重み・新品初期化は全入力で共通にする。 */
+export function makeScrollTransformedItem(source, mode, random = Math.random) {
+  const rarityUp = { E: "D", D: "C", C: "B", B: "A", A: "S", S: "S" };
+  const rarityDown = { E: "E", D: "E", C: "D", B: "C", A: "B", S: "A" };
+  const fallback = ITEMS.filter(item => item.type !== "gold" &&
+    !(item.effect === source.effect && item.type === source.type));
+  const targetRarity = mode.blessed ? rarityUp[source.rarity || "C"]
+    : mode.cursed ? rarityDown[source.rarity || "C"] : null;
+  const pool = targetRarity ? fallback.filter(item => item.rarity === targetRarity) : fallback;
+  const template = pickLootFromPool(pool, "change", random) || pickLootFromPool(fallback, "change", random);
+  if (!template) return null;
+  const item = { ...template, id: uid() };
+  if (template.type === "wand") item.charges = template.maxCharges ?? template.charges ?? 5;
+  if (template.type === "arrow") item.count = template.count ?? 1;
+  return item;
+}
+
 /** 願いの杖など、回数を増やせない杖か */
 export function isNoChargeBoostWand(it) {
   return !!(it && it.type === "wand" && (it.effect === "wish" || it.noChargeBoost));
 }
 
 export function potOccupancyCount(pot) {
-  if (!pot || pot.type !== "pot") return 0;
-  if (pot.potEffect === "imprison") return pot.confinedMonsters?.length || 0;
-  return pot.contents?.length || 0;
+  if (!pot || typeof pot !== "object") return 0;
+  if (pot.type && pot.type !== "pot") return 0;
+  return (pot.contents?.length || 0) + (pot.confinedMonsters?.length || 0);
+}
+
+/** 壺がアイテムを受け入れられる状態か。 */
+export function canAcceptPotItem(pot) {
+  return !!pot && pot.type === "pot" && pot.potEffect !== "imprison" &&
+    pot.shopPrice == null && pot._shopId == null &&
+    potOccupancyCount(pot) < (pot.capacity ?? 3);
+}
+
+/** 通常の壺へ入れられるアイテム（入れ子・キー品・店の商品を除く）。 */
+export function isPotStorableItem(item) {
+  return !!item && typeof item.type === "string" && item.type !== "pot" && item.type !== "goal" &&
+    item.shopPrice == null && item._shopId == null;
+}
+
+/** 足元アイテムの投入先にできる、所持中または足元の壺。 */
+export function getPotInputTargets(player, dungeon) {
+  const targets = [];
+  for (let i = 0; i < (player?.inventory || []).length; i++) {
+    const pot = player.inventory[i];
+    if (canAcceptPotItem(pot)) targets.push({ pot, potIdx: i, floorPot: null });
+  }
+  for (const pot of dungeon?.items || []) {
+    if (pot?.type === "pot" && pot.x === player?.x && pot.y === player?.y && canAcceptPotItem(pot)) {
+      targets.push({ pot, potIdx: null, floorPot: pot });
+    }
+  }
+  return targets;
+}
+
+/* 容量不足の判定を道具・閉じ込め敵で共通化する。通常の道具は従来どおり床へ出す。 */
+export function reducePotCapacity(pot, amount, dg, p, ml, nameFn = null) {
+  const next = Math.max(0, (pot.capacity ?? 1) - amount);
+  pot.capacity = next;
+  if (potOccupancyCount(pot) <= next) return { broken: false, removedAt: -1 };
+  const name = resolveItemName(pot, nameFn);
+  const removedAt = p?.inventory?.indexOf(pot) ?? -1;
+  const x = removedAt >= 0 ? p.x : (pot.x ?? p?.x);
+  const y = removedAt >= 0 ? p.y : (pot.y ?? p?.y);
+  if (removedAt >= 0) p.inventory.splice(removedAt, 1);
+  else removeFloorItem(dg, pot);
+  ml.push(`${name}が容量不足で割れた！`);
+  if (pot.confinedMonsters?.length) {
+    releaseConfinedMonstersFromPot(pot, dg, x, y, p, ml);
+  }
+  if (pot.potEffect !== "imprison") {
+    const contents = [...(pot.contents || [])];
+    pot.contents = [];
+    const ft = new Set();
+    for (const item of contents) placeItemAt(dg, x, y, item, ml, ft, 0, p);
+  }
+  return { broken: true, removedAt };
 }
 
 export function imprisonPotRemainingCapacity(pot) {
-  if (!pot || pot.potEffect !== "imprison") {
-    return Math.max(0, (pot?.capacity || 3) - (pot?.contents?.length || 0));
-  }
-  return Math.max(0, (pot.capacity || 3) - (pot.confinedMonsters?.length || 0));
+  return Math.max(0, (pot?.capacity ?? 3) - potOccupancyCount(pot));
 }
 
-export function canConfineMonsterInImprisonPot(mon) {
+export function canConfineMonsterInPot(mon) {
   if (!mon) return false;
   if (mon.isBoss) return false;
   if (mon.type === "shopkeeper") return false;
@@ -1088,14 +1248,23 @@ export function canConfineMonsterInImprisonPot(mon) {
   return true;
 }
 
-export function confineMonsterInImprisonPot(pot, mon, dg, ml, nameFn = null) {
+export const canConfineMonsterInImprisonPot = canConfineMonsterInPot;
+
+export function confineMonsterInPot(pot, mon, dg, ml, nameFn = null) {
   if (!pot.confinedMonsters) pot.confinedMonsters = [];
   const snap = JSON.parse(JSON.stringify(mon));
   pot.confinedMonsters.push(snap);
   const _mn = resolveItemName(mon, nameFn);
-  const _pn = resolveItemName(pot, nameFn);
+  const _pn = nameFn ? resolveItemName(pot, nameFn) : "壺";
   ml.push(`${_mn}を${_pn}に閉じ込めた！`);
   removeMonster(dg, mon);
+}
+
+export const confineMonsterInImprisonPot = confineMonsterInPot;
+
+/** 投入した道具を消費して蓄えない壺。 */
+export function potConsumesInsertedContent(pot) {
+  return !!pot && ["heal_pot", "klein", "wish_pot"].includes(pot.potEffect);
 }
 
 export function canMonsterSurviveOnWater(mon, dg, x, y) {
@@ -1108,18 +1277,20 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
 }
 
 /** 強制移動の着地点が水上なら、水に適応できない敵を撃破する。 */
-export function drownMonsterIfNeeded(mon, dg, p, ml, luFn) {
+export function drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon = null) {
   if (!mon || !dg?.map || !dg.monsters?.includes(mon)) return false;
   if (canMonsterSurviveOnWater(mon, dg, mon.x, mon.y)) return false;
   if (mon.isBoss) {
+    mon._waterEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
+    if (blockLargeMonsterDamage(mon, p, ml)) return true;
     const _bd = bossInstantDeathDamage(mon);
     mon.hp -= _bd;
     ml.push(`${mon.name}は水没に耐えたが${_bd}ダメージを受けた！`);
-    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
+    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
     return true;
   }
   ml.push(`${mon.name}は水没した！`);
-  killMonster(mon, dg, p, ml, luFn);
+  killMonster(mon, dg, p, ml, luFn, false, killerMon);
   return true;
 }
 
@@ -1142,7 +1313,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
     const tile = dg.map[ny]?.[nx];
     if (tile === T.WALL || tile === T.BWALL || tile === T.WATER) continue;
-    if (dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny)) continue;
+    if (dg.monsters.some((o) => o !== m && monsterOccupiesCell(o, nx, ny))) continue;
     if (p && p.x === nx && p.y === ny) continue;
     m.x = nx;
     m.y = ny;
@@ -1150,6 +1321,8 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
     return "ejected";
   }
   if (m.isBoss) {
+    m._waterEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
+    if (blockLargeMonsterDamage(m, p, ml)) return "damaged";
     const _bd = bossInstantDeathDamage(m);
     m.hp -= _bd;
     ml.push(`封印で浮遊が解け、${m.name}は水没に耐えたが${_bd}ダメージを受けた！`);
@@ -1168,7 +1341,9 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
  * モンスターに封印を付与し、水上浮遊の弾き出し／即死を解決する。
  */
 export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
-  if (!target) return null;
+  if (!target || isStatusImmune(target, ml, target?.name)) return null;
+  if (blockLargeMonsterStatus(target, "seal", ml)) return null;
+  startLargeMonsterStatusCooldown(target, "seal");
   const { blessed = false, sealedTurns = null, message = null } = opts;
   target.sealed = true;
   if (clearArmorBreathBuff(target) > 0) {
@@ -1259,10 +1434,15 @@ export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
       x: _pos.x,
       y: _pos.y,
       turnAccum: 0,
+      actionTime: p?.actionTime || 0,
+      turnAttacks: 0,
+      _phaseActionCount: 0,
+      _movesMadeThisPhase: 0,
       aware: true,
       lastPx: p?.x ?? px,
       lastPy: p?.y ?? py,
     };
+    for (const key of ["absentSince", "waitDuringAbsence", "_movedThisTurn", "_defHalfMagicReady", "_pentacleDrawReady", "_mimicReady", "_mimicSourceId", "_dreamEaterStrikeReady", "_krakInkReady"]) delete mon[key];
     dg.monsters.push(mon);
     wakeIfDormant(mon);
     ml.push(`${mon.name}が現れた！`);
@@ -1327,9 +1507,7 @@ export function makePot(context = "floor", options = {}) {
   const pool = dungeonLootPool(POTS, options);
   const t = pickLootFromPool(pool, context) || pick(pool);
   if (!t) return null;
-  const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
-  if (t.potEffect === "imprison") pot.confinedMonsters = [];
-  return pot;
+  return { ...t, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(t.potEffect) };
 }
 
 /**
@@ -1382,6 +1560,10 @@ export function makeChangeBoxItem(context = "change", options = {}) {
   }
   const pool = dungeonLootPool(kindPool(rt), options);
   const tmpl = pickLootFromPool(pool, context) || pick(pool);
+  if (rt === "gold") {
+    const range = ordinaryFloorGoldRange(options.floor);
+    return { ...tmpl, id: uid(), value: rng(range.min, range.max) };
+  }
   return { ...tmpl, id: uid() };
 }
 
@@ -1394,7 +1576,7 @@ export function makeGachaPrize(rarity = null) {
   const pool = all.filter((item) => targetRarities.includes(item.rarity));
   const tmpl = pickGachaTemplate(pool.length ? pool : all) || makeChangeBoxItem("floor");
   if (tmpl.type === "food") return { ...genFood(), id: uid() };
-  if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], capacity: randPotCapacity(tmpl.potEffect) };
+  if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(tmpl.potEffect) };
   if (tmpl.type === "ring") return applyGeneratedRingPlus({ ...tmpl, id: uid() });
   if (tmpl.type === "arrow") return { ...tmpl, id: uid(), count: rng(3, 15) };
   if (tmpl.type === "pen" || tmpl.type === "marker") return { ...tmpl, id: uid(), charges: penInitialCharges(tmpl) };
@@ -1447,16 +1629,36 @@ export function breakAltar(altar, dg, ml, p = null, breaker = null, luFn = null)
   const sleepTurns = statusTurns("sleep", { kind: statusKind, target: victim });
   const confuseTurns = statusTurns("confuse", { kind: statusKind, target: victim });
   const slowTurns = statusTurns("slow", { kind: statusKind, target: victim });
-  victim.sleepTurns = Math.max(victim.sleepTurns || 0, sleepTurns);
-  victim.confusedTurns = Math.max(victim.confusedTurns || 0, confuseTurns);
-  victim.slowTurns = Math.max(victim.slowTurns || 0, slowTurns);
+  const _monsterVictim = victim !== p;
+  const _allowSleep = !_monsterVictim || !blockLargeMonsterStatus(victim, "sleep", ml);
+  const _allowConfuse = !_monsterVictim || !blockLargeMonsterStatus(victim, "confuse", ml);
+  const _allowSlow = !_monsterVictim || !blockLargeMonsterStatus(victim, "slow", ml);
+  if (_allowSleep) {
+    if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "sleep");
+    victim.sleepTurns = Math.max(victim.sleepTurns || 0, sleepTurns);
+  }
+  if (_allowConfuse) {
+    if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "confuse");
+    victim.confusedTurns = Math.max(victim.confusedTurns || 0, confuseTurns);
+  }
+  if (_allowSlow) {
+    if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "slow");
+    victim.slowTurns = Math.max(victim.slowTurns || 0, slowTurns);
+  }
   if (victim === p) {
     const paralyzeTurns = statusTurns("paralyze", { kind: "player" });
-    victim.paralyzeTurns = Math.max(victim.paralyzeTurns || 0, paralyzeTurns);
+    applyPlayerParalyze(victim, paralyzeTurns, { mode: "max" });
     ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns}/${slowTurns}ターン)`);
   } else {
-    const paralyzeTurns = applyMonsterParalyze(victim, { ml: null });
-    ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns >= PERMANENT_TURNS ? "永続" : `${paralyzeTurns}ターン`}/${slowTurns}ターン)`);
+    const _allowParalyze = !blockLargeMonsterStatus(victim, "paralyze", ml);
+    const paralyzeTurns = _allowParalyze ? applyMonsterParalyze(victim, { ml: null }) : 0;
+    const _applied = [
+      _allowSleep && `眠り(${sleepTurns})`,
+      _allowConfuse && `混乱(${confuseTurns})`,
+      _allowParalyze && `金縛り(${paralyzeTurns >= PERMANENT_TURNS ? "永続" : `${paralyzeTurns}ターン`})`,
+      _allowSlow && `鈍足(${slowTurns})`,
+    ].filter(Boolean);
+    ml.push(_applied.length ? `${victimName}は${_applied.join("・")}になった！` : `${victimName}は状態異常耐性中で影響を受けなかった！`);
   }
   if (victim.hp <= 0 && victim !== p) {
     killMonster(victim, dg, p, ml, luFn, true);
@@ -1481,7 +1683,7 @@ export function checkGachaShopTheft(machine, dg, p, ml) {
 }
 
 /** ニトロ箱の中身を消滅させ、半径2マスの爆発へ変換する。箱自身は先に除去して再帰爆発を防ぐ。 */
-export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = null) {
+export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = null, killerMon = null, context = {}) {
   if (!bb || bb.kind !== "nitro" || !dg) return false;
   const x = center?.x ?? bb.x, y = center?.y ?? bb.y;
   const contents = [...(bb.contents || [])];
@@ -1491,7 +1693,7 @@ export function detonateNitroBox(bb, dg, p, ml, luFn, nameFn = null, center = nu
   for (const item of contents) {
     ml.push(`${resolveItemName(item, nameFn)}がニトロ箱の爆発で消滅した！`);
   }
-  doGunpowderExplosion(x, y, dg, p, ml, luFn, "ニトロ箱");
+  doGunpowderExplosion(x, y, dg, p, ml, luFn, "ニトロ箱", killerMon, context);
   return true;
 }
 
@@ -1511,7 +1713,7 @@ export function convertGreedBoxItem(bb, item, uidFn = uid) {
 export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dropY = null, options = {}) {
   if (!bb || !dg) return;
   if (bb.kind === "nitro") {
-    detonateNitroBox(bb, dg, options.player || null, ml, options.luFn || null, nameFn, { x: dropX, y: dropY });
+    detonateNitroBox(bb, dg, options.player || null, ml, options.luFn || null, nameFn, { x: dropX, y: dropY }, options.killerMon || null, options);
     return;
   }
   const x = dropX ?? bb.x;
@@ -1534,24 +1736,27 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
     }
     return;
   }
+  /* 中身の着地で罠・爆発が起きても、同じ箱を再度破壊しないよう先に除去する。 */
+  const contents = [...(bb.contents || [])];
+  bb.contents = [];
+  stageBigbox(bb);
+  dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
   const ft = new Set();
-  for (const item of [...(bb.contents || [])]) placeItemAt(dg, x, y, item, ml, ft);
+  for (const item of contents) placeItemAt(dg, x, y, item, ml, ft, 0, options.player || null);
   if (bb.kind === "trash") {
     const loot = makeChangeBoxItem("change", {
       dungeonType: dg?.dungeonType ?? options?.player?.dungeonType ?? null,
       floor: Number.isFinite(options?.player?.depth) ? options.player.depth : 99,
     });
-    placeItemAt(dg, x, y, loot, ml, ft);
+    placeItemAt(dg, x, y, loot, ml, ft, 0, options.player || null);
     ml.push(`ゴミ箱から${resolveItemName(loot, nameFn)}が飛び出した！`);
   }
-  stageBigbox(bb);
-  dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
 }
 
 /** 唐辛子・胡椒の壺：容量が残ったまま割れたとき、周囲のキャラを暗闇にする。 */
 function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
   if (!pot || !["spicy", "pepper"].includes(pot.potEffect)) return false;
-  if ((pot.contents?.length || 0) >= (pot.capacity || 3)) return false;
+  if (potOccupancyCount(pot) >= (pot.capacity ?? 3)) return false;
 
   const _label = pot.potEffect === "pepper" ? "胡椒" : "唐辛子";
   ml.push(`${resolveItemName(pot, nameFn)}が割れて${_label}の粉が舞い、周囲が暗闇に包まれた！`);
@@ -1579,8 +1784,7 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
           ml.push(`${mon.name}には暗闇が効かなかった！(状態防止中)`);
         } else {
           const _dt = statusTurns("darkness", { kind: "monster", target: mon });
-          applyMonsterDarkness(mon, _dt);
-          ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
+          if (applyMonsterDarkness(mon, _dt, ml) > 0) ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
         }
       }
     }
@@ -1588,14 +1792,16 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
   return true;
 }
 
-export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
+export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, context = {}) {
   const _pn = resolveItemName(pot, nameFn);
+  const occupied = potOccupancyCount(pot);
   /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
   if (pot.potEffect === "greed") {
-    const _remaining = Math.max(0, (pot.capacity || 4) - (pot.contents?.length || 0));
+    const _remaining = Math.max(0, (pot.capacity ?? 4) - occupied);
     ml.push(`${_pn}が割れた！`);
+    if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
     const ft = new Set();
-    for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft); }
+    for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
     if (_remaining > 0) {
       ml.push(`${_remaining}個のランダムなアイテムが飛び出した！`);
       const _lootOptions = {
@@ -1609,7 +1815,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         if (!_riTemplate) continue;
         const _ri = { ..._riTemplate, id: uid() };
         if (_ri.type === 'gold') _ri.value = rng(20, 80);
-        placeItemAt(dg, px, py, _ri, ml, ft);
+        placeItemAt(dg, px, py, _ri, ml, ft, 0, p);
       }
     }
     return;
@@ -1621,9 +1827,10 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     return;
   }
   applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn);
+  if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
   /* 回復の壺：命中した対象を回復（アンデッドはダメージ） */
   if (pot.potEffect === "heal_pot") {
-    const _hpAmt = Math.max(0, (pot.capacity || 3) - (pot.contents?.length || 0)) * 100;
+    const _hpAmt = Math.max(0, (pot.capacity ?? 3) - occupied) * 100;
     ml.push(`${_pn}が割れた！`);
     if (_hpAmt > 0) {
       const _hm = monsterAt(dg, px, py);
@@ -1631,7 +1838,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         if (_hm.kind === "undead") {
           _hm.hp -= _hpAmt;
           ml.push(`回復の光が${_hm.name}に${_hpAmt}ダメージを与えた！`);
-          if (_hm.hp <= 0) killMonster(_hm, dg, p, ml, luFn);
+          if (_hm.hp <= 0) killMonster(_hm, dg, p, ml, luFn, false, context.killerMon || null);
         } else {
           const _prev = _hm.hp;
           _hm.hp = Math.min(_hm.maxHp, _hm.hp + _hpAmt);
@@ -1658,15 +1865,16 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   }
   /* 火薬壺は割れると爆発（中身も消える） */
   if (pot.potEffect === "gunpowder") {
-    doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn);
+    doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn, context.killerMon || null, context);
     return;
   }
   /* 油系壺：満タンでない場合は周囲8マスに油が飛散 */
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
-  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
+  if (_oilEffects[pot.potEffect] && occupied < (pot.capacity ?? 3)) {
     ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
+    const _largeOilTargets = new Set();
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const tx = px + dx, ty = py + dy;
@@ -1677,14 +1885,22 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
           dg.oilyTiles.push({ x: tx, y: ty });
         const mon = monsterAt(dg, tx, ty);
         if (mon) {
-          const _ot = statusTurns("oily", { kind: "monster", target: mon });
-          mon.oilyTurns = (mon.oilyTurns || 0) + _ot;
-          ml.push(`${mon.name}は油まみれになった！(${_ot}ターン)`);
+          const _largeOilTarget = monsterBodySize(mon) > 1;
+          const _duplicateLargeOilTile = _largeOilTarget && _largeOilTargets.has(mon);
+          if (_largeOilTarget) _largeOilTargets.add(mon);
+          if (!_duplicateLargeOilTile && !blockLargeMonsterStatus(mon, "oily", ml)) {
+            startLargeMonsterStatusCooldown(mon, "oily");
+            const _ot = statusTurns("oily", { kind: "monster", target: mon });
+            mon.oilyTurns = (mon.oilyTurns || 0) + _ot;
+            ml.push(`${mon.name}は油まみれになった！(${_ot}ターン)`);
+          }
         }
         if (tx === p.x && ty === p.y) {
-          const _ot = statusTurns("oily", { kind: "player" });
-          p.oilyTurns = (p.oilyTurns || 0) + _ot;
-          ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          if (!isStatusImmune(p, ml)) {
+            const _ot = statusTurns("oily", { kind: "player" });
+            p.oilyTurns = (p.oilyTurns || 0) + _ot;
+            ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          }
         }
         /* 油がかかったマスの非永続罠を消滅 */
         const _oilTrap = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
@@ -1701,17 +1917,17 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     }
     if (pot.contents?.length > 0) {
       const ft = new Set();
-      for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
+      for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
     }
     return;
   }
-  if (!pot.contents || pot.contents.length === 0) {
+  if (occupied === 0) {
     ml.push(`${_pn}は割れた！（中は空だった）`);
     return;
   }
   ml.push(`${_pn}が割れて中身が飛び出した！`);
   const ft = new Set();
-  for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
+  for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
 }
 
 /* 吸い出しの巻物：壺を割らずに中身を吸い出して足元にばらまく
@@ -1720,22 +1936,32 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
  *   呼び出し側は scrollIdx 等の補正に使う。 */
 export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed = false) {
   if (cursed) {
-    scatterPotContents(pot, dg, px, py, p, ml, luFn);
     const _idx = p?.inventory ? p.inventory.indexOf(pot) : -1;
     if (_idx !== -1) p.inventory.splice(_idx, 1);
+    else removeFloorItem(dg, pot);
+    /* 破壊予定の壺を先に外し、散乱中の爆風が同じ壺を再び割らないようにする。 */
+    scatterPotContents(pot, dg, px, py, p, ml, luFn);
+    pot.contents = [];
     ml.push("【呪】");
     return { potRemovedAt: _idx !== -1 ? _idx : null };
   }
   if (pot.potEffect === "gunpowder") {
+    if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
     ml.push(`${resolveItemName(pot)}から火薬が吸い出され爆発した！`);
     doGunpowderExplosion(px, py, dg, p, ml, luFn, resolveItemName(pot));
     return { potRemovedAt: null };
   }
-  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
-  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
+  /* 中身を先に切り離す。途中で壺が壊れても、放出済みの道具をもう一度出さない。 */
+  const occupied = potOccupancyCount(pot);
+  const contents = [...(pot.contents || [])];
+  pot.contents = [];
+  if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
+  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
+  if (_oilEffects[pot.potEffect] && occupied < (pot.capacity ?? 3)) {
     ml.push(`${resolveItemName(pot)}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
+    const _largeOilTargets = new Set();
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const tx = px + dx, ty = py + dy;
@@ -1745,14 +1971,22 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
         if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty)) dg.oilyTiles.push({ x: tx, y: ty });
         const _om = monsterAt(dg, tx, ty);
         if (_om) {
-          const _ot = statusTurns("oily", { kind: "monster", target: _om });
-          _om.oilyTurns = (_om.oilyTurns || 0) + _ot;
-          ml.push(`${_om.name}は油まみれになった！(${_ot}ターン)`);
+          const _largeOilTarget = monsterBodySize(_om) > 1;
+          const _duplicateLargeOilTile = _largeOilTarget && _largeOilTargets.has(_om);
+          if (_largeOilTarget) _largeOilTargets.add(_om);
+          if (!_duplicateLargeOilTile && !blockLargeMonsterStatus(_om, "oily", ml)) {
+            startLargeMonsterStatusCooldown(_om, "oily");
+            const _ot = statusTurns("oily", { kind: "monster", target: _om });
+            _om.oilyTurns = (_om.oilyTurns || 0) + _ot;
+            ml.push(`${_om.name}は油まみれになった！(${_ot}ターン)`);
+          }
         }
         if (tx === p.x && ty === p.y) {
-          const _ot = statusTurns("oily", { kind: "player" });
-          p.oilyTurns = (p.oilyTurns || 0) + _ot;
-          ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          if (!isStatusImmune(p, ml)) {
+            const _ot = statusTurns("oily", { kind: "player" });
+            p.oilyTurns = (p.oilyTurns || 0) + _ot;
+            ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+          }
         }
         const _ot = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
         if (_ot) removeTrap(dg, _ot, ml, { message: `油で${_ot.name}が消えた！`, p });
@@ -1764,15 +1998,14 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     }
   }
   const ft = new Set();
-  if ((pot.contents?.length || 0) > 0) {
+  if (contents.length > 0) {
     ml.push(`${resolveItemName(pot)}から中身が飛び出した！`);
-    for (const item of [...pot.contents]) { placeItemAt(dg, px, py, item, ml, ft); }
-    pot.contents = [];
-  } else {
+    for (const item of contents) { placeItemAt(dg, px, py, item, ml, ft, 0, p); }
+  } else if (occupied === 0) {
     ml.push(`${resolveItemName(pot)}は空だった。`);
   }
   if (blessed) {
-    pot.capacity = (pot.capacity || 1) + 1;
+    pot.capacity = (pot.capacity ?? 1) + 1;
     ml.push(`${resolveItemName(pot)}の容量が1増えた！(${pot.capacity})【祝】`);
   }
   return { potRemovedAt: null };
@@ -1796,12 +2029,12 @@ export function weaponCriticalRate(weapon, sesameActive = false) {
 
 export const WEAPON_ABILITIES = [
   { id:"reach",         name:"長柄",      desc:"2マス先の敵まで攻撃できる" },
-  { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・大蛇)に1.5倍ダメージ" },
+  { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・にじりヘビ)に1.5倍ダメージ" },
   { id:"bane_undead",   name:"聖属性",    desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に1.5倍ダメージ" },
   { id:"bane_undead_2", name:"上位聖属性",  desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に2倍ダメージ（上位特効）" },
   { id:"bane_dragon_2", name:"上位竜特効",  desc:"竜系の敵(ドラゴン)に2倍ダメージ（上位特効）" },
   { id:"bane_float_2",  name:"上位浮遊特効",desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に2倍ダメージ（上位特効）" },
-  { id:"bane_humanoid", name:"人特効",    desc:"人型の敵(コボルド・ゴブリン・オーク・トロル)に1.5倍ダメージ" },
+  { id:"bane_humanoid", name:"人特効",    desc:"人型の敵(ゴブリン・アーチャー・魔導士など)に1.5倍ダメージ" },
   { id:"bane_dragon",   name:"竜特効",    desc:"竜系の敵(ドラゴン)に1.5倍ダメージ" },
   { id:"bane_float",    name:"浮遊特効",  desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に1.5倍ダメージ" },
   { id:"knockback",     name:"吹き飛ばし",desc:"攻撃した敵を1マス吹き飛ばす" },
@@ -1864,7 +2097,7 @@ export const ARMOR_ABILITIES = [
   { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
   /* 祝福専用強力能力 */
   { id:"all_resist",       name:"万能耐性", desc:"炎・氷・雷ダメージ2/3。個別耐性と併用で半減",             blessedOnly:true },
-  { id:"aura",             name:"闘気",     desc:"毎ターン、隣接する敵全員に2ダメージを与える",       blessedOnly:true },
+  { id:"aura",             name:"闘気",     desc:"毎ターン、隣接する敵の体1マスにつき2ダメージを与える",       blessedOnly:true },
 ];
 
 
@@ -1885,11 +2118,34 @@ export function pickTrap(pool = TRAPS, rngFn = Math.random, biasChance = 0, bias
   return pickWeighted(pool, rngFn);
 }
 
-function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
+function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted, context = {}) {
+  // 連鎖先が別の爆発を起こしても、破壊中の杖を再び壊さない。
+  if (!dg.items.includes(it)) return;
   blasted.add(it);
   const _snap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+  removeFloorItem(dg, it);
   ml.push(`杖「${resolveItemName(it, nameFn)}」が爆発で壊れ、魔法が炸裂した！`);
-  _triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn);
+  _triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn, { nameFn, ...context });
+}
+
+function _explosionBreakPot(pot, x, y, dg, p, ml, luFn, nameFn, blasted) {
+  if (!dg.items.includes(pot)) return;
+  blasted.add(pot);
+  // 中身が別の爆発を起こす前に、割れた壺と中身を切り離す。
+  const contents = [...(pot.contents || [])];
+  pot.contents = [];
+  removeFloorItem(dg, pot);
+  const name = resolveItemName(pot, nameFn);
+  if (pot.confinedMonsters?.length) releaseConfinedMonstersFromPot(pot, dg, x, y, p, ml);
+  if (pot.potEffect === "imprison") {
+    ml.push(`壺「${name}」が爆発で割れた！`);
+  } else if (contents.length > 0) {
+    ml.push(`壺「${name}」が爆発で割れ、中身が飛び出した！`);
+    const ft = new Set();
+    for (const item of contents) placeItemAt(dg, x, y, item, ml, ft, 0, p);
+  } else {
+    ml.push(`壺「${name}」が爆発で割れた！`);
+  }
 }
 
 function calcPlayerDefForProjectile(p) {
@@ -1916,6 +2172,16 @@ function calcPlayerDefForProjectile(p) {
  * options.instantMonsterKill: true のとき通常敵を即死させ、ボスには現在HPの1/4ダメージ
  */
 let _explosionChainDepth = 0;
+
+function fireBreakFloorPotion(item, x, y, dg, p, ml, luFn, nameFn = null, killerMon = null) {
+  if (!item || !dg?.items?.includes(item)) return false;
+  if (item.shopPrice) chargeShopItem(item, dg, ml, p);
+  removeFloorItem(dg, item);
+  ml.push(`薬「${resolveItemName(item, nameFn)}」が炎で割れた！`);
+  splashPotion(dg, x, y, item.effect, item.value || 0, p, ml, luFn,
+    !!item.blessed, !!item.cursed, nameFn, killerMon);
+  return true;
+}
 
 /** 爆発範囲内の地雷・時限爆弾を、爆発の種類によらず連鎖させる。 */
 export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = null, options = {}) {
@@ -1965,6 +2231,9 @@ export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = 
 }
 
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
+  const killerMon = options.killerMon || null;
+  const initialDepth = p?.depth;
+  const floorChanged = () => p?.depth !== initialDepth;
   ensureItemMimicFloorItems(dg);
   if (!options.nonElemental && isFireExplosionNullified(dg, p)) {
     announceFireExplosionNullified(dg, p, ml, srcLabel);
@@ -1972,6 +2241,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
   const _instantMonsterKill = options.instantMonsterKill === true;
+  const _damageMultiplier = Math.max(0, Number(options.damageMultiplier) || 1);
+  const _excludeMonsterId = options.excludeMonsterId ?? null;
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む爆発範囲内） */
   const _playerSafeInWater = options.playerSafeInWater && dg.map?.[cy]?.[cx] === T.WATER;
@@ -1988,16 +2259,16 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     const _oilyMineSurvival = mineExplosion && _oilyMult > 1 && !_hasFireProt && !_playerHpOne;
     const rawDmg = _oilyMineSurvival ? Math.max(0, _playerHpBefore - 1)
       : _playerHpOne ? Math.max(0, _playerHpBefore - 1)
-      : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+        : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
         : proportional ? Math.max(1, Math.floor(p.hp / 2))
-        : rng(10, 20)) * _oilyMult);
+        : rng(10, 20)) * _oilyMult * _damageMultiplier);
     const dmg = _oilyMineSurvival || _playerHpOne ? rawDmg : _projectileDmg != null
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
       : _applySoakedFireReduction(rawDmg, p);
-    p.deathCause = `${srcLabel}により`;
+    p.deathCause = killerMon?.name ? `${killerMon.name}の${srcLabel}により` : `${srcLabel}により`;
     if (_oilyMineSurvival) {
-      p.hp = 1;
+      setPlayerHpForFixedEffect(p, 1);
       ml.push(`${srcLabel}！油まみれのためHPが1残った！`);
     } else if (_playerHpOne) {
       if (hasFireResist(p)) {
@@ -2005,7 +2276,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         p.hp -= dmg;
         ml.push(`${srcLabel}！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
       } else {
-        p.hp = Math.min(_playerHpBefore, 1);
+        setPlayerHpForFixedEffect(p, Math.min(_playerHpBefore, 1));
         ml.push(`${srcLabel}！HPが1になった！`);
       }
     } else {
@@ -2013,14 +2284,33 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       p.hp -= dmg;
       ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${_projectileDmg != null ? "" : oilyDamageLabel(dg, p)}`);
     }
+    resolveParalysisHit(p, ml);
     /* 炎の爆発：耐火なしなら所持品を1つ焼く。爆弾矢・魚雷などの飛び道具爆発は対象外。 */
     const _inventoryFire = (ringExplosion || mineExplosion || _playerHpOne) && options.projectileAtk == null && options.nonElemental !== true;
-    if (_inventoryFire && !hasFireResist(p)) applyLightningToInventory(p, dg, ml, luFn, null, true);
+    if (_inventoryFire && !hasFireResist(p)) applyLightningToInventory(p, dg, ml, luFn, null, true, { ...options, killerMon });
   }
+  if (floorChanged()) return;
   const blasted = new Set();
+  const removeBlastedItems = () => {
+    for (const item of blasted) destroyItemMimicFloorItem(dg, item);
+    if (blasted.size > 0) dg.items = dg.items.filter(item => !blasted.has(item));
+  };
   const _killed = new Set();
-  for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
-    for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
+  const _largeMonstersHit = new Set();
+  const retaliateAgainstExplosionSource = (monster) => {
+    if (killerMon && monster.type === "shopkeeper" && monster.hp > 0) {
+      beginNpcRetaliation(monster, killerMon, ml);
+    }
+  };
+  const killBlastedMonster = (monster, noExp = noExpKills || ringExplosion) => {
+    if (mineExplosion || noExpKills) {
+      killMonsterByTrap(monster, dg, p, ml, luFn, `${srcLabel}の爆発`);
+    } else {
+      killMonster(monster, dg, p, ml, luFn, noExp, killerMon);
+    }
+  };
+  for (let ddx = -_blastRadius; ddx <= _blastRadius && !floorChanged(); ddx++) {
+    for (let ddy = -_blastRadius; ddy <= _blastRadius && !floorChanged(); ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       /* 壁の破壊 */
@@ -2033,21 +2323,29 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
         ml.push("爆風で壁が崩れた！");
         wallBreakDrop(dg, ax, ay);
-        continue; /* 壁タイルにキャラ・アイテムはいない */
+        if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
       }
       /* モンスターダメージ */
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
-      const _blastMonsters = dg.monsters.filter(m => !m.disguisedAsItem && m.x === ax && m.y === ay);
+      const _blastMonsters = dg.monsters.filter(m => m.id !== _excludeMonsterId && !m.disguisedAsItem && monsterOccupiesCell(m, ax, ay));
       if (ddx === 0 && ddy === 0) {
         for (const forcedMonster of options.forcedMonsters || []) {
-          if (forcedMonster && !(_blastMonsters.includes(forcedMonster)) && (forcedMonster.hp ?? 1) > 0) {
+          if (forcedMonster && forcedMonster.id !== _excludeMonsterId && !(_blastMonsters.includes(forcedMonster)) && (forcedMonster.hp ?? 1) > 0) {
             _blastMonsters.push(forcedMonster);
           }
         }
       }
       for (const m of [..._blastMonsters]) {
         if (_killed.has(m)) continue;
+        if (monsterBodySize(m) > 1) {
+          if (_largeMonstersHit.has(m)) continue;
+          _largeMonstersHit.add(m);
+        }
         wakeIfDormant(m, ml);
+        if (m.explosionImmune) {
+          ml.push(`${m.name}は爆発を受け付けない！`);
+          continue;
+        }
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
         if (m.baseKind === "firedemon" && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -2056,7 +2354,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             const _nx = ax + _sx, _ny = ay + _sy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
             if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-            if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+            if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
             if (p && _nx === p.x && _ny === p.y) continue;
             dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
             break;
@@ -2067,55 +2365,61 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           /* 即死系爆発：炎無効でない通常敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
           if (m.isBoss) {
+            if (blockLargeMonsterDamage(m, p, ml)) continue;
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
             _bd = scaleMonFireDmg(m, _bd);
             m.hp -= _bd;
+            retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
-            if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion); }
+            if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion); }
             continue;
           }
           m.hp = 0;
-          _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion);
+          _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion);
         } else if (options.projectileAtk != null) {
           /* 特殊弾の爆発：通常命中と同じ攻撃力計算を、爆心地を含む各敵へ一度だけ適用する。 */
           if (consumeBarrier(m, ml)) continue;
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
           const md = clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true);
           m.hp -= md;
+          retaliateAgainstExplosionSource(m);
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
+          if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
         } else {
           if (consumeBarrier(m, ml)) continue;
-          let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
+          let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
           md = scaleMonFireDmg(m, md);
           m.hp -= md;
+          retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
+          if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
         }
       }
       /* アイテム破壊 */
-      for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
+      for (const it of [...dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)]) {
+        if (floorChanged()) break;
+        if (!dg.items.includes(it)) continue;
         if (it.shopPrice) chargeShopItem(it, dg, ml, p);
         if (it.type === "scroll") {
           blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "spellbook") {
           blasted.add(it); ml.push(`魔法書「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "potion") {
-          blasted.add(it); ml.push(`薬「${resolveItemName(it, nameFn)}」が割れてなくなった！`);
+          fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, nameFn, killerMon);
         } else if (it.type === "food") {
           if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
-          blasted.add(it);
           if (it.potEffect === "gunpowder") {
             /* 火薬壺：後で連鎖爆発 */
-          } else if (it.contents?.length > 0) {
-            const ft2 = new Set();
-            for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
-            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れ、中身が飛び出した！`);
-          } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
+            blasted.add(it);
+          } else {
+            _explosionBreakPot(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
+          }
         } else if (it.type === "wand") {
-          _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
+          _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted, options);
         } else if (it.type === "item_mimic") {
           blasted.add(it);
           ml.push(`「${resolveItemName(it, nameFn)}」が爆発で消えた！`);
@@ -2123,25 +2427,27 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
     }
   }
+  if (floorChanged()) { removeBlastedItems(); return; }
   /* 爆発範囲内の大箱を破壊 */
   const _blastedBB = [];
-  for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
-    for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
+  for (let ddx = -_blastRadius; ddx <= _blastRadius && !floorChanged(); ddx++) {
+    for (let ddy = -_blastRadius; ddy <= _blastRadius && !floorChanged(); ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       const _hitBBs = (dg.bigboxes || []).filter(b => b.x === ax && b.y === ay);
       for (const _hbb of _hitBBs) {
+        if (floorChanged()) break;
         if (_blastedBB.includes(_hbb)) continue;
         _blastedBB.push(_hbb);
         ml.push(`${_hbb.name}が爆発で壊れた！`);
-        breakBigboxContents(_hbb, dg, ml, nameFn, null, null, { player: p, luFn });
+        breakBigboxContents(_hbb, dg, ml, nameFn, null, null, { ...options, player: p, luFn, killerMon });
       }
     }
   }
   if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
+  if (floorChanged()) { removeBlastedItems(); return; }
   breakGachaMachinesInRadius(dg, cx, cy, _blastRadius, ml, p, nameFn);
-  for (const it of blasted) destroyItemMimicFloorItem(dg, it);
-  if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
+  removeBlastedItems();
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 爆発範囲内の石像 */
   for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
@@ -2168,22 +2474,32 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   /* 破壊された火薬壺の連鎖爆発 */
   for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
-    doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
+    if (floorChanged()) return;
+    doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp), killerMon, options);
   }
+  if (floorChanged()) return;
   /* 爆発の種類によらず、範囲内の地雷・時限爆弾を連鎖爆発 */
   chainExplosionHazards(cx, cy, _blastRadius, dg, p, ml, luFn, nameFn, options);
 }
 
 /** 火薬壺の爆発処理。中心から半径2マス（5×5=25マス）を対象にする。連鎖爆発あり。 */
 let _gunpowderDepth = 0;
-export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺") {
+export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺", killerMon = null, context = {}) {
   if (_gunpowderDepth > 5) return;
   if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, `${srcLabel}の爆発`); return; }
   ensureItemMimicFloorItems(dg);
+  const initialDepth = p?.depth;
+  const floorChanged = () => p?.depth !== initialDepth;
+  const retaliateAgainstExplosionSource = (monster) => {
+    if (killerMon && monster.type === "shopkeeper" && monster.hp > 0) {
+      beginNpcRetaliation(monster, killerMon, ml);
+    }
+  };
   _gunpowderDepth++;
   try {
     pushExplosionAnim(cx, cy);
     ml.push(`${srcLabel}が爆発した！5×5マスに爆風！`);
+    const _largeMonstersHit = new Set();
     for (let ddx = -2; ddx <= 2; ddx++) {
       for (let ddy = -2; ddy <= 2; ddy++) {
         const ax = cx + ddx, ay = cy + ddy;
@@ -2198,21 +2514,28 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
           ml.push("爆風で壁が崩れた！");
           wallBreakDrop(dg, ax, ay);
-          continue;
+          if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
         }
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
           const _hasFireProt = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4)) * oilyDamageMult(dg, p);
           const dmg = reduceFireDamage(rawDmg, p);
-          p.deathCause = `${srcLabel}の爆発により`;
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の${srcLabel}の爆発により`
+            : `${srcLabel}の爆発により`;
           p.hp -= dmg;
           ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
-          if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
+          if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true,
+            { ...context, killerMon, sourceIsPlayer: context.sourceIsPlayer ?? !killerMon });
         }
         /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
-          if (m.x === ax && m.y === ay) {
+          if (monsterOccupiesCell(m, ax, ay)) {
+            if (monsterBodySize(m) > 1) {
+              if (_largeMonstersHit.has(m)) continue;
+              _largeMonstersHit.add(m);
+            }
             if (m.baseKind === "firedemon") {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
               const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -2220,7 +2543,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
                 const _nx = m.x + _sx, _ny = m.y + _sy;
                 if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
                 if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
                 if (p && _nx === p.x && _ny === p.y) continue;
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
@@ -2228,41 +2551,41 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               continue;
             }
             if (m.isBoss) {
+              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
+              retaliateAgainstExplosionSource(m);
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
-              if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
+              if (m.hp <= 0) killMonster(m, dg, p, ml, luFn, false, killerMon);
               continue;
             }
             ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
             m.hp = 0;
-            killMonster(m, dg, p, ml, luFn);
+            killMonster(m, dg, p, ml, luFn, false, killerMon);
           }
         }
       }
     }
     /* 範囲内の床上アイテムへの爆発ダメージ（火薬壺以外） */
     const _blasted = new Set();
-    for (const it of dg.items) {
+    for (const it of [...dg.items]) {
+      if (floorChanged()) break;
+      if (!dg.items.includes(it)) continue;
       if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 2) continue;
       if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 火薬壺は後で連鎖処理 */
       if (it.type === "scroll" || it.type === "spellbook") {
         _blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が爆風で燃えてなくなった！`);
       } else if (it.type === "potion") {
-        _blasted.add(it); ml.push(`薬「${resolveItemName(it)}」が爆風で割れてなくなった！`);
+        fireBreakFloorPotion(it, it.x, it.y, dg, p, ml, luFn, null, killerMon);
       } else if (it.type === "food") {
         if (it.iceCream) { _blasted.add(it); ml.push(`${resolveItemName(it)}が炎で溶けて消滅した！`); }
         else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); }
       } else if (it.type === "pot") {
-        _blasted.add(it);
-        if (it.contents?.length > 0) {
-          const _ft2 = new Set();
-          for (const ci of it.contents) placeItemAt(dg, it.x, it.y, ci, ml, _ft2);
-          ml.push(`壺「${resolveItemName(it)}」が爆発で割れ、中身が飛び出した！`);
-        } else { ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`); }
+        _explosionBreakPot(it, it.x, it.y, dg, p, ml, luFn, null, _blasted);
       } else if (it.type === "wand") {
-        _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted);
+        _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted,
+          { ...context, killerMon, sourceIsPlayer: context.sourceIsPlayer ?? !killerMon });
       } else if (it.type === "item_mimic") {
         _blasted.add(it);
         ml.push(`「${resolveItemName(it)}」が爆発で消えた！`);
@@ -2270,22 +2593,26 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     }
     for (const it of _blasted) destroyItemMimicFloorItem(dg, it);
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
+    dg.monsters = dg.monsters.filter(m => m.hp > 0);
+    if (floorChanged()) return;
     /* 範囲内の大箱を破壊 */
     const _gpBlastedBB = [];
-    for (let _gbbdx = -2; _gbbdx <= 2; _gbbdx++) {
-      for (let _gbbdy = -2; _gbbdy <= 2; _gbbdy++) {
+    for (let _gbbdx = -2; _gbbdx <= 2 && !floorChanged(); _gbbdx++) {
+      for (let _gbbdy = -2; _gbbdy <= 2 && !floorChanged(); _gbbdy++) {
         const _gbax = cx + _gbbdx, _gbay = cy + _gbbdy;
         if (_gbax < 0 || _gbax >= MW || _gbay < 0 || _gbay >= MH) continue;
         const _hitBBs = (dg.bigboxes || []).filter(b => b.x === _gbax && b.y === _gbay);
         for (const _hbb of _hitBBs) {
+          if (floorChanged()) break;
           if (_gpBlastedBB.includes(_hbb)) continue;
           _gpBlastedBB.push(_hbb);
           ml.push(`${_hbb.name}が爆発で壊れた！`);
-          breakBigboxContents(_hbb, dg, ml, null, null, null, { player: p, luFn });
+          breakBigboxContents(_hbb, dg, ml, null, null, null, { ...context, player: p, luFn, killerMon });
         }
       }
     }
     if (_gpBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_gpBlastedBB.includes(b));
+    if (floorChanged()) return;
     breakGachaMachinesInRadius(dg, cx, cy, 2, ml, p);
     /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
     const _chainPots = dg.items.filter(it =>
@@ -2293,9 +2620,14 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= 2
     );
     if (_chainPots.length > 0) {
-      dg.items = dg.items.filter(i => !_chainPots.includes(i));
-      for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
+      for (const _gp of _chainPots) {
+        if (floorChanged()) return;
+        if (!dg.items.includes(_gp)) continue;
+        removeFloorItem(dg, _gp);
+        doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp), killerMon, context);
+      }
     }
+    if (floorChanged()) return;
     /* 火薬壺も他の爆発と同じく、範囲内の地雷・時限爆弾を誘爆する */
     chainExplosionHazards(cx, cy, 2, dg, p, ml, luFn);
     /* 爆発範囲内の魔方陣を消滅 */
@@ -2328,6 +2660,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
   ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
   const blasted = new Set();
   const _killed = new Set();
+  const _largeMonstersHit = new Set();
   for (let ddx = -R; ddx <= R; ddx++) {
     for (let ddy = -R; ddy <= R; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
@@ -2342,7 +2675,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
         if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
         ml.push("爆風で壁が崩れた！");
         wallBreakDrop(dg, ax, ay);
-        continue;
+        if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
       }
       /* プレイヤー：HPが1になる＋炎アイテム損傷（耐火時は半減ダメージのみ） */
       if (p && p.x === ax && p.y === ay) {
@@ -2359,14 +2692,18 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           ml.push(`大爆発！${rawDmg}ダメージ！${oilyDamageLabel(dg, p)}`);
           if (p.hp > 0) applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         } else {
-          p.hp = 1;
+          setPlayerHpForFixedEffect(p, 1);
           ml.push(`大爆発！HPが1になった！`);
           applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         }
       }
       /* モンスター：炎無効(火ダルマ)以外は消滅（ボスは現在HPの4分の1ダメージ） */
-      for (const m of [...dg.monsters.filter(mm => !mm.disguisedAsItem && mm.x === ax && mm.y === ay)]) {
+      for (const m of [...dg.monsters.filter(mm => !mm.disguisedAsItem && monsterOccupiesCell(mm, ax, ay))]) {
         if (_killed.has(m)) continue;
+        if (monsterBodySize(m) > 1) {
+          if (_largeMonstersHit.has(m)) continue;
+          _largeMonstersHit.add(m);
+        }
         wakeIfDormant(m, ml);
         if (m.baseKind === "firedemon") {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -2375,7 +2712,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
             const _nx = ax + _sx, _ny = ay + _sy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
             if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-            if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+            if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
             if (p && _nx === p.x && _ny === p.y) continue;
             dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
             break;
@@ -2383,36 +2720,33 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           continue;
         }
         if (m.isBoss) {
+          if (blockLargeMonsterDamage(m, p, ml)) continue;
           const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, true); }
+          if (m.hp <= 0) { _killed.add(m); killMonsterByTrap(m, dg, p, ml, luFn, "時限爆弾の罠の爆発"); }
           continue;
         }
         m.hp = 0;
         _killed.add(m);
-        killMonster(m, dg, p, ml, luFn, true);
+        killMonsterByTrap(m, dg, p, ml, luFn, "時限爆弾の罠の爆発");
       }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
+        if (!dg.items.includes(it)) continue;
         if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 後で連鎖 */
         if (it.type === "scroll") {
           blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "spellbook") {
           blasted.add(it); ml.push(`魔法書「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "potion") {
-          blasted.add(it); ml.push(`薬「${resolveItemName(it, nameFn)}」が割れてなくなった！`);
+          fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, nameFn, options.killerMon || null);
         } else if (it.type === "food") {
           if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
-          blasted.add(it);
-          if (it.contents?.length > 0) {
-            const ft2 = new Set();
-            for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
-            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れ、中身が飛び出した！`);
-          } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
+          _explosionBreakPot(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         } else if (it.type === "wand") {
           _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         } else if (it.type === "item_mimic") {
@@ -2461,7 +2795,7 @@ export function wallBreakDrop(dg, x, y) {
   dg.items.push(drop);
 }
 
-/** 踏む以外で壊れた矢/毒矢/落石罠から対応アイテムをばらまく */
+/** 効果で壊れた矢/毒矢/強矢/落石罠から対応アイテムをばらまく */
 export function dropTrapBreakLoot(dg, trap, ml, ft = new Set(), p = null) {
   if (!trap || !dg) return;
   let item = null;
@@ -2473,12 +2807,12 @@ export function dropTrapBreakLoot(dg, trap, ml, ft = new Set(), p = null) {
   placeItemAt(dg, trap.x, trap.y, item, ml, new Set(ft), 0, p, trap.x, trap.y);
 }
 
-/** 罠を除去。fromStep / skipLoot 以外の破壊時は dropTrapBreakLoot を呼ぶ */
+/** 罠を除去。踏んだ／起動した結果の破壊では矢などを落とさず、効果破壊時だけ戦利品を残す */
 export function removeTrap(dg, trap, ml, opts = {}) {
-  const { fromStep = false, skipLoot = false, message, ft, p } = opts;
+  const { fromStep = false, activated = false, skipLoot = false, message, ft, p } = opts;
   dg.traps = (dg.traps || []).filter(t => t !== trap);
   if (message) ml.push(message);
-  if (!fromStep && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
+  if (!fromStep && !activated && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
 }
 
 /** 踏んだ後に罠が壊れる確率（罠の罠・道具魔物化は必ず、盗み・召喚・増殖は50%、それ以外25%） */
@@ -2497,9 +2831,10 @@ export function applyPlayerLevelDown(p, ml) {
   }
 
   p.level = currentLevel - 1;
-  p.maxHp = Math.max(1, (p.maxHp || 1) - 5);
-  p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
-  p.atk = Math.max(1, (p.atk || 1) - 1);
+  adjustPlayerBaseMaxHp(p, -5);
+  setPlayerHpForCapacityChange(p, Math.min(p.hp ?? p.maxHp, p.maxHp));
+  const atkLoss = (currentLevel % 2 === 0) ? 2 : 1;
+  p.atk = Math.max(1, (p.atk || 1) - atkLoss);
   /* Game.jsx のレベルアップ処理はLv3,6,...到達時だけ防御力と最大MPを増やす。 */
   if (currentLevel % 3 === 0) {
     p.def = Math.max(0, (p.def || 0) - 1);
@@ -2539,8 +2874,11 @@ export function findMineTrapForPending(dg, pme) {
 
 /** 地雷の爆発：爆発後に破壊判定（踏む・投げ・誘爆すべて共通） */
 export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
+  if ((dg?.timeStopTurns || 0) > 0) return false;
   const { chainMsg = null } = opts;
   const trap = findMineTrapForPending(dg, pme);
+  const activationTrap = pme?.trapId != null ? { id: pme.trapId } : trap || pme;
+  if (!claimTrapActivation(dg, activationTrap, { allowReserved: true })) return false;
   if (trap?.id != null && dg._mineDetonatedIds?.has(trap.id)) return;
   if (trap) {
     trap.revealed = true;
@@ -2553,6 +2891,7 @@ export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
   if (chainMsg) ml.push(chainMsg);
   doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true, true);
   if (trap) maybeBreakTrapAfterStep(trap, dg, ml, { p });
+  return true;
 }
 
 /** 複数罠を一括除去（呪いの罠の巻物など） */
@@ -2572,15 +2911,13 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
   let hit = false;
   const _rfm = monsterAt(dg, tx, ty);
   if (_rfm) {
-    const _rfd2 = rng(15, 25);
-    _rfm.hp -= _rfd2;
+    wakeIfDormant(_rfm, ml);
     hit = true;
-    ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
-    if (_rfm.hp <= 0) {
-      ml.push(`${_rfm.name}は倒れた！`);
-      trackMonster(_rfm);
-      monsterDrop(_rfm, dg, ml, p);
-      removeMonster(dg, _rfm);
+    if (!consumeBarrier(_rfm, ml) && !blockLargeMonsterDamage(_rfm, p, ml)) {
+      const _rfd2 = clampDmgFixed(_rfm, rng(15, 25));
+      _rfm.hp -= _rfd2;
+      ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
+      if (_rfm.hp <= 0) killMonsterByTrap(_rfm, dg, p, ml, null, trap?.name || "落石の罠");
     }
   }
   if (p && p.x === tx && p.y === ty) {
@@ -2607,7 +2944,7 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
     return 0;
   }
   const originals = (dg.monsters || []).filter((m) => {
-    if (!m || m.isBoss || m.type === "shopkeeper") return false;
+    if (!m || m.isBoss || m.type === "shopkeeper" || monsterBodySize(m) > 1) return false;
     return m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h;
   });
   if (originals.length === 0) {
@@ -2624,7 +2961,7 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
       if (!tile || tile === T.WALL || tile === T.BWALL) continue;
       if (tile === T.WATER && !monEffectiveFloat(m) && !m.waterOnly && !m.waterWalker) continue;
       if (p && nx === p.x && ny === p.y) continue;
-      if (dg.monsters.some((o) => o.x === nx && o.y === ny)) continue;
+      if (dg.monsters.some((o) => monsterOccupiesCell(o, nx, ny))) continue;
       const child = {
         ...m,
         id: uid(),
@@ -2737,12 +3074,12 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
   const poolFloor = resolveRuntimeSpawnPoolFloor(dg, (typeof p?.depth === "number" ? p.depth : depth + 1));
   let n = 0;
   for (const it of items) {
-    const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true, poolFloor });
+    const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true, excludeLarge: true, poolFloor });
     if (!picked?.base) continue;
     let mx = it.x, my = it.y;
     const blocked = (x, y) =>
       (p && p.x === x && p.y === y) ||
-      (dg.monsters || []).some((m) => m.x === x && m.y === y);
+      (dg.monsters || []).some((m) => monsterOccupiesCell(m, x, y));
     if (blocked(mx, my)) {
       let found = false;
       for (const [ox, oy] of [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
@@ -2817,17 +3154,7 @@ export function applyUnequipTrapToPlayer(p, ml, nameFn = null) {
     return false;
   }
   const pickSlot = slots[rng(0, slots.length - 1)];
-  if (pickSlot.slot === "weapon") p.weapon = null;
-  else if (pickSlot.slot === "armor") p.armor = null;
-  else if (pickSlot.slot === "ring") {
-    p.rings = (p.rings || []).filter((r) => r !== pickSlot.it);
-    if (pickSlot.it.effect === "life_ring") {
-      const bonus = (pickSlot.it.plus || 0) * 5;
-      p.maxHp = Math.max(1, p.maxHp - bonus);
-      p.hp = Math.min(p.hp, p.maxHp);
-    }
-    if (pickSlot.it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
-  }
+  unequipPlayerItem(p, pickSlot.it);
   ml.push(`${resolveItemName(pickSlot.it, nameFn)}の装備が外れた！`);
   return true;
 }
@@ -2936,11 +3263,17 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
   let lastX = originX, lastY = originY;
 
   let cx = ox + flyDx, cy = oy + flyDy;
+  const flightPath = [{ x: cx, y: cy }];
+  const appendFlightPoint = (x, y) => {
+    const last = flightPath[flightPath.length - 1];
+    if (last.x !== x || last.y !== y) flightPath.push({ x, y });
+  };
   for (let step = 0; step < Math.max(MW, MH) + 2; step++) {
     if (cx < 0 || cy < 0 || cx >= MW || cy >= MH) break;
     const tile = dg.map[cy]?.[cx];
     if (tile === T.WALL || tile === T.BWALL) break;
     lastX = cx; lastY = cy;
+    appendFlightPoint(cx, cy);
 
     if (p && p.x === cx && p.y === cy) {
       if (getDodgePentacleMode(dg, p.x, p.y) === "dodge") {
@@ -2957,7 +3290,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
         } else {
           const _poison = applyPlayerPoison(p);
-          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          ml.push(statusResultMessage(_poison, `毒矢が命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
       } else {
         ml.push(`${label}が命中！${d}ダメージ！`);
@@ -2980,6 +3313,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           if (rx < 0 || ry < 0 || rx >= MW || ry >= MH) break;
           if (dg.map[ry]?.[rx] === T.WALL || dg.map[ry]?.[rx] === T.BWALL) break;
           rLastX = rx; rLastY = ry;
+          appendFlightPoint(rx, ry);
           if (p && p.x === rx && p.y === ry) {
             rHit = true;
             const d = dmgPlayer();
@@ -2990,7 +3324,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
                 ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！しかし指輪が毒を消した！`);
               } else {
                 const _poison = applyPlayerPoison(p);
-                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                ml.push(statusResultMessage(_poison, `跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
               }
             } else {
               ml.push(`跳ね返された${label}が${pl()}に命中！${d}ダメージ！`);
@@ -3007,19 +3341,19 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
         ml.push(`みかわしの魔方陣の加護で${label}が${m.name}に当たらなかった！矢が落ちた。`);
         placeItemAt(dg, cx, cy, arrow, ml, _ft);
       } else {
-        const d = dmgMon();
-        m.hp -= d;
-        if (poison) {
-          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-          ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
-        } else {
-          ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
-        }
-        if (m.hp <= 0) {
-          ml.push(`${m.name}は倒れた！`);
-          trackMonster(m);
-          monsterDrop(m, dg, ml, p);
-          removeMonster(dg, m);
+        wakeIfDormant(m, ml);
+        if (!consumeBarrier(m, ml) && !blockLargeMonsterDamage(m, p, ml)) {
+          const d = clampDmgFixed(m, dmgMon());
+          m.hp -= d;
+          if (poison) {
+            m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
+          } else {
+            ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
+          }
+          if (m.hp <= 0) {
+            killMonsterByTrap(m, dg, p, ml, null, trap?.name || `${label}の罠`);
+          }
         }
       }
       hit = true;
@@ -3030,6 +3364,10 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
     cy += flyDy;
   }
 
+  if (flightPath.length > 1) {
+    const from = flightPath[0], to = flightPath[flightPath.length - 1];
+    pushItemFlyAnim(from.x, from.y, to.x, to.y, arrow.tile, flightPath);
+  }
   if (!hit) placeItemAt(dg, lastX, lastY, arrow, ml, _ft);
   return hit;
 }
@@ -3046,6 +3384,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet);
   }
+  if (!claimTrapActivation(dg, trap)) return "already_activated";
   trackTrap(trap);
   switch (trap.effect) {
     case "explode": {
@@ -3064,10 +3403,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_pfm) {
         if (_pfm.isBoss) {
           /* ボス：落とし穴は無効、現在HPの4分の1ダメージ */
-          const _bd = bossInstantDeathDamage(_pfm);
-          _pfm.hp -= _bd;
-          ml.push(`${_pfm.name}は落とし穴をものともしなかった！${_bd}ダメージ！`);
-          if (_pfm.hp <= 0) killMonster(_pfm, dg, p, ml, luFn);
+          if (!blockLargeMonsterDamage(_pfm, p, ml)) {
+            const _bd = bossInstantDeathDamage(_pfm);
+            _pfm.hp -= _bd;
+            ml.push(`${_pfm.name}は落とし穴の衝撃で${_bd}ダメージを受けた！`);
+            if (_pfm.hp <= 0) killMonsterByTrap(_pfm, dg, p, ml, luFn, trap?.name || "落とし穴");
+          }
         } else {
           removeMonster(dg, _pfm);
           if (_pitfallBag) {
@@ -3081,7 +3422,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       /* 重力の力など内部トリガーは落下アイテムにしない（拾えるとバグ） */
       if (item && !item._ephemeralTrapTrigger) {
         if (_pitfallBag) {
-          _pitfallBag.push({ kind: 'item', entity: item });
+          _pitfallBag.push({ kind: isBigboxEntity(item) ? 'bigbox' : 'item', entity: item });
           ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて次の階へ落下した！`);
         } else {
           ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて消えた！`);
@@ -3089,7 +3430,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       } else if (item?._ephemeralTrapTrigger) {
         ml.push(`${trap.name}が発動！`);
       }
-      if (p && p.x === tx && p.y === ty) return "pitfall_player";
+      if (p && p.x === tx && p.y === ty) {
+        if (isPlayerFloating(p, dg)) {
+          ml.push(`浮遊しているので${trap.name}に落ちなかった！`);
+          return "destroyed";
+        }
+        return "pitfall_player";
+      }
       return "destroyed";
     }
     case "rust": {
@@ -3158,7 +3505,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         placeItemAt(dg, nx, ny, item, ml, ft);
         const _spinTpBlock = hasCursedTeleportPentacle(dg);
         const _spm = monsterAt(dg, tx, ty);
-        if (_spm) {
+        if (_spm && !_spm.forcedMoveImmune) {
           if (_spinTpBlock) { ml.push(`呪われたテレポートの魔方陣に阻まれて${_spm.name}は吹き飛ばなかった！`); }
           else {
             const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
@@ -3166,7 +3513,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
             ml.push(`${_spm.name}も吹き飛ばされた！`);
           }
-        }
+        } else if (_spm) ml.push(`${_spm.name}は強制移動を受けない！`);
         if (p && p.x === tx && p.y === ty) {
           if (_spinTpBlock) { ml.push("呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！"); }
           else {
@@ -3186,9 +3533,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slm = monsterAt(dg, tx, ty);
       if (_slm) {
-        const _mst = statusTurns("sleep", { kind: "monster", target: _slm });
-        _slm.sleepTurns = (_slm.sleepTurns || 0) + _mst;
-        ml.push(`${_slm.name}が眠りに落ちた！(${_mst}ターン)`);
+        if (!blockLargeMonsterStatus(_slm, "sleep", ml)) {
+          startLargeMonsterStatusCooldown(_slm, "sleep");
+          const _mst = statusTurns("sleep", { kind: "monster", target: _slm });
+          _slm.sleepTurns = (_slm.sleepTurns || 0) + _mst;
+          ml.push(`${_slm.name}が眠りに落ちた！(${_mst}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (blockPlayerStatus(p, ml, { proofAbility: "sleep_proof", proofMsg: "しかし眠れなかった！(耐眠)" })) {
@@ -3224,11 +3574,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slwm = monsterAt(dg, tx, ty);
       if (_slwm) {
-        if (_slwm.isBoss && _slwm._preSlowSpeed === undefined) _slwm._preSlowSpeed = _slwm.speed;
-        _slwm.speed = Math.max(0.25, _slwm.speed * 0.5);
-        const _slowT = _slwm.isBoss ? statusTurns("bossSlow", { kind: "monster", target: _slwm }) : 0;
-        if (_slwm.isBoss) _slwm.bossSlowTurns = (_slwm.bossSlowTurns || 0) + _slowT;
-        ml.push(`${_slwm.name}が鈍足になった！${_slwm.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
+        if (!blockLargeMonsterStatus(_slwm, "slow", ml)) {
+          startLargeMonsterStatusCooldown(_slwm, "slow");
+          if (_slwm.isBoss && _slwm._preSlowSpeed === undefined) _slwm._preSlowSpeed = _slwm.speed;
+          _slwm.speed = Math.max(0.25, _slwm.speed * 0.5);
+          const _slowT = _slwm.isBoss ? statusTurns("bossSlow", { kind: "monster", target: _slwm }) : 0;
+          if (_slwm.isBoss) _slwm.bossSlowTurns = (_slwm.bossSlowTurns || 0) + _slowT;
+          ml.push(`${_slwm.name}が鈍足になった！${_slwm.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
@@ -3314,9 +3667,16 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_trm) {
         const _td = rng(3, 8);
         _trm.hp -= _td;
-        _trm.knockdownTurns = Math.max(_trm.knockdownTurns || 0, 2);
-        ml.push(`${_trm.name}が転んだ！${_td}ダメージ！(2ターン行動不能)`);
-        if (_trm.hp <= 0) killMonster(_trm, dg, p, ml, luFn);
+        if (_trm.hp <= 0) {
+          ml.push(`${_trm.name}が転んだ！${_td}ダメージ！`);
+          killMonsterByTrap(_trm, dg, p, ml, luFn, trap?.name || "転倒の罠");
+        } else if (blockLargeMonsterStatus(_trm, "knockdown", ml)) {
+          ml.push(`${_trm.name}は転倒耐性で踏みとどまった！${_td}ダメージ！`);
+        } else {
+          startLargeMonsterStatusCooldown(_trm, "knockdown");
+          _trm.knockdownTurns = Math.max(_trm.knockdownTurns || 0, 2);
+          ml.push(`${_trm.name}が転んだ！${_td}ダメージ！(2ターン行動不能)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         applyPlayerTrip(p, dg, ml, {
@@ -3340,9 +3700,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _ssm = monsterAt(dg, tx, ty);
       if (_ssm) {
-        const _it = statusTurns("immobile", { kind: "monster", target: _ssm });
-        _ssm.immobileTurns = (_ssm.immobileTurns || 0) + _it;
-        ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(${_it}ターン移動封じ)`);
+        if (!blockLargeMonsterStatus(_ssm, "immobile", ml)) {
+          startLargeMonsterStatusCooldown(_ssm, "immobile");
+          const _it = statusTurns("immobile", { kind: "monster", target: _ssm });
+          _ssm.immobileTurns = (_ssm.immobileTurns || 0) + _it;
+          ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(${_it}ターン移動封じ)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml)) {
@@ -3377,22 +3740,15 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           for (let i = 0; i < 10; i++) {
             const _bnx = _bbm.x + _bbdx, _bny = _bbm.y + _bbdy;
             if (_bnx < 0 || _bnx >= MW || _bny < 0 || _bny >= MH || dg.map[_bny][_bnx] === T.WALL || dg.map[_bny][_bnx] === T.BWALL) { _bbHitWall = true; break; }
-            const _bom = dg.monsters.find(o => o !== _bbm && o.x === _bnx && o.y === _bny);
+            const _bom = dg.monsters.find(o => o !== _bbm && monsterOccupiesCell(o, _bnx, _bny));
             if (_bom) { _bbHitOther = _bom; break; }
             _bbm.x = _bnx; _bbm.y = _bny;
           }
           ml.push(`${_bbm.name}が吹き飛ばされた！`);
           if (_bbHitWall) { _bbm.hp -= 10; ml.push(`${_bbm.name}が壁に激突！10ダメージ！`); }
           if (_bbHitOther) { _bbm.hp -= 10; _bbHitOther.hp -= 10; ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！お互いに10ダメージ！`); }
-          if (_bbm.hp <= 0) {
-            trackMonster(_bbm);
-            monsterDrop(_bbm, dg, ml, p);
-          }
-          if (_bbHitOther?.hp <= 0) {
-            trackMonster(_bbHitOther);
-            monsterDrop(_bbHitOther, dg, ml, p);
-          }
-          dg.monsters = dg.monsters.filter(m => m.hp > 0);
+          if (_bbm.hp <= 0) killMonsterByTrap(_bbm, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
+          if (_bbHitOther?.hp <= 0) killMonsterByTrap(_bbHitOther, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
         }
       }
       if (p && p.x === tx && p.y === ty) {
@@ -3413,8 +3769,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           p.hp -= 10;
           _pHitMon.hp -= 10;
           ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`);
-          if (_pHitMon.hp <= 0) trackMonster(_pHitMon);
-          dg.monsters = dg.monsters.filter(m => m.hp > 0);
+          if (_pHitMon.hp <= 0) {
+            killMonsterByTrap(_pHitMon, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
+          }
         }
         else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
         pushPlayerKnockbackAnim(_blowFromX, _blowFromY, p.x, p.y, _pbdx, _pbdy);
@@ -3425,9 +3782,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _cfm = monsterAt(dg, tx, ty);
       if (_cfm) {
-        const _ct = statusTurns("confuse", { kind: "monster", target: _cfm });
-        _cfm.confusedTurns = (_cfm.confusedTurns || 0) + _ct;
-        ml.push(`${_cfm.name}は混乱した！(${_ct}ターン)`);
+        if (!blockLargeMonsterStatus(_cfm, "confuse", ml)) {
+          startLargeMonsterStatusCooldown(_cfm, "confuse");
+          const _ct = statusTurns("confuse", { kind: "monster", target: _cfm });
+          _cfm.confusedTurns = (_cfm.confusedTurns || 0) + _ct;
+          ml.push(`${_cfm.name}は混乱した！(${_ct}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) {
@@ -3443,8 +3803,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       const _bwtm = monsterAt(dg, tx, ty);
       if (_bwtm) {
         const _bt = statusTurns("bewitch", { kind: "monster", target: _bwtm });
-        _bwtm.fleeingTurns = (_bwtm.fleeingTurns || 0) + _bt;
-        ml.push(`${_bwtm.name}が幻惑された！(${_bt}ターン)`);
+        if (applyMonsterBewitch(_bwtm, _bt, ml) > 0) ml.push(`${_bwtm.name}が幻惑された！(${_bt}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "しかし防具が幻惑を防いだ！(耐惑わし)" })) {
@@ -3463,8 +3822,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_dktm.name}には暗闇が効かなかった！`);
         } else {
           const _dt = statusTurns("darkness", { kind: "monster", target: _dktm });
-          applyMonsterDarkness(_dktm, _dt);
-          ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
+          if (applyMonsterDarkness(_dktm, _dt, ml) > 0) ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
         }
       }
       if (p && p.x === tx && p.y === ty) {
@@ -3498,9 +3856,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _flm = monsterAt(dg, tx, ty);
       if (_flm) {
-        const _ft = statusTurns("float", { kind: "monster", target: _flm });
-        _flm.floatTurns = Math.max(_flm.floatTurns || 0, _ft);
-        ml.push(`${_flm.name}がふわっと浮いた！(浮遊${_ft}ターン)`);
+        if (!blockLargeMonsterStatus(_flm, "float", ml)) {
+          startLargeMonsterStatusCooldown(_flm, "float");
+          const _ft = statusTurns("float", { kind: "monster", target: _flm });
+          _flm.floatTurns = Math.max(_flm.floatTurns || 0, _ft);
+          ml.push(`${_flm.name}がふわっと浮いた！(浮遊${_ft}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         const _ft = statusTurns("float", { kind: "player" });
@@ -3513,14 +3874,19 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _olm = monsterAt(dg, tx, ty);
       if (_olm) {
-        const _ot = statusTurns("oily", { kind: "monster", target: _olm });
-        _olm.oilyTurns = (_olm.oilyTurns || 0) + _ot;
-        ml.push(`${_olm.name}は油まみれになった！(${_ot}ターン)`);
+        if (!blockLargeMonsterStatus(_olm, "oily", ml)) {
+          startLargeMonsterStatusCooldown(_olm, "oily");
+          const _ot = statusTurns("oily", { kind: "monster", target: _olm });
+          _olm.oilyTurns = (_olm.oilyTurns || 0) + _ot;
+          ml.push(`${_olm.name}は油まみれになった！(${_ot}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
-        const _ot = statusTurns("oily", { kind: "player" });
-        p.oilyTurns = (p.oilyTurns || 0) + _ot;
-        ml.push(`油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);
+        if (!isStatusImmune(p, ml)) {
+          const _ot = statusTurns("oily", { kind: "player" });
+          p.oilyTurns = (p.oilyTurns || 0) + _ot;
+          ml.push(`油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);
+        }
       }
       return "restart";
     }
@@ -3528,9 +3894,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _uim = monsterAt(dg, tx, ty);
       if (_uim) {
-        const _ct = statusTurns("confuse", { kind: "monster", target: _uim });
-        _uim.confusedTurns = (_uim.confusedTurns || 0) + _ct;
-        ml.push(`${_uim.name}は混乱した！(${_ct}ターン)`);
+        if (!blockLargeMonsterStatus(_uim, "confuse", ml)) {
+          startLargeMonsterStatusCooldown(_uim, "confuse");
+          const _ct = statusTurns("confuse", { kind: "monster", target: _uim });
+          _uim.confusedTurns = (_uim.confusedTurns || 0) + _ct;
+          ml.push(`${_uim.name}は混乱した！(${_ct}ターン)`);
+        }
       }
       /* 落ちてきた／作動させたアイテム自体を未識別に */
       const _idSet = identSet || getTrapIdentSet();
@@ -3571,10 +3940,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       const _rtm = monsterAt(dg, tx, ty);
       if (_rtm) {
         if (_rtm.isBoss) {
-          const _bd = bossInstantDeathDamage(_rtm);
-          _rtm.hp -= _bd;
-          ml.push(`${_rtm.name}は腐敗に耐えたが${_bd}ダメージを受けた！`);
-          if (_rtm.hp <= 0) killMonster(_rtm, dg, p, ml, luFn);
+          if (!blockLargeMonsterDamage(_rtm, p, ml)) {
+            const _bd = bossInstantDeathDamage(_rtm);
+            _rtm.hp -= _bd;
+            ml.push(`${_rtm.name}は腐敗に蝕まれた！${_bd}ダメージ！`);
+            if (_rtm.hp <= 0) killMonsterByTrap(_rtm, dg, p, ml, luFn, trap?.name || "腐敗の罠");
+          }
         } else {
           trackMonster(_rtm);
           dg.monsters = dg.monsters.filter(m => m !== _rtm);
@@ -3646,7 +4017,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _boneDmg = rng(5, 12);
         _boneM.hp -= _boneDmg;
         ml.push(`骨が${_boneM.name}に激突！${_boneDmg}ダメージ！`);
-        if (_boneM.hp <= 0) killMonster(_boneM, dg, p, ml, luFn);
+        if (_boneM.hp <= 0) killMonsterByTrap(_boneM, dg, p, ml, luFn, "飛んできた骨");
       } else if (p && p.x === tx && p.y === ty) {
         const _boneDmg = rng(5, 12);
         p.deathCause = "飛んできた骨に激突して";
@@ -3682,6 +4053,10 @@ export function makeStrongArrow(c = 1) {
 
 export function makeStone(c = 1) {
   return { ...STONE_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function makeIceChunk(c = 1) {
+  return { ...ICE_CHUNK_T, id:uid(), count:Math.min(99, c) };
 }
 
 export function makeGoldNugget(isFake = false) {
@@ -3749,6 +4124,7 @@ export function makeBasicArrowUnit(stack) {
   if (stack.specialProjectile === "crawling_bomb") return copyDiscoveryMark(makeCrawlingBomb(1));
   if (stack.specialProjectile === "homing") return copyDiscoveryMark(makeHomingShot(1));
   if (stack.magicStone) return copyDiscoveryMark(makeMagicStone(1));
+  if (stack.iceChunk) return copyDiscoveryMark(makeIceChunk(1));
   if (stack.stone) return copyDiscoveryMark(makeStone(1));
   if (stack.bombArrow) return copyDiscoveryMark(makeBombArrow(1));
   if (stack.pierce) return copyDiscoveryMark(makePiercingArrow(1));
@@ -3832,25 +4208,23 @@ export function thrownItemAttack(item) {
 }
 
 /** アイスクリームを食べさせたときの共通効果。敵への投擲にも使う。 */
-export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム" } = {}) {
+export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム", hungerAlreadyApplied = false } = {}) {
   if (!target) return { hp: 0, hunger: 0, confused: false };
   const isPlayer = kind === "player";
   const maxHp = Math.max(0, Number(target.maxHp ?? target.hp ?? 0));
   const hpGain = Math.max(0, Math.min(15, maxHp - (Number(target.hp) || 0)));
   target.hp = (Number(target.hp) || 0) + hpGain;
   let hungerGain = 0;
-  if (isPlayer) {
-    const maxHunger = Math.max(0, Number(target.maxHunger ?? 100));
-    hungerGain = Math.max(0, Math.min(15, maxHunger - (Number(target.hunger) || 0)));
-    target.hunger = Math.min(maxHunger, (Number(target.hunger) || 0) + 15);
-    if (target.hunger > 0) delete target._hungerDmgStarted;
+  if (isPlayer && !hungerAlreadyApplied) {
+    hungerGain = addFoodHunger(target, 15);
   }
   const alreadyProtected = (target.iceCreamFireResTurns || 0) > 0;
   if (alreadyProtected) {
     const canConfuse = isPlayer
       ? (target.statusImmune || 0) <= 0 && !hasAbility(target.armor, "confuse_proof")
-      : (target.statusImmune || 0) <= 0;
+      : (target.statusImmune || 0) <= 0 && !blockLargeMonsterStatus(target, "confuse", ml);
     if (canConfuse) {
+      if (!isPlayer) startLargeMonsterStatusCooldown(target, "confuse");
       const turns = statusTurns("confuse", { kind, target });
       target.confusedTurns = (target.confusedTurns || 0) + turns;
       ml?.push(`${name}の冷たさで頭がキーンと痛くなり、${isPlayer ? "混乱した" : `${target.name || "敵"}は混乱した`}！(${turns}ターン)`);
@@ -3878,15 +4252,16 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     hitMessage = (target, dmg) => `${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
     onKilled = null,
   } = opts;
-  weakenOrClearParalysis(mon, ml);
+  return withParalysisHit(mon, ml, () => {
   if (consumeBarrier(mon, ml)) return { blocked: true, killed: false };
 
   const dmg = clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true);
   mon.hp -= dmg;
   ml.push(hitMessage(mon, dmg));
+  triggerMushroomCounterSpore(mon, dg, p, ml);
 
   /* 毒矢：命中時の毒付与と攻撃力半減も通常投擲と同じにする。 */
-  if (item.type === "arrow" && item.poison) {
+  if (item.type === "arrow" && item.poison && !isStatusImmune(mon, ml, mon.name)) {
     if (mon.isBoss) {
       if (!mon.bossPoisonHalfAtk) {
         mon.bossPoisonOrigAtk = mon.atk;
@@ -3905,17 +4280,35 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     const _yDmg = rng(15, 25);
     mon.hp -= _yDmg;
     ml.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
-    if (mon.hp > 0) {
-      const _yPoison = applyYabaiPoison(mon, "monster");
-      const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
-      const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
-      mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
-      mon.fleeingTurns = (mon.fleeingTurns || 0) + _yBewitchT;
-      if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
-      mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
-      const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
-      if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
-      ml.push(`${mon.name}は毒(${_yPoison.turns}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`);
+    if (mon.hp > 0 && !isStatusImmune(mon, ml, mon.name)) {
+      const _ailments = [];
+      let _yPoison = { turns: 0, atkLoss: 0 };
+      if (!blockLargeMonsterStatus(mon, "poison", ml)) {
+        startLargeMonsterStatusCooldown(mon, "poison");
+        _yPoison = applyYabaiPoison(mon, "monster");
+        _ailments.push(`毒(${_yPoison.turns}ターン)`);
+      }
+      if (!blockLargeMonsterStatus(mon, "confuse", ml)) {
+        startLargeMonsterStatusCooldown(mon, "confuse");
+        const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
+        mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
+        _ailments.push(`混乱(${_yConfuseT}ターン)`);
+      }
+      if (!blockLargeMonsterStatus(mon, "bewitch", ml)) {
+        const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
+        if (applyMonsterBewitch(mon, _yBewitchT, ml) > 0) _ailments.push(`幻惑(${_yBewitchT}ターン)`);
+      }
+      if (!blockLargeMonsterStatus(mon, "slow", ml)) {
+        startLargeMonsterStatusCooldown(mon, "slow");
+        if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
+        mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
+        const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
+        if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
+        _ailments.push(`鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}`);
+      }
+      ml.push(_ailments.length
+        ? `${mon.name}は${_ailments.join("・")}状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`
+        : `${mon.name}は状態異常耐性中で影響を受けなかった！`);
     }
   }
 
@@ -3925,10 +4318,12 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   }
 
   /* 腐った／焦げた食料：攻撃力半減（ヤバイ食料を除く）。 */
-  if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0) {
+  if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0 && !isStatusImmune(mon, ml, mon.name)) {
     mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
     ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
   }
+
+  if (mon.hp > 0) applyFoodEffectsOnHit(item, "monster", mon, dg, p, ml, luFn, killerMon);
 
   const killed = mon.hp <= 0;
   if (killed) {
@@ -3948,6 +4343,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     }
   }
   return { blocked: false, killed };
+  });
 }
 
 function finalizePickedStack(sourceItem, changedStacks) {
@@ -3999,9 +4395,37 @@ export function addStonesInv(inv, c, isMagic = false, maxInv = 30, sourceItem = 
   return true;
 }
 
+export function addIceChunksInv(inv, c, maxInv = 30, sourceItem = null) {
+  const matches = (i) => i.type === "arrow" && !!i.iceChunk;
+  if (!canAddStackCount(inv, c, matches, maxInv)) return false;
+  let r = Math.max(0, Number(c) || 0);
+  const changedStacks = [];
+  for (const i of inv) {
+    if (matches(i) && i.count < 99) {
+      const a = Math.min(r, 99 - i.count);
+      i.count += a;
+      r -= a;
+      changedStacks.push(i);
+      if (r <= 0) {
+        finalizePickedStack(sourceItem, changedStacks);
+        return true;
+      }
+    }
+  }
+  while (r > 0) {
+    const n = Math.min(r, 99);
+    const added = makeIceChunk(n);
+    inv.push(added);
+    changedStacks.push(added);
+    r -= n;
+  }
+  finalizePickedStack(sourceItem, changedStacks);
+  return true;
+}
+
 export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false, strong = false, specialProjectile = null, sourceItem = null) {
   const _special = specialProjectile || null;
-  const matches = (i) => i.type === "arrow" && !i.stone && !i.magicStone && (i.specialProjectile || null) === _special && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && !!i.strong === strong;
+  const matches = (i) => i.type === "arrow" && !i.stone && !i.magicStone && !i.iceChunk && (i.specialProjectile || null) === _special && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && !!i.strong === strong;
   if (!canAddStackCount(inv, c, matches, maxInv)) return false;
   let r = Math.max(0, Number(c) || 0);
   const changedStacks = [];
@@ -4053,6 +4477,8 @@ export function cureBlessedHealAilments(entity, kind = "player") {
   } else if (entity.poisoned || (entity.poisonedTurns || 0) > 0) {
     entity.poisoned = false;
     entity.poisonedTurns = 0;
+    delete entity.sporePoisonKillerId;
+    delete entity.sporePoisonKillerName;
     if (entity.poisonHalfAtk) {
       entity.atk = entity.poisonOrigAtk ?? entity.atk;
       delete entity.poisonHalfAtk;
@@ -4067,8 +4493,35 @@ function appendCuredAilments(ml, cured) {
   if (cured?.length && ml?.length) ml[ml.length - 1] += ` ${cured.join("・")}も解消！`;
 }
 
-export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false) {
+const POTION_MONSTER_STATUS_KEYS = {
+  poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
+  darkness: "darkness", bewitch: "bewitch", seal: "seal", paralyze: "paralyze", sake: "confuse",
+};
+const POTION_DIRECT_MONSTER_STATUS_KEYS = {
+  poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
+};
+
+export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false, skipLargeMonsterStatus = false) {
   if (kind === "monster") wakeIfDormant(target, ml);
+  if (kind === "monster" && monHasFlameMantle(target) && eff !== "water" && eff !== "fire") {
+    ml.push(`${target.name}は炎をまとっていて、薬の効果が蒸発した！`);
+    return;
+  }
+  const statusVictim = kind === "player" ? p : kind === "monster" ? target : null;
+  const pureAilment = (!cursed && ["sleep", "slow", "confuse", "darkness", "bewitch"].includes(eff)) || (cursed && eff === "panacea");
+  if (statusVictim && pureAilment && isStatusImmune(statusVictim, ml, kind === "monster" ? target.name : null)) return;
+  let _skipLargeMonsterStatus = skipLargeMonsterStatus;
+  const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && !cursed && !_skipLargeMonsterStatus
+    ? POTION_DIRECT_MONSTER_STATUS_KEYS[eff]
+    : null;
+  if (_largeStatusKey && blockLargeMonsterStatus(target, _largeStatusKey, ml)) {
+    if (eff !== "poison") return;
+    _skipLargeMonsterStatus = true;
+  }
+  if (_largeStatusKey && !_skipLargeMonsterStatus) {
+    if (isStatusImmune(target, ml, target.name)) return;
+    startLargeMonsterStatusCooldown(target, _largeStatusKey);
+  }
   const _beforeMonsterHp = kind === "monster" ? target?.hp : null;
   const _monKill = (mon) => {
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon, false, false, skipKillerLevelUp);
@@ -4110,7 +4563,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       if (kind === "player") {
         if (cursed) {
-          p.deathCause = "呪われた水の飛散により";
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の呪われた水の飛散により`
+            : "呪われた水の飛散により";
           p.hp -= amt;
           ml.push(`変な薬を浴びた！${amt}ダメージ！【呪】`);
         } else {
@@ -4126,8 +4581,24 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 反転→ダメージ（通常の回復量と同じ）
         const d = Math.max(1, Math.round(val));
-        if (kind === "monster") { if (!consumeBarrier(target, ml)) { target.hp -= d; ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`); _monKill(target); } }
-        if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
+        if (kind === "monster") {
+          if (target.kind === "undead") {
+            const h = Math.min(d, Math.max(0, target.maxHp - target.hp));
+            if (h > 0) { target.hp += h; ml.push(`${target.name}は呪われた回復薬で${h}HP回復した！`); pushHealAnim(target.x, target.y); }
+            else ml.push(`${target.name}はHPが満タンで回復しなかった！`);
+          } else if (!consumeBarrier(target, ml)) {
+            target.hp -= d;
+            ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`);
+            _monKill(target);
+          }
+        }
+        if (kind === "player") {
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の呪われた回復薬の飛散により`
+            : "呪われた回復薬の飛散により";
+          p.hp -= d;
+          ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`);
+        }
       } else {
         const _mult = blessed ? 2 : 1;
         if (kind === "monster") {
@@ -4150,8 +4621,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
               p.hp += _up;
               ml.push(`HPが満タンだったので${_up}ダメージを受けた！${blessed ? "(祝福)" : ""}`);
             } else {
-              p.maxHp += _up;
-              p.hp += _up;
+              p.hp += adjustPlayerBaseMaxHp(p, _up);
               ml.push(`HPが満タンだったのでHP最大値が${_up}上昇した！${blessed ? "(祝福)" : ""}`);
             }
             pushHealAnim(p.x, p.y);
@@ -4166,8 +4636,24 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 呪い：回復量と同じ値のダメージ
         const _shd = Math.max(1, Math.round(val));
-        if (kind === "monster") { target.hp -= _shd; ml.push(`${target.name}は変な薬を浴びた！${_shd}ダメージ！`); _monKill(target); }
-        if (kind === "player") { p.deathCause = "呪われた超回復薬の飛散により"; p.hp -= _shd; ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`); }
+        if (kind === "monster") {
+          if (target.kind === "undead") {
+            const _shh = Math.min(_shd, Math.max(0, target.maxHp - target.hp));
+            if (_shh > 0) { target.hp += _shh; ml.push(`${target.name}は呪われた超回復薬で${_shh}HP回復した！`); pushHealAnim(target.x, target.y); }
+            else ml.push(`${target.name}はHPが満タンで回復しなかった！`);
+          } else {
+            target.hp -= _shd;
+            ml.push(`${target.name}は変な薬を浴びた！${_shd}ダメージ！`);
+            _monKill(target);
+          }
+        }
+        if (kind === "player") {
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の呪われた超回復薬の飛散により`
+            : "呪われた超回復薬の飛散により";
+          p.hp -= _shd;
+          ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`);
+        }
       } else if (kind === "monster") {
         if (target.kind === "undead") {
           const _shUd = Math.max(1, Math.round(val * _shMult));
@@ -4189,8 +4675,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             p.hp += _shUp;
             ml.push(`HPが満タンだったので${_shUp}ダメージを受けた！${blessed ? "(祝福)" : ""}`);
           } else {
-            p.maxHp += _shUp;
-            p.hp += _shUp;
+            p.hp += adjustPlayerBaseMaxHp(p, _shUp);
             ml.push(`HPが満タンだったのでHP最大値が${_shUp}上昇した！${blessed ? "(祝福)" : ""}`);
           }
           pushHealAnim(p.x, p.y);
@@ -4213,14 +4698,18 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const dmg = poisonContactAmount(val, { blessed });
           target.hp -= dmg;
-          const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
-          target.poisonedTurns = (target.poisonedTurns || 0) + _poisonTurns;
-          if (!target.poisonHalfAtk) {
-            target.poisonOrigAtk = target.atk;
-            target.atk = Math.max(1, Math.floor(target.atk / 2));
-            target.poisonHalfAtk = true;
+          if (_skipLargeMonsterStatus || isStatusImmune(target, ml, target.name)) {
+            ml.push(`${target.name}は毒の薬液で${dmg}ダメージ！`);
+          } else {
+            const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
+            target.poisonedTurns = (target.poisonedTurns || 0) + _poisonTurns;
+            if (!target.poisonHalfAtk) {
+              target.poisonOrigAtk = target.atk;
+              target.atk = Math.max(1, Math.floor(target.atk / 2));
+              target.poisonHalfAtk = true;
+            }
+            ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態(${_poisonTurns}ターン)になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
           }
-          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態(${_poisonTurns}ターン)になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
           _monKill(target);
         }
       }
@@ -4238,9 +4727,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const _poison = applyPlayerPoison(p, { blessed });
           if (blessed) {
-            ml.push(`強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！(強毒)`);
+            ml.push(statusResultMessage(_poison, `強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！(強毒)`));
           } else {
-            ml.push(_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`);
+            ml.push(statusResultMessage(_poison, _poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`));
           }
         }
       }
@@ -4262,7 +4751,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         const _oilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
         if (kind === "monster") {
           /* 火ダルマは炎で回復（封印中は特性無効で通常ダメ） */
-          if (target.baseKind === "firedemon" && !target.sealed) {
+          if (monHasFlameMantle(target)) {
             const _fheal = Math.min(Math.round(dmg * (blessed ? 2 : 1)), target.maxHp - target.hp);
             if (_fheal > 0) { target.hp += _fheal; ml.push(`炎を受けた${target.name}が回復した！(+${_fheal}HP)`); }
             else ml.push(`${target.name}は炎を吸収した！`);
@@ -4278,10 +4767,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const _oilyMult = _oilyCheck(p) ? 2 : 1;
           const rd = Math.max(1, Math.round(dmg * (blessed ? 2 : 1) * _oilyMult));
           const fd = reduceFireDamage(rd, p);
-          p.deathCause = "炎の薬の飛散により";
+          p.deathCause = killerMon?.name
+            ? `${killerMon.name}の炎の薬の飛散により`
+            : "炎の薬の飛散により";
           p.hp -= fd;
           ml.push(`炎に包まれた！${fd}ダメージ！${fireResistDamageLabel(p)}${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
-          applyLightningToInventory(p, dg, ml, luFn, null, true);
+          applyLightningToInventory(p, dg, ml, luFn, null, true, { killerMon, sourceIsPlayer: !killerMon });
         }
       }
       break;
@@ -4315,9 +4806,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       break;
     case "slow":
+      if (kind === "monster" && target.baseSpeed == null) target.baseSpeed = target.speed ?? 1;
       if (cursed) {
         // 反転→加速
-        if (kind === "monster") { target.speed = Math.min(2, (target.speed || 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
+        if (kind === "monster") { target.speed = Math.min(2, (target.speed ?? target.baseSpeed ?? 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
         if (kind === "player") {
           const _ht = statusTurns("haste", { kind: "player" });
           grantPlayerHaste(p, _ht);
@@ -4325,8 +4817,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       } else {
         if (kind === "monster") {
-          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
-          target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5));
+          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed ?? target.baseSpeed ?? 1;
+          target.speed = Math.max(0.25, (target.speed ?? target.baseSpeed ?? 1) * (blessed ? 0.25 : 0.5));
           const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed, target }) : 0;
           if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
           ml.push(`${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}${blessed ? "(強鈍足)" : ""}`);
@@ -4363,7 +4855,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)"); }
           else {
             const _pt = statusTurns("paralyze", { kind: "player", blessed });
-            p.paralyzeTurns = _pt;
+            applyPlayerParalyze(p, _pt, { blessed });
             ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
           }
         }
@@ -4394,6 +4886,37 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       }
       break;
+    case "sake": {
+      const entity = kind === "player" ? p : target;
+      if (!entity) break;
+      const entityName = kind === "monster" ? target.name : "頭";
+      if (!cursed && (kind === "monster" ? isStatusImmune(target, ml, target.name) : isStatusImmune(p, ml))) break;
+      const result = applySakeEffect(entity, { kind, target, blessed, cursed });
+      if (cursed) {
+        if (result.cleared.length > 0) {
+          ml.push(kind === "player"
+            ? `頭がスッキリした！${result.cleared.join("・")}が治った！【呪】`
+            : `${entityName}がスッキリした！${result.cleared.join("・")}が治った！【呪】`);
+        } else {
+          ml.push(kind === "player" ? "頭がスッキリした！【呪】" : `${entityName}がスッキリした！【呪】`);
+        }
+        break;
+      }
+      if (result.status === "coma") {
+        ml.push(kind === "player"
+          ? `酩酊中にさらに酒を浴びて昏睡した！(${result.turns}ターン)酩酊は続いている。`
+          : `${target.name}は酩酊中にさらに酒を浴びて昏睡した！(${result.turns}ターン)酩酊は続いている。`);
+      } else if (result.status === "drunken") {
+        ml.push(kind === "player"
+          ? `酔いが回って酩酊状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`
+          : `${target.name}は酔いが回って酩酊状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`);
+      } else {
+        ml.push(kind === "player"
+          ? `酔い状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`
+          : `${target.name}は酔い状態になった！(${result.turns}ターン)${blessed ? "(祝福)" : ""}`);
+      }
+      break;
+    }
     case "mana":
       if (kind === "player") {
         if (cursed) {
@@ -4453,8 +4976,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           if (!isStatusImmune(target, ml, target.name)) {
             const _dt = statusTurns("darkness", { kind: "monster", blessed, target });
-            applyMonsterDarkness(target, _dt);
-            ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
+            if (applyMonsterDarkness(target, _dt, ml) > 0) {
+              ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
+            }
           }
         }
       }
@@ -4478,17 +5002,23 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`${target.name}の幻惑が解けた！【呪→解除】`);
         } else {
           const _bt = statusTurns("bewitch", { kind: "monster", blessed, target });
-          applyMonsterBewitch(target, _bt);
-          ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bt) ? "(永続)" : `(${_bt}ターン)`}`);
+          if (applyMonsterBewitch(target, _bt, ml) > 0) {
+            ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bt) ? "(永続)" : `(${_bt}ターン)`}`);
+          }
         }
       }
       break;
     case "levelup":
       if (kind === "player") {
         if (cursed) {
-          // 呪い：1階上へワープ（フラグ経由でGame.jsx側が処理）
-          p._pendingWarpUp = true;
-          ml.push("呪われたレベルアップの薬！天井を突き破って上の階へ飛ばされた！【呪】");
+          applyFallImpactDamage(p, ml, "呪われたレベルアップで天井を突き破った衝撃で", "天井を突き破る衝撃！");
+          if (p.hp > 0) {
+            // 呪い：1階上へワープ（フラグ経由でGame.jsx側が処理）
+            p._pendingWarpUp = true;
+            ml.push("呪われたレベルアップの薬！天井を突き破って上の階へ飛ばされた！【呪】");
+          } else {
+            ml.push("呪われたレベルアップの薬！天井を突き破った衝撃で倒れた！【呪】");
+          }
         } else {
           const _times = blessed ? 2 : 1;
           for (let _i = 0; _i < _times; _i++) {
@@ -4588,7 +5118,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.darknessTurns = (p.darknessTurns || 0) + _dark;
           p.bewitchedTurns = (p.bewitchedTurns || 0) + _bewitch;
           p.sealedTurns = (p.sealedTurns || 0) + _seal;
-          ml.push(`万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`);
+          ml.push(statusResultMessage(_poison, `万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`));
         } else {
           const _hadDopingAftereffect = (p.dopingAftereffectTurns || 0) > 0;
           if (_hadDopingAftereffect) {
@@ -4607,23 +5137,47 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       } else if (kind === "monster") {
         if (cursed) {
-          target.poisoned = true;
-          target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
-          if (!target.poisonHalfAtk) {
-            target.poisonOrigAtk = target.atk;
-            target.atk = Math.max(1, Math.floor(target.atk / 2));
-            target.poisonHalfAtk = true;
+          const _panaceaAilments = [];
+          if (!blockLargeMonsterStatus(target, "poison", ml)) {
+            startLargeMonsterStatusCooldown(target, "poison");
+            target.poisoned = true;
+            target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
+            if (!target.poisonHalfAtk) {
+              target.poisonOrigAtk = target.atk;
+              target.atk = Math.max(1, Math.floor(target.atk / 2));
+              target.poisonHalfAtk = true;
+            }
+            _panaceaAilments.push("毒");
           }
-          target.sleepTurns = (target.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target });
-          target.confusedTurns = (target.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target });
-          target.slowTurns = (target.slowTurns || 0) + statusTurns("slow", { kind: "monster", target });
-          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
-          target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
-          target.darknessTurns = (target.darknessTurns || 0) + statusTurns("darkness", { kind: "monster", target });
-          target.fleeingTurns = (target.fleeingTurns || 0) + statusTurns("bewitch", { kind: "monster", target });
-          applyMonsterSeal(target, dg, p, ml, luFn);
-          ml.push(`${target.name}は万能薬の呪いで毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！【呪】`);
+          if (!blockLargeMonsterStatus(target, "sleep", ml)) {
+            startLargeMonsterStatusCooldown(target, "sleep");
+            target.sleepTurns = (target.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target });
+            _panaceaAilments.push("眠り");
+          }
+          if (!blockLargeMonsterStatus(target, "confuse", ml)) {
+            startLargeMonsterStatusCooldown(target, "confuse");
+            target.confusedTurns = (target.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target });
+            _panaceaAilments.push("混乱");
+          }
+          if (!blockLargeMonsterStatus(target, "slow", ml)) {
+            startLargeMonsterStatusCooldown(target, "slow");
+            target.slowTurns = (target.slowTurns || 0) + statusTurns("slow", { kind: "monster", target });
+            if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
+            target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
+            _panaceaAilments.push("鈍足");
+          }
+          const _panaceaDark = statusTurns("darkness", { kind: "monster", target });
+          if (applyMonsterDarkness(target, _panaceaDark, ml) > 0) _panaceaAilments.push("暗闇");
+          const _panaceaBewitch = statusTurns("bewitch", { kind: "monster", target });
+          if (applyMonsterBewitch(target, _panaceaBewitch, ml) > 0) _panaceaAilments.push("幻惑");
+          if (!blockLargeMonsterStatus(target, "seal", ml)) {
+            applyMonsterSeal(target, dg, p, ml, luFn);
+            _panaceaAilments.push("封印");
+          }
+          ml.push(_panaceaAilments.length
+            ? `${target.name}は万能薬の呪いで${_panaceaAilments.join("・")}になった！【呪】`
+            : `${target.name}は状態異常耐性中で万能薬の呪いが効かなかった！`);
         } else {
           const _wasStatus = clearStatusEffectsOnHpZero(target);
           if (blessed) {
@@ -4646,24 +5200,30 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             ml.push(`牛乳でお腹を壊したが、防具が毒を防いだ！満腹度${_delta}`);
           } else {
             const _poison = applyPlayerPoison(p);
-            ml.push(`牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`);
+            ml.push(statusResultMessage(_poison, `牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`));
           }
         } else {
           ml.push(`牛乳を飲んだ。満腹度+${_delta}${blessed ? "【祝福】" : ""}`);
         }
       } else if (kind === "monster" && cursed) {
-        target.poisoned = true;
-        target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
-        if (!target.poisonHalfAtk) {
-          target.poisonOrigAtk = target.atk;
-          target.atk = Math.max(1, Math.floor(target.atk / 2));
-          target.poisonHalfAtk = true;
+        if (isStatusImmune(target, ml, target.name) || blockLargeMonsterStatus(target, "poison", ml)) {
+          ml.push(`${target.name}は牛乳でお腹を壊したが、毒への耐性で毒にならなかった！`);
+        } else {
+          startLargeMonsterStatusCooldown(target, "poison");
+          target.poisoned = true;
+          target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
+          if (!target.poisonHalfAtk) {
+            target.poisonOrigAtk = target.atk;
+            target.atk = Math.max(1, Math.floor(target.atk / 2));
+            target.poisonHalfAtk = true;
+          }
+          ml.push(`${target.name}は牛乳でお腹を壊し、毒になった！`);
         }
-        ml.push(`${target.name}は牛乳でお腹を壊し、毒になった！`);
       }
       break;
     }
     case "doping": {
+      if (cursed && isStatusImmune(kind === "player" ? p : target, ml, kind === "monster" ? target.name : null)) break;
       const _active = DOPING_POTION_TURNS.active;
       const _after = DOPING_POTION_TURNS.aftereffect;
       if (kind === "player") {
@@ -4696,6 +5256,371 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   }
 }
 
+/** 投擲で食料が命中した時、プレイヤーは食事として処理し、食べた時と同じ効果を命中対象へ適用する。 */
+function applyFoodLuckToMonster(target, ml) {
+  target.dropItemsSuppressed = false;
+  target.dropExtraGold = true;
+  delete target.dropLuckTurns;
+  delete target.dropNoItemTurns;
+  ml.push(`${target.name}は幸運になった！倒された時に金貨を落とす判定！`);
+}
+
+export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null) {
+  if (item?.type !== "food") return false;
+  const entity = kind === "player" ? p : target;
+  if (!entity || entity.hp <= 0) return false;
+
+  const isIceCream = item.iceCream && !item.yabai && !item.rotten && !item.burnt;
+  if (kind === "player") {
+    const maxValue = Number(p.maxHunger ?? 100);
+    const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
+    const hunger = Math.floor(Math.max(0, Number(p.hunger) || 0));
+    if (hunger >= maxHunger) {
+      const loss = Math.min(hunger, Math.max(10, Math.floor(maxHunger * 0.25)));
+      p.hunger = Math.max(0, hunger - loss);
+      ml.push(`お腹いっぱいのところに食べ物が当たり、嘔吐した！満腹度が${loss}減った！`);
+    } else {
+      const amount = isIceCream
+        ? 15
+        : Math.max(1, Math.round((Number(item.value) || 35) * getBlessMultiplier(item) * (item.yabai ? 0.25 : item.rotten ? 0.5 : 1)));
+      const gained = addFoodHunger(p, amount);
+      ml.push(`食べ物が当たって食べてしまった。(満腹度+${gained})`);
+    }
+    if (isIceCream) {
+      applyIceCreamEffect(p, "player", ml, { name: "アイスクリーム", hungerAlreadyApplied: true });
+      return true;
+    }
+  }
+
+  const hasPotionEffects = Array.isArray(item?.potionEffects) && item.potionEffects.length > 0;
+  if ((!item.effect && !hasPotionEffects) || item.yabai || item.rotten || isIceCream) return false;
+
+  const applyPotion = (effect, value = 0, cursed = false, blessed = false) =>
+    applyPotionEffect(effect, value, kind, target, dg, p, ml, luFn, blessed, cursed, killerMon);
+  const value = item.value || 35;
+  const foodTier = value <= 10 ? 0 : value <= 20 ? 1 : value <= 35 ? 2 : value <= 55 ? 3 : value <= 80 ? 4 : 5;
+
+  applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier);
+
+  for (const effect of item.potionEffects || []) {
+    switch (effect) {
+      case "heal":
+      case "superheal": {
+        const heal = rng(10, 25);
+        const maxHp = kind === "player" ? (p.maxHp || 0) : (target.maxHp || 0);
+        const gained = Math.min(heal, Math.max(0, maxHp - entity.hp));
+        if (gained > 0) {
+          entity.hp += gained;
+          ml.push(kind === "player" ? `回復効果でHP+${gained}` : `${target.name}は回復効果でHP+${gained}回復した！`);
+          pushHealAnim(entity.x, entity.y);
+        }
+        break;
+      }
+      case "poison":
+      case "c_heal":
+      case "c_superheal":
+      case "c_milk": {
+        if (kind === "player") {
+          if (hasRingEffect(p, "antidote_ring")) {
+            ml.push("毒が混じっていたが指輪が毒を消した！");
+          } else {
+            const poison = applyPlayerPoison(p);
+            ml.push(statusResultMessage(poison, `毒が混じっていた！毒状態(${poison.turns}ターン)になった！${poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
+          }
+        } else if (!blockLargeMonsterStatus(target, "poison", ml) && !isStatusImmune(target, ml, target.name)) {
+          startLargeMonsterStatusCooldown(target, "poison");
+          const turns = statusTurns("poison", { kind: "monster", target });
+          target.poisoned = true;
+          target.poisonedTurns = (target.poisonedTurns || 0) + turns;
+          if (!target.poisonHalfAtk) {
+            target.poisonOrigAtk = target.atk;
+            target.atk = Math.max(1, Math.floor((target.atk || 1) / 2));
+            target.poisonHalfAtk = true;
+          }
+          ml.push(`${target.name}は毒状態になった！(${turns}ターン)攻撃力が半減した！`);
+        }
+        break;
+      }
+      case "c_poison":
+        if (kind === "player") {
+          if (p.poisoned || (p.poisonAtkLoss || 0) > 0) {
+            clearPlayerPoison(p);
+            ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
+          } else ml.push("解毒成分が入っていたが毒ではなかった。");
+        } else if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
+          target.poisoned = false;
+          target.poisonedTurns = 0;
+          delete target.sporePoisonKillerId;
+          delete target.sporePoisonKillerName;
+          if (target.poisonHalfAtk) {
+            target.atk = target.poisonOrigAtk ?? target.atk;
+            delete target.poisonHalfAtk;
+            delete target.poisonOrigAtk;
+          }
+          ml.push(`${target.name}の毒が消え、攻撃力が戻った！`);
+        } else ml.push(`${target.name}は毒にかかっていない。`);
+        break;
+      case "sleep":
+        applyPotion("sleep");
+        break;
+      case "power":
+        applyPotion("power", 2);
+        break;
+      case "mana":
+        if (kind === "player") {
+          if (isMpRecoveryBlocked(p)) {
+            ml.push(`MP回復禁止中のため魔力効果は発揮されなかった！(残り${mpRecoveryBlockTurns(p)}ターン)`);
+          } else {
+            const gain = Math.min(10, Math.max(0, (p.maxMp || 0) - (p.mp || 0)));
+            p.mp = (p.mp || 0) + gain;
+            if (gain > 0) ml.push(`魔力効果でMP+${gain}`);
+          }
+        } else {
+          target.alwaysUseSpecial = true;
+          ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+        }
+        break;
+      case "confuse":
+        applyPotion("confuse");
+        break;
+      case "sake":
+        applyPotion("sake");
+        break;
+      case "sake_blessed":
+        applyPotion("sake", 0, false, true);
+        break;
+      case "slow":
+        applyPotion("slow");
+        break;
+      case "darkness":
+        applyPotion("darkness");
+        break;
+      case "bewitch":
+        applyPotion("bewitch");
+        break;
+      case "paralyze":
+        applyPotion("paralyze");
+        break;
+      case "c_sleep":
+        applyPotion("slow", 0, true);
+        break;
+      case "c_power":
+        applyPotion("power", 2, true);
+        break;
+      case "c_mana":
+        applyPotion("mana", 0, true);
+        break;
+      case "c_confuse":
+        applyPotion("confuse", 0, true);
+        break;
+      case "c_slow":
+        applyPotion("slow", 0, true);
+        break;
+      case "c_darkness":
+        applyPotion("darkness", 0, true);
+        break;
+      case "c_bewitch":
+        applyPotion("bewitch", 0, true);
+        break;
+      case "c_paralyze":
+        applyPotion("paralyze", 0, true);
+        break;
+      case "levelup":
+        if (kind === "player") {
+          const exp = rng(5, 10 + p.level * 3);
+          p.exp += exp;
+          ml.push(`知恵が付いた。経験値+${exp}`);
+          luFn?.(p, ml);
+        } else monLevelUp(target, dg, ml);
+        break;
+      case "c_levelup":
+        entity.atk = Math.max(1, (entity.atk || 1) - 2);
+        ml.push(kind === "player" ? "退化成分が！攻撃力-2..." : `${target.name}の攻撃力が下がった！`);
+        break;
+      case "seal":
+        applyPotion("seal");
+        break;
+      case "c_seal":
+        if (kind === "player") {
+          if ((p.sealedTurns || 0) > 0) {
+            p.sealedTurns = 0;
+            ml.push("解封成分が！魔法封印が解けた！");
+          } else ml.push("解封成分が入っていたが、封印はかかっていなかった。");
+        } else {
+          target.sealed = false;
+          target.sealedTurns = 0;
+          ml.push(`${target.name}の封印が解けた！`);
+        }
+        break;
+      case "luck":
+        if (kind === "player") {
+          const ranges = [[30, 70], [80, 150], [180, 320], [350, 550], [600, 900], [850, 1200]];
+          const range = ranges[foodTier];
+          const gold = rng(range[0], range[1]);
+          p.gold = (p.gold || 0) + gold;
+          ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
+        } else applyFoodLuckToMonster(target, ml);
+        break;
+      case "c_luck":
+        applyPotion("luck", LUCK_POTION_TURNS.cursed, true);
+        break;
+      case "panacea":
+        applyPotion("panacea");
+        break;
+      case "c_panacea":
+        applyPotion("panacea", 0, true);
+        break;
+      case "milk":
+        break;
+      case "doping":
+        applyPotion("doping", 50);
+        break;
+      case "c_doping":
+        applyPotion("doping", 50, true);
+        break;
+      default:
+        break;
+    }
+  }
+  return true;
+}
+
+function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier) {
+  const entity = kind === "player" ? p : target;
+  const healRange = [[12, 18], [24, 32], [37, 45], [50, 60], [63, 73], [76, 86]][foodTier];
+  const heal = (amount, label) => {
+    const gained = Math.min(amount, Math.max(0, (entity.maxHp || 0) - entity.hp));
+    entity.hp += gained;
+    ml.push(gained > 0 ? `${label}HP+${gained}` : `${label}HPは満タンだ。`);
+    if (gained > 0) pushHealAnim(entity.x, entity.y);
+  };
+
+  switch (item.effect) {
+    case "heal_food":
+      heal(rng(healRange[0], healRange[1]), kind === "player" ? "体が温まり" : `${target.name}は体が温まり`);
+      break;
+    case "power_food": {
+      const amount = foodTier >= 5 ? 2 : 1;
+      entity.atk = (entity.atk || 0) + amount;
+      ml.push(kind === "player" ? `力が湧いてきた！攻撃力+${amount}` : `${target.name}の攻撃力が${amount}上がった！`);
+      break;
+    }
+    case "speed_food": {
+      const turns = 5 + foodTier * 4;
+      if (kind === "player") {
+        if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; ml.push("目が覚めた！"); }
+        grantPlayerHaste(p, turns);
+        ml.push(`体が軽くなった！${hasteDurationLabel(p, turns)}行動できる！`);
+      } else {
+        const currentMultiplier = (target.foodHasteTurns || 0) > 0 ? (target.foodHasteMultiplier || 2) : 1;
+        target.foodHasteMultiplier = currentMultiplier < 2 ? 2 : 3;
+        target.foodHasteTurns = (target.foodHasteTurns || 0) + turns;
+        if ((target.sleepTurns || 0) > 0) target.sleepTurns = 0;
+        ml.push(`${target.name}の体が軽くなった！(${turns}ターン)`);
+      }
+      break;
+    }
+    case "def_food": {
+      const amount = foodTier >= 5 ? 2 : 1;
+      entity.def = (entity.def || 0) + amount;
+      ml.push(kind === "player" ? `体が頑丈になった！防御力+${amount}` : `${target.name}の防御力が${amount}上がった！`);
+      break;
+    }
+    case "vitality_food": {
+      const amount = foodTier + 1;
+      if (kind === "player") {
+        p.hp += adjustPlayerBaseMaxHp(p, amount);
+      } else {
+        target.maxHp = (target.maxHp || target.hp || 1) + amount;
+        target.hp += amount;
+      }
+      ml.push(kind === "player" ? `生命力が増した！最大HP+${amount}` : `${target.name}の最大HPが${amount}上がった！`);
+      break;
+    }
+    case "exp_food":
+      if (kind === "player") {
+        const percent = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6][foodTier];
+        const exp = Math.max(1, Math.floor((p.nextExp || 1) * percent));
+        p.exp += exp;
+        ml.push(`知恵が付いた。経験値+${exp}`);
+        luFn?.(p, ml);
+      } else monLevelUp(target, dg, ml);
+      break;
+    case "luck_food":
+      if (kind === "player") {
+        const ranges = [[30, 70], [80, 150], [180, 320], [350, 550], [600, 900], [850, 1200]];
+        const [min, max] = ranges[foodTier];
+        const gold = rng(min, max);
+        p.gold = (p.gold || 0) + gold;
+        ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
+      } else applyFoodLuckToMonster(target, ml);
+      break;
+    case "reveal_food":
+      if (kind === "player") {
+        for (const row of dg.explored || []) row.fill(true);
+        for (const trap of dg.traps || []) { trap.revealed = true; trackTrap(trap); }
+        ml.push("目が冴えてフロア全体が見えた！");
+      } else ml.push(`${target.name}にはフロアを見通す力が働かなかった。`);
+      break;
+    case "antidote_food": {
+      const cured = [];
+      if ((entity.sleepTurns || 0) > 0) { entity.sleepTurns = 0; cured.push("睡眠"); }
+      if (kind === "player") {
+        if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; cured.push("金縛り"); }
+        if (p.poisoned || (p.poisonAtkLoss || 0) > 0) { clearPlayerPoison(p); cured.push("毒"); }
+      } else {
+        if (target.paralyzed || (target.paralyzeTurns || 0) > 0) {
+          target.paralyzed = false;
+          target.paralyzeTurns = 0;
+          target._paralyzeHp = null;
+          target.paralyzeHits = 0;
+          cured.push("金縛り");
+        }
+        if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
+          target.poisoned = false;
+          target.poisonedTurns = 0;
+          delete target.sporePoisonKillerId;
+          delete target.sporePoisonKillerName;
+          if (target.poisonHalfAtk) {
+            target.atk = target.poisonOrigAtk ?? target.atk;
+            delete target.poisonHalfAtk;
+            delete target.poisonOrigAtk;
+          }
+          cured.push("毒");
+        }
+      }
+      const range = [[3, 6], [5, 9], [7, 12], [10, 16], [13, 20], [16, 25]][foodTier];
+      const amount = rng(range[0], range[1]);
+      const gained = Math.min(amount, Math.max(0, (entity.maxHp || 0) - entity.hp));
+      entity.hp += gained;
+      ml.push(`${cured.length ? `状態異常が消えた！(${cured.join("・")}) ` : ""}${kind === "player" ? `体の調子が良くなった。HP+${gained}` : `${target.name}の体の調子が良くなった。HP+${gained}`}`);
+      if (gained > 0) pushHealAnim(entity.x, entity.y);
+      break;
+    }
+    case "satiate_food":
+      ml.push("とても腹持ちが良い！");
+      break;
+    case "mp_food":
+      if (kind === "player") {
+        if (isMpRecoveryBlocked(p)) {
+          ml.push(`魔力が湧いてきたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
+        } else {
+          const ranges = [[2, 6], [5, 9], [8, 13], [11, 16], [15, 20], [21, 28]][foodTier];
+          const amount = rng(ranges[0], ranges[1]);
+          const gained = Math.min(amount, Math.max(0, (p.maxMp || 0) - (p.mp || 0)));
+          p.mp = Math.min(p.maxMp || 0, (p.mp || 0) + amount);
+          ml.push(gained > 0 ? `魔力が湧いてきた！MP+${gained}` : "魔力が湧いてきたが、MPは既に満タンだ。");
+        }
+      } else {
+        target.alwaysUseSpecial = true;
+        ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
 export const POTION_FOOD_PREFIX = {
   // 通常/祝福
   heal:      "回復の",
@@ -4715,6 +5640,8 @@ export const POTION_FOOD_PREFIX = {
   luck:     "幸運の",
   panacea:  "万能の",
   milk:     "ミルク風味の",
+  sake:     "酒乱の",
+  sake_blessed: "酒乱の",
   doping:   "ドーピングコンソメの",
   // 呪い（食べた時の効果が反転）
   c_heal:      "猛毒の",
@@ -4832,6 +5759,20 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
     }
     return;
   }
+  /* 酒を食料にかけると、祝福時の持続時間も食べた時まで保持する。呪いでも食べると酔う。 */
+  if (eff === "sake") {
+    const key = blessed ? "sake_blessed" : "sake";
+    const pf = POTION_FOOD_PREFIX[key];
+    if (item.potionEffects.includes(key)) {
+      ml.push(`${item.name}は既に${pf}効果を持っている。`);
+      return;
+    }
+    item.potionEffects.push(key);
+    item.name = pf + item.name;
+    item.value = Math.max(1, Math.floor(item.value * 0.8));
+    ml.push(`${item.name}になった！`);
+    return;
+  }
   /* 牛乳だけは食料の大きさを減らさず、通常・祝福なら1.5倍にする。 */
   if (eff === "milk" && !cursed) {
     const key = "milk";
@@ -4862,11 +5803,15 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
 export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false, dnFn = null, killerMon = null) {
   ml.push("瓶が割れて中身が飛び散った！");
   pushSplashAnim(cx, cy, "#88ccff");
+  const _largeStatusTargets = new Set();
+  const _largeSoakedTargets = new Set();
+  const _largeStatusKey = (!cursed || eff === "sake") ? POTION_MONSTER_STATUS_KEYS[eff] : null;
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
     for (let dx2 = -1; dx2 <= 1; dx2++) {
       const tx = cx + dx2, ty = cy + dy2;
-      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL)
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH &&
+          ((dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL) || monsterBodySize(monsterAt(dg, tx, ty)) > 1))
         tiles.push({ x:tx, y:ty });
     }
   const _otherMons = killerMon ? (dg.monsters || []).filter((mon) => mon !== killerMon) : [];
@@ -4880,12 +5825,23 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     }
     const mon = monsterAt(dg, x, y);
     if (mon) {
-      weakenOrClearParalysis(mon, ml);
-      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon, true);
-      if (eff === "water") applySoakedStatusToMonster(mon, ml);
+      withParalysisHit(mon, ml, () => {
+      const _duplicateLargeStatusTile = _largeStatusKey && monsterBodySize(mon) > 1 && _largeStatusTargets.has(mon);
+      if (!_duplicateLargeStatusTile || eff === "poison") {
+        if (_largeStatusKey && monsterBodySize(mon) > 1) _largeStatusTargets.add(mon);
+        applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon, true, !!_duplicateLargeStatusTile);
+      }
+      if (eff === "water") {
+        const _largeSoakedTarget = monsterBodySize(mon) > 1;
+        if (!_largeSoakedTarget || !_largeSoakedTargets.has(mon)) {
+          if (_largeSoakedTarget) _largeSoakedTargets.add(mon);
+          applySoakedStatusToMonster(mon, ml);
+        }
+      }
+      });
     }
     if (p && x === p.x && y === p.y) {
-      applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
+      applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed, killerMon);
       if (eff === "water") applySoakedStatus(p, ml);
     }
     if (eff === "water") washOilyFromWater(dg, x, y, mon || (p && x === p.x && y === p.y ? p : null), ml);
@@ -4938,9 +5894,10 @@ function applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn = 
       if (dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) continue;
       const mon = monsterAt(dg, tx, ty);
       if (mon) {
-        weakenOrClearParalysis(mon, ml);
-        applyPotionEffect("water", WATER_BOTTLE.value, "monster", mon, dg, p, ml, luFn, blessed, cursed);
-        applySoakedStatusToMonster(mon, ml);
+        withParalysisHit(mon, ml, () => {
+          applyPotionEffect("water", WATER_BOTTLE.value, "monster", mon, dg, p, ml, luFn, blessed, cursed);
+          applySoakedStatusToMonster(mon, ml);
+        });
       }
       if (p && tx === p.x && ty === p.y) {
         applyPotionEffect("water", WATER_BOTTLE.value, "player", p, dg, p, ml, luFn, blessed, cursed);
@@ -4982,17 +5939,11 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
     ml.push(`${resolveItemName(it, dnFn)}が水の影響で溶けて消滅した！`);
   } else if (it.type === "pot") {
     if (blessed) {
-      it.capacity = (it.capacity || 1) + 1;
+      it.capacity = (it.capacity ?? 1) + 1;
       ml.push(`${resolveItemName(it)}が祝福の水を浴びた！(容量+1 → ${it.capacity})【祝】`);
     } else if (cursed) {
-      const _nc = Math.max(0, (it.capacity || 1) - 1);
-      if ((it.contents?.length || 0) > _nc) {
-        const _fts = new Set();
-        for (const _ci of (it.contents || [])) placeItemAt(dg, cx, cy, _ci, ml, _fts);
-        removeFloorItem(dg, it);
-        ml.push(`${resolveItemName(it)}が呪いの水を浴びて割れた！中身が飛び出した！【呪】`);
-      } else {
-        it.capacity = _nc;
+      const result = reducePotCapacity(it, 1, dg, p, ml, dnFn);
+      if (!result.broken) {
         ml.push(`${resolveItemName(it)}が呪いの水を浴びた！(容量-1 → ${it.capacity})【呪】`);
       }
     }
@@ -5137,8 +6088,8 @@ function soakItem(item) {
 }
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false, _avoidOriginSpring = false) {
+  const _isBigbox = isBigboxEntity(item);
   if (item?._ephemeralTrapTrigger) return false;
-  applyGeneratedRingPlus(item);
   /* 帯電毛玉は所持品または箱・壺の中にだけ存在できる。破壊・散乱などで
      床へ出る経路は、罠や泉などの床効果を発生させず、その場で消滅させる。 */
   if (item?.type === "charged_fuzzball") {
@@ -5162,7 +6113,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
   /* アニメーション用の出発地点（null の場合は tx,ty を使う） */
   const _animOx = _ox ?? tx, _animOy = _oy ?? ty;
   /* 着地点が水タイルなら沈没（同マスに既存アイテムがない場合のみ、ある場合はDROで代替地を探す） */
-  if (dg.map[ty]?.[tx] === T.WATER) {
+  if (!_isBigbox && dg.map[ty]?.[tx] === T.WATER) {
     dg.waterItems = dg.waterItems || [];
     if (!dg.waterItems.some(wi => wi.x === tx && wi.y === ty)) {
       const sunk = soakItem({ ...item, x: tx, y: ty });
@@ -5181,6 +6132,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     if (_avoidOriginSpring && dx === 0 && dy === 0 && dg.springs?.some(s => s.x === cx && s.y === cy)) continue;
     /* 水タイルに落ちる場合：同マスに既に沈没アイテムがなければ沈没 */
     if (dg.map[cy][cx] === T.WATER) {
+      if (_isBigbox) continue;
       if (item.iceCream) {
         ml?.push(`${resolveItemName(item)}が水に落ちて溶けて消滅した！`);
         return false;
@@ -5194,7 +6146,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       return false;
     }
-    const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
+    const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id) && canActivateTrap(dg, t));
     if (trap) {
       if ((dg.timeStopTurns || 0) > 0) continue;
       /* 罠座標まで飛んでくるアーク（seq = dep+1）を先に登録 */
@@ -5202,8 +6154,8 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       ft.add(trap.id);
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
-      if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
-        removeTrap(dg, trap, ml, { message: `${trap.name}は壊れた。`, ft, p });
+      if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
+        removeTrap(dg, trap, ml, { activated: true, message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") return false;
       if (r === "pitfall_player") return "pitfall_player";
@@ -5214,6 +6166,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     }
     if (dg.traps.some(t => t.x === cx && t.y === cy)) continue;
     if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
+      if (_isBigbox) continue;
       const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
       soakItemIntoSpring(_spr, item, ml, dg, null);
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
@@ -5235,10 +6188,12 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       continue;
     }
     if (dg.items.some(i => i.x === cx && i.y === cy)) continue;
+    if (_isBigbox && isFloorOccupancyBlocked(dg, cx, cy, { ignore: item, p })) continue;
     item.x = cx;
     item.y = cy;
     markItemIdentifiedForDungeon(item, dg);
-    dg.items.push(item);
+    if (_isBigbox) (dg.bigboxes ||= []).push(item);
+    else dg.items.push(item);
     /* itemRef を渡すことで flyingItemsRef はこのアイテム固有オブジェクトのみ隠す */
     pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1, item);
     if (item.shopPrice) {
@@ -5283,8 +6238,83 @@ export function monsterItemDropsSuppressed(m, p = null) {
   return (p?.unluckTurns || 0) > 0 || !!m?.dropItemsSuppressed || (m?.dropNoItemTurns || 0) > 0;
 }
 
+const BOSS_RANDOM_REWARD_TYPES = new Set(["potion", "scroll", "pen", "arrow", "wand", "pot", "ring", "spellbook"]);
+const BOSS_RANDOM_REWARD_EXCLUDED_EFFECTS = Object.freeze({
+  potion: new Set(["poison", "sleep", "slow", "paralyze", "seal", "confuse", "darkness", "bewitch", "milk", "sake", "fire", "water"]),
+  scroll: new Set(["sleep_scroll", "confusion", "bind", "trap_scatter", "self_destruct", "monster_house", "debuff"]),
+  pen: new Set(["trap_gen", "vulnerability", "explosion"]),
+  wand: new Set(["curse_wand"]),
+  pot: new Set(["curse_pot", "weaken", "gunpowder"]),
+  ring: new Set(["explode_ring", "slow_ring", "hunger_ring", "miss_throw_ring", "footstep_ring", "markup_ring", "vanity_ring", "darkness_ring", "peace_ring"]),
+  spellbook: new Set(["curse_magic", "self_destruct_magic", "earthquake_magic", "gedo_book"]),
+});
+const BOSS_RANDOM_FOOD_TEMPLATE = Object.freeze({
+  name: "ランダム食料",
+  type: "boss_random_food",
+  rarity: "C",
+  weight: 4,
+});
+function isBossRewardTemplate(item, includeEquipment = false) {
+  const allowedType = BOSS_RANDOM_REWARD_TYPES.has(item?.type) ||
+    (includeEquipment && ["weapon", "armor"].includes(item?.type));
+  if (!allowedType || !isRarityAtLeast(item, "C")) return false;
+  if (item.wallDropOnly || item.type === "gold_nugget" || item.type === "goal") return false;
+  if (item.specialBook === "gedo") return false;
+  const effect = item.effect || item.potEffect || item.spell;
+  return !BOSS_RANDOM_REWARD_EXCLUDED_EFFECTS[item.type]?.has(effect);
+}
+
+function bossRewardCatalogs() {
+  return {
+    potion: ITEMS.filter((item) => item.type === "potion"),
+    scroll: ITEMS.filter((item) => item.type === "scroll"),
+    weapon: ITEMS.filter((item) => item.type === "weapon"),
+    armor: ITEMS.filter((item) => item.type === "armor"),
+    arrow: ITEMS.filter((item) => item.type === "arrow"),
+    pen: ITEMS.filter((item) => item.type === "pen"),
+    wand: WANDS,
+    pot: POTS,
+    ring: RINGS,
+    spellbook: SPELLBOOKS,
+  };
+}
+
+function bossRandomRewardPool() {
+  return [
+    ...ITEMS,
+    ...WANDS,
+    ...POTS,
+    ...RINGS,
+    ...SPELLBOOKS,
+  ].filter((item) => isBossRewardTemplate(item)).concat(BOSS_RANDOM_FOOD_TEMPLATE);
+}
+
+function bossUniqueDropTemplate(monster) {
+  const rule = BOSS_UNIQUE_DROP_RULES[monster?.baseKind];
+  if (!rule || rule.type === "food") return null;
+  const candidates = (bossRewardCatalogs()[rule.type] || []).filter((item) => isBossRewardTemplate(item, true));
+  return pickLootFromPool(candidates, "drop") || null;
+}
+
+function makeBossRewardItem(template) {
+  if (template?.type === "food" || template?.type === "boss_random_food") {
+    return { ...genFood(), id: uid() };
+  }
+  if (!template) return null;
+  const item = { ...template, id: uid() };
+  if (item.type === "wand") item.charges = item.effect === "wish" ? Math.max(1, template.charges || 1) : rng(3, 5);
+  if (item.type === "pen") item.charges = penInitialCharges(item);
+  if (item.type === "pot") {
+    item.capacity = randPotCapacity(item.potEffect);
+    item.contents = [];
+    item.confinedMonsters = [];
+  }
+  if (item.type === "ring") return applyGeneratedRingPlus(item);
+  return item;
+}
+
 export function monsterDrop(m, dg, ml, p = null) {
-  if (monsterItemDropsSuppressed(m, p)) {
+  if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, p)) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
     return;
   }
@@ -5306,6 +6336,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen") _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       placeItemAt(dg, m.x, m.y, _di, ml, _ft, 0, p);
@@ -5315,60 +6346,89 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
   /* ===== ボスドロップ（通常ドロップをスキップして専用報酬を散布） ===== */
   if (m.isBoss) {
-    const _tier = m.bossTier || 1;
+    const _tier = Math.max(1, Math.floor(Number(m.bossTier) || 1));
     const _ft = new Set();
     /* 金 */
-    const _gv = [600, 1500, 3000, 6000][_tier - 1] + rng(0, 100 * _tier);
+    const _goldByTier = [600, 1500, 3000, 6000, 12000];
+    const _goldBase = _goldByTier[_tier - 1] ??
+      (_tier > _goldByTier.length ? _goldByTier.at(-1) * 2 ** (_tier - _goldByTier.length) : _goldByTier[0]);
+    const _gv = _goldBase + rng(0, 100 * _tier);
     placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 22, id: uid() }, ml, _ft, 0, p);
-    /* 強化武器 (+tier+1) */
-    const _wpPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity));
-    placeItemAt(dg, m.x, m.y,
-      { ...pick(_wpPool.length ? _wpPool : ITEMS.filter(i => i.type === "weapon")), plus: _tier + 1, id: uid() },
-      ml, _ft, 0, p);
-    /* 強化防具 (+tier、tier2+) */
-    if (_tier >= 2) {
-      const _arPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity));
-      placeItemAt(dg, m.x, m.y,
-        { ...pick(_arPool.length ? _arPool : ITEMS.filter(i => i.type === "armor")), plus: _tier, id: uid() },
-        ml, _ft, 0, p);
+    /* どの階級でも、強化値付き装備を1つだけ保証する。 */
+    const _weaponPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity));
+    const _armorPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity));
+    const _equipmentPool = [..._weaponPool, ..._armorPool];
+    const _equipment = pick(_equipmentPool.length ? _equipmentPool : ITEMS.filter(i => i.type === "weapon" || i.type === "armor"));
+    if (_equipment) {
+      const _equipmentPlus = _tier + (_equipment.type === "weapon" ? 1 : 0);
+      placeItemAt(dg, m.x, m.y, { ..._equipment, plus: _equipmentPlus, id: uid() }, ml, _ft, 0, p);
     }
-    /* 高レア巻物 (B/A 中心、S があれば15%) */
-    const _scAPool = ITEMS.filter(i => i.type === "scroll" && (i.rarity === "A" || i.rarity === "B"));
-    const _scSPool = ITEMS.filter(i => i.type === "scroll" && i.rarity === "S");
-    const _scFallback = ITEMS.filter(i => i.type === "scroll" && i.rarity !== "E" && i.rarity !== "D");
-    for (let _si = 0; _si < _tier; _si++) {
-      const _useS = _scSPool.length > 0 && _scAPool.length > 0 && Math.random() < 0.15;
-      const _scPick = _useS ? pick(_scSPool) : pick(_scAPool.length ? _scAPool : _scFallback);
-      placeItemAt(dg, m.x, m.y, { ..._scPick, id: uid() }, ml, _ft, 0, p);
+
+    /* ボスごとの固有品。グウェンの固有品は毎回生成する食料。 */
+    const _uniqueRule = BOSS_UNIQUE_DROP_RULES[m.baseKind];
+    const _uniqueTemplate = bossUniqueDropTemplate(m);
+    const _uniqueDrop = _uniqueRule?.type === "food"
+      ? makeBossRewardItem(BOSS_RANDOM_FOOD_TEMPLATE)
+      : makeBossRewardItem(_uniqueTemplate);
+    if (_uniqueDrop) {
+      placeItemAt(dg, m.x, m.y, _uniqueDrop, ml, _ft, 0, p);
     }
-    /* 強化の薬 (tier2+) */
-    if (_tier >= 2) {
-      const _enhPot = POTS.find(pt => pt.potEffect === "enhance");
-      if (_enhPot) placeItemAt(dg, m.x, m.y, { ..._enhPot, id: uid() }, ml, _ft, 0, p);
-    }
-    /* 杖 (tier3+) */
-    if (_tier >= 3) {
-      placeItemAt(dg, m.x, m.y,
-        { ...pick(WANDS), id: uid(), charges: rng(3, 5) },
-        ml, _ft, 0, p);
-    }
-    /* リング (tier4) */
-    if (_tier >= 4) {
-      const _rPool = RINGS.filter(r => ["A","B"].includes(r.rarity));
-      placeItemAt(dg, m.x, m.y,
-        { ...pick(_rPool.length ? _rPool : RINGS), id: uid() },
-        ml, _ft, 0, p);
-    }
-    /* 収納上手の巻物（tier1=5階ボスのみ確定） */
-    if (_tier === 1) {
-      const _expandScroll = ITEMS.find(i => i.effect === "expand_inv");
-      if (_expandScroll) placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
+
+    /* 最初のボスだけ、収納上手の巻物を固定報酬にする。 */
+    const _expandScroll = _tier === 1 ? ITEMS.find(i => i.effect === "expand_inv") : null;
+    if (_expandScroll) placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
+
+    /* 強化壺・杖・指輪の階級固定をやめ、有益な候補から複数抽選する。 */
+    const _excludedTemplates = new Set([_uniqueTemplate, _expandScroll].filter(Boolean));
+    if (_uniqueRule?.type === "food") _excludedTemplates.add(BOSS_RANDOM_FOOD_TEMPLATE);
+    let _bonusPool = bossRandomRewardPool().filter(item => !_excludedTemplates.has(item));
+    const _bonusMax = Math.min(BOSS_RANDOM_DROP_COUNT.max, 2 + Math.ceil(_tier / 2));
+    const _bonusCount = rng(BOSS_RANDOM_DROP_COUNT.min, Math.max(BOSS_RANDOM_DROP_COUNT.min, _bonusMax));
+    for (let _bi = 0; _bi < _bonusCount && _bonusPool.length > 0; _bi++) {
+      const _bonusTemplate = pickLootFromPool(_bonusPool, "drop");
+      _bonusPool = _bonusPool.filter(item => item !== _bonusTemplate);
+      const _bonus = makeBossRewardItem(_bonusTemplate);
+      if (_bonus) placeItemAt(dg, m.x, m.y, _bonus, ml, _ft, 0, p);
     }
     ml.push(`★ ${m.name}を倒した！豪華な戦利品が現れた！`);
     return;
   }
 
   const drops = [];
+  /* 行商人：売っていた商品（在庫）の中からランダムに1つだけ落とす */
+  if (m.isWanderingMerchant) {
+    const _shop = dg.merchantShops?.find(s => s.id === m.merchantShopId || s.merchantId === m.id);
+    if (_shop?.stock?.length > 0) {
+      const _idx = rng(0, _shop.stock.length - 1);
+      const _chosen = _shop.stock[_idx];
+      _shop.stock.splice(_idx, 1);
+      const _dropItem = { ..._chosen, id: uid() };
+      if (_dropItem.contents) _dropItem.contents = _dropItem.contents.map(c => ({ ...c }));
+      const _ft = new Set();
+      const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
+      if (_spr) {
+        soakItemIntoSpring(_spr, _dropItem, ml, dg);
+      } else {
+        placeItemAt(dg, m.x, m.y, _dropItem, ml, _ft, 0, p);
+      }
+      ml.push(`${m.name}が売っていた${resolveItemName(_dropItem)}を落とした！`);
+    }
+    return;
+  }
+  /* さすらいの冒険者：撃破時に通常抽選から必ず1個だけ落とす。 */
+  if (m.isWanderingAdventurer) {
+    const _pool = [...ITEMS.filter(i => i.type !== "gold" && i.type !== "goal"), ...WANDS, ...RINGS];
+    const _t = _pickDrop(_pool) || pick(_pool);
+    if (_t) {
+      const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
+      if (_di.type === "pen") _di.charges = penInitialCharges(_di);
+      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      placeItemAt(dg, m.x, m.y, _di, ml, new Set(), 0, p);
+      ml.push(`${m.name}は${resolveItemName(_di)}を落とした！`);
+    }
+    return;
+  }
   /* ゼラチンキューブ：取り込んでいたアイテムを全てその場にばらまく */
   if (m.baseKind === "gelcube" && m.heldItems?.length > 0) {
     const _ft = new Set();
@@ -5412,6 +6472,11 @@ export function monsterDrop(m, dg, ml, p = null) {
   if (_projectileAmmoCount > 0 && m.subtype === "stonethrow" && Math.random() < 0.05 && _dropPool([m.projectileAmmo]).length > 0) {
     drops.push({ ...m.projectileAmmo, id: uid(), count: _projectileAmmoCount });
   }
+  /* 薬投げ系：在庫が残っていれば5%で通常薬を1個落とす */
+  if (_projectileAmmoCount > 0 && ["potionthrow", "potionhealer"].includes(m.subtype) && Math.random() < 0.05) {
+    const _potion = _pickDrop(ITEMS.filter(item => item.type === "potion"));
+    if (_potion) drops.push({ ..._potion, id: uid() });
+  }
   if (m.subtype === "wanduser" && Math.random() < 0.05) {
     const _wt = _pickDrop(WANDS);
     if (_wt) drops.push({ ..._wt, id: uid(), charges: Math.max(1, rng(1, _wt.charges)) });
@@ -5426,6 +6491,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
@@ -5438,6 +6504,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
@@ -5450,10 +6517,17 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = _pickDrop(_pool);
     if (_t) {
       const _di = { ..._t, id: uid() };
+      applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
     }
+  }
+  /* 食料由来の幸運を受けた敵は、追加アイテム枠を金貨に置き換えて抽選する。 */
+  if (m.dropExtraGold && Math.random() < monsterRandomDropChance(m)) {
+    const gold = { name: "金貨", type: "gold", value: rng(20, 80), tile: 22, id: uid() };
+    drops.push(gold);
+    ml.push(`${m.name}は幸運で金貨${gold.value}枚を落とした！`);
   }
   if (drops.length === 0) return;
   const _ft = new Set();
@@ -5508,6 +6582,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     if (!exPc) return;
     ml.push(`${exPc.name}の力で爆発した！`);
     const blasted = new Set();
+    const largeMonstersHit = new Set();
     for (let ddx = -1; ddx <= 1; ddx++) {
       for (let ddy = -1; ddy <= 1; ddy++) {
         const ax = mx + ddx, ay = my + ddy;
@@ -5519,11 +6594,15 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
           ml.push("爆発で壁が崩れた！");
           wallBreakDrop(dg, ax, ay);
-          continue;
+          if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
         }
         /* モンスターへのダメージ（即死→連鎖爆発） */
         for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
-          if (m.x === ax && m.y === ay) {
+          if (monsterOccupiesCell(m, ax, ay)) {
+            if (monsterBodySize(m) > 1) {
+              if (largeMonstersHit.has(m)) continue;
+              largeMonstersHit.add(m);
+            }
             wakeIfDormant(m, ml);
             if (m.baseKind === "firedemon") {
               ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -5532,12 +6611,13 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 const _nx = ax + _sx, _ny = ay + _sy;
                 if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
                 if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
-                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
                 if (p && _nx === p.x && _ny === p.y) continue;
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
               }
             } else if (m.isBoss) {
+              if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
@@ -5560,13 +6640,17 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* アイテム破壊（巻物・薬・壺） */
-        for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
+        for (const it of [...dg.items.filter(i => i.x === ax && i.y === ay)]) {
+          if (!dg.items.includes(it)) continue;
           if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が燃えてなくなった！`); }
-          else if (it.type === "potion") { blasted.add(it); ml.push(`薬「${resolveItemName(it)}」が割れてなくなった！`); }
+          else if (it.type === "potion") fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, null, null);
           else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${resolveItemName(it)}」が燃えてなくなった！`); }
           else if (it.type === "pot") {
-            blasted.add(it);
-            if (it.potEffect !== "gunpowder") ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
+            if (it.potEffect === "gunpowder") {
+              blasted.add(it);
+            } else {
+              _explosionBreakPot(it, ax, ay, dg, p, ml, luFn, null, blasted);
+            }
           } else if (it.type === "wand") {
             _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, null, blasted);
           } else if (it.type === "item_mimic") {
@@ -5582,7 +6666,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           const bi = dg.bigboxes.findIndex(b => b.x === ax && b.y === ay);
           if (bi >= 0) {
             const bb = dg.bigboxes[bi];
-            breakBigboxContents(bb, dg, ml, nameFn, null, null, { player: p, luFn });
+            breakBigboxContents(bb, dg, ml, null, null, null, { player: p, luFn });
             ml.push("大箱が爆発で壊れた！");
           }
         }
@@ -5599,6 +6683,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     for (const it of blasted) destroyItemMimicFloorItem(dg, it);
     dg.items = dg.items.filter(i => !blasted.has(i));
     breakGachaMachinesInRadius(dg, mx, my, 1, ml, p);
+    dg.monsters = dg.monsters.filter(m => m.hp > 0);
     /* 破壊された火薬壺の連鎖爆発 */
     for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
       doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
@@ -5627,6 +6712,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
       continue;
     }
     if (isStatusImmune(target, ml, target === p ? null : target.name)) continue;
+    if (target !== p && blockLargeMonsterStatus(target, "sleep", ml)) continue;
     if (target === p && hasAbility(p.armor, "sleep_proof")) {
       ml.push("防具が眠りの花粉を防いだ！");
       continue;
@@ -5635,14 +6721,19 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
       kind: target === p ? "player" : "monster",
       target: target === p ? null : target,
     });
+    if (target !== p) startLargeMonsterStatusCooldown(target, "sleep");
     target.sleepTurns = (target.sleepTurns || 0) + turns;
     ml.push(`${target === p ? "プレイヤー" : target.name}が眠りに落ちた！(${turns}ターン)`);
   }
 }
 
+function killMonsterByTrap(mon, dg, p, ml, luFn, cause) {
+  killMonster(mon, dg, p, ml, luFn, true, null, false, false, false, cause);
+}
+
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
-export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false) {
+export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false, noExpCause = null) {
   const mx = mon.x, my = mon.y;
   if (mon.isPlayerClone) {
     if (dg?.monsters?.includes(mon)) {
@@ -5653,7 +6744,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* HP0になったモンスターの状態異常を、復活判定や撃破演出より先に消す。 */
   if (mon.hp <= 0) clearStatusEffectsOnHpZero(mon);
-  if (mon.isWanderingMerchant && p && !killerMon) {
+  if (mon.isWanderingMerchant && p && !killerMon && !noExp) {
     const _alreadyThief = !!(dg.shopTheft || p.isThief);
     dg.shopTheft = true;
     p.isThief = true;
@@ -5681,13 +6772,24 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* 実際に撃破が確定した個体だけを、共通の撃破処理で一度だけ記録する。 */
   trackMonster(mon);
+  const fallbackDeathLines = mon.baseKind === "boss_gwen" ? ["どうして、そんなことするの？"]
+    : mon.baseKind === "boss_gwen_veteran" ? ["守るって決めたのに……ごめんなさい……"]
+      : mon.baseKind === "boss_flock" ? ["こんなところで……第二形態の台詞を用意していない！"]
+        : [];
+  const deathLines = Array.isArray(mon.deathLines) && mon.deathLines.length > 0 ? mon.deathLines : fallbackDeathLines;
+  if (deathLines.length > 0 && !mon._deathQuoteShown) {
+    mon._deathQuoteShown = true;
+    ml.push(`${mon.name}は『${pick(deathLines)}』と言い残した！`);
+  }
   const _suicide = !!(killerMon && killerMon === mon);
   if (_suicide) {
     ml.push(`${mon.name}は自滅した！`);
   } else if (killerMon) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
   } else if (noExp || !p) {
-    ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
+    ml.push(noExpCause
+      ? `${mon.name}は${noExpCause}で倒れた！（経験値なし）`
+      : `${mon.name}は消し飛んだ！(経験値なし)`);
   } else {
     const _soyMul = (p.soyExpTurns || 0) > 0 ? 1.3 : 1;
     const _expGain = Math.floor(mon.exp * _soyMul);
@@ -5698,6 +6800,17 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
      既に倒れた同じモンスターを骨の衝突対象として再処理しない。 */
   removeMonster(dg, mon);
   triggerPetalDeathSleep(mon, dg, p, ml);
+  if (mon.baseKind === "boss_flock_revenge" && !mon._flockRevengeClone) {
+    const linkedClones = (dg.monsters || []).filter(clone =>
+      clone._flockRevengeClone &&
+      (clone._flockRevengeParentId === mon.id || (!clone._flockRevengeParentId && clone.baseKind === mon.baseKind)) &&
+      clone.hp > 0,
+    );
+    for (const clone of linkedClones) {
+      ml.push(`${clone.name}は本体の消滅とともに倒れた！`);
+      killMonster(clone, dg, p, ml, luFn, noExp, killerMon, false, false, false, noExpCause);
+    }
+  }
   /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
   if (mon.carriedItem) {
     const _held = mon.carriedItem;
@@ -5778,13 +6891,17 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
  */
 export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts = {}) {
   const {
+    hitChance = 1,
+    missLandFn = null,
     bbFn = null,
     nameFn = null,
     applyWandFn = null,
-    killerMon = null,
+    killerMon: initialKillerMon = null,
     reflectorRange = range,
     homingTarget = null,
     bypassDodgemole = false,
+    skipProjectileAnim = false,
+    wind = true,
     animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
     monHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
     plHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}が${pl()}に命中！${dmg}ダメージ！`,
@@ -5803,6 +6920,11 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     deathCausePhrase = `飛んできた${resolveItemName(item)}に`,
   } = opts;
 
+  let killerMon = initialKillerMon;
+  let reflectedBy = null;
+  let reflectedDirection = null;
+  const sourceIsPlayer = () => reflectedBy ? false : (opts.sourceIsPlayer ?? !killerMon);
+
   const _isPotion = item.type === "potion";
   const _isPot = item.type === "pot";
   const _isWand = item.type === "wand";
@@ -5814,11 +6936,41 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
      resへ引き継ぐ。これがないと投擲物が発射地点扱いになり、遮蔽物の裏で
      消えたように見える。 */
   let _terminalStop = null;
+  let _destroyedByTrap = false;
+  const _trapFt = new Set();
+  const _landOnTrap = (trap, lx, ly, mlx) => {
+    trap.revealed = true;
+    _trapFt.add(trap.id);
+    const r = fireTrapItem(trap, item, dg, lx, ly, mlx, _trapFt, p);
+    if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
+      removeTrap(dg, trap, mlx, { activated: true, message: `${trap.name}は壊れた。`, ft: _trapFt, p });
+    }
+    if (r === "destroyed" || r === "pitfall_player") { res.consumed = true; _destroyedByTrap = true; return "destroyed"; }
+    res.x = lx; res.y = ly; res.consumed = false;
+  };
 
   /* 通常投擲ダメージ計算（防具・指輪・巻物・壺・空き瓶も種別補正を反映） */
   const _projDmg = (def = 0) => calcProjectileDmg(p, thrownItemAttack(item), def);
   /* 壺は補正攻撃力5で通常の投擲ダメージ計算を使う */
   const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
+
+  const hitMonster = (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
+    if (shooter === p && !reflectedBy && mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, mlx);
+    if (_isPotion) {
+      if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
+      res.consumed = true; res.splash = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
+      return;
+    }
+    if (_isWand) {
+      if (wandHitMsg) { const _m = wandHitMsg(mon); if (_m) mlx.push(_m); }
+      res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
+      return;
+    }
+    applyThrownItemToMonster(item, mon, dg, p, mlx, luFn, {
+      nameFn, killerMon, hitMessage: _isPot ? potHitMsg : monHitMsg,
+    });
+    res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
+  };
 
   _resolveBolt(shooter, dg, p, ml, luFn, {
     isPlayerShooter: shooter === p,
@@ -5826,28 +6978,19 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     baseRange: range,
     reflectorRange,
     boltName: _itemName,
+    hitChance,
     animColor,
+    wind,
     pierce: _isPierceArrow,
-    onMonHit: (mon, mlx) => {
-      if (mon.isWanderingMerchant && mon.state !== "hostile") {
-        declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
-      }
-      if (_isPotion) {
-        if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
-        res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
-        return;
-      }
-      if (_isWand) {
-        if (wandHitMsg) { const _m = wandHitMsg(mon); if (_m) mlx.push(_m); }
-        res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
-        return;
-      }
-      applyThrownItemToMonster(item, mon, dg, p, mlx, luFn, {
-        nameFn,
-        killerMon,
-        hitMessage: _isPot ? potHitMsg : monHitMsg,
-      });
-      res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
+    // 命中率100%でも魔方陣・防具・聖域で回避されるため、常に着地点を記録する。
+    onMiss: (lx, ly) => {
+      res.x = lx; res.y = ly; res.missedPlayer = true;
+    },
+    onMonHit: hitMonster,
+    onReflectedMonHit: (mon, mlx, hitX, hitY, reflector, hitDx, hitDy) => {
+      killerMon = reflectedBy = reflector;
+      reflectedDirection = { dx: hitDx, dy: hitDy };
+      hitMonster(mon, mlx, hitX, hitY, hitX, hitY);
     },
     customPlHit: (mlx) => {
       if (_isPotion) {
@@ -5862,15 +7005,17 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       }
       let dmg = _isPot ? _potDmg(0) : _projDmg(0);
       dmg = applyFrozenPhysicalMult(dmg, p);
-      p.deathCause = deathCausePhrase;
+      p.deathCause = reflectedBy?.name
+        ? `${reflectedBy.name}に跳ね返された${resolveItemName(item, nameFn)}に当たって`
+        : killerMon?.name
+          ? `${killerMon.name}が投げた${resolveItemName(item, nameFn)}に当たって`
+          : deathCausePhrase;
       p.hp -= dmg;
       const _plHit = (_isPot ? potPlHitMsg(dmg) : plHitMsg(dmg)) + frozenPhysicalLabel(p);
       mlx.push(_plHit);
       interruptPlayerSleep(p, mlx);
       /* ヤバイ食料：追加ダメ+状態異常複合 */
-      if (item.type === "food" && item.iceCream && !item.yabai && !item.rotten && !item.burnt) {
-        applyIceCreamEffect(p, "player", mlx, { name: resolveItemName(item, nameFn) });
-      } else if (item.type === "food" && item.yabai) {
+      if (item.type === "food" && item.yabai) {
         const _yDmg = rng(15, 25);
         p.hp -= _yDmg;
         p.deathCause = "跳ね返されたヤバイ食料に当たって";
@@ -5879,25 +7024,29 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyYabaiPoison(p, "player");
-          mlx.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
+          mlx.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
         }
-        p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
-        p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
-        const _yConfuseT = statusTurns("confuse", { kind: "player" });
-        const _ySlowT = statusTurns("slow", { kind: "player" });
-        mlx.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+        if (!isStatusImmune(p, mlx)) {
+          p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
+          p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
+          const _yConfuseT = statusTurns("confuse", { kind: "player" });
+          const _ySlowT = statusTurns("slow", { kind: "player" });
+          mlx.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+        }
       } else if (item.type === "food" && item.rotten && !item.yabai) {
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyPlayerPoison(p);
-          mlx.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          mlx.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
       }
+      applyFoodEffectsOnHit(item, "player", p, dg, p, mlx, luFn, killerMon);
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
     homingTarget,
     bypassDodgemole,
+    skipProjectileAnim,
     onSpring: (spr, lx, ly, mlx) => {
       if (springLandMsg) { const _m = springLandMsg(spr, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
@@ -5921,20 +7070,6 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     onEnemyProjectileHit: (projectile, lx, ly) => {
       res.consumed = true; res.hitEnemyProjectile = projectile; res.x = lx; res.y = ly;
     },
-    onTrap: (trap, lx, ly, mlx) => {
-      if (_isPotion) {
-        res.consumed = true; res.splash = true; res.x = lx; res.y = ly;
-        return "destroyed";
-      }
-      trap.revealed = true;
-      const ft = new Set(); ft.add(trap.id);
-      const r = fireTrapItem(trap, item, dg, lx, ly, mlx, ft, p);
-      if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
-        removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft, p });
-      }
-      if (r === "destroyed") { res.consumed = true; return "destroyed"; }
-      res.x = lx; res.y = ly; res.consumed = false;
-    },
     onWallStop: (lx, ly) => {
       _terminalStop = { x: lx, y: ly };
     },
@@ -5948,43 +7083,74 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     res.y = _terminalStop.y;
   }
 
+  /* 空中で通過した罠は踏まず、壁・射程端で床に落ちる道具だけを判定する。
+     落とし穴などで消費された壺・杖を、破損処理や再配置へ回さない。 */
+  const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue && !res.hitEnemyProjectile;
+  if (_noHit && (!res.missedPlayer || _isPotion || _isPot)) {
+    const trap = dg.traps?.find(t => t.x === res.x && t.y === res.y);
+    if (trap && (dg.timeStopTurns || 0) <= 0 && canActivateTrap(dg, trap)) _landOnTrap(trap, res.x, res.y, ml);
+  }
+
   /* 偽アイテムが命中・泉・大箱などで消費された場合は、紐付いた本体も消す。
      何にも当たらず着地する場合だけ、偽アイテムとして床に残す。 */
   if (item.itemMimicId && (res.consumed || res.spring || res.bigbox || res.gacha || res.hitStatue || res.hitEnemyProjectile)) {
     destroyItemMimicFloorItem(dg, item);
     dg.items = dg.items.filter(i => i !== item);
   }
+  /* 薬瓶も含め、着地罠で消費された道具に破損・薬液などを重ねない。 */
+  if (_destroyedByTrap) return res;
+
+  /* 薬瓶・壺は外れても着地点で割れる。他の外れた投擲物は破損・爆発せず落とす。
+     貫通中に別の対象へ命中した場合は、その着弾処理を優先する。 */
+  if (res.missedPlayer && !res.consumed && !_isPotion && !_isPot) {
+    if (missLandFn) missLandFn(res.x, res.y, item, ml);
+    else placeItemAt(dg, res.x, res.y, item, ml, new Set(), 0, p);
+    return res;
+  }
 
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
-  const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue && !res.hitEnemyProjectile;
   if (res.spring) {
     soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
   } else if (res.bigbox) {
-    if (bbFn) bbFn(res.bigbox, item, dg, ml);
+    if (bbFn) bbFn(res.bigbox, item, dg, ml, {
+      killerMon, sourceIsPlayer: sourceIsPlayer(), fireTrapFn: opts.fireTrapFn,
+    });
     else { const ft = new Set(); placeItemAt(dg, res.x, res.y, item, ml, ft); }
   } else if (res.gacha) {
     /* ガチャマシーンには薬瓶だけが着弾対象になる。通常の薬液処理で破壊判定も行う。 */
     splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
   } else if (_isPotion) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
+    const hpBeforeSplash = p?.hp;
+    res.consumed = true;
+    res.splash = true;
     splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
+    // 瓶は外れていても、飛沫の実ダメージは敵攻撃の表示へ通知する。
+    if (res.missedPlayer && p && p.hp < hpBeforeSplash) res.hitPlayer = true;
   } else if (_isPot) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
-    scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn);
+    const hpBeforeBreak = p?.hp;
+    res.consumed = true;
+    scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn, {
+      killerMon, sourceIsPlayer: sourceIsPlayer(), fireTrapFn: opts.fireTrapFn,
+    });
+    if (res.missedPlayer && p && p.hp < hpBeforeBreak) res.hitPlayer = true;
   } else if (_isWand) {
     if (res.hitMonster || res.hitPlayer) {
       const _twSnap = { type: "wand", effect: item.effect, charges: item.charges ?? 0, blessed: !!item.blessed, cursed: !!item.cursed, name: item.name };
-      const _twDx = Math.sign(res.x - shooter.x) || 1;
-      const _twDy = Math.sign(res.y - shooter.y) || 0;
+      const _twDx = reflectedDirection?.dx ?? (Math.sign(res.x - shooter.x) || 1);
+      const _twDy = reflectedDirection?.dy ?? (Math.sign(res.y - shooter.y) || 0);
       const _twOpts = res.hitMonster
         ? { singleTargetKind: "monster", singleTarget: res.hitMonster, effectDx: _twDx, effectDy: _twDy }
         : { singleTargetKind: "player", singleTarget: p, effectDx: -_twDx, effectDy: -_twDy };
-      _triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, _twOpts);
+      _triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, {
+        ..._twOpts, killerMon, sourceIsPlayer: sourceIsPlayer(),
+        fireTrapFn: opts.fireTrapFn, nameFn,
+      });
     } else if (!res.hitStatue) {
       if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
-      const ft = new Set();
-      placeItemAt(dg, res.x, res.y, item, ml, ft);
+      placeItemAt(dg, res.x, res.y, item, ml, _trapFt, 0, p);
     }
   } else if (_isBombArrow) {
     /* 爆弾矢：着弾点で爆発（呪われた爆発の魔方陣でない場合） */
@@ -5999,25 +7165,35 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
   } else if (!res.consumed) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
-    const ft = new Set();
-    placeItemAt(dg, res.x, res.y, item, ml, ft);
+    placeItemAt(dg, res.x, res.y, item, ml, _trapFt, 0, p);
   }
 
   return res;
 }
 
-export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0) {
+export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0, killerMon = null) {
+  if (kind === "monster" && entity?.forcedMoveImmune) {
+    if (ml) ml.push(`${entity.name}は強制移動を受けない！`);
+    return { x, y, consumed: false, blocked: true };
+  }
   if (kind === "player" && resistsForcedMove(p)) {
     if (ml) ml.push("体幹の指輪のおかげで踏ん張った！強制移動を防いだ！");
     return { x, y, consumed: false, blocked: true };
   }
   let cx = x, cy = y;
+  let collisionVictim = null;
   const _isFloorObj = kind === "trap" || kind === "vent" || kind === "pentacle";
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
       if (kind === "monster") { entity.hp -= 5; ml.push(`${entity.name}は壁に叩きつけられた！5ダメージ！`); }
-      if (kind === "player")  { p.deathCause = "吹き飛ばされての壁への激突により"; p.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！"); }
+      if (kind === "player")  {
+        p.deathCause = killerMon?.name
+          ? `${killerMon.name}に吹き飛ばされての壁への激突により`
+          : "吹き飛ばされての壁への激突により";
+        p.hp -= 5;
+        ml.push("壁に叩きつけられた！5ダメージ！");
+      }
       break;
     }
     /* 飛んでいる罠がキャラクターに命中 → 呼び出し元でfireTrapを処理できるよう即返却 */
@@ -6049,7 +7225,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     /* kind === "item" は throwItemAlongLine() に移行済み（呼び出し側で直接呼ぶ） */
     if (kind === "monster") {
       /* プレイヤーとの衝突 */
-      if (p && p.x === nx && p.y === ny) {
+      if (p && monsterOccupiesCell({ ...entity, x: nx, y: ny }, p.x, p.y)) {
         if (collisionAtk > 0) {
           entity.hp -= collisionAtk;
           p.deathCause = `${entity.name}との衝突により`;
@@ -6059,11 +7235,12 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
         break;
       }
       /* 別モンスターとの衝突 */
-      const _colM = dg.monsters.find(m => m !== entity && m.x === nx && m.y === ny);
+      const _colM = dg.monsters.find(m => m !== entity && monsterBodiesOverlap(entity, m, nx, ny));
       if (_colM) {
         if (collisionAtk > 0) {
           entity.hp -= collisionAtk;
           _colM.hp -= collisionAtk;
+          collisionVictim = _colM;
           ml.push(`${entity.name}が${_colM.name}に激突！お互いに${collisionAtk}ダメージ！`);
         }
         break;
@@ -6077,6 +7254,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           p.hp -= collisionAtk;
           p.deathCause = `${_pColM.name}との衝突により`;
           _pColM.hp -= collisionAtk;
+          collisionVictim = _pColM;
           ml.push(`${_pColM.name}に激突！お互いに${collisionAtk}ダメージ！`);
         }
         break;
@@ -6084,14 +7262,21 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     }
     cx = nx; cy = ny;
   }
-  if (kind === "monster") {
+  /* 着地座標を確定してから衝突相手の撃破・ドロップを処理する。
+     ドロップ先の罠などにも、着地後のプレイヤー位置を使わせる。 */
+  if (kind === "monster" || kind === "player") {
     entity.x = cx; entity.y = cy;
-    if (drownMonsterIfNeeded(entity, dg, p, ml, luFn)) {
+  }
+  if (collisionVictim?.hp <= 0 && dg.monsters.includes(collisionVictim)) {
+    killMonster(collisionVictim, dg, p, ml, luFn, false, killerMon);
+  }
+  if (kind === "monster") {
+    if (!dg.monsters.includes(entity)) return { x: cx, y: cy, consumed: false, killed: true };
+    if (drownMonsterIfNeeded(entity, dg, p, ml, luFn, killerMon)) {
       return { x: cx, y: cy, consumed: false, killed: true };
     }
   }
   else if (kind === "player") {
-    entity.x = cx; entity.y = cy;
     if (cx !== x || cy !== y) {
       pushAnim({ type: "playerKnockback", fromX: x, fromY: y, toX: cx, toY: cy, dx, dy });
     }
@@ -6218,7 +7403,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
   ml.push(`跳ね返された${stoneName}が${pl()}にホーミング命中！${dmg}ダメージ！消滅した。`);
   interruptPlayerSleep(p, ml);
-  if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  resolveParalysisHit(p, ml);
   return dmg;
 }
 
@@ -6234,7 +7419,7 @@ function specialProjectileColor(kind, owner = null) {
 }
 
 function specialProjectileMonsterAt(dg, x, y) {
-  return (dg.monsters || []).find(m => m.x === x && m.y === y && (m.hp ?? 1) > 0) || null;
+  return (dg.monsters || []).find(m => monsterOccupiesCell(m, x, y) && (m.hp ?? 1) > 0) || null;
 }
 
 function isEnemyHomingProjectile(sp) {
@@ -6266,7 +7451,7 @@ export function destroyEnemyHomingProjectileAt(dg, x, y, ml, hitName = "飛び�
 
 function nearestSpecialProjectileTarget(dg, x, y, range = 10) {
   return (dg.monsters || [])
-    .filter(m => (m.hp ?? 1) > 0 && Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) <= range)
+    .filter(m => !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0 && Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) <= range)
     .sort((a, b) => {
       const da = Math.max(Math.abs(a.x - x), Math.abs(a.y - y));
       const db = Math.max(Math.abs(b.x - x), Math.abs(b.y - y));
@@ -6296,12 +7481,13 @@ function specialProjectilePathHitMonster(sp, next, dg, monsterSnapshots = null, 
   const _projectilePath = specialProjectileGridPath(sp.x, sp.y, next.x, next.y);
   const _projectileCells = new Set(_projectilePath.map(({ x, y }) => `${x},${y}`));
   for (const monster of dg.monsters || []) {
-    if ((monster.hp ?? 1) <= 0) continue;
+    if ((monster.hp ?? 1) <= 0 || monster.disguisedAsItem) continue;
     const _before = monsterSnapshots?.get(monster.id);
     const _monsterPath = _before
       ? specialProjectileGridPath(_before.x, _before.y, monster.x, monster.y)
       : [{ x: monster.x, y: monster.y }];
-    const _impact = _monsterPath.find(({ x, y }) =>
+    const _bodyPath = _monsterPath.flatMap(({ x, y }) => monsterBodyCells(monster, x, y));
+    const _impact = _bodyPath.find(({ x, y }) =>
       _projectileCells.has(`${x},${y}`) && (!skipStart || x !== sp.x || y !== sp.y),
     );
     if (_impact) return { monster, x: _impact.x, y: _impact.y };
@@ -6309,24 +7495,24 @@ function specialProjectilePathHitMonster(sp, next, dg, monsterSnapshots = null, 
   return null;
 }
 
-export function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
+export function detonateCrawlingBomb(sp, dg, p, ml, luFn, message, context = {}) {
   ml.push(message || `${sp.name}が爆発した！`);
   const _bundleCount = Math.max(1, sp.bundleCount | 0);
   /* 初期の1個は半径1、以降は3個増えるごとに半径を1拡大し、10個以上で半径4。 */
   const _blastRadius = Math.min(4, 1 + Math.floor(Math.max(0, _bundleCount - 1) / 3));
   doExplosion(
     sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, true, false, true, false,
-    { radius: _blastRadius, playerHpOne: _bundleCount >= 2 },
+    { ...context, radius: _blastRadius, playerHpOne: _bundleCount >= 2 },
   );
 }
 
-export function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
+export function detonateTorpedo(sp, dg, p, ml, luFn, monster = null, context = {}) {
   const _inWater = dg.map?.[sp.y]?.[sp.x] === T.WATER;
   const _forceMonster = monster && Math.max(Math.abs(monster.x - sp.x), Math.abs(monster.y - sp.y)) > 1
     ? [monster]
     : [];
   ml.push(`${sp.name}が着弾点で爆発した！`);
-  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { playerSafeInWater: _inWater, nonElemental: true, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
+  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { ...context, playerSafeInWater: _inWater, nonElemental: true, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
 }
 
 function landCrawlingBombAsItem(sp, dg, p, ml) {
@@ -6367,7 +7553,7 @@ function chooseSpecialProjectileFloor(dg, p, sp) {
     const y = rng(_room.y, _room.y + _room.h - 1);
     if (!specialProjectileCellOpen(dg, x, y)) continue;
     if (p && p.x === x && p.y === y) continue;
-    if (dg.monsters?.some(m => m.x === x && m.y === y && (m.hp ?? 1) > 0)) continue;
+    if (dg.monsters?.some(m => monsterOccupiesCell(m, x, y) && (m.hp ?? 1) > 0)) continue;
     if (dg.bigboxes?.some(b => b.x === x && b.y === y)) continue;
     if (dg.traps?.some(t => t.x === x && t.y === y)) continue;
     if (statueAt(dg, x, y)) continue;
@@ -6390,8 +7576,9 @@ function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   _trap.revealed = true;
   const _ft = new Set(_trap.id != null ? [_trap.id] : []);
   const _result = fireTrapItem(_trap, _trigger, dg, x, y, ml, _ft, p, null, luFn);
+  if (_result === "already_activated" || _result === "time_stopped") return { action: "continue" };
   if (_trap.effect !== "explode" && !_trap.permanent && Math.random() < trapStepBreakChance(_trap)) {
-    removeTrap(dg, _trap, ml, { message: `${_trap.name}は壊れた。`, ft: _ft, p });
+    removeTrap(dg, _trap, ml, { activated: true, message: `${_trap.name}は壊れた。`, ft: _ft, p });
   }
   /* spin 等が内部トリガーを床へ置こうとしても、特殊弾は残さない。 */
   if (Array.isArray(dg.items)) dg.items = dg.items.filter(it => it !== _trigger);
@@ -6469,8 +7656,10 @@ function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
     ? Math.max(1, calcAtkDefDmg(sp.atk || 1, monster.def || 0, { defWeight: 1.5 }))
     : clampDmgFixed(monster, calcProjectileDmg(p, sp.atk || 1, monster.def), true);
   monster.hp -= _dmg;
-  if (monster.isWanderingMerchant && monster.state !== "hostile") {
-    declareShopTheft(p, dg, ml, { merchantId: monster.id, angerOnly: true, message: "行商人が怒った！" });
+  if (_enemyOwned) {
+    if (_source && monster.type === "shopkeeper") beginNpcRetaliation(monster, _source, ml);
+  } else if (monster.type === "shopkeeper") {
+    markShopkeeperHostileToPlayer(monster, dg, p, ml);
   }
   ml.push(`${_enemyOwned ? `${sp.sourceName || "敵"}の` : ""}${sp.name}が${monster.name}に命中！${_dmg}ダメージ！`);
   if (monster.hp <= 0) {
@@ -6697,7 +7886,7 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     if (_isEnemyHoming) {
       _target = p;
     } else if (_isHoming) {
-      if (sp.targetId) _target = (dg.monsters || []).find(m => m.id === sp.targetId && (m.hp ?? 1) > 0) || null;
+      if (sp.targetId) _target = (dg.monsters || []).find(m => m.id === sp.targetId && !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0) || null;
       if (!_target) _target = nearestSpecialProjectileTarget(dg, sp.x, sp.y, 10);
       if (_target?.id != null) sp.targetId = _target.id;
     }
@@ -6823,20 +8012,21 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     if (!_shotUnit) peelShopArrowUnit(st);
   };
 
+  const _wakkaHasTarget = wakka && [...(dg.monsters || [])].some(m => !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0 &&
+    Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= 10);
+  if (wakka && !_wakkaHasTarget) {
+    ml.push(`${_arName}を投げたが、近くに敵がいないため通常の軌道で飛んだ。`);
+  }
+
   /* ワッカの指輪：特殊飛び道具以外は魔法の石と同じく最近の敵へ必中ホーミング。
      みかわしの魔方陣と反射だけは通常の優先順位を維持する。 */
-  if (wakka) {
+  if (wakka && _wakkaHasTarget) {
     const _wakkaTarget = [...(dg.monsters || [])]
-      .filter(m => !m.disguisedAsItem && (m.hp ?? 1) > 0 &&
+      .filter(m => !m.disguisedAsItem && !m.isPlayerClone && (m.hp ?? 1) > 0 &&
         Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= 10)
       .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
     if (_wakkaTarget && animFn) {
       animFn({ type: "projectile", fromX: p.x, fromY: p.y, toX: _wakkaTarget.x, toY: _wakkaTarget.y, color: "#cc88ff" });
-    }
-    if (!_wakkaTarget) {
-      ml.push(`${_arName}を投げたが、近くに敵がいないため消えた。`);
-      _ensureShopPeeled();
-      return;
     }
     const _wakkaDodgeMode = getDodgePentacleMode(dg, _wakkaTarget.x, _wakkaTarget.y);
     if (_wakkaDodgeMode === "dodge") {
@@ -6850,10 +8040,19 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       _ensureShopPeeled();
       return;
     }
+    if (_wakkaTarget.baseKind === "synthmonster" && !_isPierce && !_isFc && !st.bombArrow && !forceMiss) {
+      const synthBox = ensureSynthMonsterBox(_wakkaTarget);
+      if (bbFn) bbFn(synthBox, _dropItem(), dg, ml);
+      else synthBox.contents.push(_dropItem());
+      speedUpSynthMonster(_wakkaTarget, ml);
+      _ensureShopPeeled();
+      return;
+    }
     const _wakkaDmg = clampDmgFixed(_wakkaTarget, calcProjectileDmg(p, _arAtk, _wakkaTarget.def), true);
     _wakkaTarget.hp -= _wakkaDmg;
     let _wakkaPoisonT = 0;
-    if (_isPoison) {
+    const _wakkaPoisonApplied = _isPoison && !isStatusImmune(_wakkaTarget, ml, _wakkaTarget.name);
+    if (_wakkaPoisonApplied) {
       if (_wakkaTarget.isBoss) {
         _wakkaPoisonT = _wakkaTarget.bossPoisonHalfAtk ? (_wakkaTarget.bossPoisonHalfAtkTurns || monsterStatusTurns(10, _wakkaTarget)) : monsterStatusTurns(10, _wakkaTarget);
         if (!_wakkaTarget.bossPoisonHalfAtk) {
@@ -6866,7 +8065,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         _wakkaTarget.atk = Math.max(1, Math.floor((_wakkaTarget.atk || 1) / 2));
       }
     }
-    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${_wakkaTarget.isBoss ? `(${_wakkaPoisonT}ターン)` : "(永続)"}` : ""}`);
+    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_wakkaPoisonApplied ? `攻撃力が半減した！${_wakkaTarget.isBoss ? `(${_wakkaPoisonT}ターン)` : "(永続)"}` : ""}`);
+    triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
     if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
     if (st.bombArrow) {
       if (isFireExplosionNullified(dg, p)) {
@@ -6913,7 +8113,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const m = monsterAt(dg, tx, ty);
     if (m) {
-      if (monSubmergesProjectiles(m) && !st.stone && !st.magicStone) {
+      if (monSubmergesProjectiles(m) && !st.stone && !st.magicStone && !st.iceChunk) {
         ml.push(m.name + "が潜って" + _arName + "をかわした！");
         continue;
       }
@@ -6923,6 +8123,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
         const _missFt = new Set();
         placeItemAt(dg, tx, ty, _dropItem(), ml, _missFt, 0, p);
+        hit = true;
+        break;
+      }
+      if (!_pierceMode && !st.bombArrow && m.baseKind === "synthmonster") {
+        const synthBox = ensureSynthMonsterBox(m);
+        if (bbFn) bbFn(synthBox, _dropItem(), dg, ml);
+        else synthBox.contents.push(_dropItem());
+        speedUpSynthMonster(m, ml);
         hit = true;
         break;
       }
@@ -6951,7 +8159,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           p.hp -= _refDmg;
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
             const _poison = applyPlayerPoison(p);
-            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+            ml.push(statusResultMessage(_poison, `跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
           } else if (_isPoison) {
             ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);
           } else {
@@ -6967,7 +8175,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       const _arDmg = clampDmgFixed(m, calcProjectileDmg(p, _arAtk, m.def), true);
       m.hp -= _arDmg;
       let _poisonT = 0;
-      if (_isPoison) {
+      const _poisonApplied = _isPoison && !isStatusImmune(m, ml, m.name);
+      if (_poisonApplied) {
         if (m.isBoss) {
           _poisonT = m.bossPoisonHalfAtk ? (m.bossPoisonHalfAtkTurns || monsterStatusTurns(10, m)) : monsterStatusTurns(10, m);
           if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = _poisonT; }
@@ -6976,7 +8185,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
         }
       }
-      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${m.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_poisonApplied ? `攻撃力が半減した！${m.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+      triggerMushroomCounterSpore(m, dg, p, ml);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }
     }
@@ -7023,18 +8233,20 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
  */
 export function declareShopTheft(p, dg, ml, opts = {}) {
   if (!dg || !p) return false;
-  /* 行商人への攻撃は、撃破されるまでは店泥棒にしない。店主と同じく
-     いったん怒るだけに留め、HP全快で友好へ戻せる。 */
+  /* 友好的な行商人・冒険者への攻撃は、撃破されるまでは店泥棒にしない。
+     店主と同じくいったん敵対するだけに留め、HP全快で友好へ戻せる。 */
   if (opts.angerOnly && opts.merchantId) {
-    const merchant = dg.monsters?.find((monster) => monster.id === opts.merchantId && monster.isWanderingMerchant);
-    if (merchant) {
-      const wasHostile = merchant.state === "hostile";
-      merchant.state = "hostile";
-      merchant.speed = 1;
-      merchant.aware = true;
-      merchant.lastPx = p.x;
-      merchant.lastPy = p.y;
-      if (!wasHostile && ml && opts.message !== null) ml.push(opts.message || "行商人が怒った！");
+    const wanderer = dg.monsters?.find((monster) => monster.id === opts.merchantId && isWanderingNpc(monster));
+    if (wanderer) {
+      const wasHostile = wanderer.state === "hostile";
+      const wasRetaliatingAtEnemy = !!wanderer._npcRetaliationTargetId;
+      clearNpcRetaliation(wanderer);
+      wanderer.state = "hostile";
+      wanderer.speed = 1;
+      wanderer.aware = true;
+      wanderer.lastPx = p.x;
+      wanderer.lastPy = p.y;
+      if ((!wasHostile || wasRetaliatingAtEnemy) && ml && opts.message !== null) ml.push(opts.message || `${wanderer.name}が怒った！`);
       return false;
     }
   }
@@ -7042,14 +8254,15 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
   dg.shopTheft = true;
   p.isThief = true;
   if (opts.merchantId) {
-    const merchant = dg.monsters?.find((monster) => monster.id === opts.merchantId && monster.isWanderingMerchant);
-    if (merchant) {
-      merchant.state = "hostile";
-      /* 行商人は平時だけ半速。敵対した瞬間から店主と同じ等速へ戻る。 */
-      merchant.speed = 1;
-      merchant.aware = true;
-      merchant.lastPx = p.x;
-      merchant.lastPy = p.y;
+    const wanderer = dg.monsters?.find((monster) => monster.id === opts.merchantId && isWanderingNpc(monster));
+    if (wanderer) {
+      clearNpcRetaliation(wanderer);
+      wanderer.state = "hostile";
+      /* 友好的な巡回者は平時だけ半速。敵対した瞬間から等速へ戻る。 */
+      wanderer.speed = 1;
+      wanderer.aware = true;
+      wanderer.lastPx = p.x;
+      wanderer.lastPy = p.y;
     }
   }
   /* 未払い商品の値札を外す（支払い対象は unpaidTotal 側に残る） */
@@ -7068,6 +8281,7 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
     if (!opts.forceAll && (s.unpaidTotal || 0) <= 0) continue;
     const sk = dg.monsters.find((m) => m.id === s.shopkeeperId);
     if (sk) {
+      clearNpcRetaliation(sk);
       sk.state = "hostile";
       sk.aware = true;
       sk.lastPx = p.x;
@@ -7084,7 +8298,39 @@ export function declareShopTheft(p, dg, ml, opts = {}) {
   return !wasThief;
 }
 
-/** 未払いを抱えたまま店の外にいるか確認し、泥棒状態にする（endTurn 等） */
+/** プレイヤーの攻撃を受けたNPCの敵ターゲットを、プレイヤーへ切り替える。 */
+export function markShopkeeperHostileToPlayer(monster, dungeon, player, messages) {
+  if (!monster || monster.type !== "shopkeeper") return false;
+  const wasRetaliatingAtEnemy = !!monster._npcRetaliationTargetId;
+  if (monster.state === "hostile" && !wasRetaliatingAtEnemy) return false;
+  if (isWanderingNpc(monster)) {
+    declareShopTheft(player, dungeon, messages, {
+      merchantId: monster.id,
+      angerOnly: true,
+      message: `${monster.name}が怒った！`,
+    });
+    return true;
+  }
+  clearNpcRetaliation(monster);
+  monster.state = "hostile";
+  monster.speed = 1;
+  monster.aware = true;
+  monster.lastPx = player.x;
+  monster.lastPy = player.y;
+  messages?.push("店主が怒った！");
+  return true;
+}
+
+/** フロア離脱前に、所持商品と使用済み商品の未払いを確認する。 */
+export function declareFloorExitTheft(p, dg, ml = null) {
+  if (!p || !dg) return false;
+  const hasGoods = p.inventory?.some(item => item.shopPrice > 0);
+  const hasDebt = getShops(dg).some(shop => (shop.unpaidTotal || 0) > 0);
+  if (!hasGoods && !hasDebt) return false;
+  return declareShopTheft(p, dg, ml, { message: ml ? undefined : null });
+}
+
+/** 未払いを抱えたまま店の外にいるか確認し、泥棒状態にする（endTurn 等）。 */
 export function checkShopTheft(p, dg, ml) {
   if (!dg || !p || p.isThief) return;
   const shops = getShops(dg);
@@ -7108,20 +8354,27 @@ export function canCalmShopkeeper(m, dg, p) {
   return m.hp >= m.maxHp;
 }
 
-/** 店主・行商人をHP全快で友好状態へ戻す共通処理。 */
+/** 店主・行商人・冒険者をHP全快で友好状態へ戻す共通処理。 */
 export function calmShopkeeperIfFullyHealed(m, dg, p, ml) {
   if (!canCalmShopkeeper(m, dg, p)) return false;
+  const returnHome = !isWanderingNpc(m) && m._npcRetaliationReturnPos
+    ? { ...m._npcRetaliationReturnPos }
+    : null;
+  clearNpcRetaliation(m);
   m.state = "friendly";
-  if (m.isWanderingMerchant) m.speed = m.baseSpeed ?? 0.5;
-  if (ml) ml.push(`${m.isWanderingMerchant ? "行商人" : "店主"}のHPが全快した！敵対状態が解除された。`);
+  if (isWanderingNpc(m)) m.speed = m.baseSpeed ?? 0.5;
+  else if (returnHome) m._npcReturningHome = returnHome;
+  const name = m.isWanderingMerchant ? "行商人" : m.isWanderingAdventurer ? m.name : "店主";
+  if (ml) ml.push(`${name}のHPが全快した！敵対状態が解除された。`);
   return true;
 }
 
 /* 支払い後に店主を空きマスへ戻す（homePos が塞がっている場合は店内の別フロアタイルへ） */
 export function moveShopkeeperHome(sk, shop, dg) {
+  clearNpcRetaliation(sk);
   sk.state = "friendly";
   const hp = sk.homePos;
-  const occ = (x, y) => dg.monsters.some(m => m !== sk && m.x === x && m.y === y);
+  const occ = (x, y) => dg.monsters.some(m => m !== sk && monsterOccupiesCell(m, x, y));
   if (!occ(hp.x, hp.y)) { sk.x = hp.x; sk.y = hp.y; return; }
   const r = shop.room;
   for (let ry = r.y; ry < r.y + r.h; ry++)
@@ -7133,6 +8386,29 @@ export function moveShopkeeperHome(sk, shop, dg) {
 export function getSpellPowerMultiplier(level = 1) {
   const _level = Number.isFinite(level) ? Math.max(1, level) : 1;
   return 1 + (_level - 1) * 0.3;
+}
+
+/** 炎の魔法の着弾爆風。通常詠唱と魔法書の自動発動で共通にする。 */
+export function applyFireSpellBlast(dg, p, landing, ml, luFn, level = 1) {
+  if (landing.hitType === "sealed" || isFireExplosionNullified(dg, p)) return;
+  const multiplier = getSpellPowerMultiplier(level);
+  pushExplosionAnim(landing.x, landing.y);
+  if (landing.hitType !== "void") ml.push("爆発！");
+  if (Math.max(Math.abs(p.x - landing.x), Math.abs(p.y - landing.y)) <= 1) {
+    const damage = multiplyCursedMagicDamage(Math.round(rng(10, 15) * multiplier), p, dg);
+    p.deathCause = "炎の魔法の爆風で";
+    p.hp -= damage;
+    ml.push(`爆風を受けた！${damage}ダメージ！`);
+  }
+  for (const monster of monsterAreaTargets(dg.monsters,
+    (x, y) => Math.max(Math.abs(x - landing.x), Math.abs(y - landing.y)) <= 1)) {
+    if (monster.hp <= 0) continue;
+    if (consumeBarrier(monster, ml)) continue;
+    const damage = multiplyMagicDamage(Math.round(rng(8, 14) * multiplier), p.weapon, monster, dg);
+    monster.hp -= damage;
+    ml.push(`爆風で${monster.name}に${damage}ダメージ！`);
+    if (monster.hp <= 0) killMonster(monster, dg, p, ml, luFn);
+  }
 }
 
 export function getSpellBuffDuration(baseDuration, level = 1) {
@@ -7175,7 +8451,7 @@ export function makePlayerClone(p, x, y, cloneTurns = 30) {
 
 export const SPELLS=[
   {id:"fire_bolt",      name:"炎の魔法",         mpCost:10, effect:"fire_bolt",       damage:25, range:10, needsDir:true,  desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:10"},
-  {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾で敵を凍らせスロー。MP:10"},
+  {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾を撃ち、水路や泉を凍らせる。氷塊が現れることもある。敵にはダメージと移動封じ。MP:10"},
   {id:"lightning_magic",name:"雷の魔法",          mpCost:12, effect:"lightning_magic", damage:28,           needsDir:false, desc:"視界内の全ての敵に雷ダメージを与える。MP:12"},
   {id:"sleep_bolt",     name:"眠りの魔法",        mpCost:7,  effect:"sleep_bolt",                 range:10, needsDir:true,  desc:"眠りの霧を飛ばす。MP:7"},
   {id:"teleport_magic", name:"テレポート",        mpCost:8,  effect:"teleport_magic",              needsDir:false, desc:"ランダムな場所に飛ぶ。MP:8"},
@@ -7219,7 +8495,7 @@ export const SPELLS=[
 ];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと炎の弾を撃ち、着弾点で爆発させる魔法を習得する。周囲8マスにも爆風ダメージ。MP:10",tile:43},
-  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと氷の弾で敵を凍らせ、スローにする魔法を習得する。MP:10",tile:43},
+  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと水路や泉を凍らせる氷の魔法を習得する。氷塊が現れることもある。MP:10",tile:43},
   {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"C", weight:4,  sellPrice:3000,  desc:"読むと視界内の全ての敵に雷ダメージを与える魔法を習得する。MP:12",tile:43},
   {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと眠りの霧を飛ばす魔法を習得する。MP:7",tile:43},
   {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"読むとランダムな場所に飛ぶ魔法を習得する。MP:8",tile:43},
@@ -7468,6 +8744,7 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
   if (victim.type === "arrow" && (victim.bombArrow || victim.specialProjectile === "crawling_bomb")) {
     const n = victim.count ?? 1;
     if (n <= 1) {
+      unequipPlayerItem(p, victim);
       p.inventory = p.inventory.filter((it) => it !== victim);
       if (ml) ml.push(`水を浴びて${_dn}が1つ消えた！`);
     } else {
@@ -7579,6 +8856,7 @@ export function isPlayerOnWater(p, dg) {
 export function applyWaterIceFreeze(p, dg, ml, turns = null) {
   if (turns == null) turns = statusTurns("frozen", { kind: "player" });
   if (!isPlayerOnWater(p, dg)) return false;
+  if (isStatusImmune(p, ml)) return false;
   if (hasIceResist(p)) {
     if (ml) ml.push("防具が氷を弾いた！凍結しなかった。(耐氷)");
     return false;
@@ -7662,13 +8940,17 @@ export function tickBubbleGold(p, ml) {
 }
 
 /**
- * 水タイルを凍らせて床にする（氷の杖・氷ブレス共通）。
+ * 水タイル・泉を凍らせ、泉は干上がらせる。氷塊も凍結時に生成する。
  * @returns {boolean} 凍らせたか
  */
-export function freezeWaterTile(dg, x, y, ml = null, nameFn = null) {
-  if (!dg?.map || dg.map[y]?.[x] !== T.WATER) return false;
-  dg.map[y][x] = T.FLOOR;
-  if (ml) ml.push("氷が水を凍らせた！");
+export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, options = {}) {
+  if (!dg?.map) return false;
+  const _isWater = dg.map[y]?.[x] === T.WATER;
+  const _spring = dg.springs?.find((spring) => spring.x === x && spring.y === y) || null;
+  if (!_isWater && !_spring) return false;
+  if (_isWater) dg.map[y][x] = T.FLOOR;
+  if (_spring) dg.springs = dg.springs.filter((spring) => spring !== _spring);
+  if (ml) ml.push(_spring ? "氷が泉を凍らせて干上がらせた！" : "氷が水を凍らせた！");
   if (dg.waterItems) {
     const _frozen = dg.waterItems.filter((wi) => wi.x === x && wi.y === y);
     dg.waterItems = dg.waterItems.filter((wi) => !(wi.x === x && wi.y === y));
@@ -7681,11 +8963,33 @@ export function freezeWaterTile(dg, x, y, ml = null, nameFn = null) {
       if (ml) ml.push(`凍った水から${resolveItemName(wi.item, nameFn)}が現れた！`);
     }
   }
-  if (dg.springs) {
-    const _fs = dg.springs.find((s) => s.x === x && s.y === y);
-    if (_fs) {
-      dg.springs = dg.springs.filter((s) => s !== _fs);
-      if (ml) ml.push("泉が凍りついて干上がった！");
+  const _iceCount = _spring ? rng(5, 8) : (Math.random() < 0.08 ? rng(1, 2) : 0);
+  if (_iceCount > 0) {
+    dg.items ||= [];
+    const _avoid = options.avoidDirection;
+    const _dropCells = [[x, y], ...DRO.filter(([dx, dy]) => dx !== 0 || dy !== 0).map(([dx, dy]) => [x + dx, y + dy])];
+    const _dropCell = _dropCells.find(([ix, iy]) =>
+      ix >= 0 && ix < MW && iy >= 0 && iy < MH && iy < dg.map.length && ix < (dg.map[iy]?.length || 0) &&
+      ((ix === x && iy === y) || !(_avoid && (ix - x) * _avoid.dy === (iy - y) * _avoid.dx)) &&
+      dg.map[iy]?.[ix] !== T.WALL && dg.map[iy]?.[ix] !== T.BWALL &&
+      dg.map[iy]?.[ix] !== T.WATER && dg.map[iy]?.[ix] !== T.SD && dg.map[iy]?.[ix] !== T.SU &&
+      !dg.items.some((item) => item.x === ix && item.y === iy) &&
+      !dg.traps?.some((trap) => trap.x === ix && trap.y === iy) &&
+      !dg.springs?.some((spring) => spring.x === ix && spring.y === iy) &&
+      !dg.bigboxes?.some((box) => box.x === ix && box.y === iy) &&
+      !dg.gachaMachines?.some((machine) => machine.x === ix && machine.y === iy) &&
+      !dg.altars?.some((altar) => altar.x === ix && altar.y === iy) &&
+      !dg.dimensionalVaults?.some((vault) => vault.x === ix && vault.y === iy) &&
+      !dg.pentacles?.some((pentacle) => pentacle.x === ix && pentacle.y === iy)
+    );
+    if (_dropCell) {
+      const _iceChunk = makeIceChunk(_iceCount);
+      _iceChunk.x = _dropCell[0];
+      _iceChunk.y = _dropCell[1];
+      markItemIdentifiedForDungeon(_iceChunk, dg);
+      dg.items.push(_iceChunk);
+      options.generatedIceChunks?.push(_iceChunk);
+      if (ml) ml.push(`${_spring ? "凍った泉" : "凍った水"}から氷塊が${_iceCount}個現れた！`);
     }
   }
   return true;
@@ -7701,20 +9005,42 @@ export function lightningResistDamageLabel(p) {
 }
 
 /* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */
-export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFireContext = false) {
+export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFireContext = false, context = {}) {
   if (p.inventory.length === 0) return;
   if (isFireContext ? hasFireResist(p) : hasLightningResist(p)) return;
   const dn = (it) => resolveItemName(it, nameFn);
-  const idx = Math.floor(Math.random() * p.inventory.length);
-  const victim = p.inventory[idx];
+  const _iceChunkStacks = isFireContext ? p.inventory.filter((item) => item.iceChunk && (Number(item.count) || 0) > 0) : [];
+  const victim = _iceChunkStacks.length > 0
+    ? _iceChunkStacks[Math.floor(Math.random() * _iceChunkStacks.length)]
+    : p.inventory[Math.floor(Math.random() * p.inventory.length)];
+  const idx = p.inventory.indexOf(victim);
   const removeVictim = () => { p.inventory = p.inventory.filter((_, i) => i !== idx); };
+  if (isFireContext && victim.iceChunk) {
+    const _count = Math.max(1, Number(victim.count) || 1);
+    const _melted = rng(1, Math.min(3, _count));
+    victim.count = _count - _melted;
+    if (victim.count <= 0) {
+      removeVictim();
+      if (p.arrow === victim) p.arrow = null;
+      ml.push(`所持していた「${dn(victim)}」が炎で溶けてなくなった！(${_melted}個)`);
+    } else {
+      ml.push(`所持していた「${dn(victim)}」が炎で溶けた！(${_melted}個消失・残り${victim.count}個)`);
+    }
+    return;
+  }
   if (victim.type === "pot") {
     removeVictim();
     ml.push(isFireContext ? `所持していた「${dn(victim)}」が熱で割れた！` : `所持していた「${dn(victim)}」が雷で割れた！`);
-    scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn);
+    scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn, nameFn, context);
   } else if (victim.type === "potion" || (isFireContext && victim.type === "bottle")) {
     removeVictim();
-    ml.push(`所持していた「${dn(victim)}」が割れてなくなった！`);
+    if (isFireContext && victim.type === "potion") {
+      ml.push(`所持していた「${dn(victim)}」が炎で割れた！`);
+      splashPotion(dg, p.x, p.y, victim.effect, victim.value || 0, p, ml, luFn,
+        !!victim.blessed, !!victim.cursed, nameFn, context.killerMon || null);
+    } else {
+      ml.push(`所持していた「${dn(victim)}」が割れてなくなった！`);
+    }
   } else if (isFireContext && (victim.type === "scroll" || victim.type === "spellbook")) {
     removeVictim();
     ml.push(`所持していた「${dn(victim)}」が燃えてなくなった！`);
@@ -7738,6 +9064,44 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
     ml.push(isFireContext ? `所持していた「${dn(victim)}」は炎に当たったが無事だった。` : `所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }
 }
+/** 道具寄せの床配置。移動先を確保するまで元の個体・座標・中身を維持する。 */
+export function gatherFloorItems(dungeon, player, items, messages, { scatter = false, nameFn = null } = {}) {
+  let gathered = 0, scattered = 0, remaining = 0;
+  const freeAt = (x, y, options = {}) =>
+    !isFloorOccupancyBlocked(dungeon, x, y, { p: player, ...options }) &&
+    !dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y);
+  for (const item of items) {
+    if (item.shopPrice || !dungeon.items.includes(item)) continue;
+    let spot = scatter ? null : DRO.map(([dx, dy]) => ({ x: player.x + dx, y: player.y + dy }))
+      .find(({ x, y }) => freeAt(x, y, { ignore: item, allowPlayer: true }));
+    const nearby = !!spot;
+    if (!spot) {
+      const free = [];
+      for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+        if (freeAt(x, y)) free.push({ x, y });
+      }
+      if (free.length) spot = pick(free);
+    }
+    if (!spot) {
+      remaining++;
+      messages.push(`${resolveItemName(item, nameFn)}はフロアに空きがなく、元の場所に残った。`);
+      continue;
+    }
+    // 安全な空き床への転送なので、落下による破壊・設備への投入は発生させない。
+    item.x = spot.x;
+    item.y = spot.y;
+    delete item.wallEmbedded;
+    markItemIdentifiedForDungeon(item, dungeon);
+    if (item.itemMimicId) ensureItemMimicFloorItems(dungeon);
+    if (nearby) gathered++;
+    else {
+      scattered++;
+      if (!scatter) messages.push(`${resolveItemName(item, nameFn)}は周囲に置けず、フロアの空きマスへ飛んだ！`);
+    }
+  }
+  return { gathered, scattered, remaining };
+}
+
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv = 1, castMpCost = null) {
   if (kind === "monster") {
     wakeIfDormant(target, ml);
@@ -7808,7 +9172,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           .filter(({ x, y }) =>
             dg.map[y]?.[x] === T.FLOOR &&
             !(x === p.x && y === p.y) &&
-            !dg.monsters?.some((m) => m.x === x && m.y === y) &&
+            !dg.monsters?.some((m) => monsterOccupiesCell(m, x, y)) &&
             !dg.items?.some((it) => !it.wallEmbedded && it.x === x && it.y === y) &&
             !dg.traps?.some((trap) => trap.x === x && trap.y === y) &&
             !dg.springs?.some((spring) => spring.x === x && spring.y === y) &&
@@ -7938,18 +9302,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           ml.push("道具寄せの魔法を唱えたが、引き寄せるアイテムがない。");
           break;
         }
-        const _gatherSet = new Set(_gatherItems);
-        dg.items = (dg.items || []).filter((_item) => !_gatherSet.has(_item));
-        const _gatherFt = new Set();
-        for (const _item of _gatherItems) {
-          delete _item.wallEmbedded;
-          const _placed = placeItemAt(dg, p.x, p.y, _item, ml, _gatherFt, 0, p, _item.x, _item.y);
-          if (!_placed && !dg.items.includes(_item) &&
-              !dg.waterItems?.some((_waterItem) => _waterItem.item === _item)) {
-            ml.push(`${resolveItemName(_item)}は引き寄せられなかった！`);
-          }
-        }
-        ml.push(`${_gatherItems.length}個のアイテムを引き寄せた！`);
+        const result = gatherFloorItems(dg, p, _gatherItems, ml);
+        if (result.gathered > 0) ml.push(`${result.gathered}個のアイテムを引き寄せた！`);
       }
       break;
     }
@@ -7959,7 +9313,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       const dmg = Math.round(rng(20, 30) * _lvF) * _fbOilyMult;
       if (kind === "monster") {
         /* 火ダルマは炎の魔法で回復（封印中は特性無効） */
-        if (target.baseKind === "firedemon" && !target.sealed) {
+          if (monHasFlameMantle(target)) {
           const _fheal = Math.min(_targetMagicDamage(dmg), target.maxHp - target.hp);
           if (_fheal > 0) { target.hp += _fheal; ml.push(`炎の魔法が${target.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
           else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
@@ -7979,11 +9333,17 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       let dmg = Math.round(rng(15, 22) * _lvF);
       const _iceFreeze = statusTurns("immobile", { kind: "monster", target });
       if (kind === "monster") {
-        if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
+        const _iceStatusBlocked = isStatusImmune(target, ml, target.name) || (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "immobile", ml));
+        if (!_iceStatusBlocked && monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "immobile");
+        if (monHasElementWeakness(target, "ice")) dmg = Math.floor(dmg * 1.5);
         dmg = _enemyMagicDamage(dmg);
         target.hp -= dmg;
-        target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
-        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
+        if (_iceStatusBlocked) {
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！移動封じは効かなかった！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}`);
+        } else {
+          target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}`);
+        }
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
     }
@@ -7991,12 +9351,21 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷の魔法を打ち消した！"); break; }
       if (kind === "self") {
         /* 視界内の全ての敵に雷ダメージ */
-        const _ltTargets = dg.monsters.filter(m => dg.visible?.[m.y]?.[m.x]);
+        const _ltTargets = monsterAreaTargets(dg.monsters, (x, y) => dg.visible?.[y]?.[x]);
         if (_ltTargets.length === 0) { ml.push("雷が走るが、視界に敵はいない。"); break; }
         for (const _lm of _ltTargets) {
           if (_lm.hp <= 0) continue;
+          if (monEffectiveMagicImmune(_lm)) { ml.push(`魔法は${_lm.name}に効かない！`); continue; }
           if (consumeBarrier(_lm, ml)) continue;
-          const _lweak = _lm.elemWeak === "thunder" ? 1.5 : 1;
+          if (monReflectsMagic(_lm)) {
+            const _reflectedDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _lvF), p, dg);
+            p.hp -= _reflectedDamage;
+            p.deathCause = `${_lm.name}に雷の魔法を跳ね返されて`;
+            ml.push(`${_lm.name}が雷の魔法を反射した！${_reflectedDamage}ダメージ！`);
+            pushLightningAnim(p.x, p.y);
+            continue;
+          }
+          const _lweak = monHasElementWeakness(_lm, "thunder") ? 1.5 : 1;
           const _ld = _enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm);
           _lm.hp -= _ld;
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}`);
@@ -8019,6 +9388,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "sleep_bolt": {
       if (kind === "monster") {
+        if (isStatusImmune(target, ml, target.name)) break;
+        if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "sleep", ml)) break;
+        if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "sleep");
         const t = statusTurns("sleep", { kind: "monster", target });
         target.sleepTurns = (target.sleepTurns || 0) + t;
         ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`);
@@ -8029,18 +9401,23 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
         const _tfPool = resolveRuntimeSpawnPoolFloor(dg, p.depth);
-        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, 0, { poolFloor: _tfPool }); const prevName = target.name; const ox = target.x, oy = target.y;
-        Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, randomStatusWands: nt.randomStatusWands, randomElementalWands: nt.randomElementalWands, wallWalker: nt.wallWalker });
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, 0, { poolFloor: _tfPool }); const prevName = target.name;
+        if (!applyMonsterTransformation(target, nt, dg, p)) {
+          ml.push("体を広げる場所がなく、変化できなかった。");
+          break;
+        }
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;
     }
     case "teleport_other": {
       if (kind === "monster") {
+        if (target.forcedMoveImmune) { ml.push(`${target.name}は強制移動を受けない！`); break; }
         if (hasCursedTeleportPentacle(dg)) { ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！"); break; }
         const _tof = [];
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)
-            if (dg.map[_ty][_tx] === T.FLOOR && !dg.monsters.some(m => m.x === _tx && m.y === _ty) && !(p.x === _tx && p.y === _ty))
+            if (dg.map[_ty][_tx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, _tx, _ty)) &&
+                canPlaceMonsterBody(dg, target, _tx, _ty, p))
               _tof.push({ x: _tx, y: _ty });
         if (_tof.length === 0) { ml.push("テレポートに失敗した。"); break; }
         const _tod = pick(_tof);
@@ -8050,6 +9427,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "poison_bolt": {
       if (kind === "monster") {
+        if (isStatusImmune(target, ml, target.name)) break;
+        if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "poison", ml)) break;
+        if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "poison");
         const _pt = statusTurns("poison", { kind: "monster", target });
         target.poisonedTurns = (target.poisonedTurns || 0) + _pt;
         ml.push(`毒の魔法が${target.name}に命中！毒に侵された！(${_pt}ターン)`);
@@ -8076,7 +9456,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)
             if (dg.map[_ty][_tx] === T.FLOOR && !(p.x === _tx && p.y === _ty) &&
-                !dg.monsters.some(m => m.x === _tx && m.y === _ty))
+                !dg.monsters.some(m => monsterOccupiesCell(m, _tx, _ty)))
               _tmf.push({ x: _tx, y: _ty });
         if (_tmf.length === 0) { ml.push("テレポートに失敗した。"); break; }
         const _tmd = pick(_tmf);
@@ -8181,6 +9561,9 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       ml.push("魔法弾が魔封じの魔方陣で消えた！");
       return { x: tx, y: ty, hitType: "sealed" };
     }
+    /* 氷の魔法：通過した水を凍らせて床にする */
+    const _generatedIceChunks = [];
+    if (spell.effect === "ice_bolt") freezeWaterTile(dg, tx, ty, ml, null, { avoidDirection: { dx: _fdx, dy: _fdy }, generatedIceChunks: _generatedIceChunks });
     /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
     if (statueAt(dg, tx, ty)) {
       if (_isLeapMagic) return _landLeap(`${statueAt(dg, tx, ty).name}の前に飛びついた！`, "statue");
@@ -8220,7 +9603,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             if (hasRingEffect(p, "antidote_ring")) { ml.push("毒の魔法が跳ね返ってきたが指輪が毒を消した！"); }
             else {
               const _poison = applyPlayerPoison(p);
-              ml.push(`毒の魔法が跳ね返ってきた！毒に侵された！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+              ml.push(statusResultMessage(_poison, `毒の魔法が跳ね返ってきた！毒に侵された！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
             }
             break;
           }
@@ -8229,8 +9612,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             else if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛りの魔法が跳ね返ってきた！しかし防具が防いだ！(耐金縛り)"); }
             else {
               const _pt = statusTurns("paralyze", { kind: "player" });
+              applyPlayerParalyze(p, _pt, { mode: "add" });
               p.paralyzed = true;
-              p.paralyzeTurns = (p.paralyzeTurns || 0) + _pt;
               ml.push(`金縛りの魔法が跳ね返ってきた！金縛りになった！(${_pt}ターン)`);
             }
             break;
@@ -8238,7 +9621,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "teleport_other": {
             const _rtf = [];
             for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++)
-              if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty });
+              if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => monsterOccupiesCell(m, _rtx, _rty))) _rtf.push({ x: _rtx, y: _rty });
             if (_rtf.length > 0) {
               const _rtd = pick(_rtf);
               const _tpFromX = p.x, _tpFromY = p.y;
@@ -8253,9 +9636,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
       } else {
-        if (mon.isWanderingMerchant && mon.state !== "hostile") {
-          declareShopTheft(p, dg, ml, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
-        }
+        if (mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, ml);
         applySpellEffect(spell.effect, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, lv);
       }
       return { x: tx, y: ty, hitType: "monster" };
@@ -8263,6 +9644,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     if (tx === p.x && ty === p.y) continue;
     const it = itemAt(dg, tx, ty);
     if (it) {
+      if (_generatedIceChunks.includes(it)) { _lx = tx; _ly = ty; continue; }
       if (_isLeapMagic) return _landLeap(`${resolveItemName(it)}の前に飛びついた！`, "item");
       applySpellEffect(spell.effect, "item", it, _fdx, _fdy, dg, p, ml, luFn, lv);
       return { x: tx, y: ty, hitType: "item" };
@@ -8278,11 +9660,11 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
 export const RINGS = [
   { name: "力の指輪",       type:"ring", effect:"power_ring",   plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
   { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
-  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:4, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
+  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:4, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。HP満タンで装備すると現在HPも増える。合成や強化で＋値を上げられる。" },
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
-  { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げたり射ったりしたものが10マス以内の最も近い敵へホーミングし必中になる。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
+  { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げた物・通常飛び道具は10マス以内の最も近い敵へホーミング必中。敵がいない時は本来の軌道で飛ぶ。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
-  { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備中、毒が無効になる。" },
+  { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備時に毒と毒による攻撃力低下を治す。装備中、毒が無効になる。" },
   { name: "買い物上手の指輪", type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"D", weight:8, sellPrice:1000, tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
@@ -8363,7 +9745,7 @@ const CURSE_DESC_BY_TYPE = {
     slow: "対象を加速。",
     transform: "敵を上位変化。自分は最大HP変動。",
     swap: "対象の前へ飛ぶ。",
-    dig: "1マス先に壁を生成。",
+    dig: "向いた方向に壊せる壁を最大10マス作る。",
     leap: "対象をランダム転移。",
     warp: "1マスだけ転移。",
     paralyze: "状態異常防止。",
@@ -8474,7 +9856,7 @@ export function grantDungeonStarterGear(player, { uidFn = uid, catalog = ITEMS }
     const rings = player.inventory.filter((item) => item?.type === "ring").slice(0, 2);
     player.weapon = weapon;
     player.armor = armor;
-    player.rings = rings;
+    replacePlayerRings(player, rings);
     result.weapon = weapon;
     result.armor = armor;
     result.rings = rings;
@@ -8551,6 +9933,8 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
     cause = "転倒により",
     checkFloat = false,
     luFn = null,
+    skipDamage = false,
+    tripMsg = null,
   } = opts;
 
   if (hasRingEffect(p, "core_ring")) {
@@ -8562,10 +9946,14 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
     return "blocked_float";
   }
 
-  const dmg = rng(3, 8);
-  p.deathCause = cause;
-  p.hp -= dmg;
-  ml.push(`転んでしまった！${dmg}ダメージ！`);
+  if (!skipDamage) {
+    const dmg = rng(3, 8);
+    p.deathCause = cause;
+    p.hp -= dmg;
+    ml.push(`転んでしまった！${dmg}ダメージ！`);
+  } else {
+    ml.push(tripMsg || "転んでしまった！");
+  }
 
   const eq = new Set([p.weapon, p.armor, ...(p.rings || [])].filter(Boolean));
   const cand = (p.inventory || []).filter((i) => i && i.type !== "goal" && !eq.has(i));
@@ -8843,7 +10231,7 @@ export function isSoaked(p) {
 export function applySoakedFromWaterWalk(p, dg, ml) {
   if (!dg?.map || dg.map[p.y]?.[p.x] !== T.WATER) return;
   if (isPlayerFloating(p, dg)) return;
-  if (hasWaterProof(p)) return;
+  if (hasWaterProof(p) || isStatusImmune(p, ml)) return;
   const _was = p.soakedTurns || 0;
   const _st = statusTurns("soaked", { kind: "player" });
   p.soakedTurns = _st;
@@ -8857,7 +10245,7 @@ export function applySoakedFromWaterWalk(p, dg, ml) {
  */
 export function applySoakedStatus(p, ml, turns = null, msg = null) {
   if (turns == null) turns = statusTurns("soaked", { kind: "player" });
-  if (!p) return false;
+  if (!p || isStatusImmune(p, ml)) return false;
   if (hasWaterProof(p)) {
     if (ml) ml.push("防具が水を弾いた！ずぶ濡れにならなかった。(耐水)");
     return false;
@@ -8871,10 +10259,20 @@ export function applySoakedStatus(p, ml, turns = null, msg = null) {
 
 /** 水の飛沫で敵をずぶ濡れにする。 */
 export function applySoakedStatusToMonster(monster, ml, turns = null) {
-  if (!monster) return false;
+  if (!monster || isStatusImmune(monster, ml, monster?.name)) return false;
+  if (blockLargeMonsterStatus(monster, "soaked", ml)) return false;
+  startLargeMonsterStatusCooldown(monster, "soaked");
   if (turns == null) turns = statusTurns("soaked", { kind: "monster", target: monster });
   const was = monster.soakedTurns || 0;
   monster.soakedTurns = Math.max(was, turns);
+  if ((monster.flameMantleTurns || 0) > 0) {
+    monster.flameMantleTurns = 0;
+    if (ml) ml.push(`${monster.name || "敵"}の炎まといが水で消えた！`);
+  }
+  if ((monster.flameMantleTurns || 0) > 0) {
+    monster.flameMantleTurns = 0;
+    if (ml) ml.push(`${monster.name || "敵"}の炎まといが水で消えた！`);
+  }
   if (ml && was === 0) ml.push(`${monster.name || "敵"}はずぶ濡れになった！(${turns}ターン)`);
   else if (ml && was > 0 && monster.soakedTurns > was) ml.push(`${monster.name || "敵"}のずぶ濡れが長引いた！(${monster.soakedTurns}ターン)`);
   return true;

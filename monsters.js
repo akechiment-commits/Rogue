@@ -1,15 +1,66 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel, playerDopingMultiplier, resolveRuntimeSpawnPoolFloor } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
+import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
+import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { releaseInvalidCapture } from "./captureRules.js";
+import { castMeteor, canCastMeteor } from './meteor.js';
+import { castPetroBreath, canCastPetroBreath } from './petroBreath.js';
+import {
+  canUseChiranikuttsunnokuSpecial,
+  chiranikuttsunnokuEarthbreaker,
+  chiranikuttsunnokuDeathScissors,
+  getVenomStingOriginAndDir,
+  chiranikuttsunnokuVenomSting,
+  chiranikuttsunnokuSharpStrike,
+} from './chiranikuttsunnoku.js';
+import {
+  canUseTaisaijinSpecial,
+  isFarLineToPlayer as isTaisaijinFarLine,
+  taisaijinHypnosis,
+  taisaijinBlazeSpike,
+  taisaijinRefresh,
+} from './taisaijin.js';
+import {
+  canUseOhplentySpecial,
+  isFarLineToPlayer as isOhplentyFarLine,
+  ohplentyPullPlayer,
+  castCaswack,
+  ohplentyDeathTrap,
+} from './ohplenty.js';
+import {
+  canUseMireuSpecial,
+  isMireuFarLine,
+  mireuHyperthermicBreath,
+  mireuSpikeFlail,
+  mireuAbsoluteTerror,
+} from './mireu.js';
+import {
+  rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt,
+  ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle,
+  getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg,
+  calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
+  resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
+} from "./utils.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
+import { unequipPlayerItem } from "./equipmentEffects.js";
+import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns, applyPlayerPoison, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
+import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { advancedMonsterAllowed, advancedMonsterSpawnLevel } from "./advancedMonsterRules.js";
-import { legendMonsterAllowed, legendMonsterSpawnLevel } from "./legendMonsterRules.js";
+import {
+  legendMonsterAllowed,
+  legendMonsterSpawnLevel,
+  legendMonsterSpawnWeight,
+  legendMonsterAffinityMultiplier,
+} from "./legendMonsterRules.js";
+import { isWanderingNpc } from "./wanderingAdventurer.js";
+import { beginNpcRetaliation } from "./npcRetaliation.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
@@ -31,6 +82,157 @@ const MONSTER_SPECIAL_RATE = Object.freeze({
 const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.125 });
 export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand", "teleport_wand", "slow_wand"]);
 export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "ice_wand"]);
+const GWEN_VETERAN_WAND_EFFECTS = Object.freeze(["slow_wand", "confuse_wand", "sleep_wand", "darkness_wand"]);
+const FLOCK_MAGIC_EFFECTS = Object.freeze(["fire_bolt", "ice_wand", "poison_bolt", "curse_wand"]);
+export const FLOCK_MAGIC_MP_COSTS = Object.freeze({
+  fire_bolt: 10, ice_wand: 10, poison_bolt: 8, curse_wand: 10, teleport_magic: 8, summon_monster: 20,
+  sleep_bolt: 8, drain_hp: 14, lightning_magic: 18, reflect_magic: 12,
+  guard_magic: 12, flame_mantle: 12, purify_magic: 10, clone_magic: 20,
+  self_destruct_magic: 7,
+});
+const FLOCK_REVENGE_ATTACK_EFFECTS = Object.freeze([
+  ...FLOCK_MAGIC_EFFECTS, "drain_hp", "sleep_bolt",
+]);
+const FLOCK_REVENGE_ROOM_EFFECTS = Object.freeze([
+  "lightning_magic", "reflect_magic", "guard_magic", "flame_mantle",
+]);
+export const FLOCK_SPELL_LINES = Object.freeze({
+  fire_bolt: Object.freeze([
+    "紅蓮よ、周囲ごと灰燼に帰せ！巻き込み？それは演出だ！",
+    "燃え盛れ炎！敵だけを焼け！……細かい指定はできない！",
+    "火焔よ、派手に爆ぜろ！避難訓練は各自で済ませておけ！",
+  ]),
+  ice_wand: Object.freeze([
+    "絶対零度の氷獄よ！このあと衣替えする！",
+    "氷獄の鎖よ、時を止めて跪かせよ！暖房は切っておいた！",
+    "凍てつけ！手加減？氷の温度に聞いてくれ！",
+  ]),
+  poison_bolt: Object.freeze([
+    "紫毒よ、魂まで蝕め！解毒薬は持っていない！",
+    "猛毒よ、敵を侵せ！毒消しの指輪は反則だからな！",
+    "毒をもって毒を制す！なお解毒剤の在庫はゼロ！",
+  ]),
+  curse_wand: Object.freeze([
+    "禁忌の契約よ、その運命を呪縛せよ！まず持ち物からだ！",
+    "呪われし運命よ！呪う品はちゃんと選んでね！",
+    "深淵の呪詛！本当に呪われると困るのは私も同じ！",
+  ]),
+  summon_monster: Object.freeze([
+    "深淵の眷属よ集え！数は……来た者に任せる！",
+    "我が魔力に応えよ！この階の誰か、至急集合！",
+    "召喚陣よ開け！名簿は現地調達だ！",
+  ]),
+});
+export const FLOCK_TELEPORT_LINES = Object.freeze([
+  "近い近い！……こほん、紫電転移！",
+  "我に触れるな！あっ、もう目の前！？転移！",
+  "空間よ、扉を開け！出口はそっちじゃない！",
+]);
+export const FLOCK_DEATH_LINES = Object.freeze([
+  "こんなところで……第二形態の台詞を用意していない！",
+  "馬鹿な！眼帯を外せば真の力が……え、外れない！？",
+  "我が深淵、ここに潰える……ところで経験値は入った？",
+]);
+export const FLOCK_REVENGE_DEATH_LINES = Object.freeze([
+  "逆襲の計画が……第一段階で終わった！？",
+  "二人になっても勝てないとは……分身会議が必要だ！",
+  "まだ魔力は……あれ、空っぽだった！",
+]);
+const FLOCK_IDLE_LINES = Object.freeze([
+  "この眼帯は封印具！……ただのゴム紐ではない！",
+  "我が右目の封印が疼く……あれ、眼帯は左だったか？",
+  "世界の終焉を見届ける！まずは昼食の後だ！",
+  "我が力は無限！ただし詠唱は一日三回まで！",
+  "深淵が告げている……お腹が空いたと！",
+  "ククク、この程度の傷……いや、普通に痛い！",
+  "見よ、この完璧な作戦！細部はこれから考える！",
+]);
+export const FLOCK_REVENGE_SPELL_LINES = Object.freeze({
+  summon_monster: Object.freeze([
+    "逆襲の軍勢よ集え！今度こそ数で押す！",
+    "B25Fの魔物よ、反撃の時だ！配置は現場に任せる！",
+    "我が復讐に加われ！出欠確認は後だ！",
+  ]),
+  drain_hp: Object.freeze([
+    "魂の残量をいただく！返済期限は……考えていない！",
+    "生命力よ、こちらへ！えっ、吸いすぎ注意？",
+    "汝のHPを我が糧に！領収書は出ない！",
+  ]),
+  sleep_bolt: Object.freeze([
+    "眠りの帳よ落ちよ！寝坊したら自己責任だ！",
+    "夢の底へ沈め！枕は各自で用意せよ！",
+    "安らかな眠りを……戦闘中だけど！",
+  ]),
+  lightning_magic: Object.freeze([
+    "雷よ部屋ごと貫け！避雷針は……私も持ってない！",
+    "天雷よ全員に平等を！敵味方の区別？今は後回し！",
+    "この部屋に落雷を！天井の修理代は知らない！",
+  ]),
+  reflect_magic: Object.freeze([
+    "魔法反射の結界！跳ね返ったら自己責任！",
+    "鏡界よ開け！姿見としては使えないぞ！",
+    "あらゆる魔法を返す盾！返品対応は不可！",
+  ]),
+  guard_magic: Object.freeze([
+    "鉄壁の守護よ！気持ちの上では完全防御！",
+    "防御力を上げる！数値はあとで確認する！",
+    "守りの結界！請求は戦闘終了後に！",
+  ]),
+  flame_mantle: Object.freeze([
+    "我が身を炎で包め！熱くない、たぶん！",
+    "紅蓮の衣よ燃え上がれ！洗濯はできない！",
+    "炎のまとい！火加減は最大で！",
+  ]),
+  purify_magic: Object.freeze([
+    "不浄なる状態よ去れ！封印だけは対象外！",
+    "浄化の光よ、デバフを洗い流せ！汚れ落ちは保証外！",
+    "状態異常を解除！眼帯の向きはそのままで！",
+  ]),
+  clone_magic: Object.freeze([
+    "我が影よ二人に増えよ！交代で宿題をしてくれ！",
+    "分身の術！どちらが本物かは本人にも不明！",
+    "増えよ、我！報酬は一人分で頼む！",
+  ]),
+  self_destruct_magic: Object.freeze([
+    "転移の詠唱は……あれ？自爆の方を唱えていた！",
+    "空間よ逃がせ！違う、これは爆発の詠唱だ！",
+    "紫電転移！……なぜ私のHPが1になった！？",
+  ]),
+});
+const FLOCK_EMPTY_MP_LINES = Object.freeze([
+  "ま、魔力切れ……これは戦略的静止！",
+  "震えてなどいない！深淵が共鳴しているだけだ！",
+  "魔力が空っぽ！？今のは聞かなかったことに！",
+]);
+const FLOCK_REVENGE_EMPTY_MP_LINES = Object.freeze([
+  "逆襲の魔力が……MP欄に残っていない！？",
+  "まだ呪文はある！……MPが戻ればの話だ！",
+  "う、動けない！これは魔力切れであって恐怖ではない！",
+]);
+const FLOCK_HURT_LINES = Object.freeze([
+  "いてっ！？今のは演出じゃない！",
+  "ぐっ……ダメージ表示が本物だと！？",
+  "この傷は計算外！計画書にもない！",
+  "痛い！いや、深淵の痛覚が反応しただけ！",
+]);
+const FLOCK_CRITICAL_LINES = Object.freeze([
+  "HPが赤い！画面の警告が容赦ない！",
+  "我が深淵が……浅くなっている！？",
+  "ま、まだ第二形態の前段階！予定は未定！",
+  "倒れるわけには……台詞がまだ残っている！",
+]);
+const FLOCK_REVENGE_HURT_LINES = Object.freeze([
+  "復讐計画に被弾の欄はなかった！",
+  "やるな……分身しても痛みは半分じゃない！",
+  "今度こそ本気のはずなのに！",
+  "反撃の前にまずHPを確認させて！",
+]);
+const FLOCK_REVENGE_CRITICAL_LINES = Object.freeze([
+  "復讐の炎よりHPバーが赤い！？",
+  "ここで倒れたら二度目の再戦が……！",
+  "まだ魔力はある！体力がないだけだ！",
+  "分身しても本体のHPは増えないの！？",
+]);
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
@@ -46,7 +248,7 @@ export function resolveMonsterWandEffect(m) {
  * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
 const ADJACENT_PLAYER_SPECIAL_SUBTYPES = new Set([
   "grabber", "giantEel", "thief", "goldthief", "itemblast", "stealthrower",
-  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater",
+  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater", "potRaider", "manaEater",
 ]);
 
 function isAdjacentPlayerSpecial(m) {
@@ -95,24 +297,29 @@ function dragonBreathSpecialRate(m) {
 
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
-  monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
+  monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
-  monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility,
+  monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility, monHasElementWeakness,
 } from "./monTraits.js";
 import {
-  monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
+  monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks,
-  monCanUseExplosiveAbility,
+  monCanUseExplosiveAbility, monHasElementWeakness,
 } from "./monTraits.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
-function _fireDemonBurnItems(m, dg, ml) {
+function _fireDemonBurnItems(m, dg, ml, p = null) {
   const _items = dg.items.filter(it => it.x === m.x && it.y === m.y);
   const _toRemove = new Set();
   for (const it of _items) {
     if (it.type === "scroll" || it.type === "spellbook") {
       _toRemove.add(it);
       ml.push(`${m.name}が通った！「${resolveItemName(it)}」が燃えてなくなった！`);
+    } else if (it.type === "potion") {
+      removeFloorItem(dg, it);
+      ml.push(`${m.name}が通った！薬「${resolveItemName(it)}」が炎で割れた！`);
+      splashPotion(dg, m.x, m.y, it.effect, it.value || 0, p, ml, null,
+        !!it.blessed, !!it.cursed, null, m);
     } else if (it.type === "food") {
       if (!it.cooked) {
         it.value = Math.floor((it.value || 10) * 2); cookFoodMeta(it);
@@ -159,32 +366,38 @@ function canEnter(map, x, y, float = false, dg = null, waterWalker = false) {
 /* ===== プレイヤー防御力計算ヘルパー ===== */
 /** モンスターの炎耐性倍率（elemResist:"fire" → 半減）。火ダルマの吸収は別処理 */
 export function monFireDmgMult(m) {
-  if (m?.elemResist === "fire" || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
+  if (m?.fireImmune) return 0;
+  if (monHasFlameMantle(m) || m?.elemResist === "fire" || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
   return 1;
 }
 export function monFireDmgLabel(m) {
+  if (m?.fireImmune) return "(炎無効)";
   return monFireDmgMult(m) < 1 ? "(炎半減)" : "";
 }
 /** 炎ダメージを耐性適用して返す（最低1） */
 export function scaleMonFireDmg(m, dmg) {
+  if (m?.fireImmune) return 0;
   const mult = monFireDmgMult(m);
   if (mult >= 1) return Math.max(1, dmg | 0);
   return Math.max(1, Math.floor((dmg | 0) * mult));
 }
 
 function calcPlayerDef(pl) {
-  const _misoDef = (pl.misoDefTurns || 0) > 0 ? 8 : 0;
-  const _base = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0)
-    + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)
-    + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0) + _misoDef;
-  const _slowTurtleMult = (pl.rings || []).some((r) => r.effect === "slow_ring") ? 2 : 1;
-  return Math.floor(_base * _slowTurtleMult
-    * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
-    * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1)
-    * playerDopingMultiplier(pl));
+  return calcPlayerDefense(pl);
 }
 
 /* ===== ドラゴン炎ブレス（風で曲がる物理ブレス） ===== */
+function dragonBreathOrigin(monster, target) {
+  return monsterBodyCells(monster)
+    .filter(cell => {
+      const dx = target.x - cell.x, dy = target.y - cell.y;
+      const distance = Math.max(Math.abs(dx), Math.abs(dy));
+      return distance >= 1 && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy));
+    })
+    .sort((a, b) => Math.max(Math.abs(target.x - a.x), Math.abs(target.y - a.y)) -
+      Math.max(Math.abs(target.x - b.x), Math.abs(target.y - b.y)))[0] || null;
+}
+
 function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
   if (isFireExplosionNullified(dg, pl)) {
@@ -194,19 +407,20 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     return;
   }
   const _fLvl = m.monLevel || 1;
-  let _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
+  const _origin = m.baseKind === "boss_korgon" ? (dragonBreathOrigin(m, pl) || { x: m.x, y: m.y }) : { x: m.x, y: m.y };
+  let _fdx = Math.sign(pl.x - _origin.x), _fdy = Math.sign(pl.y - _origin.y);
   if (_fdx === 0 && _fdy === 0) _fdy = 1;
-  const _breathPath = [{ x: m.x, y: m.y }];
+  const _breathPath = [{ x: _origin.x, y: _origin.y }];
   const _emitBreathAnim = () => {
     if (_breathPath.length <= 1) return;
     const end = _breathPath[_breathPath.length - 1];
-    pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: end.x, toY: end.y, color: "#ff6622", path: _breathPath });
+    pushAnim({ type: "monProjectile", fromX: _origin.x, fromY: _origin.y, toX: end.x, toY: end.y, color: "#ff6622", path: _breathPath });
   };
-  let _cx = m.x, _cy = m.y, _windMsg = false;
+  let _cx = _origin.x, _cy = _origin.y, _windMsg = false;
   const _applyFireToMon = (_fBlock) => {
     wakeIfDormant(_fBlock, ml);
     const _fDmgBase = calcAtkDefDmg(m.atk, _fBlock.def || 0, { defWeight: 1 });
-    if (_fBlock.baseKind === "firedemon") {
+    if (monHasFlameMantle(_fBlock)) {
       const _fheal = Math.min(_fDmgBase, _fBlock.maxHp - _fBlock.hp);
       if (_fheal > 0) { _fBlock.hp += _fheal; ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
       else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
@@ -232,8 +446,8 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     onPlayerHit?.(dmg, m);
     ml.push(`${m.name}が炎ブレスを吐いた！${playerHpEffectLabel(pl, dmg)}！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
     interruptPlayerSleep(pl, ml, "熱さで目が覚めた！");
-    if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
-    if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
+    weakenOrClearParalysis(pl, ml);
+    if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true, { killerMon: m, sourceIsPlayer: false });
   };
   for (let _fi = 1; _fi < MW + MH; _fi++) {
     /* Lv2以上は1マスごとにプレイヤーへ向きを更新する（同部屋／同フロア追尾）。 */
@@ -251,7 +465,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) { _emitBreathAnim(); return; }
     _breathPath.push({ x: _fx, y: _fy });
     /* 風で自分に戻った */
-    if (_fx === m.x && _fy === m.y) {
+    if (monsterOccupiesCell(m, _fx, _fy)) {
       _applyFireToMon(m);
       _emitBreathAnim();
       return;
@@ -266,7 +480,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); _emitBreathAnim(); return; }
-    const _fBlock = dg.monsters.find(o => o !== m && o.x === _fx && o.y === _fy);
+    const _fBlock = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _fx, _fy));
     if (_fBlock) {
       if (monSubmergesProjectiles(_fBlock) && _fLvl <= 1) {
         ml.push(`${_fBlock.name}が潜って炎ブレスをかわした！`);
@@ -294,7 +508,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   let _cx = m.x, _cy = m.y, _windMsg = false;
   const _hitIceMon = (_iBlock) => {
     let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
-    const _iIsWeak = _iBlock.elemWeak === "ice";
+    const _iIsWeak = monHasElementWeakness(_iBlock, "ice");
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
     _iBlock.hp -= _iDmg;
     const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
@@ -316,6 +530,8 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     onPlayerHit?.(_iDmg, m);
     if (_hasIceR) {
       ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！${iceResistDamageLabel(pl)}・鈍足無効`);
+    } else if (isStatusImmune(pl, ml)) {
+      ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！`);
     } else if (isPlayerOnWater(pl, dg)) {
       ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！`);
       applyWaterIceFreeze(pl, dg, ml, statusTurns("frozen", { kind: "player" }));
@@ -339,7 +555,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     _cx = _ix; _cy = _iy;
     if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) { _emitBreathAnim(); return; }
     /* 氷の杖と同様：射線上の水を凍らせる（止まらない） */
-    freezeWaterTile(dg, _ix, _iy, ml);
+    freezeWaterTile(dg, _ix, _iy, ml, null, { avoidDirection: { dx: _idx, dy: _idy } });
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) { _emitBreathAnim(); return; }
     _breathPath.push({ x: _ix, y: _iy });
     if (_ix === m.x && _iy === m.y) { _hitIceMon(m); _emitBreathAnim(); return; }
@@ -353,7 +569,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); _emitBreathAnim(); return; }
-    const _iBlock = dg.monsters.find(o => o !== m && o.x === _ix && o.y === _iy);
+    const _iBlock = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _ix, _iy));
     if (_iBlock) {
       if (monSubmergesProjectiles(_iBlock) && _iLvl <= 1) {
         ml.push(`${_iBlock.name}が潜って氷ブレスをかわした！`);
@@ -379,114 +595,109 @@ const _POTION_THROW_POOL = [
   { name: "回復薬",     effect: "heal",     value: 30, tile: 16 },
   { name: "大回復薬",   effect: "heal_big", value: 60, tile: 17 },
 ];
-function monsterThrowPotion(m, dg, pl, ml, bbFn) {
-  const _pot = pick(_POTION_THROW_POOL);
-  let _ptdx = Math.sign(pl.x - m.x), _ptdy = Math.sign(pl.y - m.y);
-  ml.push(`${m.name}が謎の薬を投げた！`);
-  pushMonsterBoltAnim(m.x, m.y, _ptdx, _ptdy, dg, pl, "#ff88ff");
-  /* 経路上の泉・大箱チェック */
-  let _cx = m.x, _cy = m.y;
-  let _lastX = m.x, _lastY = m.y;
-  for (let _step = 0; _step < MW + MH; _step++) {
-    const _st = stepProjectile(dg, _cx, _cy, _ptdx, _ptdy, { wind: true });
-    _ptdx = _st.dx; _ptdy = _st.dy;
-    _cx = _st.x; _cy = _st.y;
-    if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
-        dg.map[_cy]?.[_cx] === T.WALL || dg.map[_cy]?.[_cx] === T.BWALL) {
-      splashPotion(dg, _lastX, _lastY, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
-      return;
-    }
-    _lastX = _cx; _lastY = _cy;
-    if (statueAt(dg, _cx, _cy)) {
-      ml.push(`${m.name}の薬瓶が石像に命中！`);
-      hitStatueWithAction(dg, _cx, _cy, pl, ml, null, pl?.depth, {
-        breaks: true,
-        itemDeps: getFixtureItemDeps(),
-      });
-      splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
-      return;
-    }
-    const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
-    if (_spr) {
-      const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-      soakItemIntoSpring(_spr, { ..._potItem, x: _cx, y: _cy }, ml, dg, null);
-      return;
-    }
-    const _bb = dg.bigboxes?.find(b => b.x === _cx && b.y === _cy);
-    if (_bb) {
-      const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-      if (bbFn) bbFn(_bb, _potItem, dg, ml);
-      else dg.items.push({ ..._potItem, x: _cx, y: _cy });
-      return;
-    }
-    /* reflector（ミラーゴーレム等）：薬瓶を投擲元へ跳ね返す（飛沫は反射しない） */
-    const _mirrorMon = dg.monsters.find(o => o.x === _cx && o.y === _cy && monReflectsProjectiles(o));
-    if (_mirrorMon) {
-      ml.push(`薬瓶が${_mirrorMon.name}に弾き返された！`);
-      const _rrdx = -_ptdx, _rrdy = -_ptdy;
-      let _rrx = _cx + _rrdx, _rry = _cy + _rrdy;
-      let _splX = _cx, _splY = _cy;
-      for (let _ri = 0; _ri < 20; _ri++) {
-        if (_rrx < 0 || _rrx >= MW || _rry < 0 || _rry >= MH) break;
-        if (dg.map[_rry][_rrx] === T.WALL || dg.map[_rry][_rrx] === T.BWALL) break;
-        const _rrSpr = dg.springs?.find(s => s.x === _rrx && s.y === _rry);
-        if (_rrSpr) {
-          const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-          soakItemIntoSpring(_rrSpr, { ..._potItem, x: _rrx, y: _rry }, ml, dg, null);
-          return;
+function findPotionHealerTarget(m, dg, pl, preferredTarget = null) {
+  const range = potionThrowRange(m, dg, pl);
+  const farcast = getFarcastMode(pl.x, pl.y, dg) === "farcast";
+  const injured = (dg.monsters || []).filter(target =>
+    target !== m && (!preferredTarget || target === preferredTarget) &&
+    target.state !== "friendly" &&
+    target.hp > 0 && target.maxHp > target.hp
+  );
+  const candidates = [];
+  for (const target of injured) {
+    const aimCells = monsterBodyCells(target)
+      .map(aim => ({ ...aim, distance: Math.max(Math.abs(aim.x - m.x), Math.abs(aim.y - m.y)) }))
+      .filter(aim => aim.distance > 0 && aim.distance <= range &&
+        (aim.x === m.x || aim.y === m.y || Math.abs(aim.x - m.x) === Math.abs(aim.y - m.y)))
+      .sort((a, b) => a.distance - b.distance);
+    for (const aim of aimCells) {
+      const dx = Math.sign(aim.x - m.x), dy = Math.sign(aim.y - m.y);
+      let x = m.x, y = m.y, clear = false;
+      for (let step = 0; step < aim.distance; step++) {
+        const next = stepProjectile(dg, x, y, dx, dy, { wind: false });
+        x = next.x; y = next.y;
+        if (x < 0 || x >= MW || y < 0 || y >= MH) break;
+        if (!farcast && (dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL ||
+            statueAt(dg, x, y) || dg.springs?.some(spring => spring.x === x && spring.y === y) ||
+            dg.bigboxes?.some(box => box.x === x && box.y === y) ||
+            dg.gachaMachines?.some(machine => machine.x === x && machine.y === y))) break;
+        if (!farcast && pl && x === pl.x && y === pl.y) break;
+        const blocker = dg.monsters.find(other => other !== m && monsterOccupiesCell(other, x, y));
+        if (blocker) {
+          if (blocker === target) {
+            clear = true;
+            break;
+          }
+          if (!farcast && !monSubmergesProjectiles(blocker)) break;
         }
-        const _rrBb = dg.bigboxes?.find(b => b.x === _rrx && b.y === _rry);
-        if (_rrBb) {
-          const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-          if (bbFn) bbFn(_rrBb, _potItem, dg, ml);
-          else dg.items.push({ ..._potItem, x: _rrx, y: _rry });
-          return;
-        }
-        _splX = _rrx; _splY = _rry;
-        if (_rrx === m.x && _rry === m.y) break;
-        if (dg.monsters.find(o => o !== _mirrorMon && o.x === _rrx && o.y === _rry)) break;
-        _rrx += _rrdx; _rry += _rrdy;
       }
-      splashPotion(dg, _splX, _splY, _pot.effect, _pot.value, pl, ml, null, false, false, null, _mirrorMon);
-      return;
-    }
-    const _hitMon = dg.monsters.find(o => o !== m && o.x === _cx && o.y === _cy);
-    if (_hitMon || (_cx === pl.x && _cy === pl.y)) {
-      splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
-      return;
+      if (clear) {
+        candidates.push({
+          target,
+          aim: { x: aim.x, y: aim.y },
+          distance: aim.distance,
+        });
+        break;
+      }
     }
   }
-  splashPotion(dg, _lastX, _lastY, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
+  candidates.sort((a, b) => a.distance - b.distance);
+  return candidates[0] || null;
+}
+
+function potionThrowRange(m, dg, pl) {
+  const farcastMode = pl && dg ? getFarcastMode(pl.x, pl.y, dg) : false;
+  if (farcastMode === "farcast") return 50;
+  if (farcastMode === "cursed") return 1;
+  const level = m?.monLevel || 1;
+  return level >= 3 ? 10 : level >= 2 ? 7 : 5;
+}
+
+function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions = null) {
+  if (!consumeMonsterProjectileAmmo(m)) return false;
+  const _pot = throwOptions?.potion || pick(_POTION_THROW_POOL);
+  const _target = throwOptions?.target || pl;
+  const _aim = throwOptions?.aim || _target;
+  const _wind = throwOptions?.wind !== false;
+  const dx = Math.sign(_aim.x - m.x), dy = Math.sign(_aim.y - m.y);
+  ml.push(throwOptions?.message || (throwOptions?.target
+    ? `${m.name}は${_target.name}に${_pot.name}を投げた！`
+    : `${m.name}が謎の薬を投げた！`));
+  const item = {
+    name: _pot.name,
+    type: "potion",
+    effect: _pot.effect,
+    value: _pot.value || 0,
+    tile: _pot.tile,
+    blessed: false,
+    cursed: false,
+    id: uid(),
+  };
+  throwItemAlongLine(m, dg, item, dx, dy, MW + MH, ml, pl, null, {
+    killerMon: m,
+    sourceIsPlayer: false,
+    bbFn,
+    fireTrapFn,
+    animColor: throwOptions?.color || "#ff88ff",
+    wind: _wind,
+  });
+  return true;
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
-function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
+export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null, attackName = "攻撃" } = {}) {
   if (isAttackSealed(m)) {
     ml.push(`${m.name}は攻撃が封印されていて殴れない！`);
     return;
   }
+  const _fireMantleAttack = monHasFlameMantle(m);
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
-  const _cannotEvade = isEvasionDisabledByStatus(pl);
-  /* dodge: 25% 完全回避 */
-  if (!_cannotEvade && hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
-    ml.push(`${m.name}の攻撃をひらりとかわした！`);
-    onPlayerMiss?.(m);
-    return;
-  }
-  /* オリーブオイル回避: 15% */
-  if (!_cannotEvade && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
-    ml.push(`オリーブオイルの力で${m.name}の攻撃をするりとかわした！`);
-    onPlayerMiss?.(m);
-    return;
-  }
-  /* 10% ミス */
-  if (!_cannotEvade && Math.random() >= 0.90) {
-    ml.push(`${m.name}の攻撃は外れた！`);
-    onPlayerMiss?.(m);
+  if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName, onMiss: onPlayerMiss })) {
     return;
   }
   const pdef = ignoreDefense ? 0 : calcPlayerDef(pl);
-  let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
+  const _effAtk = (m.sharpStrikeTurns || 0) > 0 && !m.sealed ? Math.floor(m.atk * 1.5) : m.atk;
+  let dmg = calcAtkDefDmg(_effAtk, pdef, { defWeight: 1.5 });
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (vulnPc) dmg = vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (vulnPc.blessed ? 4 : 2);
@@ -508,8 +719,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   const _fzLbl = frozenPhysicalLabel(pl);
   dmg = applyFrozenPhysicalMult(dmg, pl);
   /* 火ダルマの通常攻撃は炎属性。アイスやカレーの一時耐火も先に適用する。 */
-  if (m.baseKind === "firedemon") dmg = reduceFireDamage(dmg, pl);
-  pl.deathCause = `${m.name}の攻撃で`;
+  if (_fireMantleAttack) dmg = reduceFireDamage(dmg, pl);
+  pl.deathCause = attackName === "攻撃" ? `${m.name}の攻撃で` : `${m.name}の${attackName}で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
   /* 痛恨はダメージ数値の前：〜の攻撃！痛恨の一撃！Nダメージ！ */
@@ -525,10 +736,10 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn);
   }
   interruptPlayerSleep(pl, ml);
-  if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  weakenOrClearParalysis(pl, ml);
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
-  if (m.baseKind === "firedemon" && dmg > 0) {
-    if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true);
+  if (_fireMantleAttack && dmg > 0) {
+    if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true, { killerMon: m, sourceIsPlayer: false });
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) {
       const _bonusDmg = Math.max(1, Math.floor(dmg * 0.5));
@@ -555,7 +766,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
             ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
             break;
           }
-          if (dg.monsters.some(mn => mn !== m && mn.x === _nx && mn.y === _ny)) {
+          if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _nx, _ny))) {
             pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
             pl.hp -= 5;
             ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
@@ -590,14 +801,14 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`魔神王の一撃が魂を縛った！しかし状態防止中のため効かなかった！`);
       } else {
         const _pt = statusTurns("paralyze", { kind: "player" });
-        pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+        applyPlayerParalyze(pl, _pt, { mode: "add" });
         ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
       }
     }
     if (m.baseKind === "boss_warlord" && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`魔将軍の刃が鎧を砕いた！しかし状態防止中のため効かなかった！`);
-      } else {
+      } else if (!isStatusImmune(pl, ml)) {
         const _ds = statusTurns("defSoftened", { kind: "player" });
         pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
         ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(${_ds}ターン)`);
@@ -634,7 +845,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`煉獄公の爪に毒が！しかし乳酸菌が毒を防いだ！`);
       } else {
         const _poison = applyPlayerPoison(pl);
-        ml.push(`煉獄公の爪に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+        ml.push(statusResultMessage(_poison, `煉獄公の爪に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
       }
     }
     if (m.baseKind === "boss_abyssgod") {
@@ -643,14 +854,14 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
           ml.push(`深淵神の一撃が意識を蝕んだ！しかし状態防止中のため効かなかった！`);
         } else {
           const _pt = statusTurns("paralyze", { kind: "player" });
-          pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+          applyPlayerParalyze(pl, _pt, { mode: "add" });
           ml.push(`深淵神の一撃が意識を蝕んだ！金縛りになった！(${_pt}ターン)`);
         }
       }
       if (Math.random() < MONSTER_SPECIAL_RATE.status) {
         if ((pl.statusImmune || 0) > 0) {
           ml.push(`深淵神の呪いで防御が崩れた！しかし状態防止中のため効かなかった！`);
-        } else {
+        } else if (!isStatusImmune(pl, ml)) {
           const _ds = statusTurns("defSoftened", { kind: "player" });
           pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
           ml.push(`深淵神の呪いで防御が崩れた！防御力が半減した！(${_ds}ターン)`);
@@ -688,7 +899,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
               pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
               break;
             }
-            if (dg.monsters.some(mon2 => mon2 !== m && mon2.x === _nx && mon2.y === _ny)) {
+            if (dg.monsters.some(mon2 => mon2 !== m && monsterOccupiesCell(mon2, _nx, _ny))) {
               pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
               break;
             }
@@ -703,6 +914,82 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         }
       }
     }
+  }
+}
+
+
+function ramCharge(m, dg, pl, ml, opts = {}, onHit = null, onMiss = null, luFn = null) {
+  const bounds = monsterBounds(m);
+  const nearX = Math.max(bounds.x, Math.min(pl.x, bounds.x + bounds.width - 1));
+  const nearY = Math.max(bounds.y, Math.min(pl.y, bounds.y + bounds.height - 1));
+  let shoveX = Math.sign(pl.x - nearX);
+  let shoveY = Math.sign(pl.y - nearY);
+  if (shoveX === 0 && shoveY === 0) {
+    shoveX = Math.sign(pl.x - (m.x + 0.5));
+    shoveY = Math.sign(pl.y - (m.y + 0.5));
+  }
+  if (shoveX === 0 && shoveY === 0) shoveX = 1;
+
+  monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}のラムチャージ！${d}ダメージ！`, {
+    onPlayerHit: damage => {
+      onHit?.(damage, m);
+      if (pl.hp <= 0) return;
+      const fromX = pl.x, fromY = pl.y;
+      pushEntity(dg, pl.x, pl.y, shoveX, shoveY, 3, ml, "player", pl, pl, luFn, 0, m);
+      if (pl.x === fromX && pl.y === fromY) return;
+      ml.push(`${m.name}の強烈な体当たりで吹き飛ばされた！`);
+      const landingTrap = (dg.traps || []).find(trap => trap.x === pl.x && trap.y === pl.y);
+      if (landingTrap) opts.fireTrapFn?.(landingTrap, pl, dg, ml);
+    },
+    onPlayerMiss: onMiss,
+    luFn: luFn,
+  });
+}
+
+function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
+  ml.push(`${m.name}がダストストームを放った！`);
+  pushSplashAnim(m.x, m.y, "#b8a777");
+  const inStorm = (x, y) => monsterPointDistance(m, x, y) === 1;
+  const plOnSanc = !inMagicSealRoom(pl.x, pl.y, dg) &&
+    !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
+  if (inStorm(pl.x, pl.y) && !plOnSanc) {
+    monsterAttackPlayer(m, dg, pl, ml, damage => `ダストストームが${plName(pl)}を襲う！${damage}ダメージ！`, {
+      damageMultiplier: 0.5,
+      onPlayerHit: damage => {
+        onPlayerHit?.(damage, m);
+        if (!blockPlayerStatus(pl, ml, { proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)" })) {
+          const turns = statusTurns("darkness", { kind: "player" });
+          pl.darknessTurns = (pl.darknessTurns || 0) + turns;
+          ml.push(`ダストストームで暗闇になった！(${turns}ターン)`);
+        }
+      },
+      onPlayerMiss,
+      luFn,
+    });
+  }
+
+  for (const victim of [...dg.monsters]) {
+    if (victim === m) continue;
+    if (victim.hp <= 0 || !dg.monsters.includes(victim) || victim.disguisedAsItem) continue;
+    if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
+    if (consumeBarrier(victim, ml)) continue;
+    const normalDamage = calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1);
+    const damage = Math.max(1, Math.floor(normalDamage * 0.5));
+    victim.hp -= damage;
+    ml.push(`ダストストームが${victim.name}に命中！${damage}ダメージ！`);
+    if (victim.hp > 0) {
+      if (victim.type === "guard") {
+        ml.push(`${victim.name}には暗闇が効かなかった！`);
+      } else if ((victim.statusImmune || 0) > 0) {
+        ml.push(`${victim.name}には暗闇が効かなかった！(状態防止中)`);
+      } else {
+        const turns = statusTurns("darkness", { kind: "monster", target: victim });
+        if (applyMonsterDarkness(victim, turns, ml) > 0) {
+          ml.push(`${victim.name}はダストストームで暗闇になった！(${turns}ターン)`);
+        }
+      }
+    }
+    if (victim.hp <= 0) killMonster(victim, dg, pl, ml, luFn, false, m);
   }
 }
 
@@ -731,465 +1018,521 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *    コメントの「N〜M階」は minFloor〜maxFloor に対応。
  * ── */
 export const MONS = [
-  { name: "ネズミ",       hp: 7,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 }, intermediate: { min: 1, max: 3 }, advanced: { min: 1, max: 3 } },
+  { name: "ネズミ",       hp: 9,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 }, intermediate: { min: 1, max: 3 }, advanced: { min: 1, max: 3 } },
     levels: [
-      { name: "殺人ネズミ",         hp: 32,  atk: 15, def: 4,  exp: 18, dungeonFloors: { advanced: { min: 8, max: 9 } } },
-      { name: "ものすごいネズミ",   hp: 52,  atk: 21, def: 7,  exp: 32, dungeonFloors: { advanced: { min: 14, max: 15 } } },
+      { name: "殺人ネズミ",         hp: 28,  atk: 22, def: 2,  exp: 28, dungeonFloors: { advanced: { min: 8, max: 9 } } },
+      { name: "ものすごいネズミ",   hp: 40,  atk: 42, def: 3,  exp: 110, dungeonFloors: { advanced: { min: 14, max: 15 } } },
     ],
   },
-  { name: "バット",       hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, flightOnly: true, dungeonFloors: { beginner: { min: 1, max: 4 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 4 } },
+  { name: "バット",       hp: 11,  atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, flightOnly: true, dungeonFloors: { beginner: { min: 1, max: 4 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 4 } },
     levels: [
-      { name: "青バット",               hp: 30,  atk: 14, def: 3,  exp: 18, dungeonFloors: { advanced: { min: 7, max: 9 } } },
-      { name: "ゴルァバット",           hp: 46,  atk: 20, def: 6,  exp: 28, dungeonFloors: { advanced: { min: 13, max: 15 } } },
+      { name: "青バット",               hp: 28,  atk: 15, def: 3,  exp: 25, dungeonFloors: { advanced: { min: 7, max: 9 } } },
+      { name: "ゴルァバット",           hp: 48,  atk: 26, def: 5,  exp: 80, dungeonFloors: { advanced: { min: 13, max: 15 } } },
     ],
   },
-  { name: "ムカデ",       hp: 10,  atk: 4,  def: 2,  exp: 5,   speed: 1,   tile: 12,  kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,  dungeonFloors: { beginner: { min: 2, max: 5 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 5 } },
+  { name: "ムカデ",       hp: 12,  atk: 5,  def: 5,  exp: 6,   speed: 1,   tile: 12,  kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,  dungeonFloors: { beginner: { min: 2, max: 5 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 5 } },
     levels: [
-      { name: "巨大ムカデ",             hp: 30,  atk: 13, def: 8,  exp: 24, dungeonFloors: { advanced: { min: 9, max: 11 } } },
-      { name: "重装甲ムカデ",           hp: 40,  atk: 17, def: 16, exp: 38, dungeonFloors: { advanced: { min: 15, max: 17 } } },
+      { name: "巨大ムカデ",             hp: 32,  atk: 13, def: 16,  exp: 35, dungeonFloors: { advanced: { min: 9, max: 11 } } },
+      { name: "重装甲ムカデ",           hp: 52,  atk: 20, def: 38, exp: 160, dungeonFloors: { advanced: { min: 15, max: 17 } } },
     ],
   },
-  { name: "マイナーダイミョウ", hp: 30,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 158, kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 14 }, advanced: { min: 7, max: 15 } },
+  { name: "マイナーダイミョウ", hp: 28,  atk: 15, def: 3,  exp: 40,  speed: 1,   tile: 158, kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 14 }, advanced: { min: 7, max: 15 } },
     levels: [
-      { name: "メジャーダイミョウ",     hp: 48,  atk: 23, def: 5,  exp: 68,  dungeonFloors: { advanced: { min: 27, max: 29 } } },
-      { name: "ミフネ",                 hp: 70,  atk: 29, def: 8,  exp: 98  },
+      { name: "メジャーダイミョウ",     hp: 50,  atk: 23, def: 5,  exp: 90,  dungeonFloors: { advanced: { min: 27, max: 29 } } },
+      { name: "ミフネ",                 hp: 80,  atk: 32, def: 8,  exp: 260  },
     ],
   },
-  { name: "ひったくり",   hp: 28,  atk: 16, def: 3,  exp: 45,  speed: 1,   tile: 153, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 14 }, advanced: { min: 9, max: 17 } },
+  { name: "はぐれ乱波",   hp: 26,  atk: 15, def: 3,  exp: 42,  speed: 1,   tile: 153, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 14 }, advanced: { min: 9, max: 17 } },
     levels: [
-      { name: "分捕り",                 hp: 46,  atk: 22, def: 5,  exp: 72,  dungeonFloors: { advanced: { min: 24, max: 26 } } },
-      { name: "根刮ぎ",                 hp: 67,  atk: 29, def: 8,  exp: 108 },
+      { name: "闇透破",                 hp: 48,  atk: 22, def: 5,  exp: 92,  dungeonFloors: { advanced: { min: 24, max: 26 } } },
+      { name: "草",                     hp: 75,  atk: 30, def: 8,  exp: 270 },
     ],
   },
-  { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13, dungeonFloors: { beginner: { min: 3, max: 6 }, intermediate: { min: 2, max: 5 }, advanced: { min: 4, max: 5 } },
+  { name: "つらら小僧",   hp: 14,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "beast",    baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13, elemWeak: "fire", dungeonFloors: { beginner: { min: 3, max: 6 }, intermediate: { min: 2, max: 5 }, advanced: { min: 4, max: 5 } },
     levels: [
-      { name: "コボルド戦士",       hp: 38,  atk: 18, def: 8,  exp: 26, dungeonFloors: { advanced: { min: 10, max: 11 } } },
-      { name: "コボルド族長",       hp: 60,  atk: 25, def: 13, exp: 42, dungeonFloors: { advanced: { min: 16, max: 17 } } },
+      { name: "氷柱鬼",             hp: 38,  atk: 19, def: 6,  exp: 35, dungeonFloors: { advanced: { min: 10, max: 11 } } },
+      { name: "永久凍土鬼",         hp: 65,  atk: 30, def: 10, exp: 110, dungeonFloors: { advanced: { min: 16, max: 17 } } },
     ],
   },
-  { name: "ゴブリン",     hp: 23,  atk: 16, def: 5,  exp: 20,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16, dungeonFloors: { beginner: { min: 5, max: 7 }, intermediate: { min: 3, max: 6 }, advanced: { min: 5, max: 7 } },
+  { name: "ゴブリン",     hp: 18,  atk: 10, def: 3,  exp: 14,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16, dungeonFloors: { beginner: { min: 5, max: 7 }, intermediate: { min: 3, max: 6 }, advanced: { min: 5, max: 7 } },
     levels: [
-      { name: "ゴブリン頭",         hp: 48,  atk: 21, def: 9,  exp: 38, dungeonFloors: { advanced: { min: 12, max: 13 } } },
-      { name: "ゴブリン王",         hp: 80,  atk: 28, def: 11, exp: 58, dungeonFloors: { advanced: { min: 18, max: 20 } } },
+      { name: "ゴブリン頭",         hp: 44,  atk: 21, def: 6,  exp: 45, dungeonFloors: { advanced: { min: 12, max: 13 } } },
+      { name: "ゴブリン王",         hp: 80,  atk: 32, def: 11, exp: 140, dungeonFloors: { advanced: { min: 18, max: 20 } } },
     ],
   },
-  { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 164, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 9, max: 10 }, intermediate: { min: 6, max: 8 }, advanced: { min: 5, max: 12 } },
+  { name: "インプ",       hp: 14,  atk: 9,  def: 1,  exp: 18,  speed: 2,   tile: 164, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 9, max: 10 }, intermediate: { min: 6, max: 8 }, advanced: { min: 5, max: 12 } },
     levels: [
-      { name: "強インプ",           hp: 44,  atk: 24, def: 7,  exp: 52, dungeonFloors: { advanced: { min: 15, max: 18 } } },
-      { name: "覇インプ",           hp: 65,  atk: 30, def: 11, exp: 70, dungeonFloors: { advanced: { min: 20, max: 22 } } },
+      { name: "レッサーインプ",     hp: 36,  atk: 17, def: 4,  exp: 55, dungeonFloors: { advanced: { min: 15, max: 18 } } },
+      { name: "アークインプ",       hp: 60,  atk: 28, def: 6, exp: 180, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 7, max: 9 }, intermediate: { min: 4, max: 6 }, advanced: { min: 5, max: 12 } },
+  { name: "スケルトン",   hp: 22,  atk: 15, def: 2,  exp: 20,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 7, max: 9 }, intermediate: { min: 4, max: 6 }, advanced: { min: 5, max: 12 } },
     levels: [
-      { name: "骸骨戦士",             hp: 42,  atk: 25, def: 9,  exp: 46, dungeonFloors: { advanced: { min: 15, max: 18 } } },
-      { name: "アンデッドナイ",       hp: 61,  atk: 32, def: 13, exp: 62, dungeonFloors: { advanced: { min: 20, max: 22 } } },
+      { name: "骸骨戦士",             hp: 46,  atk: 27, def: 4,  exp: 60, dungeonFloors: { advanced: { min: 15, max: 18 } } },
+      { name: "アンデッドナイ",       hp: 75,  atk: 44, def: 6, exp: 220, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "フクマル",     hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 171, kind: "beast",    baseKind: "runner",        monLevel: 1, minFloor: 5,  maxFloor: 30, subtype: "runner", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 4, max: 6 }, advanced: { min: 4, max: 22 } },
+  { name: "フクマル",     hp: 10,  atk: 0,  def: 0,  exp: 80,  speed: 2,   tile: 171, kind: "beast",    baseKind: "runner",        monLevel: 1, minFloor: 5,  maxFloor: 30, subtype: "runner", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 4, max: 6 }, advanced: { min: 4, max: 22 } },
     levels: [
-      { name: "フクフクマル",       hp: 16,  atk: 0,  def: 0,  exp: 80,  dungeonFloors: { advanced: { min: 17, max: 19 } } },
-      { name: "コイトフクマル",     hp: 24,  atk: 0,  def: 0,  exp: 120, dungeonFloors: { advanced: { min: 20, max: 22 } } },
+      { name: "フクフクマル",       hp: 16,  atk: 0,  def: 0,  exp: 200,  dungeonFloors: { advanced: { min: 17, max: 19 } } },
+      { name: "コイトフクマル",     hp: 24,  atk: 0,  def: 0,  exp: 500, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "ゾンビ",       hp: 38,  atk: 16, def: 5,  exp: 40,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 7, max: 10 }, advanced: { min: 5, max: 14 } },
+  { name: "ゾンビ",       hp: 60,  atk: 24, def: 4,  exp: 36,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", desc: "歩みは遅いが、一撃が重い。", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 7, max: 10 }, advanced: { min: 5, max: 14 } },
     levels: [
-      { name: "中ゾンビ",           hp: 80,  atk: 32, def: 11, exp: 80,  dungeonFloors: { advanced: { min: 17, max: 21 } } },
-      { name: "強ゾンビ",           hp: 130, atk: 42, def: 18, exp: 110, dungeonFloors: { advanced: { min: 22, max: 24 } } },
+      { name: "中ゾンビ",           hp: 135,  atk: 36, def: 7, exp: 100,  dungeonFloors: { advanced: { min: 17, max: 21 } } },
+      { name: "強ゾンビ",           hp: 250, atk: 50, def: 11, exp: 320, dungeonFloors: { advanced: { min: 22, max: 24 } } },
     ],
   },
-  { name: "ワッカ",       hp: 24,  atk: 17, def: 2,  exp: 28,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, waterWalker: true, subtype: "stonethrow", dungeonFloors: { beginner: { min: 9, max: 10 }, intermediate: { min: 8, max: 10 }, advanced: { min: 6, max: 14 } },
+  { name: "ワッカ",       hp: 20,  atk: 11, def: 2,  exp: 18,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, waterWalker: true, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 }, advanced: { min: 6, max: 14 } },
     levels: [
-      { name: "ぷにぷにワッカ",     hp: 38,  atk: 24, def: 5,  exp: 45 },
-      { name: "シン・ワッカ",       hp: 61,  atk: 32, def: 7,  exp: 72 },
+      { name: "ぷにぷにワッカ",     hp: 38,  atk: 20, def: 4,  exp: 55 },
+      { name: "シン・ワッカ",       hp: 65,  atk: 30, def: 7,  exp: 180 },
     ],
   },
-  { name: "分裂スライム", hp: 30,  atk: 14, def: 2,  exp: 32,  speed: 1,   tile: 113, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 8, max: 10 }, advanced: { min: 6, max: 14 } },
+  { name: "分裂スライム", hp: 26,  atk: 14, def: 3,  exp: 25,  speed: 1,   tile: 113, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter", dungeonFloors: { beginner: { min: 6, max: 8 }, intermediate: { min: 6, max: 9 }, advanced: { min: 6, max: 14 } },
     levels: [
-      { name: "緑分裂スライム",     hp: 47,  atk: 22, def: 5,  exp: 51 },
-      { name: "赤分裂スライム",     hp: 74,  atk: 29, def: 7,  exp: 80 },
+      { name: "緑分裂スライム",     hp: 52,  atk: 24, def: 6,  exp: 75 },
+      { name: "赤分裂スライム",     hp: 95,  atk: 36, def: 10,  exp: 240 },
     ],
   },
-  { name: "アーチャー",   hp: 30,  atk: 18, def: 3,  exp: 34,  speed: 1,   tile: 148, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 5, max: 7 }, advanced: { min: 5, max: 12 } },
+  { name: "アーチャー",   hp: 16,  atk: 12, def: 1,  exp: 16,  speed: 1,   tile: 148, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer", dungeonFloors: { beginner: { min: 4, max: 6 }, intermediate: { min: 4, max: 6 }, advanced: { min: 5, max: 12 } },
     levels: [
-      { name: "古参アーチャー",     hp: 47,  atk: 25, def: 7,  exp: 54, dungeonFloors: { advanced: { min: 15, max: 20 } } },
-      { name: "弓の達人",           hp: 74,  atk: 32, def: 12, exp: 85, dungeonFloors: { advanced: { min: 24, max: 26 } } },
+      { name: "古参アーチャー",     hp: 30,  atk: 22, def: 2,  exp: 50, dungeonFloors: { advanced: { min: 15, max: 20 } } },
+      { name: "弓の達人",           hp: 48,  atk: 36, def: 3, exp: 170, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },
-  { name: "ウルフ",       hp: 27,  atk: 20, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 7, max: 16 } },
+  { name: "ウルフ",       hp: 18,  atk: 12, def: 1,  exp: 25,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 7, max: 16 } },
     levels: [
-      { name: "強ウルフ",           hp: 45,  atk: 27, def: 6,  exp: 70,  dungeonFloors: { advanced: { min: 19, max: 22 } } },
-      { name: "フェンリル",         hp: 68,  atk: 36, def: 10, exp: 100, dungeonFloors: { advanced: { min: 24, max: 26 } } },
+      { name: "強ウルフ",           hp: 34,  atk: 22, def: 2,  exp: 75,  dungeonFloors: { advanced: { min: 19, max: 22 } } },
+      { name: "フェンリル",         hp: 54,  atk: 36, def: 4, exp: 240, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },
-  { name: "コソドロ",     hp: 16,  atk: 7,  def: 0,  exp: 35,  speed: 2,   tile: 170, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 9, max: 12 }, advanced: { min: 7, max: 16 } },
+  { name: "コソドロ",     hp: 16,  atk: 6,  def: 1,  exp: 22,  speed: 2,   tile: 170, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 9, max: 12 }, advanced: { min: 7, max: 16 } },
     levels: [
-      { name: "大盗賊",             hp: 27,  atk: 11, def: 2,  exp: 56  },
-      { name: "怪盗",               hp: 43,  atk: 14, def: 3,  exp: 88  },
+      { name: "大盗賊",             hp: 28,  atk: 12, def: 2,  exp: 55  },
+      { name: "怪盗",               hp: 45,  atk: 20, def: 4,  exp: 160  },
     ],
   },
-  { name: "レプラコーン", hp: 20,  atk: 9,  def: 1,  exp: 38,  speed: 2,   tile: 109, kind: "humanoid", baseKind: "leprechaun",    monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "goldthief", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 15 }, advanced: { min: 7, max: 16 } },
+  { name: "レプラコーン", hp: 20,  atk: 9,  def: 2,  exp: 28,  speed: 2,   tile: 109, kind: "humanoid", baseKind: "leprechaun",    monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "goldthief", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 15 }, advanced: { min: 7, max: 16 } },
     levels: [
-      { name: "強レプラコーン",       hp: 33,  atk: 13, def: 3,  exp: 61  },
-      { name: "覇レプラコーン",       hp: 52,  atk: 17, def: 5,  exp: 95  },
+      { name: "クルラコーン",         hp: 38,  atk: 16, def: 4,  exp: 68  },
+      { name: "エルドラド",           hp: 65,  atk: 26, def: 7,  exp: 190  },
     ],
   },
-  { name: "錆虫",         hp: 24,  atk: 13,  def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 12 }, advanced: { min: 8, max: 17 } },
+  { name: "錆虫",         hp: 18,  atk: 8,  def: 3,  exp: 20,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 12 }, advanced: { min: 8, max: 17 } },
     levels: [
-      { name: "強錆虫",             hp: 39,  atk: 18, def: 5,  exp: 64,  dungeonFloors: { advanced: { min: 21, max: 23 } } },
-      { name: "覇錆虫",             hp: 61,  atk: 25, def: 7,  exp: 100 },
+      { name: "赤錆虫",             hp: 34,  atk: 14, def: 6,  exp: 52,  dungeonFloors: { advanced: { min: 21, max: 23 } } },
+      { name: "錆喰い蟲",           hp: 56,  atk: 20, def: 10,  exp: 165 },
     ],
   },
-  { name: "足払い鬼",     hp: 20,  atk: 11, def: 2,  exp: 28,  speed: 1,   tile: 151, kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 5,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 5, max: 7 }, advanced: { min: 7, max: 16 } },
+  { name: "足払い鬼",     hp: 24,  atk: 12, def: 2,  exp: 24,  speed: 1,   tile: 151, kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 5,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 5, max: 7 }, advanced: { min: 7, max: 16 } },
     levels: [
-      { name: "強足払い鬼",         hp: 46,  atk: 21, def: 6,  exp: 68,  dungeonFloors: { advanced: { min: 18, max: 22 } } },
-      { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
+      { name: "転倒鬼",             hp: 42,  atk: 19, def: 4,  exp: 62,  dungeonFloors: { advanced: { min: 18, max: 22 } } },
+      { name: "崩し羅刹",           hp: 68,  atk: 27, def: 7, exp: 190 },
     ],
   },
-  { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", randomElementalWands: true, dungeonFloors: { intermediate: { min: 11, max: 13 }, advanced: { min: 9, max: 17 } },
+  { name: "ウィザード",   hp: 20,  atk: 10, def: 2,  exp: 22,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", randomElementalWands: true, dungeonFloors: { intermediate: { min: 11, max: 13 }, advanced: { min: 9, max: 17 } },
     levels: [
-      { name: "強ウィザード",       hp: 39,  atk: 24, def: 7,  exp: 67,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
-      { name: "大魔導士",           hp: 61,  atk: 29, def: 12, exp: 105 },
+      { name: "強ウィザード",       hp: 38,  atk: 17, def: 4,  exp: 58,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
+      { name: "大魔導士",           hp: 64,  atk: 25, def: 6, exp: 180 },
     ],
   },
-  { name: "カラペン",     hp: 32,  atk: 15, def: 4,  exp: 48,  speed: 1,   tile: 183, kind: "beast",    baseKind: "itempusher",  monLevel: 1, minFloor: 11, maxFloor: 30, float: true, subtype: "itempusher", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 15 }, advanced: { min: 9, max: 22 } },
+  { name: "カラペン",     hp: 22,  atk: 10, def: 2,  exp: 24,  speed: 1,   tile: 183, kind: "beast",    baseKind: "itempusher",  monLevel: 1, minFloor: 11, maxFloor: 30, float: true, subtype: "itempusher", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 15 }, advanced: { min: 9, max: 22 } },
     levels: [
-      { name: "パタペン",             hp: 52,  atk: 23, def: 7,  exp: 78,  dungeonFloors: { advanced: { min: 18, max: 23 } } },
-      { name: "ゴゴペン",             hp: 82,  atk: 31, def: 11, exp: 125, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+      { name: "パタペン",             hp: 40,  atk: 18, def: 4,  exp: 60,  dungeonFloors: { advanced: { min: 18, max: 23 } } },
+      { name: "ゴゴペン",             hp: 65,  atk: 26, def: 7, exp: 180, dungeonFloors: { advanced: { min: 24, max: 30 } } },
     ],
   },
-  { name: "危険な花びら", hp: 28,  atk: 15, def: 3,  exp: 45,  speed: 1, tile: 206, kind: "beast", baseKind: "dangerousPetal", monLevel: 1, minFloor: 15, maxFloor: 35, stationary: true, subtype: "dangerousPetal", sleepOnDeath: true, dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 13, max: 24 } },
+  { name: "危険な花びら", hp: 25,  atk: 10, def: 2,  exp: 35,  speed: 1, tile: 206, kind: "beast", baseKind: "dangerousPetal", monLevel: 1, minFloor: 15, maxFloor: 35, stationary: true, elemWeak: "fire", subtype: "dangerousPetal", sleepOnDeath: true, dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 13, max: 24 } },
     desc: "自分からは移動しない。睡眠の花粉は隣接時25%、遠距離時12.5%で使う。倒されると25%で周囲にも眠りを広げる。レベル2は遠距離一直線、レベル3は同じ部屋まで届く。",
     levels: [
-      { name: "破滅の花びら", hp: 50, atk: 24, def: 7, exp: 86, dungeonFloors: { advanced: { min: 25, max: 29 } } },
-      { name: "超危険な花びら", hp: 80, atk: 36, def: 12, exp: 145, dungeonFloors: { advanced: { min: 30, max: 35 } } },
+      { name: "破滅の花びら", hp: 44, atk: 16, def: 4, exp: 80, dungeonFloors: { advanced: { min: 25, max: 29 } } },
+      { name: "超危険な花びら", hp: 70, atk: 24, def: 6, exp: 240, dungeonFloors: { advanced: { min: 30, max: 35 } } },
     ],
   },
-  { name: "夢喰い",       hp: 46,  atk: 21, def: 6,  exp: 66,  speed: 1,   tile: 178, kind: "beast",    baseKind: "dreamEater",  monLevel: 1, minFloor: 15, maxFloor: 35, subtype: "dreamEater", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 13, max: 24 } },
+  { name: "夢喰い",       hp: 28,  atk: 12, def: 2,  exp: 38,  speed: 1,   tile: 178, kind: "beast",    baseKind: "dreamEater",  monLevel: 1, minFloor: 15, maxFloor: 35, subtype: "dreamEater", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 13, max: 24 } },
     desc: "眠っている敵を起こして夢を喰らい、自分のHPを回復する。プレイヤーが眠っているときは2倍打撃とHP吸収を行う。",
     levels: [
-      { name: "強夢喰い",       hp: 74,  atk: 31, def: 10, exp: 106, dungeonFloors: { advanced: { min: 25, max: 28 } } },
-      { name: "夢喰い王",       hp: 116, atk: 43, def: 15, exp: 166, dungeonFloors: { advanced: { min: 29, max: 35 } } },
+      { name: "強夢喰い",       hp: 48,  atk: 18, def: 4, exp: 85, dungeonFloors: { advanced: { min: 25, max: 28 } } },
+      { name: "夢喰い王",       hp: 75, atk: 25, def: 6, exp: 260, dungeonFloors: { advanced: { min: 29, max: 35 } } },
     ],
   },
-  { name: "アイテムモドキ", hp: 38,  atk: 19, def: 5,  exp: 54,  speed: 1,   tile: 167, kind: "beast",    baseKind: "itemMimic",  monLevel: 1, minFloor: 9, maxFloor: 30, subtype: "itemMimic", dungeonFloors: { beginner: null, intermediate: { min: 8, max: 10 }, advanced: { min: 8, max: 21 } },
+  { name: "アイテムモドキ", hp: 24,  atk: 14, def: 3,  exp: 30,  speed: 1,   tile: 167, kind: "beast",    baseKind: "itemMimic",  monLevel: 1, minFloor: 9, maxFloor: 30, subtype: "itemMimic", dungeonFloors: { beginner: null, intermediate: { min: 8, max: 10 }, advanced: { min: 8, max: 21 } },
     desc: "床のアイテムに化ける。拾おうとすると正体を現し、その場で攻撃する。",
     levels: [
-      { name: "強アイテムモドキ", hp: 61,  atk: 28, def: 8,  exp: 88,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
-      { name: "アイテムモドキ王", hp: 95,  atk: 39, def: 13, exp: 138, dungeonFloors: { advanced: { min: 26, max: 30 } } },
+      { name: "強アイテムモドキ", hp: 44,  atk: 22, def: 5,  exp: 75,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
+      { name: "アイテムモドキ王", hp: 70,  atk: 32, def: 8, exp: 220, dungeonFloors: { advanced: { min: 26, max: 30 } } },
     ],
   },
-  { name: "拾い投げ",     hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
-    desc: "プレイヤーを認識すると、隣接していない間は床のアイテムを拾い、一直線上から投げつける。投げる前に倒せばアイテムを落とす。",
+  { name: "ひょい河童",   hp: 26,  atk: 14, def: 3,  exp: 38,  speed: 1,   tile: 247, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
+    desc: "床のアイテムを拾い、一直線上から投げつける（命中率75%）。投げる前に倒せばアイテムを落とす。",
     levels: [
-      { name: "強拾い投げ",   hp: 69,  atk: 29, def: 9,  exp: 100, dungeonFloors: { advanced: { min: 26, max: 30 } } },
-      { name: "拾い投げ王",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
+      { name: "剛腕水虎",     hp: 52,  atk: 22, def: 6,  exp: 85, dungeonFloors: { advanced: { min: 26, max: 30 } } },
+      { name: "豪傑九千坊",   hp: 88, atk: 32, def: 9, exp: 250, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
-  { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 19 } },
+  { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "別のヤドカリを容量の残った壺へ押し込む。Lv2以上は一直線上から壺へ投げ込む。壺を割るか吸い出すとヤドカリが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
-      { name: "強ボムスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
-      { name: "覇ボムスライム",     hp: 95,  atk: 29, def: 5,  exp: 138 },
+      { name: "大ヤドカリ壺荒らし", hp: 85, atk: 28, def: 22, exp: 200, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
+      { name: "ヤドカリ壺大将", hp: 140, atk: 40, def: 34, exp: 580, dungeonFloors: { legend: { min: 48, max: 50 } } },
     ],
   },
-  { name: "ボルガ",       hp: 28,  atk: 12, def: 0,  exp: 60,  speed: 1,   tile: 159, kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, minFloor: 12, maxFloor: 26, subtype: "kamikaze", dungeonFloors: { intermediate: null, advanced: { min: 10, max: 19 } },
+  { name: "炎の料理人", hp: 32, atk: 15, def: 4, exp: 42, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "ice", subtype: "fireCook", desc: "隣接すると装備中でない所持品を焦げた料理へ変える。焦げた料理とヤバイ料理は互いに変化。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
-      { name: "ボルガ博士",         hp: 48,  atk: 18, def: 2,  exp: 96,  speed: 1 },
-      { name: "頭の中にダイナマイト", hp: 75, atk: 24, def: 4,  exp: 150 },
+      { name: "炎の中華料理人", hp: 58, atk: 24, def: 7, exp: 95, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
+      { name: "炎の中華体育料理人", hp: 90, atk: 34, def: 11, exp: 250, dungeonFloors: { intermediate: null, advanced: { min: 44, max: 47 }, legend: { min: 48, max: 50 } } },
     ],
   },
-  { name: "水晶スライム", hp: 5,   atk: 18, def: 0,  exp: 50,  speed: 1,   tile: 115, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true, dungeonFloors: { intermediate: { min: 16, max: 18 }, advanced: { min: 10, max: 19 } },
+  { name: "シルフ", hp: 45, atk: 18, def: 5, exp: 65, speed: 1, tile: 236, kind: "beast", baseKind: "sylph", monLevel: 1, minFloor: 11, maxFloor: 35, float: true, subtype: "windAura", desc: "常にランダムな方向への風をまとい、範囲内の矢・石・投擲・ブレスを風向きへ曲げる。Lv1は周囲3×3、Lv2は5×5、Lv3は7×7に広がる。", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 11, max: 13 }, legend: { min: 19, max: 22 } },
     levels: [
-      { name: "プラチナスライム",   hp: 8,   atk: 25, def: 0,  exp: 80  },
-      { name: "ダマスカスライム",   hp: 11,  atk: 32, def: 0,  exp: 125 },
+      { name: "ハイシルフ", hp: 85, atk: 28, def: 8, exp: 160, dungeonFloors: { intermediate: null, advanced: { min: 22, max: 24 }, legend: { min: 29, max: 32 } } },
+      { name: "シルフィード", hp: 135, atk: 40, def: 13, exp: 450, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 47 } } },
     ],
   },
-  { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 145, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 20 } },
+  { name: "ボムスライム", hp: 36,  atk: 18, def: 4,  exp: 50,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 11, max: 15 }, advanced: { min: 10, max: 19 } },
     levels: [
-      { name: "ファントム",         hp: 61,  atk: 25, def: 9,  exp: 72  },
+      { name: "ニトロスライム",     hp: 72,  atk: 30, def: 8,  exp: 140  },
+      { name: "メテオスライム",     hp: 130,  atk: 46, def: 14,  exp: 380 },
+    ],
+  },
+  { name: "ボルガ",       hp: 22,  atk: 16, def: 0,  exp: 40,  speed: 1,   tile: 159, kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, minFloor: 12, maxFloor: 26, subtype: "kamikaze", dungeonFloors: { intermediate: null, advanced: { min: 10, max: 19 } },
+    levels: [
+      { name: "ボルガ博士",         hp: 35,  atk: 28, def: 1,  exp: 90,  speed: 1 },
+      { name: "頭の中にダイナマイト", hp: 48, atk: 45, def: 2,  exp: 260 },
+    ],
+  },
+  { name: "水晶スライム", hp: 12,   atk: 12, def: 10,  exp: 38,  speed: 1,   tile: 115, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true, dungeonFloors: { intermediate: { min: 16, max: 18 }, advanced: { min: 10, max: 19 } },
+    levels: [
+      { name: "プラチナスライム",   hp: 20,   atk: 20, def: 18,  exp: 90  },
+      { name: "ダマスカスライム",   hp: 30,  atk: 28, def: 30,  exp: 260 },
+    ],
+  },
+  { name: "ゴースト",     hp: 26,  atk: 14, def: 3,  exp: 30,  speed: 1,   tile: 145, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 14, max: 16 }, advanced: { min: 10, max: 20 } },
+    levels: [
+      { name: "ファントム",         hp: 48,  atk: 24, def: 5,  exp: 80  },
       /* 長居罰の最上位壁抜け：高耐久・高火力・3倍速。壁・他敵を迂回して接近 */
-      { name: "ミラージュ",         hp: 160, atk: 50, def: 22, exp: 220, speed: 3 },
+      { name: "ミラージュ",         hp: 78, atk: 38, def: 8, exp: 250, speed: 3 },
     ],
   },
   /* 長居ペナルティ専用：壁抜け・浮遊。等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
-  { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
+  { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 249, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
     desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
-  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, subtype: "powercharge", desc: "隣接時に力を溜めることがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
+  { name: "やかん小僧",   hp: 38,  atk: 16, def: 4,  exp: 40,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, elemWeak: "ice", subtype: "powercharge", desc: "隣接時に力を溜める（沸騰する）ことがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 15, max: 17 }, advanced: { min: 10, max: 19 } },
     levels: [
-      { name: "オーク将",           hp: 65,  atk: 31, def: 12, exp: 77,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
-      { name: "オーク王",           hp: 101, atk: 40, def: 16, exp: 120, dungeonFloors: { advanced: { min: 25, max: 26 } } },
+      { name: "沸騰やかん",         hp: 78,  atk: 26, def: 7, exp: 100,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
+      { name: "大爆発やかん",       hp: 140, atk: 38, def: 12, exp: 280, dungeonFloors: { advanced: { min: 25, max: 26 } } },
     ],
   },
-  { name: "ゼラチンキューブ", hp: 81, atk: 22, def: 5, exp: 70,  speed: 0.5, tile: 174, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire", dungeonFloors: { intermediate: { min: 16, max: 18 }, advanced: { min: 12, max: 22 } },
+  { name: "ゼラチンキューブ", hp: 80, atk: 14, def: 2, exp: 45,  speed: 0.5, tile: 174, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire", dungeonFloors: { intermediate: { min: 16, max: 18 }, advanced: { min: 12, max: 22 } },
     levels: [
-      { name: "大ゼラチンキューブ",   hp: 130, atk: 31, def: 9,  exp: 112, dungeonFloors: { advanced: { min: 25, max: 27 } } },
-      { name: "暴食ゼラチンキューブ", hp: 203, atk: 40, def: 13, exp: 175, dungeonFloors: { advanced: { min: 28, max: 29 } } },
+      { name: "大ゼラチンキューブ",   hp: 200, atk: 22, def: 4,  exp: 120, dungeonFloors: { advanced: { min: 25, max: 27 } } },
+      { name: "暴食ゼラチンキューブ", hp: 420, atk: 32, def: 8, exp: 350, dungeonFloors: { advanced: { min: 28, max: 29 } } },
     ],
   },
-  { name: "岩砕き",       hp: 68,  atk: 28, def: 7,  exp: 65,  speed: 0.5, tile: 154, kind: "beast",    baseKind: "walldigger",    monLevel: 1, minFloor: 16, maxFloor: 50, wallDigger: true, dungeonFloors: { intermediate: null, advanced: { min: 12, max: 23 } },
+  { name: "岩砕き",       hp: 48,  atk: 18, def: 6,  exp: 55,  speed: 0.5, tile: 154, kind: "beast",    baseKind: "walldigger",    monLevel: 1, minFloor: 16, maxFloor: 50, wallDigger: true, dungeonFloors: { intermediate: null, advanced: { min: 12, max: 23 } },
     levels: [
-      { name: "強岩砕き",           hp: 108, atk: 38, def: 12, exp: 104 },
-      { name: "覇岩砕き",           hp: 169, atk: 50, def: 16, exp: 163 },
+      { name: "山崩し",             hp: 95, atk: 28, def: 10, exp: 140 },
+      { name: "大地穿ち",           hp: 165, atk: 40, def: 16, exp: 380 },
     ],
   },
-  { name: "罠師",         hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 22 } },
+  { name: "仕掛け花火師", hp: 30,  atk: 14, def: 3,  exp: 40,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", elemWeak: "ice", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 22 } },
     levels: [
-      { name: "罠の達人",           hp: 54,  atk: 25, def: 7,  exp: 77  },
-      { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
+      { name: "爆導師",             hp: 54,  atk: 22, def: 5,  exp: 95  },
+      { name: "煙火覇王",           hp: 85,  atk: 30, def: 8, exp: 270 },
     ],
   },
-  { name: "大蛇",         hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, desc: "隣接時25%で毒撃（1回攻撃、毒薬と同じ毒）。不発時は通常の二回攻撃。", dungeonFloors: { intermediate: null, advanced: { min: 12, max: 22 } },
+  { name: "にじりヘビ",   hp: 25,  atk: 12, def: 2,  exp: 28,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, elemWeak: "ice", maxAttacks: 2, desc: "隣接時25%で毒撃（1回攻撃、毒薬と同じ毒）。不発時は通常の二回攻撃。", dungeonFloors: { intermediate: null, advanced: { min: 12, max: 22 } },
     levels: [
-      { name: "強大蛇",             hp: 76,  atk: 32, def: 9,  exp: 83  },
-      { name: "覇大蛇",             hp: 119, atk: 42, def: 13, exp: 130 },
+      { name: "スパークヘビ",       hp: 45,  atk: 20, def: 4,  exp: 70  },
+      { name: "暗黒ヘビ",           hp: 72, atk: 28, def: 7, exp: 210 },
     ],
   },
-  { name: "ゴールドタイガー", hp: 38,  atk: 20, def: 5,  exp: 55,  speed: 1,   tile: 149, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "trapthrower", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 24 } },
+  { name: "ゴールドタイガー", hp: 34,  atk: 16, def: 4,  exp: 45,  speed: 1,   tile: 149, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "trapthrower", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 24 } },
     levels: [
-      { name: "ずっと見てタイガー", hp: 61,  atk: 28, def: 9,  exp: 88  },
-      { name: "よく頑張っタイガー", hp: 95,  atk: 36, def: 13, exp: 138 },
+      { name: "ずっと見てタイガー", hp: 60,  atk: 25, def: 6,  exp: 105  },
+      { name: "よく頑張っタイガー", hp: 95,  atk: 34, def: 9, exp: 300 },
     ],
   },
-  { name: "杖術師",       hp: 34,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", randomStatusWands: true, desc: "呪い・混乱・眠り・テレポート・鈍足の杖をランダムに振る。距離3を保って近づかない。", dungeonFloors: { intermediate: null, advanced: { min: 14, max: 29 } },
+  { name: "杖術師",       hp: 26,  atk: 12, def: 3,  exp: 42,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", randomStatusWands: true, desc: "呪い・混乱・眠り・テレポート・鈍足の杖をランダムに振る。距離3を保って近づかない。", dungeonFloors: { intermediate: null, advanced: { min: 14, max: 29 } },
     levels: [
-      { name: "杖魔人",             hp: 54,  atk: 24, def: 9,  exp: 88  },
-      { name: "杖ゴミ",             hp: 85,  atk: 29, def: 13, exp: 138 },
+      { name: "杖魔人",             hp: 46,  atk: 18, def: 5,  exp: 88  },
+      { name: "杖ゴミ",             hp: 72,  atk: 24, def: 7, exp: 240 },
     ],
   },
-  { name: "強引タヌキ",   hp: 38,  atk: 20, def: 5,  exp: 58,  speed: 1,   tile: 214, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, minFloor: 19, maxFloor: 50, subtype: "disarmer", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
+  { name: "強引タヌキ",   hp: 34,  atk: 15, def: 4,  exp: 50,  speed: 1,   tile: 214, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, minFloor: 19, maxFloor: 50, subtype: "disarmer", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
     levels: [
-      { name: "無理矢理タヌキ",     hp: 61,  atk: 28, def: 9,  exp: 93  },
-      { name: "すっぽんタヌキ",     hp: 95,  atk: 36, def: 13, exp: 145 },
+      { name: "無理矢理タヌキ",     hp: 58,  atk: 22, def: 6,  exp: 100  },
+      { name: "すっぽんタヌキ",     hp: 92,  atk: 30, def: 9, exp: 270 },
     ],
   },
-  { name: "かいりきベア", hp: 43,  atk: 22, def: 6,  exp: 62,  speed: 1,   tile: 146, kind: "humanoid", baseKind: "monsterthrow",  monLevel: 1, minFloor: 20, maxFloor: 50, subtype: "monsterthrow", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
+  { name: "かいりきベア", hp: 52,  atk: 20, def: 5,  exp: 65,  speed: 1,   tile: 146, kind: "humanoid", baseKind: "monsterthrow",  monLevel: 1, minFloor: 20, maxFloor: 50, subtype: "monsterthrow", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
     levels: [
-      { name: "かいりきベア・セブン", hp: 69,  atk: 31, def: 10, exp: 99  },
-      { name: "かいりきベア・イレブン", hp: 108, atk: 40, def: 14, exp: 155 },
+      { name: "かいりきベア・セブン", hp: 105,  atk: 30, def: 8, exp: 160  },
+      { name: "かいりきベア・イレブン", hp: 180, atk: 44, def: 13, exp: 450 },
     ],
   },
-  { name: "シャーマン",   hp: 41,  atk: 17, def: 5,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",        monLevel: 1, minFloor: 21, maxFloor: 50, subtype: "supporter", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 24 } },
+  { name: "シャーマン",   hp: 30,  atk: 14, def: 3,  exp: 48,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",        monLevel: 1, minFloor: 21, maxFloor: 50, subtype: "supporter", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 24 } },
     levels: [
-      { name: "強シャーマン",       hp: 65,  atk: 24, def: 9,  exp: 96  },
-      { name: "大シャーマン",       hp: 101, atk: 29, def: 13, exp: 150 },
+      { name: "強シャーマン",       hp: 52,  atk: 20, def: 5,  exp: 95  },
+      { name: "大シャーマン",       hp: 80, atk: 28, def: 8, exp: 270 },
     ],
   },
-  { name: "合成獣",       hp: 54,  atk: 20, def: 5,  exp: 80,  speed: 0.5, tile: 176, kind: "beast",    baseKind: "synthmonster",  monLevel: 1, minFloor: 21, maxFloor: 50, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 26 } },
+  { name: "合成獣",       hp: 48,  atk: 18, def: 5,  exp: 65,  speed: 0.5, tile: 176, kind: "beast",    baseKind: "synthmonster",  monLevel: 1, minFloor: 21, maxFloor: 50, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 26 } },
     levels: [
-      { name: "強合成獣",           hp: 86,  atk: 29, def: 9,  exp: 128 },
-      { name: "覇合成獣",           hp: 135, atk: 38, def: 13, exp: 200 },
+      { name: "強合成獣",           hp: 92,  atk: 30, def: 8,  exp: 160 },
+      { name: "覇合成獣",           hp: 155, atk: 42, def: 12, exp: 450 },
     ],
   },
-  { name: "バリア蟹",     hp: 43,  atk: 20, def: 3,  exp: 68,  speed: 1,   tile: 147, kind: "humanoid", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, barrier: 1, waterWalker: true, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
+  { name: "バリア蟹",     hp: 32,  atk: 15, def: 10,  exp: 50,  speed: 1,   tile: 147, kind: "beast", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, elemWeak: "thunder", barrier: 1, waterWalker: true, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
     levels: [
-      { name: "どこにも居場所がカニ", hp: 69,  atk: 28, def: 6,  exp: 109, barrier: 2 },
-      { name: "なんでも無効蟹",     hp: 108, atk: 36, def: 9,  exp: 170, barrier: 3 },
+      { name: "どこにも居場所がカニ", hp: 55,  atk: 22, def: 20,  exp: 120, barrier: 2 },
+      { name: "なんでも無効蟹",     hp: 85, atk: 30, def: 34,  exp: 340, barrier: 3 },
     ],
   },
-  { name: "ウィンドメイジ", hp: 38, atk: 20, def: 5, exp: 65,  speed: 1,   tile: 157, kind: "humanoid", baseKind: "windmage",     monLevel: 1, minFloor: 23, maxFloor: 50, subtype: "wanduser", wandEffect: "blowback_wand", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
+  { name: "ウィンドメイジ", hp: 32, atk: 14, def: 3, exp: 45,  speed: 1,   tile: 157, kind: "undead",   baseKind: "windmage",     monLevel: 1, minFloor: 23, maxFloor: 50, float: true, subtype: "wanduser", wandEffect: "blowback_wand", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
     levels: [
-      { name: "強ウィンドメイジ",   hp: 61,  atk: 28, def: 9,  exp: 104 },
-      { name: "風の覇者",           hp: 95,  atk: 36, def: 13, exp: 163 },
+      { name: "強ウィンドメイジ",   hp: 56,  atk: 22, def: 5,  exp: 100 },
+      { name: "風の覇者",           hp: 88,  atk: 30, def: 8, exp: 280 },
     ],
   },
-  { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, waterWalker: true, subtype: "puller", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
+  { name: "引きダコ",     hp: 36,  atk: 16, def: 4,  exp: 52,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, elemWeak: "thunder", waterWalker: true, subtype: "puller", dungeonFloors: { intermediate: null, advanced: { min: 15, max: 25 } },
     levels: [
-      { name: "ひっぱりダコ",       hp: 97,  atk: 32, def: 10, exp: 120 },
-      { name: "吸い込みダコ",       hp: 153, atk: 43, def: 14, exp: 188 },
+      { name: "ひっぱりダコ",       hp: 64,  atk: 24, def: 7, exp: 105 },
+      { name: "吸い込みダコ",       hp: 105, atk: 34, def: 10, exp: 290 },
     ],
   },
-  { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, float: true, flightOnly: true, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
+  { name: "土下座鈴木右衛門", hp: 30,  atk: 12, def: 3,  exp: 40,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, float: true, flightOnly: true, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
     dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
-      { name: "飛翔土下座鈴木右衛門", hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
-      { name: "焼き土下座鈴木右衛門", hp: 114, atk: 40, def: 15, exp: 210, dungeonFloors: { advanced: { min: 32, max: 36 } } },
+      { name: "飛翔土下座鈴木右衛門", hp: 52,  atk: 18, def: 5, exp: 95, dungeonFloors: { advanced: { min: 28, max: 31 } } },
+      { name: "焼き土下座鈴木右衛門", hp: 80, atk: 26, def: 8, exp: 320, dungeonFloors: { advanced: { min: 32, max: 36 } } },
     ],
   },
-  { name: "トロル",       hp: 68,  atk: 29, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "trollcrit", desc: "通常攻撃時に25%で1.5倍ダメージの痛恨の一撃を放つ。", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
+  { name: "おお木霊",     hp: 65,  atk: 22, def: 5,  exp: 80,  speed: 1,   tile: 13, kind: "beast",    baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, elemWeak: "fire", subtype: "trollcrit", desc: "通常攻撃時に25%で1.5倍ダメージの痛恨の一撃を放つ。", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
     levels: [
-      { name: "強トロル",           hp: 108, atk: 40, def: 13, exp: 120 },
-      { name: "覇トロル",           hp: 169, atk: 53, def: 17, exp: 188 },
+      { name: "怒れる巨木",         hp: 130, atk: 34, def: 9, exp: 200 },
+      { name: "神木",               hp: 230, atk: 50, def: 14, exp: 600 },
     ],
   },
-  { name: "火ダルマ",     hp: 74,  atk: 36, def: 6,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",     monLevel: 1, minFloor: 25, maxFloor: 50, float: true, elemWeak: "ice", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
+  { name: "火ダルマ",     hp: 38,  atk: 24, def: 3,  exp: 65, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",     monLevel: 1, minFloor: 25, maxFloor: 50, float: true, elemWeak: "ice", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
     levels: [
-      { name: "獄炎ダルマ",         hp: 119, atk: 50, def: 10, exp: 176 },
-      { name: "煉獄ダルマ",         hp: 189, atk: 67, def: 14, exp: 275 },
+      { name: "獄炎ダルマ",         hp: 65, atk: 38, def: 6, exp: 170 },
+      { name: "煉獄ダルマ",         hp: 100, atk: 54, def: 9, exp: 420 },
     ],
   },
-  { name: "ガーゴイル",   hp: 88,  atk: 32, def: 16, exp: 90,  speed: 0.5, tile: 179, kind: "undead",   baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true, dungeonFloors: { intermediate: null, advanced: { min: 19, max: 29 } },
+  { name: "ガーゴイル",   hp: 60,  atk: 25, def: 12, exp: 100,  speed: 0.5, tile: 179, kind: "undead",   baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true, dungeonFloors: { intermediate: null, advanced: { min: 19, max: 29 } },
     levels: [
-      { name: "強ガーゴイル",       hp: 140, atk: 46, def: 21, exp: 144 },
-      { name: "覇ガーゴイル",       hp: 220, atk: 58, def: 27, exp: 225 },
+      { name: "黒曜ガーゴイル",     hp: 120, atk: 38, def: 18, exp: 290 },
+      { name: "アダマントガーゴイル", hp: 200, atk: 52, def: 26, exp: 850 },
     ],
   },
-  { name: "ヴァンパイア", hp: 81,  atk: 32, def: 10, exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",       monLevel: 1, minFloor: 26, maxFloor: 50, maxAttacks: 2, float: true, dungeonFloors: { intermediate: null, advanced: { min: 19, max: 29 } },
+  { name: "ヴァンパイア", hp: 55,  atk: 24, def: 8, exp: 90,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",       monLevel: 1, minFloor: 26, maxFloor: 50, maxAttacks: 2, float: true, dungeonFloors: { intermediate: null, advanced: { min: 19, max: 29 } },
     levels: [
-      { name: "強ヴァンパイア",     hp: 130, atk: 46, def: 14, exp: 147 },
-      { name: "ヴァンパイア卿",     hp: 203, atk: 58, def: 19, exp: 230 },
+      { name: "強ヴァンパイア",     hp: 110, atk: 36, def: 13, exp: 260 },
+      { name: "ヴァンパイア卿",     hp: 175, atk: 50, def: 18, exp: 750 },
     ],
   },
-  { name: "ドラゴン",     hp: 122, atk: 43, def: 14, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",        monLevel: 1, minFloor: 27, maxFloor: 50, elemWeak: "ice", dungeonFloors: { intermediate: null, advanced: { min: 22, max: 30 } },
+  { name: "ドラゴン",     hp: 85, atk: 28, def: 12, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",        monLevel: 1, minFloor: 27, maxFloor: 50, elemWeak: "ice", dungeonFloors: { intermediate: null, advanced: { min: 22, max: 30 } },
     levels: [
-      { name: "レッドドラゴン",       hp: 194, atk: 61, def: 19, exp: 224 },
-      { name: "エンシェントドラゴン", hp: 304, atk: 78, def: 23, exp: 350 },
+      { name: "レッドドラゴン",       hp: 160, atk: 42, def: 18, exp: 420 },
+      { name: "エンシェントドラゴン", hp: 280, atk: 60, def: 25, exp: 1400 },
     ],
   },
-  { name: "ゴーレム",     hp: 135, atk: 36, def: 23, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",         monLevel: 1, minFloor: 27, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
+  { name: "ゴーレム",     hp: 95, atk: 26, def: 14, exp: 110, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",         monLevel: 1, minFloor: 27, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
     levels: [
-      { name: "ゴーレムLv2",        hp: 216, atk: 50, def: 28, exp: 184 },
-      { name: "ゴーレムーガ",       hp: 338, atk: 65, def: 34, exp: 288 },
+      { name: "ゴーレムLv2",        hp: 180, atk: 38, def: 26, exp: 320 },
+      { name: "ゴーレムーガ",       hp: 320, atk: 54, def: 44, exp: 950 },
     ],
   },
-  { name: "デーモン",     hp: 108, atk: 50, def: 13, exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",        monLevel: 1, minFloor: 27, maxFloor: 50, maxAttacks: 3, float: true, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
+  { name: "デーモン",     hp: 70, atk: 26, def: 10, exp: 110, speed: 2,   tile: 58, kind: "undead",   baseKind: "daemon",        monLevel: 1, minFloor: 27, maxFloor: 50, maxAttacks: 3, float: true, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
     levels: [
-      { name: "強デーモン",         hp: 173, atk: 71, def: 19, exp: 256 },
-      { name: "魔王",               hp: 270, atk: 90, def: 24, exp: 400 },
+      { name: "アークデーモン",       hp: 140, atk: 40, def: 16, exp: 330 },
+      { name: "グレーターデーモン",   hp: 240, atk: 56, def: 22, exp: 1000 },
     ],
   },
   /* ===== 新型モンスター4種 ===== */
-  { name: "からめ鬼",    hp: 34,  atk: 14, def: 6,  exp: 42,  speed: 1,   tile: 108, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 6, max: 8 }, advanced: { min: 6, max: 13 } },
+  { name: "からめ鬼",    hp: 26,  atk: 13, def: 3,  exp: 26,  speed: 1,   tile: 108, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 6, max: 8 }, advanced: { min: 6, max: 13 } },
     levels: [
-      { name: "がんじがらめ鬼",     hp: 54,  atk: 22, def: 10, exp: 68,  dungeonFloors: { advanced: { min: 16, max: 19 } } },
-      { name: "こんがらマッチョ",   hp: 80,  atk: 30, def: 14, exp: 105, dungeonFloors: { advanced: { min: 20, max: 22 } } },
+      { name: "がんじがらめ鬼",     hp: 46,  atk: 21, def: 5, exp: 70,  dungeonFloors: { advanced: { min: 16, max: 19 } } },
+      { name: "こんがらマッチョ",   hp: 75,  atk: 29, def: 8, exp: 210, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "突進角獣",    hp: 62,  atk: 26, def: 8,  exp: 62,  speed: 1,   tile: 168, kind: "beast",    baseKind: "charger",       monLevel: 1, minFloor: 10, maxFloor: 35, subtype: "charger", dungeonFloors: { beginner: null, intermediate: { min: 9, max: 11 }, advanced: { min: 8, max: 18 } },
+  { name: "突進角獣",    hp: 28,  atk: 16, def: 2,  exp: 32,  speed: 1,   tile: 168, kind: "beast",    baseKind: "charger",       monLevel: 1, minFloor: 10, maxFloor: 35, subtype: "charger", dungeonFloors: { beginner: null, intermediate: { min: 9, max: 11 }, advanced: { min: 8, max: 18 } },
     levels: [
-      { name: "激突角獣",           hp: 99,  atk: 38, def: 12, exp: 99,  dungeonFloors: { advanced: { min: 23, max: 25 } } },
-      { name: "猪突角獣",           hp: 155, atk: 53, def: 16, exp: 155 },
+      { name: "激突角獣",           hp: 48,  atk: 30, def: 3, exp: 85,  dungeonFloors: { advanced: { min: 23, max: 25 } } },
+      { name: "猪突角獣",           hp: 75, atk: 48, def: 6, exp: 250 },
     ],
   },
-  { name: "ほっちもぺ",   hp: 68, atk: 24, def: 18, exp: 70, speed: 1,   tile: 169, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "reflector", dungeonFloors: { intermediate: { min: 13, max: 15 }, advanced: { min: 9, max: 18 } },
+  { name: "ほっちもぺ",   hp: 28, atk: 14, def: 4, exp: 40, speed: 1,   tile: 169, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "reflector", dungeonFloors: { intermediate: { min: 13, max: 15 }, advanced: { min: 9, max: 18 } },
     levels: [
-      { name: "ほっちんもっぺ",     hp: 109, atk: 35, def: 24, exp: 112, dungeonFloors: { advanced: { min: 22, max: 26 } } },
-      { name: "モチチモチ？",       hp: 170, atk: 46, def: 31, exp: 175 },
+      { name: "ほっちんもっぺ",     hp: 52, atk: 22, def: 7, exp: 90, dungeonFloors: { advanced: { min: 22, max: 26 } } },
+      { name: "モチチモチ？",       hp: 82, atk: 30, def: 11, exp: 260 },
     ],
   },
-  { name: "かわしモグラ", hp: 68, atk: 28, def: 7, exp: 65, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 16, maxFloor: 27, subtype: "dodgemole", dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
+  { name: "かわしモグラ", hp: 25, atk: 14, def: 2, exp: 38, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 16, maxFloor: 27, subtype: "dodgemole", dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
     desc: "通常の投擲物・矢・杖の光弾・魔法・巻物の効果・矢罠・水鉄砲を潜ってかわす。直線型のLv1ブレスもかわすが、Lv2以降の追尾型ブレスは当たる。爆風は当たる。",
     levels: [
-      { name: "ひょいひょいモグラ", hp: 135, atk: 42, def: 15, exp: 165, minFloor: 30, maxFloor: 38, dungeonFloors: { advanced: { min: 30, max: 30 } } },
-      { name: "ディグダグダグダ", hp: 210, atk: 58, def: 21, exp: 260, minFloor: 41, maxFloor: 50, dungeonFloors: { advanced: null } },
+      { name: "ひょいひょいモグラ", hp: 46, atk: 22, def: 4, exp: 85, minFloor: 30, maxFloor: 38, dungeonFloors: { advanced: { min: 30, max: 30 } } },
+      { name: "ディグダグダグダ", hp: 74, atk: 30, def: 7, exp: 240, minFloor: 41, maxFloor: 50, dungeonFloors: { advanced: null } },
     ],
   },
-  { name: "ハンマーオーガ", hp: 75, atk: 36, def: 9,  exp: 80,  speed: 1,   tile: 116, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 23 } },
+  { name: "ハンマーオーガ", hp: 55, atk: 20, def: 5,  exp: 65,  speed: 1,   tile: 116, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 17, max: 19 }, advanced: { min: 12, max: 23 } },
     levels: [
-      { name: "ボンバーオーガ",     hp: 120, atk: 52, def: 13, exp: 128, dungeonFloors: { advanced: { min: 26, max: 28 } } },
-      { name: "オーガキング",       hp: 188, atk: 67, def: 17, exp: 200 },
+      { name: "ボンバーオーガ",     hp: 110, atk: 32, def: 9, exp: 160, dungeonFloors: { advanced: { min: 26, max: 28 } } },
+      { name: "オーガキング",       hp: 190, atk: 46, def: 14, exp: 450 },
     ],
   },
-  { name: "ミラーマン",   hp: 38,  atk: 19, def: 8,  exp: 75,  speed: 1,   tile: 166, kind: "humanoid", baseKind: "magicreflector", monLevel: 1, minFloor: 13, maxFloor: 50, subtype: "magicreflect", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 12, max: 22 } },
+  { name: "ミラーマン",   hp: 32,  atk: 15, def: 5,  exp: 45,  speed: 1,   tile: 166, kind: "humanoid", baseKind: "magicreflector", monLevel: 1, minFloor: 13, maxFloor: 50, subtype: "magicreflect", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 12, max: 22 } },
     levels: [
-      { name: "全反射マン",         hp: 61,  atk: 26, def: 13, exp: 120 },
-      { name: "ペルセウスマン",     hp: 95,  atk: 35, def: 18, exp: 188 },
+      { name: "全反射マン",         hp: 58,  atk: 24, def: 8, exp: 100 },
+      { name: "ペルセウスマン",     hp: 90,  atk: 34, def: 12, exp: 280 },
     ],
   },
-  { name: "薬師",         hp: 22,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
+  { name: "薬師",         hp: 24,  atk: 11, def: 2,  exp: 30,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 6,  maxFloor: 50, subtype: "potionthrow", desc: "薬瓶を8〜12本持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 8 }, advanced: { min: 8, max: 18 } },
     levels: [
-      { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
-      { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
+      { name: "ポーションメーカー", hp: 44,  atk: 18, def: 4,  exp: 75  },
+      { name: "ポーションマスター", hp: 72,  atk: 26, def: 7, exp: 220 },
     ],
   },
-  { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 180, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
+  { name: "ロキソ忍",       hp: 26,  atk: 12, def: 3,  exp: 35,  speed: 1,   tile: 230, kind: "humanoid", baseKind: "potionhealer", monLevel: 1, minFloor: 8, maxFloor: 50, subtype: "potionhealer", desc: "HPの減った味方へ回復薬を投げる。8〜12本を持ち、投げるたびに1本消費する。残薬があると撃破時5%でランダムな薬を1個落とす。Lv2は大回復薬、Lv3は超回復薬。", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 8, max: 10 } },
     levels: [
-      { name: "バーサーカー2",      hp: 90,  atk: 40, def: 13, exp: 104, dungeonFloors: { advanced: { min: 26, max: 27 } } },
-      { name: "バーサーカー99",     hp: 145, atk: 58, def: 20, exp: 166, dungeonFloors: { advanced: { min: 28, max: 29 } } },
+      { name: "セロト忍", hp: 48,  atk: 20, def: 5,  exp: 85, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 22, max: 24 } } },
+      { name: "アルギ忍", hp: 76,  atk: 28, def: 8,  exp: 240, dungeonFloors: { intermediate: { min: 28, max: 30 } } },
     ],
   },
-  { name: "ルカチュウ", hp: 35, atk: 18, def: 4,  exp: 58,  speed: 1,   tile: 160, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true, dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
+  { name: "バーサーカー", hp: 45,  atk: 22, def: 4,  exp: 65,  speed: 1,   tile: 180, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
     levels: [
-      { name: "ナンチュウ",       hp: 56,  atk: 25, def: 7,  exp: 92,  dungeonFloors: { advanced: { min: 25, max: 27 } } },
-      { name: "ラプラス",         hp: 88,  atk: 36, def: 11, exp: 148 },
+      { name: "バーサーカー2",      hp: 85,  atk: 34, def: 7, exp: 110, dungeonFloors: { advanced: { min: 26, max: 27 } } },
+      { name: "バーサーカー99",     hp: 145, atk: 52, def: 12, exp: 220, dungeonFloors: { advanced: { min: 28, max: 29 } } },
     ],
   },
-  { name: "ガーディアン",  hp: 48,  atk: 16, def: 14, exp: 70,  speed: 1,   tile: 155, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
-  { name: "氷竜",         hp: 65,  atk: 32, def: 10, exp: 125, speed: 1,   tile: 162, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { intermediate: null, advanced: { min: 21, max: 30 } },
+  { name: "ルカチュウ", hp: 36, atk: 22, def: 3,  exp: 70,  speed: 1,   tile: 160, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true, dungeonFloors: { intermediate: null, advanced: { min: 11, max: 21 } },
     levels: [
-      { name: "ブルードラゴン",             hp: 105, atk: 44, def: 16, exp: 200 },
-      { name: "ブルードラゴン 天界の七竜", hp: 168, atk: 58, def: 22, exp: 320 },
+      { name: "ナンチュウ",       hp: 65,  atk: 36, def: 5,  exp: 180,  dungeonFloors: { advanced: { min: 25, max: 27 } } },
+      { name: "ラプラス",         hp: 105,  atk: 52, def: 8, exp: 450 },
     ],
   },
-  { name: "わてり",       hp: 40,  atk: 19, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 12, max: 22 } },
+  { name: "ガーディアン",  hp: 60,  atk: 18, def: 14, exp: 120,  speed: 1,   tile: 155, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
+  { name: "氷竜",         hp: 80,  atk: 26, def: 14, exp: 135, speed: 1,   tile: 162, kind: "dragon",   baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { intermediate: null, advanced: { min: 21, max: 30 } },
     levels: [
-      { name: "わてに",             hp: 64,  atk: 29, def: 10, exp: 77  },
-      { name: "わてさん",           hp: 100, atk: 38, def: 14, exp: 120 },
+      { name: "ブルードラゴン",             hp: 150, atk: 40, def: 20, exp: 400 },
+      { name: "ブルードラゴン 天界の七竜", hp: 260, atk: 56, def: 28, exp: 1300 },
     ],
   },
-  { name: "まずい魚",     hp: 18,  atk: 9,  def: 2,  exp: 14, speed: 1,   tile: 172, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 15, waterOnly: true, floodedOnly: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 5 }, advanced: { min: 2, max: 5 }, legend: { min: 2, max: 5 } },
+  { name: "わてり",       hp: 22,  atk: 11, def: 2,  exp: 26,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 12, max: 22 } },
     levels: [
-      { name: "マグナムフィッシュ", hp: 42, atk: 21, def: 6, exp: 52, dungeonFloors: { intermediate: { min: 6, max: 10 }, advanced: { min: 6, max: 10 }, legend: { min: 6, max: 10 } } },
-      { name: "かせきうお",       hp: 72, atk: 34, def: 10, exp: 105, dungeonFloors: { intermediate: { min: 11, max: 15 }, advanced: { min: 11, max: 15 }, legend: { min: 11, max: 15 } } },
+      { name: "わてに",             hp: 42,  atk: 18, def: 4, exp: 65  },
+      { name: "わてさん",           hp: 72, atk: 26, def: 7, exp: 200 },
     ],
   },
-  { name: "水中花",       hp: 42,  atk: 22, def: 5,  exp: 55, speed: 1,   tile: 217, kind: "beast",    baseKind: "waterFlower",   monLevel: 1, minFloor: 15, maxFloor: 35, waterOnly: true, stationary: true, subtype: "waterFlower", desc: "水中にのみ出現し、移動しない。同じ部屋にいると誘導弾を射ってくる。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 13, max: 24 } },
+  { name: "まずい魚",     hp: 20,  atk: 12,  def: 2,  exp: 24, speed: 1,   tile: 223, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 15, waterOnly: true, floodedOnly: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 5 }, advanced: { min: 2, max: 5 }, legend: { min: 2, max: 5 } },
     levels: [
-      { name: "水中サボテン", hp: 70,  atk: 31, def: 9,  exp: 95  },
-      { name: "水中巾着",   hp: 112, atk: 43, def: 14, exp: 155 },
+      { name: "古い魚",       hp: 40, atk: 20, def: 4, exp: 60, dungeonFloors: { intermediate: { min: 6, max: 10 }, advanced: { min: 6, max: 10 }, legend: { min: 6, max: 10 } } },
+      { name: "かせきうお",       hp: 68, atk: 28, def: 6, exp: 180, dungeonFloors: { intermediate: { min: 11, max: 15 }, advanced: { min: 11, max: 15 }, legend: { min: 11, max: 15 } } },
     ],
   },
-  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 28 } },
+  { name: "水中花",       hp: 25,  atk: 12, def: 3,  exp: 35, speed: 1,   tile: 217, kind: "beast",    baseKind: "waterFlower",   monLevel: 1, minFloor: 15, maxFloor: 35, elemWeak: "thunder", waterOnly: true, stationary: true, subtype: "waterFlower", desc: "水中にのみ出現し、移動しない。同じ部屋にいると誘導弾を射ってくる。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 13, max: 24 } },
     levels: [
-      { name: "大王ウナギ",       hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
-      { name: "深海大王ウナギ",   hp: 207, atk: 54, def: 17, exp: 232, dungeonFloors: { advanced: { min: 37, max: 50 } } },
+      { name: "水中サボテン", hp: 50,  atk: 20, def: 5,  exp: 80  },
+      { name: "水中巾着",   hp: 85, atk: 30, def: 8, exp: 240 },
     ],
   },
-  { name: "うみのあくま", hp: 78,  atk: 18, def: 7,  exp: 105, speed: 1,   tile: 222, kind: "beast",    baseKind: "seaDevil",   monLevel: 1, minFloor: 29, maxFloor: 50, maxAttacks: 3, waterOnly: true, subtype: "seaDevil", desc: "水中にのみ出現・移動し、隣接時は1回の行動で3回攻撃する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 25, max: 34 } },
+  { name: "お化け柳", hp: 120, atk: 28, def: 10, exp: 180, speed: 1, tile: 225, kind: "beast", baseKind: "hauntedWillow", monLevel: 1, minFloor: 20, maxFloor: 50, stationary: true, forcedMoveImmune: true, bodySize: 2, elemWeak: "fire", subtype: "hauntedWillow", desc: "2×2マスを占め、その場から動かない。強制移動を受けず、同じ部屋に烈風を吹かせ、隣接者へ枝払いを行う。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 18, max: 29 } },
     levels: [
-      { name: "ゲルショッカー", hp: 126, atk: 27, def: 11, exp: 175, dungeonFloors: { advanced: { min: 35, max: 42 } } },
-      { name: "アンキケン",     hp: 201, atk: 39, def: 16, exp: 270, dungeonFloors: { advanced: { min: 43, max: 50 } } },
+      { name: "大お化け柳", hp: 220, atk: 42, def: 16, exp: 500, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 29 } } },
+      { name: "怨霊の古柳", hp: 350, atk: 58, def: 22, exp: 1400, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
+    ],
+  },
+  { name: "眠れる獅子", hp: 140, atk: 40, def: 14, exp: 280, speed: 1, tile: 231, kind: "beast", baseKind: "sleepingLion", monLevel: 1, minFloor: 18, maxFloor: 50, bodySize: 2, subtype: "sleepingLion", meteorDamage: 80, meteorImmune: true, meteorInterval: 4, desc: "2×2マスの獅子。出現時は必ず眠っており、視界に入ったり隣接しただけでは起きない。攻撃や魔法など何かを受けると目覚める。目覚めると25%でキングベヒんもスと同じメテオを詠唱する。", dungeonFloors: { beginner: null, intermediate: null, advanced: { min: 21, max: 24 }, legend: { min: 26, max: 50 } },
+    levels: [
+      { name: "眠れる大獅子", hp: 250, atk: 58, def: 20, exp: 850, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } } },
+      { name: "眠れる赤獅子", hp: 380, atk: 78, def: 28, exp: 4200, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 50 } } },
+    ],
+  },
+  { name: "巨大ウナギ",   hp: 35,  atk: 18, def: 4,  exp: 55,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, elemWeak: "thunder", waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 28 } },
+    levels: [
+      { name: "大王ウナギ",       hp: 70, atk: 28, def: 7, exp: 120, dungeonFloors: { advanced: { min: 29, max: 36 } } },
+      { name: "深海大王ウナギ",   hp: 125, atk: 42, def: 12, exp: 350, dungeonFloors: { advanced: { min: 37, max: 50 } } },
+    ],
+  },
+  { name: "うみのあくま", hp: 40,  atk: 20, def: 5,  exp: 65, speed: 1,   tile: 222, kind: "beast",    baseKind: "seaDevil",   monLevel: 1, minFloor: 29, maxFloor: 50, elemWeak: "thunder", maxAttacks: 3, waterOnly: true, subtype: "seaDevil", desc: "水中にのみ出現・移動し、隣接時は1回の行動で3回攻撃する。", dungeonFloors: { beginner: null, intermediate: { min: 18, max: 20 }, advanced: { min: 25, max: 34 } },
+    levels: [
+      { name: "ゲルショッカー", hp: 80, atk: 32, def: 9, exp: 150, dungeonFloors: { advanced: { min: 35, max: 42 } } },
+      { name: "アンキケン",     hp: 145, atk: 46, def: 14, exp: 450, dungeonFloors: { advanced: { min: 43, max: 50 } } },
     ],
   },
   /* ===== 視界操作モンスター ===== */
-  { name: "スターライト", hp: 55,  atk: 26, def: 8,  exp: 80,  speed: 1,   tile: 165, kind: "beast",   baseKind: "starlight",     monLevel: 1, minFloor: 15, maxFloor: 50, float: true, flightOnly: true, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
+  { name: "スターライト", hp: 36,  atk: 16, def: 4,  exp: 50,  speed: 1,   tile: 165, kind: "beast",   baseKind: "starlight",     monLevel: 1, minFloor: 15, maxFloor: 50, float: true, flightOnly: true, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
     desc: "同じ部屋にいるだけで周囲を明るく照らし続ける光の精霊。",
     levels: [
-      { name: "スターライトⅡ",     hp: 88,  atk: 38, def: 12, exp: 128 },
-      { name: "スターライトⅢ",     hp: 138, atk: 50, def: 17, exp: 200 },
+      { name: "スターライトⅡ",     hp: 68,  atk: 25, def: 7, exp: 120 },
+      { name: "スターライトⅢ",     hp: 110, atk: 36, def: 10, exp: 350 },
     ],
   },
-  { name: "ダークネス",   hp: 65,  atk: 30, def: 10, exp: 95,  speed: 1,   tile: 152, kind: "beast",   baseKind: "darkness",      monLevel: 1, minFloor: 20, maxFloor: 50, float: true, flightOnly: true, dungeonFloors: { intermediate: null, advanced: { min: 21, max: 30 } },
+  { name: "ダークネス",   hp: 40,  atk: 18, def: 5, exp: 60,  speed: 1,   tile: 152, kind: "beast",   baseKind: "darkness",      monLevel: 1, minFloor: 20, maxFloor: 50, float: true, flightOnly: true, dungeonFloors: { intermediate: null, advanced: { min: 21, max: 30 } },
     desc: "同じ部屋にいると周囲の光を喰らい、プレイヤーの視界を1マスに狭める闇の精霊。",
     levels: [
-      { name: "ダークネスⅡ",       hp: 104, atk: 43, def: 15, exp: 152 },
-      { name: "ダークネスⅢ",       hp: 163, atk: 56, def: 21, exp: 238 },
+      { name: "ダークネスⅡ",       hp: 75, atk: 28, def: 8, exp: 150 },
+      { name: "ダークネスⅢ",       hp: 120, atk: 40, def: 12, exp: 420 },
     ],
   },
   /* ===== タトゥーバード：回避+フェザーガード+痛恨の一撃 ===== */
-  { name: "タトゥーバード", hp: 28,  atk: 12, def: 3,  exp: 42,  speed: 1,   tile: 112, kind: "beast",   baseKind: "tattoobird",    monLevel: 1, minFloor: 10, maxFloor: 30, float: true, subtype: "tattoobird", dungeonFloors: { beginner: null, intermediate: { min: 9, max: 11 }, advanced: { min: 8, max: 16 } },
+  { name: "タトゥーバード", hp: 22,  atk: 13, def: 2,  exp: 28,  speed: 1,   tile: 112, kind: "beast",   baseKind: "tattoobird",    monLevel: 1, minFloor: 10, maxFloor: 30, float: true, subtype: "tattoobird", dungeonFloors: { beginner: null, intermediate: { min: 9, max: 11 }, advanced: { min: 8, max: 16 } },
     desc: "浮遊する鳥。近接攻撃を50%の確率でひらりとかわし、当たっても50%でフェザーガードが発動しダメージを半減。自身の攻撃は25%で痛恨の一撃。",
     levels: [
-      { name: "スカーバード",   hp: 52,  atk: 21, def: 7,  exp: 78,  dungeonFloors: { intermediate: { min: 13, max: 14 }, advanced: { min: 14, max: 22 } } },
-      { name: "クレストバード", hp: 85,  atk: 30, def: 13, exp: 135, speed: 2,  dungeonFloors: { advanced: { min: 22, max: 28 } } },
+      { name: "スカーバード",   hp: 42,  atk: 21, def: 4,  exp: 68,  dungeonFloors: { intermediate: { min: 13, max: 14 }, advanced: { min: 14, max: 22 } } },
+      { name: "クレストバード", hp: 68,  atk: 30, def: 7, exp: 200, speed: 2,  dungeonFloors: { advanced: { min: 22, max: 28 } } },
     ],
   },
   /* ===== ラクガキ魔：同部屋で自分の足元に魔方陣を描く ===== */
-  { name: "ラクガキ魔",   hp: 18,  atk: 7,  def: 2,  exp: 28,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 6,  maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 7, max: 10 }, advanced: { min: 8, max: 15 } },
+  { name: "ラクガキ魔",   hp: 24,  atk: 11,  def: 2,  exp: 28,  speed: 1,   tile: 111, kind: "undead",   baseKind: "rakugakima",    monLevel: 1, minFloor: 6,  maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 7, max: 10 }, advanced: { min: 8, max: 15 } },
     desc: "同じ部屋にいると自分の足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
     levels: [
-      { name: "ラクガキ妖精",       hp: 42,  atk: 17, def: 7,  exp: 70,  dungeonFloors: { intermediate: { min: 11, max: 12 }, advanced: { min: 15, max: 22 } } },
-      { name: "ラクガキバンシー",   hp: 68,  atk: 25, def: 12, exp: 118, dungeonFloors: { advanced: { min: 22, max: 28 } } },
+      { name: "ラクガキ妖精",       hp: 44,  atk: 17, def: 4,  exp: 70,  dungeonFloors: { intermediate: { min: 11, max: 12 }, advanced: { min: 15, max: 22 } } },
+      { name: "ラクガキバンシー",   hp: 70,  atk: 25, def: 7, exp: 200, dungeonFloors: { advanced: { min: 22, max: 28 } } },
     ],
   },
   /* ===== ものまね師：隣接キャラの特技を模倣 ===== */
-  { name: "ものまね師",   hp: 34,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 167, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 17 }, advanced: { min: 12, max: 24 } },
+  { name: "ものまね師",   hp: 28,  atk: 14, def: 3,  exp: 35,  speed: 1,   tile: 248, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 17 }, advanced: { min: 12, max: 24 } },
     desc: "隣の敵の特技をまねてくる。隣接しているとき高確率で特技を使う。",
     levels: [
-      { name: "ものまね名優",     hp: 55,  atk: 24, def: 9,  exp: 115, dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 16, max: 26 } } },
-      { name: "ものまね帝王",     hp: 88,  atk: 32, def: 14, exp: 175, dungeonFloors: { advanced: { min: 22, max: 30 } } },
+      { name: "ものまね名優",     hp: 50,  atk: 22, def: 5,  exp: 85, dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 16, max: 26 } } },
+      { name: "ものまね帝王",     hp: 80,  atk: 30, def: 8, exp: 250, dungeonFloors: { advanced: { min: 22, max: 30 } } },
     ],
   },
-  { name: "スネークマン", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 13, maxFloor: 17, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 18 }, advanced: { min: 13, max: 17 } },
+  { name: "スネークマン", hp: 45, atk: 20, def: 6, exp: 60, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 13, maxFloor: 17, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 18 }, advanced: { min: 13, max: 17 } },
     desc: "水上・水中を移動する。プレイヤーを視界に捉えると25%でロックアーマーを使い、自分か隣接する敵の防御力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
     levels: [
-      { name: "リザードマン", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: null, advanced: { min: 20, max: 24 } } },
-      { name: "とかげせんし", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
+      { name: "リザードマン", hp: 88, atk: 32, def: 10, exp: 150, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: null, advanced: { min: 20, max: 24 } } },
+      { name: "とかげせんし", hp: 150, atk: 46, def: 15, exp: 420, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
     ],
   },
-  { name: "竜騎士", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 13, maxFloor: 17, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 17, max: 19 }, advanced: { min: 13, max: 17 } },
+  { name: "竜騎士", hp: 50, atk: 22, def: 7, exp: 70, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 13, maxFloor: 17, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 17, max: 19 }, advanced: { min: 13, max: 17 } },
     desc: "浮遊する竜騎士。プレイヤーを視界に捉えると25%でダイヤモンドウエポンを使い、自分か隣接する敵の攻撃力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん強くなる。強化解除の巻物や封印で解除される。",
     levels: [
-      { name: "竜騎士04", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: null, advanced: { min: 20, max: 24 } } },
-      { name: "Mikan", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
+      { name: "竜騎士04", hp: 95, atk: 34, def: 11, exp: 170, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: null, advanced: { min: 20, max: 24 } } },
+      { name: "Mikan", hp: 160, atk: 48, def: 16, exp: 480, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
+    ],
+  },
+  { name: "ドクキノコ",   hp: 18,  atk: 9, def: 2,  exp: 18,  speed: 1,   tile: 238, kind: "beast", baseKind: "mushroom",       monLevel: 1, minFloor: 6, maxFloor: 50, elemWeak: "fire", subtype: "sporeCounter",
+    desc: "植物・菌類の魔物。直接攻撃や矢・石などの物理攻撃を受けると、周囲1マスに無差別に毒胞子を撒き散らす。炎が弱点。",
+    dungeonFloors: { beginner: { min: 6, max: 8 }, intermediate: { min: 4, max: 7 }, advanced: { min: 6, max: 8 } },
+    levels: [
+      { name: "ネムリキノコ", hp: 35,  atk: 16, def: 4,  exp: 52,  tile: 239, dungeonFloors: { intermediate: { min: 14, max: 17 }, advanced: { min: 14, max: 16 } } },
+      { name: "マダラキノコ", hp: 60,  atk: 24, def: 6, exp: 175, tile: 240, dungeonFloors: { advanced: { min: 24, max: 27 } } },
+    ],
+  },
+  { name: "マッチョドラゴン", hp: 90,  atk: 30, def: 10,  exp: 150,  speed: 1,   tile: 241, kind: "dragon",   baseKind: "machodragon",   monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "ice", desc: "鍛え抜かれた肉体で戦う筋肉派ドラゴン。特技なし。氷弱点。", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 17, max: 19 } },
+    levels: [
+      { name: "筋肉竜",       hp: 170, atk: 46, def: 16, exp: 450, tile: 242, dungeonFloors: { advanced: { min: 26, max: 28 } } },
+      { name: "筋骨隆々竜",   hp: 300, atk: 65, def: 22, exp: 1500, tile: 243 },
+    ],
+  },
+  { name: "マナイーター", hp: 28,  atk: 13, def: 3,  exp: 34,  speed: 1,   tile: 244, kind: "undead",   baseKind: "manaEater",   subtype: "manaEater", monLevel: 1, minFloor: 7, maxFloor: 50, elemWeak: "fire", desc: "プレイヤーのMPを吸い取って回復する不死者。炎弱点。", dungeonFloors: { beginner: null, intermediate: { min: 7, max: 9 }, advanced: { min: 8, max: 10 } },
+    levels: [
+      { name: "マナドレイナー", hp: 50,  atk: 20, def: 5, exp: 80,  tile: 245, dungeonFloors: { advanced: { min: 18, max: 20 } } },
+      { name: "マナヴォイド",   hp: 80, atk: 28, def: 8, exp: 240, tile: 246 },
     ],
   },
 ];
@@ -1205,6 +1548,16 @@ function levelTemplateSpeed(mon, template, level) {
   if (mon.baseKind === "gelcube" && level === 3) return 1;
   const baseTemplate = MONS.find(m => m.baseKind === mon.baseKind && m.monLevel === 1);
   return template?.speed ?? baseTemplate?.speed ?? mon.speed ?? 1;
+}
+
+function syncMonsterProjectileAmmoForLevel(mon) {
+  if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype) || !mon.projectileAmmo) return;
+  const remaining = Math.max(0, Number(mon.projectileAmmo.count) || 0);
+  const refreshed = createMonsterProjectileAmmo(mon);
+  if (refreshed) {
+    refreshed.count = remaining;
+    mon.projectileAmmo = refreshed;
+  }
 }
 
 /** モンスターのレベルを1上げ、次形態に変化させる。変化した場合 true を返す */
@@ -1234,6 +1587,9 @@ export function monLevelUp(mon, dg, ml) {
   const oldName = mon.name;
   const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
   const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
+  delete mon.overBoost;
+  delete mon._baseAtk;
+  delete mon._baseExp;
   mon.name   = template.name;
   mon.atk    = template.atk + diamondWeaponBonus;
   mon.def    = template.def + armorBreathBonus;
@@ -1245,6 +1601,7 @@ export function monLevelUp(mon, dg, ml) {
   mon.baseSpeed = mon.speed;
   if (template.tile !== undefined) mon.tile = template.tile;
   if (template.barrier !== undefined) mon.barrier = template.barrier;
+  syncMonsterProjectileAmmoForLevel(mon);
   if (mon.baseKind === "gelcube" && nextLevel === 3) {
     ml.push(`${oldName}がレベルアップして${mon.name}になった！動きが等速になった！`);
   } else if (mon.baseKind === "tattoobird" && nextLevel === 3) {
@@ -1274,6 +1631,9 @@ export function monLevelDown(mon, dg, ml) {
   const oldName = mon.name;
   const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
   const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
+  delete mon.overBoost;
+  delete mon._baseAtk;
+  delete mon._baseExp;
   mon.name   = template.name;
   mon.atk    = template.atk + diamondWeaponBonus;
   mon.def    = template.def + armorBreathBonus;
@@ -1284,6 +1644,9 @@ export function monLevelDown(mon, dg, ml) {
   mon.speed = levelTemplateSpeed(mon, template, prevLevel);
   mon.baseSpeed = mon.speed;
   if (template.tile !== undefined) mon.tile = template.tile;
+  if (template.barrier !== undefined) mon.barrier = template.barrier;
+  else delete mon.barrier;
+  syncMonsterProjectileAmmoForLevel(mon);
   ml.push(`${oldName}がレベルダウンして${mon.name}になった！`);
   return true;
 }
@@ -1344,6 +1707,124 @@ export const BOSSES = [
     isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
 ];
 
+/* 上級20階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔神王は維持する。 */
+export const KING_BEHINMOS = {
+  name: "キングベヒんもス", hp: 950, atk: 74, def: 42, exp: 5500,
+  speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
+  isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, bodySize: 3,
+  meteorDamage: 148, meteorImmune: true, meteorInterval: 4,
+  desc: "3×3マスの巨体。状態異常を受けると、同じ状態異常に10ターン耐性を得る。視認できるプレイヤーが体から8マス以内にいて詠唱制限がなければ、50%でメテオを詠唱する。HPが半分以上なら赤い予兆の3×3マスへ2ターン後、半分未満なら1ターン後に防御力で軽減される隕石（使用者の攻撃力の2倍）を落とす。隣接時は25%で本体の外側1マスの輪に半威力のダストストームを放ち、暗闇にする。",
+};
+
+/* 上級5階専用ボス。通常ボス一覧を置換しないため、他のダンジョンのフリージアは維持する。 */
+export const BATTERING_RAM = {
+  name: "バタリングラム", hp: 360, atk: 36, def: 20, exp: 1000,
+  speed: 1, tile: 250, kind: "beast", baseKind: "boss_batteringram",
+  isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 1, bodySize: 2,
+  elemWeak: "fire",
+  desc: "2×2マスの巨大な羊のボス。炎弱点。隣接時に25%でラムチャージ（通常ダメージ+吹き飛ばし）、25%でペトロブレス（前方2マスに攻撃予約し、次ターンに敵味方無差別に4ターン石化させるブレス）を放つ。",
+};
+
+export const CHIRANIKUTSUNNOKU = {
+  name: "ちらにくつんのく", hp: 720, atk: 58, def: 34, exp: 3000,
+  speed: 1, tile: 251, kind: "insect", baseKind: "boss_chiranikuttsunnoku",
+  isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
+  elemWeak: "thunder",
+  desc: "2×2マスの巨大なサソリのボス。雷弱点。隣接時に10%でデスシザース（2倍打撃）、10%でアースブレイカー（周囲1マス無差別攻撃+転倒、浮遊無効）、直線遠距離で50%でベノムスティング（猛毒針投擲、命中80%）、視界内にプレイヤーがいる時10%でシャープストライク（10ターン攻撃力1.5倍）を繰り出す。",
+};
+
+export const TAISAIJIN = {
+  name: "タイサイジン", hp: 520, atk: 30, def: 26, exp: 2000,
+  speed: 1, tile: 252, kind: "beast", baseKind: "boss_taisaijin",
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 2,
+  elemWeak: "fire",
+  desc: "縦長の体躯にたくさんの目がついたスライム系のボス。通常攻撃が2回攻撃。炎弱点。遠距離直線上に25%で催眠術、視界内にプレイヤーがいる時10%でブレイズスパイク（炎まとい状態）、10%でリフレシュ（20ターンの間毎ターン5HP回復）を唱える。",
+};
+
+/* 上級25階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔将軍は維持する。 */
+export const OHPLENTY = {
+  name: "オープレンティ", hp: 1100, atk: 86, def: 50, exp: 9000,
+  speed: 2, tile: 253, kind: "material", baseKind: "boss_ohplenty",
+  isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1,
+  desc: "宝箱の姿をしたモンスター。2倍速・1回行動。遠距離直線上の最初の生物を50%で隣接マスへ引き寄せる。壁が進路を塞ぐと壁の手前まで飛びつく。隣接時は25%でカスワック（周囲1マス予告・1ターン後発動、通常対象50ターン・ボス25ターンの状態付与、重複で即死）、25%でデストラップ（周囲1マス無差別攻撃+金縛り）を繰り出す。状態防止中はカスワックを防げる。",
+};
+
+/* 上級30階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔王は維持する。 */
+export const MIREU = {
+  name: "ミレウ", hp: 1400, atk: 105, def: 60, exp: 14000,
+  speed: 1, tile: 254, kind: "dragon", baseKind: "boss_mireu",
+  isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, bodySize: 3,
+  meteorDamage: 210, meteorImmune: true, meteorInterval: 4,
+  desc: "3×3マスの巨大な青い龍のボス。必中でない攻撃を50%で回避する。遠距離直線上のプレイヤー（体の端マスと直線なら撃ち返し可能）に50%でハイパーサーミックブレス（防御力無視の固定70ダメージ炎ブレス、耐性でのみ軽減）、隣接時は25%でスパイクフレイル（周囲1マス無差別に3倍ダメージ+テレポート効果）、視界内にプレイヤーがいる時は10%でメテオ（3×3マスに使用者の攻撃力の2倍の威力を持つ隕石）、10%でアブソルートテラー（鈍足+移動封じ）を放つ。",
+};
+
+/* 超上級15階専用ボス。鋼鉄の巨体で物理攻撃と爆発に耐え、属性攻撃で崩す。 */
+export const KORGON_BOSS = {
+  name: "鋼鉄竜「コルゴン」", hp: 820, atk: 62, def: 42, exp: 4200,
+  speed: 1, tile: 259, kind: "dragon", baseKind: "boss_korgon",
+  isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
+  fixedDamageOnly: true, fireImmune: true, explosionImmune: true,
+  elemWeak: "ice", elemWeak2: "thunder",
+  desc: "超上級B15Fの2×2マスの鋼鉄竜。水晶スライムと同じく物理攻撃のダメージは最大1。炎と爆発を無効化し、氷と雷に弱い。視界内でプレイヤーと直線上に並ぶと50%で炎ブレスを吐く。",
+};
+
+const GWEN_DIALOGUE_CHANCE = 0.25;
+export const GWEN_IDLE_DIALOGUE_LINES = Object.freeze([
+  "この花の冠はお母さんに編んでもらったの",
+  "赤って好きな色なの～",
+  "ざっつあぷりちーふらわー",
+  "るるる♪",
+  "あー…かわいいお花！",
+  "サンドラさんの赤いケープほしい…",
+]);
+export const GWEN_DEATH_LINES = Object.freeze(["どうして、そんなことするの？"]);
+export const GWEN_VETERAN_IDLE_DIALOGUE_LINES = Object.freeze([
+  "今日の鍛錬、まだ日課の半分だよ！",
+  "盾はみんなを守るためにあるんだよ！",
+  "怖くても、一歩ずつ前へ！",
+  "剣の手入れは毎晩欠かさないよ！",
+  "お母さんの教え、ちゃんと覚えてるよ！",
+  "あと素振り千回……え、今は戦闘中？",
+]);
+export const GWEN_VETERAN_DEATH_LINES = Object.freeze([
+  "守るって決めたのに……ごめんなさい……",
+  "まだ……鍛錬が足りなかったんだ……",
+]);
+
+export const GWEN_BOSS = {
+  name: "無邪気な少女「グウェン」", hp: 150, atk: 0, def: 16, exp: 500,
+  speed: 1, tile: 255, kind: "humanoid", baseKind: "boss_gwen",
+  isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 0,
+  dialogueLines: GWEN_IDLE_DIALOGUE_LINES, deathLines: GWEN_DEATH_LINES,
+  desc: "超上級B5Fのボス。プレイヤーへ近づくが攻撃はしない。ゾンビ・分裂スライム・ワッカを初期取り巻きに持つ。生存中にプレイヤーの視界内で4ターン行動するごとに、B10F相当のゾンビ・分裂スライム・ワッカから1体、25%で2体を隣接する空き床へ呼び出す。呼び出された敵は出現したターンには行動しない。毒胞子で味方を巻き込むキノコは召喚対象外。視界外では召喚間隔が進まない。",
+};
+
+export const GWEN_VETERAN_BOSS = {
+  name: "勤勉で勇敢な少女「グウェン」", hp: 900, atk: 73, def: 41, exp: 5000,
+  speed: 1, tile: 256, kind: "humanoid", baseKind: "boss_gwen_veteran", subtype: "gwen_veteran",
+  isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, gwenWandCharges: 6,
+  dialogueLines: GWEN_VETERAN_IDLE_DIALOGUE_LINES, deathLines: GWEN_VETERAN_DEATH_LINES,
+  desc: "超上級B20Fのボス。通常攻撃に加え、B5Fと同じ4ターンごとの召喚を行う。呼び出された敵は出現したターンには行動しない。視界内の直線上へ50%で貫きの矢（12本）、50%で鈍足・混乱・眠り・暗闇の杖を振る（4種の杖を合計6回まで）。隣接時も20%で杖を使う。",
+};
+
+export const FLOCK_BOSS = {
+  name: "自称・深淵の大魔導士「フロック」", hp: 380, atk: 42, def: 24, exp: 1400,
+  speed: 1, tile: 257, kind: "humanoid", baseKind: "boss_flock", subtype: "flockBoss",
+  isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1, float: true, mp: 720, maxMp: 720, deathLines: FLOCK_DEATH_LINES,
+  desc: "超上級B10Fの浮遊ボス。最大MP720。眼帯をしたゴスロリの女性。3マス以上の距離を保ち、距離3〜10の直線上では近づかず炎（着弾点で爆発）・氷・毒・呪いを唱える。これらの直線魔法の射程外にプレイヤーが見えている場合は20%で召喚魔法（MP20）を唱え、B10F通常敵候補から重み付きで1体を隣接する空き床へ召喚する。召喚された敵は出現ターンには行動せず、次のプレイヤー行動から動く。召喚場所がない場合はMPを消費しない。射線がない時は壁を避けて3〜10マスの射線を作れる位置へ積極的に動く。隣接するとテレポートし、退避先が塞がれていると距離3以内でも直線魔法で反撃する。視界内では魔法を唱えない時も30%で厨二病的な独り言を言う。",
+};
+
+export const FLOCK_REVENGE_BOSS = {
+  name: "逆襲のフロック", hp: 1280, atk: 88, def: 56, exp: 11000,
+  speed: 1, tile: 258, kind: "humanoid", baseKind: "boss_flock_revenge", subtype: "flockRevengeBoss",
+  isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, float: true,
+  mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 2,
+  deathLines: FLOCK_REVENGE_DEATH_LINES,
+  desc: "超上級B25Fの浮遊ボス。最大MP1800。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。雷は反射の鎧／魔法反射状態に跳ね返される。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
+
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
   /* B5F (depth=4) 直線炎ブレス */
@@ -1379,16 +1860,40 @@ export function makeGuard(x, y, plx, ply) {
  * スポーンレベル (1〜3) を返す共通ロジック。
  * progress = (floor - minFloor) / range で lv2/lv3 の確率が上がる。
  */
-export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false, poolFloor = null } = {}) {
+function pickWeightedMonster(candidates, weightFor) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  const weighted = candidates.map((candidate) => ({
+    candidate,
+    weight: Math.max(0, Number(weightFor(candidate)) || 0),
+  }));
+  const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+  if (total <= 0) return pick(candidates);
+  let roll = Math.random() * total;
+  for (const entry of weighted) {
+    roll -= entry.weight;
+    if (roll < 0) return entry.candidate;
+  }
+  return weighted.at(-1)?.candidate ?? pick(candidates);
+}
+
+export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false, excludeLarge = false, poolFloor = null, existingMonsters = [] } = {}) {
   const floor = poolFloor != null ? poolFloor : depth + 1;
   const eligible = MONS.filter(m => {
     if (m.penaltyOnly) return false;
     if (excludeWaterOnly && m.waterOnly) return false;
     if (excludeItemMimic && m.baseKind === "itemMimic") return false;
+    if (excludeLarge && (m.bodySize || 1) > 1) return false;
     return isMonsterDefAllowedAtFloor(m, floor, dungeonType);
   });
-  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (!excludeItemMimic || m.baseKind !== "itemMimic"));
-  const base = eligible.length > 0 ? pick(eligible) : (fallback[0] ?? MONS[0]);
+  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (!excludeItemMimic || m.baseKind !== "itemMimic") && (!excludeLarge || (m.bodySize || 1) <= 1));
+  const base = eligible.length > 0
+    ? dungeonType === "legend"
+      ? pickWeightedMonster(eligible, (monster) => (
+        legendMonsterSpawnWeight(monster.baseKind, floor) *
+        legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+      ))
+      : pick(eligible)
+    : (fallback[0] ?? MONS[0]);
 
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
      高レベルから順にチェックし、最初に条件を満たしたレベルを採用する */
@@ -1471,11 +1976,16 @@ export function isMonsterDefAvailableAt(base, depth, dungeonType = null, { poolF
 }
 
 /** 水場に置く水棲限定敵を、通常湧きと同じ階別プールから抽選する。 */
-export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor = null } = {}) {
+export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor = null, existingMonsters = [] } = {}) {
   const floor = poolFloor != null ? poolFloor : depth + 1;
   const eligible = MONS.filter((m) => m.waterOnly && isMonsterDefAllowedAtFloor(m, floor, dungeonType));
   if (!eligible.length) return null;
-  const base = pick(eligible);
+  const base = dungeonType === "legend"
+    ? pickWeightedMonster(eligible, (monster) => (
+      legendMonsterSpawnWeight(monster.baseKind, floor) *
+      legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+    ))
+    : pick(eligible);
   return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType) };
 }
 
@@ -1483,7 +1993,7 @@ export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor =
  * 水浸し特殊フロア用。通常フロアの出現帯とは別に、水棲敵を階層相応で必ず供給する。
  * 初心者は水浸しフロア自体を通常抽選から除外するため、ここでも候補を返さない。
  */
-export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloor = null } = {}) {
+export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloor = null, existingMonsters = [] } = {}) {
   const floor = poolFloor != null ? poolFloor : depth + 1;
   if (dungeonType === "beginner" || dungeonType === "tutorial") return null;
   const candidates = MONS.filter((m) => {
@@ -1507,14 +2017,24 @@ export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloo
     ? [...regular, ...inBaseRange.filter((m) => !regular.includes(m))]
     : [];
   if (regularWithNeighbors.length > 0) {
-    const base = pick(regularWithNeighbors);
+    const base = dungeonType === "legend"
+      ? pickWeightedMonster(regularWithNeighbors, (monster) => (
+        legendMonsterSpawnWeight(monster.baseKind, floor) *
+        legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+      ))
+      : pick(regularWithNeighbors);
     return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
   }
 
   /* 浅層など通常プールが空の階は、基礎出現帯が最も近い水棲敵を選ぶ。 */
   const nearestDistance = Math.min(...candidates.map(distanceToBaseRange));
   const nearest = candidates.filter((m) => distanceToBaseRange(m) === nearestDistance);
-  const base = pick(nearest);
+  const base = dungeonType === "legend"
+    ? pickWeightedMonster(nearest, (monster) => (
+      legendMonsterSpawnWeight(monster.baseKind, floor) *
+      legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+    ))
+    : pick(nearest);
   return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
 }
 
@@ -1526,7 +2046,7 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
   const floor = poolFloor != null ? poolFloor : depth + 1;
   const targetLevel = Math.max(1, Math.min(3, (sourceLevel || 1) + levelOffset));
   const eligible = MONS.filter(m => {
-    if (m.penaltyOnly || m.floodedOnly) return false;
+    if (m.penaltyOnly || m.floodedOnly || (m.bodySize || 1) > 1) return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     if (dungeonType === "advanced") return advancedMonsterAllowed(m.baseKind, floor);
     if (dungeonType === "legend") return legendMonsterAllowed(m.baseKind, floor);
@@ -1544,10 +2064,57 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
     }) ?? false;
   });
   const compatible = eligible.filter(m => targetLevel === 1 || m.levels?.[targetLevel - 2]);
-  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly);
+  const fallback = MONS.filter(m => !m.penaltyOnly && !m.floodedOnly && (m.bodySize || 1) <= 1);
   const base = pick(compatible.length > 0 ? compatible : eligible.length > 0 ? eligible : fallback.length > 0 ? fallback : MONS);
   const availableLevel = Math.min(targetLevel, (base.levels?.length || 0) + 1);
   return buildMonStats(base, availableLevel);
+}
+
+const TRANSFORM_DEFINITION_KEYS = new Set(MONS.flatMap(base =>
+  [base, ...(base.levels || [])].flatMap(definition => Object.keys(definition))
+));
+
+/** 定義にない元の固有特性を消し、座標・時計・状態異常など個体情報は保つ。 */
+export function applyMonsterTransformation(target, definition, _dungeon = null, _player = null) {
+  if (!definition || monsterBodySize(definition) > 1) return false;
+  if (!("bodySize" in definition)) delete target.bodySize;
+  for (const key of TRANSFORM_DEFINITION_KEYS) {
+    if (!(key in definition)) delete target[key];
+  }
+  delete target.disguisedAsItem;
+  delete target.disguiseItemId;
+  delete target.disguiseTile;
+  delete target.disguiseName;
+  delete target.armorBreathBuffs;
+  delete target.armorBreathBuffAmount;
+  delete target.diamondWeaponBuffs;
+  delete target.diamondWeaponBuffAmount;
+  delete target.overBoost;
+  delete target._baseAtk;
+  delete target._baseExp;
+  delete target._gelBoost;
+  delete target._gelBaseAtk;
+  delete target.atkBuffed;
+  Object.assign(target, definition, {
+    maxHp: definition.hp, baseSpeed: definition.speed ?? 1, turnAccum: 0,
+  });
+  if (target.subtype === "itemMimic") target.disguisedAsItem = false;
+  if (_dungeon) ensureItemMimicFloorItems(_dungeon);
+  if (_player && _player.capturedBy === target.id && target.subtype !== "grabber" && target.subtype !== "giantEel") {
+    _player.capturedBy = null;
+  }
+  const ammo = createMonsterProjectileAmmo(target);
+  if (ammo) target.projectileAmmo = ammo;
+  else delete target.projectileAmmo;
+  if (target.subtype === "windAura" || target.baseKind === "sylph") {
+    delete target.windDx;
+    delete target.windDy;
+    ensureMonsterWindDir(target);
+  } else {
+    delete target.windDx;
+    delete target.windDy;
+  }
+  return true;
 }
 
 /** depth/spawnLevel からモンスターのステータスオブジェクトを作る */
@@ -1590,12 +2157,7 @@ function clearStealthrowerHeldItem(m, item) {
 /* 所持品から弾き出すアイテムが装備中なら、装備参照も同時に解除する。 */
 function detachPlayerEquipment(pl, item) {
   if (!pl || !item) return;
-  if (pl.weapon === item) pl.weapon = null;
-  if (pl.armor === item) pl.armor = null;
-  if (pl.arrow === item) pl.arrow = null;
-  if (Array.isArray(pl.rings) && pl.rings.includes(item)) {
-    pl.rings = pl.rings.filter(ring => ring !== item);
-  }
+  unequipPlayerItem(pl, item);
 }
 
 function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯電毛玉を押し付けてきた！`) {
@@ -1607,12 +2169,146 @@ function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯
   return true;
 }
 
-const MONSTER_PROJECTILE_SUBTYPES = new Set(["archer", "stonethrow"]);
+function potRaiderTargets(player) {
+  return (player?.inventory || []).filter((item) =>
+    item?.type === "pot" && imprisonPotRemainingCapacity(item) > 0,
+  );
+}
 
-/* 矢・石を投げる敵は、生成時に8〜12個の弾薬スタックを持つ。 */
+const POT_RAIDER_HERMIT_CRAB_BASE = Object.freeze({
+  name: "ヤドカリ", hp: 14, atk: 8, def: 2, exp: 8, speed: 1,
+  tile: 235, kind: "beast", baseKind: "hermitCrab", monLevel: 1, elemWeak: "thunder", subtype: "hermitCrab",
+});
+
+function makePotRaiderHermitCrab(mon, player) {
+  return makeMonsterFromBase(POT_RAIDER_HERMIT_CRAB_BASE, 1, mon.x, mon.y, {
+    aware: true,
+    lastPx: player?.x ?? mon.x,
+    lastPy: player?.y ?? mon.y,
+  });
+}
+
+function fireCookTargets(player) {
+  const equipped = new Set([
+    player?.weapon,
+    player?.armor,
+    player?.arrow,
+    ...(player?.rings || []),
+  ].filter(Boolean));
+  return (player?.inventory || []).filter(item =>
+    item && item.type !== "gold" && item.type !== "goal" && !equipped.has(item));
+}
+
+function makeRandomBurntFood() {
+  const food = genFood();
+  if (!food.cooked) {
+    food.value = Math.max(1, Math.floor(food.value * 2));
+    cookFoodMeta(food);
+    food.name = `焼いた${food.name}`;
+  }
+  burnFoodItem(food, []);
+  food.id = uid();
+  return food;
+}
+
+function useFireCookAbility(mon, dungeon, player, messages, luFn) {
+  const targets = fireCookTargets(player);
+  if (targets.length === 0) return false;
+  const target = pick(targets);
+  const originalIndex = player.inventory.indexOf(target);
+  if (originalIndex < 0) return false;
+  const targetName = target.name || "道具";
+
+  if (target.type === "food" && target.yabai) {
+    target.name = target.name?.startsWith("ヤバイ")
+      ? `焦げた${target.name.slice("ヤバイ".length)}`
+      : `焦げた${target.name || "料理"}`;
+    delete target.rotten;
+    delete target.yabai;
+    target.burnt = true;
+    target.tile = 66;
+    target.desc = "焦げた料理。食べると満腹度が回復する。";
+    trackItem(target);
+    mon.turnAttacks++;
+    messages.push(`${mon.name}が${targetName}を焦がし直し、焦げた料理に変えた！`);
+    return true;
+  }
+
+  if (target.type === "food" && target.burnt) {
+    burnFoodItem(target, []);
+    trackItem(target);
+    mon.turnAttacks++;
+    messages.push(`${mon.name}が${targetName}をさらに焦がし、ヤバイ料理に変えた！`);
+    return true;
+  }
+
+  if (target.type === "pot" && potOccupancyCount(target) > 0) {
+    scatterPotContents(target, dungeon, player.x, player.y, player, messages, luFn, null, { killerMon: mon });
+    target.contents = [];
+    target.confinedMonsters = [];
+  }
+
+  const food = makeRandomBurntFood();
+  const currentIndex = player.inventory.indexOf(target);
+  if (currentIndex >= 0) player.inventory[currentIndex] = food;
+  else player.inventory.splice(Math.min(originalIndex, player.inventory.length), 0, food);
+  trackItem(food);
+  mon.turnAttacks++;
+  messages.push(`${mon.name}が${targetName}を料理し、${food.name}に変えてしまった！`);
+  return true;
+}
+
+function consumeFailedMonsterSpecial(mon, messages, message) {
+  if (mon.turnAttacks < monEffectiveMaxAttacks(mon)) mon.turnAttacks++;
+  messages.push(`${mon.name}${message}`);
+}
+
+function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
+  const targets = potRaiderTargets(player);
+  if (targets.length === 0) return false;
+  const pot = pick(targets);
+  mon.turnAttacks++;
+  const crab = makePotRaiderHermitCrab(mon, player);
+  if (!Array.isArray(dungeon.monsters)) dungeon.monsters = [];
+  dungeon.monsters.push(crab);
+
+  if (pot.potEffect === "boil") {
+    pot.capacity = Math.max(0, (pot.capacity ?? 3) - 1);
+    messages.push(`${mon.name}がヤドカリを加熱の壺に押し込んだ！熱で焼けた！`);
+    crab.hp = 0;
+    killMonster(crab, dungeon, player, messages, luFn);
+    return true;
+  }
+
+  if (potConsumesInsertedContent(pot)) {
+    pot.capacity = Math.max(0, (pot.capacity ?? 3) - 1);
+    if (pot.potEffect === "wish_pot") {
+      const potIdx = player.inventory.indexOf(pot);
+      if (potIdx >= 0) player.inventory.splice(potIdx, 1);
+    }
+    messages.push(`${mon.name}がヤドカリを壺に押し込んだ！`);
+    crab.hp = 0;
+    killMonster(crab, dungeon, player, messages, luFn);
+    return true;
+  }
+
+  if (!Array.isArray(pot.confinedMonsters)) pot.confinedMonsters = [];
+  pot.confinedMonsters.push(JSON.parse(JSON.stringify(crab)));
+  dungeon.monsters = dungeon.monsters.filter((entry) => entry !== crab);
+  messages.push(`${mon.name}がヤドカリを壺に押し込んだ！`);
+  return true;
+}
+
+const MONSTER_PROJECTILE_SUBTYPES = new Set(["archer", "stonethrow", "potionthrow", "potionhealer", "gwen_veteran"]);
+
+/* 飛び道具を使う敵は、生成時に8〜12回分の弾薬を持つ。 */
 function createMonsterProjectileAmmo(mon) {
   if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return null;
+  if (mon.subtype === "gwen_veteran") return makePiercingArrow(12);
   const count = rng(8, 12);
+  if (mon.subtype === "potionthrow" || mon.subtype === "potionhealer") {
+    return { type: "potion", count };
+  }
   if (mon.subtype === "archer") {
     const level = mon.monLevel || 1;
     return level >= 3 ? makePiercingArrow(count) : level >= 2 ? makeStrongArrow(count) : makeArrow(count);
@@ -1633,23 +2329,40 @@ export function hasMonsterProjectileAmmo(mon) {
   return !mon.projectileAmmo || (Number(mon.projectileAmmo.count) || 0) > 0;
 }
 
+function consumeMonsterProjectileAmmo(mon) {
+  if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return true;
+  const ammo = ensureMonsterProjectileAmmo(mon);
+  if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
+  ammo.count--;
+  return true;
+}
+
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
-export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, poolFloor = null } = {}) {
-  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { poolFloor });
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, excludeLarge = false, poolFloor = null, existingMonsters = [] } = {}) {
+  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { excludeLarge, poolFloor, existingMonsters });
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
+  const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
+    ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
+    ...(st.subtype === "sleepingLion" ? { dormant: true, _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
 
 /** 指定のベース定義・レベルでモンスターを生成する（固定取り巻き用） */
-export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false } = {}) {
+export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false, windDx = null, windDy = null } = {}) {
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
-  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+  const isSleepingLion = st.subtype === "sleepingLion";
+  const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({ windDx, windDy }) : null;
+  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant: isSleepingLion || dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
+    ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
+    ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
@@ -1660,7 +2373,7 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
   let mx = statue.x, my = statue.y;
   const blocked = (x, y) =>
     (p && p.x === x && p.y === y) ||
-    (dg.monsters || []).some((m) => m.x === x && m.y === y) ||
+    (dg.monsters || []).some((m) => monsterOccupiesCell(m, x, y)) ||
     dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL;
   if (blocked(mx, my)) {
     for (const [ox, oy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
@@ -1676,7 +2389,9 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
   }
   try {
     const _poolFloor = resolveRuntimeSpawnPoolFloor(dg, d + 1);
-    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false, { poolFloor: _poolFloor });
+    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false, {
+      excludeLarge: true, poolFloor: _poolFloor, existingMonsters: dg.monsters,
+    });
     const boosted = Math.min(3, (spawnLevel || 1) + 1);
     const mon = makeMonsterFromBase(base, boosted, mx, my, {
       aware: true,
@@ -1701,8 +2416,8 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
   for (const [dy, dx] of DIRS8) {
     if (spawned >= count) break;
     const nx = centerX + dx, ny = centerY + dy;
-    if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => m.x === nx && m.y === ny) && (!p || nx !== p.x || ny !== p.y)) {
-      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
+    if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, nx, ny)) && (!p || nx !== p.x || ny !== p.y)) {
+      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor, existingMonsters: dg.monsters }));
       spawned++;
     }
   }
@@ -1713,8 +2428,8 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
       const room = dg.rooms[rng(0, dg.rooms.length - 1)];
       const sx = rng(room.x + 1, room.x + room.w - 2);
       const sy = rng(room.y + 1, room.y + room.h - 2);
-      if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => m.x === sx && m.y === sy) && (!p || sx !== p.x || sy !== p.y)) {
-        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, poolFloor: _poolFloor }));
+      if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => monsterOccupiesCell(m, sx, sy)) && (!p || sx !== p.x || sy !== p.y)) {
+        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null, excludeLarge: true, poolFloor: _poolFloor, existingMonsters: dg.monsters }));
         spawned++;
         break;
       }
@@ -1748,12 +2463,65 @@ export function hasLOS(map, x0, y0, x1, y1) {
   }
 }
 
+function isOpaqueMonsterSightTile(dg, x, y) {
+  if (!inBounds(x, y)) return true;
+  const tile = dg?.map?.[y]?.[x];
+  return tile === T.WALL || tile === T.BWALL;
+}
+
+function giantLineOfSight(dg, x0, y0, x1, y1) {
+  if (isOpaqueMonsterSightTile(dg, x0, y0) || isOpaqueMonsterSightTile(dg, x1, y1)) return false;
+  let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy, cx = x0, cy = y0;
+  while (cx !== x1 || cy !== y1) {
+    const e2 = 2 * err;
+    let moveX = false, moveY = false;
+    if (e2 > -dy) { err -= dy; moveX = true; }
+    if (e2 < dx) { err += dx; moveY = true; }
+    if (moveX && moveY &&
+        isOpaqueMonsterSightTile(dg, cx + sx, cy) &&
+        isOpaqueMonsterSightTile(dg, cx, cy + sy)) return false;
+    if (moveX) cx += sx;
+    if (moveY) cy += sy;
+    if (isOpaqueMonsterSightTile(dg, cx, cy)) return false;
+  }
+  return true;
+}
+
+/** 巨大敵の露出した体マスから対象へ、壁を挟まず視線が通るか調べる。 */
+export function monsterBodyHasLineOfSight(monster, dungeon, x, y) {
+  if (monsterBodySize(monster) <= 1) return true;
+  if (isOpaqueMonsterSightTile(dungeon, x, y)) return false;
+  return monsterBodyCells(monster).some(cell =>
+    !isOpaqueMonsterSightTile(dungeon, cell.x, cell.y) &&
+    giantLineOfSight(dungeon, cell.x, cell.y, x, y)
+  );
+}
+
+/** 巨大敵は体との距離だけでなく、壁のない露出マスから届く場合だけ干渉できる。壁抜け中は壁を無視する。 */
+export function monsterCanInteractAtRange(monster, dungeon, x, y, maxDistance = 1, ignoreWalls = false) {
+  if (monsterPointDistance(monster, x, y) > maxDistance) return false;
+  if (monsterBodySize(monster) <= 1) return true;
+  if (ignoreWalls) {
+    return monsterBodyCells(monster).some(cell =>
+      Math.max(Math.abs(cell.x - x), Math.abs(cell.y - y)) <= maxDistance
+    );
+  }
+  if (isOpaqueMonsterSightTile(dungeon, x, y)) return false;
+  return monsterBodyCells(monster).some(cell =>
+    !isOpaqueMonsterSightTile(dungeon, cell.x, cell.y) &&
+    Math.max(Math.abs(cell.x - x), Math.abs(cell.y - y)) <= maxDistance &&
+    giantLineOfSight(dungeon, cell.x, cell.y, x, y)
+  );
+}
+
 /* ===== BFS PATHFINDING ===== */
 export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null, fallbackNearest = false, rooms = null, dg = null) {
   if (sx === tx && sy === ty) return null;
   /* モンスター位置と聖域位置をSetに変換 (O(1)ルックアップ) */
   const monSet = new Set();
-  for (const m of mons) { if (m !== self) monSet.add(m.x + m.y * MW); }
+  for (const m of mons) { if (m !== self) for (const cell of monsterBodyCells(m)) monSet.add(cell.x + cell.y * MW); }
   const _noSanct = rooms ? inMagicSealRoom({ pentacles: pentacles || [], rooms }, sx, sy) : false;
   const sanctSet = new Set();
   if (pentacles && !_noSanct) for (const pc of pentacles) { if (pc.kind === "sanctuary") sanctSet.add(pc.x + pc.y * MW); }
@@ -1806,13 +2574,13 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
 
 export function findRoom(rooms, x, y) {
   return (
-    rooms.find((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) ||
+    rooms?.find((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) ||
     null
   );
 }
 
 function chebyshevDistance(a, b) {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  return monsterDistance(a, b);
 }
 
 function livePlayerClone(dg) {
@@ -1922,7 +2690,7 @@ const MERCHANT_PATROL_DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 function merchantTargetIsFree(x, y, m, dg, pl) {
   if (!canEnter(dg.map, x, y, false, dg)) return false;
   if (pl && pl.x === x && pl.y === y) return false;
-  if (dg.monsters?.some((other) => other !== m && other.x === x && other.y === y)) return false;
+  if (!canPlaceMonsterBody(dg, m, x, y, pl)) return false;
   if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some((pc) => pc.kind === "sanctuary" && pc.x === x && pc.y === y)) return false;
   return true;
 }
@@ -2000,9 +2768,13 @@ export function chooseMerchantPatrolTarget(m, dg, pl) {
 /** 行商人専用の4方向BFS。斜め抜けを許さず、部屋と廊下を自然に歩かせる。 */
 function merchantBfsNext(m, dg, pl, target) {
   if (!target || (m.x === target.x && m.y === target.y)) return null;
-  const occupied = new Set((dg.monsters || [])
-    .filter((other) => other !== m)
-    .map((other) => other.x + other.y * MW));
+  const occupied = new Set();
+  for (const other of (dg.monsters || [])) {
+    if (other === m || other.disguisedAsItem) continue;
+    for (const cell of monsterBodyCells(other)) {
+      occupied.add(cell.x + cell.y * MW);
+    }
+  }
   const queue = [{ x: m.x, y: m.y, first: null }];
   const visited = new Set([m.x + m.y * MW]);
   let head = 0;
@@ -2046,6 +2818,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
   const map = dg.map;
   const rooms = dg.rooms || [];
   const mons = dg.monsters || [];
+  const isLargeSelf = monsterBodySize(m) > 1;
   const clone = livePlayerClone(dg);
   const threatDist2 = (x, y) => {
     const _playerDist = (x - pl.x) * (x - pl.x) + (y - pl.y) * (y - pl.y);
@@ -2064,6 +2837,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     if (clone && x === clone.x && y === clone.y) return false;
     if (avoidAdjacent && isThreatAdjacent(x, y)) return false;
     if (avoidRecent && recent.has(x + y * MW)) return false;
+    if (isLargeSelf && !canPlaceMonsterBody(dg, m, x, y, pl)) return false;
     return canEnter(map, x, y, float, dg, waterWalker);
   };
 
@@ -2077,7 +2851,8 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     if (next.x === pl.x && next.y === pl.y) return null;
     if (mode.avoidAdjacent && isThreatAdjacent(next.x, next.y)) return null;
     if (mode.avoidRecent && recent.has(next.x + next.y * MW)) return null;
-    if (mons.some(o => o !== m && o.x === next.x && o.y === next.y)) return null;
+    if (mons.some(o => o !== m && !o.disguisedAsItem && monsterOccupiesCell(o, next.x, next.y))) return null;
+    if (isLargeSelf && !canPlaceMonsterBody(dg, m, next.x, next.y, pl)) return null;
     if (!canEnter(map, next.x, next.y, float, dg, waterWalker)) return null;
     return next;
   };
@@ -2122,7 +2897,8 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
     for (const [dx, dy] of localDirs) {
       const nx = m.x + dx, ny = m.y + dy;
       if (!canEnter(map, nx, ny, float, dg, waterWalker)) continue;
-      if (mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
+      if (mons.some(o => o !== m && !o.disguisedAsItem && monsterOccupiesCell(o, nx, ny))) continue;
+      if (isLargeSelf && !canPlaceMonsterBody(dg, m, nx, ny, pl)) continue;
       if (nx === pl.x && ny === pl.y) continue;
       if (clone && nx === clone.x && ny === clone.y) continue;
       if (mode.avoidAdjacent && isThreatAdjacent(nx, ny)) continue;
@@ -2210,7 +2986,6 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   const _arName = _isPierce ? "貫きの矢" : _isStrong ? "強矢" : "矢";
   const _arColor = _isPierce ? "#ff8844" : _isStrong ? "#ffcc44" : "#d0a050";
   const _arAtkBonus = _isPierce ? 5 : _isStrong ? 8 : 3;
-  const _maxDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
   /* 矢落下：pierceなら消滅、それ以外は地面/泉に落とす */
   const _dropAr = (px, py, mlx) => {
     if (_isPierce) return;
@@ -2219,7 +2994,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   };
   _resolveBolt(m, dg, pl, ml, null, {
     dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
-    baseRange: _maxDist,
+    baseRange: 10,
     animColor: _arColor,
     fireMsg: `${m.name}が${_arName}を放った！`,
     boltName: _arName,
@@ -2228,7 +3003,6 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
     hitChance: 0.80,
     applyVulnPentacle: true,
-    wakeParalyze: true,
     pierce: _isPierce,
     onMiss: (px, py, mlx) => {
       _dropAr(px, py, mlx);
@@ -2258,7 +3032,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     },
     onBigbox: (bb, lx, ly, mlx) => {
       mlx.push(`${m.name}の${_arName}が${bb.name}に当たった。`);
-      if (opts.bbFn) opts.bbFn(bb, _makeAr(), dg, mlx);
+      if (opts.bbFn) opts.bbFn(bb, _makeAr(), dg, mlx, { killerMon: m, sourceIsPlayer: false, fireTrapFn: opts.fireTrapFn });
       else dg.items.push({ ..._makeAr(), x: lx, y: ly });
     },
     onSpring: (spr, lx, ly, mlx) => {
@@ -2290,8 +3064,8 @@ function monsterThrowChargedFuzzball(m, dg, pl, ml, luFn) {
   });
 }
 
-/* ===== MONSTER STONE THROW (ワッカ) — ホーミング。風は本来の着弾点にあるときだけ曲がる ===== */
-function monsterThrowStone(m, dg, pl, ml) {
+/* ===== MONSTER STONE THROW (ワッカ) — 放物線で敵や床オブジェクトを越えるホーミング投げ ===== */
+function monsterThrowStone(m, dg, pl, ml, opts = {}) {
   const ammo = ensureMonsterProjectileAmmo(m);
   if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
   ammo.count--;
@@ -2305,33 +3079,55 @@ function monsterThrowStone(m, dg, pl, ml) {
   const windAtAim = getWindAt(dg, aimX, aimY);
   ml.push(`${m.name}が${stoneName}を投げた！`);
 
+  const dropMissedStoneAtPlayer = () => {
+    const x = pl.x, y = pl.y;
+    const stone = dropStone();
+    /* 直撃を免れた石は足元へ落とし、そこにある床効果へ渡す。 */
+    if (dg.traps?.some(t => t.x === x && t.y === y)) {
+      placeItemAt(dg, x, y, stone, ml, new Set(), 0, pl, x, y);
+      return;
+    }
+    const spring = dg.springs?.find(s => s.x === x && s.y === y);
+    if (spring) {
+      soakItemIntoSpring(spring, { ...stone, x, y }, ml, dg, null);
+      return;
+    }
+    const bigbox = dg.bigboxes?.find(b => b.x === x && b.y === y);
+    if (bigbox) {
+      if (opts.bbFn) {
+        opts.bbFn(bigbox, stone, dg, ml, { killerMon: m, sourceIsPlayer: false });
+      } else {
+        (bigbox.contents ||= []).push(stone);
+        ml.push(`${stoneName}が${bigbox.name || "大箱"}に入った。`);
+      }
+      return;
+    }
+    placeItemAt(dg, x, y, stone, ml, new Set(), 0, pl, x, y);
+  };
+
   const _hitPlayer = () => {
     const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
     if (_stDodgePcMode === "dodge") {
       ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       return;
     }
     const _stSanc = !inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
     if (_stSanc) {
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
       return;
     }
     const dodged = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
     if (dodged) {
       ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       return;
     }
     const miss = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && Math.random() >= hitChance;
     if (miss) {
       ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
-      const _sd = safeArrowDrop(pl.x, pl.y, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      dropMissedStoneAtPlayer();
       return;
     }
     const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -2344,7 +3140,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     pl.hp -= dmg;
     ml.push(`${m.name}の${stoneName}が命中！${playerHpEffectLabel(pl, dmg)}！`);
     interruptPlayerSleep(pl, ml);
-    if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+    weakenOrClearParalysis(pl, ml);
   };
 
   let fdx = Math.sign(pl.x - m.x), fdy = Math.sign(pl.y - m.y);
@@ -2354,6 +3150,20 @@ function monsterThrowStone(m, dg, pl, ml) {
   let windMsg = false;
   const path = [{ x: m.x, y: m.y }];
   const maxSteps = MW + MH;
+  const pushStoneArcAnim = (toX = lx, toY = ly) => {
+    if (path.length <= 1) return;
+    pushAnim({
+      type: "monProjectile",
+      fromX: m.x,
+      fromY: m.y,
+      toX,
+      toY,
+      color,
+      path: [...path],
+      flightArc: true,
+      flightArcHeight: 0.9,
+    });
+  };
 
   for (let d = 1; d <= maxSteps; d++) {
     if (!deflected) {
@@ -2363,9 +3173,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       if (fdx === 0 && fdy === 0) {
         /* 同一マス＝既に重なっている扱いで命中処理 */
         _hitPlayer();
-        if (path.length > 1) {
-          pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: cx, toY: cy, color, path });
-        }
+        pushStoneArcAnim(cx, cy);
         return;
       }
     }
@@ -2374,9 +3182,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       const _sd = safeArrowDrop(lx, ly, dg);
       _monDropWithSpring(_sd, dropStone(), dg, ml);
       ml.push(`${stoneName}は壁に当たって落ちた。`);
-      if (path.length > 1) {
-        pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: lx, toY: ly, color, path });
-      }
+      pushStoneArcAnim(lx, ly);
       return;
     }
     cx = tx; cy = ty; lx = tx; ly = ty;
@@ -2389,30 +3195,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       m.hp -= dmg;
       ml.push(`風に煽られた${stoneName}が${m.name}自身に当たった！${dmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, m);
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
-      return;
-    }
-
-    /* 石像 */
-    if (statueAt(dg, tx, ty)) {
-      ml.push(`${m.name}の${stoneName}が石像に命中！`);
-      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, {
-        breaks: true,
-        itemDeps: getFixtureItemDeps(),
-      });
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
-      return;
-    }
-
-    /* 他モンスター */
-    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
-    if (hitMon) {
-      const _stBonus = isMagic ? 5 : 3;
-      const dmg = calcAtkDefDmg(m.atk + _stBonus, hitMon.def || 0, { defWeight: 1 });
-      hitMon.hp -= dmg;
-      ml.push(`${m.name}の${stoneName}が${hitMon.name}に命中！${dmg}ダメージ！`);
-      if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, null, false, m);
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
+      pushStoneArcAnim(tx, ty);
       return;
     }
 
@@ -2426,7 +3209,7 @@ function monsterThrowStone(m, dg, pl, ml) {
         /* プレイヤーが着弾点にいれば風より先に命中 */
         if (tx === pl.x && ty === pl.y) {
           _hitPlayer();
-          pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
+          pushStoneArcAnim(tx, ty);
           return;
         }
         continue;
@@ -2436,7 +3219,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     /* プレイヤー命中（ホーミング中／偏向後） */
     if (tx === pl.x && ty === pl.y) {
       _hitPlayer();
-      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
+      pushStoneArcAnim(tx, ty);
       return;
     }
 
@@ -2447,16 +3230,14 @@ function monsterThrowStone(m, dg, pl, ml) {
   const _sd = safeArrowDrop(lx, ly, dg);
   _monDropWithSpring(_sd, dropStone(), dg, ml);
   ml.push(`${stoneName}はどこかへ落ちた。`);
-  if (path.length > 1) {
-    pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: lx, toY: ly, color, path });
-  }
+  pushStoneArcAnim(lx, ly);
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
 function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
   const adx = pl.x - m.x, ady = pl.y - m.y;
   let dx = Math.sign(adx), dy = Math.sign(ady);
-  const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
+  const maxDist = 8;
   ml.push(`${m.name}が水鉄砲を撃った！`);
   pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff", { wind: true, range: maxDist });
   const miss = Math.random() < 0.20;
@@ -2466,9 +3247,10 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
     ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
     return;
   }
-  let _wgX = m.x, _wgY = m.y;
+  let _wgX = m.x, _wgY = m.y, _windMsg = false;
   for (let d = 1; d <= maxDist; d++) {
     const _st = stepProjectile(dg, _wgX, _wgY, dx, dy, { wind: true });
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が水鉄砲を曲げた！"); _windMsg = true; }
     dx = _st.dx; dy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _wgX = tx; _wgY = ty;
@@ -2489,8 +3271,8 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       dg.pentacles.splice(_wgPcIdx, 1);
       ml.push(`水鉄砲が${_wgPc.name}を消し去った！`);
     }
-    /* 途中のモンスターに当たった場合 */
-    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
+    /* 途中のモンスター（または風で戻った自分自身）に当たった場合 */
+    const hitMon = dg.monsters.find(o => (d > 1 || o !== m) && !o.disguisedAsItem && monsterOccupiesCell(o, tx, ty));
     if (hitMon) {
       if (monSubmergesProjectiles(hitMon)) {
         ml.push(`${hitMon.name}が潜って水鉄砲をかわした！`);
@@ -2508,6 +3290,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
         if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, luFn, false, m);
       }
+      if (hitMon.hp > 0) applySoakedStatusToMonster(hitMon, ml);
       return;
     }
     if (tx === pl.x && ty === pl.y) {
@@ -2522,7 +3305,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       pl.hp -= dmg;
       ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！`);
       interruptPlayerSleep(pl, ml);
-      if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      weakenOrClearParalysis(pl, ml);
       /* ずぶ濡れ＋所持品への水影響（耐水で無効） */
       if (!hasWaterProof(pl)) {
         applySoakedStatus(pl, ml);
@@ -2560,7 +3343,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   trap.revealed = true;
   trackTrap(trap);
   ml.push(`重力の力で${m.name}が${trap.name}を踏んだ！`);
-  fireTrapItem(
+  const result = fireTrapItem(
     trap,
     { name: "重力の力", type: "misc", x: m.x, y: m.y, _ephemeralTrapTrigger: true },
     dg,
@@ -2572,7 +3355,9 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
     it => it.name,
     luFn,
   );
-  maybeBreakTrapAfterStep(trap, dg, ml, { fromStep: true, p: pl });
+  if (result !== "already_activated" && result !== "time_stopped" && trap.effect !== "explode") {
+    maybeBreakTrapAfterStep(trap, dg, ml, { fromStep: true, p: pl });
+  }
 }
 
 /* ===== 直線飛翔の共通処理（物理弾道専用・魔法弾には使わない）=====
@@ -2583,9 +3368,10 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * hitChance: プレイヤー命中時の命中判定（モンスター射手用、1.0=必中、0.80=矢、0.80=水鉄砲 など）
  * onMiss(px, py, ml): 回避/不発/外れ時のコールバック（矢などの弾薬を地面に落とす処理）
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
- * wakeParalyze: 命中時に金縛りを解除するか
  * pierce: trueなら壁・敵・プレイヤー・大箱・泉を貫通して飛び続ける（farcastと同等の挙動）
  * reflectorRange: reflector反射時の最大飛距離（デフォルト20）
+ * onReflectedMonHit(mon, ml, x, y, reflector, dx, dy): 反射後の敵命中を専用処理へ渡す。
+ *   指定時は通常弾ダメージとonFlyOffを適用しない（薬・杖・壺などの共通投擲用）。
  * customPlHit(ml, isReflected, reflectorMon): プレイヤー命中時のカスタム処理。指定するとデフォルトの
  *   ダメージ計算・deathCause・メッセージ・sleep解除をスキップして全てカスタム実装に委ねる。
  *   壺投げで割れて中身散乱、杖の効果発動など、ダメージ以外の処理を行いたい場合に使う。
@@ -2619,6 +3405,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     calcMonDmg = (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
     onPlHit = null,
     onMonHit = null,
+    onReflectedMonHit = null,
     onMiss = null,
     onBigbox = null,
     onGacha = null,
@@ -2631,13 +3418,14 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onFlyOff = null,
     hitChance = 1.0,
     applyVulnPentacle = false,
-    wakeParalyze = false,
+    wind = true,
     pierce = false,
     isPlayerShooter = false,
     reflectorRange = 20,
     customPlHit = null,
     homingTarget = null,
     bypassDodgemole = false,
+    skipProjectileAnim = false,
   } = opts;
   /* 風穴で方向が変わるため let で保持（opts から分割代入した dx,dy） */
   dx = Math.sign(dx || 0);
@@ -2654,12 +3442,6 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   const maxRange = _isCursedFc ? 1 : _passthrough ? 50 : baseRange;
 
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-  /* モンスター射手のみ：プレイヤーがdodge魔方陣にいたら発射前に不発（仮想射手＝hp未定義は除外） */
-  if (!isPlayerShooter && m.hp != null && _dodgePcMode === "dodge") {
-    ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
-    if (onMiss) onMiss(pl.x, pl.y, ml);
-    return;
-  }
 
   if (fireMsg) ml.push(fireMsg);
   /* 魔法の石式ホーミング：壁や途中の対象を無視して指定敵へ直撃させる。 */
@@ -2671,20 +3453,22 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (onFlyOff) onFlyOff(m.x, m.y, ml);
       return;
     }
-    pushAnim({
-      type: isPlayerShooter ? "projectile" : "monProjectile",
-      fromX: m.x,
-      fromY: m.y,
-      toX: _homingMon.x,
-      toY: _homingMon.y,
-      color: animColor,
-    });
+    if (!skipProjectileAnim) {
+      pushAnim({
+        type: isPlayerShooter ? "projectile" : "monProjectile",
+        fromX: m.x,
+        fromY: m.y,
+        toX: _homingMon.x,
+        toY: _homingMon.y,
+        color: animColor,
+      });
+    }
     if (monSubmergesProjectiles(_homingMon) && !bypassDodgemole) {
       ml.push(`${_homingMon.name}が潜って${boltName}をかわした！`);
       return;
     }
     if (onMonHit) {
-      onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y);
+      onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y, _homingMon.x, _homingMon.y);
     } else {
       wakeIfDormant(_homingMon, ml);
       const _homingDmg = calcMonDmg(_homingMon);
@@ -2695,8 +3479,19 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     return;
   }
   /* 矢・石など物理弾：風で曲がる */
-  if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, true);
-  else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, true);
+  const animOpts = {
+    wind,
+    range: maxRange,
+    passThrough: _passthrough,
+    passThroughDodgemole: true,
+    stopAtBigbox: !!onBigbox,
+    stopAtSpring: !!onSpring,
+    stopAtGacha: !!onGacha,
+  };
+  if (!skipProjectileAnim) {
+    if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, animOpts);
+    else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, animOpts);
+  }
 
   let _plHit = false;
   let _lx = m.x, _ly = m.y;
@@ -2704,7 +3499,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   let _windAnnounced = false;
   for (let _d = 1; _d <= maxRange; _d++) {
     /* 風穴：現在マス／進入先で進行方向を上書きしてから1マス進む */
-    const _step = stepProjectile(dg, _cx, _cy, dx, dy);
+    const _step = stepProjectile(dg, _cx, _cy, dx, dy, { wind });
     if (_step.bent) {
       dx = _step.dx; dy = _step.dy;
       if (!_windAnnounced) { ml.push("風穴の風が飛び道具を曲げた！"); _windAnnounced = true; }
@@ -2753,6 +3548,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     if (_tx === pl.x && _ty === pl.y && !_plHit) {
       _plHit = true;
       if (isPlayerShooter) {
+        weakenOrClearParalysis(pl, ml);
         if (customPlHit) {
           customPlHit(ml, false, null);
         } else {
@@ -2764,9 +3560,21 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onPlHit) onPlHit(ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
+      // 本人への到達時だけ回避する。味方への投擲や途中の衝突は妨げない。
+      if (m.hp != null && _dodgePcMode === "dodge") {
+        ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
+        if (onMiss) onMiss(_tx, _ty, ml);
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
+        return;
+      }
       const _armDodge = _dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
       if (_armDodge) {
         ml.push(`${boltName}をひらりとかわした！`);
+        if (onMiss) onMiss(_tx, _ty, ml);
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
+      }
+      if (_dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+        ml.push(`オリーブオイルの力で${boltName}をするりとかわした！`);
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
@@ -2782,8 +3590,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       }
       if (customPlHit) {
         /* customPlHit: ダメージ・メッセージ・deathCauseを完全カスタム（壺投げで割れて中身散乱、杖で効果発動など） */
+        weakenOrClearParalysis(pl, ml);
         customPlHit(ml, false, null);
       } else {
+        weakenOrClearParalysis(pl, ml);
         let _dmg = calcPlDmg();
         if (applyVulnPentacle) {
           const _vp = findVulnPentacle(dg, pl.x, pl.y);
@@ -2793,15 +3603,19 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
         ml.push(`${_shooterPrefix}${boltName}が命中！${playerHpEffectLabel(pl, _dmg)}！`);
         interruptPlayerSleep(pl, ml);
-        if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       }
       if (onPlHit) onPlHit(ml);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
-    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
+    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && monsterOccupiesCell(mn, _tx, _ty) && mn !== m);
     if (_mon) {
       if (monSubmergesProjectiles(_mon)) {
         ml.push(`${_mon.name}が潜って${boltName}をかわした！`);
+        _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
+        continue;
+      }
+      if (checkMonsterEvasion(_mon, { baseMissRate: 0.05 })) {
+        ml.push(_mon.baseKind === "boss_mireu" ? `${_mon.name}は攻撃をかわした！` : `${_mon.name}への${boltName}は外れた！`);
         _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
         continue;
       }
@@ -2815,6 +3629,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           const _rtile = dg.map[_rny]?.[_rnx];
           if (_rtile === T.WALL || _rtile === T.BWALL) break;
           if (_rnx === pl.x && _rny === pl.y) {
+            weakenOrClearParalysis(pl, ml);
             if (customPlHit) {
               customPlHit(ml, true, _mon);
             } else {
@@ -2827,13 +3642,16 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
               ml.push(`跳ね返された${boltName}が${plName(pl)}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
               interruptPlayerSleep(pl, ml);
-              if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             }
             if (onPlHit) onPlHit(ml);
             return; /* プレイヤー命中時は弾消滅（onFlyOff呼ばない） */
           }
           /* 実体ある射手のみ反射弾の衝突対象。仮想射手（hp未定義）はその位置を素通り */
-          if (m.hp != null && _rnx === m.x && _rny === m.y) {
+          if (m.hp != null && monsterOccupiesCell(m, _rnx, _rny)) {
+            if (onReflectedMonHit) {
+              onReflectedMonHit(m, ml, _rnx, _rny, _mon, -dx, -dy);
+              return;
+            }
             const _rrdmg = calcMonDmg(m);
             m.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
@@ -2841,8 +3659,12 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
             _rrx = _rnx; _rry = _rny;
             break;
           }
-          const _rrMon = dg.monsters.find(o => o.x === _rnx && o.y === _rny && o !== m && o !== _mon);
+          const _rrMon = dg.monsters.find(o => monsterOccupiesCell(o, _rnx, _rny) && o !== m && o !== _mon);
           if (_rrMon) {
+            if (onReflectedMonHit) {
+              onReflectedMonHit(_rrMon, ml, _rnx, _rny, _mon, -dx, -dy);
+              return;
+            }
             wakeIfDormant(_rrMon, ml);
             const _rrdmg = calcMonDmg(_rrMon);
             _rrMon.hp -= _rrdmg;
@@ -2857,7 +3679,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onFlyOff) onFlyOff(_rrx, _rry, ml);
         return;
       }
-      if (onMonHit) { onMonHit(_mon, ml, _lx, _ly); }
+      if (onMonHit) { onMonHit(_mon, ml, _lx, _ly, _tx, _ty); }
       else {
         wakeIfDormant(_mon, ml);
         const _mdmg = calcMonDmg(_mon);
@@ -2932,6 +3754,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
  *   onBigbox(bb, mlx): 大箱命中時（任意）
  *   onItem(it, mlx): アイテム命中時（任意）
  *   onTrap(trap, mlx): 罠命中時（任意）
+ *   onImpact(kind, target, x, y, mlx): 衝突地点の独自効果（指定時は通常の対象効果を置き換える）
+ *   ignoreStatusProtection: ダメージ系魔法など、状態防止で直接ダメージを止めない時に指定
  *   itemNameFn(it): 表示名関数（任意、未指定なら .name）
  *   bbNameFn(bb): 大箱表示名関数（任意、未指定なら .name）
  */
@@ -2952,6 +3776,8 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     onBigbox = null,
     onItem = null,
     onTrap = null,
+    onImpact = null,
+    ignoreStatusProtection = false,
     itemNameFn = null,
     bbNameFn = (bb) => bb.name,
   } = opts;
@@ -2974,15 +3800,17 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     }
     /* 壁/境界：跳ね返って射手に効果 */
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) {
-      onWallReflect(ml);
+      if (onImpact) onImpact("wall", null, _tx, _ty, ml);
+      else onWallReflect(ml);
       _hit = true; break;
     }
     /* 石像：敵の杖弾は有害効果なので破壊 */
     if (statueAt(dg, _tx, _ty)) {
-      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, null, pl?.depth, {
         breaks: true,
         itemDeps: getFixtureItemDeps(),
       });
+      if (onImpact) onImpact("statue", null, _tx, _ty, ml);
       _hit = true; break;
     }
     /* プレイヤー命中 */
@@ -2993,17 +3821,19 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
         onPlayerReflect(ml);
       } else if (!inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
         ml.push(`祝福された聖域の加護が${wandLabel}の魔法を防いだ！`);
-      } else if ((pl.statusImmune || 0) > 0) {
+      } else if (!ignoreStatusProtection && (pl.statusImmune || 0) > 0) {
         ml.push(`${wandLabel}の魔法弾を受けた！しかし状態防止中のため効かなかった！`);
-      } else if (proofAbility && hasAbility(pl.armor, proofAbility)) {
+      } else if (!ignoreStatusProtection && proofAbility && hasAbility(pl.armor, proofAbility)) {
         ml.push(`${wandLabel}の魔法弾を受けた！しかし防具が防いだ！`);
       } else {
-        onPlayerHit(ml);
+        weakenOrClearParalysis(pl, ml);
+        if (onImpact) onImpact("player", pl, _tx, _ty, ml);
+        else onPlayerHit(ml);
       }
       _hit = true; break;
     }
     /* モンスター命中 */
-    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
+    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && monsterOccupiesCell(mn, _tx, _ty) && mn !== m);
     if (_mon) {
       if (monSubmergesProjectiles(_mon)) {
         ml.push(`${_mon.name}が潜って${wandLabel}の魔法弾をかわした！`);
@@ -3015,6 +3845,8 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
       } else if (monReflectsMagic(_mon)) {
         ml.push(`${_mon.name}が${wandLabel}の魔法弾を反射した！`);
         onMagicReflect(_mon, ml);
+      } else if (onImpact) {
+        onImpact("monster", _mon, _tx, _ty, ml);
       } else if (consumeBarrier(_mon, ml)) {
         /* バリア術師：1回分のバリアで消滅 */
       } else {
@@ -3025,21 +3857,24 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     /* 大箱：弾道停止＋カスタム効果 or「効果なし」 */
     const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
     if (_bb) {
-      if (onBigbox) onBigbox(_bb, ml);
+      if (onImpact) onImpact("bigbox", _bb, _tx, _ty, ml);
+      else if (onBigbox) onBigbox(_bb, ml);
       else ml.push(`${wandLabel}の魔法弾が${bbNameFn(_bb)}に命中したが効果がなかった。`);
       _hit = true; break;
     }
     /* アイテム */
     const _it = itemAt(dg, _tx, _ty);
     if (_it) {
-      if (onItem) onItem(_it, ml);
+      if (onImpact) onImpact("item", _it, _tx, _ty, ml);
+      else if (onItem) onItem(_it, ml);
       else ml.push(`${wandLabel}の魔法弾が${itemNameFn(_it)}に命中したが効果がなかった。`);
       _hit = true; break;
     }
     /* 罠 */
     const _tr = dg.traps?.find(t => t.x === _tx && t.y === _ty);
     if (_tr) {
-      if (onTrap) onTrap(_tr, ml);
+      if (onImpact) onImpact("trap", _tr, _tx, _ty, ml);
+      else if (onTrap) onTrap(_tr, ml);
       else { _tr.revealed = true; trackTrap(_tr); ml.push(`${wandLabel}の魔法弾が${_tr.name}に命中したが効果がなかった。`); }
       _hit = true; break;
     }
@@ -3066,8 +3901,10 @@ function _clearDodgemoleTrap(m, dg, ml, pl) {
 /* ===== 夢喰い：眠っている敵を起こして回復／睡眠中のプレイヤーから吸収 ===== */
 function findDreamEaterTarget(m, dg) {
   return (dg.monsters || [])
-    .filter(o => o !== m && (o.hp || 0) > 0 && (o.sleepTurns || 0) > 0)
-    .map(o => ({ monster: o, dist: Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) }))
+    .filter(o => o !== m && (o.hp || 0) > 0 && ((o.sleepTurns || 0) > 0 || (o.subtype === "sleepingLion" && o.dormant)))
+    .map(o => ({ monster: o, dist: o.subtype === "sleepingLion"
+      ? monsterPointDistance(o, m.x, m.y)
+      : Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) }))
     .filter(o => o.dist <= 8)
     .sort((a, b) => a.dist - b.dist)[0]?.monster || null;
 }
@@ -3076,9 +3913,18 @@ function dreamEaterWakeTarget(m, dg, ml) {
   const target = findDreamEaterTarget(m, dg);
   if (!target) return false;
   target.sleepTurns = 0;
-  target._justWoke = true;
+  if (target.subtype === "sleepingLion") {
+    target.dormant = false;
+    target.dormantHouse = false;
+    target.aware = true;
+    target._dormantTouched = false;
+    delete target._dormantHp;
+    delete target._justWoke;
+  } else {
+    target._justWoke = true;
+    target._movedThisTurn = true;
+  }
   target.turnAccum = 0;
-  target._movedThisTurn = true;
   const heal = Math.min(m.maxHp - m.hp, Math.max(5, Math.floor(m.maxHp * 0.15)));
   if (heal > 0) {
     m.hp += heal;
@@ -3154,7 +4000,18 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
   const dx = Math.sign(pl.x - m.x), dy = Math.sign(pl.y - m.y);
   const name = resolveItemName(item);
   delete m.carriedItem;
+  const beforeHp = pl.hp;
   const result = throwItemAlongLine(m, dg, item, dx, dy, itemThrowerRange(m), ml, pl, luFn, {
+    hitChance: 0.75,
+    missLandFn: (x, y, missedItem, logs) => {
+      if (missedItem.type === "charged_fuzzball") {
+        placeItemAt(dg, x, y, missedItem, logs, new Set(), 0, pl);
+      } else {
+        const drop = safeArrowDrop(x, y, dg);
+        _monDropWithSpring(drop, missedItem, dg, logs);
+        if (drop) logs.push(`${name}は地面に落ちた。`);
+      }
+    },
     animColor: "#ffbb55",
     killerMon: m,
     bbFn: opts.bbFn,
@@ -3171,7 +4028,8 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
     springLandMsg: (spr) => `${m.name}が${name}を投げつけて${spr?.name || "泉"}に落とした。`,
     noHitLandMsg: () => `${m.name}が${name}を投げつけたが、遮られて地面に落ちた。`,
   });
-  if (result.hitPlayer) onHit?.(m);
+  if (result.hitPlayer) onHit?.(Math.max(0, beforeHp - pl.hp), m);
+  else if (result.missedPlayer) opts.onPlayerMiss?.(m);
   return true;
 }
 
@@ -3195,6 +4053,8 @@ function isPentacleDrawBlocked(dg, x, y) {
 function tryUnstickMove(m, dg, pl, float = false) {
   if (!m || !dg) return false;
   if (isStationaryGrabber(m) || isStationaryMonster(m) || m.type === "shopkeeper" || m.dormant || m.dormantHouse) return false;
+  if (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id)) return false;
+  if (m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id)) return false;
   const map = dg.map;
   const recent = new Set((m.posHistory || []).map(p => p.x + p.y * MW));
   recent.add(m.x + m.y * MW);
@@ -3206,7 +4066,7 @@ function tryUnstickMove(m, dg, pl, float = false) {
         (map[ny]?.[nx] === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny));
       if (m.waterOnly ? !_waterOnlyDest : !canEnter(map, nx, ny, float, dg, m.waterWalker)) continue;
       if (nx === pl?.x && ny === pl?.y) continue;
-      if (dg.monsters.some(o => o !== m && o.x === nx && o.y === ny)) continue;
+      if (!canPlaceMonsterBody(dg, m, nx, ny, pl)) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
           dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
       if (preferNew && recent.has(nx + ny * MW)) continue;
@@ -3243,12 +4103,15 @@ const _MIMIC_SKIP_SUBTYPES = new Set([
 /** 隣接限定かつコピー実行実装済みの特技（プレイヤー隣接時のみ真似る） */
 const _MIMIC_ADJ_SUBTYPES = new Set([
   "tripper", "ruster", "thief", "knocker", "berserker", "trapmaster",
-  "itempusher",
+  "itempusher", "manaEater",
 ]);
 
 function supportBreathTargets(m, dg) {
   return (dg.monsters || []).filter((target) =>
     target.hp > 0 &&
+    !target.disguisedAsItem &&
+    !target.isPlayerClone &&
+    target.state !== "friendly" &&
     (target === m || Math.max(Math.abs(target.x - m.x), Math.abs(target.y - m.y)) <= 1),
   );
 }
@@ -3406,9 +4269,145 @@ function useDangerousPetalSleep(m, dg, pl, ml) {
     return true;
   }
   const turns = statusTurns("sleep", { kind: "player" });
+  weakenOrClearParalysis(pl, ml);
   pl.sleepTurns = turns;
   ml.push(`${m.name}が眠りの花粉をまいた！眠ってしまった！(${turns}ターン)`);
   return true;
+}
+
+/**
+ * キノコ系モンスターの被弾カウンター胞子。
+ * プレイヤーの直接攻撃、矢や石などの物理攻撃を受けた時に、
+ * キノコの周囲1マス（8方向）へ無差別に胞子を撒き散らす。
+ * - Lv1（ドクキノコ）: 毒胞子
+ * - Lv2（ネムリキノコ）: 睡眠胞子
+ * - Lv3（マダラキノコ）: 混乱胞子
+ * 封印中（mon.sealed）は発動しない。
+ */
+export function triggerMushroomCounterSpore(mon, dg, p, ml) {
+  if (!mon || mon.baseKind !== "mushroom" || mon.sealed || !dg) return;
+  const level = mon.monLevel || 1;
+  const sporeType = level === 1 ? "poison" : level === 2 ? "sleep" : "confuse";
+  const sporeName = level === 1 ? "毒胞子" : level === 2 ? "睡眠胞子" : "混乱胞子";
+
+  ml.push(`${mon.name}は衝撃で周囲に${sporeName}を撒き散らした！`);
+
+  const mx = mon.x;
+  const my = mon.y;
+  const targets = [];
+
+  // 周囲1マス（8マス）にいるプレイヤー
+  if (p && (p.hp || 0) > 0 && Math.max(Math.abs(p.x - mx), Math.abs(p.y - my)) === 1) {
+    targets.push(p);
+  }
+
+  // 周囲1マス（8マス）にいる他のモンスター（生存中、自身を除く）
+  for (const other of (dg.monsters || [])) {
+    if (other && other !== mon && (other.hp || 0) > 0 && Math.max(Math.abs(other.x - mx), Math.abs(other.y - my)) === 1) {
+      targets.push(other);
+    }
+  }
+
+  for (const target of targets) {
+    const isPlayer = target === p;
+    if (inMagicSealRoom(target.x, target.y, dg)) {
+      ml.push(`${isPlayer ? "プレイヤー" : target.name}は魔封じの魔方陣に守られた！`);
+      continue;
+    }
+
+    if (isPlayer) {
+      if ((p.statusImmune || 0) > 0) {
+        ml.push(`状態防止中のため${sporeName}を防いだ！`);
+        continue;
+      }
+      if (sporeType === "poison") {
+        if (hasRingEffect(p, "antidote_ring")) {
+          ml.push("毒消しの指輪が毒胞子を防いだ！");
+        } else {
+          const res = applyPlayerPoison(p);
+          ml.push(statusResultMessage(res, `毒胞子を浴びた！毒状態(${res.turns}ターン)になった！${res.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
+        }
+      } else if (sporeType === "sleep") {
+        if (hasAbility(p.armor, "sleep_proof")) {
+          ml.push("防具が睡眠胞子を防いだ！");
+        } else if ((p.sleepTurns || 0) > 0) {
+          ml.push("すでに眠っている。");
+        } else {
+          const turns = statusTurns("sleep", { kind: "player" });
+          p.sleepTurns = (p.sleepTurns || 0) + turns;
+          ml.push(`睡眠胞子を浴びて眠ってしまった！(${turns}ターン)`);
+        }
+      } else if (sporeType === "confuse") {
+        if (hasAbility(p.armor, "confuse_proof")) {
+          ml.push("防具が混乱胞子を防いだ！");
+        } else {
+          const turns = statusTurns("confuse", { kind: "player" });
+          p.confusedTurns = (p.confusedTurns || 0) + turns;
+          ml.push(`混乱胞子を浴びて混乱してしまった！(${turns}ターン)`);
+        }
+      }
+    } else {
+      // モンスター対象
+      if (sporeType === "poison") {
+        if (blockLargeMonsterStatus(target, "poison", ml)) continue;
+        startLargeMonsterStatusCooldown(target, "poison");
+        const turns = statusTurns("poison", { kind: "monster", target });
+        target.poisonedTurns = (target.poisonedTurns || 0) + turns;
+        target.sporePoisonKillerId = mon.id;
+        target.sporePoisonKillerName = mon.name;
+        if (!target.poisonHalfAtk) {
+          target.poisonOrigAtk = target.atk;
+          target.poisonHalfAtk = true;
+          target.atk = Math.max(1, Math.floor((target.atk || 1) / 2));
+        }
+        ml.push(`${target.name}は毒胞子を浴びて毒状態になった！(${turns}ターン)`);
+      } else if (sporeType === "sleep") {
+        if (blockLargeMonsterStatus(target, "sleep", ml)) continue;
+        startLargeMonsterStatusCooldown(target, "sleep");
+        const turns = statusTurns("sleep", { kind: "monster", target });
+        target.sleepTurns = (target.sleepTurns || 0) + turns;
+        ml.push(`${target.name}は睡眠胞子を浴びて眠りに落ちた！(${turns}ターン)`);
+      } else if (sporeType === "confuse") {
+        if (blockLargeMonsterStatus(target, "confuse", ml)) continue;
+        startLargeMonsterStatusCooldown(target, "confuse");
+        const turns = statusTurns("confuse", { kind: "monster", target });
+        target.confusedTurns = (target.confusedTurns || 0) + turns;
+        ml.push(`${target.name}は混乱胞子を浴びて混乱した！(${turns}ターン)`);
+      }
+    }
+  }
+}
+
+/**
+ * マナイーター系モンスターのMP吸収特技。
+ * 隣接時にプレイヤーのMPを吸収して自身のHPを回復する。
+ * - Lv1（マナイーター）: MP 3 吸収、HP 15 回復
+ * - Lv2（マナドレイナー）: MP 5 吸収、HP 25 回復
+ * - Lv3（マナヴォイド）: MP 10 吸収、HP 50 回復
+ */
+export function useManaEaterDrain(m, pl, ml) {
+  if (!m || !pl || !ml) return false;
+  const lvl = m.monLevel || 1;
+  const drainMax = lvl >= 3 ? 10 : lvl === 2 ? 5 : 3;
+  const healAmount = lvl >= 3 ? 50 : lvl === 2 ? 25 : 15;
+  const curMp = pl.mp || 0;
+  const actualDrain = Math.min(curMp, drainMax);
+  pl.mp = Math.max(0, curMp - drainMax);
+
+  if (actualDrain > 0) {
+    const maxHp = m.maxHp || m.hp;
+    const healed = Math.min(healAmount, maxHp - m.hp);
+    m.hp = Math.min(maxHp, m.hp + healAmount);
+    if (healed > 0) {
+      ml.push(`${m.name}がマナを吸い取った！MPが${actualDrain}減少し、${m.name}のHPが${healed}回復した！`);
+    } else {
+      ml.push(`${m.name}がマナを吸い取った！MPが${actualDrain}減少した！`);
+    }
+    return true;
+  } else {
+    ml.push(`${m.name}がマナを吸い取ろうとしたが、吸い取れるマナがなかった！`);
+    return true;
+  }
 }
 
 /**
@@ -3465,8 +4464,8 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
 
   /* 薬投げ：一直線＋射程 */
   if (subtype === "potionthrow") {
-    const range = monLevel >= 3 ? 10 : monLevel >= 2 ? 7 : 5;
-    return canSee && !plOnBlessedSanc && inLine && lineLen <= range;
+    const range = potionThrowRange(src, dg, pl);
+    return hasMonsterProjectileAmmo(src) && canSee && !plOnBlessedSanc && inLine && lineLen <= range;
   }
 
   /* 杖使い：一直線 */
@@ -3520,12 +4519,12 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
     ));
   }
 
-  /* 敵投げ：射程内＋隣接に他モンスター */
+  /* 敵投げ：射程内＋隣接に他モンスター（大型・強制移動無効・擬態中は除外） */
   if (subtype === "monsterthrow") {
     const range = monLevel >= 3 ? 10 : monLevel >= 2 ? 5 : 3;
     return canSee && lineLen <= range &&
       (dg.monsters || []).some((o) =>
-        o !== m && o !== src && (o.hp || 0) > 0 &&
+        o !== m && o !== src && (o.hp || 0) > 0 && !o.forcedMoveImmune && !o.disguisedAsItem && monsterBodySize(o) <= 1 &&
         Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1
       );
   }
@@ -3571,7 +4570,14 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   let sources = getAdjacentMimicSources(m, dg).filter((src) =>
     canMimicSourceSkill(src, m, dg, pl, opts, ctx),
   );
-  if (!sources.length) return false;
+  if (!sources.length) {
+    const playerAdjacent = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+    if (forceReady || (playerAdjacent && (m.alwaysUseSpecial || Math.random() < 0.5))) {
+      consumeFailedMonsterSpecial(m, ml, "はまねできる特技を探したが、見つからなかった！");
+      return true;
+    }
+    return false;
+  }
   /* 予約時に選んだソースがまだ有効なら優先 */
   if (preferredId != null) {
     const pref = sources.find((s) => s.id === preferredId);
@@ -3647,13 +4653,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   /* ── ラクガキ魔：認識中なら足元に魔方陣（失敗位置なら失敗メッセージで行動消費） ── */
   if (m.subtype === "pentaclePainter" && canSee) {
     m.turnAttacks++;
-    const _ppRoom = findRoom(rooms, m.x, m.y);
-    const _ppSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-      (_ppRoom && dg.pentacles?.some(pc =>
-        pc.kind === "magic_seal" &&
-        pc.x >= _ppRoom.x && pc.x < _ppRoom.x + _ppRoom.w &&
-        pc.y >= _ppRoom.y && pc.y < _ppRoom.y + _ppRoom.h
-      ));
+    const _ppSeal = inMagicSealRoom(m.x, m.y, dg);
     if (_ppSeal) {
       ml.push(`${m.name}の魔方陣が魔封じの魔方陣に封じられた！`);
       return true;
@@ -3678,13 +4678,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   /* ── ルカチュウ：同部屋で防御半減魔法 ── */
   if (m.subtype === "defhalf" && canSee && _sameRoom) {
     m.turnAttacks++;
-    const _kpRoom = findRoom(rooms, m.x, m.y);
-    const _kpSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-      (_kpRoom && dg.pentacles?.some(pc =>
-        pc.kind === "magic_seal" &&
-        pc.x >= _kpRoom.x && pc.x < _kpRoom.x + _kpRoom.w &&
-        pc.y >= _kpRoom.y && pc.y < _kpRoom.y + _kpRoom.h
-      ));
+    const _kpSeal = inMagicSealRoom(m.x, m.y, dg);
     if (_kpSeal) {
       ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
       return true;
@@ -3693,16 +4687,18 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
       if (monEffectiveMagicImmune(m)) {
         ml.push(`魔法は${m.name}に効かない！`);
-      } else {
+      } else if (!isStatusImmune(m, ml, m.name)) {
         m.def = Math.floor((m.def || 0) / 2);
         ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
       }
     } else if (_plOnBlessedSanc) {
       ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
     } else {
-      const _ds = statusTurns("defSoftened", { kind: "player" });
-      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
-      ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
+      if (!isStatusImmune(pl, ml)) {
+        const _ds = statusTurns("defSoftened", { kind: "player" });
+        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+        ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
+      }
     }
     return true;
   }
@@ -3723,8 +4719,10 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
       ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
     } else {
-      pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
-      ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+      if (!isStatusImmune(pl, ml)) {
+        pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
+        ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+      }
     }
     return true;
   }
@@ -3776,27 +4774,20 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
       if (lineLen <= _stRange) {
         m.turnAttacks++;
-        monsterThrowStone(m, dg, pl, ml);
+        monsterThrowStone(m, dg, pl, ml, opts);
         return true;
       }
     }
-    if (m.subtype === "potionthrow" && !_plOnBlessedSanc) {
-      const _ptLvl = m.monLevel || 1;
-      const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
+    if (m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !_plOnBlessedSanc) {
+      const _ptRange = potionThrowRange(m, dg, pl);
       if (inLine && lineLen <= _ptRange) {
         m.turnAttacks++;
-        monsterThrowPotion(m, dg, pl, ml, opts.bbFn);
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn);
         return true;
       }
     }
     if (m.subtype === "wanduser" && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && !_plOnBlessedSanc) {
-      const _wRoom = findRoom(rooms, m.x, m.y);
-      const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
-        (_wRoom && dg.pentacles?.some(pc =>
-          pc.kind === "magic_seal" &&
-          pc.x >= _wRoom.x && pc.x < _wRoom.x + _wRoom.w &&
-          pc.y >= _wRoom.y && pc.y < _wRoom.y + _wRoom.h
-        ));
+      const _wSeal = inMagicSealRoom(m.x, m.y, dg);
       if (!_wSeal) {
         m.turnAttacks++;
         opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
@@ -3821,7 +4812,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
           break;
         }
-        const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+        const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
         if (_chOther) {
           const _chDmg = Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2));
           _chOther.hp -= _chDmg;
@@ -3841,9 +4832,11 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     }
     if (m.type === "guard" && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8) {
       m.turnAttacks++;
-      ml.push(`${m.name}が暗闇の薬を投げた！`);
-      pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
-      splashPotion(dg, pl.x, pl.y, "darkness", 20, pl, ml, null, false, false);
+      monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+        potion: { name: "暗闇の薬", effect: "darkness", value: 20, tile: 16 },
+        message: `${m.name}が暗闇の薬を投げた！`,
+        color: "#334466",
+      });
       return true;
     }
   }
@@ -3881,6 +4874,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         if (cands.length) {
           const stolen = cands[rng(0, cands.length - 1)];
           const idx = pl.inventory.indexOf(stolen);
+          detachPlayerEquipment(pl, stolen);
           if (idx !== -1) pl.inventory.splice(idx, 1);
           placeItemAt(dg, m.x, m.y, stolen, ml, new Set());
           ml.push(`${m.name}が${stolen.name}を盗んだ！`);
@@ -3901,7 +4895,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         const nx = _kx + _kdx, ny = _ky + _kdy;
         if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
         if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) break;
-        if (dg.monsters.some((o) => o.x === nx && o.y === ny)) break;
+        if (dg.monsters.some((o) => monsterOccupiesCell(o, nx, ny))) break;
         _kx = nx; _ky = ny;
       }
       const _knockFromX = pl.x, _knockFromY = pl.y;
@@ -3938,6 +4932,12 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       ml.push(`${m.name}は罠を仕掛ける場所がなかった！`);
       return true;
     }
+    /* マナイーター：隣接時にMP吸収＆回復 */
+    if (m.subtype === "manaEater" && !_plOnSanc && !_plOnBlessedSanc) {
+      m.turnAttacks++;
+      useManaEaterDrain(m, pl, ml);
+      return true;
+    }
   }
 
   /* サポーター：同室でバフ */
@@ -3958,17 +4958,196 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   return false;
 }
 
+function npcCanStandAt(monster, dungeon, player, x, y, float = false) {
+  return inBounds(x, y) && !(player && x === player.x && y === player.y) &&
+    canEnter(dungeon.map, x, y, float, dungeon, monster.waterWalker) &&
+    !dungeon.monsters.some(other => other !== monster && monsterOccupiesCell(other, x, y));
+}
+
+function npcCanAttackMonster(monster, target, dungeon, x = monster.x, y = monster.y) {
+  if (monsterBodySize(target) > 1) return monsterCanInteractAtRange(target, dungeon, x, y, 1);
+  return monsterPointDistance(target, x, y) <= 1 &&
+    !isOpaqueMonsterSightTile(dungeon, x, y) &&
+    !isOpaqueMonsterSightTile(dungeon, target.x, target.y) &&
+    giantLineOfSight(dungeon, x, y, target.x, target.y);
+}
+
+function npcApproachStep(monster, target, dungeon, player, float = false) {
+  const points = new Map();
+  for (const cell of monsterBodyCells(target)) {
+    for (const [dx, dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+      const x = cell.x + dx, y = cell.y + dy;
+      if (monsterOccupiesCell(target, x, y) || !npcCanStandAt(monster, dungeon, player, x, y, float)) continue;
+      if (!npcCanAttackMonster(monster, target, dungeon, x, y)) continue;
+      points.set(`${x},${y}`, { x, y });
+    }
+  }
+  const candidates = [...points.values()].sort((a, b) =>
+    Math.max(Math.abs(a.x - monster.x), Math.abs(a.y - monster.y)) -
+    Math.max(Math.abs(b.x - monster.x), Math.abs(b.y - monster.y))
+  );
+  for (const point of candidates) {
+    const next = bfsNext(dungeon.map, dungeon.monsters, monster.x, monster.y, point.x, point.y,
+      monster, 40, dungeon.pentacles, float, null, false, dungeon.rooms, dungeon);
+    if (next && npcCanStandAt(monster, dungeon, player, next.x, next.y, float)) return next;
+  }
+  return null;
+}
+
+function endNpcRetaliation(npc) {
+  const returnState = npc._npcRetaliationReturnState || "friendly";
+  npc.state = returnState;
+  npc.speed = npc._npcRetaliationReturnSpeed ?? npc.baseSpeed ?? 1;
+  npc.aware = npc._npcRetaliationReturnAware ?? (returnState === "hostile");
+  if (npc._npcRetaliationReturnLastPos) {
+    npc.lastPx = npc._npcRetaliationReturnLastPos.x;
+    npc.lastPy = npc._npcRetaliationReturnLastPos.y;
+  }
+  if (!isWanderingNpc(npc)) {
+    npc._npcReturningHome = npc._npcRetaliationReturnPos ||
+      (npc.homePos ? { ...npc.homePos } : { x: npc.x, y: npc.y });
+  }
+  delete npc._npcRetaliationTargetId;
+  delete npc._npcRetaliationReturnState;
+  delete npc._npcRetaliationReturnSpeed;
+  delete npc._npcRetaliationReturnAware;
+  delete npc._npcRetaliationReturnLastPos;
+  delete npc._npcRetaliationReturnPos;
+}
+
+function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
+  if (monster.type !== "shopkeeper") return false;
+  let target = monster._npcRetaliationTargetId
+    ? dungeon.monsters.find(other => other.id === monster._npcRetaliationTargetId && other.hp > 0)
+    : null;
+  if (monster._npcRetaliationTargetId && !target) endNpcRetaliation(monster);
+
+  if (target) {
+    monster.aware = true;
+    monster.lastPx = target.x;
+    monster.lastPy = target.y;
+    if (npcCanAttackMonster(monster, target, dungeon)) {
+      if (!opts.moveOnly && monster.turnAttacks < monEffectiveMaxAttacks(monster)) {
+        if (isAttackSealed(monster)) {
+          messages.push(`${monster.name}は攻撃が封印されていて殴れない！`);
+        } else {
+          monster.turnAttacks++;
+          if (Math.random() >= 0.90) {
+            messages.push(`${monster.name}の${target.name}への攻撃は外れた！`);
+          } else if (consumeBarrier(target, messages)) {
+            messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
+          } else {
+            const damage = Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1));
+            target.hp -= damage;
+            messages.push(`${monster.name}が${target.name}を攻撃！${damage}ダメージ！`);
+            if (target.hp <= 0 && dungeon.monsters.includes(target)) {
+              killMonster(target, dungeon, player, messages, opts.luFn || (() => {}), false, monster);
+            }
+          }
+        }
+      }
+      return true;
+    }
+    if (!opts.attackOnly) {
+      const next = npcApproachStep(monster, target, dungeon, player, float);
+      if (next) {
+        monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
+        monster.x = next.x;
+        monster.y = next.y;
+      }
+    }
+    return true;
+  }
+
+  if (monster._npcReturningHome) {
+    if (opts.attackOnly) return true;
+    const desired = monster._npcReturningHome;
+    if (!npcCanStandAt(monster, dungeon, player, desired.x, desired.y, float)) {
+      /* 定位置がプレイヤーや敵に塞がれている間は帰還を継続する。 */
+      return true;
+    }
+    if (monster.x === desired.x && monster.y === desired.y) {
+      delete monster._npcReturningHome;
+      return false;
+    }
+    const next = bfsNext(dungeon.map, dungeon.monsters, monster.x, monster.y, desired.x, desired.y,
+      monster, 40, dungeon.pentacles, float, null, false, dungeon.rooms, dungeon);
+    if (next && npcCanStandAt(monster, dungeon, player, next.x, next.y, float)) {
+      monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
+      monster.x = next.x;
+      monster.y = next.y;
+      if (monster.x === desired.x && monster.y === desired.y) delete monster._npcReturningHome;
+    }
+    return true;
+  }
+  return false;
+}
+
+function rememberLethalPlayerCause(player) {
+  if (!player || player.hp > 0 || player._lethalDamageCause) return;
+  Object.defineProperty(player, "_lethalDamageCause", {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: player.deathCause || "不明の原因により",
+  });
+}
+
 /** モンスターAI。移動後は重力罠。長時間動けなければ別方向へ強制移動。 */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _sx = m.x, _sy = m.y;
+  const _playerHpBeforeAI = pl?.hp;
+  const _deathCauseBeforeAI = pl?.deathCause;
+  if (_playerHpBeforeAI > 0) delete pl._lethalDamageCause;
+  else rememberLethalPlayerCause(pl);
+  const _previousDamageSourceName = pl?._activeDamageSourceName;
+  if (pl) pl._activeDamageSourceName = m.name;
   const _movedThisTurn = m._movedThisTurn;
+  const _shopkeeperHpBefore = new Map((dg.monsters || [])
+    .filter(other => other !== m && other.type === "shopkeeper" && other.hp > 0)
+    .map(other => [other, other.hp]));
+  const _npcTrapDamage = new Map();
+  const _aiOpts = typeof opts.fireTrapFn === "function" ? {
+    ...opts,
+    fireTrapFn: (...args) => {
+      const beforeTrap = new Map([..._shopkeeperHpBefore.keys()].map(npc => [npc, npc.hp]));
+      const result = opts.fireTrapFn(...args);
+      for (const [npc, hpBefore] of beforeTrap) {
+        const damage = Math.max(0, hpBefore - npc.hp);
+        if (damage > 0) _npcTrapDamage.set(npc, (_npcTrapDamage.get(npc) || 0) + damage);
+      }
+      return result;
+    },
+  } : opts;
   const _gravityLocksFlightOnly = !!(m.flightOnly && !monEffectiveMagicImmune(m) &&
     !opts.attackOnly && hasGravityPentacle(dg, m.x, m.y));
   const _float = monEffectiveFloat(m) &&
     (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
   try {
-    _monsterAIBody(m, dg, pl, ml, opts);
+    _monsterAIBody(m, dg, pl, ml, _aiOpts);
   } finally {
+    /* 個別の特技処理が死因を書き忘れていても、致死行動をした敵名は残す。 */
+    if (_playerHpBeforeAI > 0 && pl?.hp <= 0) {
+      const cause = String(pl.deathCause || "");
+      const namesThisMonster = [`${m.name}の`, `${m.name}に`, `${m.name}が`, `${m.name}から`];
+      if (!namesThisMonster.some((name) => cause.includes(name))) {
+        const hasSpecificCause = cause && cause !== _deathCauseBeforeAI && cause !== "不明の原因により";
+        pl.deathCause = hasSpecificCause
+          ? `${m.name}の行動で${cause}`
+          : `${m.name}の攻撃で`;
+      }
+    }
+    if (pl?.hp <= 0) {
+      rememberLethalPlayerCause(pl);
+      if (pl._lethalDamageCause) pl.deathCause = pl._lethalDamageCause;
+    }
+    /* AIの直接攻撃で受けたダメージだけを報復対象にする。罠の発火で受けた分は差し引く。 */
+    if (m.hp > 0 && dg.monsters.includes(m) && !m.isPlayerClone) {
+      for (const [npc, hpBefore] of _shopkeeperHpBefore) {
+        const directDamage = hpBefore - npc.hp - (_npcTrapDamage.get(npc) || 0);
+        if (npc.hp > 0 && directDamage > 0 && dg.monsters.includes(npc)) beginNpcRetaliation(npc, m, ml);
+      }
+    }
     /* 飛行専用の敵は重力下で自発移動できない。攻撃フェーズ・特技処理は通す。 */
     if (_gravityLocksFlightOnly && (m.x !== _sx || m.y !== _sy)) {
       m.x = _sx;
@@ -3978,6 +5157,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     /* 静止型モンスター：AI中に位置が変わっても必ず元位置へ戻す */
     if ((isStationaryGrabber(m) || isStationaryMonster(m)) && (m.x !== _sx || m.y !== _sy)) {
+      m.x = _sx; m.y = _sy;
+      m.dir = { x: 0, y: 0 };
+    }
+    /* ブレス準備中またはカスワック詠唱中：外因の強制移動でない自発的移動が発生していたら元位置へ戻す */
+    if ((m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id) ||
+         m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id)) &&
+        !m._blownBack && (m.x !== _sx || m.y !== _sy)) {
       m.x = _sx; m.y = _sy;
       m.dir = { x: 0, y: 0 };
     }
@@ -3992,7 +5178,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       (m.immobileTurns || 0) > 0 ||
       (m.knockdownTurns || 0) > 0 ||
       _gravityLocksFlightOnly ||
-      isStationaryMonster(m);
+      isStationaryMonster(m) ||
+      m._isPetroBreathing ||
+      dg.pendingPetroBreaths?.some(b => b.sourceId === m.id) ||
+      m._isCaswackCasting ||
+      dg.pendingCaswacks?.some(c => c.sourceId === m.id);
     if (movementDisabled) {
       m._idleStuck = 0;
       m.posHistory = [];
@@ -4005,12 +5195,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.posHistory = [];
     }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
+    if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly &&
+        !m._npcRetaliationTargetId && !m._npcReturningHome && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || isWanderingNpc(m)) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
-      const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
+      const _adjPl = pl && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1) &&
         (pl.potConfinedTurns || 0) <= 0;
-      if (_adjPl) {
+      if (m.baseKind === "boss_ohplenty") {
+        /* 引き寄せ・壁際への飛びつきに失敗した拍を、汎用のランダム脱出移動へ数えない */
+        m._idleStuck = 0;
+        m.posHistory = [];
+      } else if (_adjPl) {
         m._idleStuck = 0;
       } else {
         if (!moved) {
@@ -4028,12 +5223,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
     }
+    if (pl) {
+      if (_previousDamageSourceName === undefined) delete pl._activeDamageSourceName;
+      else pl._activeDamageSourceName = _previousDamageSourceName;
+    }
   }
 }
 
 registerMonsterRuntime({
   getMonsterCatalog: () => MONS,
   pickTransformMonsterDef,
+  applyMonsterTransformation,
   pickMonsterDef,
   makeMonsterFromBase,
   spawnMonsters,
@@ -4043,14 +5243,14 @@ registerMonsterRuntime({
   findMonsterRoom: findRoom,
   scaleMonsterFireDamage: scaleMonFireDmg,
   monsterFireDamageLabel: monFireDmgLabel,
+  triggerMushroomCounterSpore,
 });
 
 /** 分身のAI。通常敵を優先して攻撃し、敵がいなければプレイヤーから離れすぎないよう追従する。 */
 function playerCloneAI(m, dg, pl, ml, opts = {}) {
   const _moveOnly = !!opts.moveOnly;
   const _attackOnly = !!opts.attackOnly;
-  if (!m.isPlayerClone || m.hp <= 0 || (m.sleepTurns || 0) > 0 || m.paralyzed ||
-      (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0) return;
+  if (!m.isPlayerClone || m.hp <= 0) return;
   m.turnAttacks = m.turnAttacks || 0;
 
   const _targets = (dg.monsters || []).filter((other) =>
@@ -4062,6 +5262,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   const _target = _targets[0] || null;
   if (_target && chebyshevDistance(m, _target) <= 1) {
     m._cloneCombatTurn = true;
+    if (isAttackSealed(m)) return;
     if (_moveOnly) return;
     if (_attackOnly && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
@@ -4075,29 +5276,353 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
   }
   if (_attackOnly) return;
 
+  if ((m.immobileTurns || 0) > 0) return;
+
   const _followTarget = _target || (chebyshevDistance(m, pl) > 2 ? pl : null);
   if (!_followTarget) return;
   const _next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, _followTarget.x, _followTarget.y, m,
     40, dg.pentacles, false, null, false, dg.rooms, dg);
   if (!_next || (_next.x === pl.x && _next.y === pl.y) ||
-      dg.monsters.some((other) => other !== m && other.x === _next.x && other.y === _next.y)) return;
+      dg.monsters.some((other) => other !== m && monsterOccupiesCell(other, _next.x, _next.y))) return;
   m.dir = { x: _next.x - m.x, y: _next.y - m.y };
   m.x = _next.x;
   m.y = _next.y;
 }
 
-function _monsterAIBody(m, dg, pl, ml, opts = {}) {
-  if (m.isPlayerClone) {
-    playerCloneAI(m, dg, pl, ml, opts);
-    return;
+const GWEN_B5_SUMMON_BASE_KINDS = new Set(["zombie", "slime", "wokka"]);
+
+function summonGwenMonster(gwen, dg, pl, ml) {
+  if (!Array.isArray(dg.monsters)) dg.monsters = [];
+  const floor = gwen.baseKind === "boss_gwen_veteran" ? 20 : 5;
+  const poolFloor = gwen.baseKind === "boss_gwen_veteran" ? floor : 10;
+  let base, spawnLevel;
+  if (gwen.baseKind === "boss_gwen") {
+    const summonPool = MONS.filter(monster => GWEN_B5_SUMMON_BASE_KINDS.has(monster.baseKind) &&
+      legendMonsterAllowed(monster.baseKind, poolFloor) && (monster.bodySize || 1) <= 1);
+    if (summonPool.length === 0) return false;
+    base = pickWeightedMonster(summonPool, (monster) => (
+      legendMonsterSpawnWeight(monster.baseKind, poolFloor) *
+      legendMonsterAffinityMultiplier(monster.baseKind, poolFloor, dg.monsters)
+    ));
+    spawnLevel = legendMonsterSpawnLevel(base, poolFloor);
+  } else {
+    ({ base, spawnLevel } = pickMonsterDef(poolFloor - 1, "legend", true, {
+      excludeLarge: true, existingMonsters: dg.monsters,
+    }));
   }
+  if (!base || !legendMonsterAllowed(base.baseKind, poolFloor)) return false;
+
+  const offsets = shuffle([[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]);
+  const occupiedObjects = [dg.items, dg.traps, dg.springs, dg.bigboxes, dg.pentacles, dg.statues,
+    dg.vents, dg.oilyTiles, dg.gachaMachines, dg.altars, dg.dimensionalVaults];
+  for (const [dx, dy] of offsets) {
+    const x = gwen.x + dx, y = gwen.y + dy;
+    const cells = monsterBodyCells(base, x, y);
+    const hasObject = cells.some(cell => occupiedObjects.some(list =>
+      list?.some(object => object.x === cell.x && object.y === cell.y)));
+    if (cells.some(cell => dg.map[cell.y]?.[cell.x] !== T.FLOOR) || hasObject ||
+        !canPlaceMonsterBody(dg, base, x, y, pl)) continue;
+
+    const summoned = makeMonsterFromBase(base, spawnLevel, x, y, {
+      aware: true, lastPx: pl.x, lastPy: pl.y,
+    });
+    /* moveOnlyで召喚した敵が同ターンのattackOnlyで動かず、次ターンから行動時計を進める。 */
+    summoned.actionTime = Number.isFinite(pl?.actionTime) ? pl.actionTime : 0;
+    summoned._gwenSummonedAtActionTime = summoned.actionTime;
+    dg.monsters.push(summoned);
+    ml.push(`グウェンの隣に${summoned.name}が現れた！`);
+    return true;
+  }
+  return false;
+}
+
+function summonGwenWave(gwen, dg, pl, ml) {
+  const summonCount = gwen.baseKind === "boss_gwen" && Math.random() < 0.25 ? 2 : 1;
+  let summonedAny = false;
+  for (let i = 0; i < summonCount; i++) {
+    if (!summonGwenMonster(gwen, dg, pl, ml)) break;
+    summonedAny = true;
+  }
+  return summonedAny;
+}
+
+function useGwenVeteranWand(monster, player, opts, dx, dy, effect) {
+  if (!opts.monsterWandFn || (monster.gwenWandCharges || 0) <= 0) return false;
+  monster.gwenWandCharges--;
+  monster.turnAttacks++;
+  const previousEffect = monster.wandEffect;
+  monster.wandEffect = effect;
+  try {
+    opts.monsterWandFn(monster, dx, dy);
+  } finally {
+    if (previousEffect === undefined) delete monster.wandEffect;
+    else monster.wandEffect = previousEffect;
+  }
+  return true;
+}
+
+function flockDistance(x1, y1, x2, y2) {
+  return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
+}
+
+function moveFlockToFiringLine(monster, dungeon, player) {
+  const flockFloat = monEffectiveFloat(monster) &&
+    (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, monster.x, monster.y));
+  const tileCanEnter = (x, y) => canEnter(dungeon.map, x, y, flockFloat, dungeon, monster.waterWalker);
+  const goals = [];
+  for (let range = 3; range <= 10; range++) {
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const x = player.x + dx * range, y = player.y + dy * range;
+      if (!tileCanEnter(x, y) || !hasLOS(dungeon.map, x, y, player.x, player.y) ||
+          dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, x, y))) continue;
+      goals.push({ x, y, distance: flockDistance(monster.x, monster.y, x, y), range });
+    }
+  }
+  goals.sort((a, b) => a.distance - b.distance || a.range - b.range);
+
+  for (const goal of goals) {
+    const next = bfsNext(dungeon.map, dungeon.monsters || [], monster.x, monster.y, goal.x, goal.y, monster,
+      60, dungeon.pentacles, flockFloat,
+      (x, y) => tileCanEnter(x, y) && flockDistance(x, y, player.x, player.y) >= 3,
+      false, dungeon.rooms, dungeon);
+    if (!next || !tileCanEnter(next.x, next.y) || (next.x === player.x && next.y === player.y) ||
+        dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, next.x, next.y))) continue;
+    monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
+    monster.x = next.x;
+    monster.y = next.y;
+    monster._movedThisTurn = true;
+    return true;
+  }
+  return false;
+}
+
+function teleportFlockAway(monster, dungeon, player, messages) {
+  const cost = FLOCK_MAGIC_MP_COSTS.teleport_magic;
+  if (ensureFlockMp(monster) < cost) return false;
+  const destination = randomTeleportDest(dungeon, monster.x, monster.y, (x, y) =>
+    flockDistance(x, y, player.x, player.y) >= 4 &&
+    !dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, x, y))
+  );
+  if (!destination) return false;
+  monster.mp -= cost;
+  const fromX = monster.x, fromY = monster.y;
+  monster.x = destination.x;
+  monster.y = destination.y;
+  monster.lastPx = player.x;
+  monster.lastPy = player.y;
+  monster._movedThisTurn = true;
+  pushAnim({ type: "flash", x: fromX, y: fromY, color: "#bd72ff" });
+  pushAnim({ type: "flash", x: destination.x, y: destination.y, color: "#bd72ff" });
+  messages.push(`${monster.name}は『${pick(FLOCK_TELEPORT_LINES)}』と唱え、紫の閃光とともに消えた！(MP-${cost})`);
+  return true;
+}
+
+function pickFlockSummonPlacement(monster, dungeon, player) {
+  if (!dungeon?.map || !player || !Array.isArray(dungeon.monsters)) return null;
+  const floor = Math.max(1, Math.floor(Number(player.depth) || 1));
+  const dungeonType = dungeon.dungeonType ?? "legend";
+  const { base, spawnLevel } = pickMonsterDef(floor - 1, dungeonType, true, {
+    excludeLarge: true,
+    poolFloor: floor,
+    existingMonsters: dungeon.monsters,
+  });
+  if (!base || !legendMonsterAllowed(base.baseKind, floor)) return null;
+
+  const occupiedObjects = [
+    dungeon.items, dungeon.traps, dungeon.springs, dungeon.bigboxes, dungeon.pentacles,
+    dungeon.statues, dungeon.vents, dungeon.oilyTiles, dungeon.gachaMachines,
+    dungeon.altars, dungeon.dimensionalVaults,
+  ];
+  const offsets = shuffle([[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]);
+  for (const [dx, dy] of offsets) {
+    const x = monster.x + dx, y = monster.y + dy;
+    const cells = monsterBodyCells(base, x, y);
+    if (cells.some(cell => dungeon.map[cell.y]?.[cell.x] !== T.FLOOR ||
+        occupiedObjects.some(list => list?.some(object => object.x === cell.x && object.y === cell.y)))) continue;
+    if (!canPlaceMonsterBody(dungeon, base, x, y, player)) continue;
+    return { base, spawnLevel, x, y };
+  }
+  return null;
+}
+
+function summonFlockMonster(monster, dungeon, player, messages) {
+  const cost = FLOCK_MAGIC_MP_COSTS.summon_monster;
+  if (ensureFlockMp(monster) < cost) return false;
+  const placement = pickFlockSummonPlacement(monster, dungeon, player);
+  if (!placement) {
+    messages.push(`${monster.name}は召喚しようとしたが、隣接する空き床がない！魔力は消費しなかった。`);
+    return false;
+  }
+
+  monster.mp -= cost;
+  const spellLines = monster.baseKind === "boss_flock_revenge"
+    ? FLOCK_REVENGE_SPELL_LINES.summon_monster
+    : FLOCK_SPELL_LINES.summon_monster;
+  messages.push(`${monster.name}は『${pick(spellLines)}』と唱えた！(MP-${cost})`);
+  const summoned = makeMonsterFromBase(placement.base, placement.spawnLevel, placement.x, placement.y, {
+    aware: true, lastPx: player.x, lastPy: player.y,
+  });
+  summoned.actionTime = Number.isFinite(player.actionTime) ? player.actionTime : 0;
+  summoned._summonedAtActionTime = summoned.actionTime;
+  dungeon.monsters.push(summoned);
+  messages.push(`${monster.name}の召喚魔法で${summoned.name}が現れた！`);
+  return true;
+}
+
+function ensureFlockMp(monster) {
+  const isRevenge = monster.baseKind === "boss_flock_revenge";
+  const legacyMax = isRevenge ? 180 : 72;
+  const defaultMax = isRevenge ? 1800 : 720;
+  if (monster.maxMp === legacyMax) {
+    monster.maxMp = defaultMax;
+    if (Number.isFinite(monster.mp)) monster.mp *= 10;
+  }
+  if (!Number.isFinite(monster.maxMp)) monster.maxMp = defaultMax;
+  if (!Number.isFinite(monster.mp)) monster.mp = monster.maxMp;
+  monster.maxMp = Math.max(0, Math.floor(monster.maxMp));
+  monster.mp = clamp(Math.floor(monster.mp), 0, monster.maxMp);
+  return monster.mp;
+}
+
+function flockHasNoManaTurn(monster, dungeon, messages, attackOnly = false) {
+  if (ensureFlockMp(monster) > 0) {
+    delete monster._flockOutOfMpDialogueShown;
+    return false;
+  }
+  const visible = !!dungeon?.visible?.[monster.y]?.[monster.x];
+  if (!attackOnly && visible) {
+    const lines = monster.baseKind === "boss_flock_revenge" ? FLOCK_REVENGE_EMPTY_MP_LINES : FLOCK_EMPTY_MP_LINES;
+    const firstEmptyTurn = !monster._flockOutOfMpDialogueShown;
+    if (firstEmptyTurn || Math.random() < 0.30) {
+      messages.push(`${monster.name}は魔力切れで震えている……「${pick(lines)}」`);
+      monster._flockOutOfMpDialogueShown = true;
+    }
+  }
+  if (!attackOnly) {
+    monster._movedThisTurn = true;
+  }
+  return true;
+}
+
+function flockHpChangeDialogue(monster, dungeon, messages, attackOnly = false) {
+  if (attackOnly || !dungeon?.visible?.[monster.y]?.[monster.x]) return;
+  const previousHp = Number.isFinite(monster._flockHpDialogueSnapshot)
+    ? monster._flockHpDialogueSnapshot
+    : (monster.maxHp || monster.hp);
+  monster._flockHpDialogueSnapshot = monster.hp;
+  if (monster.hp >= previousHp) return;
+  const critical = monster.hp <= (monster.maxHp || monster.hp) * 0.25;
+  const lines = monster.baseKind === "boss_flock_revenge"
+    ? (critical ? FLOCK_REVENGE_CRITICAL_LINES : FLOCK_REVENGE_HURT_LINES)
+    : (critical ? FLOCK_CRITICAL_LINES : FLOCK_HURT_LINES);
+  if (Math.random() < (critical ? 0.50 : 0.35)) messages.push(`${monster.name}「${pick(lines)}」`);
+}
+
+function castFlockSpell(monster, opts, dx, dy, effect, messages, { invoke = true } = {}) {
+  const cost = FLOCK_MAGIC_MP_COSTS[effect] ?? 10;
+  if (ensureFlockMp(monster) < cost || (invoke && !opts.monsterWandFn)) return false;
+  monster.mp -= cost;
+  const quotePool = monster.baseKind === "boss_flock_revenge"
+    ? FLOCK_REVENGE_SPELL_LINES[effect] || FLOCK_SPELL_LINES[effect]
+    : FLOCK_SPELL_LINES[effect];
+  const quote = quotePool?.length ? pick(quotePool) : "詠唱成功！効果の説明は台本に書き忘れた！";
+  messages.push(`${monster.name}は『${quote}』と唱えた！(MP-${cost})`);
+  if (!invoke) return true;
+  const previousEffect = monster.wandEffect;
+  monster.wandEffect = effect;
+  try {
+    opts.monsterWandFn(monster, dx, dy);
+  } finally {
+    if (previousEffect === undefined) delete monster.wandEffect;
+    else monster.wandEffect = previousEffect;
+  }
+  return true;
+}
+
+function hasFlockPurgeableStatus(monster) {
+  return !!(
+    (monster.poisonedTurns || 0) > 0 || monster.poisonHalfAtk ||
+    (monster.slowTurns || 0) > 0 || (monster.bossSlowTurns || 0) > 0 || monster._preSlowSpeed !== undefined ||
+    (monster.confusedTurns || 0) > 0 || (monster.drunkenTurns || 0) > 0 ||
+    (monster.darknessTurns || 0) > 0 || (monster.fleeingTurns || 0) > 0 ||
+    monster.blind || (monster.blindTurns || 0) > 0 || monster.bewitched || (monster.bewitchedTurns || 0) > 0 ||
+    (monster.immobileTurns || 0) > 0 || (monster.pacifistTurns || 0) > 0 ||
+    (monster.attackSealTurns || 0) > 0 || (monster.oilyTurns || 0) > 0 || (monster.soakedTurns || 0) > 0 ||
+    (monster.caswackTurns || 0) > 0 || (monster.debuffAtkHalfTurns || 0) > 0 || (monster.debuffDefHalfTurns || 0) > 0
+  );
+}
+
+function purifyFlockStatus(monster, messages) {
+  const hadStatus = hasFlockPurgeableStatus(monster);
+  if (!hadStatus) return false;
+  if (monster.poisonHalfAtk) monster.atk = monster.poisonOrigAtk ?? monster.atk;
+  if (monster._preSlowSpeed !== undefined) monster.speed = monster._preSlowSpeed;
+  if ((monster.debuffAtkHalfTurns || 0) > 0 && monster._debuffOrigAtk !== undefined) monster.atk = monster._debuffOrigAtk;
+  if ((monster.debuffDefHalfTurns || 0) > 0 && monster._debuffOrigDef !== undefined) monster.def = monster._debuffOrigDef;
+  for (const key of [
+    "poisonedTurns", "poisonHalfAtk", "poisonOrigAtk", "slowTurns", "bossSlowTurns", "_preSlowSpeed",
+    "sporePoisonKillerId", "sporePoisonKillerName",
+    "confusedTurns", "drunkenTurns", "darknessTurns", "darkDir", "fleeingTurns",
+    "blind", "blindTurns", "bewitched", "bewitchedTurns", "immobileTurns", "pacifistTurns",
+    "attackSealTurns", "oilyTurns", "soakedTurns", "caswackTurns",
+    "debuffAtkHalfTurns", "debuffDefHalfTurns", "_debuffOrigAtk", "_debuffOrigDef",
+  ]) delete monster[key];
+  messages.push(`${monster.name}は浄化の魔法で行動不能以外の状態異常を解除した！`);
+  return true;
+}
+
+function hasFreeFlockCloneCell(monster, dungeon, player) {
+  const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [1, 1], [-1, 1]];
+  return dirs.some(([dx, dy]) => {
+    const x = monster.x + dx, y = monster.y + dy;
+    return dungeon.map?.[y]?.[x] === T.FLOOR && !(x === player.x && y === player.y) &&
+      !dungeon.monsters?.some(other => monsterOccupiesCell(other, x, y)) &&
+      !dungeon.items?.some(item => item.x === x && item.y === y) &&
+      !dungeon.traps?.some(trap => trap.x === x && trap.y === y) &&
+      !dungeon.springs?.some(spring => spring.x === x && spring.y === y) &&
+      !dungeon.bigboxes?.some(box => box.x === x && box.y === y) &&
+      !dungeon.pentacles?.some(pc => pc.x === x && pc.y === y) &&
+      !dungeon.gachaMachines?.some(machine => machine.x === x && machine.y === y) &&
+      !dungeon.altars?.some(altar => altar.x === x && altar.y === y) &&
+      !dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y) &&
+      !dungeon.statues?.some(statue => statue.x === x && statue.y === y);
+  });
+}
+
+function _monsterAIBody(m, dg, pl, ml, opts = {}) {
+  const _isFlockBoss = m.baseKind === "boss_flock";
+  const _isFlockRevenge = m.baseKind === "boss_flock_revenge";
+  const _isFlockVariant = _isFlockBoss || _isFlockRevenge;
+  const _isGwen = m.baseKind === "boss_gwen";
+  const _isGwenVeteran = m.baseKind === "boss_gwen_veteran";
+  const _isGwenVariant = _isGwen || _isGwenVeteran;
+  if (_isFlockVariant && m.hp <= 0) return;
+  if (_isGwenVariant && m.hp <= 0) return;
+  if (_isGwen && opts.attackOnly) return;
+  /* ボス階のまとめて行動する経路でも、グウェンは移動と召喚だけを行う。 */
+  if (_isGwen && !opts.moveOnly) opts = { ...opts, moveOnly: true };
+  if (m.isPlayerClone && m.hp <= 0) return;
+  m.turnAttacks = m.turnAttacks || 0;
+  if (_isFlockVariant) ensureFlockMp(m);
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
+  if (_isFlockVariant) flockHpChangeDialogue(m, dg, ml, _attackOnly);
+  if (_isFlockRevenge && _attackOnly && m._flockEarlySpellPending) {
+    const effect = m._flockEarlySpellPending;
+    delete m._flockEarlySpellPending;
+    delete m._rangedAttackThisTurn;
+    m.turnAttacks++;
+    if (castFlockSpell(m, opts, 0, 0, effect, ml, { invoke: false })) purifyFlockStatus(m, ml);
+    return;
+  }
+  if (_isGwenVariant && !_attackOnly && dg.visible?.[m.y]?.[m.x]) {
+    m.gwenVisibleTurns = Math.min(4, (m.gwenVisibleTurns || 0) + 1);
+  }
   let _rangedAttackReady = false;
   const _luFn = opts.luFn || (() => {});
-  const _canMoveTo = (x, y) => m.waterOnly
+  const _canMoveTo = (x, y) => (monsterBodySize(m) === 1 || canPlaceMonsterBody(dg, m, x, y, pl)) && (m.waterOnly
     ? inBounds(x, y) && (dg.map[y]?.[x] === T.WATER || dg.springs?.some(s => s.x === x && s.y === y))
-    : canEnter(dg.map, x, y, _effFloat, dg, m.waterWalker);
+    : canEnter(dg.map, x, y, _effFloat, dg, m.waterWalker));
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
   const _plPotHidden = (pl.potConfinedTurns || 0) > 0;
@@ -4122,6 +5647,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 目覚めたターンは行動しない（袋叩き防止） */
   if (m._justWoke) { m._justWoke = false; return; }
+  /* 眠れる獅子は視界や隣接では起きず、攻撃など何かを受けるまで眠り続ける。 */
+  if (m.subtype === "sleepingLion" && m.dormant) {
+    const _lionWasHit = m.hp < (m._dormantHp ?? m.maxHp ?? m.hp);
+    if (_lionWasHit || m._dormantTouched) {
+      wakeIfDormant(m, ml);
+      delete m._justWoke; // 起床判定自体がこの行動を消費する。次ターンは通常行動できる。
+    } else {
+      m._dormantHp = m.hp;
+    }
+    return;
+  }
   /* 囮のペン（祝福）: 仮眠中でも起こして誘導（dormant チェックより先に処理）（魔封じで無効） */
   if (m.dormant && !m.dormantHouse && !inMagicSealRoom(m.x, m.y, dg) &&
       dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
@@ -4145,8 +5681,22 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
   }
+  if (_isFlockRevenge && !_attackOnly && hasFlockPurgeableStatus(m) &&
+      !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
+      !!opts.monsterWandFn && !m.sealed &&
+      !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
+      ensureFlockMp(m) >= FLOCK_MAGIC_MP_COSTS.purify_magic) {
+    if (_moveOnly) {
+      m._flockEarlySpellPending = "purify_magic";
+      m._rangedAttackThisTurn = true;
+      return;
+    }
+    m.turnAttacks++;
+    if (castFlockSpell(m, opts, 0, 0, "purify_magic", ml, { invoke: false })) purifyFlockStatus(m, ml);
+    return;
+  }
   /* 状態異常防止：毎ターンカウントダウン */
-  if ((m.statusImmune || 0) > 0) {
+  if ((m.statusImmune || 0) > 0 && !_attackOnly) {
     m.statusImmune = Math.max(0, m.statusImmune - 1);
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
@@ -4158,20 +5708,42 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ずぶ濡れ状態：水の飛沫などで付与され、敵ターンごとに減少 */
   if ((m.soakedTurns || 0) > 0 && !_attackOnly) {
     m.soakedTurns = Math.max(0, m.soakedTurns - 1);
-    if (m.soakedTurns <= 0) ml.push(`${m.name}のずぶ濡れが解けた！`);
+    if (m.soakedTurns <= 0) {
+      ml.push(`${m.name}のずぶ濡れが解けた！`);
+      if (m.baseKind === "firedemon" && !m.sealed) ml.push(`${m.name}の炎が戻った！`);
+    }
+  }
+  if ((m.flameMantleTurns || 0) > 0 && !_attackOnly) {
+    m.flameMantleTurns = Math.max(0, m.flameMantleTurns - 1);
+    if (m.flameMantleTurns <= 0) ml.push(`${m.name}を包んでいた炎が消えた！`);
+  }
+  if ((m.flockReflectTurns || 0) > 0 && !_attackOnly) {
+    m.flockReflectTurns = Math.max(0, m.flockReflectTurns - 1);
+    if (m.flockReflectTurns <= 0) ml.push(`${m.name}の魔法反射結界が消えた！`);
+  }
+  if ((m.flockGuardTurns || 0) > 0 && !_attackOnly) {
+    m.flockGuardTurns = Math.max(0, m.flockGuardTurns - 1);
+    if (m.flockGuardTurns <= 0) {
+      const bonus = Math.max(0, Number(m.flockGuardDefBonus) || 0);
+      m.def = Math.max(0, m.def - bonus);
+      if (m._debuffOrigDef !== undefined) m._debuffOrigDef = Math.max(0, m._debuffOrigDef - bonus);
+      delete m.flockGuardDefBonus;
+      ml.push(`${m.name}の守護結界が消えた！`);
+    }
   }
   /* 平和主義状態：攻撃できず、ランダムに1歩移動して終了 */
   if ((m.pacifistTurns || 0) > 0) {
     if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - 1);
     if (m.pacifistTurns <= 0) { ml.push(`${m.name}の平和主義状態が解けた！`); m.turnAccum = 0; }
-    else if (isStationaryMonster(m)) return;
+    else if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
+    else if (_attackOnly || isStationaryMonster(m)) return;
     else if (!_attackOnly) {
       const _pdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
       const _pshuf = [..._pdirs].sort(() => Math.random() - 0.5);
       for (const [_pdx, _pdy] of _pshuf) {
         const _pnx = m.x + _pdx, _pny = m.y + _pdy;
         if (!_canMoveTo(_pnx, _pny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _pnx && o.y === _pny)) continue;
+        if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _pnx, _pny))) continue;
         if (_pnx === pl.x && _pny === pl.y) continue;
         if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _pnx && pc.y === _pny)) continue;
         m.dir = { x: _pdx, y: _pdy }; m.x = _pnx; m.y = _pny; m._movedThisTurn = true; break;
@@ -4179,16 +5751,28 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
   }
-  /* 毒状態：毎ターン現HP×10%+5ダメージ */
+  /* 毒状態：毎行動、現HP×5%+5ダメージ */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
     m.poisonedTurns = Math.max(0, m.poisonedTurns - 1);
-    const _pdmg = Math.floor(m.hp * 0.1) + 5;
-    m.hp -= _pdmg;
-    ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
-    if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
+    if (!blockLargeMonsterDamage(m, pl, ml)) {
+      const _pdmg = Math.floor(m.hp * 0.05) + 5;
+      m.hp -= _pdmg;
+      ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
+      if (m.hp <= 0) {
+        const _sporeKiller = m.sporePoisonKillerId
+          ? (dg.monsters.find(other => other.id === m.sporePoisonKillerId) || {
+              id: m.sporePoisonKillerId, name: m.sporePoisonKillerName || "毒キノコ", hp: 0,
+            })
+          : null;
+        killMonster(m, dg, pl, ml, _luFn, false, _sporeKiller);
+        return;
+      }
+    }
     if (m.poisonedTurns <= 0) {
       ml.push(`${m.name}の毒が切れた。`);
       if (m.poisonHalfAtk) { m.atk = m.poisonOrigAtk ?? m.atk; delete m.poisonHalfAtk; delete m.poisonOrigAtk; }
+      delete m.sporePoisonKillerId;
+      delete m.sporePoisonKillerName;
     }
   }
   /* 盲目状態（ボスのみターン経過で解除） */
@@ -4205,6 +5789,34 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.attackSealTurns = Math.max(0, m.attackSealTurns - 1);
     if (m.attackSealTurns <= 0) ml.push(`${m.name}の攻撃封印が解けた！`);
   }
+  /* ちらにくつんのく：シャープストライク（攻撃力1.5倍バフ）持続カウントダウン */
+  if ((m.sharpStrikeTurns || 0) > 0 && !_attackOnly) {
+    m.sharpStrikeTurns = Math.max(0, m.sharpStrikeTurns - 1);
+    if (m.sharpStrikeTurns <= 0) {
+      ml.push(`${m.name}の毒針の鋭い輝きが収まった。（攻撃力上昇終了）`);
+    }
+  }
+  /* タイサイジン：リフレシュ（HP持続回復：20ターン毎ターン5回復） */
+  if ((m.refreshTurns || 0) > 0 && !_attackOnly) {
+    m.refreshTurns--;
+    if (!m.sealed) {
+      const _rHeal = Math.min(5, m.maxHp - m.hp);
+      if (_rHeal > 0) {
+        m.hp += _rHeal;
+        ml.push(`${m.name}はリフレシュの力で回復した！(+${_rHeal}HP)`);
+      }
+    }
+    if (m.refreshTurns <= 0) {
+      ml.push(`${m.name}のリフレシュの効果が切れた。`);
+    }
+  }
+  /* カスワック状態カウントダウン（モンスター） */
+  if ((m.caswackTurns || 0) > 0 && !_attackOnly) {
+    m.caswackTurns--;
+    if (m.caswackTurns <= 0) {
+      ml.push(`${m.name}のカスワックの呪いが解けた！`);
+    }
+  }
   /* 封印状態（ボスのみターン経過で解除） */
   if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
@@ -4215,15 +5827,20 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* ── 拘束解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
   if ((m.subtype === "grabber" || m.subtype === "giantEel") && pl.capturedBy === m.id) {
-    const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-    const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 ||
-      (m.darknessTurns || 0) > 0 || (m.fleeingTurns || 0) > 0 || m.sealed || m.bewitched ||
-      (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || m.blind || (m.oilyTurns || 0) > 0;
-    if (_gRelDist > 1 || _gBadStatus) {
-      pl.capturedBy = null;
-      ml.push(m.subtype === "giantEel" ? `${m.name}の拘束が解けた！` : `${m.name}の捕獲が解けた！`);
-    }
+    releaseInvalidCapture(pl, dg, ml);
   }
+
+  /* 石化状態：4ターンの間、攻撃・移動ともにできない。 */
+  if ((m.petrifiedTurns || 0) > 0) {
+    if (!_attackOnly) m.petrifiedTurns = Math.max(0, m.petrifiedTurns - 1);
+    if (m.petrifiedTurns <= 0) {
+      ml.push(`${m.name}の石化が解けた！`);
+      m.turnAccum = 0;
+      m._movedThisTurn = true;
+    }
+    return;
+  }
+
   if (m.sleepTurns > 0) {
     if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - 1);
     if (m.sleepTurns <= 0) { ml.push(`${m.name}の睡眠が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
@@ -4242,8 +5859,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* 金縛り: 被ダメで解除。通常敵は時間制限なし。ボスのみ付与時に半分の paralyzeTurns で時間解除 */
   if (m.paralyzed) {
     if (m._paralyzeHp != null && m.hp < m._paralyzeHp) {
-      m.paralyzed = false; m._paralyzeHp = null; m.paralyzeTurns = 0; m.paralyzeHits = 0;
-      ml.push(`${m.name}はダメージで金縛りが解けた！`);
+      weakenOrClearParalysis(m, ml);
+      if (!m.paralyzed) ml[ml.length - 1] = `${m.name}はダメージで金縛りが解けた！`;
       m.turnAccum = 0; m._movedThisTurn = true; return;
     }
     if (m.isBoss && (m.paralyzeTurns || 0) > 0 && !_attackOnly) {
@@ -4255,6 +5872,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (m.paralyzed) return;
+  }
+
+  /* バタリングラムのブレス予約中：状態異常や強制移動を受けない限り、移動・別攻撃を行わず次ターンのブレス発射に専念する */
+  if (m.baseKind === "boss_batteringram" && (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id))) {
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
+  }
+  /* オープレンティのカスワック予約中：状態異常や強制移動を受けない限り、移動・別攻撃を行わず次ターンの発動に専念する */
+  if (m.baseKind === "boss_ohplenty" && (m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id))) {
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
   }
   /* ===== 特殊AI ===== */
   /* 遺物の番人：7ターンごとにプレイヤーの隣に瞬間移動（逃げ場なし）
@@ -4280,7 +5910,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       for (const [_wdx, _wdy] of _warpDirs) {
         const _wx = pl.x + _wdx, _wy = pl.y + _wdy;
         if (dg.map[_wy]?.[_wx] !== T.FLOOR) continue;
-        if (dg.monsters.some(mn => mn !== m && mn.x === _wx && mn.y === _wy)) continue;
+        if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _wx, _wy))) continue;
         m.x = _wx; m.y = _wy;
         ml.push(`${m.name}が閃光とともに${plName(pl)}の目前に降り立った！`);
         _warped = true;
@@ -4330,10 +5960,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       for (const [_sdx, _sdy] of _shuffled) {
         const _sx = m.x + _sdx, _sy = m.y + _sdy;
         if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
-        if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+        if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 4) * 4);
-        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
         ml.push(`${m.name}が魔力で手下を召喚した！`);
         _summoned = true;
         break;
@@ -4356,10 +5986,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (_summoned >= 2) break;
           const _sx = m.x + _sdx, _sy = m.y + _sdy;
           if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
-          if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+          if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
           if (pl.x === _sx && pl.y === _sy) continue;
           const _depth = Math.max(0, (m.bossTier || 6) * 4);
-          dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
+          dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
           _summoned++;
         }
         if (_summoned > 0) { ml.push(`${m.name}が骨の手下を呼び寄せた！`); return; } /* 召喚行動消費 */
@@ -4375,9 +6005,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`祝福された聖域の加護が${m.name}の炎の息を防いだ！`);
         return;
       }
-      const _oilT = statusTurns("oily", { kind: "player" });
-      pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
-      ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
+      if (!isStatusImmune(pl, ml)) {
+        const _oilT = statusTurns("oily", { kind: "player" });
+        pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
+        ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
+      }
       return; /* ブレス行動消費 */
     }
   }
@@ -4392,13 +6024,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`祝福された聖域の加護が${m.name}の呪いを防いだ！`);
         return;
       }
-      const _r = Math.random();
-      if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
-      else if (_r < 0.66) {
-        if ((pl.yogurtImmuneTurns || 0) > 0) { ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`); }
-        else { const _ct = statusTurns("confuse", { kind: "player" }); pl.confusedTurns = (pl.confusedTurns || 0) + _ct; ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`); }
+      if (!isStatusImmune(pl, ml)) {
+        weakenOrClearParalysis(pl, ml);
+        const _r = Math.random();
+        if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
+        else if (_r < 0.66) {
+          if ((pl.yogurtImmuneTurns || 0) > 0) { ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`); }
+          else { const _ct = statusTurns("confuse", { kind: "player" }); pl.confusedTurns = (pl.confusedTurns || 0) + _ct; ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`); }
+        }
+        else { const _st = statusTurns("seal", { kind: "player" }); pl.sealedTurns = (pl.sealedTurns || 0) + _st; ml.push(`${m.name}の空間歪曲で魔法が封印された！(${_st}ターン)`); }
       }
-      else { const _st = statusTurns("seal", { kind: "player" }); pl.sealedTurns = (pl.sealedTurns || 0) + _st; ml.push(`${m.name}の空間歪曲で魔法が封印された！(${_st}ターン)`); }
       return; /* 状態異常付与行動消費 */
     }
   }
@@ -4434,10 +6069,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_summoned >= 2) break;
         const _sx = m.x + _sdx, _sy = m.y + _sdy;
         if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
-        if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+        if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 10) * 5);
-        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
         _summoned++;
       }
       if (_summoned > 0) { ml.push(`${m.name}が深淵から手下を招いた！`); return; } /* 召喚行動消費 */
@@ -4514,13 +6149,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
           pl.hp -= _kiDmg;
           pl.deathCause = `${m.name}の墨で`;
-          const _darkT = statusTurns("darkness", { kind: "player" });
-          pl.darknessTurns = (pl.darknessTurns || 0) + _darkT;
-          ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！暗闇状態になった！(${_darkT}ターン)`);
+          weakenOrClearParalysis(pl, ml);
+          ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！`);
+          if (!isStatusImmune(pl, ml)) {
+            const _darkT = statusTurns("darkness", { kind: "player" });
+            pl.darknessTurns = (pl.darknessTurns || 0) + _darkT;
+            ml.push(`暗闇状態になった！(${_darkT}ターン)`);
+          }
           _onHit?.(_kiDmg, m);
           break;
         }
-        if (dg.monsters.find(mn => mn.x === _ktx && mn.y === _kty && mn !== m)) break;
+        if (dg.monsters.find(mn => monsterOccupiesCell(mn, _ktx, _kty) && mn !== m)) break;
       }
       m.turnAttacks++;
       return;
@@ -4548,7 +6187,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}の攻撃力が戻った！`);
     }
   }
-  /* 強化解除巻物デバフ：ATK/DEF半減（50ターン） */
+  /* 一時的なATK/DEF半減：祝福強化解除の巻物、ボスへの軟化の杖 */
   if ((m.debuffAtkHalfTurns || 0) > 0 && !_attackOnly) {
     m.debuffAtkHalfTurns = Math.max(0, m.debuffAtkHalfTurns - 1);
     if (m.debuffAtkHalfTurns <= 0) {
@@ -4560,33 +6199,43 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.debuffDefHalfTurns = Math.max(0, m.debuffDefHalfTurns - 1);
     if (m.debuffDefHalfTurns <= 0) {
       if (m._debuffOrigDef !== undefined) { m.def = m._debuffOrigDef; delete m._debuffOrigDef; }
-      ml.push(`${m.name}の防御力デバフが解けた！`);
+      ml.push(`${m.name}の防御力半減が解けた！`);
     }
   }
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
   if ((m.immobileTurns||0) > 0) {
     if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - 1);
     if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     else _attackOnly = true;
   }
-  /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
-  if ((m.confusedTurns || 0) > 0) {
-    if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
-    if (isStationaryGrabber(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
-    if (isStationaryMonster(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
+  /* ===== 混乱・酩酊・酔い：ランダム方向に移動・攻撃 ===== */
+  const _isConfused = (m.confusedTurns || 0) > 0;
+  const _alcoholDirectionRandomized = !_isConfused && isAlcoholDirectionRandomized(m);
+  if (_isConfused || _alcoholDirectionRandomized) {
+    const _disorientedLabel = _isConfused ? "混乱した" : (m.drunkenTurns || 0) > 0 ? "酩酊した" : "酔った";
+    if (_isConfused && !_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
+    if (isStationaryGrabber(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
+    if (isStationaryMonster(m)) { if (_isConfused && m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
-      if (_cnx === pl.x && _cny === pl.y && !_plPotHidden) {
-        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+      const _cCells = monsterBodyCells(m, _cnx, _cny);
+      const _cHitsPlayer = !_plPotHidden && _cCells.some(c => c.x === pl.x && c.y === pl.y) &&
+        (monsterBodySize(m) <= 1 || monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1));
+      if (_cHitsPlayer) {
+        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${_disorientedLabel}${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
-        const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+        const _other = dg.monsters.find(o => o !== m && !o.disguisedAsItem &&
+          _cCells.some(c => monsterOccupiesCell(o, c.x, c.y)));
         if (_other) {
-          if (!_moveOnly) {
+          if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+            m.turnAttacks++;
             const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
             _other.hp -= _odmg;
-            ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
+            ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
             if (_other.hp <= 0) killMonster(_other, dg, pl, ml, _luFn, false, m);
           }
         } else if (!_attackOnly && _canMoveTo(_cnx, _cny) && isWalkable(dg.map, _cnx, _cny, dg)) {
@@ -4594,7 +6243,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
     }
-    if (m.confusedTurns <= 0) { ml.push(`${m.name}の混乱が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
+    if (_isConfused && m.confusedTurns <= 0) { ml.push(`${m.name}の混乱が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
 
@@ -4602,6 +6251,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - 1);
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (isStationaryMonster(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (!m.darkDir) {
@@ -4609,21 +6259,28 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m.darkDir = pick(_ddirs);
     }
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
-    if (_canMoveTo(_dnx, _dny)) {
-      if (_dnx === pl.x && _dny === pl.y) {
-        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
-      } else {
-        const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
-        if (_dother) {
-          if (!_moveOnly) {
-            const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
-            _dother.hp -= _dodmg;
-            ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
-            if (_dother.hp <= 0) killMonster(_dother, dg, pl, ml, _luFn, false, m);
-          }
-        } else if (!_attackOnly) {
-          m.x = _dnx; m.y = _dny;
-        }
+    const _dCells = monsterBodyCells(m, _dnx, _dny);
+    const _dCanStepTile = m.waterOnly
+      ? (inBounds(_dnx, _dny) && (dg.map[_dny][_dnx] === T.WATER || dg.springs?.some(s => s.x === _dnx && s.y === _dny)))
+      : canEnter(dg.map, _dnx, _dny, _effFloat, dg, m.waterWalker);
+    const _dHitsPlayer = _dCanStepTile && !_plPotHidden && _dCells.some(c => c.x === pl.x && c.y === pl.y) &&
+      (monsterBodySize(m) <= 1 || monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1));
+    const _dother = (!_dHitsPlayer && _dCanStepTile)
+      ? dg.monsters.find(o => o !== m && !o.disguisedAsItem && _dCells.some(c => monsterOccupiesCell(o, c.x, c.y)))
+      : null;
+    if (_dHitsPlayer) {
+      if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+    } else if (_dother) {
+      if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        m.turnAttacks++;
+        const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+        _dother.hp -= _dodmg;
+        ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
+        if (_dother.hp <= 0) killMonster(_dother, dg, pl, ml, _luFn, false, m);
+      }
+    } else if (_canMoveTo(_dnx, _dny)) {
+      if (!_attackOnly) {
+        m.x = _dnx; m.y = _dny;
       }
     } else {
       m.darkDir = null; // 壁に当たったら方向リセット
@@ -4636,6 +6293,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - 1);
+    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (isStationaryMonster(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
@@ -4649,6 +6307,275 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
 
+  if (_isFlockVariant) {
+    ensureFlockMp(m);
+    const dx = pl.x - m.x, dy = pl.y - m.y;
+    const distance = flockDistance(m.x, m.y, pl.x, pl.y);
+    const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+    const playerHidden = _plPotHidden || (pl.invisibleTurns || 0) > 0;
+    const canSeePlayer = !!dg.visible?.[m.y]?.[m.x] && !playerHidden && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    const canUseMagic = !!opts.monsterWandFn && !m.sealed && !isAttackSealed(m) &&
+      !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
+    const room = findRoom(dg.rooms, m.x, m.y);
+    const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
+    const availableAttacks = (_isFlockRevenge ? FLOCK_REVENGE_ATTACK_EFFECTS : FLOCK_MAGIC_EFFECTS)
+      .filter(effect => m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10));
+    const canCast = canSeePlayer && canUseMagic && inLine && distance >= (_isFlockRevenge ? 2 : 3) && distance <= 10 &&
+      availableAttacks.length > 0;
+    const reserveOrCastSpell = (spell, cornered = false) => {
+      if (_moveOnly) {
+        m._flockPendingSpell = spell;
+        m._flockPendingCorneredSpell = cornered;
+        m._rangedAttackThisTurn = true;
+      } else {
+        m.turnAttacks++;
+        if (spell === "summon_monster") summonFlockMonster(m, dg, pl, ml);
+        else castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), spell, ml);
+      }
+    };
+
+    if (_attackOnly) {
+      const escaped = !!m._flockEscapedThisTurn;
+      const pendingSpell = m._flockPendingSpell;
+      const pendingCorneredSpell = !!m._flockPendingCorneredSpell;
+      delete m._flockEscapedThisTurn;
+      delete m._flockPendingSpell;
+      delete m._flockPendingCorneredSpell;
+      delete m._rangedAttackThisTurn;
+      if (escaped && pendingSpell !== "self_destruct_magic") return;
+      if (pendingSpell === "summon_monster") {
+        if (canSeePlayer && canUseMagic && m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster &&
+            m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          m.turnAttacks++;
+          summonFlockMonster(m, dg, pl, ml);
+        }
+        return;
+      }
+      const canUseCorneredSpell = pendingCorneredSpell && canSeePlayer && canUseMagic && inLine && distance >= 1 && distance <= 3;
+      if (pendingSpell && m.turnAttacks < monEffectiveMaxAttacks(m) && (canCast || canUseCorneredSpell ||
+          pendingSpell === "clone_magic" || pendingSpell === "lightning_magic" || pendingSpell === "reflect_magic" ||
+          pendingSpell === "guard_magic" || pendingSpell === "flame_mantle" || pendingSpell === "self_destruct_magic")) {
+        m.turnAttacks++;
+        castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), pendingSpell, ml);
+        return;
+      }
+      if (!_isFlockRevenge && distance <= 1 && canSeePlayer && canUseMagic) {
+        if (teleportFlockAway(m, dg, pl, ml)) m._flockEscapedThisTurn = true;
+      }
+      return;
+    }
+
+    delete m._flockPendingSpell;
+    delete m._flockPendingCorneredSpell;
+    delete m._flockEscapedThisTurn;
+    if (m.mp <= 0) {
+      flockHasNoManaTurn(m, dg, ml, false);
+      return;
+    }
+
+    if (_isFlockRevenge && m.hp < m.maxHp / 2 && !m._flockCloneSummoned && canUseMagic &&
+        m.mp >= FLOCK_MAGIC_MP_COSTS.clone_magic && hasFreeFlockCloneCell(m, dg, pl)) {
+      reserveOrCastSpell("clone_magic");
+      if (!_moveOnly) m._flockCloneSummoned = true;
+      return;
+    }
+
+    if (distance <= 1 && canSeePlayer && canUseMagic) {
+      if (_isFlockRevenge && m.mp >= FLOCK_MAGIC_MP_COSTS.self_destruct_magic && Math.random() < 0.10) {
+        reserveOrCastSpell("self_destruct_magic");
+        m._flockEscapedThisTurn = true;
+        return;
+      }
+      if (teleportFlockAway(m, dg, pl, ml)) {
+        m._flockEscapedThisTurn = true;
+        return;
+      }
+    }
+
+    const ordinaryMagicInRange = canSeePlayer && inLine && distance >= 3 && distance <= 10;
+    if (!_isFlockRevenge && canSeePlayer && canUseMagic && !ordinaryMagicInRange &&
+        m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster &&
+        m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < 0.20) {
+      reserveOrCastSpell("summon_monster");
+      return;
+    }
+
+    if (_isFlockRevenge && sameRoom && canSeePlayer && canUseMagic) {
+      const canUseRoomLightning = m.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic;
+      const canUseSummon = m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster;
+      if (canUseRoomLightning && canUseSummon) {
+        reserveOrCastSpell(Math.random() < 0.50 ? "lightning_magic" : "summon_monster");
+        return;
+      }
+      if (canUseRoomLightning) {
+        reserveOrCastSpell("lightning_magic");
+        return;
+      }
+      const roomBuffEffects = FLOCK_REVENGE_ROOM_EFFECTS.filter(effect => effect !== "lightning_magic").filter(effect => {
+        if (effect === "reflect_magic" && (m.flockReflectTurns || 0) > 0) return false;
+        if (effect === "guard_magic" && (m.flockGuardTurns || 0) > 0) return false;
+        if (effect === "flame_mantle" && (m.flameMantleTurns || 0) > 0) return false;
+        return m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10);
+      });
+      const roomActions = [...roomBuffEffects, ...(canCast ? availableAttacks : [])];
+      if (roomActions.length > 0) {
+        reserveOrCastSpell(pick(roomActions));
+        return;
+      }
+    }
+    if (canCast && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      reserveOrCastSpell(pick(availableAttacks));
+      return;
+    }
+    if (canSeePlayer && !(inLine && distance > 10)) {
+      const repositioned = moveFlockToFiringLine(m, dg, pl);
+      const canCastWhileCornered = !repositioned && inLine && distance >= 1 && distance <= 3 &&
+        canUseMagic && availableAttacks.length > 0 && m.turnAttacks < monEffectiveMaxAttacks(m);
+      if (canCastWhileCornered) {
+        reserveOrCastSpell(pick(availableAttacks), true);
+        return;
+      }
+    }
+    if (canSeePlayer && Math.random() < 0.30) ml.push(`${m.name}「${pick(FLOCK_IDLE_LINES)}」`);
+    return;
+  }
+
+  if (_isGwenVeteran) {
+    try {
+      if (m.gwenWandCharges == null) m.gwenWandCharges = 6;
+      const dx = pl.x - m.x, dy = pl.y - m.y;
+      const distance = Math.max(Math.abs(dx), Math.abs(dy));
+      const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+      const playerHidden = _plPotHidden || (pl.invisibleTurns || 0) > 0;
+      const canSeePlayer = !!dg.visible?.[m.y]?.[m.x] && !playerHidden;
+      const adjacent = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+      const canUseWand = !!opts.monsterWandFn && m.gwenWandCharges > 0 && !m.sealed &&
+        !isAttackSealed(m) && !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
+      const canUseArrow = !m.sealed && !isAttackSealed(m) && !_plOnBlessedSanc && hasMonsterProjectileAmmo(m);
+      const useArrow = () => {
+        if (!canUseArrow || m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
+        m.turnAttacks++;
+        monsterShootArrow(m, dg, pl, ml, opts);
+        return true;
+      };
+      const useWand = (effect) => {
+        if (!canUseWand || m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
+        return useGwenVeteranWand(m, pl, opts, Math.sign(dx), Math.sign(dy), effect);
+      };
+      const chooseRangedAction = () => {
+        if (canUseArrow && canUseWand) return Math.random() < 0.5 ? "arrow" : "wand";
+        if (canUseArrow) return "arrow";
+        if (canUseWand) return "wand";
+        return null;
+      };
+      const reserveOrUse = (action) => {
+        if (_moveOnly) {
+          m._gwenPendingAction = action;
+          if (action === "wand") m._gwenPendingWandEffect = pick(GWEN_VETERAN_WAND_EFFECTS);
+          m._rangedAttackThisTurn = true;
+          return true;
+        }
+        if (action === "arrow") return useArrow();
+        return useWand(pick(GWEN_VETERAN_WAND_EFFECTS));
+      };
+
+      if (_attackOnly) {
+        const pendingAction = m._gwenPendingAction;
+        const pendingWandEffect = m._gwenPendingWandEffect;
+        delete m._gwenPendingAction;
+        delete m._gwenPendingWandEffect;
+        delete m._rangedAttackThisTurn;
+        if (pendingAction === "arrow") {
+          useArrow();
+          return;
+        }
+        if (pendingAction === "wand") {
+          const effect = pendingWandEffect || pick(GWEN_VETERAN_WAND_EFFECTS);
+          useWand(effect);
+          return;
+        }
+        if (adjacent && !playerHidden && !_plOnSanc && !isAttackSealed(m) &&
+            m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          m.turnAttacks++;
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, {
+            onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn,
+          });
+        }
+        return;
+      }
+
+      delete m._gwenPendingAction;
+      delete m._gwenPendingWandEffect;
+      const rangedAction = canSeePlayer && inLine && distance >= 2 && distance <= 10
+        ? chooseRangedAction()
+        : null;
+      if (rangedAction) {
+        reserveOrUse(rangedAction);
+        return;
+      }
+      if (adjacent) {
+        if (canSeePlayer && canUseWand && !_plOnSanc && Math.random() < 0.20) {
+          reserveOrUse("wand");
+          return;
+        }
+        if (_moveOnly || playerHidden || _plOnSanc || isAttackSealed(m) ||
+            m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, {
+          onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn,
+        });
+        return;
+      }
+      if (chebyshevDistance(m, pl) > 1) {
+        const next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,
+          60, dg.pentacles, false, null, true, dg.rooms, dg);
+        if (next && (next.x !== pl.x || next.y !== pl.y) &&
+            !dg.monsters.some(other => other !== m && monsterOccupiesCell(other, next.x, next.y))) {
+          m.dir = { x: next.x - m.x, y: next.y - m.y };
+          m.x = next.x;
+          m.y = next.y;
+          m._movedThisTurn = true;
+        }
+      }
+      return;
+    } finally {
+      if (m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] && summonGwenMonster(m, dg, pl, ml)) {
+        m.gwenVisibleTurns = 0;
+      }
+      if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {
+        ml.push(`${m.name}「${pick(m.dialogueLines || GWEN_VETERAN_IDLE_DIALOGUE_LINES)}」`);
+      }
+    }
+  }
+
+  if (_isGwen) {
+    if (!_attackOnly && chebyshevDistance(m, pl) > 1) {
+      const next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,
+        60, dg.pentacles, false, null, true, dg.rooms, dg);
+      if (next && (next.x !== pl.x || next.y !== pl.y) &&
+          !dg.monsters.some(other => other !== m && monsterOccupiesCell(other, next.x, next.y))) {
+        m.dir = { x: next.x - m.x, y: next.y - m.y };
+        m.x = next.x;
+        m.y = next.y;
+        m._movedThisTurn = true;
+      }
+    }
+    if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] &&
+        summonGwenWave(m, dg, pl, ml)) {
+      m.gwenVisibleTurns = 0;
+    }
+    if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {
+      ml.push(`${m.name}「${pick(m.dialogueLines || GWEN_IDLE_DIALOGUE_LINES)}」`);
+    }
+    return;
+  }
+
+  /* 分身も共通の状態処理を通す。通常行動だけを味方AIへ切り替える。 */
+  if (m.isPlayerClone) {
+    playerCloneAI(m, dg, pl, ml, { ...opts, attackOnly: _attackOnly });
+    return;
+  }
+
   /* ===== 分裂スライム：ダメージを受けたターンに25%で分裂（体力全快の個体を生成） ===== */
   if (m.subtype === "splitter" && m.hp > 0) {
     const _prevHp = m._lastHp;
@@ -4659,7 +6586,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _snx = m.x + _sdx, _sny = m.y + _sdy;
         if (!canEnter(dg.map, _snx, _sny, false, dg)) continue;
         if (_snx === pl.x && _sny === pl.y) continue;
-        if (dg.monsters.some(o => o.x === _snx && o.y === _sny)) continue;
+        if (dg.monsters.some(o => monsterOccupiesCell(o, _snx, _sny))) continue;
         const _child = { ...m, id: uid(), x: _snx, y: _sny,
           hp: m.maxHp, maxHp: m.maxHp,
           posHistory: [], turnAccum: 0, patrolTarget: null, _lastHp: m.maxHp };
@@ -4757,11 +6684,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== バリア術師：非隣接時にバリアを張り直す／レベル2以上は隣接モンスターにも付与 ===== */
-  if (m.baseKind === "barriermage" && !m.sealed) {
+  if (!_moveOnly && m.baseKind === "barriermage" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
     const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
     if (!_adjPl) {
       /* 自分のバリアが優先：なければ50%で張り直す */
       if (!m.barrier && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.barrier)) {
+        m.turnAttacks++;
         m.barrier = 1;
         ml.push(`${m.name}がバリアを張り直した！（残り1回）`);
         return;
@@ -4769,9 +6697,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* レベル2以上かつ自分のバリアあり：バリアのない隣接モンスターに付与 */
       if (m.monLevel >= 2 && m.barrier) {
         const _adjTargets = dg.monsters.filter(o =>
-          o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1 && !o.barrier && !o.sealed
+          o !== m && !o.disguisedAsItem && !o.isPlayerClone && o.state !== "friendly" &&
+          Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1 && !o.barrier && !o.sealed
         );
         if (_adjTargets.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.barrier)) {
+          m.turnAttacks++;
           const _bt = _adjTargets[rng(0, _adjTargets.length - 1)];
           _bt.barrier = 1;
           ml.push(`${m.name}が${_bt.name}にバリアを付与した！`);
@@ -4796,7 +6726,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         Math.hypot(it.x - m.x, it.y - m.y) < Math.hypot(best.x - m.x, best.y - m.y) ? it : best
       );
       const _gcNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _gcTarget.x, _gcTarget.y, m, 30, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
-      if (_gcNext && !dg.monsters.some(o => o !== m && o.x === _gcNext.x && o.y === _gcNext.y)) {
+      if (_gcNext && !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _gcNext.x, _gcNext.y))) {
         if (_gcNext.x === pl.x && _gcNext.y === pl.y) {
           if (!_plOnSanc &&
               !_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
@@ -4837,8 +6767,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* プレイヤーに隣接していれば詰まり扱いしない（攻撃ターンは正常） */
   if (_forceAlt && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) _forceAlt = false;
 
-  /* shopkeeper（行商人は友好的な間も徘徊するため通常AIへ流す） */
-  if (m.type === "shopkeeper" && !m.isWanderingMerchant) {
+  if (npcRetaliationAI(m, dg, pl, ml, opts, _effFloat)) return;
+
+  /* 通常店主は固定。行商人・冒険者は友好的な間も巡回する。 */
+  if (m.type === "shopkeeper" && !isWanderingNpc(m)) {
     if (m.state === "friendly") {
       /* 聖域の魔法陣の上にいる場合は隣接フロアタイルに退く（魔封じで無効） */
       const _skSanctSupp = inMagicSealRoom(m.x, m.y, dg);
@@ -4847,7 +6779,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         for (const [_dx, _dy] of _dirs4) {
           const _nx = m.x + _dx, _ny = m.y + _dy;
           if (dg.map[_ny]?.[_nx] === T.FLOOR &&
-              !dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny) &&
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _nx, _ny)) &&
               !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) {
             m.x = _nx; m.y = _ny; break;
           }
@@ -4865,7 +6797,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         for (const [_dx, _dy] of _dirs4) {
           const _nx = _bp.x + _dx, _ny = _bp.y + _dy;
           if (dg.map[_ny]?.[_nx] === T.FLOOR &&
-              !dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny) &&
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _nx, _ny)) &&
               !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) {
             m.x = _nx; m.y = _ny; return;
           }
@@ -4874,7 +6806,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (m.x !== _bp.x || m.y !== _bp.y) {
           /* プレイヤーや他のモンスターが既に同マスにいる場合は近傍の空きタイルへ */
           const _bpFree = (_bp.x !== pl.x || _bp.y !== pl.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _bp.x && o.y === _bp.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _bp.x, _bp.y)) &&
             (dg.map[_bp.y]?.[_bp.x] === T.FLOOR || dg.map[_bp.y]?.[_bp.x] === T.SD || dg.map[_bp.y]?.[_bp.x] === T.SU);
           if (_bpFree) {
             m.x = _bp.x; m.y = _bp.y;
@@ -4882,7 +6814,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             /* blockPos が塞がれていたらBFSで1歩近づく */
             const _bn = bfsNext(dg.map, dg.monsters, m.x, m.y, _bp.x, _bp.y, m, 10, null, _effFloat, null, false, dg.rooms, dg);
             if (_bn && (_bn.x !== pl.x || _bn.y !== pl.y) &&
-                !dg.monsters.some(o => o !== m && o.x === _bn.x && o.y === _bn.y)) {
+                !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _bn.x, _bn.y))) {
               m.x = _bn.x; m.y = _bn.y;
             }
           }
@@ -4892,8 +6824,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* 行商人：友好的な間はプレイヤーを攻撃せず、部屋を順番に巡回する。 */
-  if (m.isWanderingMerchant && m.state === "friendly") {
+  /* 友好的な巡回者はプレイヤーを攻撃せず、部屋を順番に巡回する。 */
+  if (isWanderingNpc(m) && m.state === "friendly") {
     if (opts.attackOnly) return;
     const _arrived = m.patrolTarget && m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;
     if (_arrived) {
@@ -4918,7 +6850,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const map = dg.map,
     rooms = dg.rooms;
   const dist = Math.abs(pl.x - m.x) + Math.abs(pl.y - m.y);
-  /* 同じ部屋にいる場合は常に相互認識（大部屋でFOV外でも同様） */
+  /* 同室内の認識は維持する。巨大敵の攻撃可能な接触・視線は別に壁を確認する。 */
   const _monRoom = findRoom(rooms, m.x, m.y);
   const _plRoom  = findRoom(rooms, pl.x, pl.y);
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
@@ -4929,16 +6861,33 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
    * - 同部屋
    * - 隣接
    * - プレイヤーの視界内にいる（FOV 対称：見える敵はこちらも認識する）
+   * 巨大敵は同室なら追跡を保つ。別室で隣接・視界認識するには壁のない体マスから視線が必要。
+   * 実際の近接攻撃・隣接特技は、同室でも壁のない接触経路を必須とする。
    *
    * 旧実装は「FOV内 かつ hasLOS」で、廊下2マス視界内でも Bresenham が角壁で
    * hasLOS を落とすと canSee=false → 古い lastPx（画面右など）へ歩き続けた。
    * 遠くの暗闇の敵は FOV 外のままなので、認識しない挙動は維持される。
    */
-  const _inPlayerFov = !!(dg.visible?.[m.y]?.[m.x]);
-  const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
-  const _cloneDecoy = recognizedDecoyForMonster(m, dg, pl);
+  const _isGiant = monsterBodySize(m) > 1;
+  const _giantSightline = !_isGiant || monsterBodyHasLineOfSight(m, dg, pl.x, pl.y);
+  const _inPlayerFov = monsterBodyCells(m).some(cell =>
+    dg.visible?.[cell.y]?.[cell.x] && (!_isGiant || !isOpaqueMonsterSightTile(dg, cell.x, cell.y))
+  );
+  const _adjPl = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+  const _cloneCandidate = recognizedDecoyForMonster(m, dg, pl);
+  const _cloneDecoy = _cloneCandidate && (!_isGiant || monsterBodyHasLineOfSight(m, dg, _cloneCandidate.x, _cloneCandidate.y))
+    ? _cloneCandidate
+    : null;
   const _cloneTargeted = !!_cloneDecoy?.isPlayerClone;
-  const canSee = (!_plInvis && (_sameRoom || _adjPl || _inPlayerFov)) || _cloneTargeted;
+  const canSee = (!_plInvis && (_sameRoom || (_giantSightline && (_adjPl || _inPlayerFov)))) || _cloneTargeted;
+  if (_isGiant && !_sameRoom && !_giantSightline && !_cloneTargeted) {
+    /* 別室の壁越しに見失った巨大敵は、古い認識位置を追い続けない。 */
+    m.aware = false;
+    m.lastPx = m.x;
+    m.lastPy = m.y;
+    delete m._rangedAttackThisTurn;
+    delete m._willowAttackType;
+  }
   if (_plPotHidden && !_cloneTargeted) {
     m.aware = false;
     m.lastPx = m.x;
@@ -4961,6 +6910,348 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.lastPy = _cloneTargeted ? _cloneDecoy.y : pl.y;
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
+  }
+
+  if (m.baseKind === "boss_batteringram" && (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id))) {
+    // ブレスを吐くターンは移動も別攻撃も行わずブレス発射に専念する
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
+  }
+
+  if (m.baseKind === "boss_batteringram" && _moveOnly) {
+    delete m._ramChargeReady;
+    delete m._petroBreathReady;
+  }
+  if (m.baseKind === "boss_batteringram" && !m.sealed && !(m.attackSealTurns > 0) && !m.blind &&
+      !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
+      m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    const _adjPl1 = _adjPl;
+    const _adjPl2 = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 2);
+
+    if (_moveOnly) {
+      if (_adjPl1) {
+        const roll = Math.random();
+        if (m.alwaysUseSpecial || roll < 0.25) {
+          m._ramChargeReady = true;
+          return;
+        } else if (roll < 0.50 && canCastPetroBreath(m, dg)) {
+          m._petroBreathReady = true;
+          return;
+        }
+      } else if (_adjPl2 && canCastPetroBreath(m, dg)) {
+        // 1マス離れていてもペトロブレス予兆を放つ（隣接時はラムチャージと25%ずつ、1マス離れている時は25%で予兆）
+        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+          m._petroBreathReady = true;
+          return;
+        }
+      }
+    }
+    if (m._ramChargeReady) {
+      delete m._ramChargeReady;
+      m.turnAttacks++;
+      ramCharge(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
+      return;
+    }
+    if (m._petroBreathReady) {
+      delete m._petroBreathReady;
+      m.turnAttacks++;
+      castPetroBreath(m, dg, pl, ml);
+      return;
+    }
+  }
+
+  if (m.baseKind === "boss_chiranikuttsunnoku" && _moveOnly) {
+    delete m._sharpStrikeReady;
+    delete m._deathScissorsReady;
+    delete m._earthbreakerReady;
+    delete m._venomStingReady;
+  }
+  if (m.baseKind === "boss_chiranikuttsunnoku" && canUseChiranikuttsunnokuSpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      // 1. シャープストライク（視界内10% & 未発動中）
+      if (canSee && (m.sharpStrikeTurns || 0) <= 0 && !m.alwaysUseDeathScissors && !m.alwaysUseEarthbreaker && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+        m._sharpStrikeReady = true;
+        return;
+      }
+      // 2. 隣接時: デスシザース(10%) / アースブレイカー(10%)
+      if (_adjPl) {
+        if (m.alwaysUseDeathScissors) {
+          m._deathScissorsReady = true;
+          return;
+        }
+        if (m.alwaysUseEarthbreaker) {
+          m._earthbreakerReady = true;
+          return;
+        }
+        if (m.alwaysUseSpecial) {
+          m._earthbreakerReady = true;
+          return;
+        }
+        const roll = Math.random();
+        if (roll < 0.10) {
+          m._deathScissorsReady = true;
+          return;
+        } else if (roll < 0.20) {
+          m._earthbreakerReady = true;
+          return;
+        }
+      } else {
+        // 3. 遠距離直線上にいるときベノムスティング（50%）
+        const stingAim = getVenomStingOriginAndDir(m, dg, pl);
+        if (stingAim) {
+          if (m.alwaysUseSpecial || Math.random() < 0.50) {
+            m._venomStingReady = stingAim;
+            return;
+          }
+        }
+      }
+    }
+    if (m._sharpStrikeReady) {
+      delete m._sharpStrikeReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuSharpStrike(m, ml);
+      return;
+    }
+    if (m._deathScissorsReady) {
+      delete m._deathScissorsReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuDeathScissors(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
+      return;
+    }
+    if (m._earthbreakerReady) {
+      delete m._earthbreakerReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, {
+        luFn: _luFn,
+        onPlayerHit: _onHit,
+        onPlayerMiss: _onMiss,
+      });
+      return;
+    }
+    if (m._venomStingReady) {
+      const aim = m._venomStingReady;
+      delete m._venomStingReady;
+      m.turnAttacks++;
+      chiranikuttsunnokuVenomSting(m, dg, pl, ml, _luFn, aim);
+      return;
+    }
+  }
+
+  if (m.baseKind === "boss_taisaijin" && _moveOnly) {
+    delete m._blazeSpikeReady;
+    delete m._refreshReady;
+    delete m._hypnosisReady;
+  }
+  if (m.baseKind === "boss_taisaijin" && canUseTaisaijinSpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      // 1. ブレイズスパイク（視界内10% & 未発動中）
+      if (canSee && (m.soakedTurns || 0) <= 0 && (m.flameMantleTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+        m._blazeSpikeReady = true;
+        return;
+      }
+      // 2. リフレシュ（視界内10% & 未発動中）
+      if (canSee && (m.refreshTurns || 0) <= 0 && (m.alwaysUseSpecial || Math.random() < 0.10)) {
+        m._refreshReady = true;
+        return;
+      }
+      // 3. 催眠（遠距離直線上に25%）
+      if (isTaisaijinFarLine(m, dg, pl)) {
+        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+          m._hypnosisReady = true;
+          return;
+        }
+      }
+    }
+    if (m._blazeSpikeReady) {
+      delete m._blazeSpikeReady;
+      taisaijinBlazeSpike(m, dg, ml);
+      return;
+    }
+    if (m._refreshReady) {
+      delete m._refreshReady;
+      taisaijinRefresh(m, dg, ml);
+      return;
+    }
+    if (m._hypnosisReady) {
+      delete m._hypnosisReady;
+      taisaijinHypnosis(m, dg, pl, ml);
+      return;
+    }
+  }
+
+  if (m.baseKind === "boss_ohplenty" && (m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id))) {
+    // カスワック詠唱ターンは移動・別攻撃を行わず詠唱に専念する
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
+  }
+
+  if (m.baseKind === "boss_ohplenty" && _moveOnly) {
+    if (m._caswackReady || m._deathTrapReady || m._pullPlayerReady) {
+      return;
+    }
+    delete m._pullPlayerReady;
+    delete m._caswackReady;
+    delete m._deathTrapReady;
+  }
+  if (m.baseKind === "boss_ohplenty" && canUseOhplentySpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      if (_adjPl) {
+        const roll = Math.random();
+        if (m.alwaysUseSpecial || roll < 0.25) {
+          m._caswackReady = true;
+          return;
+        } else if (roll < 0.50) {
+          m._deathTrapReady = true;
+          return;
+        }
+      } else if (isOhplentyFarLine(m, dg, pl)) {
+        if (m.alwaysUseSpecial || Math.random() < 0.50) {
+          m._pullPlayerReady = true;
+          return;
+        }
+      }
+    }
+    if (m._caswackReady) {
+      delete m._caswackReady;
+      castCaswack(m, dg, pl, ml);
+      return;
+    }
+    if (m._deathTrapReady) {
+      delete m._deathTrapReady;
+      ohplentyDeathTrap(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
+      return;
+    }
+    if (m._pullPlayerReady) {
+      delete m._pullPlayerReady;
+      ohplentyPullPlayer(m, dg, pl, ml);
+      return;
+    }
+  }
+
+  /* ===== 上級30階ボス ミレウ 特技AI ===== */
+  if (m.baseKind === "boss_mireu" && _moveOnly) {
+    delete m._hyperthermicBreathReady;
+    delete m._spikeFlailReady;
+    delete m._meteorReady;
+    delete m._absoluteTerrorReady;
+  }
+  if (m.baseKind === "boss_mireu" && canUseMireuSpecial(m) &&
+      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      if (_adjPl) {
+        // 隣接時25%でスパイクフレイル
+        if (m.alwaysUseSpecial || Math.random() < 0.25) {
+          m._spikeFlailReady = true;
+          return;
+        }
+      } else if (isMireuFarLine(m, dg, pl)) {
+        // 遠距離直線上に50%でハイパーサーミックブレス
+        if (m.alwaysUseSpecial || Math.random() < 0.50) {
+          m._hyperthermicBreathReady = true;
+          return;
+        }
+      }
+      if (canSee) {
+        // プレイヤーが視界内なら10%でメテオ
+        if (canCastMeteor(m, dg) && !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg)) {
+          if (m.alwaysUseSpecial || Math.random() < 0.10) {
+            m._meteorReady = true;
+            return;
+          }
+        }
+        // プレイヤーが視界内なら10%でアブソルートテラー
+        if (m.alwaysUseSpecial || Math.random() < 0.10) {
+          m._absoluteTerrorReady = true;
+          return;
+        }
+      }
+    }
+    if (m._spikeFlailReady) {
+      delete m._spikeFlailReady;
+      m.turnAttacks++;
+      mireuSpikeFlail(m, dg, pl, ml, opts, _onHit, _onMiss, _luFn);
+      return;
+    }
+    if (m._hyperthermicBreathReady) {
+      delete m._hyperthermicBreathReady;
+      m.turnAttacks++;
+      mireuHyperthermicBreath(m, dg, pl, ml, opts);
+      return;
+    }
+    if (m._meteorReady) {
+      delete m._meteorReady;
+      if (castMeteor(m, dg, pl, ml)) {
+        m.turnAttacks++;
+        return;
+      }
+    }
+    if (m._absoluteTerrorReady) {
+      delete m._absoluteTerrorReady;
+      m.turnAttacks++;
+      mireuAbsoluteTerror(m, dg, pl, ml, opts);
+      return;
+    }
+  }
+
+  if (m.baseKind === "boss_kingbehinmos" && _moveOnly) delete m._kingDustStormReady;
+  if (m.baseKind === "boss_kingbehinmos" && !m.sealed && !(m.attackSealTurns > 0) && !m.blind &&
+      !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
+      _adjPl && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      if (Math.random() < MONSTER_SPECIAL_RATE.status) {
+        m._kingDustStormReady = true;
+        return;
+      }
+    }
+    if (m._kingDustStormReady) {
+      delete m._kingDustStormReady;
+      m.turnAttacks++;
+      kingDustStorm(m, dg, pl, ml, _onHit, _onMiss, _luFn);
+      return;
+    }
+  }
+  const _usesMeteorChance = m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion";
+  if (_usesMeteorChance && _moveOnly) {
+    delete m._kingMeteorReady;
+    delete m._meteorReady;
+    delete m._meteorRollDone;
+  }
+  if ((m.baseKind === "boss_kingbehinmos" || m.subtype === "sleepingLion") && !m.sealed &&
+      !(m.attackSealTurns > 0) && !m.blind && !(m.confusedTurns > 0) && !m.bewitched &&
+      canSee && !_plInvis && monsterPointDistance(m, pl.x, pl.y) <= 8 &&
+      !inMagicSealRoom(m.x, m.y, dg) && !inMagicSealRoom(pl.x, pl.y, dg) &&
+      canCastMeteor(m, dg)) {
+    // 抽選に当たった場合、等速敵は移動せず攻撃フェーズで詠唱する。
+    const _meteorReadyKey = m.baseKind === "boss_kingbehinmos" ? "_kingMeteorReady" : "_meteorReady";
+    const _meteorChance = m.baseKind === "boss_kingbehinmos" ? 0.50 : 0.25;
+    if (_moveOnly) {
+      m._meteorRollDone = true;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < _meteorChance)) {
+        m[_meteorReadyKey] = true;
+        return;
+      }
+    }
+    if (!_moveOnly && !m._meteorRollDone) {
+      m._meteorRollDone = true;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < _meteorChance)) {
+        m[_meteorReadyKey] = true;
+      }
+    }
+    if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m) && m[_meteorReadyKey]) {
+      delete m[_meteorReadyKey];
+      delete m._meteorRollDone;
+      if (castMeteor(m, dg, pl, ml)) {
+        m.turnAttacks++;
+        return;
+      }
+    }
   }
   /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡（魔封じで無効） */
   if (!_plPotHidden && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {
@@ -5014,7 +7305,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _wwOk = (nx, ny) =>
         _wwCan(nx, ny) &&
         !(nx === pl.x && ny === pl.y) &&
-        !dg.monsters.some(o => o !== m && o.x === nx && o.y === ny) &&
+        !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, nx, ny)) &&
         !(!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny));
       const _wn = bfsNext(
         dg.map, dg.monsters, m.x, m.y, pl.x, pl.y, m,
@@ -5058,7 +7349,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _wdnx = m.x + _wddx, _wdny = m.y + _wddy;
         if (_wdnx > 0 && _wdnx < MW - 1 && _wdny > 0 && _wdny < MH - 1 &&
             !(_wdnx === pl.x && _wdny === pl.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _wdnx && o.y === _wdny) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _wdnx, _wdny)) &&
             !(!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wdnx && pc.y === _wdny))) {
           if (dg.map[_wdny][_wdnx] === T.WALL) {
             dg.map[_wdny][_wdnx] = T.FLOOR;
@@ -5128,18 +7419,22 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
       delete m._dreamEaterTargetId;
+      if (_dePlayerAdj && canSee && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        consumeFailedMonsterSpecial(m, ml, "が夢を食べようとしたが、眠っている相手がいなかった！");
+        return;
+      }
     }
 
     /* ── grabber（からめ鬼等）：静止型 ─ 移動コードより先に処理して即return ── */
     if (isStationaryGrabber(m)) {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
         let _justCaptured = false;
-        if (!pl.capturedBy && !_plOnSanc) {
+        if (!pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
           pl.capturedBy = m.id;
           _justCaptured = true;
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
           interruptPlayerSleep(pl, ml);
-          if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+          weakenOrClearParalysis(pl, ml);
         }
         if (!_justCaptured && !_plOnSanc) {
           if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
@@ -5154,12 +7449,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* ── giantEel（巨大ウナギ等）：隣接時にプレイヤーを拘束する ── */
     if (m.subtype === "giantEel" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       let _justBound = false;
-      if (!pl.capturedBy && !_plOnSanc) {
+      if (!pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
         pl.capturedBy = m.id;
         _justBound = true;
         ml.push(`${m.name}に締め付けられた！倒さなければ逃げられない！`);
         interruptPlayerSleep(pl, ml);
-        if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+        weakenOrClearParalysis(pl, ml);
       }
       if (!_justBound && pl.capturedBy === m.id && !_plOnSanc && !_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
@@ -5263,7 +7558,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               }
               return;
             }
-            const _occup = dg.monsters.find(o => o !== m && o.x === _dn.x && o.y === _dn.y);
+            const _occup = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _dn.x, _dn.y));
             if (_occup && !_moveOnly) {
               /* 次マスに別の敵: 囮の争奪戦 */
               const _ddmg = Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2));
@@ -5284,7 +7579,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── itemThrower（拾い投げ）：床のアイテムを拾い、一直線上から投げる ── */
+    /* ── itemThrower（ひょい河童系）：床のアイテムを拾い、一直線上から投げる ── */
     if (m.subtype === "itemThrower" && !m.sealed && m.aware && !_plInvis) {
       const _itAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _itDx = pl.x - m.x, _itDy = pl.y - m.y;
@@ -5318,12 +7613,33 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_itTarget) {
           const _itNext = bfsNext(map, [], m.x, m.y, _itTarget.x, _itTarget.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
           if (_itNext && !(_itNext.x === pl.x && _itNext.y === pl.y) &&
-              !dg.monsters.some(o => o !== m && o.x === _itNext.x && o.y === _itNext.y)) {
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _itNext.x, _itNext.y))) {
             m.dir = { x: _itNext.x - m.x, y: _itNext.y - m.y };
             m.x = _itNext.x; m.y = _itNext.y;
             return;
           }
         }
+      }
+      if (!_moveOnly && _itAdj && !m.carriedItem && !itemThrowerTarget(m, dg) &&
+          m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        consumeFailedMonsterSpecial(m, ml, "が床のアイテムを拾おうとしたが、見つからなかった！");
+        return;
+      }
+    }
+
+    if (_moveOnly && m.subtype === "hauntedWillow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      const room = findRoom(dg.rooms, m.x, m.y);
+      const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
+      const adjacent = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+      if (adjacent && !_plOnSanc && !_plOnBlessedSanc && Math.random() < MONSTER_SPECIAL_RATE.status) {
+        m._willowAttackType = "branch";
+        m._rangedAttackThisTurn = true;
+        return;
+      }
+      if (sameRoom && !_plOnBlessedSanc && _giantSightline && Math.random() < MONSTER_SPECIAL_RATE.room) {
+        m._willowAttackType = "gale";
+        m._rangedAttackThisTurn = true;
+        return;
       }
     }
 
@@ -5337,6 +7653,22 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
     /* ── ranged special attacks ── */
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
+    if (_moveOnly && m.subtype === "potionhealer") {
+      delete m._potionHealerTarget;
+      delete m._potionHealerAttempted;
+      delete m._rangedAttackThisTurn;
+      if (hasMonsterProjectileAmmo(m) && m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        const target = findPotionHealerTarget(m, dg, pl);
+        const adjacentPlayer = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+        if ((target || adjacentPlayer) && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+          m._potionHealerTarget = target?.target || null;
+          m._potionHealerAttempted = true;
+          m._rangedAttackThisTurn = true;
+          return;
+        }
+      }
+    }
+
     if (_moveOnly && canSee) {
       const _radx = pl.x - m.x, _rady = pl.y - m.y;
       const _rLen = Math.max(Math.abs(_radx), Math.abs(_rady));
@@ -5355,40 +7687,39 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         });
       const _waterFlowerRdy = m.subtype === "waterFlower" && !m.sealed && _sameRoom && _rAtks;
       const _dfLvl0 = m.monLevel || 1;
-      const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
-        (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 3 ? true : _dfLvl0 >= 2 ? _sameRoom : _rLine));
-      const _ttLvl0 = m.monLevel || 1;
-      const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
+      const _korgonBreathOrigin = m.baseKind === "boss_korgon" ? dragonBreathOrigin(m, pl) : null;
+      const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander" || m.baseKind === "boss_korgon") && !m.sealed && _rAtks &&
+        (m.baseKind === "boss_korgon"
+          ? !!_korgonBreathOrigin
+          : _rLen >= 2 && (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 3 ? true : _dfLvl0 >= 2 ? _sameRoom : _rLine)));
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
-        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) === 1 &&
-        dg.traps?.some(t => t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange0 &&
-          Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) >= 2);
+        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) === 1;
       const _mtLvl0 = m.monLevel || 1;
       const _mtRange0 = _mtLvl0 >= 3 ? 10 : _mtLvl0 >= 2 ? 5 : 3;
       const _mtRdy0 = m.subtype === "monsterthrow" && !m.sealed && _rAtks &&
-        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _mtRange0 &&
-        dg.monsters.some(o => o !== m && Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
+        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _mtRange0;
       const _chargerRdy = m.subtype === "charger" && !m.sealed && _rAtks && _rLine && _rLen >= 2;
       /* わてり：水鉄砲 */
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
-      const _ptLvl0 = m.monLevel || 1;
-      const _ptRange0 = _ptLvl0 >= 3 ? 10 : _ptLvl0 >= 2 ? 7 : 5;
-      const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
+      const _ptRange0 = potionThrowRange(m, dg, pl);
+      const _ptRdy0 = m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
+      const _potRaiderLevel0 = m.monLevel || 1;
+      const _potRaiderRdy0 = m.subtype === "potRaider" && _potRaiderLevel0 >= 2 && !m.sealed &&
+        !_plOnBlessedSanc && _rAtks && canSee && _rLine && _rLen >= 2 && _rLen <= 8;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
       const _dragonBreathRdy = _dragonRdy0 || _iceDragonRdy0;
       const _specialRate = _dragonBreathRdy ? dragonBreathSpecialRate(m) : rangedSpecialRate(m, pl);
       const _itempusherLvl0 = m.monLevel || 1;
       const _itempusherRdy = m.subtype === "itempusher" && _itempusherLvl0 >= 3 && !m.sealed &&
-        !_plOnBlessedSanc && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10 &&
-        hasInventorySpaceForMonsterGift(pl);
+        !_plOnBlessedSanc && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
       const _guardDarkRdy0 = m.type === "guard" && !m.sealed && _rAtks && (_radx === 0 || _rady === 0) && _rLen >= 2 && _rLen <= 8;
       const _darkBulletRdy0 = m.baseKind === "boss_darkbullet" && !m.sealed && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
       const _armorBreathRdy0 = m.subtype === "armorbreath" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _waterFlowerRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < _specialRate)) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _waterFlowerRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _potRaiderRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < _specialRate)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -5417,6 +7748,84 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _dfDist3 = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       if (_dfDist3 >= 2 && m.turnAttacks < monEffectiveMaxAttacks(m) && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.floor)) {
         m._rangedAttackThisTurn = true;
+        return;
+      }
+    }
+
+    if (!_moveOnly && m.subtype === "hauntedWillow" && m._willowAttackType) {
+      const action = m._willowAttackType;
+      delete m._willowAttackType;
+      delete m._rangedAttackThisTurn;
+      const room = findRoom(dg.rooms, m.x, m.y);
+      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "branch" && !_plOnSanc && !_plOnBlessedSanc && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1)) {
+        m.turnAttacks++;
+        const bounds = monsterBounds(m);
+        const nearX = Math.max(bounds.x, Math.min(pl.x, bounds.x + bounds.width - 1));
+        const nearY = Math.max(bounds.y, Math.min(pl.y, bounds.y + bounds.height - 1));
+        let shoveX = Math.sign(pl.x - nearX), shoveY = Math.sign(pl.y - nearY);
+        if (shoveX === 0 && shoveY === 0) { shoveX = Math.sign(pl.x - (m.x + 0.5)); shoveY = Math.sign(pl.y - (m.y + 0.5)); }
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の枝払い！${d}ダメージ！`, {
+          onPlayerHit: damage => {
+            _onHit?.(damage, m);
+            if (pl.hp <= 0) return;
+            const fromX = pl.x, fromY = pl.y;
+            pushEntity(dg, pl.x, pl.y, shoveX, shoveY, 1, ml, "player", pl, pl, _luFn, 0, m);
+            if (pl.x === fromX && pl.y === fromY) return;
+            // 押し出しアニメーションはpushEntityが1回だけ発行する。
+            const landingTrap = (dg.traps || []).find(trap => trap.x === pl.x && trap.y === pl.y);
+            if (landingTrap) opts.fireTrapFn?.(landingTrap, pl, dg, ml);
+          },
+          onPlayerMiss: _onMiss,
+          luFn: _luFn,
+        });
+        return;
+      }
+      if (!m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m) && action === "gale" && room && findRoom(dg.rooms, pl.x, pl.y) === room && _giantSightline) {
+        m.turnAttacks++;
+        ml.push(`${m.name}が烈風を巻き起こした！`);
+        if (_plOnBlessedSanc) {
+          ml.push(`祝福された聖域の加護が${m.name}の烈風を防いだ！`);
+        } else {
+          monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        }
+        for (const victim of [...dg.monsters]) {
+          if (victim === m || victim.hp <= 0 || victim.disguisedAsItem || !dg.monsters.includes(victim) || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;
+          if (consumeBarrier(victim, ml)) continue;
+          const damage = Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+          victim.hp -= damage;
+          ml.push(`烈風が${victim.name}を襲う！${damage}ダメージ！`);
+          if (victim.hp <= 0) killMonster(victim, dg, pl, ml, _luFn, false, m);
+        }
+        return;
+      }
+    }
+
+    if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerAttempted) {
+      const preferredTarget = m._potionHealerTarget;
+      delete m._potionHealerTarget;
+      delete m._potionHealerAttempted;
+      delete m._rangedAttackThisTurn;
+      if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+      if (hasMonsterProjectileAmmo(m)) {
+        const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
+        if (!healTarget) {
+          consumeFailedMonsterSpecial(m, ml, "は回復薬を投げようとしたが、回復できる味方がいなかった！");
+          return;
+        }
+        m.turnAttacks++;
+        const level = m.monLevel || 1;
+        const potion = level >= 3
+          ? { name: "超回復薬", effect: "superheal", value: 100, tile: 17 }
+          : level >= 2
+            ? { name: "大回復薬", effect: "heal_big", value: 60, tile: 17 }
+            : { name: "回復薬", effect: "heal", value: 30, tile: 16 };
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+          target: healTarget.target,
+          aim: healTarget.aim,
+          potion,
+          wind: false,
+          color: "#7bff96",
+        });
         return;
       }
     }
@@ -5476,7 +7885,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               }
               break;
             }
-            const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+            const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
             if (_chOther) {
               m.turnAttacks++;
               const _chDmg = Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
@@ -5514,7 +7923,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_stDist <= _stRange && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
-          monsterThrowStone(m, dg, pl, ml);
+          monsterThrowStone(m, dg, pl, ml, opts);
           return;
         }
       }
@@ -5531,8 +7940,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y)) -
           Math.max(Math.abs(a.x - pl.x), Math.abs(a.y - pl.y))
         );
-        if (_ttCands.length > 0 && !_plOnSanc && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!_plOnSanc && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           const _ttTrap = _ttCands[0];
+          if (!_ttTrap) {
+            consumeFailedMonsterSpecial(m, ml, "は投げ込む罠を探したが、見つからなかった！");
+            return;
+          }
           m.turnAttacks++;
           if (hasRingEffect(pl, "core_ring")) {
             ml.push(`${m.name}が${plName(pl)}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
@@ -5548,14 +7961,43 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      if (m.subtype === "potionthrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-        const _ptLvl = m.monLevel || 1;
-        const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
+      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && !hasMonsterProjectileAmmo(m)) {
+        delete m._potionHealerTarget;
+      }
+
+      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && hasMonsterProjectileAmmo(m)) {
+        const preferredTarget = m._potionHealerTarget;
+        delete m._potionHealerTarget;
+        if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+        const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
+        if (!healTarget) {
+          consumeFailedMonsterSpecial(m, ml, "が回復薬を投げようとしたが、回復できる味方がいなかった！");
+          return;
+        }
+        m.turnAttacks++;
+        const level = m.monLevel || 1;
+        const potion = level >= 3
+          ? { name: "超回復薬", effect: "superheal", value: 100, tile: 17 }
+          : level >= 2
+            ? { name: "大回復薬", effect: "heal_big", value: 60, tile: 17 }
+            : { name: "回復薬", effect: "heal", value: 30, tile: 16 };
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+          target: healTarget.target,
+          aim: healTarget.aim,
+          potion,
+          wind: false,
+          color: "#7bff96",
+        });
+        return;
+      }
+
+      if (m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        const _ptRange = potionThrowRange(m, dg, pl);
         const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
         if (_ptStraight && _ptDist <= _ptRange && canSee && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
-          monsterThrowPotion(m, dg, pl, ml, opts.bbFn);
+          monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn);
           return;
         }
       }
@@ -5563,9 +8005,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* ── 警備員：縦・横の直線上で暗闇の薬投げ ── */
       if (m.type === "guard" && !m.sealed && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
         m.turnAttacks++;
-        ml.push(`${m.name}が暗闇の薬を投げた！`);
-        pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
-        splashPotion(dg, pl.x, pl.y, "darkness", 20, pl, ml, null, false, false);
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
+          potion: { name: "暗闇の薬", effect: "darkness", value: 20, tile: 16 },
+          message: `${m.name}が暗闇の薬を投げた！`,
+          color: "#334466",
+        });
         return;
       }
 
@@ -5574,13 +8018,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _mtRange = _mtLvl >= 3 ? 10 : _mtLvl >= 2 ? 5 : 3;
         const _mtDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_mtDist <= _mtRange) {
-          const _adjMons = dg.monsters.filter(o => o !== m &&
+          const _adjMons = dg.monsters.filter(o => o !== m && !o.forcedMoveImmune && !o.disguisedAsItem && monsterBodySize(o) <= 1 &&
             Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
           const _adjPl = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
             .filter(({ x, y }) => isWalkable(dg.map, x, y, dg) &&
-              !dg.monsters.some(o => o.x === x && o.y === y));
-          if (_adjMons.length > 0 && _adjPl.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+              !dg.monsters.some(o => monsterOccupiesCell(o, x, y)));
+          if (!_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+            if (_adjMons.length === 0 || _adjPl.length === 0) {
+              consumeFailedMonsterSpecial(m, ml, "は投げる仲間か着地点を探したが、見つからなかった！");
+              return;
+            }
             const _thrown = pick(_adjMons);
             const _dest = pick(_adjPl);
             m.turnAttacks++;
@@ -5595,13 +8043,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
 
       if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
-        const _wRoom = findRoom(rooms, m.x, m.y);
-        const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
-          (_wRoom && dg.pentacles?.some(pc =>
-            pc.kind === "magic_seal" &&
-            pc.x >= _wRoom.x && pc.x < _wRoom.x + _wRoom.w &&
-            pc.y >= _wRoom.y && pc.y < _wRoom.y + _wRoom.h
-          ));
+        const _wSeal = inMagicSealRoom(m.x, m.y, dg);
         if (!_wSeal && !_plOnBlessedSanc) {
           m.turnAttacks++;
           opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
@@ -5619,8 +8061,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
           ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
         } else {
-          pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
+          if (!isStatusImmune(pl, ml)) {
+      pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
           ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+      }
         }
         return;
       }
@@ -5641,12 +8085,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── ドラゴン炎ブレス（Lv1:一直線50% / Lv2:同部屋20% / Lv3:同フロア10%）＋サラマンダー ── */
-    if (!_moveOnly && (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (!_moveOnly && (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander" || m.baseKind === "boss_korgon") && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       const _dfAdx = pl.x - m.x, _dfAdy = pl.y - m.y;
       const _dfDist = Math.max(Math.abs(_dfAdx), Math.abs(_dfAdy));
       const _dfLvl = m.monLevel || 1;
       let _canFire = false;
-      if (_dfDist >= 2) {
+      if (m.baseKind === "boss_korgon") {
+        _canFire = canSee && !!dragonBreathOrigin(m, pl);
+      } else if (_dfDist >= 2) {
         if (m.baseKind === "im_boss_salamander") {
           _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
         } else if (_dfLvl >= 3) {
@@ -5658,9 +8104,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
         }
       }
-      const _dragonRdy = m._rangedAttackThisTurn;
+      /* 共通の遠距離攻撃判定が予約フラグを先に消費するため、コルゴンは保持された判定結果も引き継ぐ。 */
+      const _dragonRdy = m.baseKind === "boss_korgon"
+        ? (_rangedAttackReady || m._rangedAttackThisTurn)
+        : m._rangedAttackThisTurn;
       if (_dragonRdy) delete m._rangedAttackThisTurn;
-      if (_canFire && !_plOnBlessedSanc && (_dragonRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m))) {
+      const _breathChosen = m.baseKind === "boss_korgon"
+        ? _dragonRdy
+        : (_dragonRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m));
+      if (_canFire && !_plOnBlessedSanc && _breathChosen) {
         if (_dfLvl >= 3) {
           m.aware = true;
           m.lastPx = pl.x;
@@ -5697,6 +8149,44 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
+    /* ── 炎の料理人：隣接時に所持品を焦げた料理へ変える ── */
+    if (m.subtype === "fireCook" && !m.sealed) {
+      const _fcAdj = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+      if (_fcAdj && _moveOnly) return;
+      if (_fcAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal)) {
+        if (!useFireCookAbility(m, dg, pl, ml, _luFn)) {
+          consumeFailedMonsterSpecial(m, ml, "が料理しようとしたが、焦がせる持ち物がなかった！");
+        }
+        return;
+      }
+    }
+
+    /* ── ヤドカリ壺荒らし：壺へ潜り込み、壺が割れると再出現する ── */
+    if (m.subtype === "potRaider" && !m.sealed) {
+      const _prAdj = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
+      if (_prAdj && _moveOnly) return;
+      const _prLvl = m.monLevel || 1;
+      const _prDx = pl.x - m.x, _prDy = pl.y - m.y;
+      const _prDist = Math.max(Math.abs(_prDx), Math.abs(_prDy));
+      const _prLine = _prDx === 0 || _prDy === 0 || Math.abs(_prDx) === Math.abs(_prDy);
+      if (_prLvl >= 2 && !_prAdj && _prLine && _prDist >= 2 && _prDist <= 8 && canSee &&
+          !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!usePotRaiderAbility(m, dg, pl, ml, _luFn)) {
+          consumeFailedMonsterSpecial(m, ml, "がヤドカリを入れる壺を探したが、空きのある壺がなかった！");
+        }
+        return;
+      }
+      if (_prAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!usePotRaiderAbility(m, dg, pl, ml, _luFn)) {
+          consumeFailedMonsterSpecial(m, ml, "がヤドカリを入れる壺を探したが、空きのある壺がなかった！");
+        }
+        return;
+      }
+    }
+
     /* ── itempusher（カラペン系）：隣接時、空き枠があれば帯電毛玉を押し付ける ── */
     if (m.subtype === "itempusher" && !m.sealed) {
       const _ipAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
@@ -5707,13 +8197,21 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ipLine = _ipAdx === 0 || _ipAdy === 0 || Math.abs(_ipAdx) === Math.abs(_ipAdy);
       if (_ipLvl >= 3 && !_ipAdj && _ipLine && _ipDist >= 2 && _ipDist <= 10 &&
           !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
-          hasInventorySpaceForMonsterGift(pl) && (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!hasInventorySpaceForMonsterGift(pl)) {
+          consumeFailedMonsterSpecial(m, ml, "が帯電毛玉を押し付けようとしたが、所持品に空きがなかった！");
+          return;
+        }
         m.turnAttacks++;
         monsterThrowChargedFuzzball(m, dg, pl, ml, _luFn);
         return;
       }
       if (_ipAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
-          hasInventorySpaceForMonsterGift(pl) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+          (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!hasInventorySpaceForMonsterGift(pl)) {
+          consumeFailedMonsterSpecial(m, ml, "が帯電毛玉を押し付けようとしたが、所持品に空きがなかった！");
+          return;
+        }
         m.turnAttacks++;
         pushChargedFuzzball(m, pl, ml);
         return;
@@ -5755,6 +8253,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_stealable.length > 0) {
           const _stolen = pick(_stealable);
           const _sidx = pl.inventory.indexOf(_stolen);
+          detachPlayerEquipment(pl, _stolen);
           pl.inventory.splice(_sidx, 1);
           /* テレポートブロック確認 */
           const _thieveTpBlock = hasCursedTeleportPentacle(dg);
@@ -5769,7 +8268,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               for (const [_ddx, _ddy] of _tdirs) {
                 const _cx = _tgt.x + _ddx, _cy = _tgt.y + _ddy;
                 if (isWalkable(dg.map, _cx, _cy, dg) &&
-                    !dg.monsters.some(o => o.x === _cx && o.y === _cy) &&
+                    !dg.monsters.some(o => monsterOccupiesCell(o, _cx, _cy)) &&
                     !(_cx === pl.x && _cy === pl.y)) {
                   _wx = _cx; _wy = _cy; _placed = true; break;
                 }
@@ -5793,8 +8292,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           }
           return;
         }
-        /* 盗めるものがなければ通常攻撃（聖域上なら不可） */
-        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        /* 特技を選んだ後に盗める物がない場合は、通常攻撃へ切り替えず失敗でターンを使う。 */
+        consumeFailedMonsterSpecial(m, ml, "が盗もうとしたが、盗める物がなかった！");
         return;
       }
     }
@@ -5849,8 +8348,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           ml.push(`${m.name}が金貨${_gtAmount}枚を盗んでテレポートした！`);
           return;
         }
-        /* ゴールドがなければ通常攻撃 */
-        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        consumeFailedMonsterSpecial(m, ml, "が金貨を盗もうとしたが、金貨を持っていなかった！");
         return;
       }
     }
@@ -5872,23 +8370,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _pool = [..._ueSlots];
           for (let i = 0; i < _ueCount && _pool.length > 0; i++) {
             const _pick = _pool.splice(Math.floor(Math.random() * _pool.length), 1)[0];
-            if (_pick.slot === "weapon") pl.weapon = null;
-            else if (_pick.slot === "armor") pl.armor = null;
-            else if (_pick.slot === "ring") {
-              pl.rings = (pl.rings || []).filter(r => r !== _pick.it);
-              if (_pick.it.effect === "life_ring") {
-                const _bonus = (_pick.it.plus || 0) * 5;
-                pl.maxHp = Math.max(1, pl.maxHp - _bonus);
-                pl.hp = Math.min(pl.hp, pl.maxHp);
-              }
-              if (_pick.it.effect === "torch_ring") pl.visionBonus = Math.max(0, (pl.visionBonus || 0) - 1);
-            }
+            unequipPlayerItem(pl, _pick.it);
             ml.push(`${m.name}に${resolveItemName(_pick.it)}を外された！`);
           }
           return;
         }
-        /* 外せる装備がなければ通常攻撃 */
-        if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        consumeFailedMonsterSpecial(m, ml, "が装備を外そうとしたが、外せる装備がなかった！");
         return;
       }
     }
@@ -5951,13 +8438,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           });
           return;
         }
-        /* 弾くものがなければ通常攻撃（聖域上なら不可） */
-        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        consumeFailedMonsterSpecial(m, ml, "が所持品を弾こうとしたが、弾く物がなかった！");
         return;
       }
     }
 
-    /* ── stealthrower（盗投士等）：盗む→次ターンに投げる ── */
+    /* ── stealthrower（はぐれ乱波系）：盗む→次ターンに投げる ── */
     if (m.subtype === "stealthrower" && !m.sealed) {
       const _srHeldItem = syncStealthrowerHeldItem(m);
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
@@ -5995,7 +8481,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               _srPathBlocked = true; break;
             }
             if (statueAt(dg, _cx, _cy)) { _srHitStatue = true; break; }
-            const _midMon = dg.monsters.find(mo => mo.x === _cx && mo.y === _cy);
+            const _midMon = dg.monsters.find(mo => monsterOccupiesCell(mo, _cx, _cy));
             if (_midMon) { _srHitMon = _midMon; break; }
             _cx += _srDx; _cy += _srDy;
           }
@@ -6030,6 +8516,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             }
             /* 投擲：throwItemAlongLineで弾道・命中・薬瓶splash・壺scatter・杖発動を統合処理 */
             clearStealthrowerHeldItem(m, _throwItem);
+            const _srBeforeHp = pl.hp;
             const _srRes = throwItemAlongLine(m, dg, _throwItem, _srDx, _srDy, _srDist, ml, pl, _luFn, {
               animColor: "#ff8800",
               killerMon: m,
@@ -6051,7 +8538,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             });
             /* プレイヤー命中時の追加コールバック（既存仕様：potion/pot以外の命中で発動） */
             if (_srRes.hitPlayer && _throwItem.type !== "potion" && _throwItem.type !== "pot") {
-              if (_onHit) _onHit(m);
+              if (_onHit) _onHit(Math.max(0, _srBeforeHp - pl.hp), m);
             }
             return;
           }
@@ -6067,7 +8554,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
        * 手持ち中はここへ絶対に入らず、投擲・死亡まで1個限定。 */
       if (!_moveOnly && _srAdj && !_srHeldItem) {
         const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
-        if (_srStealable.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal)) {
+        if (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal) {
+          if (_srStealable.length === 0) {
+            consumeFailedMonsterSpecial(m, ml, "が盗もうとしたが、盗める物がなかった！");
+            return;
+          }
           const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
           if (_srAntiSteal) {
             ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
@@ -6076,6 +8567,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             return;
           }
           const _stolen = pick(_srStealable);
+          detachPlayerEquipment(pl, _stolen);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
           const _srFinal = (_stolen.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stolen.plus || 0 } : _stolen;
           m._stealthrowerHeldItem = _srFinal;
@@ -6084,17 +8576,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！${_srSoboroMsg}`);
           return;
         }
-        /* 特技不発または盗むものなし：通常攻撃 */
+        /* 特技の抽選外れだけ通常攻撃へ進む。 */
         if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
         return;
       }
     }
 
     /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
-    if (!_moveOnly && m.subtype === "supporter") {
+    if (!_moveOnly && m.subtype === "supporter" && !m.sealed && !inMagicSealRoom(m.x, m.y, dg) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       /* 回復は50%、攻撃バフは25%。まず回復対象を優先する。 */
       const _injured = dg.monsters.filter(o =>
-        o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&
+        o !== m && !o.disguisedAsItem && !o.isPlayerClone && o.state !== "friendly" &&
+        (o.maxHp != null ? o.hp < o.maxHp : false) &&
         Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 8
       );
       const _healTarget = _injured.length > 0 ? _injured.reduce((a, b) =>
@@ -6102,7 +8595,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         (Math.abs(b.x - m.x) + Math.abs(b.y - m.y)) ? a : b
       ) : null;
       const _hdist = _healTarget ? Math.abs(_healTarget.x - m.x) + Math.abs(_healTarget.y - m.y) : Infinity;
-      if (_healTarget && _hdist <= 1 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+      const _tryHeal = m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal;
+      if (_healTarget && _hdist <= 1 && _tryHeal) {
+        m.turnAttacks++;
         /* 隣接：回復（アンデッドには逆にダメージ） */
         const _heal = rng(5, 12);
         if (_healTarget.kind === "undead") {
@@ -6115,32 +8610,48 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         return;
       }
-      if (_healTarget && _hdist > 1 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+      if (_healTarget && _hdist > 1 && _tryHeal) {
         /* 傷ついた味方へ接近 */
         const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
-        if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _hn.x && o.y === _hn.y)) {
+        if (_hn && !(_hn.x === pl.x && _hn.y === pl.y) &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _hn.x, _hn.y))) {
           m.x = _hn.x; m.y = _hn.y;
           return;
         }
+        consumeFailedMonsterSpecial(m, ml, "が回復魔法を使おうとしたが、味方のもとへ行けなかった！");
+        return;
+      }
+      if (!_healTarget && _tryHeal && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        consumeFailedMonsterSpecial(m, ml, "が回復魔法を使おうとしたが、回復できる味方がいなかった！");
+        return;
       }
       /* 傷なし、または回復経路がない場合：隣の味方に攻撃バフ（未付与のみ） */
       const _buffable = dg.monsters.filter(o =>
-        o !== m && !o.atkBuffed &&
+        o !== m && !o.disguisedAsItem && !o.isPlayerClone && o.state !== "friendly" &&
+        !o.atkBuffed &&
         Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 1
       );
-      if (_buffable.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.buff)) {
-        const _bt = _buffable[rng(0, _buffable.length - 1)];
-        const _buffAmt = rng(2, 4);
-        _bt.atk += _buffAmt;
-        _bt.atkBuffed = true;
-        ml.push(`${m.name}が${_bt.name}を強化！攻撃力+${_buffAmt}！`);
-        return;
+      if (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.buff) {
+        if (_buffable.length === 0) {
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+            consumeFailedMonsterSpecial(m, ml, "が味方を強化しようとしたが、対象がいなかった！");
+            return;
+          }
+        } else {
+          m.turnAttacks++;
+          const _bt = _buffable[rng(0, _buffable.length - 1)];
+          const _buffAmt = rng(2, 4);
+          _bt.atk += _buffAmt;
+          _bt.atkBuffed = true;
+          ml.push(`${m.name}が${_bt.name}を強化！攻撃力+${_buffAmt}！`);
+          return;
+        }
       }
-      /* 強化・回復対象なし／抽選外 → 通常行動（プレイヤーへ接近）にフォールスルー */
+      /* 回復・強化の抽選外だけ通常行動（プレイヤーへ接近）にフォールスルー */
     }
 
-    /* ── 大蛇：隣接時 25% で1回攻撃の毒撃。不発時は通常の二回攻撃へ ── */
+    /* ── にじりヘビ：隣接時 25% で1回攻撃の毒撃。不発時は通常の二回攻撃へ ── */
     if (m.baseKind === "serpent" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       if (_moveOnly) return;
       if (_plOnSanc) return;
@@ -6158,7 +8669,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 ml.push(`${m.name}の牙に毒が！しかし乳酸菌が毒を防いだ！`);
               } else {
                 const _poison = applyPlayerPoison(pl);
-                ml.push(`${m.name}の牙に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                ml.push(statusResultMessage(_poison, `${m.name}の牙に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
               }
             },
             onPlayerMiss: _onMiss,
@@ -6188,6 +8699,20 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* 特技不発時は通常近接へフォールスルー */
     }
 
+    /* ── manaEater（マナイーター等）：隣接時 50% でMP吸収＆自己回復特技 ── */
+    if (m.subtype === "manaEater" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+      if (_moveOnly) return;
+      if (_plOnSanc) return;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        if (!m.sealed && (m.alwaysUseSpecial || Math.random() < 0.50)) {
+          m.turnAttacks++;
+          useManaEaterDrain(m, pl, ml);
+          return;
+        }
+      }
+      /* 特技不発時は通常近接へフォールスルー */
+    }
+
     /* ── ruster（錆虫等）：攻撃時に武器か防具を錆びさせる ── */
     if (m.subtype === "ruster" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       if (_moveOnly) return;
@@ -6211,7 +8736,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── puller（引きダコ等）：範囲内プレイヤーを1マス引き寄せる（視線不要） ── */
-    if (!_attackOnly && m.subtype === "puller") {
+    if (!_attackOnly && m.subtype === "puller" && !m.sealed) {
       const _pullLvl = m.monLevel || 1;
       const _pullRange = _pullLvl >= 3 ? 8 : _pullLvl >= 2 ? 6 : 4;
       const _pulDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
@@ -6228,13 +8753,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         } else {
           const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
           const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
-          if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
+          if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => monsterOccupiesCell(o, _pnx, _pny))) {
             const _pullFromX = pl.x, _pullFromY = pl.y;
             pl.x = _pnx; pl.y = _pny;
             pushPlayerKnockbackAnim(_pullFromX, _pullFromY, pl.x, pl.y, _puldx, _puldy);
             ml.push(`${m.name}に引き寄せられた！`);
             interruptPlayerSleep(pl, ml, "引っ張られて目が覚めた！");
-            if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("引っ張られて金縛りが解けた！"); }
+            weakenOrClearParalysis(pl, ml);
           }
         }
       }
@@ -6276,7 +8801,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _bNext = bfsNext(map, [], m.x, m.y, _bTx, _bTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_bNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bNext.x && pc.y === _bNext.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _bNext.x && o.y === _bNext.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _bNext.x, _bNext.y)) &&
             !(_bNext.x === pl.x && _bNext.y === pl.y)) {
           m.dir = { x: _bNext.x - m.x, y: _bNext.y - m.y };
           m.x = _bNext.x; m.y = _bNext.y;
@@ -6293,13 +8818,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (canSee && m._defHalfMagicReady) {
           delete m._defHalfMagicReady;
           /* 魔封じチェック */
-          const _kpRoom = findRoom(rooms, m.x, m.y);
-          const _kpSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-            (_kpRoom && dg.pentacles?.some(pc =>
-              pc.kind === "magic_seal" &&
-              pc.x >= _kpRoom.x && pc.x < _kpRoom.x + _kpRoom.w &&
-              pc.y >= _kpRoom.y && pc.y < _kpRoom.y + _kpRoom.h
-            ));
+          const _kpSeal = inMagicSealRoom(m.x, m.y, dg);
           if (!_kpSeal) {
             m.turnAttacks++;
             if (hasPlayerMagicReflect(pl)) {
@@ -6307,13 +8826,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
               if (monEffectiveMagicImmune(m)) {
                 ml.push(`魔法は${m.name}に効かない！`);
-              } else {
+              } else if (!isStatusImmune(m, ml, m.name)) {
                 m.def = Math.floor((m.def || 0) / 2);
                 ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
               }
             } else if (_plOnBlessedSanc) {
               ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
-            } else {
+            } else if (!isStatusImmune(pl, ml)) {
               const _ds = statusTurns("defSoftened", { kind: "player" });
               pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
               ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
@@ -6339,7 +8858,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _kpNext = bfsNext(map, [], m.x, m.y, _kpTx, _kpTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_kpNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _kpNext.x && pc.y === _kpNext.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _kpNext.x && o.y === _kpNext.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _kpNext.x, _kpNext.y)) &&
             !(_kpNext.x === pl.x && _kpNext.y === pl.y)) {
           m.dir = { x: _kpNext.x - m.x, y: _kpNext.y - m.y };
           m.x = _kpNext.x; m.y = _kpNext.y;
@@ -6354,13 +8873,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (canSee && m._pentacleDrawReady) {
           delete m._pentacleDrawReady;
           /* 魔封じチェック */
-          const _ppRoom = findRoom(rooms, m.x, m.y);
-          const _ppSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
-            (_ppRoom && dg.pentacles?.some(pc =>
-              pc.kind === "magic_seal" &&
-              pc.x >= _ppRoom.x && pc.x < _ppRoom.x + _ppRoom.w &&
-              pc.y >= _ppRoom.y && pc.y < _ppRoom.y + _ppRoom.h
-            ));
+          const _ppSeal = inMagicSealRoom(m.x, m.y, dg);
           /* 描画試行は1回分の行動（成功も失敗も turnAttacks 消費・隣接攻撃にはしない） */
           m.turnAttacks++;
           if (_ppSeal) {
@@ -6398,7 +8911,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _ppNext = bfsNext(map, [], m.x, m.y, _ppTx, _ppTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_ppNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _ppNext.x && pc.y === _ppNext.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _ppNext.x && o.y === _ppNext.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _ppNext.x, _ppNext.y)) &&
             !(_ppNext.x === pl.x && _ppNext.y === pl.y)) {
           m.dir = { x: _ppNext.x - m.x, y: _ppNext.y - m.y };
           m.x = _ppNext.x; m.y = _ppNext.y;
@@ -6428,7 +8941,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _gaNext = bfsNext(map, [], m.x, m.y, _gaTx, _gaTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
           if (_gaNext &&
               !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _gaNext.x && pc.y === _gaNext.y) &&
-              !dg.monsters.some(o => o !== m && o.x === _gaNext.x && o.y === _gaNext.y) &&
+              !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _gaNext.x, _gaNext.y)) &&
               !(_gaNext.x === pl.x && _gaNext.y === pl.y)) {
             m.dir = { x: _gaNext.x - m.x, y: _gaNext.y - m.y };
             m.x = _gaNext.x; m.y = _gaNext.y;
@@ -6457,7 +8970,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             if (!isWalkable(map, _anx, _any, dg)) continue;
           }
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _anx, _any))) continue;
           if (_anx === pl.x && _any === pl.y) continue;
           const _dx2 = pl.x - _anx, _dy2 = pl.y - _any;
           if (_dx2 === 0 || _dy2 === 0 || Math.abs(_dx2) === Math.abs(_dy2)) {
@@ -6486,7 +8999,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         for (const [_fdx, _fdy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
           const _fnx = m.x + _fdx, _fny = m.y + _fdy;
           if (!isWalkable(map, _fnx, _fny, dg)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
           if (_fnx === pl.x && _fny === pl.y) continue;
           _farCands.push({ x: _fnx, y: _fny, dist: Math.max(Math.abs(pl.x - _fnx), Math.abs(pl.y - _fny)) });
         }
@@ -6515,7 +9028,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           for (const [_amx, _amy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
             const _anx = m.x + _amx, _any = m.y + _amy;
             if (!isWalkable(map, _anx, _any, dg)) continue;
-            if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+            if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _anx, _any))) continue;
             if (_anx === pl.x && _any === pl.y) continue;
             const _d2x = pl.x - _anx, _d2y = pl.y - _any;
             const _newDist = Math.max(Math.abs(_d2x), Math.abs(_d2y));
@@ -6536,7 +9049,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _dbNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
       if (_dbNext) {
         const _newDist = Math.max(Math.abs(pl.x - _dbNext.x), Math.abs(pl.y - _dbNext.y));
-        if (_newDist >= 2 && !dg.monsters.some(o => o !== m && o.x === _dbNext.x && o.y === _dbNext.y)) {
+        if (_newDist >= 2 && !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _dbNext.x, _dbNext.y))) {
           m.dir = { x: _dbNext.x - m.x, y: _dbNext.y - m.y };
           m.x = _dbNext.x; m.y = _dbNext.y;
         }
@@ -6556,7 +9069,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _nx = m.x + _mx, _ny = m.y + _my;
           if (!isWalkable(map, _nx, _ny, dg)) continue;
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _nx, _ny))) continue;
           if (_nx === pl.x && _ny === pl.y) continue;
           const _ndx = pl.x - _nx, _ndy = pl.y - _ny;
           const _nd = Math.max(Math.abs(_ndx), Math.abs(_ndy));
@@ -6594,7 +9107,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _sNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
       if (_sNext) {
         const _newDist = Math.max(Math.abs(pl.x - _sNext.x), Math.abs(pl.y - _sNext.y));
-        if (_newDist >= _keep && !dg.monsters.some(o => o !== m && o.x === _sNext.x && o.y === _sNext.y)) {
+        if (_newDist >= _keep && !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _sNext.x, _sNext.y))) {
           m.dir = { x: _sNext.x - m.x, y: _sNext.y - m.y };
           m.x = _sNext.x; m.y = _sNext.y;
         }
@@ -6635,12 +9148,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
       if (_plOnSanc) return;
-      if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      while (m.turnAttacks < monEffectiveMaxAttacks(m) && m.hp > 0 && pl.hp > 0) {
         m.turnAttacks++;
         monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
-        return;
       }
-      /* 2回目以降：攻撃せずBFSで移動を試みる */
+      return;
     }
 
     if (_attackOnly) return; /* attackOnlyフェーズ：移動しない */
@@ -6651,12 +9163,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* わてりは水タイル・泉のみ、ワッカ系は水タイルも含む歩行可能マスへ移動 */
     const _wateriFilter = m.waterOnly
       ? (nx, ny) => {
-          if (!inBounds(nx, ny)) return false;
+          if (!inBounds(nx, ny) || !isWalkable(map, nx, ny, dg)) return false;
           return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
         }
       : m.waterWalker
         ? (nx, ny) => isWalkable(map, nx, ny, dg)
-        : null;
+        : monsterBodySize(m) > 1 ? _canMoveTo : null;
     /* fallbackNearest: 完全到達不可でもプレイヤー方向へ寄る */
     let next = bfsNext(map, [], m.x, m.y, tx, ty, m, 60, dg.pentacles, _effFloat, _wateriFilter, true, dg.rooms, dg);
     /* 認識中なのに距離が縮まない／経路なし → 転送陣経由で接近 */
@@ -6694,25 +9206,27 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
         if (_plOnSanc) return;
         m.dir = { x: next.x - m.x, y: next.y - m.y };
-        if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-          m.turnAttacks++;
-          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        if (!_moveOnly) {
+          while (m.turnAttacks < monEffectiveMaxAttacks(m) && m.hp > 0 && pl.hp > 0) {
+            m.turnAttacks++;
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          }
         }
         return;
       }
-      if (!dg.monsters.some((o) => o !== m && o.x === next.x && o.y === next.y)) {
+      if (canPlaceMonsterBody(dg, m, next.x, next.y, pl)) {
         m.dir = { x: next.x - m.x, y: next.y - m.y };
         m.x = next.x;
         m.y = next.y;
-        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         if (_forceAlt) m.posHistory = [];
         return;
       }
       /* 次マスが別モンスターに占有 */
       /* 対向（互いに相手のマスへ向かっている）なら位置を交換してデッドロック解消 */
-      const _blocker = dg.monsters.find(o => o !== m && o.x === next.x && o.y === next.y);
-      if (_blocker && !isStationaryGrabber(_blocker) && _blocker.type !== "shopkeeper") {
+      const _blocker = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, next.x, next.y));
+      if (_blocker && monsterBodySize(m) === 1 && monsterBodySize(_blocker) === 1 && !isStationaryGrabber(_blocker) && _blocker.type !== "shopkeeper") {
         const _bNext = bfsNext(map, [], _blocker.x, _blocker.y,
           (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
           (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
@@ -6724,7 +9238,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           _blocker.x = m.x; _blocker.y = m.y;
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
-          if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+          if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
           if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
           return;
         }
@@ -6742,7 +9256,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (!canEnter(map, _anx, _any, _effFloat, dg, m.waterWalker)) continue;
         }
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+        if (!canPlaceMonsterBody(dg, m, _anx, _any, pl)) continue;
         if (_adx !== 0 && _ady !== 0) {
           if (!canEnter(map, m.x + _adx, m.y, _effFloat, dg, m.waterWalker) &&
               !canEnter(map, m.x, m.y + _ady, _effFloat, dg, m.waterWalker)) continue;
@@ -6754,16 +9268,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         _altMoves.sort((a, b) => a.dist - b.dist);
         const _ab = _altMoves[0];
         if (_ab.x === pl.x && _ab.y === pl.y) {
-          if (!_moveOnly && !_plOnSanc &&
-              m.turnAttacks < monEffectiveMaxAttacks(m)) {
-            m.turnAttacks++; m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
-            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          if (!_moveOnly && !_plOnSanc) {
+            m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+            while (m.turnAttacks < monEffectiveMaxAttacks(m) && m.hp > 0 && pl.hp > 0) {
+              m.turnAttacks++;
+              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+            }
           }
           return;
         }
         m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
         m.x = _ab.x; m.y = _ab.y;
-        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         return;
       }
@@ -6780,10 +9296,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         } else if (!canEnter(map, _fnx, _fny, _effFloat, dg, m.waterWalker)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+        if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
+        if (monsterBodySize(m) > 1 && !canPlaceMonsterBody(dg, m, _fnx, _fny, pl)) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
-        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         m.posHistory = [];
         return;
@@ -6885,7 +9402,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat, _patrolTileFilter, false, dg.rooms, dg);
       if (next && !(next.x === pl.x && next.y === pl.y) &&
           !((!inMagicSealRoom(m.x, m.y, dg)) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y))) {
-        if (!dg.monsters.some(o => o !== m && o.x === next.x && o.y === next.y)) {
+        if (!dg.monsters.some(o => o !== m && monsterOccupiesCell(o, next.x, next.y)) &&
+            (monsterBodySize(m) <= 1 || canPlaceMonsterBody(dg, m, next.x, next.y, pl))) {
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
           return;
@@ -6899,7 +9417,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (!isWalkable(map, _anx, _any, dg)) continue;
           if (_anx === pl.x && _any === pl.y) continue;
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+          if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _anx, _any))) continue;
+          if (monsterBodySize(m) > 1 && !canPlaceMonsterBody(dg, m, _anx, _any, pl)) continue;
           m.dir = { x: _adx, y: _ady };
           m.x = _anx; m.y = _any;
           _sidestepped = true;
@@ -6921,7 +9440,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (!isWalkable(map, _fnx, _fny, dg)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+        if (dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _fnx, _fny))) continue;
+        if (monsterBodySize(m) > 1 && !canPlaceMonsterBody(dg, m, _fnx, _fny, pl)) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
         m.posHistory = [];

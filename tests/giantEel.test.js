@@ -5,6 +5,26 @@ import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 
 describe("巨大ウナギ", () => {
+  it.each([
+    { paralyzed: true }, { sleepTurns: 5 }, { sealed: true },
+    { petrifiedTurns: 4 }, { frozenTurns: 4 }, { x: 10 }, { hp: 0 },
+  ])("拘束解除条件%sは溺水ダメージより先に処理する", status => {
+    const eel = { id: "eel", name: "巨大ウナギ", subtype: "giantEel", x: 5, y: 5, hp: 80, ...status };
+    const player = makePlayer({ x: 6, y: 5, hp: 10, capturedBy: eel.id });
+    const messages = [];
+    advancePlayerTerrainEffects(player, makeEmptyDg({ monsters: [eel] }), messages);
+    expect(player.hp).toBe(10);
+    expect(player.capturedBy).toBeNull();
+    expect(messages).toEqual(["巨大ウナギの拘束が解けた！"]);
+  });
+
+  it("拘束者が別階にいれば拘束を解除する", () => {
+    const player = makePlayer({ hp: 10, capturedBy: "eel" });
+    advancePlayerTerrainEffects(player, makeEmptyDg(), []);
+    expect(player.hp).toBe(10);
+    expect(player.capturedBy).toBeNull();
+  });
+
   it("水中限定で、Lv2・Lv3の仮名を持つ", () => {
     const base = MONS.find((monster) => monster.baseKind === "giantEel");
     expect(base).toMatchObject({

@@ -125,11 +125,31 @@ export function recordAdventureScore(entry) {
   return next;
 }
 
+/**
+ * 死因文字列を自然な日本語表現（〜で倒れた、〜により倒れた等）にフォーマット
+ */
+export function formatDeathCause(cause) {
+  let c = String(cause || "").trim();
+  if (!c || c === "不明" || c === "不明の原因により") return "力尽きた";
+
+  // 「でで倒れた」などの助詞重複があれば修復
+  c = c.replace(/で+倒れた$/, "で倒れた");
+  if (/(?:倒れた|力尽きた|死亡|果てた)$/.test(c)) return c;
+
+  // 末尾に重複した「で」があれば1つに正規化
+  c = c.replace(/で+$/, "で");
+
+  // すでに「で」「て」「により」「によって」「にて」等の助詞や、連用形「埋まり」「沈み」「込まれ」で終わっている場合は「倒れた」のみ付加
+  if (/(?:で|て|により|によって|にて|埋まり|沈み|込まれ)$/.test(c)) {
+    return `${c}倒れた`;
+  }
+  // 体言止め等の場合は「で倒れた」
+  return `${c}で倒れた`;
+}
+
 /** 表示用1行タイトル */
 export function scoreHeadline(s) {
   if (s.result === "clear" || s.cause === "クリア" || s.cause === "クリア！") return "クリア！";
   if (s.result === "escape" || s.cause === "生還") return "生還";
-  const cause = s.cause || "不明";
-  if (/倒れた$/.test(cause)) return cause;
-  return `${cause}で倒れた`;
+  return formatDeathCause(s.cause);
 }

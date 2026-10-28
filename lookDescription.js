@@ -1,4 +1,6 @@
+import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { T } from "./utils.js";
+import { meteorAt } from './meteor.js';
 
 /**
  * 調べるモードで 1 マスに表示する説明を組み立てる。
@@ -33,7 +35,7 @@ export function describeLookCell({
     const disguisedTrap = dungeon.traps?.find((trap) => trap.x === x && trap.y === y && trap.disguise && !trap.revealed);
     if (disguisedTrap) parts.push("階段のようなもの");
 
-    const monster = dungeon.visible[y]?.[x] && dungeon.monsters.find((mon) => mon.x === x && mon.y === y);
+    const monster = dungeon.visible[y]?.[x] && dungeon.monsters.find((mon) => monsterOccupiesCell(mon, x, y));
     if (monster) parts.push("何かの影");
 
     const items = dungeon.items.filter((entry) => entry.x === x && entry.y === y && !entry.wallEmbedded);
@@ -56,6 +58,9 @@ export function describeLookCell({
   }
 
   const parts = [];
+  for (const meteor of meteorAt(dungeon, x, y)) {
+    parts.push(`メテオの予兆（あと${meteor.turnsLeft}ターン）`);
+  }
   if (tile === T.SD) parts.push("下り階段");
   else if (tile === T.SU) parts.push("上り階段");
   else {
@@ -63,7 +68,7 @@ export function describeLookCell({
     if (disguisedTrap) parts.push(disguisedTrap.disguise === "stair_up" ? "上り階段" : "下り階段");
   }
 
-  const monster = dungeon.visible[y]?.[x] && dungeon.monsters.find((mon) => mon.x === x && mon.y === y);
+  const monster = dungeon.visible[y]?.[x] && dungeon.monsters.find((mon) => monsterOccupiesCell(mon, x, y));
   if (monster) {
     const mimicItem = monster.subtype === "itemMimic" && monster.disguisedAsItem !== false
       ? dungeon.items?.find((item) => item.itemMimicId === monster.id && item.x === x && item.y === y)

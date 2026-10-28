@@ -1,3 +1,7 @@
+import { isStatusImmune } from "./statusImmunity.js";
+export { isStatusImmune } from "./statusImmunity.js";
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
+
 /**
  * 状態異常の継続ターン数を一元管理する。
  *
@@ -7,9 +11,10 @@
  * - ボスは付与時に持続ターンを半分にする。付与後の減少は通常敵と同じ1ターンずつ
  * - 「永続」になるのは通常敵への封印・金縛りなど。ボスに永続は付けず有限化
  *
- * 金縛り（敵）の特例:
- * - 通常敵: 時間制限なし（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
- * - ボス: 有限 BOSS_PARALYZE_TURNS（50）の半分から開始（25T）。祝福時は100Tの半分で50T
+ * 金縛りの特例:
+ * - 通常の金縛り: 有効な攻撃・効果を受けると解除
+ * - 祝福の強金縛り: 1回目で弱まり、2回目で解除
+ * - 敵ボス: 有限 BOSS_PARALYZE_TURNS（50）の半分から開始（25T）。祝福時は100Tの半分で50T
  */
 
 export const PERMANENT_TURNS = 9999;
@@ -19,6 +24,40 @@ export const BOSS_SEAL_TURNS = 20;
 
 /** ボス金縛りの有限ターン（通常敵は永続＝被ダメ解除） */
 export const BOSS_PARALYZE_TURNS = 50;
+
+/** プレイヤーへの金縛りを付与する。祝福時の強金縛りは2回分の被弾を要する。 */
+export function applyPlayerParalyze(target, turns, { blessed = false, mode = "set" } = {}) {
+  if (!target || !(turns > 0)) return 0;
+  const wasParalyzed = !!target.paralyzed || (target.paralyzeTurns || 0) > 0;
+  const current = target.paralyzeTurns || 0;
+  target.paralyzeTurns = mode === "add"
+    ? current + turns
+    : mode === "max"
+      ? Math.max(current, turns)
+      : turns;
+  if (blessed) target.paralyzeHits = 2;
+  else if (!wasParalyzed) target.paralyzeHits = 0;
+  return target.paralyzeTurns;
+}
+
+/** 有効な攻撃や効果を受けた時の金縛り解除。強金縛りは2回分を数える。 */
+export function resolveParalysisHit(entity, messages = null, name = null) {
+  if (!entity || (!entity.paralyzed && (entity.paralyzeTurns || 0) <= 0)) return false;
+  const label = name ?? entity.name ?? "";
+  const prefix = label ? `${label}の` : "";
+  if ((entity.paralyzeHits || 0) > 1) {
+    entity.paralyzeHits--;
+    entity._paralyzeHp = entity.hp;
+    messages?.push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
+    return true;
+  }
+  entity.paralyzed = false;
+  entity.paralyzeHits = 0;
+  entity.paralyzeTurns = 0;
+  entity._paralyzeHp = null;
+  messages?.push(`${prefix}金縛りが解けた！`);
+  return true;
+}
 
 /**
  * 基準ターン（通常・呪い・罠・敵特技・副次効果すべて共通）
@@ -32,6 +71,8 @@ export const STATUS_BASE = {
   paralyze:      { player: 10,  monster: BOSS_PARALYZE_TURNS },
   slow:          { player: 10,  monster: 10 },
   confuse:       { player: 5,   monster: 20 },
+  drunk:         { player: 30,  monster: 30 },
+  drunken:       { player: 30,  monster: 30 },
   darkness:      { player: 20,  monster: 50 },
   bewitch:       { player: 20,  monster: 50 }, // 敵は fleeingTurns
   seal:          { player: 50,  monster: PERMANENT_TURNS },
@@ -42,6 +83,7 @@ export const STATUS_BASE = {
   sureHit:       { player: 100, monster: 100 },
   statusImmune:  { player: 200, monster: 200 },
   oily:          { player: 50,  monster: 100 },
+  flameMantle:   { player: 0,   monster: 10 },
   float:         { player: 30,  monster: 30 },
   soaked:        { player: 10,  monster: 10 },
   frozen:        { player: 5,   monster: 5 },
@@ -49,10 +91,13 @@ export const STATUS_BASE = {
   monsterSense:  { player: 100, monster: 100 },
   defSoftened:   { player: 10,  monster: 10 },
   berserker:     { player: 50,  monster: 50 },
+  caswack:       { player: 50,  monster: 50 },
 };
 
 /** ベースが永続のとき、ボスへは有限化するステータス */
 const BOSS_FINITE_WHEN_PERMANENT = new Set(["seal"]);
+// 炎まといは通常敵・ボスとも同じターン数を維持する。
+const BOSS_FULL_DURATION = new Set(["flameMantle"]);
 
 /**
  * @param {string} status STATUS_BASE のキー
@@ -87,8 +132,8 @@ export function statusTurns(status, opts = {}) {
     return Math.max(1, Math.ceil(BOSS_SEAL_TURNS / 2));
   }
 
-  // ボスは付与時点で半分から始める。奇数は切り上げ、最低1ターンを保証する。
-  if (kind === "monster" && target?.isBoss && turns < PERMANENT_TURNS) {
+  // ボスは原則付与時点で半分から始める。奇数は切り上げ、最低1ターンを保証する。
+  if (kind === "monster" && target?.isBoss && turns < PERMANENT_TURNS && !BOSS_FULL_DURATION.has(status)) {
     return Math.max(1, Math.ceil(turns / 2));
   }
 
@@ -105,13 +150,22 @@ export function monsterStatusTurns(baseTurns, target) {
   return target?.isBoss ? Math.max(1, Math.ceil(turns / 2)) : turns;
 }
 
+/** 状態付与に付随する毒の能力低下・ログも、防止結果と同じ判定に揃える。 */
+export function statusResultMessage(result, message) {
+  if (!result?.blocked) return message;
+  const damage = String(message).match(/\d+ダメージ！/g) || [];
+  return damage.join("") + "状態防止中のため効かなかった！";
+}
+
 /**
  * プレイヤーへ毒を付与する。
  * 毒の再付与では攻撃力低下を重ねず、持続だけ加算する。
  * 攻撃力低下は解毒処理で戻すため poisonAtkLoss に記録する。
  */
-export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOverride } = {}) {
+export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOverride, sourceName = null } = {}) {
   if (!player) return { newlyApplied: false, atkLoss: 0, turns: 0, remaining: 0 };
+  if (isStatusImmune(player)) return { blocked: true, newlyApplied: false, atkLoss: 0, turns: 0, remaining: player.poisonedTurns || 0 };
+  player.poisonSourceName = sourceName || player._activeDamageSourceName || null;
   const newlyApplied = !player.poisoned;
   const turns = statusTurns("poison", { kind: "player", blessed });
   player.poisoned = true;
@@ -127,11 +181,26 @@ export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOve
   return { newlyApplied, atkLoss, turns, remaining: player.poisonedTurns };
 }
 
+/** 火ダルマの炎特性を一時的に他の敵へ付与する。 */
+export function applyMonsterFlameMantle(monster, messages = null, turns = null) {
+  if (!monster || (monster.hp ?? 1) <= 0 || (monster.soakedTurns || 0) > 0) return false;
+  if (turns == null) turns = statusTurns("flameMantle", { kind: "monster", target: monster });
+  const previous = monster.flameMantleTurns || 0;
+  monster.flameMantleTurns = Math.max(previous, turns);
+  if (messages && monster.flameMantleTurns > previous) {
+    messages.push(previous > 0
+      ? `${monster.name}の炎が強まった！(${monster.flameMantleTurns}ターン)`
+      : `${monster.name}は炎を身にまとった！(${monster.flameMantleTurns}ターン)`);
+  }
+  return monster.flameMantleTurns > previous;
+}
+
 /** ヤバイ食料の毒。攻撃力-2、持続は通常毒の2倍。 */
 export function applyYabaiPoison(entity, kind, opts = {}) {
   if (kind === "player") {
     return applyPlayerPoison(entity, { blessed: true, atkLoss: 2 });
   }
+  if (isStatusImmune(entity)) return { blocked: true, newlyApplied: false, atkLoss: 0, turns: 0, remaining: entity?.poisonedTurns || 0 };
   const target = opts.target || entity;
   const newlyApplied = !entity.poisoned;
   const turns = statusTurns("poison", { kind: "monster", blessed: true, target });
@@ -153,6 +222,7 @@ export function clearPlayerPoison(player) {
   const hadPoison = !!player.poisoned || (player.poisonedTurns || 0) > 0;
   player.poisoned = false;
   player.poisonedTurns = 0;
+  delete player.poisonSourceName;
   if ((player.poisonAtkLoss || 0) > 0) {
     player.atk += player.poisonAtkLoss;
     player.poisonAtkLoss = 0;
@@ -172,14 +242,16 @@ export function clearStatusEffectsOnHpZero(entity) {
 
   const hadStatus = [
     entity.sleepTurns, entity.sleepInterruptedTurns, entity.paralyzeTurns,
+    entity.foodHasteTurns,
     entity.paralyzed, entity.frozenTurns, entity.slowTurns, entity.slowSkip,
-    entity.confusedTurns, entity.poisoned, entity.poisonedTurns,
+    entity.confusedTurns, entity.drunkTurns, entity.drunkenTurns,
+    entity.poisoned, entity.poisonedTurns,
     entity.sealedTurns, entity.sealed, entity.attackSealTurns, entity.darknessTurns, entity.blind,
     entity.blindTurns, entity.bewitchedTurns, entity.fleeingTurns,
     entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,
-    entity.capturedBy, entity.oilyTurns, entity.soakedTurns,
+    entity.capturedBy, entity.oilyTurns, entity.soakedTurns, entity.flameMantleTurns,
     entity.defSoftenedTurns, entity.atkDebuffTurns, entity.defDebuffTurns,
-    entity.pacifistTurns, entity.hypnosisPending,
+    entity.pacifistTurns, entity.hypnosisPending, entity.caswackTurns,
   ].some((value) => typeof value === "boolean" ? value : (value || 0) > 0);
 
   /* プレイヤーの毒による攻撃力低下を戻す。 */
@@ -196,6 +268,8 @@ export function clearStatusEffectsOnHpZero(entity) {
 
   entity.sleepTurns = 0;
   entity.sleepInterruptedTurns = 0;
+  entity.foodHasteTurns = 0;
+  delete entity.foodHasteMultiplier;
   entity.paralyzeTurns = 0;
   entity.paralyzed = false;
   entity._paralyzeHp = null;
@@ -204,8 +278,12 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.slowTurns = 0;
   entity.slowSkip = false;
   entity.confusedTurns = 0;
+  entity.drunkTurns = 0;
+  entity.drunkenTurns = 0;
   entity.poisoned = false;
   entity.poisonedTurns = 0;
+  delete entity.sporePoisonKillerId;
+  delete entity.sporePoisonKillerName;
   entity.sealedTurns = 0;
   entity.sealed = false;
   entity.attackSealTurns = 0;
@@ -221,11 +299,13 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.capturedBy = null;
   entity.oilyTurns = 0;
   entity.soakedTurns = 0;
+  entity.flameMantleTurns = 0;
   entity.defSoftenedTurns = 0;
   entity.atkDebuffTurns = 0;
   entity.defDebuffTurns = 0;
   entity.pacifistTurns = 0;
   entity.hypnosisPending = 0;
+  entity.caswackTurns = 0;
 
   /* 自動スキップ・次回行動予約の残骸も状態異常と一緒に捨てる。 */
   delete entity._slowAutoAdv;
@@ -243,7 +323,9 @@ export function isAttackSealed(entity) {
 /** 祝福された封印の追加効果。通常攻撃を封じる。祝福倍率はかけない（10T固定、ボスは半分）。 */
 export function applyAttackSeal(entity, opts = {}) {
   const { kind = "player", target = entity } = opts;
-  if (!entity) return 0;
+  if (!entity || isStatusImmune(entity, opts.ml, kind === "monster" ? target?.name : null)) return 0;
+  if (kind === "monster" && blockLargeMonsterStatus(target, "attackSeal", opts.ml)) return 0;
+  if (kind === "monster") startLargeMonsterStatusCooldown(target, "attackSeal");
   const turns = statusTurns("attackSeal", { kind, target: kind === "monster" ? target : null });
   entity.attackSealTurns = (entity.attackSealTurns || 0) + turns;
   return turns;
@@ -251,12 +333,14 @@ export function applyAttackSeal(entity, opts = {}) {
 
 /**
  * モンスターに金縛りを付与。
- * - 通常敵: 永続（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
+ * - 通常敵: 永続（有効な攻撃・効果を受けると解除）。祝福時は paralyzeHits=2
  * - ボス: 有限 50T（祝福 100T）の半分を付与。被ダメでも解除
  * @returns {number} 付与ターン（通常敵の永続は PERMANENT_TURNS）
  */
 export function applyMonsterParalyze(target, { blessed = false, ml = null, name = null } = {}) {
-  if (!target) return 0;
+  if (!target || isStatusImmune(target, ml, name || target?.name)) return 0;
+  if (blockLargeMonsterStatus(target, "paralyze", ml)) return 0;
+  startLargeMonsterStatusCooldown(target, "paralyze");
   const nm = name || target.name || "敵";
   target.paralyzed = true;
   target._paralyzeHp = target.hp;
@@ -282,8 +366,10 @@ export function applyMonsterParalyze(target, { blessed = false, ml = null, name 
 }
 
 /** 敵の暗闇。再付与は持続を加算し、直進方向は維持する。 */
-export function applyMonsterDarkness(monster, turns) {
-  if (!monster || !(turns > 0)) return 0;
+export function applyMonsterDarkness(monster, turns, ml = null) {
+  if (!monster || !(turns > 0) || isStatusImmune(monster, ml, monster?.name)) return 0;
+  if (blockLargeMonsterStatus(monster, "darkness", ml)) return 0;
+  startLargeMonsterStatusCooldown(monster, "darkness");
   const wasDark = (monster.darknessTurns || 0) > 0;
   monster.darknessTurns = (monster.darknessTurns || 0) + turns;
   monster.aware = false;
@@ -292,8 +378,10 @@ export function applyMonsterDarkness(monster, turns) {
 }
 
 /** 敵の幻惑。再付与は逃走タイマーを加算する。 */
-export function applyMonsterBewitch(monster, turns) {
-  if (!monster || !(turns > 0)) return 0;
+export function applyMonsterBewitch(monster, turns, ml = null) {
+  if (!monster || !(turns > 0) || isStatusImmune(monster, ml, monster?.name)) return 0;
+  if (blockLargeMonsterStatus(monster, "bewitch", ml)) return 0;
+  startLargeMonsterStatusCooldown(monster, "bewitch");
   monster.fleeingTurns = (monster.fleeingTurns || 0) + turns;
   return monster.fleeingTurns;
 }

@@ -47,7 +47,7 @@ describe("カラペン系と帯電毛玉", () => {
     monsterAI(mon, dg, player, messages, { attackOnly: true });
 
     expect(player.inventory).toHaveLength(1);
-    expect(messages.some((message) => message.includes("帯電毛玉"))).toBe(false);
+    expect(messages).toContain("カラペンが帯電毛玉を押し付けようとしたが、所持品に空きがなかった！");
   });
 
   it("帯電毛玉はインベントリから置く・投げる操作を禁止する", () => {

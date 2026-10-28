@@ -26,6 +26,7 @@ export function makePlayer(overrides = {}) {
     rings: [],
     maxHunger: 100,
     hunger: 80,
+    petrifiedTurns: 0,
     ...overrides,
   };
   installPlayerHpReverseHook(p);

@@ -1,18 +1,27 @@
+import { findBigboxDuplicatePosition } from "./floorObjectPlacement.js";
+import { applyEquipmentUpgradeScroll, applyEquipmentForgeScroll } from "./equipmentScrollEffects.js";
+import { monsterBodySize, canPlaceMonsterBody } from "./monsterGeometry.js";
+import { setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
+import { claimModalConfirmation, cancelModalConfirmation, consumeModalScroll } from "./modalConfirmation.js";
+import { getForgeAbilityIds, removeForgeAbility } from "./forgeAbilityRules.js";
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
-import { inMagicSealRoom } from "./items.js";
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
+import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
+import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T } from "./items.js";
+import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
+import { reducePotCapacity } from "./items.js";
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
-import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor } from "./dungeon.js";
+import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { makeVent, makeStatue, makeAltar } from "./fixtures.js";
-import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
+import { getDiscoveries, trackItem, trackBigbox } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { scoresForDungeon, dungeonScoreLabel, scoreHeadline, loadAdventureScores } from "./adventureScores.js";
+import { scoresForDungeon, dungeonScoreLabel, scoreHeadline, formatDeathCause, loadAdventureScores } from "./adventureScores.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
 import { formatPlusSuffix } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
@@ -22,6 +31,7 @@ import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.
 import { GACHA_COST } from "./gachaRules.js";
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 import { foodPotionEffectLabel } from "./foodData.js";
+import { deleteImage } from "./imageStorage.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -179,7 +189,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
               onClick={() => {
                 Object.keys(TILE_NAMES).forEach((k) => {
                   delete customTileImages[parseInt(k)];
-                  localStorage.removeItem(`roguelike_tile_${k}`);
+                  deleteImage(`roguelike_tile_${k}`);
                 });
                 setCtLoaded((c) => c + 1);
               }}
@@ -349,9 +359,9 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
 }
 
 /* ===== Game Over Modal ===== */
-export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile, onReturnToHub, portraitSrc, onViewMap, onViewInventory }) {
+export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile, onReturnToHub, portraitSrc, onViewMap, onViewInventory, onViewMsgLog }) {
   if (!dead) return null;
-  const returnSelection = onReturnToHub ? 4 : null;
+  const returnSelection = onReturnToHub ? (onViewMsgLog ? 5 : 4) : null;
   return (
     <div
       style={{
@@ -443,7 +453,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
           lineHeight: 1.5,
         }}
       >
-        {p.deathCause || "不明の原因により"}倒れた
+        {formatDeathCause(p.deathCause)}
       </div>
       <div
         style={{
@@ -527,6 +537,25 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         >
           {gameOverSel === 3 ? "▶ " : "　"}持ち物を見る
         </button>
+        {onViewMsgLog && (
+          <button
+            onClick={onViewMsgLog}
+            style={{
+              padding: "10px 20px",
+              width: mobile ? "auto" : "100%",
+              background: gameOverSel === 4 ? "#182030" : "#181828",
+              color: "#80c0ff",
+              border: `1px solid ${gameOverSel === 4 ? "#80c0ff" : "#2a3a5a"}`,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: 14,
+              borderRadius: 6,
+              boxShadow: gameOverSel === 4 ? "0 0 8px #08a" : "none",
+            }}
+          >
+            {gameOverSel === 4 ? "▶ " : "　"}ログを見る
+          </button>
+        )}
         {onReturnToHub && (
           <button
             onClick={onReturnToHub}
@@ -638,8 +667,16 @@ export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, 
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: mobile ? "12px 14px 8px" : "16px 20px 10px", color: "#d8a8ff", fontSize: mobile ? 16 : 19, fontWeight: "bold", borderBottom: "1px solid #30283a" }}>
-          {resultLabel}の持ち物 ({inventory.length})
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: mobile ? "10px 14px" : "14px 20px", borderBottom: "1px solid #30283a" }}>
+          <span style={{ color: "#d8a8ff", fontSize: mobile ? 16 : 19, fontWeight: "bold" }}>
+            {resultLabel}の持ち物 ({inventory.length})
+          </span>
+          <button
+            onClick={onReopen}
+            style={{ background: "#20182c", color: "#aaa", border: "1px solid #5a4a70", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}
+          >
+            ✕
+          </button>
         </div>
         <div ref={inventoryRef} style={{ padding: mobile ? "8px 10px" : "10px 14px", overflowY: "auto" }}>
           {inventory.length === 0 ? (
@@ -699,10 +736,10 @@ export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" })
       }
       const el = scrollRef.current;
       if (!el) return;
-      if (k === "arrowup" || e.code === "Numpad8" || e.code === "Numpad4" || k === "arrowleft") {
+      if (isKeyUp(e) || isKeyLeft(e)) {
         e.preventDefault();
         el.scrollTop = Math.max(0, el.scrollTop - 96);
-      } else if (k === "arrowdown" || e.code === "Numpad2" || e.code === "Numpad6" || k === "arrowright") {
+      } else if (isKeyDown(e) || isKeyRight(e)) {
         e.preventDefault();
         el.scrollTop = el.scrollTop + 96;
       }
@@ -716,6 +753,9 @@ export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" })
     <div
       ref={scrollRef}
       data-scores-modal="1"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setShow(false);
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -732,13 +772,39 @@ export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" })
     >
       <div
         style={{
-          color: "#8cf",
-          fontSize: mobile ? 16 : 20,
-          fontWeight: "bold",
+          width: "100%",
+          maxWidth: 400,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: 6,
         }}
       >
-        ── 冒険の記録 ──
+        <div
+          style={{
+            color: "#8cf",
+            fontSize: mobile ? 16 : 20,
+            fontWeight: "bold",
+          }}
+        >
+          ── 冒険の記録 ──
+        </div>
+        <button
+          onClick={() => setShow(false)}
+          aria-label="冒険記録を閉じる"
+          style={{
+            background: "#222",
+            color: "#aaa",
+            border: "1px solid #555",
+            borderRadius: 4,
+            padding: "3px 12px",
+            fontSize: 13,
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+        >
+          ✕
+        </button>
       </div>
       <div style={{ color: "#aaf", fontSize: mobile ? 12 : 13, marginBottom: 4 }}>{dungeonLabel}</div>
       <div style={{ color: "#555", fontSize: 11, marginBottom: 10 }}>このダンジョンの記録のみ（死亡・クリア・生還） / 十字でスクロール / A・Bで閉じる</div>
@@ -835,8 +901,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     const _newNick = (nick ?? '').trim() || null;
     if (_newNick) sr.current.nicknames[_k] = _newNick;
     else delete sr.current.nicknames[_k];
-    /* 一度名前を付けた大箱の種類は、名前を消しても冒険中は識別済みのまま */
-    if (_isBigbox && _newNick) markBigboxKindIdentified(sr.current, _k.slice(3));
+    /* 大箱のニックネームは表示名だけを変え、識別状態には影響させない。 */
     if (_k.startsWith('n:')) {
       const _updatePentacles = (dg) => {
         if (!dg?.pentacles) return;
@@ -885,10 +950,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       { enabled: true,                      action: () => setMode(null) },
     ];
     const _onKey = (e) => {
-      if (e.key === "ArrowUp" || e.code === "Numpad8") {
+      if (isKeyUp(e)) {
         e.preventDefault();
         _setMenuSel(s => (s - 1 + _menuItems.length) % _menuItems.length);
-      } else if (e.key === "ArrowDown" || e.code === "Numpad2") {
+      } else if (isKeyDown(e)) {
         e.preventDefault();
         _setMenuSel(s => (s + 1) % _menuItems.length);
       } else if (_isConfirmKey(e)) {
@@ -897,7 +962,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         if (_blockConfirmUntilUp.current) return;
         const item = _menuItems[_menuSel];
         if (item?.enabled) item.action();
-      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+      } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
         e.preventDefault();
         setMode(null);
       }
@@ -908,10 +973,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   /* リストモードのキーボード操作 */
   useEffect(() => {
     if (_subMode !== "list" || !mode) return;
-    const _isUp   = (e) => e.key === "ArrowUp"    || e.code === "Numpad8";
-    const _isDown = (e) => e.key === "ArrowDown"  || e.code === "Numpad2";
-    const _isPrev = (e) => e.key === "ArrowLeft"  || e.code === "Numpad4";
-    const _isNext = (e) => e.key === "ArrowRight" || e.code === "Numpad6";
+    const _isUp   = isKeyUp;
+    const _isDown = isKeyDown;
+    const _isPrev = isKeyLeft;
+    const _isNext = isKeyRight;
     const _onKey = (e) => {
       if (_isUp(e)) {
         e.preventDefault();
@@ -932,7 +997,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         if (_blockConfirmUntilUp.current) return;
         const _n = _pageNames[_listSel];
         if (_n) _applyNick(_n);
-      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+      } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
         e.preventDefault();
         _setSubMode(null);
       }
@@ -984,7 +1049,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
               value={input}
               onChange={e2 => setInput(e2.target.value)}
               onKeyDown={e2 => {
-                if (e2.key === 'Enter') _applyNick(input);
+                if ((e2.key === 'Enter' || e2.code === 'NumpadEnter') && !e2.nativeEvent?.isComposing) _applyNick(input);
                 if (e2.key === 'Escape') _setSubMode(null);
               }}
               placeholder="名前を入力（空欄でリセット）"
@@ -1032,20 +1097,28 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   );
 }
 
-function AutoIdentifyTarget({ enabled, count, onConfirm }) {
+function AutoIdentifyTarget({ enabled, count, selectionKey, onConfirm }) {
   const firedRef = useRef(false);
+  const selectionKeyRef = useRef(null);
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
   useEffect(() => {
     if (!enabled) {
       firedRef.current = false;
+      selectionKeyRef.current = selectionKey;
       return undefined;
+    }
+    if (selectionKeyRef.current !== selectionKey) {
+      selectionKeyRef.current = selectionKey;
+      firedRef.current = false;
     }
     if (firedRef.current || count <= 0) return undefined;
     firedRef.current = true;
     const timer = setTimeout(() => {
-      onConfirm(Math.floor(Math.random() * count));
+      onConfirmRef.current?.(Math.floor(Math.random() * count));
     }, 0);
     return () => clearTimeout(timer);
-  }, [enabled, count, onConfirm]);
+  }, [enabled, count, selectionKey]);
   return null;
 }
 
@@ -1058,10 +1131,19 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   if (!mode || !gs) return null;
   const _p = gs.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
+  const _isForgeRemovalMode_ui = mode.mode === 'forge_remove_ability';
+  const _forgeTarget_ui = _isForgeRemovalMode_ui ? _p.inventory[mode.abilityTargetIndex] : null;
+  const _forgeAbilityDefs_ui = _forgeTarget_ui?.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+  const _forgeAbilityOptions_ui = _isForgeRemovalMode_ui
+    ? (mode.abilityIds || []).map((id, index) => {
+      const ability = _forgeAbilityDefs_ui.find((entry) => entry.id === id);
+      return { it: { _isForgeAbility: true, abilityId: id, name: ability?.name || id, desc: ability?.desc || "" }, i: index };
+    })
+    : null;
   const _footBb = mode.bbFootId ? gs?.dungeon?.bigboxes?.find(b => b.id === mode.bbFootId) : null;
   const _footBbName = _footBb ? (isBigboxKindIdentified(_footBb, gs) ? _footBb.name : (gs?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
-  const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify';
-  const _filtered = [
+  const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify' && mode.mode !== 'forge_item';
+  const _filtered = _isForgeRemovalMode_ui ? _forgeAbilityOptions_ui : [
     ...(_bbModeOk ? [{ it: { _isBbTarget: true, _bbId: _footBb.id, name: `${_footBbName}（足元の大箱）` }, i: -1 }] : []),
     ..._p.inventory
       .map((it, i) => ({ it, i }))
@@ -1077,14 +1159,49 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     if (!sr.current) return;
     const _vi = (vi !== undefined && vi !== null) ? vi : _curSel_ui;
     const _absIdx = _idPage_ui * 10 + _vi;
-    const { it: _selIt } = _filtered[_absIdx] ?? {};
+    const { it: _selIt, i: _selIndex } = _filtered[_absIdx] ?? {};
     if (!_selIt) return;
+    if (!claimModalConfirmation(mode, sr.current.player)) return;
+    if (mode.mode === 'forge_item' && mode.cursed && (_selIt.type === "weapon" || _selIt.type === "armor")) {
+      const _abilityIds = getForgeAbilityIds(_selIt);
+      if (_abilityIds.length > 0) {
+        setMode({ ...mode, mode: 'forge_remove_ability', abilityTargetIndex: _selIndex, abilityIds: _abilityIds, sel: 0, page: 0 });
+        setMsgs((prev) => [...prev.slice(-80), "装備から消す能力を選んでください。【呪】"]);
+        return;
+      }
+    }
+    if (mode.mode === 'forge_remove_ability') {
+      const _target = sr.current.player.inventory[mode.abilityTargetIndex];
+      const _ability = _forgeAbilityDefs_ui.find((entry) => entry.id === _selIt.abilityId);
+      const _removed = removeForgeAbility(_target, _selIt.abilityId);
+      const _msgResult = _removed
+        ? `${_target.name}から「${_ability?.name || _selIt.abilityId}」が消えた！【呪】`
+        : "消す能力が見つからなかった。巻物は消えた。【呪】";
+      if (mode.identKey && sr.current) {
+        const _wasUnknown = !sr.current.ident.has(mode.identKey);
+        sr.current.ident.add(mode.identKey);
+        if (_wasUnknown && mode.scrollIdx != null) {
+          const _scroll = sr.current.player.inventory[mode.scrollIdx];
+          if (_scroll) trackItem(_scroll);
+        }
+      }
+      if (mode.revMsg) setMsgs((prev) => [...prev.slice(-80), mode.revMsg]);
+      if (mode.scrollIdx != null) { consumeModalScroll(mode, sr.current.player); if (identifyCancelRef) identifyCancelRef.current = null; }
+      if (mode.spellCost != null) sr.current.player.mp -= mode.spellCost;
+      const _turnMsgs = [];
+      endTurn(sr.current, sr.current.player, _turnMsgs);
+      setMode(null);
+      setMsgs((prev) => [...prev.slice(-80), ...(mode.spellMsg ? [mode.spellMsg] : []), _msgResult, ..._turnMsgs]);
+      sr.current = { ...sr.current }; setGs({ ...sr.current });
+      return;
+    }
     /* 操作で識別状態が変わる前の、プレイヤー向け表示名を固定する。 */
     const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     /* ===== 大箱ターゲット処理 ===== */
     if (_selIt._isBbTarget) {
       const _bb = sr.current.dungeon?.bigboxes?.find(b => b.id === _selIt._bbId);
       let _bbMsg = "";
+      const _bbEffectMsgs = [];
       if (_bb) {
         const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
         const _bbDN = (isBigboxKindIdentified(_bb, sr.current) || mode.mode === 'identify')
@@ -1099,22 +1216,19 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             _bbMsg = `${_bbDN}が消えてしまった！【呪】`;
           } else {
             const _dg_bb = sr.current.dungeon;
-            let _dupPlaced = false;
-            for (const [_ddx, _ddy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
-              const _nx = _bb.x + _ddx, _ny = _bb.y + _ddy;
-              if (_dg_bb.map[_ny]?.[_nx] === T.FLOOR && !_dg_bb.bigboxes?.some(b => b.x === _nx && b.y === _ny)) {
-                const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!mode.blessed || isBigboxKindIdentified(_bb, sr.current) };
-                if (mode.blessed) { markBigboxKindIdentified(sr.current, _newBb); trackBigbox(_newBb); }
-                _dg_bb.bigboxes.push(_newBb);
-                _dupPlaced = true;
-                _bbMsg = mode.blessed ? `祝福された${_bbDN}が隣に現れた！【祝】` : `${_bbDN}の複製が隣に現れた！`;
-                break;
-              }
+            const _duplicateSpot = findBigboxDuplicatePosition(_dg_bb, _bb, sr.current.player);
+            if (_duplicateSpot) {
+              const { x: _nx, y: _ny } = _duplicateSpot;
+              const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!mode.blessed || isBigboxKindIdentified(_bb, sr.current) };
+              if (mode.blessed) { markBigboxKindIdentified(sr.current, _newBb); trackBigbox(_newBb); }
+              _dg_bb.bigboxes.push(_newBb);
+              _bbMsg = mode.blessed ? `祝福された${_bbDN}が隣に現れた！【祝】` : `${_bbDN}の複製が隣に現れた！`;
+            } else {
+              _bbMsg = "複製する場所がなかった。";
             }
-            if (!_dupPlaced) _bbMsg = "複製する場所がなかった。";
           }
         } else if (mode.mode === 'sell_item') {
-          const _remaining = Math.max(1, (_bb.capacity || 1) - (_bb.contents?.length || 0));
+          const _remaining = Math.max(1, (_bb.capacity ?? 1) - (_bb.contents?.length || 0));
           const _baseG = bigboxSellBaseValue(_bbT) * _remaining;
           const _earnedG = mode.blessed ? _baseG * 2 : mode.cursed ? Math.floor(_baseG / 2) : _baseG;
           sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
@@ -1122,7 +1236,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           _bbMsg = mode.blessed ? `${_bbDN}を${_earnedG}Gで換金した！（2倍）【祝】`
                  : mode.cursed  ? `${_bbDN}を${_earnedG}Gで換金した…（半額）【呪】`
                                 : `${_bbDN}を${_earnedG}Gで換金した！`;
-        } else if (mode.mode === 'transform_item' || mode.mode === 'forge_item') {
+        } else if (mode.mode === 'transform_item') {
           const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
           const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
           if (_newBbT) {
@@ -1134,16 +1248,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
               : (sr.current.bbFakeNames?.[_newBbT.kind] || "謎の大箱");
             _bbMsg = `${_oldBbName}が${_newBbName}に変わった！`;
           } else { _bbMsg = "変化しなかった。"; }
+        } else if (mode.mode === 'forge_item') {
+          _bbMsg = `${_bbDN}には効果がなかった。巻物は消えた。`;
         } else if (mode.mode === 'pot_extract') {
           const _extBbItems = [...(_bb.contents || [])];
           _bb.contents = [];
           const _extBbFts = new Set();
-          for (const _ci of _extBbItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, [], _extBbFts);
+          for (const _ci of _extBbItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, _bbEffectMsgs, _extBbFts, 0, sr.current.player);
           if (mode.cursed) {
             sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
             _bbMsg = `${_bbDN}の中身を吸い出した！大箱は壊れた！【呪】`;
           } else {
-            if (mode.blessed) _bb.capacity = (_bb.capacity || 1) + 1;
+            if (mode.blessed) _bb.capacity = (_bb.capacity ?? 1) + 1;
             _bbMsg = _extBbItems.length > 0
               ? `${_bbDN}から${_extBbItems.map(c => itemDisplayName(c, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)).join('、')}が出た！${mode.blessed ? '（容量+1）【祝】' : ''}`
               : `${_bbDN}は空だった。${mode.blessed ? '（容量+1）【祝】' : ''}`;
@@ -1154,12 +1270,12 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       }
       if (mode.identKey) { const _scrWasUnk = !sr.current.ident.has(mode.identKey); sr.current.ident.add(mode.identKey); if (_scrWasUnk && mode.scrollIdx != null) { const _sc = sr.current.player.inventory[mode.scrollIdx]; if (_sc) trackItem(_sc); } }
       if (mode.revMsg) setMsgs((prev) => [...prev.slice(-80), mode.revMsg]);
-      if (mode.scrollIdx != null) { sr.current.player.inventory.splice(mode.scrollIdx, 1); if (identifyCancelRef) identifyCancelRef.current = null; }
+      if (mode.scrollIdx != null) { consumeModalScroll(mode, sr.current.player); if (identifyCancelRef) identifyCancelRef.current = null; }
       if (mode.spellCost != null) sr.current.player.mp -= mode.spellCost;
       const _etMl_bb = [];
       endTurn(sr.current, sr.current.player, _etMl_bb);
       setMode(null);
-      setMsgs((prev) => [...prev.slice(-80), ...(mode.spellMsg ? [mode.spellMsg] : []), _bbMsg, ..._etMl_bb]);
+      setMsgs((prev) => [...prev.slice(-80), ...(mode.spellMsg ? [mode.spellMsg] : []), _bbMsg, ..._bbEffectMsgs, ..._etMl_bb]);
       sr.current = { ...sr.current }; setGs({ ...sr.current });
       return;
     }
@@ -1181,8 +1297,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _baseGold = itemPrice(_selIt);
       const _earned = mode.blessed ? _baseGold * 2 : mode.cursed ? Math.floor(_baseGold / 2) : _baseGold;
       /* 装備中なら外す */
-      if (_p_sell.weapon === _selIt) _p_sell.weapon = null;
-      if (_p_sell.armor === _selIt) _p_sell.armor = null;
+      unequipPlayerItem(_p_sell, _selIt);
       const _rmIdx_sell = _p_sell.inventory.indexOf(_selIt);
       if (_rmIdx_sell !== -1) {
         _p_sell.inventory.splice(_rmIdx_sell, 1);
@@ -1194,34 +1309,12 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     } else if (mode.mode === 'transform_item') {
       /* ===== 変換の巻物 ===== */
       const _p_tsf = sr.current.player;
-      /* E(最コモン)→…→S(最レア)。同レア同 weight */
-      const _RARITY_UP   = { E:"D", D:"C", C:"B", B:"A", A:"S", S:"S" };
-      const _RARITY_DOWN = { E:"E", D:"E", C:"D", B:"C", A:"B", S:"A" };
-      const _excludeKey = (t) => t.type === "gold" || (t.effect === _selIt.effect && t.type === _selIt.type);
-      let _pool;
-      if (mode.blessed) {
-        const _r = _RARITY_UP[_selIt.rarity || "C"];
-        _pool = ITEMS.filter(t => t.rarity === _r && !_excludeKey(t));
-      } else if (mode.cursed) {
-        const _r = _RARITY_DOWN[_selIt.rarity || "C"];
-        _pool = ITEMS.filter(t => t.rarity === _r && !_excludeKey(t));
-      } else {
-        _pool = ITEMS.filter(t => !_excludeKey(t)); /* 通常: 完全ランダム */
-      }
-      const _fallback = ITEMS.filter(t => !_excludeKey(t));
-      /* 変化の大箱と同系統の抽選（weight＋一定確率で均等） */
-      const _tmpl = (_pool.length > 0 ? pickLootFromPool(_pool, "change") : null)
-        || pickLootFromPool(_fallback, "change")
-        || _fallback[Math.floor(Math.random() * _fallback.length)];
-      if (_tmpl) {
-        const _newIt = { ..._tmpl, id: uid() };
-        if (_tmpl.type === "wand") _newIt.charges = _tmpl.maxCharges ?? _tmpl.charges ?? 5;
-        if (_tmpl.type === "arrow") _newIt.count = _tmpl.count ?? 1;
+      const _newIt = makeScrollTransformedItem(_selIt, mode);
+      if (_newIt) {
         const _rmIdx_tsf = _p_tsf.inventory.indexOf(_selIt);
         if (_rmIdx_tsf !== -1) {
           /* 装備中なら外す */
-          if (_p_tsf.weapon === _selIt) _p_tsf.weapon = null;
-          if (_p_tsf.armor === _selIt) _p_tsf.armor = null;
+          unequipPlayerItem(_p_tsf, _selIt);
           _p_tsf.inventory.splice(_rmIdx_tsf, 1, _newIt);
           trackItem(_newIt);
           // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
@@ -1234,81 +1327,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         _msgResult = "変換できるアイテムがなかった。";
       }
     } else if (mode.mode === 'weapon_up' || mode.mode === 'armor_up') {
-      /* ===== 武器強化・防具強化の巻物 ===== */
-      const _p_up = sr.current.player;
-      const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-      const _gain = mode.blessed ? 2 : mode.cursed ? -1 : 1;
-      const _sfx = mode.blessed ? "【祝】" : mode.cursed ? "【呪】" : "";
-      const _isValidUpTarget = mode.mode === "weapon_up"
-        ? (_selIt.type === "weapon" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)))
-        : (_selIt.type === "armor" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)));
-      if (_isValidUpTarget) {
-        const _bef = _selIt.plus || 0;
-        /* 武器強化の巻物による特殊変化（通常5%/祝福10%/呪い20%） */
-        const _tChance = mode.blessed ? 0.10 : mode.cursed ? 0.20 : 0.05;
-        const _transformT = mode.mode === 'weapon_up'
-          ? (_selIt.name === "ロングソード"                                  ? EXCALIBUR_T
-           : _selIt.name === "短剣"                                          ? CAT_CLAW_T
-           : (_selIt.name === "バトルアクス" || _selIt.name === "戦神の斧") ? GOLDEN_AXE_T
-           : null)
-          : null;
-        if (_transformT && Math.random() < _tChance) {
-          const _oldName = _selIt.name;
-          const _oldAbs = [...new Set([...(_selIt.abilities || []), ...(_selIt.ability ? [_selIt.ability] : [])])].filter(Boolean);
-          Object.assign(_selIt, { ..._transformT, id: _selIt.id, plus: Math.max(0, _bef) });
-          const _newAbs = [...new Set([..._oldAbs, _transformT.ability])];
-          _selIt.abilities = _newAbs; _selIt.ability = _newAbs[0];
-          _selIt.fullIdent = true; _selIt.bcKnown = true;
-          const _transformMsg = _transformT === EXCALIBUR_T  ? "聖なる光を放ち...エクスカリバーに変化した！"
-                              : _transformT === CAT_CLAW_T   ? "鋭い輝きを放ち...猫の爪に変化した！"
-                                                             : "黄金の輝きを放ち...ゴールデンアクスに変化した！";
-          _msgResult = `${_oldName}が${_transformMsg}${_sfx}`;
-        } else {
-          _selIt.plus = _bef + _gain;
-          const _glow = _gain > 0 ? "輝いた" : "くすんだ";
-          _msgResult = `${_selItDN}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
-          if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
-        }
-      } else {
-        _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
-      }
-      const _rmIdx_up = _p_up.inventory.findIndex((_, _ri) => _ri === mode.scrollIdx);
-      if (_rmIdx_up !== -1) _p_up.inventory.splice(_rmIdx_up, 1);
+      _msgResult = applyEquipmentUpgradeScroll(sr.current.player, _selIt, mode, _selItDN);
     } else if (mode.mode === 'forge_item') {
-      /* ===== 錬成の巻物 ===== */
-      if (_selIt.type !== "weapon" && _selIt.type !== "armor") {
-        _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
-      } else {
-      const _isWeapon = _selIt.type === "weapon";
-      const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
-      const _ownedIds = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
-      /* 祝福・呪いで選出プールを絞る */
-      const _WEAPON_STRONG = new Set(["reach","critical","critical_oni_club","critical_war_god_axe","critical_cat_claw","oil_proof","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid","lifesteal","double_strike"]);
-      const _WEAPON_WEAK   = new Set(["no_degrade","def_bonus","inflict_slow","knockback","recoil","gluttony"]);
-      const _ARMOR_STRONG  = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist","water_proof","oil_proof","all_resist","aura"]);
-      const _ARMOR_WEAK    = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof","frail","noisy"]);
-      const _strongSet = _isWeapon ? _WEAPON_STRONG : _ARMOR_STRONG;
-      const _weakSet   = _isWeapon ? _WEAPON_WEAK   : _ARMOR_WEAK;
-      const _candidateAbils = _allAbils.filter(ab => !_ownedIds.has(ab.id) && !ab.specialOnly && (
-        mode.blessed ? _strongSet.has(ab.id)
-      : mode.cursed  ? _weakSet.has(ab.id)
-      : !ab.curseOnly && !ab.blessedOnly  /* 通常巻物では専用能力は出ない */
-      ));
-      /* プールが空なら全体から（既所持・特殊合成専用除く） */
-      const _finalPool = _candidateAbils.length > 0 ? _candidateAbils : _allAbils.filter(ab => !_ownedIds.has(ab.id) && !ab.specialOnly);
-      if (_finalPool.length > 0) {
-        const _newAb = _finalPool[Math.floor(Math.random() * _finalPool.length)];
-        _selIt.abilities = [...(_selIt.abilities || []), _newAb.id].filter(Boolean);
-        if (!_selIt.ability) _selIt.ability = _newAb.id;
-        if (_newAb.id === "pickaxe" && _selIt.durability == null) _selIt.durability = 30;
-        _selIt.fullIdent = true;
-        _msgResult = mode.blessed ? `${_selItDN}に「${_newAb.name}」が宿った！【祝】`
-                   : mode.cursed  ? `${_selItDN}に「${_newAb.name}」が刻まれてしまった…【呪】`
-                                  : `${_selItDN}に「${_newAb.name}」が宿った！`;
-      } else {
-        _msgResult = `${_selItDN}はもうこれ以上能力を宿せない。`;
-      }
-      }
+      _msgResult = applyEquipmentForgeScroll(_selIt, mode, _selItDN);
     } else if (mode.mode === 'pot_extract') {
       /* ===== 吸い出しの巻物 ===== */
       const _p_ext = sr.current.player;
@@ -1326,21 +1347,19 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       /* 未識別品は祝福処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
       const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (_selIt.type === 'pot') {
-        _selIt.capacity = (_selIt.capacity || 1) + 1;
+        _selIt.capacity = (_selIt.capacity ?? 1) + 1;
         _msgResult = `${_selItDN}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
-      } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selItDN}を祝福した！【祝】`; }
+      } else { setPlayerItemProperties(sr.current.player, _selIt, { blessed: true, cursed: false, bcKnown: true }); _msgResult = `${_selItDN}を祝福した！【祝】`; }
     } else if (mode.mode === 'curse') {
       /* 未識別品は呪い処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
       const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (_selIt.type === 'pot') {
-        const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
         const _p_ui = sr.current.player;
-        if ((_selIt.contents?.length || 0) > _nc) {
-          const _rmIdx2 = _p_ui.inventory.indexOf(_selIt);
-          if (_rmIdx2 !== -1) { const _fts3 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_ui.x, _p_ui.y, _ci, [], _fts3); _p_ui.inventory.splice(_rmIdx2, 1); }
-          _msgResult = `${_selItDN}が呪いで割れた！中身が足元に落ちた！【呪】`;
-        } else { _selIt.capacity = _nc; _msgResult = `${_selItDN}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
-      } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selItDN}を呪った！【呪】`; }
+        const _capacityMsgs = [];
+        const result = reducePotCapacity(_selIt, 1, sr.current.dungeon, _p_ui, _capacityMsgs, () => _selItDN);
+        if (result.removedAt >= 0 && mode.scrollIdx != null && result.removedAt < mode.scrollIdx) mode.scrollIdx--;
+        _msgResult = result.broken ? _capacityMsgs : `${_selItDN}を呪った！(容量-1 → ${_selIt.capacity})【呪】`;
+      } else { setPlayerItemProperties(sr.current.player, _selIt, { cursed: true, blessed: false, bcKnown: true }); _msgResult = `${_selItDN}を呪った！【呪】`; }
     } else if (mode.mode === 'duplicate') {
       const _dupCount = mode.cursed ? 0 : 1;
       const _p_dup = sr.current.player;
@@ -1350,23 +1369,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         } else {
           const _rmIdx = _p_dup.inventory.indexOf(_selIt);
           if (_rmIdx !== -1) {
+            unequipPlayerItem(_p_dup, _selIt);
             _p_dup.inventory.splice(_rmIdx, 1);
             if (mode.scrollIdx != null && _rmIdx < mode.scrollIdx) mode.scrollIdx--;
           }
           _msgResult = `${_selItDN}が消えてしまった！【呪】`;
         }
       } else {
-        const _makeFreshM = () => {
-          const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, _encyclopediaTracked: _tracked, ...rest } = _selIt;
-          const _copy = { ...rest, id: uid() };
-          if (_copy.contents) _copy.contents = []; // 壺複製は中身なしの空壺
-          return _copy;
-        };
-        const _newItM = _makeFreshM();
+        const _newItM = makeFreshDuplicate(_selIt);
         delete _newItM._encyclopediaTracked;
         if (mode.blessed) {
           if (_newItM.type === "pot") {
-            _newItM.capacity = (_newItM.capacity || 3) + 1;
+            _newItM.capacity = (_newItM.capacity ?? 3) + 1;
             delete _newItM.blessed;
             delete _newItM.cursed;
           } else {
@@ -1398,7 +1412,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       }
     }
     if (mode.scrollIdx != null) {
-      sr.current.player.inventory.splice(mode.scrollIdx, 1);
+      consumeModalScroll(mode, sr.current.player);
       if (identifyCancelRef) identifyCancelRef.current = null;
     }
     if (mode.spellCost != null) {
@@ -1430,18 +1444,19 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto",
       }}
     >
-      <AutoIdentifyTarget enabled={!!mode.autoSelect} count={_filtered.length} onConfirm={doConfirmUI} />
+      <AutoIdentifyTarget enabled={!!mode.autoSelect} count={_filtered.length} selectionKey={mode.mode} onConfirm={doConfirmUI} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>
           {/* 未識別の選択式巻物は効果をバレない共通文 */}
-          {mode.wasUnknown ? "どのアイテムを選びますか？"
+          {_isForgeRemovalMode_ui ? `${_forgeTarget_ui?.name || "装備"}から消す能力を選んでください【呪】`
+          : mode.wasUnknown ? "どのアイテムを選びますか？"
             : mode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
             : mode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
             : mode.mode === 'duplicate' ? (mode.blessed ? "複製するアイテムを選んでください（複製品が祝福される）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
             : mode.mode === 'identify' ? "識別するアイテムを選んでください"
             : mode.mode === 'sell_item' ? (mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
             : mode.mode === 'transform_item' ? (mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
-            : mode.mode === 'forge_item' ? (mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
+            : mode.mode === 'forge_item' ? (mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（能力を1つ消す）【呪】" : "錬成する武器/防具を選んでください")
             : mode.mode === 'weapon_up' ? (mode.blessed ? "強化する武器/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/指輪を選んでください（－1）【呪】" : "強化する武器/指輪を選んでください（＋1）")
             : mode.mode === 'armor_up'  ? (mode.blessed ? "強化する防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する防具/指輪を選んでください（－1）【呪】" : "強化する防具/指輪を選んでください（＋1）")
             : mode.mode === 'pot_extract' ? (mode.cursed ? "割る壺を選んでください【呪】" : mode.blessed ? "吸い出す壺を選んでください（容量+1）【祝】" : "吸い出す壺を選んでください")
@@ -1458,7 +1473,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
                 style={{ background: "#1a3a5a", color: "#8af", border: "1px solid #4060a0", borderRadius: 4, padding: "2px 6px", cursor: "pointer", touchAction: "manipulation" }}>▶</button>
             </>
           )}
-          <button onClick={() => { identifyCancelRef?.current?.(); setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
+          <button onClick={() => { cancelModalConfirmation(mode); identifyCancelRef?.current?.(); setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
             style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 13 }}>✕</button>
         </div>
       </div>
@@ -1476,7 +1491,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
               color: _isSel ? "#fff" : "#ccc",
               fontWeight: _isSel ? "bold" : "normal",
             }}>
-            {_isSel ? "▶ " : "　"}{it._isBbTarget ? it.name : iLabel(it)}
+            {_isSel ? "▶ " : "　"}{it._isForgeAbility ? <><b>{it.name}</b>{it.desc ? <span style={{ color: "#9ab", fontWeight: "normal", marginLeft: 6 }}>{it.desc}</span> : null}</> : it._isBbTarget ? it.name : iLabel(it)}
           </div>
         );
       })}
@@ -1485,11 +1500,33 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 }
 
 /* ===== Shop Modal ===== */
-export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile }) {
+export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile, shopActionsRef }) {
+  if (shopActionsRef) shopActionsRef.current = null;
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
+  let confirmShopOption = () => {};
+  let completed = false;
+  const cancelShop = () => {
+    if (completed) return;
+    completed = true;
+    if (shopActionsRef) shopActionsRef.current = null;
+    if (mode === "browseConfirm") { setMode("browse"); setMenuSel(0); }
+    else setMode(null);
+  };
+  /* ボタン・キー・パッド・モバイル決定は、表示した同じ選択肢を実行する。 */
+  const shopOptions = (options) => {
+    confirmShopOption = (index) => {
+      if (completed || !options[index] || options[index].disabled) return;
+      if (shopActionsRef && shopActionsRef.current?.confirm !== confirmShopOption) return;
+      completed = true;
+      if (shopActionsRef) shopActionsRef.current = null;
+      options[index].fn();
+    };
+    if (shopActionsRef) shopActionsRef.current = { confirm: confirmShopOption, cancel: cancelShop, count: options.length };
+    return options;
+  };
   const _adjSkH = gs.dungeon?.monsters?.find(m =>
-    m.type === "shopkeeper" && m.state !== "hostile" &&
+    m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
     Math.abs(m.x - gs.player?.x) <= 1 && Math.abs(m.y - gs.player?.y) <= 1
   );
   const _curShopH = (_adjSkH && getShops(gs.dungeon).find(s => s.shopkeeperId === _adjSkH.id)) || gs.dungeon.shop;
@@ -1521,7 +1558,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           🏪 {_shopLabel}
         </span>
         <button
-          onClick={() => setMode(null)}
+          onClick={cancelShop}
           style={{
             background: "#333",
             color: "#aaa",
@@ -1539,7 +1576,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
         const _pp = gs.player;
         /* 隣接している店主からどの店か特定する（ショッピングモール対応） */
         const _adjSk = gs.dungeon?.monsters?.find(m =>
-          m.type === "shopkeeper" && m.state !== "hostile" &&
+          m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
           Math.abs(m.x - _pp.x) <= 1 && Math.abs(m.y - _pp.y) <= 1
         );
         const _payShop = (_adjSk && getShops(gs.dungeon).find(s => s.shopkeeperId === _adjSk.id))
@@ -1551,14 +1588,14 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
               店主：「お代は{_payShop.unpaidTotal}Gです。」
             </div>
-            {[
+            {shopOptions([
               {
                 label: `支払う (${_payShop.unpaidTotal}G)`,
                 fn: () => {
                   if (sr.current) {
                     const { player: p2, dungeon: dg2 } = sr.current;
                     const _adjSk2 = dg2.monsters?.find(m =>
-                      m.type === "shopkeeper" && m.state !== "hostile" &&
+                      m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
                       Math.abs(m.x - p2.x) <= 1 && Math.abs(m.y - p2.y) <= 1
                     );
                     const _curShop2 = (_adjSk2 && getShops(dg2).find(s => s.shopkeeperId === _adjSk2.id))
@@ -1595,10 +1632,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 },
               },
               { label: "やめる", fn: () => setMode(null) },
-            ].map((item, mi) => (
+            ]).map((item, mi) => (
               <button
                 key={mi}
-                onClick={item.fn}
+                onClick={() => confirmShopOption(mi)}
                 style={{
                   padding: "6px 10px",
                   background: menuSel === mi ? "#4a2a00" : "#2a1a00",
@@ -1634,7 +1671,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
               <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
                 店主：「本当によろしいですか？{_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
               </div>
-              {[
+              {shopOptions([
                 { label: "やめる", fn: () => { setMode("browse"); setMenuSel(0); } },
                 {
                   label: `はい、全て売る (${_totalG.toLocaleString()}G)`,
@@ -1648,17 +1685,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
                       p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
                     if (!_sellShop) { setMode("browse"); return; }
-                    const _calcSell2 = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
-                    let earned = 0;
-                    for (const it of toSell) {
-                      const _sp2 = _calcSell2(it);
-                      it.shopPrice = it.type === "gem" ? (it._gemBuyPrice || _sp2) + _sp2 : _sp2;
-                      it._shopId = _sellShop.id;
-                      earned += _sp2;
-                    }
-                    p2.gold += earned;
-                    /* unpaidTotal に加算 → 盗賊判定・pay モードが自動的に機能する */
-                    _sellShop.unpaidTotal += earned;
+                    const earned = sellInventoryItemsToShop(toSell, p2, _sellShop);
                     const _sk = dg2.monsters.find(m => m.id === _sellShop.shopkeeperId && m.state === "friendly");
                     if (_sk) _sk.state = "blocking";
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
@@ -1667,8 +1694,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     setMode(null);
                   },
                 },
-              ].map((item, mi) => (
-                <button key={mi} onClick={item.fn} style={{
+              ]).map((item, mi) => (
+                <button key={mi} onClick={() => confirmShopOption(mi)} style={{
                   padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                   border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
                   color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 14, cursor: "pointer", textAlign: "left",
@@ -1685,7 +1712,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
               店主：「いらっしゃいませ！」
             </div>
-            {[
+            {shopOptions([
               { label: "やめる", fn: () => setMode(null) },
               {
                 label: _inShop
@@ -1694,8 +1721,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 disabled: _sellItems.length === 0 || !_inShop,
                 fn: () => { if (_sellItems.length > 0 && _inShop) { setMode("browseConfirm"); setMenuSel(0); } },
               },
-            ].map((item, mi) => (
-              <button key={mi} onClick={item.fn} disabled={item.disabled} style={{
+            ]).map((item, mi) => (
+              <button key={mi} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
                 padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                 border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
                 color: item.disabled ? "#664422" : menuSel === mi ? "#ffa" : "#fa8",
@@ -1753,8 +1780,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   ) : [];
                   sr.current = { ...sr.current };
                   setGs({ ...sr.current });
-                  if (rem.length <= 1) setMode(null);
-                  else setMenuSel((s) => Math.min(s, rem.length - 2));
+                  if (rem.length === 0) setMode(null);
+                  else setMenuSel((s) => Math.min(s, rem.length - 1));
                 }
               },
             })),
@@ -1768,10 +1795,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 店主：「買い取りましょうか？」
               </div>
               <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
-                {allOpts.map((item, mi) => (
+                {shopOptions(allOpts).map((item, mi) => (
                   <button
                     key={mi}
-                    onClick={item.fn}
+                    onClick={() => confirmShopOption(mi)}
                     style={{
                       display: "block",
                       width: "100%",
@@ -1818,6 +1845,9 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
   const [candidates, setCandidates] = useState(null); // template[] | null
   const [statusMsg, setStatusMsg] = useState("");
   const inputRef = useRef(null);
+  const autoConfirmKeyRef = useRef(null);
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
 
   /* Hooks は mode の有無に関わらず常に同数・同順で呼ぶ */
   useEffect(() => {
@@ -1832,6 +1862,21 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (!mode?.autoSelect) {
+      autoConfirmKeyRef.current = null;
+      return undefined;
+    }
+    const key = String(mode.source || "") + ":" + String(mode.wandId || "");
+    if (autoConfirmKeyRef.current === key) return undefined;
+    autoConfirmKeyRef.current = key;
+    const timer = setTimeout(() => {
+      const preset = WISH_PRESETS[Math.floor(Math.random() * WISH_PRESETS.length)];
+      if (preset) onConfirmRef.current?.({ kind: "preset", id: preset.id });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [mode?.autoSelect, mode?.source, mode?.wandId]);
 
   const discGroups = useMemo(() => {
     if (!mode) return [];
@@ -2052,7 +2097,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
 
       if (inInput) {
         /* 入力中: Esc/↓ で選択肢へ。Enter で願う。↑ でやめる側へ */
-        if (e.key === "Enter") {
+        if ((e.key === "Enter" || e.code === "NumpadEnter") && !e.nativeEvent?.isComposing) {
           e.preventDefault();
           e.stopPropagation();
           confirmText();
@@ -2104,7 +2149,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
           setPage((p) => (p + 1) % totalPages);
           setSel(0);
         }
-      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
+      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z" || e.code === "NumpadEnter") {
         e.preventDefault();
         e.stopPropagation();
         const row = navRows[safeSel];
@@ -2113,7 +2158,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
         } else {
           activateRow(row);
         }
-      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+      } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
         e.preventDefault();
         e.stopPropagation();
         /* 選択肢上の Esc/X は戻る／キャンセル */
@@ -2162,8 +2207,26 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
         overflowY: "auto",
       }}
     >
-      <div style={{ color: "#daf", fontWeight: "bold", fontSize: 15, marginBottom: 8 }}>
-        {title}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ color: "#daf", fontWeight: "bold", fontSize: 15 }}>
+          {title}
+        </div>
+        <button
+          onClick={onCancel}
+          aria-label="願いを閉じる"
+          style={{
+            background: "#221133",
+            color: "#ccaaff",
+            border: "1px solid #7744aa",
+            borderRadius: 4,
+            padding: "2px 10px",
+            fontSize: 13,
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+        >
+          ✕
+        </button>
       </div>
       {view === "main" && (
         <>
@@ -2833,7 +2896,7 @@ export function MerchantModal({ mode, setMode, gs, merchantRef, menuSel, setMenu
   if (!mode || !gs?.player) return null;
   const merchant = merchantRef.current;
   const shop = gs.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
-  if (!merchant || !shop || merchant.state === "hostile") return null;
+  if (!merchant || !shop || (merchant.state === "hostile" && !merchant._npcRetaliationTargetId)) return null;
   const p = gs.player;
   const sellable = p.inventory.map((item, index) => ({ item, index })).filter(({ item }) =>
     item.type !== "gold" && item.type !== "goal" && p.weapon !== item && p.armor !== item && p.arrow !== item && !(p.rings || []).includes(item)
@@ -2979,18 +3042,74 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 }
 
 /* ===== Pot Put Modal ===== */
-export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutItem, onCancel, iLabel, dname, mobile }) {
+export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutItem, doPutFloorItem, onCancel, iLabel, dname, mobile }) {
   if (!mode) return null;
+  if (mode.floorItem) {
+    const floorItem = mode.floorItem;
+    const pots = getPotInputTargets(p, gs?.dungeon);
+    const _ps = 10;
+    const _tp = Math.max(1, Math.ceil(pots.length / _ps));
+    const _pg = pots.slice(putPage * _ps, (putPage + 1) * _ps);
+    const _cancelSel = putMenuSel >= _pg.length;
+    const _cancel = onCancel || (() => setMode(null));
+    return (
+      <div style={{
+        position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+        background: "#1a1408", border: "1px solid #5a4a2a", padding: mobile ? 10 : 14,
+        zIndex: 12, borderRadius: 8, boxShadow: "0 4px 20px rgba(40,30,0,0.7)",
+        maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ color: "#fc6", fontSize: 13, fontWeight: "bold" }}>{iLabel(floorItem)}を入れる壺を選んでください</span>
+          <button onClick={_cancel} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        </div>
+        {pots.length === 0 ? (
+          <div style={{ color: "#666", fontSize: 13 }}>入れられる壺がない。</div>
+        ) : (
+          <div>
+            {_tp > 1 && (
+              <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
+                <span>←→でページ切替</span>
+                <span style={{ color: "#ccc" }}>{putPage + 1}/{_tp}ページ</span>
+              </div>
+            )}
+            {_pg.map((target, vi) => (
+              <div key={target.pot.id ?? `${target.floorPot ? "floor" : "inventory"}-${target.potIdx}`} onClick={() => doPutFloorItem(floorItem, target)} style={{
+                padding: "5px 8px", margin: "2px 0", background: vi === putMenuSel ? "#28285a" : "#18182a",
+                border: "1px solid " + (vi === putMenuSel ? "#88c" : "#3a3a5a"), borderRadius: 4,
+                cursor: "pointer", fontSize: 13, color: "#aab",
+              }}>
+                {target.floorPot ? "足元：" : "所持品："}{dname(target.pot)} ({potOccupancyCount(target.pot)}/{target.pot.capacity})
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
+          {_tp > 1 ? "↑↓:選択 ←→:ページ Z:決定 X:戻る" : "↑↓:選択 Z:決定 X:戻る"}
+        </div>
+        <button onClick={_cancel} style={{ marginTop: 8, padding: "5px 16px", background: _cancelSel ? "#3a2a2a" : "#222", color: _cancelSel ? "#fcc" : "#888", border: _cancelSel ? "1px solid #a66" : "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer", fontWeight: _cancelSel ? "bold" : "normal" }}>やめる</button>
+      </div>
+    );
+  }
   const pot = mode.floorPot || p.inventory[mode.potIdx];
   if (!pot) return null;
   const _cancel = onCancel || (() => setMode(null));
-  const pItems = p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx);
+  const _floorPotItems = listFloorInventoryEntries(gs?.dungeon, p.x, p.y).items
+    .filter(isPotStorableItem)
+    .map((it) => ({ it, i: null, floorItem: it }));
+  const pItems = [
+    ...p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx),
+    ..._floorPotItems,
+  ];
   const _psp = 10;
   const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
   const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
   const _potKey = getIdentKey(pot);
   const _potKnown = !!(gs?.allBcKnown || pot.fullIdent || (_potKey && gs?.ident?.has(_potKey)));
   const isCancelSel = putMenuSel >= _pgp.length;
+  const _floorPutTarget = mode.floorPot
+    ? { pot, floorPot: mode.floorPot, closeAfterPut: false }
+    : { pot, potIdx: mode.potIdx, closeAfterPut: false };
   return (
     <div
       style={{
@@ -3027,13 +3146,17 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
               <span>({putPage * _psp + 1}〜{Math.min((putPage + 1) * _psp, pItems.length)}件)</span>
             </div>
           )}
-          {_pgp.map(({ it: it2, i: i2 }, vi) => {
+          {_pgp.map(({ it: it2, i: i2, floorItem: _floorItem }, vi) => {
             const isPot = it2.type === "pot";
             const isSel = vi === putMenuSel;
             const isDisabled = isPot;
             const isEff = _potKnown && isPotEffective(pot.potEffect, it2);
             return (
-              <div key={i2} onClick={() => { if (!isDisabled) doPutItem(i2); }}
+              <div key={_floorItem ? `floor-${_floorItem.id ?? vi}` : i2} onClick={() => {
+                if (isDisabled) return;
+                if (_floorItem) doPutFloorItem(_floorItem, _floorPutTarget);
+                else doPutItem(i2);
+              }}
                 style={{
                   padding: "5px 8px", margin: "2px 0",
                   background: isSel ? (isDisabled ? "#3a1a1a" : isEff ? "#1a3a1a" : "#28285a")
@@ -3044,7 +3167,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
                   opacity: isDisabled ? 0.5 : 1,
                 }}
               >
-                {iLabel(it2)}{isDisabled && " (入れられない)"}
+                {_floorItem ? `【足元】${iLabel(it2)}` : iLabel(it2)}{isDisabled && " (入れられない)"}
               </div>
             );
           })}
@@ -3346,9 +3469,8 @@ export function InventoryModal({
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
   containerRef, penMergeMode,
-  doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorAltar, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
+  doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorAltar, doFloorItemAction, doFloorOpenPutMode, doFloorItemOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
   /* 足元のアイテム・罠・風穴・魔方陣・泉・大箱 */
   const _fl = listFloorInventoryEntries(gs?.dungeon, p.x, p.y, {
@@ -3356,6 +3478,7 @@ export function InventoryModal({
     bbFakeNames: gs?.bbFakeNames,
     ident: gs?.ident,
     identifiedBigboxes: gs?.identifiedBigboxes,
+    allowEmbeddedItems: (p.wallWalkTurns || 0) > 0 && [T.WALL, T.BWALL].includes(gs?.dungeon?.map?.[p.y]?.[p.x]),
   });
   const _flItems = _fl.items;
   const _flTraps = _fl.traps;
@@ -3364,6 +3487,13 @@ export function InventoryModal({
   const _invTotalPg = Math.ceil(p.inventory.length / 10) || 1;
   const _totalPg = _invTotalPg + (_hasFl ? 1 : 0);
   const _isFloorPg = _hasFl && invPage === _invTotalPg;
+  const _selectedPot = !_isFloorPg && selIdx !== null
+    ? p.inventory[invPage * 10 + selIdx]
+    : null;
+  const _selectedPotContents = _selectedPot?.type === "pot" ? [
+    ...(_selectedPot.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
+    ...(_selectedPot.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
+  ] : [];
   const _getFloorActs = (entry) => {
     const _role = floorEntryRole(entry, _flItems, _flTraps);
     const _descAct = { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) };
@@ -3400,6 +3530,9 @@ export function InventoryModal({
     ];
     const _isEquipType = ["weapon","armor","arrow","ring"].includes(entry.type);
     const a = [{ label: "拾う", fn: () => doFloorPickup?.(entry) }];
+    if (entry.type !== "pot" && entry.type !== "goal" && entry.shopPrice == null && entry._shopId == null && getPotInputTargets(p, gs?.dungeon).length > 0) {
+      a.push({ label: "壺に入れる", fn: () => doFloorItemOpenPutMode?.(entry) });
+    }
     if (entry.type === "pot") {
       a.push({ label: "入れる", fn: () => doFloorOpenPutMode?.(entry) });
     } else if (entry.type === "marker") {
@@ -3417,10 +3550,6 @@ export function InventoryModal({
     a.push({ label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) });
     return a;
   };
-  const _previewIdx = hoveredIdx !== null ? hoveredIdx : selIdx;
-  const _previewItem = _previewIdx !== null ? (_isFloorPg ? null : p.inventory[invPage * 10 + _previewIdx]) : null;
-  const _selItem = selIdx !== null ? (_isFloorPg ? null : p.inventory[invPage * 10 + selIdx]) : null;
-  const _previewPot = _selItem?.type === "pot" ? _selItem : null;
   return (
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#12121c", border: "1px solid #4a4a5a", zIndex: 10,
@@ -3435,14 +3564,22 @@ export function InventoryModal({
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>所持品 ({p.inventory.length}/{p.maxInventory || 30})</span>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={sortInventory}
-            style={{ background: "#1a2a1a", color: "#6c6", border: "1px solid #3a5a3a", borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation" }}>整頓[S]</button>
+            style={{ background: "#1a2a1a", color: "#6c6", border: "1px solid #3a5a3a", borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation" }}>整頓[X/S]</button>
           <button onClick={() => { const newMode = !dropModeRef.current; dropModeRef.current = newMode; setDropMode(newMode); }}
             style={{ background: dropMode ? "#2a1a1a" : "#1a1a2a", color: dropMode ? "#f88" : "#aaa",
-              border: `1px solid ${dropMode ? "#8a3030" : "#3a3a5a"}`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation", fontWeight: dropMode ? "bold" : "normal" }}>置く[D]</button>
+              border: `1px solid ${dropMode ? "#8a3030" : "#3a3a5a"}`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation", fontWeight: dropMode ? "bold" : "normal" }}>置く[Y/D]</button>
           <button onClick={() => { setShowInv(false); dropModeRef.current = false; setDropMode(false); setSelIdx(null); setShowDesc(null); setInvPage(0); setInvMenuSel(null); }}
             style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
         </div>
       </div>
+      {dropMode && (
+        <div role="status" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", alignItems: "center",
+          color: "#fff0e8", background: "#5b2020", border: "2px solid #ff6868", borderRadius: 5,
+          padding: "7px 10px", marginBottom: 8, fontSize: 14, fontWeight: "bold" }}>
+          <span>⚠ 置くモード中</span>
+          <span>持ち物を選ぶと足元に置きます（Yで解除）</span>
+        </div>
+      )}
       {p.weapon && (
         <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
           武器: <span style={{ color: "#fa0" }}>{p.weapon.name}{formatPlusSuffix(p.weapon.plus)}</span> (攻+{p.weapon.atk + (p.weapon.plus || 0)})
@@ -3460,7 +3597,7 @@ export function InventoryModal({
         </div>
       )}
       {p.arrow ? (
-        <div style={{ color: "#aaa", fontSize: 13, marginBottom: 6 }}>矢: <span style={{ color: "#dda050" }}>{p.arrow.name}</span> ({p.arrow.count}本)</div>
+        <div style={{ color: "#aaa", fontSize: 13, marginBottom: 6 }}>矢: <span style={{ color: "#dda050" }}>{p.arrow.name}</span> ({p.arrow.count}{p.arrow.stone || p.arrow.magicStone || p.arrow.iceChunk || p.arrow.specialProjectile ? "個" : "本"})</div>
       ) : (
         <div style={{ color: "#555", fontSize: 13, marginBottom: 6 }}>矢: なし</div>
       )}
@@ -3516,7 +3653,7 @@ export function InventoryModal({
               : _fRole === "stair" ? "#8a8"
               : "#aaa";
             return (
-              <div key={entry.id || `${_fRole}-${j}`} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
+              <div key={entry.id || `${_fRole}-${j}`}
                 style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
                 <div onClick={() => { setSelIdx(selIdx === j ? null : j); setInvMenuSel(null); setShowDesc(null); setTimeout(() => containerRef?.current?.focus(), 0); }}
                   style={{ padding: "7px 8px", cursor: "pointer", fontSize: mobile ? 13 : 12,
@@ -3598,7 +3735,7 @@ export function InventoryModal({
             const _kk = getIdentKey(it); return !!(_kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown);
           })();
           return (
-            <div key={i} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
+            <div key={i}
               style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
               <div onClick={() => {
                 if (dropModeRef.current) { doDropItem(i); setTimeout(() => containerRef.current?.focus(), 0); return; }
@@ -3640,7 +3777,7 @@ export function InventoryModal({
                         {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}
                         {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
                         {it.type === "armor" && ` — 防具 (防+${it.def})`}
-                        {it.type === "arrow" && ` — 矢 (攻${it.atk}, ${it.count}本)`}
+                        {it.type === "arrow" && ` — 飛び道具 (攻${it.atk}, ${it.count}${it.stone || it.magicStone || it.iceChunk || it.specialProjectile ? "個" : "本"})`}
                         {it.type === "wand" && it.fullIdent && gs?.ident?.has(getIdentKey(it)) && ` — 杖 [残${it.charges}回]`}
                         {it.type === "marker" && ` [残${it.charges}回]`}
                         {it.type === "potion" && " — 薬"}
@@ -3658,12 +3795,6 @@ export function InventoryModal({
                       {it.potionEffects?.length > 0 && (
                         <div style={{ color: "#fc6", marginTop: 3 }}>薬効果：{it.potionEffects.map(foodPotionEffectLabel).join("・")}</div>
                       )}
-                      {it.type === "pot" && it.potEffect === "imprison" && (it.confinedMonsters?.length || 0) > 0 && (
-                        <div style={{ color: "#ca8", marginTop: 3 }}>閉じ込め: {it.confinedMonsters.map((c) => c.name).join(", ")}</div>
-                      )}
-                      {it.type === "pot" && it.potEffect !== "imprison" && it.contents?.length > 0 && (
-                        <div style={{ color: "#ca8", marginTop: 3 }}>中身: {it.contents.map((c) => itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)).join(", ")}</div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -3673,31 +3804,36 @@ export function InventoryModal({
         })
       )}
     </div>
-    {_previewPot && (
-      <div style={{
-        position: "absolute", right: mobile ? 8 : 212, top: "50%", transform: "translateY(-50%)",
-        background: "#0e0e1a", border: "1px solid #8a6a20", borderRadius: 6,
-        padding: "8px 12px", zIndex: 5, minWidth: 130, maxWidth: 180,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
+    {_selectedPot?.type === "pot" && (
+      <div role="region" aria-label="壺の中身" style={{
+        position: "absolute", left: mobile ? 8 : "50%", right: mobile ? 8 : undefined,
+        bottom: mobile ? 8 : 16, transform: mobile ? undefined : "translateX(-50%)",
+        width: mobile ? "auto" : "min(360px, calc(100% - 32px))", maxWidth: "calc(100% - 16px)",
+        maxHeight: mobile ? "38dvh" : "36dvh", display: "flex", flexDirection: "column",
+        background: "#0e0e1a", border: "1px solid #8a6a20", borderRadius: 7,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.9)", zIndex: 12, boxSizing: "border-box",
       }}>
-        <div style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
-          {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(_previewPot)}/{_previewPot.capacity}]
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+          padding: "8px 10px", borderBottom: "1px solid #4a3a10", flexShrink: 0 }}>
+          <span style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", overflowWrap: "anywhere" }}>
+            {itemDisplayName(_selectedPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(_selectedPot)}/{_selectedPot.capacity}]
+          </span>
+          <button onClick={() => { setSelIdx(null); setInvMenuSel(null); }}
+            aria-label="壺の中身を閉じる"
+            style={{ background: "#25202a", color: "#ddd", border: "1px solid #59451b", borderRadius: 4,
+              padding: "2px 8px", cursor: "pointer", flexShrink: 0 }}>✕</button>
         </div>
-        {potOccupancyCount(_previewPot) === 0 ? (
-          <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
-        ) : _previewPot.potEffect === "imprison" ? (
-          (_previewPot.confinedMonsters ?? []).map((c, ci) => (
-            <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
-              · {c.name}
-            </div>
-          ))
-        ) : (
-          (_previewPot.contents ?? []).map((c, ci) => (
-            <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
-              · {itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)}
-            </div>
-          ))
-        )}
+        <div style={{ padding: "6px 10px 8px", overflowY: "auto", minHeight: 0, overflowWrap: "anywhere" }}>
+          {_selectedPotContents.length === 0 ? (
+            <div style={{ color: "#777", fontSize: 13 }}>（空）</div>
+          ) : (
+            _selectedPotContents.map((entry) => (
+              <div key={entry.key} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em", overflowWrap: "anywhere" }}>
+                · {entry.name}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     )}
     </div>
@@ -3705,25 +3841,112 @@ export function InventoryModal({
 }
 
 /* ===== Sidebar Portrait Panel ===== */
-export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings }) {
+function fitPortraitImageToFrame(img, frame) {
+  if (!img?.naturalWidth || !img?.naturalHeight || !frame?.clientWidth || !frame?.clientHeight) return;
+
+  const width = img.naturalWidth;
+  const height = img.naturalHeight;
+  const gutter = 8;
+  const availableWidth = Math.max(1, frame.clientWidth - gutter * 2);
+  const availableHeight = Math.max(1, frame.clientHeight - gutter * 2);
+  const hasDashSheetFringe = img.currentSrc.split(/[?#]/, 1)[0].endsWith("/tiles/Character/battle_dash.webp");
+  const cleanLeft = hasDashSheetFringe ? Math.ceil(width * 0.295) : 0;
+  let left = 0;
+  let top = 0;
+  let right = width - 1;
+  let bottom = height - 1;
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("Portrait alpha scan unavailable");
+    context.drawImage(img, 0, 0);
+    const pixels = context.getImageData(0, 0, width, height).data;
+    left = width;
+    top = height;
+    right = -1;
+    bottom = -1;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (x < cleanLeft) continue;
+        if (pixels[(y * width + x) * 4 + 3] <= 12) continue;
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+    if (right < left || bottom < top) {
+      left = 0;
+      top = 0;
+      right = width - 1;
+      bottom = height - 1;
+    }
+  } catch {
+    // Cross-origin or canvas-restricted custom images still remain contained by the frame.
+    left = 0;
+    top = 0;
+    right = width - 1;
+    bottom = height - 1;
+  }
+
+  const contentWidth = right - left + 1;
+  const contentHeight = bottom - top + 1;
+  const scale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight);
+  const renderedContentWidth = contentWidth * scale;
+  const renderedContentHeight = contentHeight * scale;
+  img.style.position = "absolute";
+  img.style.width = `${width * scale}px`;
+  img.style.height = `${height * scale}px`;
+  img.style.maxWidth = "none";
+  img.style.maxHeight = "none";
+  img.style.flex = "none";
+  img.style.transform = "none";
+  img.style.clipPath = hasDashSheetFringe ? `inset(0 0 0 ${(cleanLeft / width) * 100}%)` : "none";
+  img.style.left = `${(frame.clientWidth - renderedContentWidth) / 2 - left * scale}px`;
+  img.style.top = `${(frame.clientHeight - renderedContentHeight) / 2 - top * scale}px`;
+}
+
+export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings, setShowSound, isAnyModalActive = false }) {
+  const portraitFrameRef = useRef(null);
+  const portraitImageRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!showPortrait) return undefined;
+    const frame = portraitFrameRef.current;
+    const img = portraitImageRef.current;
+    if (!frame || !img) return undefined;
+
+    const fit = () => {
+      if (img.complete) fitPortraitImageToFrame(img, frame);
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(fit);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [portraitSrc, showPortrait, mobile, landscape]);
+
   if (!(!mobile || landscape)) return null;
-  /* reaction_fall_severe だけ被写体が右寄りに大きく描かれているため、全体を収める。 */
-  const fitWideFallPortrait = typeof portraitSrc === "string" && /reaction_fall_severe\.png(?:[?#]|$)/.test(portraitSrc);
   return (
     <div
       style={{
         position: "absolute", right: 0, top: 0, bottom: 0,
-        width: mobile ? 140 : 220, background: "#000",
+        width: mobile ? 140 : 300, background: "#000",
         borderLeft: "1px solid #333",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between",
         padding: "8px 4px", boxSizing: "border-box", zIndex: 10,
       }}
     >
-      <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible", position: "relative" }}>
+      <div ref={portraitFrameRef} style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
         {showPortrait && (
           <img
-            src={portraitSrc || "/tiles/Character/stand_normal.png"}
+            ref={portraitImageRef}
+            src={portraitSrc || "/tiles/Character/stand_normal.webp"}
             alt="portrait"
+            onLoad={(e) => fitPortraitImageToFrame(e.currentTarget, portraitFrameRef.current)}
             onError={(e) => {
               const img = e.currentTarget;
               if (img.dataset.portraitFallbackApplied === "1") return;
@@ -3732,38 +3955,36 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
               img.dataset.portraitFallbackApplied = "1";
               img.src = fallback;
             }}
-            style={fitWideFallPortrait
-              ? {
-                width: "220%",
-                objectFit: "contain",
-                transform: "translateX(-10%)",
-              }
-              : { width: "220%", objectFit: "contain" }}
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              maxWidth: "none",
+              maxHeight: "none",
+              objectFit: "contain",
+            }}
           />
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-        <button onClick={() => setShowSettings(true)}
-          style={{ background: "#1a1a2a", border: "1px solid #333", color: "#aaa", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%" }}>
+        <button onClick={() => { if (isAnyModalActive) return; setShowSettings(true); }}
+          style={{ background: isAnyModalActive ? "#151520" : "#1a1a2a", border: `1px solid ${isAnyModalActive ? "#222" : "#333"}`, color: isAnyModalActive ? "#445" : "#aaa", fontSize: 12, borderRadius: 3, cursor: isAnyModalActive ? "default" : "pointer", padding: "3px 0", width: "100%" }}>
           ⚙ 設定
         </button>
-        <button onClick={() => setShowScores(true)}
-          style={{ background: "#0d0d1a", border: "1px solid #336", color: "#8cf", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%" }}>
+        <button onClick={() => { if (isAnyModalActive) return; setShowScores(true); }}
+          style={{ background: isAnyModalActive ? "#101018" : "#0d0d1a", border: `1px solid ${isAnyModalActive ? "#223" : "#336"}`, color: isAnyModalActive ? "#446" : "#8cf", fontSize: 12, borderRadius: 3, cursor: isAnyModalActive ? "default" : "pointer", padding: "3px 0", width: "100%" }}>
           📜 冒険記録
+        </button>
+        <button onClick={() => { if (isAnyModalActive) return; if (setShowSound) setShowSound(true); }}
+          style={{ background: isAnyModalActive ? "#151520" : "#1a1a28", border: `1px solid ${isAnyModalActive ? "#222" : "#445"}`, color: isAnyModalActive ? "#445" : "#ffd700", fontSize: 12, borderRadius: 3, cursor: isAnyModalActive ? "default" : "pointer", padding: "3px 0", width: "100%" }}>
+          🎵 サウンド
         </button>
       </div>
     </div>
   );
 }
 
-const DESKTOP_VW_OPTIONS = [
-  { value: 21, label: "特大" },
-  { value: 25, label: "大" },
-  { value: 27, label: "中" },
-  { value: 33, label: "小" },
-];
-
-export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, portraitSrc, loadTileset, currentTileset, desktopVW, setDesktopVW, mobile }) {
+export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, portraitSrc, loadTileset, currentTileset, desktopVW, setDesktopVW, mobile, setShowSound }) {
   const tilesetKeys = Object.keys(TILESET_LABELS);
   const actions = useMemo(() => {
     const list = [];
@@ -3777,6 +3998,7 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
     }
     list.push({ id: "portrait", kind: "portrait", label: "立ち絵を変更" });
     if (portraitSrc) list.push({ id: "clearPortrait", kind: "clearPortrait", label: "立ち絵を消去" });
+    list.push({ id: "sound", kind: "sound", label: "🎵 サウンド設定" });
     list.push({ id: "close", kind: "close", label: "閉じる" });
     return list;
   }, [mobile, portraitSrc, tilesetKeys.join("|")]);
@@ -3800,12 +4022,12 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
       const list = actionsRef.current;
       const n = list.length;
       if (!n) return;
-      if (k === "arrowup" || k === "arrowleft" || e.code === "Numpad8" || e.code === "Numpad4") {
+      if (isKeyUp(e) || isKeyLeft(e)) {
         e.preventDefault();
         setSel((s) => (s - 1 + n) % n);
         return;
       }
-      if (k === "arrowdown" || k === "arrowright" || e.code === "Numpad2" || e.code === "Numpad6") {
+      if (isKeyDown(e) || isKeyRight(e)) {
         e.preventDefault();
         setSel((s) => (s + 1) % n);
         return;
@@ -3823,6 +4045,7 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
         else if (a.kind === "vw") setDesktopVW(a.value);
         else if (a.kind === "portrait") fileRef.current?.click();
         else if (a.kind === "clearPortrait") clearPortrait();
+        else if (a.kind === "sound") { setShow(false); if (setShowSound) setShowSound(true); }
         else if (a.kind === "close") setShow(false);
       }
     };
@@ -3895,6 +4118,13 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
           </div>
         </div>
 
+        <div>
+          <button onClick={() => { setShow(false); if (setShowSound) setShowSound(true); }}
+            style={{ width: "100%", padding: "6px 0", background: focused?.kind === "sound" ? "#2a2a1a" : "#1a1a24", border: `1px solid ${focused?.kind === "sound" ? "#ffd700" : "#445"}`, color: focused?.kind === "sound" ? "#ffd700" : "#ccc", borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: "bold" }}>
+            🎵 サウンド設定 & サウンドテスト
+          </button>
+        </div>
+
         <button onClick={() => setShow(false)}
           style={{ padding: "6px 0", background: focused?.kind === "close" ? "#1a2a3a" : "#151515", border: `1px solid ${focused?.kind === "close" ? "#4a7aaa" : "#333"}`, color: focused?.kind === "close" ? "#8cf" : "#aaa", borderRadius: 4, fontSize: 13, cursor: "pointer" }}>
           閉じる
@@ -3909,10 +4139,13 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
   const visited = getVisitedFloors(sr.current, _p0?.depth);
   const sel = visited.includes(mode.sel) ? mode.sel : (visited[visited.length - 1] ?? mode.sel);
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+    <div onClick={(e) => { if (e.target === e.currentTarget) setMode(null); }} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#111", border: "1px solid #550", borderRadius: 6, padding: "12px 20px", color: "#ffe", minWidth: 180, maxHeight: "70vh", overflowY: "auto" }}>
-        <div style={{ color: "#fa0", fontWeight: "bold", marginBottom: 8, textAlign: "center" }}>階層テレポート【呪】</div>
-        <div style={{ color: "#888", fontSize: 13, marginBottom: 8, textAlign: "center" }}>訪れた階層のみ　↑↓:選択　Z/Enter:決定</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ color: "#fa0", fontWeight: "bold", fontSize: 14 }}>階層テレポート【呪】</span>
+          <button onClick={() => setMode(null)} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        </div>
+        <div style={{ color: "#888", fontSize: 13, marginBottom: 8, textAlign: "center" }}>訪れた階層のみ　↑↓:選択　Z/Enter:決定　X:やめる</div>
         {visited.length === 0 ? (
           <div style={{ color: "#888", textAlign: "center" }}>飛べる階層がない</div>
         ) : visited.map(f => (
@@ -3963,6 +4196,9 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
             {f === sel ? "▶ " : "  "}{f}階
           </div>
         ))}
+        <div style={{ marginTop: 10, textAlign: "center" }}>
+          <button onClick={() => setMode(null)} style={{ background: "#2a1a1a", color: "#f88", border: "1px solid #6a3a3a", borderRadius: 4, padding: "4px 16px", cursor: "pointer", fontSize: 13 }}>やめる</button>
+        </div>
       </div>
     </div>
   );
@@ -4005,6 +4241,7 @@ const _DBG_ITEM_CATS = [
     { label: IRONMASS_T.name,     value: { ...IRONMASS_T } },
     { label: SNIPER_T.name,       value: { ...SNIPER_T } },
     { label: GODBANE_SWORD_T.name, value: { ...GODBANE_SWORD_T } },
+    { label: MAGIC_BANE_T.name, value: { ...MAGIC_BANE_T } },
     { label: TRIELEM_ARMOR_T.name, value: { ...TRIELEM_ARMOR_T } },
     { label: MITHRIL_ARMOR_T.name, value: { ...MITHRIL_ARMOR_T } },
     { label: STOMACH_ARMOR_T.name, value: { ...STOMACH_ARMOR_T } },
@@ -4022,6 +4259,7 @@ const _DBG_ITEM_CATS = [
     { label: ARROW_T.name,       value: { ...ARROW_T } },
     { label: STONE_T.name,       value: { ...STONE_T } },
     { label: MAGIC_STONE_T.name, value: { ...MAGIC_STONE_T } },
+    { label: ICE_CHUNK_T.name,   value: { ...ICE_CHUNK_T } },
   ]},
   { key: "wands",      label: "杖",           build: () => WANDS.map(w => ({ label: w.name, value: { ...w } })) },
   { key: "spellbooks", label: "魔法書",       build: () => SPELLBOOKS.map(sb => ({ label: sb.name, value: { ...sb } })) },
@@ -4032,11 +4270,19 @@ const _DBG_ITEM_CATS = [
   { key: "others",     label: "その他",       build: () => [
     { label: EMPTY_BOTTLE.name, value: { ...EMPTY_BOTTLE } },
   ]},
+  { key: "valuables",  label: "財宝・キー",   build: () => [
+    { label: "金貨（100G）", value: { name: "金貨", type: "gold", value: 100, tile: 22 } },
+    { label: GOLD_NUGGET_T.name, value: { ...GOLD_NUGGET_T } },
+    { label: "偽物の金塊", value: { ...FAKE_GOLD_NUGGET_T } },
+    ...GEM_TYPES.map(item => ({ label: item.name, value: { ...item } })),
+    ...Object.values(GOAL_ITEMS).map(item => ({ label: item.name, value: { ...item } })),
+    { label: CHARGED_FUZZBALL_T.name, value: { ...CHARGED_FUZZBALL_T } },
+  ]},
 ];
 
 const PAGE_SIZE = 10;
 
-export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, endTurn, mobile }) {
+export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, endTurn, mobile, onCancel }) {
   if (!mode || !gs) return null;
   const { effect } = mode;
   const page = mode.page ?? 0;
@@ -4065,6 +4311,9 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     }
     for (const b of INTERMEDIATE_BOSSES) {
       entries.push({ label: `${b.name} (中級ボス)`, value: { base: b, lv: 1 } });
+    }
+    for (const b of SPECIAL_BOSSES) {
+      entries.push({ label: `${b.name} (専用ボス)`, value: { base: b, lv: 1 } });
     }
   } else if (isDebugItemGet) {
     if (!category) {
@@ -4119,14 +4368,15 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       const lvData = lv >= 2 ? (MON_LEVELS[base.baseKind]?.[lv - 2] || {}) : {};
       const canUseWater = !!(lvData.waterOnly ?? base.waterOnly) || !!(lvData.float ?? base.float);
       let placed = false;
-      for (const [ddx, ddy] of dirs) {
+      const summonDirs = monsterBodySize(base) > 1 ? [2, 3, 4].flatMap(r => dirs.map(([dx, dy]) => [dx * r, dy * r])) : dirs;
+      for (const [ddx, ddy] of summonDirs) {
         const nx = p.x + ddx, ny = p.y + ddy;
         if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
         const tile = dg.map[ny][nx];
         const normalTile = tile === "." || tile === "+" || tile === "<" || tile === ">";
         const waterTile = tile === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny);
         if (!normalTile && !(canUseWater && waterTile)) continue;
-        if (dg.monsters.some(m => m.x === nx && m.y === ny)) continue;
+        if (!canPlaceMonsterBody(dg, { ...base, ...lvData }, nx, ny, p)) continue;
         if (nx === p.x && ny === p.y) continue;
         const mon = {
           ...base, ...lvData, id: uid(), x: nx, y: ny,
@@ -4149,7 +4399,11 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       }
       if (!placed) ml.push("召喚する場所がない！");
     } else if (isDebugItemGet) {
-      if (p.inventory.length >= (p.maxInventory || 30)) {
+      if (entry.value?.type === "gold") {
+        const amount = Math.max(0, Number(entry.value.value) || 0);
+        p.gold = (p.gold || 0) + amount;
+        ml.push(`所持金が${amount}G増えた！`);
+      } else if (p.inventory.length >= (p.maxInventory || 30)) {
         ml.push("持ち物がいっぱいだ！");
       } else {
         const it = prepareDebugItem(entry.value, effect, uid());
@@ -4290,7 +4544,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   };
 
   return (
-    <div data-debug-spell-modal style={{
+    <div data-debug-spell-modal data-debug-total-pages={totalPages} style={{
       position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#080d18", border: "1px solid #2050a0", padding: mobile ? 10 : 14, zIndex: 12,
       borderRadius: 8, boxShadow: "0 4px 20px rgba(0,40,120,0.7)",
@@ -4298,7 +4552,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={{ color: "#80c0ff", fontSize: 13, fontWeight: "bold" }}>{title}</span>
-        <button onClick={() => setMode(null)}
+        <button onClick={onCancel || (() => setMode(null))}
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div>
@@ -4329,14 +4583,16 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         </div>
       )}
       <div style={{ color: "#304060", fontSize: 12, marginTop: 6 }}>
-        ↑↓:選択  Z:決定  {totalPages > 1 ? "←→:ページ  " : ""}{isDebugItemGet && category ? "X:カテゴリに戻る" : "X:閉じる"}
+        {mobile
+          ? `Dパッド:選択${totalPages > 1 ? "・ページ移動" : ""}　決定ボタン:実行　${isDebugItemGet && category ? "戻るボタン:カテゴリへ戻る" : "閉じるボタン:閉じる"}`
+          : `↑↓:選択  Z:決定  ${totalPages > 1 ? "←→:ページ  " : ""}${isDebugItemGet && category ? "X:カテゴリに戻る" : "X:閉じる"}`}
       </div>
     </div>
   );
 }
 
 /* ===== Ending Modal ===== */
-export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endingSel = 0, setShowScores, onViewMap, onViewInventory, onDismiss }) {
+export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endingSel = 0, setShowScores, onViewMap, onViewInventory, onViewMsgLog, onDismiss }) {
   if (!show) return null;
   const gold  = endingResult?.earnedGold ?? p?.gold ?? 0;
   const depth = endingResult?.depth      ?? p?.depth ?? 1;
@@ -4347,6 +4603,7 @@ export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endi
     { label: "スコアを見る", color: "#8cf", action: () => setShowScores(true) },
     { label: "状況を見る", color: "#8ff", action: onViewMap },
     { label: "持ち物を見る", color: "#d8a8ff", action: onViewInventory },
+    ...(onViewMsgLog ? [{ label: "ログを見る", color: "#80c0ff", action: onViewMsgLog }] : []),
     { label: "地上に戻る", color: "#ffd700", action: onDismiss },
   ];
   return (
@@ -4392,12 +4649,12 @@ export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endi
           }}
         >
           <img
-            src={clearPortrait || "/tiles/Character/reaction_joy.png"}
+            src={clearPortrait || "/tiles/Character/reaction_joy.webp"}
             alt="clear"
             onError={(e) => {
               if (e.currentTarget.dataset.clearFallbackApplied === "1") return;
               e.currentTarget.dataset.clearFallbackApplied = "1";
-              e.currentTarget.src = "/tiles/Character/reaction_joy.png";
+              e.currentTarget.src = "/tiles/Character/reaction_joy.webp";
             }}
             style={{ width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: "drop-shadow(0 0 20px #ffd700aa)" }}
           />

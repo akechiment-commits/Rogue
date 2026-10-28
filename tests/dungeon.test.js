@@ -284,12 +284,12 @@ describe("genDungeon", () => {
 
   it("低層水浸し専用魚は5階前後の能力で3段階に成長する", () => {
     const fish = MONS.find((m) => m.baseKind === "badFish");
-    expect(fish).toMatchObject({ name: "まずい魚", waterOnly: true, floodedOnly: true, hp: 18, atk: 9, def: 2 });
+    expect(fish).toMatchObject({ name: "まずい魚", waterOnly: true, floodedOnly: true, hp: 20, atk: 12, def: 2 });
     expect(fish.subtype).toBeUndefined();
-    expect(fish.levels.map((level) => level.name)).toEqual(["マグナムフィッシュ", "かせきうお"]);
+    expect(fish.levels.map((level) => level.name)).toEqual(["古い魚", "かせきうお"]);
     expect(fish.levels).toMatchObject([
-      { hp: 42, atk: 21, def: 6 },
-      { hp: 72, atk: 34, def: 10 },
+      { hp: 40, atk: 20, def: 4 },
+      { hp: 68, atk: 28, def: 6 },
     ]);
     expect(pickFloodedWaterMonsterDef(1, "intermediate")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 1 });
     const lv2Picks = Array.from({ length: 60 }, () => pickFloodedWaterMonsterDef(5, "intermediate"));

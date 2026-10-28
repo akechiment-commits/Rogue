@@ -9,6 +9,19 @@ export function monIsSealed(m) {
   return !!(m && m.sealed);
 }
 
+/** 主弱点・副弱点のどちらに対しても属性弱点判定を行う。 */
+export function monHasElementWeakness(m, element) {
+  if (!m || !element) return false;
+  const weaknesses = [m.elemWeak, m.elemWeak2].flatMap(value => Array.isArray(value) ? value : [value]);
+  return weaknesses.includes(element);
+}
+
+/** 火ダルマの固有炎特性または爆発から伝わった炎まといが有効か。 */
+export function monHasFlameMantle(m) {
+  return !!(m && !m.sealed && !(m.soakedTurns > 0) &&
+    (m.baseKind === "firedemon" || (m.flameMantleTurns || 0) > 0));
+}
+
 /** 爆発系特技（自爆・誘爆を含む）は封印中に無効 */
 export function monCanUseExplosiveAbility(m) {
   return !!(m && !m.sealed);
@@ -46,7 +59,8 @@ export function monReflectsProjectiles(m) {
 export function monReflectsMagic(m) {
   return !!(m && !m.sealed && (
     m.subtype === "magicreflect" ||
-    (m.baseKind === "runner" && (m.monLevel || 1) >= 3)
+    (m.baseKind === "runner" && (m.monLevel || 1) >= 3) ||
+    (m.flockReflectTurns || 0) > 0
   ));
 }
 

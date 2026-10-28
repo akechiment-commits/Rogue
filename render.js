@@ -1,6 +1,7 @@
 import { TI, rng } from "./utils.js";
 import { getIdentKey, potOccupancyCount } from "./items.js";
-import { genDungeon } from "./dungeon.js";
+import { generateSessionFloor } from "./floorGeneration.js";
+import { placeFallenEntities } from "./pitfallPlacement.js";
 
 /* Tile name mapping — place images at CUSTOM_TILE_PATH/{name}.png to override spritesheet */
 export const TILE_NAMES = {
@@ -146,11 +147,46 @@ export const TILE_NAMES = {
   220: "homing_projectile_enemy",
   221: "giant_eel",
   222: "sea_devil",
+  224: "king_behinmos",
+  225: "haunted_willow",
+  255: "gwen",
+  256: "gwen_veteran",
+  257: "flock",
+  258: "flock_revenge",
+  [TI.STONE_PROJECTILE]: "stone_projectile",
+  [TI.ICE_CHUNK]: "ice_chunk",
+  230: "loxonin",
+  231: "sleeping_lion",
+  234: "pot_crab_raider",
+  235: "hermit_crab",
+  236: "sylph",
+  237: "fire_cook",
+  238: "mushroom_poison",
+  239: "mushroom_sleep",
+  240: "mushroom_confuse",
+  241: "machodragon",
+  242: "machodragon_lv2",
+  243: "machodragon_lv3",
+  244: "manaeater",
+  245: "manaeater_lv2",
+  246: "manaeater_lv3",
+  163: "potionthrower",
+  247: "itemthrower",
+  248: "mimic",
+  249: "timeout_punisher",
+  250: "battering_ram",
+  251: "chiranikuttsunnoku",
+  252: "taisaijin",
+  253: "ohplenty",
+  254: "mireu",
+  259: "korgon",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
 /* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
 const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
+const GWEN_SPRITE_TILE_IDS = new Set([255, 256]);
+const CRISP_MONSTER_TILE_IDS = new Set([257, 258, 259]);
 export function clearCustomTileImages() {
   for (const k of Object.keys(customTileImages)) delete customTileImages[k];
 }
@@ -164,11 +200,11 @@ export const TILE_RENDER = {
   4: { bg: "#080810", fg: "#1a1a22", ch: ":" },
   5: { bg: null, fg: "#ffe030", ch: "@" },
   6: { bg: null, fg: "#c08050", ch: "r" },
-  7: { bg: null, fg: "#70a050", ch: "k" },
+  7: { bg: null, fg: "#80e0ff", ch: "i" },
   8: { bg: null, fg: "#40a070", ch: "g" },
   9: { bg: null, fg: "#c0c0b0", ch: "s" },
   10: { bg: null, fg: "#60a050", ch: "z" },
-  11: { bg: null, fg: "#90a040", ch: "O" },
+  11: { bg: null, fg: "#e07030", ch: "k" },
   12: { bg: null, fg: "#40b040", ch: "~" },
   13: { bg: null, fg: "#806030", ch: "T" },
   14: { bg: null, fg: "#f04020", ch: "D" },
@@ -192,6 +228,7 @@ export const TILE_RENDER = {
   126: { bg: null, fg: "#60ff90", ch: "^" },
   127: { bg: null, fg: "#dd66ff", ch: "^" },
   132: { bg: null, fg: "#20c0ff", ch: "^" },
+  133: { bg: null, fg: "#80e0a0", ch: "^" }, /* 転倒の罠 */
   27: { bg: null, fg: "#804040", ch: "^" },
   28: { bg: null, fg: "#909090", ch: "^" },
   29: { bg: null, fg: "#4080f0", ch: "^" },
@@ -243,7 +280,7 @@ export const TILE_RENDER = {
   83: { bg: null, fg: "#ff9900", ch: "w" },
   84: { bg: null, fg: "#c040c0", ch: "^" },
   85: { bg: null, fg: "#2060a0", ch: "^" },
-  86: { bg: null, fg: "#c0a030", ch: "T" },
+  86: { bg: null, fg: "#ff6020", ch: "F" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
   120: { bg: null, fg: "#5080e8", ch: "^" },
@@ -316,7 +353,7 @@ export const TILE_RENDER = {
   147: { bg: null, fg: "#e06060", ch: "C" }, /* バリア蟹 */
   148: { bg: null, fg: "#e09030", ch: "A" }, /* アーチャー */
   149: { bg: null, fg: "#ffd040", ch: "T" }, /* ゴールドタイガー */
-  150: { bg: null, fg: "#c040c0", ch: "T" }, /* 罠師 */
+  150: { bg: null, fg: "#ff6020", ch: "F" }, /* 仕掛け花火師 */
   151: { bg: null, fg: "#ff6040", ch: "O" }, /* 足払い鬼 */
   152: { bg: null, fg: "#6040a0", ch: "D" }, /* ダークネス */
   153: { bg: null, fg: "#cc44aa", ch: "T" }, /* 盗投士 */
@@ -333,7 +370,7 @@ export const TILE_RENDER = {
   164: { bg: null, fg: "#ff4466", ch: "i" }, /* インプ */
   165: { bg: null, fg: "#ffe060", ch: "*" }, /* スターライト */
   166: { bg: null, fg: "#c060ff", ch: "M" }, /* 魔法反射師 */
-  167: { bg: null, fg: "#e0e0e0", ch: "m" }, /* ものまね師 */
+  167: { bg: null, fg: "#d0a050", ch: "M" }, /* アイテムモドキ */
   168: { bg: null, fg: "#ff8040", ch: "C" }, /* 突進角獣 */
   169: { bg: null, fg: "#d040d0", ch: "h" }, /* ほっちもぺ */
   170: { bg: null, fg: "#a06020", ch: "t" }, /* コソドロ */
@@ -347,19 +384,81 @@ export const TILE_RENDER = {
   178: { bg: null, fg: "#80b0ff", ch: "S" }, /* 眠り術師 */
   179: { bg: null, fg: "#a0a0a0", ch: "G" }, /* ガーゴイル */
   180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
+  204: { bg: null, fg: "#60c040", ch: "l" }, /* スネークマン */
+  205: { bg: null, fg: "#40a0ff", ch: "k" }, /* 竜騎士 */
+  206: { bg: null, fg: "#ff60a0", ch: "p" }, /* 危険な花びら */
+  223: { bg: null, fg: "#b5b867", ch: "f" }, /* まずい魚系 */
+  224: { bg: null, fg: "#c288e8", ch: "B" }, /* キングベヒんもス */
+  225: { bg: null, fg: "#70a060", ch: "W" }, /* お化け柳 */
+  255: { bg: null, fg: "#d8e5ff", ch: "G" }, /* グウェン */
+  256: { bg: null, fg: "#f0d478", ch: "G" }, /* 勤勉なグウェン */
+  257: { bg: null, fg: "#bd8dff", ch: "F" }, /* フロック */
+  258: { bg: null, fg: "#ff4770", ch: "R" }, /* 逆襲のフロック */
+  226: { bg: null, fg: "#90b85a", ch: "A" }, /* 冒険者・女性剣士 */
+  227: { bg: null, fg: "#60a8d0", ch: "A" }, /* 冒険者・女性術師 */
+  228: { bg: null, fg: "#d07050", ch: "A" }, /* 冒険者・男性剣士 */
+  229: { bg: null, fg: "#c0a050", ch: "A" }, /* 冒険者・男性弓使い */
+  230: { bg: null, fg: "#40d0a0", ch: "n" }, /* ロキソ忍系 */
+  231: { bg: null, fg: "#e8c060", ch: "L" }, /* 眠れる獅子系 */
+  234: { bg: null, fg: "#d99a55", ch: "c" }, /* ヤドカリ壺荒らし */
+  235: { bg: null, fg: "#e6b870", ch: "c" }, /* ヤドカリ */
+  236: { bg: null, fg: "#70f0d8", ch: "s" }, /* シルフ系 */
+  237: { bg: null, fg: "#ff682e", ch: "C" }, /* 炎の料理人 */
+  238: { bg: null, fg: "#e04040", ch: "m" }, /* ドクキノコ */
+  239: { bg: null, fg: "#a050d0", ch: "m" }, /* ネムリキノコ */
+  240: { bg: null, fg: "#e08020", ch: "m" }, /* マダラキノコ */
+  241: { bg: null, fg: "#60e060", ch: "D" }, /* マッチョドラゴン */
+  242: { bg: null, fg: "#ff4040", ch: "D" }, /* 筋肉竜 */
+  243: { bg: null, fg: "#ffd700", ch: "D" }, /* 筋骨隆々竜 */
+  244: { bg: null, fg: "#9966cc", ch: "M" }, /* マナイーター */
+  245: { bg: null, fg: "#ba68c8", ch: "M" }, /* マナドレイナー */
+  246: { bg: null, fg: "#e040fb", ch: "M" }, /* マナヴォイド */
+  247: { bg: null, fg: "#40d0a0", ch: "K" }, /* ひょい河童 */
+  248: { bg: null, fg: "#e0e0e0", ch: "m" }, /* ものまね師 */
+  249: { bg: null, fg: "#e0d080", ch: "T" }, /* 刻限の巨像 */
+  250: { bg: null, fg: "#e0d8c0", ch: "R" }, /* バタリングラム */
+  251: { bg: null, fg: "#d04070", ch: "S" }, /* ちらにくつんのく */
+  252: { bg: null, fg: "#c060d0", ch: "T" }, /* タイサイジン */
+  253: { bg: null, fg: "#ffd700", ch: "C" }, /* オープレンティ */
+  254: { bg: null, fg: "#33aaff", ch: "D" }, /* ミレウ */
+  259: { bg: null, fg: "#c9d5e4", ch: "K" }, /* コルゴン */
+  [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
+  [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
   214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */
   215: { bg: null, fg: "#ff3344", ch: "E" }, /* 土下座鈴木右衛門 */
+  4001: { bg: null, fg: "#f050e0", ch: "!" }, /* 薬カテゴリ */
+  4002: { bg: null, fg: "#88aaff", ch: "!" }, /* 空き瓶 */
+  4003: { bg: null, fg: "#a060ff", ch: "◇" }, /* ペンカテゴリ */
 };
 
 /* Canvas drawing helper */
-export function drawTile(ctx, ts, idx, dx, dy, sz) {
+export function drawTile(ctx, ts, idx, dx, dy, sz, options = null) {
   const ci = customTileImages[idx];
   if (ci) {
     if (LARGE_FIXTURE_TILE_IDS.has(idx)) {
       const drawSz = sz * 1.25;
       ctx.drawImage(ci, dx - (drawSz - sz) / 2, dy - (drawSz - sz), drawSz, drawSz);
+    } else if (GWEN_SPRITE_TILE_IDS.has(idx)) {
+      /* 低身長の印象を保ちつつ、顔・武器が読めるよう横幅だけ少し広げる。 */
+      const drawWidth = sz * 1.2;
+      const drawHeight = sz;
+      const previousSmoothing = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      try {
+        ctx.drawImage(ci, dx - (drawWidth - sz) / 2, dy, drawWidth, drawHeight);
+      } finally {
+        ctx.imageSmoothingEnabled = previousSmoothing;
+      }
+    } else if (CRISP_MONSTER_TILE_IDS.has(idx)) {
+      const previousSmoothing = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      try {
+        ctx.drawImage(ci, dx, dy, sz, sz);
+      } finally {
+        ctx.imageSmoothingEnabled = previousSmoothing;
+      }
     } else {
       ctx.drawImage(ci, dx, dy, sz, sz);
     }
@@ -392,7 +491,16 @@ export function drawTile(ctx, ts, idx, dx, dy, sz) {
       ctx.fillStyle = td.bg;
       ctx.fillRect(dx, dy, sz, sz);
     }
-    ctx.fillStyle = td.fg;
+    let fg = td.fg;
+    if (options?.monLevel === 2) {
+      fg = (options.monName && options.monName.includes("青")) ? "#40b0ff"
+         : (options.monName && options.monName.includes("緑")) ? "#50e050"
+         : "#ffd700";
+    } else if (options?.monLevel === 3) {
+      fg = (options.monName && (options.monName.includes("黒") || options.monName.includes("影") || options.monName.includes("暗"))) ? "#888899"
+         : "#ff3333";
+    }
+    ctx.fillStyle = fg;
     ctx.font = "bold " + Math.floor(sz * 0.75) + "px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -435,18 +543,13 @@ export function _itemPickupSuffix(it, ident) {
 }
 
 /* 落とし穴バッグを処理して落下エンティティを次の階に配置する */
-export function processPitfallBag(bag, floors, depth) {
+export function processPitfallBag(bag, floors, depth, session = null) {
   if (!bag || bag.length === 0) return;
   const nd = depth + 1;
-  if (!floors[nd]) floors[nd] = genDungeon(nd - 1);
-  const nf = floors[nd];
-  for (const { kind, entity } of bag) {
-    const room = nf.rooms[rng(0, nf.rooms.length - 1)];
-    entity.x = rng(room.x, room.x + room.w - 1);
-    entity.y = rng(room.y, room.y + room.h - 1);
-    if (kind === 'item') nf.items.push(entity);
-    else if (kind === 'monster') nf.monsters.push(entity);
-  }
+  const currentDestination = session?.player?.depth === nd ? session.dungeon : null;
+  if (!currentDestination && !floors[nd]) floors[nd] = generateSessionFloor(session, nd, { pitfall: true, sourceDepth: depth });
+  const nf = currentDestination || floors[nd];
+  placeFallenEntities(nf, bag, { player: currentDestination ? session.player : null, actionTime: session?.player?.actionTime || 0 });
 }
 
 /* アイテム表示名を返す（未識別なら偽名 or ニックネーム、識別済みなら本名優先） */

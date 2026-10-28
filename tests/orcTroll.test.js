@@ -10,7 +10,7 @@ describe("オーク系・トロル系の痛恨", () => {
   it("オークは力を溜め、次の1ターンだけ防御無視で攻撃する", () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
-      const base = MONS.find((monster) => monster.name === "オーク");
+      const base = MONS.find((monster) => monster.baseKind === "orc");
       const orc = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
       orc.turnAttacks = 0;
       const player = makePlayer({ x: 6, y: 5, def: 100 });
@@ -29,7 +29,7 @@ describe("オーク系・トロル系の痛恨", () => {
       orc.turnAttacks = 0;
       monsterAI(orc, dg, player, messages, { attackOnly: true });
       expect(orc.powerChargeReady).toBeUndefined();
-      expect(player.hp).toBe(80);
+      expect(player.hp).toBe(86);
       expect(messages.at(-1)).toContain("痛恨の一撃");
     } finally {
       random.mockRestore();
@@ -39,7 +39,7 @@ describe("オーク系・トロル系の痛恨", () => {
   it("オークの溜めは次のターンに隣接していなければ失効する", () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
-      const base = MONS.find((monster) => monster.name === "オーク");
+      const base = MONS.find((monster) => monster.baseKind === "orc");
       const orc = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
       orc.turnAttacks = 0;
       const player = makePlayer({ x: 6, y: 5 });
@@ -60,10 +60,10 @@ describe("オーク系・トロル系の痛恨", () => {
     }
   });
 
-  it("トロルは通常攻撃時に1.5倍の痛恨を出す", () => {
+  it("おお木霊系（旧トロル）は通常攻撃時に1.5倍の痛恨を出す", () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
-      const base = MONS.find((monster) => monster.name === "トロル");
+      const base = MONS.find((monster) => monster.baseKind === "troll");
       const troll = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
       troll.turnAttacks = 0;
       const player = makePlayer({ x: 6, y: 5, def: 0 });
@@ -76,7 +76,7 @@ describe("オーク系・トロル系の痛恨", () => {
 
       monsterAI(troll, dg, player, messages, { attackOnly: true });
 
-      expect(player.hp).toBe(60);
+      expect(player.hp).toBe(70);
       expect(messages.at(-1)).toContain("痛恨の一撃");
     } finally {
       random.mockRestore();

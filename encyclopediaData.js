@@ -1,4 +1,4 @@
-import { GEM_TYPES, ITEMS, MAGIC_MARKER, POTS, RINGS, SPELLBOOKS, WANDS } from "./items.js";
+import { GEM_TYPES, ITEMS, ICE_CHUNK_T, MAGIC_MARKER, POTS, RINGS, SPELLBOOKS, WANDS } from "./items.js";
 import { RAW_FOODS, COOKED_FOODS, FOOD_DESCS } from "./foodData.js";
 import { FOOD_DESCRIPTIONS } from "./foodDescriptions.js";
 
@@ -12,7 +12,7 @@ export const ITEM_CATEGORY_DEFS = Object.freeze([
   { id: "spellbook", label: "魔法書", types: ["spellbook"] },
   { id: "weapon", label: "武器", types: ["weapon"] },
   { id: "armor", label: "防具", types: ["armor"] },
-  { id: "arrow", label: "矢・石", types: ["arrow"] },
+  { id: "arrow", label: "矢・石・氷塊", types: ["arrow"] },
   { id: "pot", label: "壺", types: ["pot"] },
   { id: "ring", label: "指輪", types: ["ring"] },
   { id: "gem", label: "宝石", types: ["gem"] },
@@ -38,6 +38,7 @@ const ITEM_CATALOG = [
   ...RINGS,
   ...GEM_TYPES,
   ...SPELLBOOKS,
+  ICE_CHUNK_T,
   MAGIC_MARKER,
 ];
 

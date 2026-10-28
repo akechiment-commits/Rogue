@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { isPlayerFloating } from "./items.js";
+import { loadImage } from "./imageStorage.js";
 import {
   PORTRAIT_COOLDOWN_MS,
   PORTRAIT_WALK_COOLDOWN_MS,
@@ -12,6 +13,21 @@ import {
   snapshotPlayer,
 } from "./portraits.js";
 
+function getAppendedMessages(previousMessages, currentMessages) {
+  const maxOverlap = Math.min(previousMessages.length, currentMessages.length);
+  for (let overlap = maxOverlap; overlap > 0; overlap--) {
+    let matches = true;
+    for (let index = 0; index < overlap; index++) {
+      if (previousMessages[previousMessages.length - overlap + index] !== currentMessages[index]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return currentMessages.slice(overlap);
+  }
+  return currentMessages.slice(-1);
+}
+
 export function usePortrait({
   gs,
   msgs,
@@ -20,7 +36,7 @@ export function usePortrait({
   putMode,
 }) {
   const prevGsRef = useRef(null);
-  const prevMsgCountRef = useRef(0);
+  const prevMsgsRef = useRef(null);
   const portraitCooldownRef = useRef(0);
   const transientPortraitHoldRef = useRef(null);
   const walkStepRef = useRef(0);
@@ -31,11 +47,16 @@ export function usePortrait({
   msgsRef.current = msgs;
 
   useEffect(() => {
-    const saved = localStorage.getItem("roguelike_portrait");
-    if (saved) {
-      setPortraitSrc(saved);
-      dynamicEnabledRef.current = false;
-    }
+    let active = true;
+    loadImage("roguelike_portrait").then((saved) => {
+      if (active && saved) {
+        setPortraitSrc(saved);
+        dynamicEnabledRef.current = false;
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [setPortraitSrc]);
 
   const pickAndSet = useCallback((key) => {
@@ -82,6 +103,12 @@ export function usePortrait({
   }, [putMode, forcePortrait]);
 
   useEffect(() => {
+    const previousMessages = prevMsgsRef.current;
+    const currentMessages = msgsRef.current;
+    const additions = previousMessages
+      ? getAppendedMessages(previousMessages, currentMessages)
+      : [];
+    prevMsgsRef.current = currentMessages.slice();
     if (!dynamicEnabledRef.current || !gs?.player) return;
 
     const p = gs.player;
@@ -92,11 +119,7 @@ export function usePortrait({
     const msgToText = (m) => m?.text ?? m;
     const recentMsgs = msgsRef.current.slice(-12).map(msgToText);
     const lastMsg = recentMsgs[recentMsgs.length - 1] ?? "";
-    const newCount = msgsRef.current.length - prevMsgCountRef.current;
-    const newMsgs = newCount > 0
-      ? msgsRef.current.slice(-newCount).map(msgToText)
-      : [];
-    prevMsgCountRef.current = msgsRef.current.length;
+    const newMsgs = additions.map(msgToText);
     const dashed = !!p._portraitDash;
     if (p._portraitDash) delete p._portraitDash;
     const now = Date.now();

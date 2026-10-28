@@ -54,7 +54,8 @@ describe("上級ダンジョンの敵分布", () => {
     expect(ADVANCED_MONSTER_FLOOR_POOLS[1]).toEqual(["rat", "bat", "centipede"]);
     for (let floor = 1; floor <= 30; floor++) {
       expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(3);
-      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13);
+      const extraGiants = ['hauntedWillow', 'sleepingLion', 'potRaider', 'sylph', 'mushroom', 'fireCook', 'machodragon', 'manaEater'].filter(kind => ADVANCED_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
+      expect(ADVANCED_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiants);
     }
     expect(ADVANCED_MONSTER_FLOOR_POOLS[30]).toEqual(expect.arrayContaining([
       "dragon", "icedragon", "gargoyle", "vampire", "golem", "daemon", "darkness",
@@ -63,15 +64,15 @@ describe("上級ダンジョンの敵分布", () => {
 
   it("序盤の単純敵と能力敵を中盤以降にLv2で再登場させる", () => {
     for (const [kind, floor, stats] of [
-      ["rat", 10, [32, 15, 4, 18]],
-      ["bat", 10, [30, 14, 3, 18]],
-      ["centipede", 10, [30, 13, 8, 24]],
-      ["kobold", 13, [38, 18, 8, 26]],
-      ["goblin", 13, [48, 21, 9, 38]],
-      ["skeleton", 13, [42, 25, 9, 46]],
-      ["imp", 16, [44, 24, 7, 52]],
-      ["zombie", 16, [80, 32, 11, 80]],
-      ["wolf", 16, [45, 27, 6, 70]],
+      ["rat", 10, [16, 22, 1, 28]],
+      ["bat", 10, [20, 14, 2, 25]],
+      ["centipede", 10, [26, 12, 16, 35]],
+      ["kobold", 13, [32, 18, 5, 35]],
+      ["goblin", 13, [38, 20, 6, 45]],
+      ["skeleton", 13, [40, 27, 3, 60]],
+      ["imp", 16, [28, 16, 3, 55]],
+      ["zombie", 16, [110, 24, 4, 75]],
+      ["wolf", 16, [34, 22, 2, 75]],
     ]) {
       expect(advancedMonsterAllowed(kind, floor)).toBe(true);
       const base = MONS.find((monster) => monster.baseKind === kind);
@@ -112,9 +113,14 @@ describe("上級ダンジョンの敵分布", () => {
         expect(advancedMonsterSpawnLevel(base, floor)).toBeLessThanOrEqual(2);
       }
     }
+    const sleepingLion = MONS.find(monster => monster.baseKind === "sleepingLion");
+    expect(advancedMonsterAllowed("sleepingLion", 21)).toBe(true);
+    expect(advancedMonsterSpawnLevel(sleepingLion, 24)).toBe(1);
+    expect(advancedMonsterSpawnLevel(sleepingLion, 25)).toBe(2);
+    expect(advancedMonsterSpawnLevel(sleepingLion, 30)).toBe(2);
   });
 
-  it("上級で通常出現する全72種は最低3階に候補になる", () => {
+  it("眠れる獅子を含む上級の全モンスターは最低3階に候補になる", () => {
     const counts = new Map();
     for (const kinds of ADVANCED_MONSTER_FLOOR_POOLS) {
       for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
@@ -122,7 +128,9 @@ describe("上級ダンジョンの敵分布", () => {
     const advancedKinds = MONS
       .filter((monster) => !monster.penaltyOnly && !monster.floodedOnly && !(monster.dungeons && !monster.dungeons.includes("advanced")))
       .map((monster) => monster.baseKind);
-    expect(new Set(advancedKinds).size).toBe(72);
+    expect(new Set(advancedKinds).size).toBe(81);
+    expect(advancedKinds).toContain('potionhealer');
+    expect(advancedKinds).toContain('sylph');
     for (const kind of advancedKinds) expect(counts.get(kind)).toBeGreaterThanOrEqual(3);
   });
 

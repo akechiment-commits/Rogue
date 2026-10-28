@@ -199,7 +199,7 @@ async function handleGet(req, res, redis) {
   }
 }
 
-function validateBody(body) {
+export function validateBody(body) {
   if (!body || typeof body !== "object") return { ok: false, error: "invalid body" };
   const playerId = String(body.playerId || "").trim();
   const playerName = String(body.playerName || "").trim().slice(0, 12);
@@ -210,13 +210,13 @@ function validateBody(body) {
   const score = Math.floor(Number(body.score));
   const turns = Math.floor(Number(body.turns));
   const elapsedMs = Math.floor(Number(body.elapsedMs));
-  const cleared = !!body.cleared;
-  const survived = !!body.survived;
+  const cleared = body.cleared === true;
+  const survived = body.survived === true;
   const carryIn = body.carryIn === true || body.carryIn === "true" || body.carryIn === 1 || body.carryIn === "1";
   if (!Number.isFinite(score) || score < 0 || score > 1e12) return { ok: false, error: "score invalid" };
   if (!Number.isFinite(turns) || turns < 0 || turns > 1e9) return { ok: false, error: "turns invalid" };
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > 1e12) return { ok: false, error: "elapsedMs invalid" };
-  if (!cleared && survived) return { ok: false, error: "only clear or death results can be ranked" };
+  if (!isRankableRun(body)) return { ok: false, error: "only clear or death results can be ranked" };
   return {
     ok: true,
     data: {

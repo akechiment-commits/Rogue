@@ -18,3 +18,20 @@ export function isKeyLeft(e) {
 export function isKeyRight(e) {
   return e.key?.toLowerCase() === "arrowright" || e.code === "Numpad6";
 }
+
+export function isDashModifierKey(e) {
+  return e.code === "KeyA" || e.key?.toLowerCase() === "a";
+}
+
+/**
+ * キーボード上部の数字キー（Digit1〜Digit9）のみを判定し、1〜9の数値を返す。
+ * テンキー（Numpad1〜Numpad9）は移動・斜め移動用のため除外する。
+ * @param {KeyboardEvent} e
+ * @returns {number | null} 1〜9 の数値、または null
+ */
+export function getDigitNumber(e) {
+  if (e?.code && /^Digit([1-9])$/.test(e.code)) {
+    return Number(e.code.slice(5));
+  }
+  return null;
+}

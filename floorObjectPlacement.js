@@ -2,6 +2,7 @@
  * 床上の「動かせる物体」（罠・魔方陣・風穴・階段など）の配置・重なり判定。
  */
 import { T, MW, MH, randomTeleportDest, TI } from "./utils.js";
+import { monsterOccupiesCell } from './monsterGeometry.js';
 import { statueAt } from "./fixtureQueries.js";
 
 export const STAIR_DOWN_DESC =
@@ -24,7 +25,7 @@ export function isFloorOccupancyBlocked(dg, x, y, opts = {}) {
   if (statueAt(dg, x, y)) return true;
   const ignore = opts.ignore;
   if (!opts.allowPlayer && opts.p && opts.p.x === x && opts.p.y === y) return true;
-  if (!opts.allowMonster && dg.monsters?.some((m) => m.x === x && m.y === y)) return true;
+  if (!opts.allowMonster && dg.monsters?.some((m) => monsterOccupiesCell(m, x, y))) return true;
   if (dg.items?.some((i) => i !== ignore && i.x === x && i.y === y && !i.wallEmbedded)) return true;
   if (dg.traps?.some((t) => t !== ignore && t.x === x && t.y === y)) return true;
   if (dg.springs?.some((s) => s !== ignore && s.x === x && s.y === y)) return true;
@@ -115,8 +116,22 @@ export function moveStairTo(dg, stair, nx, ny) {
   return true;
 }
 
+/** 階段タイルを壊して参照を同期し、欠落分は通常の復元処理へ任せる。 */
+export function destroyStair(dg, stair) {
+  if (!dg?.map || !stair || !["up", "down"].includes(stair.stairDir)) return false;
+  const tileType = stair.stairDir === "up" ? T.SU : T.SD;
+  if (dg.map[stair.y]?.[stair.x] !== tileType) return false;
+  dg.map[stair.y][stair.x] = T.FLOOR;
+
+  const remaining = _scanStairTiles(dg, tileType);
+  const isUp = stair.stairDir === "up";
+  const refKey = isUp ? "stairUp" : "stairDown";
+  dg[refKey] = remaining[0] ? { x: remaining[0].x, y: remaining[0].y } : null;
+  return true;
+}
+
 /**
- * 階段を吹き飛ばし方向へスライド（重なり手前で停止）。
+ * 階段を吹き飛ばし方向へスライド（重なり手前で停止、水に入ると破壊）。
  */
 export function pushStair(dg, stair, dx, dy, dist) {
   if (!stair || (!dx && !dy)) return { x: stair?.x, y: stair?.y };
@@ -125,9 +140,18 @@ export function pushStair(dg, stair, dx, dy, dist) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
     const tile = dg.map[ny]?.[nx];
+    if (tile === T.WATER) {
+      cx = nx;
+      cy = ny;
+      continue;
+    }
     if (tile === T.WALL || tile === T.BWALL) break;
     if (isFloorOccupancyBlocked(dg, nx, ny, { allowPlayer: true, allowMonster: true })) break;
     cx = nx; cy = ny;
+  }
+  if (dg.map[cy]?.[cx] === T.WATER) {
+    const destroyed = destroyStair(dg, stair);
+    return { x: cx, y: cy, destroyed };
   }
   if (cx !== stair.x || cy !== stair.y) moveStairTo(dg, stair, cx, cy);
   return { x: stair.x, y: stair.y };
@@ -236,4 +260,15 @@ export function ensureStairsPresent(dg, opts = {}) {
     opts.ml.push("不思議な力が階段を復元した！");
   }
   return { fixedUp, fixedDown };
+}
+
+/** 複製する大箱の置き場。全入力で同じ周囲8マスと占有判定を使う。 */
+export function findBigboxDuplicatePosition(dungeon, box, player) {
+  for (const [dx, dy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+    const x = box.x + dx, y = box.y + dy;
+    if (isFloorOccupancyBlocked(dungeon, x, y, { p: player })) continue;
+    if (dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y)) continue;
+    return { x, y };
+  }
+  return null;
 }

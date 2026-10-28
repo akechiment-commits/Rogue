@@ -18,16 +18,95 @@ function closePreview() {
   previewImage?.removeAttribute("src");
 }
 
+const portraitBoundsCanvas = document.createElement("canvas");
+portraitBoundsCanvas.width = 96;
+portraitBoundsCanvas.height = 96;
+const portraitBoundsContext = portraitBoundsCanvas.getContext("2d", { willReadFrequently: true });
+const portraitBoundsCache = new WeakMap();
+
+function getPortraitContentBounds(img) {
+  const source = img.currentSrc || img.src;
+  const cached = portraitBoundsCache.get(img);
+  if (cached?.source === source) return cached.bounds;
+
+  const size = portraitBoundsCanvas.width;
+  try {
+    portraitBoundsContext.clearRect(0, 0, size, size);
+    portraitBoundsContext.drawImage(img, 0, 0, size, size);
+    const { data } = portraitBoundsContext.getImageData(0, 0, size, size);
+    let left = size;
+    let top = size;
+    let right = -1;
+    let bottom = -1;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (data[(y * size + x) * 4 + 3] <= 12) continue;
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+    if (right >= left && bottom >= top) {
+      const bounds = {
+        left: left / size,
+        top: top / size,
+        width: (right - left + 1) / size,
+        height: (bottom - top + 1) / size,
+      };
+      portraitBoundsCache.set(img, { source, bounds });
+      return bounds;
+    }
+  } catch {
+    // Keep the full image visible if a preview cannot be sampled.
+  }
+
+  const full = { left: 0, top: 0, width: 1, height: 1 };
+  portraitBoundsCache.set(img, { source, bounds: full });
+  return full;
+}
+
+function fitPortraitPreview(img, frame) {
+  if (!img?.complete || !img.naturalWidth || !img.naturalHeight || !frame) return;
+  const frameStyle = getComputedStyle(frame);
+  const paddingLeft = Number.parseFloat(frameStyle.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(frameStyle.paddingRight) || 0;
+  const paddingTop = Number.parseFloat(frameStyle.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(frameStyle.paddingBottom) || 0;
+  const availableWidth = frame.clientWidth - paddingLeft - paddingRight;
+  const availableHeight = frame.clientHeight - paddingTop - paddingBottom;
+  if (availableWidth <= 0 || availableHeight <= 0) return;
+
+  const bounds = getPortraitContentBounds(img);
+  const contentWidth = img.naturalWidth * bounds.width;
+  const contentHeight = img.naturalHeight * bounds.height;
+  const scale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight);
+  const renderedWidth = img.naturalWidth * scale;
+  const renderedHeight = img.naturalHeight * scale;
+  img.style.position = "absolute";
+  img.style.width = `${renderedWidth}px`;
+  img.style.height = `${renderedHeight}px`;
+  img.style.maxWidth = "none";
+  img.style.maxHeight = "none";
+  img.style.objectFit = "fill";
+  img.style.left = `${paddingLeft + (availableWidth - contentWidth * scale) / 2 - bounds.left * renderedWidth}px`;
+  img.style.top = `${paddingTop + (availableHeight - contentHeight * scale) / 2 - bounds.top * renderedHeight}px`;
+}
+
 function openPreview(slot) {
   if (!previewModal || !previewImage || !previewTitle || !previewFile) return;
   previewTitle.textContent = slot.label;
   previewFile.textContent = `${slot.file}.png`;
   previewImage.alt = slot.label;
-  previewImage.src = portraitUrl(slot.file);
   previewModal.hidden = false;
   document.body.classList.add("preview-open");
+  previewImage.src = portraitUrl(slot.file);
   $("#preview-close")?.focus();
 }
+
+previewImage?.addEventListener("load", () => {
+  fitPortraitPreview(previewImage, previewImage.parentElement);
+});
 
 $("#preview-close")?.addEventListener("click", closePreview);
 previewModal?.addEventListener("click", (e) => {
@@ -117,8 +196,15 @@ async function removeExtraSlot(file, deleteImage) {
 }
 
 function portraitUrl(file) {
-  return `/tiles/Character/${file}.png?v=${Date.now()}`;
+  return `/tiles/Character/${file}.webp?v=${Date.now()}`;
 }
+
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".dropzone img").forEach((img) => fitPortraitPreview(img, img.parentElement));
+  if (previewModal && !previewModal.hidden && previewImage?.complete) {
+    fitPortraitPreview(previewImage, previewImage.parentElement);
+  }
+});
 
 function updateStats() {
   const total = categories.reduce((n, c) => n + c.slots.length, 0);
@@ -213,6 +299,7 @@ function buildSlot(cat, slot) {
       zone.innerHTML = "";
       const img = document.createElement("img");
       img.alt = slot.label;
+      img.addEventListener("load", () => fitPortraitPreview(img, zone));
       img.src = portraitUrl(slot.file);
       const badge = document.createElement("span");
       badge.className = "badge";

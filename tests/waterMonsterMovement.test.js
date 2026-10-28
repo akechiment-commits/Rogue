@@ -39,4 +39,24 @@ describe("水上限定モンスターの自発移動", () => {
     expect({ x: wokka.x, y: wokka.y }).toEqual({ x: 5, y: 5 });
     expect(dg.map[wokka.y][wokka.x]).toBe(T.WATER);
   });
+
+  it("水中限定の経路探索でも壁に重なった泉へ入らない", () => {
+    const wateri = makeMonsterFromBase(MONS.find((m) => m.baseKind === "wateri"), 1, 5, 5, { aware: true });
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.WALL));
+    map[5][5] = T.WATER;
+    map[5][6] = T.WALL;
+    map[5][7] = T.FLOOR;
+    const dg = makeEmptyDg({
+      map,
+      monsters: [wateri],
+      springs: [{ x: 6, y: 5 }],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    const player = makePlayer({ x: 7, y: 5 });
+
+    monsterAI(wateri, dg, player, [], { moveOnly: true });
+
+    expect({ x: wateri.x, y: wateri.y }).toEqual({ x: 5, y: 5 });
+    expect(dg.map[wateri.y][wateri.x]).toBe(T.WATER);
+  });
 });

@@ -1,16 +1,27 @@
+import { monsterOccupiesCell, monsterBodyCells, monsterBodySize } from "./monsterGeometry.js";
+import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
-  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
+  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
 } from './items.js';
 import { scatterFloorGimmicks, makeAltar } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
+import {
+  legendMonsterKindsAtFloor,
+  legendMonsterSpawnLevel,
+  legendMonsterSpawnWeight,
+  legendMonsterSynergyGroupsAtFloor,
+  LEGEND_ACTIVE_SPECIAL_KINDS,
+} from "./legendMonsterRules.js";
+import { ordinaryFloorGoldRange } from "./springRules.js";
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
 import { specialFixtureRate } from './specialFixtures.js';
+import { assignWanderingAdventurerKnowledge, assignWanderingAdventurerPersonality, createWanderingAdventurerIdentity, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -202,7 +213,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     bigboxes.some((b) => b.x === x && b.y === y) ||
     springs.some((s) => s.x === x && s.y === y) ||
     statues.some((s) => s.x === x && s.y === y);
-  const monOcc = (x, y) => mons.some((m) => m.x === x && m.y === y);
+  const monOcc = (x, y) => mons.some((m) => monsterOccupiesCell(m, x, y));
   const allOcc = (x, y) => monOcc(x, y) || fixtureOcc(x, y);
 
   /* 既存モンスターは残す。空きマスに新規を追加（既存マスには重ねない） */
@@ -223,6 +234,8 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   for (let i = 0; i < monPlace; i++) {
     const [mx, my] = roomFloorTiles[i];
     const _mh = mkMon(depth, mx, my, 0, map, springs, dungeonType);
+    if (!canSpawnLargeMonsterAt({ map, monsters: mons, stairUp: su, stairDown: sd }, _mh, mx, my) ||
+        monsterBodyCells(_mh).some(cell => fixtureOcc(cell.x, cell.y))) continue;
     if (awake) {
       _mh.dormantHouse = false;
       _mh.aware = true;
@@ -262,7 +275,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (allOcc(ix, iy)) continue;
     const t = pickLootFromPool(lootPool);
     const it = applyInitialItemCharges({ ...t, id: uid(), x: ix, y: iy });
-    if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
+    if (it.type === "gold") it.value = rng(100, 150 + depth * 40);
     applyGeneratedBlessCurse(it, 0.12, 0.28);
     items.push(it);
   }
@@ -306,7 +319,8 @@ export function triggerMonsterHouse(dg, p, ml) {
     dg.monsterHouseRoom = null;
     return;
   }
-  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; m._justWoke = true; });
+  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; m._justWoke = true; m.monsterHouseMember = true; });
+  dg.isMonsterHouseActive = true;
   ml.push(`モンスターハウスだ！敵が一斉に目覚めた！(${sleeping.length}体)`);
   dg.monsterSenseActive = true; /* このフロアの全モンスター位置が見えるようになる */
   dg.monsterHouseRoom = null;
@@ -360,6 +374,10 @@ export function applyMonsterHouseToRoom(dg, room, p, ml, opts = {}) {
   );
   const isStrong = houseOpts.levelBoost > 0;
   if (playerInRoom) {
+    dg.isMonsterHouseActive = true;
+    for (const monster of dg.monsters) {
+      if (monster.x >= room.x && monster.x < room.x + room.w && monster.y >= room.y && monster.y < room.y + room.h && !monster.isPlayerClone && monster.type !== "shopkeeper") monster.monsterHouseMember = true;
+    }
     ml.push(isStrong
       ? "強モンスターハウスだ！強力な敵が一斉に現れた！"
       : "モンスターハウスだ！敵が一斉に現れた！");
@@ -413,7 +431,7 @@ export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false 
         const _tx = rng(_tr.x, _tr.x + _tr.w - 1);
         const _ty = rng(_tr.y, _tr.y + _tr.h - 1);
         if (dg.map[_ty]?.[_tx] !== T.FLOOR) continue;
-        if (dg.monsters.some((m) => m.x === _tx && m.y === _ty)) continue;
+        if (dg.monsters.some((m) => monsterOccupiesCell(m, _tx, _ty))) continue;
         if (_tx === p.x && _ty === p.y) continue;
         _sm.x = _tx; _sm.y = _ty; _sm.aware = false;
         _teleportedCount++;
@@ -443,7 +461,7 @@ export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false 
         const tx = rng(dest.x, dest.x + dest.w - 1);
         const ty = rng(dest.y, dest.y + dest.h - 1);
         if (dg.map[ty]?.[tx] !== T.FLOOR) continue;
-        if (dg.monsters.some((m) => m.x === tx && m.y === ty)) continue;
+        if (dg.monsters.some((m) => monsterOccupiesCell(m, tx, ty))) continue;
         const _tpFromX = p.x, _tpFromY = p.y;
         p.x = tx; p.y = ty;
         pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
@@ -557,7 +575,7 @@ function applyRareMods(it, depth) {
     if (pr < 0.15 + depth * 0.02) it.plus = rng(2, 4);
     else if (pr < 0.40 + depth * 0.03) it.plus = 1;
     else it.plus = 0;
-    if (!it.ability && Math.random() < 0.35)
+    if (!it.ability && Math.random() < 0.20)
       it.ability = pick(it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES).id;
     if (it.ability === "pickaxe" && it.durability == null) it.durability = rng(15, 45);
   }
@@ -589,7 +607,10 @@ function buildUniPool(depth, dungeonType) {
     { w:  6, fn: () => lootOrFood(iPool.filter(i => i.type === "weapon")) },
     { w:  5, fn: () => lootOrFood(iPool.filter(i => i.type === "armor")) },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
-    { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
+    { w: 14, fn: () => {
+      const range = ordinaryFloorGoldRange(depth + 1);
+      return { name:"金貨", type:"gold", value: rng(range.min, range.max), tile:22, id: uid() };
+    } },
     { w:  4, fn: () => lootOrFood(sbPool) },
     { w:  4, fn: () => {
       const t = pickLootFromPool(potPool);
@@ -619,14 +640,14 @@ function applyStdMods(it, depth) {
     if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
     else if (pr < 0.20 + depth * 0.02) it.plus = 1;
     else it.plus = 0;
-    if (!it.ability && Math.random() < 0.25)
+    if (!it.ability && Math.random() < 0.10)
       it.ability = pick(it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES).id;
     if (it.ability === "pickaxe" && it.durability == null) it.durability = rng(15, 45);
   }
   return it;
 }
 
-export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType = null) {
+export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType = null, { luxury = false } = {}) {
   const allOcc = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y) ||
@@ -639,11 +660,11 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       if (map[fy][fx] === T.FLOOR) floorTiles.push([fx, fy]);
     }
   if (floorTiles.length === 0) return;
-  /* 20% の確率で宝物庫（金貨びっしり）になる */
+  /* 20% の確率で宝物庫（金貨びっしり）になる。豪華版は金貨と大箱が少し増える。 */
   if (Math.random() < 0.20) {
     hr.isTreasureVault = true;
     const shuffled = shuffle([...floorTiles]);
-    const goldCount = Math.min(shuffled.length, rng(5, 10));
+    const goldCount = Math.min(shuffled.length, rng(luxury ? 8 : 5, luxury ? 12 : 10));
     let gPlaced = 0;
     for (const [ix, iy] of shuffled) {
       if (gPlaced >= goldCount) break;
@@ -651,7 +672,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       items.push({ name:"金貨", type:"gold", value: rng(150, 500 + depth * 80), tile:22, id: uid(), x: ix, y: iy });
       gPlaced++;
     }
-    if (Math.random() < 0.70) {
+    if (Math.random() < (luxury ? 0.80 : 0.70)) {
       for (let a = 0; a < 40; a++) {
         const [bx, by] = pick(floorTiles);
         if (allOcc(bx, by)) continue;
@@ -661,8 +682,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
   } else {
-  /* アイテム 2〜4個（B/A/Sレアリティ限定、祝福30%呪い10%） */
-  const itemCount = rng(2, Math.min(4, floorTiles.length));
+  /* 通常はアイテム2〜4個、豪華版は5〜7個（B/A/Sレアリティ限定、祝福30%呪い10%） */
+  const itemCount = rng(luxury ? 5 : 2, Math.min(luxury ? 7 : 4, floorTiles.length));
   let placed = 0;
   for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
     const [ix, iy] = pick(floorTiles);
@@ -672,8 +693,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
     items.push(it);
     placed++;
   }
-  /* 収納上手の巻物（30%で追加配置） */
-  if (Math.random() < 0.30) {
+  /* 収納上手の巻物（通常30%、豪華版35%で追加配置） */
+  if (Math.random() < (luxury ? 0.35 : 0.30)) {
     const _expSc = ITEMS.find(i => i.effect === "expand_inv");
     const _expFloor = dungeonType === "beginner" ? Math.max(6, depth + 1) : depth + 1;
     if (_expSc && lootAllowedInDungeon(_expSc, dungeonType, _expFloor)) {
@@ -685,8 +706,9 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
   }
-  /* 大箱 (75%) */
-  if (Math.random() < 0.75) {
+  /* 通常は75%で大箱1個、豪華版は必ず1個+35%でもう1個 */
+  const boxCount = luxury ? 1 + (Math.random() < 0.35 ? 1 : 0) : (Math.random() < 0.75 ? 1 : 0);
+  for (let boxIndex = 0; boxIndex < boxCount; boxIndex++) {
     for (let a = 0; a < 40; a++) {
       const [bx, by] = pick(floorTiles);
       if (allOcc(bx, by)) continue;
@@ -695,8 +717,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       break;
     }
   }
-  /* 泉 (55%) */
-  if (Math.random() < 0.55) {
+  /* 泉（通常55%、豪華版65%） */
+  if (Math.random() < (luxury ? 0.65 : 0.55)) {
     for (let a = 0; a < 40; a++) {
       const [sx, sy] = pick(floorTiles);
       if (allOcc(sx, sy)) continue;
@@ -818,11 +840,11 @@ function genWallItems(map, depth, items, suspicious = new Set(), chance = 0.70, 
     /* 壁埋めアイテムは75%の確率で埋蔵金（金貨） */
     let it;
     if (Math.random() < 0.75) {
-      it = { name:"金貨", type:"gold", value: rng(80, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
+      it = { name:"金貨", type:"gold", value: rng(100, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
     } else {
       const t = pickLootFromPool(lootPoolForDungeon(ITEMS, dungeonType, depth + 1));
       it = applyInitialItemCharges({ ...t, id: uid(), x: wx, y: wy, wallEmbedded: true });
-      if (it.type === 'gold') it.value = rng(80, 300 + depth * 50);
+      if (it.type === 'gold') it.value = rng(100, 300 + depth * 50);
     }
     items.push(it);
     placed++;
@@ -866,10 +888,13 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
   const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
     ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }
     : mt;
+  const randomlyDormant = Math.random() < dormantRate;
   return {
     ...st, id: uid(), x, y, maxHp: st.hp, turnAccum: 0, aware: false,
     dir: { x: [-1, 1][rng(0, 1)], y: 0 }, lastPx: 0, lastPy: 0,
-    patrolTarget: null, dormant: Math.random() < dormantRate,
+    patrolTarget: null,
+    dormant: st.subtype === "sleepingLion" || randomlyDormant,
+    ...(st.subtype === "sleepingLion" ? { _dormantHp: st.hp } : {}),
   };
 }
 /* 部屋の外周に接する通路タイル数を数える（=物理的な出入り口の数） */
@@ -1477,7 +1502,7 @@ export function genCorridorFloor(depth, dungeonType = null) {
   /* 罠・泉・大箱・階段は小部屋内にのみ配置 */
   const rndRoom = ()=>{ for(let a=0;a<120;a++){const[x,y]=pick(roomTileList);if(!occ(x,y)&&notSt(x,y))return[x,y];}return null;};
   for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold'){const range=ordinaryFloorGoldRange(depth+1);it.value=rng(range.min,range.max);}items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndRoom();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,3);i++){const p=rndRoom();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   for(let i=0;i<rng(1,2);i++){const p=rndRoom();if(p){const bbt=pickBB([], dungeonType, depth);bigboxes.push({id:uid(),x:p[0],y:p[1],tile:TI.BIGBOX,kind:bbt.kind,name:bbt.name,capacity:bbt.cap(),contents:[]});}}
@@ -1626,7 +1651,7 @@ function genRingCorridorFloor(depth, dungeonType = null) {
   };
 
   for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold'){const range=ordinaryFloorGoldRange(depth+1);it.value=rng(range.min,range.max);}items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
@@ -1890,7 +1915,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
   }
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 3); i++) {
     const p = rnd(waterTiles);
-    const pickedWaterMonster = pickFloodedWaterMonsterDef(depth, dungeonType);
+    const pickedWaterMonster = pickFloodedWaterMonsterDef(depth, dungeonType, { existingMonsters: mons });
     if (!p || !pickedWaterMonster) continue;
     mons.push(makeMonsterFromBase(
       pickedWaterMonster.base,
@@ -1967,7 +1992,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
     if (cells.some(([x, y]) => rewardAt(x, y))) continue;
     const p = cells.find(([x, y]) => !occ(x, y)) || cells[0];
     if (!p) continue;
-    items.push({ name: "金貨", type: "gold", value: rng(80, 220), tile: 22, id: uid(), x: p[0], y: p[1] });
+    items.push({ name: "金貨", type: "gold", value: rng(100, 220), tile: 22, id: uid(), x: p[0], y: p[1] });
   }
   const { visible, explored } = mkVis();
   return {
@@ -2376,7 +2401,18 @@ function genBossFloor(depth, dungeonType = null) {
   /* ボス配置 */
   const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
-  const bt = _bossPool[bossIdx];
+  const bt = dungeonType === "legend" && depth === 24 ? FLOCK_REVENGE_BOSS
+    : dungeonType === "legend" && depth === 19 ? GWEN_VETERAN_BOSS
+    : dungeonType === "legend" && depth === 9 ? FLOCK_BOSS
+    : dungeonType === "legend" && depth === 14 ? KORGON_BOSS
+    : dungeonType === "legend" && depth === 4 ? GWEN_BOSS
+    : dungeonType === "advanced" && depth === 29 ? MIREU
+    : dungeonType === "advanced" && depth === 24 ? OHPLENTY
+    : dungeonType === "advanced" && depth === 19 ? KING_BEHINMOS
+    : dungeonType === "advanced" && depth === 14 ? CHIRANIKUTSUNNOKU
+    : dungeonType === "advanced" && depth === 9 ? TAISAIJIN
+    : dungeonType === "advanced" && depth === 4 ? BATTERING_RAM
+    : _bossPool[bossIdx];
   let bossX = main.cx;
   let bossY = main.cy;
   if (map[bossY]?.[bossX] !== T.FLOOR) {
@@ -2407,12 +2443,19 @@ function genBossFloor(depth, dungeonType = null) {
     lastPx: bossX,
     lastPy: bossY,
     patrolTarget: null,
+    ...((bt.baseKind === "boss_flock" || bt.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: bt.hp } : {}),
+    ...(bt.baseKind === "boss_gwen_veteran" ? { projectileAmmo: makePiercingArrow(12) } : {}),
   };
 
   /* 取り巻き：ボスごとに固定種を配置 */
   /* { baseKind, level }[] の配列でボスごとに取り巻き種を定義 */
   const _minionSpec = (() => {
     switch (bt.baseKind) {
+      case "boss_gwen":          return [{ bk: "zombie", lv: 1 }, { bk: "slime", lv: 1 }, { bk: "wokka", lv: 1 }];
+      case "boss_gwen_veteran":  return [];
+      case "boss_flock":         return [];
+      case "boss_flock_revenge": return [];
+      case "boss_korgon":        return [];
       case "im_boss_salamander": return [{ bk: "skeleton", lv: 1 }, { bk: "skeleton", lv: 1 }];
       case "im_boss_titan":      return [{ bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }];
       case "im_boss_kraken":     return [{ bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }];
@@ -2423,7 +2466,7 @@ function genBossFloor(depth, dungeonType = null) {
   const minionCount = _minionSpec ? _minionSpec.length : (bt.bossTier || 1) + 1;
   const minionMonsters = [];
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-  const _occ = (x, y) => (x === bossX && y === bossY) || minionMonsters.some(mn => mn.x === x && mn.y === y);
+  const _occ = (x, y) => monsterOccupiesCell(boss, x, y) || minionMonsters.some(mn => monsterOccupiesCell(mn, x, y));
 
   if (_minionSpec) {
     /* 固定種取り巻き：spec1体ずつ配置 */
@@ -2437,7 +2480,9 @@ function genBossFloor(depth, dungeonType = null) {
         const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
         if (map[_my]?.[_mx] !== _wantTile) continue;
         if (_occ(_mx, _my)) continue;
-        minionMonsters.push(makeMonsterFromBase(_base, spec.lv, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY }));
+        minionMonsters.push(makeMonsterFromBase(_base, spec.lv, _mx, _my, {
+          dormant: true, aware: true, lastPx: bossX, lastPy: bossY,
+        }));
         break;
       }
     }
@@ -2455,7 +2500,7 @@ function genBossFloor(depth, dungeonType = null) {
 
   /* ── フロアポピュレーション ── */
   const allMons = [boss, ...minionMonsters];
-  const isOccMon = (x, y) => allMons.some(mn => mn.x === x && mn.y === y);
+  const isOccMon = (x, y) => allMons.some(mn => monsterOccupiesCell(mn, x, y));
   const isStair = (x, y) => (x === suX && y === suY) || (x === sdX && y === sdY);
   const inBossRoom = (x, y) => rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
   const rndBossFloor = (occ, roomOnly = false) => {
@@ -2468,15 +2513,48 @@ function genBossFloor(depth, dungeonType = null) {
     return null;
   };
 
+  /* オープレンティのボス階は、初期位置の周囲に大箱4個を先に確保する。 */
+  const bigboxes = [];
+  const isOhplentyBossFloor = bt.baseKind === "boss_ohplenty";
+  const initialBigboxOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || bigboxes.some(b => b.x === x && b.y === y);
+  const rndNearBoss = (occ) => {
+    const candidates = [];
+    for (let y = main.y; y < main.y + main.h; y++) {
+      for (let x = main.x; x < main.x + main.w; x++) {
+        const distance = Math.max(Math.abs(x - bossX), Math.abs(y - bossY));
+        if (distance < 2 || distance > 5 || map[y]?.[x] !== T.FLOOR || occ(x, y)) continue;
+        candidates.push([x, y]);
+      }
+    }
+    return candidates.length > 0 ? pick(candidates) : null;
+  };
+  const rndBossRoomFloor = (occ) => {
+    const candidates = [];
+    for (let y = main.y; y < main.y + main.h; y++) {
+      for (let x = main.x; x < main.x + main.w; x++) {
+        if (map[y]?.[x] === T.FLOOR && !occ(x, y)) candidates.push([x, y]);
+      }
+    }
+    return candidates.length > 0 ? pick(candidates) : null;
+  };
+  if (isOhplentyBossFloor) {
+    for (let _bi = 0; _bi < 4; _bi++) {
+      const p = rndNearBoss(initialBigboxOcc) || rndBossRoomFloor(initialBigboxOcc);
+      if (!p) break;
+      const bbt = pickBB([], dungeonType, depth);
+      bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+    }
+  }
+
   /* アイテム */
   const items = [];
   const lootPool = lootPoolForDungeon(ITEMS, dungeonType, depth + 1);
-  const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || items.some(i => i.x === x && i.y === y);
+  const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || bigboxes.some(b => b.x === x && b.y === y) || items.some(i => i.x === x && i.y === y);
   for (let _ii = 0; _ii < rng(8, 14); _ii++) {
     const p = rndBossFloor(itemOcc, true);
     if (!p) break;
     const _it = applyInitialItemCharges({ ...pickLootFromPool(lootPool), id: uid(), x: p[0], y: p[1] });
-    if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
+    if (_it.type === "gold") _it.value = rng(100, 100 + depth * 30);
     else applyGeneratedBlessCurse(_it, 0.10, 0.25);
     items.push(_it);
   }
@@ -2500,13 +2578,14 @@ function genBossFloor(depth, dungeonType = null) {
   }
 
   /* 大箱 */
-  const bigboxes = [];
   const bbOcc = (x, y) => springOcc(x, y) || bigboxes.some(b => b.x === x && b.y === y);
-  for (let _bi = 0; _bi < rng(2, 4); _bi++) {
-    const p = rndBossFloor(bbOcc, true);
-    if (!p) break;
-    const bbt = pickBB([], dungeonType, depth);
-    bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+  if (!isOhplentyBossFloor) {
+    for (let _bi = 0; _bi < rng(2, 4); _bi++) {
+      const p = rndBossFloor(bbOcc, true);
+      if (!p) break;
+      const bbt = pickBB([], dungeonType, depth);
+      bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+    }
   }
 
   /* 隠し部屋（50%の確率で1部屋） */
@@ -3090,6 +3169,71 @@ export function placeWanderingMerchant(dg, depth, randomFn = Math.random) {
   return merchant;
 }
 
+/** 友好的な冒険者を1〜4階へ配置する。会話では合成または攻略情報を一つ教える。 */
+export function placeWanderingAdventurer(dg, depth, randomFn = Math.random) {
+  if (!dg?.map || dg.dungeonType === "tutorial" || dg.isTreasureRoom) return null;
+  const floor = Math.floor(Number(depth)) + 1;
+  if (!Number.isFinite(floor) || floor < 1 || floor > 4) return null;
+  if (dg.monsters?.some((monster) => monster.isWanderingAdventurer) ||
+      randomFn() >= specialFixtureRate("wanderingAdventurer", dg)) return null;
+  const shops = getShops(dg);
+  const rooms = (dg.rooms || []).filter((room) => room && !room.isDimensionalVault &&
+    !shops.some((shop) => isInsideRoom(shop.room, room.cx, room.cy)));
+  const allCells = [];
+  for (const room of rooms.length ? rooms : [{ x: 1, y: 1, w: MW - 2, h: MH - 2 }]) {
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (dg.map[y]?.[x] !== T.FLOOR) continue;
+        if (dg.monsters?.some((monster) => monsterOccupiesCell(monster, x, y))) continue;
+        if (dg.items?.some((item) => item.x === x && item.y === y)) continue;
+        if (dg.traps?.some((trap) => trap.x === x && trap.y === y)) continue;
+        if (dg.springs?.some((spring) => spring.x === x && spring.y === y)) continue;
+        if (dg.bigboxes?.some((box) => box.x === x && box.y === y)) continue;
+        if (dg.altars?.some((altar) => altar.x === x && altar.y === y)) continue;
+        if (dg.gachaMachines?.some((machine) => machine.x === x && machine.y === y)) continue;
+        if (dg.pentacles?.some((pentacle) => pentacle.x === x && pentacle.y === y)) continue;
+        if (dg.statues?.some((statue) => statue.x === x && statue.y === y)) continue;
+        if (dg.vents?.some((vent) => vent.x === x && vent.y === y)) continue;
+        if (dg.stairUp?.x === x && dg.stairUp?.y === y) continue;
+        if (dg.stairDown?.x === x && dg.stairDown?.y === y) continue;
+        allCells.push({ x, y });
+      }
+    }
+  }
+  if (!allCells.length) return null;
+  const cell = pick(allCells, randomFn);
+  const stats = rollWanderingAdventurerStats(depth, randomFn);
+  const identity = createWanderingAdventurerIdentity(randomFn);
+  const adventurer = {
+    id: uid(),
+    ...identity,
+    ...stats,
+    maxHp: stats.hp,
+    speed: 0.5,
+    baseSpeed: 0.5,
+    kind: "humanoid",
+    baseKind: "wandering_adventurer",
+    type: "shopkeeper",
+    state: "friendly",
+    isWanderingAdventurer: true,
+    desc: "フロアを巡回する冒険者。話しかけると合成や攻略の情報を一つ教え、ときどき道具をくれる。",
+    adventurerGiftChecked: false,
+    x: cell.x,
+    y: cell.y,
+    turnAccum: 0,
+    aware: false,
+    dir: { x: 0, y: 1 },
+    lastPx: cell.x,
+    lastPy: cell.y,
+    patrolTarget: null,
+    sleepTurns: 0,
+  };
+  assignWanderingAdventurerKnowledge(adventurer, randomFn);
+  assignWanderingAdventurerPersonality(adventurer, randomFn);
+  dg.monsters.push(adventurer);
+  return adventurer;
+}
+
 /** デバッグダンジョン用に祭壇を1つ配置する（通常の他ギミック抽選は増やさない）。 */
 function placeDebugAltar(dg, randomFn = Math.random) {
   if (!dg?.map || !dg.isDebugDungeon || dg.isTreasureRoom) return null;
@@ -3121,7 +3265,7 @@ function placeDebugAltar(dg, randomFn = Math.random) {
   return altar;
 }
 
-/** デバッグダンジョンの固定テストフロアにも、対象の3ギミックだけを高確率で追加する。 */
+/** デバッグダンジョンの固定テストフロアにも、対象の特殊要素を高確率で追加する。 */
 function attachDebugSpecialFixtures(dg, depth) {
   if (!dg) return dg;
   dg.isDebugDungeon = true;
@@ -3131,12 +3275,132 @@ function attachDebugSpecialFixtures(dg, depth) {
   placeDebugAltar(dg, Math.random);
   placeDimensionalVault(dg, depth, Math.random);
   placeWanderingMerchant(dg, depth, Math.random);
+  placeWanderingAdventurer(dg, depth, Math.random);
   return dg;
+}
+
+function legendOpenFloorTiles(dg) {
+  const shopRooms = [dg.shop?.room, ...(dg.shops || []).map(shop => shop?.room)].filter(Boolean);
+  const reservedRooms = [
+    ...(dg.hiddenRooms || []),
+    ...(dg.dimensionalVaults || []).map(vault => vault?.room),
+  ].filter(Boolean);
+  const blockers = [
+    dg.items, dg.traps, dg.springs, dg.bigboxes, dg.pentacles, dg.statues,
+    dg.vents, dg.oilyTiles, dg.gachaMachines, dg.altars, dg.dimensionalVaults,
+  ];
+  const tiles = [];
+  for (let y = 1; y < MH - 1; y++) {
+    for (let x = 1; x < MW - 1; x++) {
+      if (dg.map?.[y]?.[x] !== T.FLOOR) continue;
+      if (shopRooms.some(room => isInsideRoom(room, x, y))) continue;
+      if (reservedRooms.some(room => isInsideRoom(room, x, y))) continue;
+      if (blockers.some(list => list?.some(object => object.x === x && object.y === y))) continue;
+      const occupant = (dg.monsters || []).find(monster => monsterOccupiesCell(monster, x, y));
+      if (occupant && monsterBodySize(occupant) > 1) continue;
+      const roomIndex = (dg.rooms || []).findIndex(room => isInsideRoom(room, x, y));
+      tiles.push({ x, y, roomIndex, occupant });
+    }
+  }
+  return tiles;
+}
+
+function isReplaceableLegendMonster(monster) {
+  return !!monster && monsterBodySize(monster) <= 1 && !monster.type && monster.state !== "friendly" && !monster.isNpc;
+}
+
+function pickLegendWeighted(candidates, floor) {
+  if (!candidates.length) return null;
+  const total = candidates.reduce((sum, base) => sum + legendMonsterSpawnWeight(base.baseKind, floor), 0);
+  let roll = Math.random() * total;
+  for (const base of candidates) {
+    roll -= legendMonsterSpawnWeight(base.baseKind, floor);
+    if (roll < 0) return base;
+  }
+  return candidates[candidates.length - 1];
+}
+
+/** B3F以降は初期配置に特技敵を最低1体含め、通常は既存個体と置き換える。 */
+function ensureLegendSpecialSpawn(dg, floor) {
+  if ((dg.monsters || []).some(monster => monster.hp > 0 && LEGEND_ACTIVE_SPECIAL_KINDS.has(monster.baseKind))) return true;
+  const candidates = MONS.filter(base =>
+    LEGEND_ACTIVE_SPECIAL_KINDS.has(base.baseKind) &&
+    legendMonsterKindsAtFloor(floor).includes(base.baseKind) &&
+    !base.penaltyOnly && !base.floodedOnly && !base.waterOnly &&
+    (!base.dungeons || base.dungeons.includes("legend")) && monsterBodySize(base) <= 1,
+  );
+  const base = pickLegendWeighted(candidates, floor);
+  if (!base) return false;
+  const spawnLevel = legendMonsterSpawnLevel(base, floor);
+  const replaceIndex = (dg.monsters || []).findIndex(isReplaceableLegendMonster);
+  if (replaceIndex >= 0) {
+    const old = dg.monsters[replaceIndex];
+    dg.monsters[replaceIndex] = makeMonsterFromBase(base, spawnLevel, old.x, old.y, {
+      dormant: !!old.dormant,
+    });
+    return true;
+  }
+  const tile = pick(legendOpenFloorTiles(dg));
+  if (!tile) return false;
+  dg.monsters.push(makeMonsterFromBase(base, spawnLevel, tile.x, tile.y));
+  return true;
+}
+
+/** 特技同士の連携ペアを、設定確率で同室の近距離へ配置する。 */
+function placeLegendSynergyPair(dg, floor) {
+  const group = legendMonsterSynergyGroupsAtFloor(floor).find(entry =>
+    entry.kinds.every(kind => legendMonsterKindsAtFloor(floor).includes(kind)),
+  );
+  if (!group || Math.random() >= group.chance) return false;
+  const bases = group.kinds.map(kind => MONS.find(base => base.baseKind === kind));
+  if (bases.some(base => !base || base.penaltyOnly || base.floodedOnly || base.waterOnly || monsterBodySize(base) > 1)) return false;
+  const tiles = legendOpenFloorTiles(dg);
+  if (tiles.length < 2 || (dg.monsters || []).filter(isReplaceableLegendMonster).length < 2) return false;
+
+  const tileByKey = new Map(tiles.map(tile => [`${tile.x},${tile.y}`, tile]));
+  let pair = null;
+  let pairCount = 0;
+  for (const first of tiles) {
+    for (let dy = -group.maxDistance; dy <= group.maxDistance; dy++) {
+      for (let dx = -group.maxDistance; dx <= group.maxDistance; dx++) {
+        const distance = Math.max(Math.abs(dx), Math.abs(dy));
+        if (distance === 0 || distance > group.maxDistance) continue;
+        const second = tileByKey.get(`${first.x + dx},${first.y + dy}`);
+        if (!second) continue;
+        if (group.sameRoom && (first.roomIndex < 0 || first.roomIndex !== second.roomIndex)) continue;
+        if (first.y > second.y || (first.y === second.y && first.x >= second.x)) continue;
+        pairCount++;
+        if (Math.random() < 1 / pairCount) pair = [first, second];
+      }
+    }
+  }
+  if (!pair) return false;
+
+  const removed = new Set(pair.map(tile => tile.occupant).filter(Boolean));
+  const replaceable = (dg.monsters || []).filter(monster => isReplaceableLegendMonster(monster) && !removed.has(monster));
+  while (removed.size < 2 && replaceable.length) removed.add(replaceable.splice(rng(0, replaceable.length - 1), 1)[0]);
+  if (removed.size < 2) return false;
+  dg.monsters = dg.monsters.filter(monster => !removed.has(monster));
+
+  for (let i = 0; i < 2; i++) {
+    const tile = pair[i];
+    const spawnLevel = legendMonsterSpawnLevel(bases[i], floor);
+    dg.monsters.push(makeMonsterFromBase(bases[i], spawnLevel, tile.x, tile.y));
+  }
+  return true;
 }
 
 /** 偽階段・風穴・石像・固定転送・ガチャマシーンをフロアにばら撒く */
 function attachFloorGimmicks(dg, depth) {
   if (!dg) return dg;
+  settleLargeMonsterSpawns(dg);
+  if (dg.dungeonType === "legend" && depth % 5 !== 4) {
+    const floor = depth + 1;
+    if (floor >= 3) {
+      placeLegendSynergyPair(dg, floor);
+      ensureLegendSpecialSpawn(dg, floor);
+    }
+  }
   dg.vents = dg.vents || [];
   dg.statues = dg.statues || [];
   dg.pentacles = dg.pentacles || [];
@@ -3164,6 +3428,7 @@ function attachFloorGimmicks(dg, depth) {
   if (g.altars?.length) dg.altars.push(...g.altars);
   placeDimensionalVault(dg, depth);
   placeWanderingMerchant(dg, depth);
+  placeWanderingAdventurer(dg, depth);
   placeGachaMachine(dg);
   return dg;
 }
@@ -3400,7 +3665,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     { w:  6, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "weapon")) },
     { w:  5, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "armor")) },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
-    { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
+    { w: 14, fn: () => {
+      const range = ordinaryFloorGoldRange(depth + 1);
+      return { name:"金貨", type:"gold", value: rng(range.min, range.max), tile:22, id: uid() };
+    } },
     { w:  4, fn: () => lootOrFood(_SB_POOL) },
     { w:  4, fn: () => {
       const t = pickLootFromPool(_POT_POOL);
@@ -3425,9 +3693,15 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     for (const g of _ugGens) { r -= g.w; if (r <= 0) return g.fn(); }
     return _ugGens[_ugGens.length - 1].fn();
   };
-  /* 床落ちアイテム数：最低を確保しつつ上限を抑える（1個フロアを避ける） */
-  const _totalItems = dungeonType === "advanced" || dungeonType === "legend"
-    ? rng(3, 6) : dungeonType === "intermediate" ? rng(4, 9) : rng(4, 8);
+  /* 最序盤の通常フロアは、超上級を7〜8個にし、他難易度も現行より増やす。 */
+  const _earlyFloor = depth <= 2;
+  const _totalItems = _earlyFloor
+    ? dungeonType === "legend" ? rng(7, 8)
+      : dungeonType === "advanced" ? rng(5, 8)
+        : dungeonType === "intermediate" ? rng(6, 11)
+          : rng(6, 10)
+    : dungeonType === "advanced" || dungeonType === "legend"
+      ? rng(3, 6) : dungeonType === "intermediate" ? rng(4, 9) : rng(4, 8);
   for (let i = 0; i < _totalItems; i++) {
     const rm = pick(rooms);
     for (let _a = 0; _a < 30; _a++) {
@@ -3442,7 +3716,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
         else if (pr < 0.2 + depth * 0.02) it.plus = 1;
         else it.plus = 0;
-        if (!it.ability && Math.random() < 0.25)
+        if (!it.ability && Math.random() < 0.10)
           it.ability = pick(it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES).id;
         if (it.ability === "pickaxe" && it.durability == null) it.durability = rng(15, 45);
       }
@@ -3494,11 +3768,13 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
-  /* 大箱: 通常は55%→0個, 30%→1個, 10%→2個, 5%→3-4個。超上級は62%→0, 26%→1, 8%→2, 4%→3-4 */
+  /* B1〜3の通常フロアは大箱を出やすくする。B4以降は難易度別の従来抽選。 */
   const _bbRoll = Math.random();
-  const _bbCount = dungeonType === "legend"
-    ? (_bbRoll < 0.04 ? rng(3, 4) : _bbRoll < 0.12 ? 2 : _bbRoll < 0.38 ? 1 : 0)
-    : (_bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.15 ? 2 : _bbRoll < 0.45 ? 1 : 0);
+  const _bbCount = depth <= 2
+    ? (_bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.20 ? 2 : _bbRoll < 0.55 ? 1 : 0)
+    : dungeonType === "legend"
+      ? (_bbRoll < 0.04 ? rng(3, 4) : _bbRoll < 0.12 ? 2 : _bbRoll < 0.38 ? 1 : 0)
+      : (_bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.15 ? 2 : _bbRoll < 0.45 ? 1 : 0);
   const bigboxes = [];
   for (let bi = 0; bi < _bbCount; bi++) {
     const br = pick(rooms);
@@ -3578,7 +3854,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       const _idx = rng(0, _waterTiles.length - 1);
       const [_wx, _wy] = _waterTiles.splice(_idx, 1)[0];
       if (mons.some(mn => mn.x === _wx && mn.y === _wy)) continue;
-      const pickedWaterMonster = pickWaterOnlyMonsterDef(depth, dungeonType);
+      const pickedWaterMonster = pickWaterOnlyMonsterDef(depth, dungeonType, { existingMonsters: mons });
       if (!pickedWaterMonster) continue;
       mons.push(makeMonsterFromBase(
         pickedWaterMonster.base,
@@ -3658,38 +3934,40 @@ export function prepareLastFloor(dg, dungeonType) {
 /* ===== 隠し宝部屋（最下層の落とし穴で到達） ===== */
 export function genTreasureRoom(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
-  const rx = Math.floor(MW / 2) - 5, ry = Math.floor(MH / 2) - 3;
-  const rw = 11, rh = 7;
-  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
-  for (let dy = 0; dy < rh; dy++)
-    for (let dx = 0; dx < rw; dx++)
-      map[ry + dy][rx + dx] = T.FLOOR;
-  /* 上り階段のみ（最下層に戻る） */
-  const su = { x: rx + 1, y: ry + 1 };
+  const makeChamber = (x, y, w, h) => ({
+    x, y, w, h,
+    cx: x + Math.floor(w / 2),
+    cy: y + Math.floor(h / 2),
+  });
+  const carveChamber = (chamber) => {
+    for (let dy = 0; dy < chamber.h; dy++)
+      for (let dx = 0; dx < chamber.w; dx++)
+        map[chamber.y + dy][chamber.x + dx] = T.FLOOR;
+  };
+
+  /* 一つの広間だけにし、大きさを少し揺らして毎回の見た目を変える。 */
+  const roomW = rng(9, 11), roomH = rng(7, 8);
+  const room = makeChamber(
+    Math.floor(MW / 2) - Math.floor(roomW / 2),
+    Math.floor(MH / 2) - Math.floor(roomH / 2),
+    roomW,
+    roomH,
+  );
+  const rooms = [room];
+  carveChamber(room);
+
+  /* 上り階段のみ（最下層に戻る）。中心の報酬部屋から遠くならない位置に置く。 */
+  const su = { x: room.cx + rng(-1, 1), y: room.cy + rng(-1, 1) };
   map[su.y][su.x] = T.SU;
-  /* 宝アイテム配置 */
-  const items = [];
-  const treasures = [
-    { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。\n呪い：＋値-1。", tile:18, blessed:true },
-    { name:"大回復薬",       type:"potion", effect:"heal_big", value:60, desc:"HPを60回復する。祝福：120回復。\n呪い：60ダメージ。", tile:17 },
-    { name:"大回復薬",       type:"potion", effect:"heal_big", value:60, desc:"HPを60回復する。祝福：120回復。\n呪い：60ダメージ。", tile:17 },
-  ];
-  for (let i = 0; i < treasures.length; i++) {
-    const ix = rx + 2 + (i % 5), iy = ry + 2 + Math.floor(i / 5);
-    items.push({ ...treasures[i], id: uid(), x: ix, y: iy });
-  }
-  /* ゴールドを散りばめる */
-  for (let i = 0; i < 8; i++) {
-    const gx = rng(rx + 1, rx + rw - 2), gy = rng(ry + 1, ry + rh - 2);
-    items.push({ name: "ゴールド", type: "gold", value: rng(100, 500 + depth * 50), tile: 22, id: uid(), x: gx, y: gy });
-  }
+
+  /* 固定品目は置かず、強化版の隠し部屋報酬を一つの広間にまとめる。 */
+  const rewardArea = room;
+  const items = [], bigboxes = [], springs = [], traps = [];
+  populateHiddenRoom(rewardArea, map, depth, items, bigboxes, springs, traps, dungeonType, { luxury: true });
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
   return {
-    map, rooms: [room], monsters: [], items, traps: [], springs: [], bigboxes: [],
+    map, rooms, monsters: [], items, traps, springs, bigboxes,
     stairUp: su, stairDown: null, visible: vis, explored: exp,
     shop: null, pentacles: [], waterItems: [], hiddenRooms: [], monsterHouseRoom: null,
     floorType: "treasureRoom", isTreasureRoom: true,

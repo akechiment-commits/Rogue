@@ -3,6 +3,7 @@ import {
   recordAdventureScore,
   scoresForDungeon,
   scoreHeadline,
+  formatDeathCause,
   migrateAdventureScores,
 } from "../adventureScores.js";
 
@@ -40,5 +41,29 @@ describe("adventureScores", () => {
     expect(scoreHeadline({ result: "clear", cause: "クリア" })).toBe("クリア！");
     expect(scoreHeadline({ result: "escape", cause: "生還" })).toBe("生還");
     expect(scoreHeadline({ result: "death", cause: "毒" })).toBe("毒で倒れた");
+  });
+
+  it("formatDeathCause prevents duplicated particle 'でで倒れた' and connects particles naturally", () => {
+    // 「〜で」で終わる死因
+    expect(formatDeathCause("魔法書の魔力反動で")).toBe("魔法書の魔力反動で倒れた");
+    expect(formatDeathCause("刻限の巨像の攻撃で")).toBe("刻限の巨像の攻撃で倒れた");
+
+    // 「〜により」「〜によって」で終わる死因
+    expect(formatDeathCause("毒により")).toBe("毒により倒れた");
+    expect(formatDeathCause("空腹により")).toBe("空腹により倒れた");
+
+    // 連用形で終わる死因
+    expect(formatDeathCause("壁に埋まり")).toBe("壁に埋まり倒れた");
+    expect(formatDeathCause("水に沈み")).toBe("水に沈み倒れた");
+
+    // 体言止めの死因
+    expect(formatDeathCause("毒")).toBe("毒で倒れた");
+    expect(formatDeathCause("呪われた回復薬")).toBe("呪われた回復薬で倒れた");
+    expect(formatDeathCause("バイオハザード")).toBe("バイオハザードで倒れた");
+
+    // すでに「でで倒れた」などの重複が入ってしまっていたデータの修復
+    expect(formatDeathCause("魔法書の魔力反動でで倒れた")).toBe("魔法書の魔力反動で倒れた");
+    expect(scoreHeadline({ result: "death", cause: "魔法書の魔力反動でで倒れた" })).toBe("魔法書の魔力反動で倒れた");
+    expect(scoreHeadline({ result: "death", cause: "刻限の巨像の攻撃で" })).toBe("刻限の巨像の攻撃で倒れた");
   });
 });

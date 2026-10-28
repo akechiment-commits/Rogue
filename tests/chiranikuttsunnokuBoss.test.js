@@ -1,0 +1,474 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import fs from "fs";
+import { genDungeon } from "../dungeon.js";
+import { CHIRANIKUTSUNNOKU, BATTERING_RAM, KING_BEHINMOS, monsterAI } from "../monsters.js";
+import {
+  canUseChiranikuttsunnokuSpecial,
+  chiranikuttsunnokuEarthbreaker,
+  chiranikuttsunnokuDeathScissors,
+  getVenomStingOriginAndDir,
+  chiranikuttsunnokuVenomSting,
+  chiranikuttsunnokuSharpStrike,
+} from "../chiranikuttsunnoku.js";
+import { T } from "../utils.js";
+import { TILE_NAMES, TILE_RENDER } from "../render.js";
+import { MONSTER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "../tilesetMap.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
+  it("上級ダンジョン15階（depth=14）でちらにくつんのくがボスとして生成される", () => {
+    const dg = genDungeon(14, "advanced");
+    expect(dg.isBossFloor).toBe(true);
+    const boss = dg.monsters.find(m => m.isBoss);
+    expect(boss).toBeDefined();
+    expect(boss.name).toBe("ちらにくつんのく");
+    expect(boss.baseKind).toBe("boss_chiranikuttsunnoku");
+    expect(boss.bodySize).toBe(2);
+    expect(boss.tile).toBe(251);
+    expect(boss.hp).toBe(720);
+    expect(boss.atk).toBe(58);
+    expect(boss.def).toBe(34);
+    expect(boss.kind).toBe("insect");
+    expect(boss.elemWeak).toBe("thunder");
+    expect(CHIRANIKUTSUNNOKU.elemWeak).toBe("thunder");
+  });
+
+  it("上級ダンジョンの他階層や他ダンジョンの15階との棲み分けが正しい", () => {
+    // 上級5Fはバタリングラム
+    const dg5 = genDungeon(4, "advanced");
+    expect(dg5.monsters.find(m => m.isBoss).baseKind).toBe("boss_batteringram");
+
+    // 上級20Fはキングベヒんもス
+    const dg20 = genDungeon(19, "advanced");
+    expect(dg20.monsters.find(m => m.isBoss).baseKind).toBe("boss_kingbehinmos");
+
+    // 上級25Fはオープレンティ
+    const dg25 = genDungeon(24, "advanced");
+    expect(dg25.monsters.find(m => m.isBoss).baseKind).toBe("boss_ohplenty");
+
+    // 初心者ダンジョン15F
+    const begDg = genDungeon(14, "beginner");
+    expect(begDg.monsters.find(m => m.isBoss).baseKind).not.toBe("boss_chiranikuttsunnoku");
+
+    // 中級ダンジョン15F
+    const imDg = genDungeon(14, "intermediate");
+    expect(imDg.monsters.find(m => m.isBoss).baseKind).not.toBe("boss_chiranikuttsunnoku");
+  });
+
+  it("スタイル1・2・3のグラフィック登録が存在する", () => {
+    // スタイル1: シンプル（文字）
+    expect(TILE_NAMES[251]).toBe("chiranikuttsunnoku");
+    expect(TILE_RENDER[251]).toMatchObject({ ch: "S" });
+
+    // スタイル2: クラシック（DawnLike）
+    expect(MONSTER_SHEET_MAP[251]).toBeDefined();
+    expect(DAWNLIKE_FALLBACKS[251]).toBeDefined();
+
+    // スタイル3: リッチ（PNG画像）
+    expect(fs.existsSync("tiles/sprites/mon1/tile_251.png")).toBe(true);
+    expect(fs.existsSync("public/tiles/chiranikuttsunnoku.png")).toBe(true);
+    const stat1 = fs.statSync("tiles/sprites/mon1/tile_251.png");
+    const stat2 = fs.statSync("public/tiles/chiranikuttsunnoku.png");
+    expect(stat1.size).toBeGreaterThan(1000);
+    expect(stat2.size).toBeGreaterThan(1000);
+  });
+
+  describe("特技1: アースブレイカー", () => {
+    it("周囲1マスに無差別にダメージ＋転倒を与える（プレイヤーは所持品落とし、モンスターは2ターン行動不能）", () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.50);
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 10,
+        y: 10, // 2x2: (10,10), (11,10), (10,11), (11,11)
+        hp: 720,
+      };
+      // プレイヤーを右側に隣接配置 (12, 10)、未装備アイテムを所持
+      const pl = makePlayer({
+        x: 12,
+        y: 10,
+        hp: 100,
+        maxHp: 100,
+        def: 10,
+        inventory: [
+          { name: "薬草", type: "potion" },
+          { name: "毒消し草", type: "potion" },
+          { name: "あかりの巻物", type: "scroll" },
+        ],
+      });
+      // 他モンスターを周囲に配置 (10, 9)
+      const minion = {
+        name: "ゴブリン",
+        id: "gob-1",
+        x: 10,
+        y: 9,
+        hp: 200,
+        maxHp: 200,
+        def: 5,
+      };
+      dg.monsters = [boss, minion];
+
+      const ml = [];
+      chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
+
+      // プレイヤーへのダメージと転倒（アイテム落とし。行動不能ではない）
+      expect(pl.hp).toBeLessThan(100);
+      expect(pl.knockdownTurns).toBeUndefined(); // 行動不能フラグは付かない
+      expect(pl.inventory.length).toBeLessThan(3); // アイテムを落とした
+      expect(ml.some(m => m.includes("アースブレイカー"))).toBe(true);
+      expect(ml.some(m => m.includes("転んでしまった！"))).toBe(true);
+      expect(ml.some(m => m.includes("落とした！"))).toBe(true);
+
+      // モンスターへのダメージと転倒（敵は2ターン行動不能）
+      expect(minion.hp).toBeLessThan(200);
+      expect(minion.knockdownTurns).toBe(2);
+      expect(ml.some(m => m.includes("ゴブリンは激しい地響きで転倒した！"))).toBe(true);
+    });
+
+    it("通常攻撃同様に回避可能（見切りの盾、オリーブオイル、通常ミス率10%）", () => {
+      // 1. 見切りの盾による回避
+      const dg1 = makeEmptyDg();
+      const boss1 = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10, hp: 720 };
+      const pl1 = makePlayer({ x: 12, y: 10, hp: 100, inventory: [{ id: "it1", name: "薬" }] });
+      pl1.armor = { name: "見切りの盾", ability: "dodge" };
+      dg1.monsters = [boss1];
+      const ml1 = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.10); // < 0.25 -> 回避
+      chiranikuttsunnokuEarthbreaker(boss1, dg1, pl1, ml1);
+      expect(pl1.hp).toBe(100);
+      expect(pl1.inventory.length).toBe(1); // アイテム落としなし
+      expect(ml1.some(m => m.includes("アースブレイカーをひらりとかわした"))).toBe(true);
+
+      // 2. オリーブオイルによる回避
+      const dg2 = makeEmptyDg();
+      const boss2 = { ...CHIRANIKUTSUNNOKU, id: "chira-2", x: 10, y: 10, hp: 720 };
+      const pl2 = makePlayer({ x: 12, y: 10, hp: 100, inventory: [{ id: "it1", name: "薬" }] });
+      pl2.oliveEvasionTurns = 5;
+      dg2.monsters = [boss2];
+      const ml2 = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.10); // < 0.15 -> 回避
+      chiranikuttsunnokuEarthbreaker(boss2, dg2, pl2, ml2);
+      expect(pl2.hp).toBe(100);
+      expect(pl2.inventory.length).toBe(1);
+      expect(ml2.some(m => m.includes("オリーブオイルの力で") && m.includes("かわした"))).toBe(true);
+
+      // 3. 通常ミス率（10%）
+      const dg3 = makeEmptyDg();
+      const boss3 = { ...CHIRANIKUTSUNNOKU, id: "chira-3", x: 10, y: 10, hp: 720 };
+      const pl3 = makePlayer({ x: 12, y: 10, hp: 100, inventory: [{ id: "it1", name: "薬" }] });
+      dg3.monsters = [boss3];
+      const ml3 = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.95); // >= 0.90 -> ミス
+      chiranikuttsunnokuEarthbreaker(boss3, dg3, pl3, ml3);
+      expect(pl3.hp).toBe(100);
+      expect(pl3.inventory.length).toBe(1);
+      expect(ml3.some(m => m.includes("アースブレイカーは外れた"))).toBe(true);
+    });
+
+    it("他モンスターもアースブレイカーを回避できる", () => {
+      const dg = makeEmptyDg();
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10, hp: 720 };
+      const pl = makePlayer({ x: 20, y: 20 });
+      const minion = { id: "gob-1", name: "ゴブリン", x: 12, y: 10, hp: 200, maxHp: 200, def: 5 };
+      dg.monsters = [boss, minion];
+      const ml = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.01); // < 0.05 -> 回避
+      chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
+      expect(minion.hp).toBe(200);
+      expect(ml.some(m => m.includes("ゴブリンへの攻撃は外れた"))).toBe(true);
+    });
+
+    it("体幹の指輪を装備していればプレイヤーはアイテムを落とさない", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 10,
+        y: 10,
+        hp: 720,
+      };
+      const ring = { name: "体幹の指輪", type: "ring", effect: "core_ring" };
+      const pl = makePlayer({
+        x: 12,
+        y: 10,
+        hp: 100,
+        maxHp: 100,
+        def: 10,
+        rings: [ring],
+        inventory: [
+          ring,
+          { name: "薬草", type: "potion" },
+        ],
+      });
+      dg.monsters = [boss];
+
+      const ml = [];
+      chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
+
+      expect(pl.hp).toBeLessThan(100);
+      expect(pl.inventory.length).toBe(2); // アイテムは落ちていない
+      expect(ml.some(m => m.includes("体幹の指輪で踏ん張り、転ばなかった！"))).toBe(true);
+    });
+
+    it("浮遊しているキャラにはアースブレイカーが無効化される", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 10,
+        y: 10,
+        hp: 720,
+      };
+      // 浮遊プレイヤー
+      const pl = makePlayer({ x: 12, y: 10, hp: 100, maxHp: 100, floatTurns: 10 });
+      // 浮遊モンスター
+      const flyingMon = {
+        name: "大コウモリ",
+        id: "bat-1",
+        x: 10,
+        y: 9,
+        hp: 50,
+        maxHp: 50,
+        floatTurns: 10,
+      };
+      dg.monsters = [boss, flyingMon];
+
+      const ml = [];
+      chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
+
+      // プレイヤーはダメージも転倒も受けない
+      expect(pl.hp).toBe(100);
+      expect(pl.knockdownTurns).toBeUndefined();
+      expect(ml.some(m => m.includes("宙に浮いているためアースブレイカーの揺れを受けない！"))).toBe(true);
+
+      // 浮遊モンスターもダメージも転倒も受けない
+      expect(flyingMon.hp).toBe(50);
+      expect(flyingMon.knockdownTurns).toBeUndefined();
+      expect(ml.some(m => m.includes("大コウモリは宙に浮いているためアースブレイカーの揺れを受けない！"))).toBe(true);
+    });
+  });
+
+  describe("特技2: ベノムスティング", () => {
+    it("遠距離直線上のプレイヤーを検知して毒針を放ち、ダメージと毒を付与する", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 5,
+        y: 5, // (5,5), (6,5), (5,6), (6,6)
+      };
+      // プレイヤーを直線5マス先 (12, 5) に配置
+      const pl = makePlayer({ x: 12, y: 5, hp: 100, maxHp: 100 });
+      dg.monsters = [boss];
+
+      const aim = getVenomStingOriginAndDir(boss, dg, pl);
+      expect(aim).toBeDefined();
+      expect(aim.dx).toBe(1);
+      expect(aim.dy).toBe(0);
+
+      // 命中モック (Math.random < 0.80)
+      vi.spyOn(Math, "random").mockReturnValue(0.1);
+      const ml = [];
+      chiranikuttsunnokuVenomSting(boss, dg, pl, ml, null, aim);
+
+      expect(pl.hp).toBeLessThan(100);
+      expect(pl.poisonedTurns).toBeGreaterThan(0);
+      expect(ml.some(m => m.includes("ベノムスティング"))).toBe(true);
+      expect(ml.some(m => m.includes("猛毒針が突き刺さった！毒を受けた！"))).toBe(true);
+    });
+
+    it("命中率80%判定で外れた場合はダメージも毒も受けない", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 5,
+        y: 5,
+      };
+      const pl = makePlayer({ x: 12, y: 5, hp: 100, maxHp: 100 });
+      dg.monsters = [boss];
+
+      const aim = getVenomStingOriginAndDir(boss, dg, pl);
+      expect(aim).toBeDefined();
+
+      // ミスモック (Math.random >= 0.80)
+      vi.spyOn(Math, "random").mockReturnValue(0.95);
+      const ml = [];
+      chiranikuttsunnokuVenomSting(boss, dg, pl, ml, null, aim);
+
+      expect(pl.hp).toBe(100);
+      expect(pl.poisonedTurns).toBeUndefined();
+      expect(ml.some(m => m.includes("外れた！"))).toBe(true);
+    });
+  });
+
+  describe("特技3: シャープストライク", () => {
+    it("10ターンの間、攻撃力1.5倍バフが付与される", () => {
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        atk: 58,
+      };
+      const ml = [];
+      chiranikuttsunnokuSharpStrike(boss, ml);
+
+      expect(boss.sharpStrikeTurns).toBe(10);
+      expect(ml.some(m => m.includes("10ターンの間、攻撃力が1.5倍になった！"))).toBe(true);
+    });
+
+    it("シャープストライク中はアースブレイカーの攻撃力計算が1.5倍（58 -> 87）になる", () => {
+      const dg = makeEmptyDg();
+      const bossNormal = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "boss-norm",
+        x: 10,
+        y: 10,
+        atk: 60,
+      };
+      const bossBuffed = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "boss-buff",
+        x: 10,
+        y: 10,
+        atk: 60,
+        sharpStrikeTurns: 10,
+      };
+
+      const pl1 = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500, def: 0 });
+      const pl2 = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500, def: 0 });
+
+      // 乱数分散を0に固定
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+      const ml1 = [];
+      chiranikuttsunnokuEarthbreaker(bossNormal, dg, pl1, ml1);
+      const dmgNormal = 500 - pl1.hp;
+
+      const ml2 = [];
+      chiranikuttsunnokuEarthbreaker(bossBuffed, dg, pl2, ml2);
+      const dmgBuffed = 500 - pl2.hp;
+
+      // バフ時は1.5倍（60 -> 90）前後のダメージとなるため明らかに大きい
+      expect(dmgBuffed).toBeGreaterThan(dmgNormal);
+    });
+  });
+
+  describe("AIの特技ルーチン連動", () => {
+    it("特技使用不可（封印など）の場合は特技を発動しない", () => {
+      const sealedBoss = {
+        ...CHIRANIKUTSUNNOKU,
+        sealed: true,
+      };
+      expect(canUseChiranikuttsunnokuSpecial(sealedBoss)).toBe(false);
+
+      const sleepBoss = {
+        ...CHIRANIKUTSUNNOKU,
+        sleepTurns: 3,
+      };
+      expect(canUseChiranikuttsunnokuSpecial(sleepBoss)).toBe(false);
+
+      const normalBoss = {
+        ...CHIRANIKUTSUNNOKU,
+      };
+      expect(canUseChiranikuttsunnokuSpecial(normalBoss)).toBe(true);
+    });
+  });
+
+  describe("特技4: デスシザース", () => {
+    it("通常攻撃の2倍ダメージを与え、シャープストライク中はさらに1.5倍（計3倍）になる", () => {
+      const dg = makeEmptyDg();
+      const boss = {
+        ...CHIRANIKUTSUNNOKU,
+        id: "chira-1",
+        x: 10,
+        y: 10,
+        atk: 50,
+      };
+      const pl1 = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500, def: 0 });
+      dg.monsters = [boss];
+
+      // 乱数モック（回避判定をヒットかつダメージブレなし）
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+      const ml1 = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl1, ml1);
+      const dmg1 = 500 - pl1.hp;
+      // 防御0で攻撃50の通常ダメージは50、2倍で100
+      expect(dmg1).toBe(100);
+      expect(ml1.some(m => m.includes("デスシザース"))).toBe(true);
+
+      // シャープストライク中（1.5倍 -> 攻撃力75）
+      const pl2 = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500, def: 0 });
+      boss.sharpStrikeTurns = 10;
+      const ml2 = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl2, ml2);
+      const dmg2 = 500 - pl2.hp;
+      // 防御0で攻撃75の2倍は150
+      expect(dmg2).toBe(150);
+    });
+
+    it("通常攻撃同様に回避可能（見切り、オリーブ、10%通常ミス）", () => {
+      const dg = makeEmptyDg();
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10 };
+      const pl = makePlayer({ x: 12, y: 10, hp: 100 });
+      dg.monsters = [boss];
+
+      // 見切りの盾
+      pl.armor = { name: "見切りの盾", ability: "dodge" };
+      vi.spyOn(Math, "random").mockReturnValue(0.10); // < 0.25 回避
+      const ml = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl, ml);
+      expect(pl.hp).toBe(100);
+      expect(ml.some(m => m.includes("かわした"))).toBe(true);
+    });
+
+    it("聖域の魔方陣上で防がれる", () => {
+      const dg = makeEmptyDg({
+        pentacles: [{ kind: "sanctuary", x: 12, y: 10 }],
+      });
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10 };
+      const pl = makePlayer({ x: 12, y: 10, hp: 100 });
+      dg.monsters = [boss];
+
+      const ml = [];
+      chiranikuttsunnokuDeathScissors(boss, dg, pl, ml);
+      expect(pl.hp).toBe(100);
+      expect(ml.some(m => m.includes("聖域の加護"))).toBe(true);
+    });
+  });
+
+  describe("AIの特技ルーチン連動 (隣接時10%デスシザース / 10%アースブレイカー)", () => {
+    it("隣接時にデスシザースまたはアースブレイカーを準備して発動する", () => {
+      const dg = makeEmptyDg();
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 10, y: 10 };
+      const pl = makePlayer({ x: 12, y: 10, hp: 500, maxHp: 500 });
+      dg.monsters = [boss];
+
+      // デスシザース強制テスト
+      boss.alwaysUseDeathScissors = true;
+      const ml1 = [];
+      monsterAI(boss, dg, pl, ml1, { moveOnly: true });
+      expect(boss._deathScissorsReady).toBe(true);
+      monsterAI(boss, dg, pl, ml1, { attackOnly: true });
+      expect(boss._deathScissorsReady).toBeUndefined();
+      expect(ml1.some(m => m.includes("デスシザース"))).toBe(true);
+
+      // アースブレイカー強制テスト
+      delete boss.alwaysUseDeathScissors;
+      boss.alwaysUseEarthbreaker = true;
+      boss.turnAttacks = 0;
+      const ml2 = [];
+      monsterAI(boss, dg, pl, ml2, { moveOnly: true });
+      expect(boss._earthbreakerReady).toBe(true);
+      monsterAI(boss, dg, pl, ml2, { attackOnly: true });
+      expect(boss._earthbreakerReady).toBeUndefined();
+      expect(ml2.some(m => m.includes("アースブレイカー"))).toBe(true);
+    });
+  });
+
+});

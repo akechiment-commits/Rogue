@@ -11,7 +11,7 @@ describe("敵の特技と聖域", () => {
     ["thief", "コソドロの盗み"],
     ["goldthief", "レプラコーンの盗み"],
     ["itemblast", "弾き飛ばし"],
-    ["stealthrower", "ひったくりの盗み"],
+    ["stealthrower", "はぐれ乱波の盗み"],
   ])("%sの特技を護盗の鎧で防ぐと通常攻撃へ移らない", (subtype, messagePart) => {
     const base = MONS.find((monster) => monster.subtype === subtype);
     const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
@@ -60,6 +60,29 @@ describe("敵の特技と聖域", () => {
     expect(player.hp).toBe(player.maxHp);
     expect(monster.turnAttacks).toBe(1);
     expect(messages.some((message) => message.includes("魔封じの魔方陣に封じられた"))).toBe(true);
+  });
+
+  it.each([
+    ["通常", false, false],
+    ["呪われた", true, true],
+  ])("%s魔封じの下での杖使用", (_label, cursed, shouldCast) => {
+    const base = MONS.find((monster) => monster.baseKind === "wizard");
+    const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    monster.alwaysUseSpecial = true;
+    const player = makePlayer({ x: 8, y: 5 });
+    const dungeon = makeEmptyDg({
+      rooms: [{ x: 1, y: 1, w: 12, h: 12 }],
+      monsters: [monster],
+      pentacles: [{ kind: "magic_seal", x: 7, y: 7, cursed }],
+      visible: makeVisible(),
+    });
+    const monsterWandFn = vi.fn();
+    const messages = [];
+
+    monsterAI(monster, dungeon, player, messages, { attackOnly: true, monsterWandFn });
+
+    expect(monsterWandFn).toHaveBeenCalledTimes(shouldCast ? 1 : 0);
+    expect(messages.some((message) => message.includes("魔封じの魔方陣に封じられた"))).toBe(!shouldCast);
   });
 
   it("通常の聖域では隣接特技を試行せず、通常攻撃もしない", () => {
@@ -159,7 +182,7 @@ describe("敵の特技と聖域", () => {
     expect(messages.some((message) => message.includes("攻撃"))).toBe(true);
   });
 
-  it("護盗の鎧があってもひったくりの不発時は通常攻撃する", () => {
+  it("護盗の鎧があってもはぐれ乱波の不発時は通常攻撃する", () => {
     const base = MONS.find((monster) => monster.subtype === "stealthrower");
     const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     monster.turnAttacks = 0;

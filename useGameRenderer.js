@@ -1,6 +1,11 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import { T, TI, MW, MH, clamp, ensureItemMimicFloorItems } from './utils.js';
+import { T, TI, MW, MH, clamp, ensureItemMimicFloorItems, monsterWindAuraRadius, ensureMonsterWindDir } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
+import { monsterBodySize } from './monsterGeometry.js';
+import { monsterDrawBounds, monsterVisible, drawLargeMonster } from './monsterRendering.js';
+import { drawMeteorWarnings } from './meteor.js';
+import { drawPetroBreathWarnings } from './petroBreath.js';
+import { drawCaswackWarnings } from './ohplenty.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
 const VENT_TILE_BY_DIR = {
@@ -34,13 +39,27 @@ function monsterTileForRender(mon, bewitched = false, x = 0, y = 0) {
 }
 
 function drawMonsterTile(ctx, ts, mon, tile, px, py, sz) {
+  const body = monsterDrawBounds(mon, px, py, sz);
+  px = body.x; py = body.y; sz = body.size;
+  const lv = mon?.monLevel || 1;
+  const lvKey = `${tile}_lv${lv}`;
+  const customImg = (lv > 1 && customTileImages[lvKey]) ? customTileImages[lvKey] : null;
+
   if (!mon.isPlayerClone) {
-    drawTile(ctx, ts, tile, px, py, sz);
+    if (customImg) {
+      ctx.drawImage(customImg, px, py, sz, sz);
+      return;
+    }
+    drawTile(ctx, ts, tile, px, py, sz, { monLevel: lv, monName: mon?.name });
     return;
   }
   ctx.save();
   ctx.globalAlpha = 0.68;
-  drawTile(ctx, ts, tile, px, py, sz);
+  if (customImg) {
+    ctx.drawImage(customImg, px, py, sz, sz);
+  } else {
+    drawTile(ctx, ts, tile, px, py, sz, { monLevel: lv, monName: mon?.name });
+  }
   ctx.globalAlpha = 1;
   ctx.fillStyle = "rgba(80, 180, 255, 0.18)";
   ctx.fillRect(px, py, sz, sz);
@@ -86,7 +105,57 @@ function drawFacingIndicator(ctx, px, py, sz, dx, dy) {
  * バリア：タイル全体にシアンのパルス輝光（うっすら光る枠）
  * 状態異常：右上隅に小さなカラードット（下向きに積み重ね）
  * ─ 色凡例 ─  眠り=青  麻痺=白青  混乱=橙  移動封じ=氷青  毒=紫  封印=灰  暗闇=暗紫 */
-function drawMonsterOverlays(ctx, mon, px, py, sz) {
+export function drawMonsterOverlays(ctx, mon, px, py, sz) {
+  const body = monsterDrawBounds(mon, px, py, sz);
+  px = body.x; py = body.y; sz = body.size;
+  /* ── シルフ系：風穴と同様に風向き矢印を本体に重ねて描画（本体が見えるよう小さめ・半透明） ── */
+  if (monsterWindAuraRadius(mon) > 0) {
+    const { dx: wdx, dy: wdy } = ensureMonsterWindDir(mon);
+    const norm = Math.hypot(wdx, wdy) || 1;
+    const ux = wdx / norm, uy = wdy / norm;
+    const vcx = px + sz / 2;
+    const vcy = py + sz * 0.60;
+    const len = sz * 0.22;
+    const tipX = vcx + ux * len, tipY = vcy + uy * len;
+    const tailX = vcx - ux * len * 0.68, tailY = vcy - uy * len * 0.68;
+    const shaftEndX = tipX - ux * (sz * 0.08), shaftEndY = tipY - uy * (sz * 0.08);
+    const ang = Math.atan2(uy, ux);
+    const ah = sz * 0.18;
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    /* 視認性を確保する控えめな濃紺の縁取り */
+    ctx.strokeStyle = "rgba(0, 22, 42, 0.78)";
+    ctx.lineWidth = Math.max(2.2, sz * 0.10);
+    ctx.beginPath();
+    ctx.moveTo(tailX, tailY);
+    ctx.lineTo(shaftEndX, shaftEndY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - Math.cos(ang - 0.60) * ah, tipY - Math.sin(ang - 0.60) * ah);
+    ctx.lineTo(tipX - Math.cos(ang + 0.60) * ah, tipY - Math.sin(ang + 0.60) * ah);
+    ctx.closePath();
+    ctx.stroke();
+    /* 風穴と同じシアン＋白ハイライトの矢印 */
+    ctx.strokeStyle = "#e8ffff";
+    ctx.fillStyle = "#40e8ff";
+    ctx.lineWidth = Math.max(1.4, sz * 0.055);
+    ctx.beginPath();
+    ctx.moveTo(tailX, tailY);
+    ctx.lineTo(shaftEndX, shaftEndY);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(0.9, sz * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - Math.cos(ang - 0.60) * ah, tipY - Math.sin(ang - 0.60) * ah);
+    ctx.lineTo(tipX - Math.cos(ang + 0.60) * ah, tipY - Math.sin(ang + 0.60) * ah);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
   /* ── バリア輝光 ── */
   if (mon.barrier) {
     const _p = Math.sin(performance.now() / 400) * 0.5 + 0.5;
@@ -100,8 +169,9 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   }
   /* ── 状態異常アイコン ── */
   const _sts = [];
-  if ((mon.sleepTurns    || 0) > 0)                              _sts.push("#3870e8"); // 眠り：青
+  if ((mon.sleepTurns || 0) > 0 || (mon.subtype === "sleepingLion" && mon.dormant)) _sts.push("#3870e8"); // 眠り：青
   if (mon.paralyzed || (mon.paralyzeTurns || 0) > 0)             _sts.push("#d0d8ff"); // 麻痺：白青
+  if ((mon.petrifiedTurns || 0) > 0)                             _sts.push("#a0a0a0"); // 石化：灰
   if ((mon.confusedTurns || 0) > 0)                              _sts.push("#f09020"); // 混乱：橙
   if (mon.bewitched || (mon.bewitchedTurns || 0) > 0 || (mon.fleeingTurns || 0) > 0) _sts.push("#e0c020"); // 幻惑：黄金
   if ((mon.immobileTurns || 0) > 0)                              _sts.push("#50c8e8"); // 移動封じ：氷青
@@ -114,6 +184,9 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if (mon.baseSpeed != null && (mon.speed ?? 1) < mon.baseSpeed)  _sts.push("#20b8a0"); // 鈍足：青緑
   if ((mon.debuffAtkHalfTurns || 0) > 0)                           _sts.push("#ff6060"); // 攻撃力半減：赤橙
   if ((mon.debuffDefHalfTurns || 0) > 0)                           _sts.push("#6080ff"); // 防御力半減：青紫
+  if ((mon.flameMantleTurns || 0) > 0)                             _sts.push("#ff4800"); // 炎まとい：朱炎
+  if ((mon.refreshTurns || 0) > 0)                                 _sts.push("#20e060"); // 持続回復（リフレシュ）：緑
+  if ((mon.caswackTurns || 0) > 0)                                 _sts.push("#9900cc"); // カスワック：不吉な濃紫
   /* ── モンスターレベルバッジ（左上） ── */
   const _ml = mon.monLevel ?? 1;
   if (_ml >= 2) {
@@ -168,10 +241,20 @@ function drawOverlays(ctx, overlays, sx, sy, sz) {
       drawExplosionEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "splash") {
       drawSplashEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "petroBreath") {
+      drawPetroBreathEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "lightning") {
       drawLightningEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "heal") {
       drawHealEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "flameMantle") {
+      drawFlameMantleEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "refresh") {
+      drawRefreshEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "caswack") {
+      drawCaswackEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "deathTrap") {
+      drawDeathTrapEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "itemArc") {
       drawItemArc(ctx, o, sx, sy, sz, t);
     }
@@ -293,10 +376,23 @@ function _posOnOverlayPath(o, t, sx, sy, sz) {
 
 function drawProjectile(ctx, o, sx, sy, sz, t) {
   const pos = _posOnOverlayPath(o, t, sx, sy, sz);
-  const trail = _posOnOverlayPath(o, Math.max(0, t - 0.12), sx, sy, sz);
-  const cx = pos.cx, cy = pos.cy;
+  const trailT = Math.max(0, t - 0.12);
+  const trail = _posOnOverlayPath(o, trailT, sx, sy, sz);
+  const progress = Math.max(0, Math.min(1, t));
+  const trailProgress = Math.max(0, Math.min(1, trailT));
+  const arcHeight = o.flightArc ? sz * (o.flightArcHeight ?? 0.9) : 0;
+  const cy = pos.cy - Math.sin(Math.PI * progress) * arcHeight;
+  const trailY = trail.cy - Math.sin(Math.PI * trailProgress) * arcHeight;
+  const cx = pos.cx;
   const alpha = t > 0.9 ? (1 - t) * 10 : 1;
   ctx.save();
+  if (o.flightArc) {
+    ctx.globalAlpha = alpha * 0.24;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(pos.cx, pos.cy + sz * 0.24, sz * 0.18, sz * 0.06, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.globalAlpha = alpha;
   /* Draw projectile dot/trail */
   ctx.fillStyle = o.color || "#ffcc44";
@@ -308,7 +404,7 @@ function drawProjectile(ctx, o, sx, sy, sz, t) {
   ctx.strokeStyle = o.color || "#ffcc44";
   ctx.lineWidth = Math.max(1, sz * 0.08);
   ctx.beginPath();
-  ctx.moveTo(trail.cx, trail.cy);
+  ctx.moveTo(trail.cx, trailY);
   ctx.lineTo(cx, cy);
   ctx.stroke();
   ctx.restore();
@@ -412,6 +508,165 @@ function drawHealEffect(ctx, o, sx, sy, sz, p) {
   ctx.restore();
 }
 
+/* ===== Flame Mantle Effect (炎まといオーラ) ===== */
+function drawFlameMantleEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.6 ? Math.max(0, 1 - (p - 0.6) / 0.4) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 炎の放射状オーラ */
+  const r = Math.max(1, (0.4 + easeOutQuad(p) * 0.55) * sz);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "rgba(255, 255, 200, 0.9)");
+  grad.addColorStop(0.3, "rgba(255, 140, 0, 0.75)");
+  grad.addColorStop(0.7, "rgba(230, 40, 0, 0.45)");
+  grad.addColorStop(1, "rgba(180, 0, 0, 0)");
+  ctx.globalAlpha = alpha * 0.85;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* 立ち昇る炎の火柱粒子・火の粉 (7個) */
+  const flameCount = 7;
+  for (let i = 0; i < flameCount; i++) {
+    const angle = (i / flameCount) * Math.PI * 2 + p * 1.5;
+    const dist = sz * 0.28 * (0.6 + p * 0.5);
+    const fx = cx + Math.cos(angle) * dist;
+    const fy = cy + Math.sin(angle) * dist * 0.7 - p * sz * 0.55;
+    const fr = Math.max(1, sz * 0.09 * (1 - p * 0.55));
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillStyle = (i % 2 === 0) ? "#ffcc00" : "#ff3300";
+    ctx.beginPath();
+    ctx.arc(fx, fy, fr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ===== Refresh Effect (リフレシュ・持続回復オーラ) ===== */
+function drawRefreshEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.65 ? Math.max(0, 1 - (p - 0.65) / 0.35) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* エメラルドグリーンの光輪・オーラ */
+  const r = Math.max(1, easeOutQuad(p) * sz * 0.75);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "rgba(180, 255, 220, 0.85)");
+  grad.addColorStop(0.4, "rgba(40, 220, 110, 0.55)");
+  grad.addColorStop(0.8, "rgba(20, 160, 80, 0.25)");
+  grad.addColorStop(1, "rgba(0, 120, 50, 0)");
+  ctx.globalAlpha = alpha * 0.8;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* 上昇する癒しのキラキラ十字星・光粒子 */
+  const sparkCount = 6;
+  for (let i = 0; i < sparkCount; i++) {
+    const angle = (i / sparkCount) * Math.PI * 2;
+    const dist = sz * 0.32 * (0.5 + p * 0.6);
+    const spx = cx + Math.cos(angle) * dist;
+    const spy = cy + Math.sin(angle) * dist * 0.8 - p * sz * 0.5;
+    const spr = Math.max(1, sz * 0.075 * (1 - p * 0.5));
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.fillStyle = (i % 2 === 0) ? "#88ffbb" : "#ffffff";
+    /* 十字星を描画 */
+    ctx.beginPath();
+    ctx.arc(spx, spy, spr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = Math.max(1, sz * 0.025);
+    ctx.beginPath();
+    ctx.moveTo(spx - spr * 1.6, spy);
+    ctx.lineTo(spx + spr * 1.6, spy);
+    ctx.moveTo(spx, spy - spr * 1.6);
+    ctx.lineTo(spx, spy + spr * 1.6);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ===== Caswack Effect (カスワック死霊波動) ===== */
+function drawCaswackEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.6 ? Math.max(0, 1 - (p - 0.6) / 0.4) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 禍々しい濃紫・黒紫の放射状オーラ */
+  const r = Math.max(1, (0.5 + easeOutQuad(p) * 0.6) * sz);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "rgba(220, 100, 255, 0.9)");
+  grad.addColorStop(0.3, "rgba(140, 0, 200, 0.75)");
+  grad.addColorStop(0.7, "rgba(70, 0, 120, 0.45)");
+  grad.addColorStop(1, "rgba(20, 0, 40, 0)");
+  ctx.globalAlpha = alpha * 0.9;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* 渦巻く死霊の霊気粒子 */
+  const soulCount = 6;
+  for (let i = 0; i < soulCount; i++) {
+    const angle = (i / soulCount) * Math.PI * 2 + p * 2.5;
+    const dist = sz * 0.3 * (0.4 + p * 0.8);
+    const sx_pos = cx + Math.cos(angle) * dist;
+    const sy_pos = cy + Math.sin(angle) * dist - p * sz * 0.35;
+    const sr = Math.max(1, sz * 0.08 * (1 - p * 0.5));
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.fillStyle = (i % 2 === 0) ? "#cc66ff" : "#1a0033";
+    ctx.beginPath();
+    ctx.arc(sx_pos, sy_pos, sr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ===== Death Trap Effect (デストラップ炸裂) ===== */
+function drawDeathTrapEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.55 ? Math.max(0, 1 - (p - 0.55) / 0.45) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 衝撃波リング */
+  const r = Math.max(1, easeOutQuad(p) * sz * 1.6);
+  ctx.globalAlpha = alpha * 0.8;
+  ctx.strokeStyle = "#ff2266";
+  ctx.lineWidth = Math.max(2, sz * 0.12 * (1 - p));
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  /* 8方向に飛び散る鋭いスパイク・刃粒子 */
+  const dirs8 = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  const travel = easeOutQuad(p) * sz * 1.4;
+  for (const [dx, dy] of dirs8) {
+    const spx = cx + dx * travel;
+    const spy = cy + dy * travel;
+    ctx.globalAlpha = alpha * 0.95;
+    ctx.fillStyle = "#ffdd44";
+    ctx.beginPath();
+    ctx.arc(spx, spy, Math.max(1, sz * 0.09 * (1 - p * 0.4)), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 /* ===== Splash Effect (potion/oil scatter) ===== */
 function drawSplashEffect(ctx, o, sx, sy, sz, p) {
   const cx = (o.x - sx) * sz + sz / 2;
@@ -453,6 +708,65 @@ function drawSplashEffect(ctx, o, sx, sy, sz, p) {
   ctx.restore();
 }
 
+/* ===== Petro Breath Effect (石化ブレス演出) ===== */
+function drawPetroBreathEffect(ctx, o, sx, sy, sz, p) {
+  const px = (o.x - sx) * sz;
+  const py = (o.y - sy) * sz;
+  const cx = px + sz / 2;
+  const cy = py + sz / 2;
+  const alpha = p > 0.65 ? Math.max(0, 1 - (p - 0.65) / 0.35) : 1;
+  if (alpha <= 0) return;
+
+  ctx.save();
+
+  // 1. マス全体の石化ガス・砂煙の雲
+  const cloudR = Math.max(1, easeOutQuad(p) * sz * 0.75);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cloudR);
+  grad.addColorStop(0, "rgba(220, 200, 140, 0.85)");
+  grad.addColorStop(0.4, "rgba(180, 165, 120, 0.55)");
+  grad.addColorStop(0.8, "rgba(130, 120, 100, 0.3)");
+  grad.addColorStop(1, "rgba(90, 85, 75, 0)");
+  ctx.globalAlpha = alpha * 0.75;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cloudR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. タイルの輪郭フラッシュ（黄金・灰黄色）
+  ctx.globalAlpha = alpha * 0.5 * (1 - p);
+  ctx.strokeStyle = "#e8d080";
+  ctx.lineWidth = Math.max(1, sz * 0.08);
+  ctx.strokeRect(px + 1, py + 1, sz - 2, sz - 2);
+
+  // 3. 放射状に噴き出す石片・灰砂パーティクル（12方向）
+  const particleCount = 12;
+  const travel = easeOutQuad(Math.min(1, p * 1.4)) * sz * 0.75;
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2 + (i % 2 === 0 ? 0.2 : -0.2);
+    const dist = travel * (0.6 + (i % 3) * 0.2);
+    const spx = cx + Math.cos(angle) * dist;
+    const spy = cy + Math.sin(angle) * dist;
+    const pr = Math.max(1, sz * (i % 2 === 0 ? 0.12 : 0.08) * (1 - p * 0.6));
+    
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.fillStyle = i % 3 === 0 ? "#f4ecc4" : i % 3 === 1 ? "#c8b888" : "#8c826e";
+    ctx.beginPath();
+    ctx.arc(spx, spy, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 4. 石化衝撃波リング
+  const ringR = easeOutQuad(p) * sz * 0.65;
+  ctx.globalAlpha = alpha * 0.6 * (1 - p);
+  ctx.strokeStyle = "#fff0a0";
+  ctx.lineWidth = Math.max(1, sz * 0.07);
+  ctx.beginPath();
+  ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 /* ===== Item Fly Effect (straight throw or parabolic scatter) ===== */
 function drawItemArc(ctx, o, sx, sy, sz, t) {
   /* 風で曲がる path 付き投擲：折れ線上を移動（直進→曲がる） */
@@ -465,16 +779,17 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
     const mx = a.x + (b.x - a.x) * f;
     const my = a.y + (b.y - a.y) * f;
     const curX = (mx - sx) * sz + sz / 2;
-    const curY = (my - sy) * sz + sz / 2;
+    const groundY = (my - sy) * sz + sz / 2;
+    const curY = groundY - (o.flightArc ? Math.sin(Math.PI * t) * sz * (o.flightArcHeight ?? 0.9) : 0);
     const angle = Math.atan2(b.y - a.y, b.x - a.x);
     const spinAngle = angle + t * Math.PI * 1.5;
     const drawSz = sz * 0.95;
     ctx.save();
     /* 影 */
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = o.flightArc ? 0.24 : 0.3;
     ctx.fillStyle = "#000";
     ctx.beginPath();
-    ctx.ellipse(curX, curY + sz * 0.35, sz * 0.18, sz * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(curX, groundY + sz * (o.flightArc ? 0.24 : 0.35), sz * 0.18, sz * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.translate(curX, curY);
@@ -496,9 +811,11 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
   const dist = Math.hypot(tx2 - fx, ty2 - fy);
 
   /* 弧の高さ：投擲(straight)は浅め、散乱は高め */
-  const arcH = o.straight
-    ? Math.max(sz * 0.25, dist * 0.12)   // 投擲：緩い弧
-    : Math.max(sz * 0.9, dist * 0.55);   // 散乱：高い放物線
+  const arcH = o.flightArc
+    ? sz * (o.flightArcHeight ?? 0.9) * 2
+    : o.straight
+      ? Math.max(sz * 0.25, dist * 0.12)   // 投擲：緩い弧
+      : Math.max(sz * 0.9, dist * 0.55);   // 散乱：高い放物線
 
   const midX = (fx + tx2) / 2;
   const midY = (fy + ty2) / 2 - arcH;
@@ -509,7 +826,7 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
 
   /* 地面の影（投擲は小さめ） */
   const shadowX = fx + (tx2 - fx) * t;
-  const shadowY = fy + (ty2 - fy) * t + sz * 0.45;
+  const shadowY = fy + (ty2 - fy) * t + sz * (o.flightArc ? 0.24 : 0.45);
   const heightFrac = Math.max(0, 1 - Math.abs(curY - shadowY) / (arcH + 1));
   const shadowScale = o.straight ? 0.6 : 1.0;
   const shadowRx = sz * 0.22 * shadowScale * (0.4 + heightFrac * 0.6);
@@ -907,7 +1224,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         }
         /* Pending bomb (作動済み時限爆弾) */
         const _pbAt = _pendingBombMap.get(_k(x, y));
-        if (_pbAt) {
+        if (_pbAt && t !== T.WALL && t !== T.BWALL) {
           if (vis) {
             drawTile(ctx, ts, 73, px2, py2, sz);
             const _pbClr = _pbAt.turnsLeft <= 1 ? "#ff2020" : _pbAt.turnsLeft <= 2 ? "#ff8800" : "#ffff00";
@@ -1003,7 +1320,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
                 drawTile(ctx, ts, _piTile, px2, py2, sz);
               }
               const _pitTrap = _trapMap.get(_k(x, y));
-              if (_pitTrap?.revealed) {
+              if (_pitTrap?.revealed && t !== T.WALL && t !== T.BWALL) {
                 const _ptTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*13+y*7)%9] : _pitTrap.tile;
                 drawTile(ctx, ts, _ptTile, px2, py2, sz);
               }
@@ -1012,7 +1329,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             continue;
           }
           /* Monster — skip if animating */
-          const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker ? _m : undefined; })();
+          const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker && monsterBodySize(_m) === 1 ? _m : undefined; })();
           if (mon && !_movingEntities.has("mon_" + mon.id)) {
             const _monTile = monsterTileForRender(mon, (p.bewitchedTurns || 0) > 0, x, y);
             drawMonsterTile(ctx, ts, mon, _monTile, px2, py2, sz);
@@ -1048,7 +1365,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             continue;
           }
           /* Trap */
-          const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
+          const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed && t !== T.WALL && t !== T.BWALL ? _t : undefined; })();
           if (tr) {
             const _trTile = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 13 + y * 7) % 9] : tr.tile;
             drawTile(ctx, ts, _trTile, px2, py2, sz);
@@ -1060,11 +1377,27 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           if (!_inDark) {
             const ri = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded && (_i.discovered || dg.itemsRevealed) ? _i : undefined; })();
             if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, _spriteTile(ri), px2, py2, sz); ctx.globalAlpha = 1; }
-            const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
+            const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed && t !== T.WALL && t !== T.BWALL ? _t : undefined; })();
             if (tr) { ctx.globalAlpha = 0.4; const _trTile2 = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 13 + y * 7) % 9] : tr.tile; drawTile(ctx, ts, _trTile2, px2, py2, sz); ctx.globalAlpha = 1; }
           }
         }
       }
+    }
+
+    /* 巨大敵は床の描画完了後に一体として描き、後続の床で体が消えないようにする。 */
+    for (const mon of dg.monsters) {
+      if (monsterBodySize(mon) === 1 || mon.disguisedAsItem || _movingEntities.has("mon_" + mon.id)) continue;
+      drawLargeMonster(ctx, mon, dg, sx, sy, sz, (px, py) => {
+        drawMonsterTile(ctx, ts, mon, monsterTileForRender(mon, (p.bewitchedTurns || 0) > 0, mon.x, mon.y), px, py, sz);
+        const body = monsterDrawBounds(mon, px, py, sz);
+        if (mon.hp < mon.maxHp) {
+          const ratio = Math.max(0, mon.hp / mon.maxHp), width = body.size - 2;
+          ctx.fillStyle = "#300"; ctx.fillRect(body.x + 1, body.y, width, 3);
+          ctx.fillStyle = ratio > 0.5 ? "#0c0" : ratio > 0.25 ? "#cc0" : "#f22";
+          ctx.fillRect(body.x + 1, body.y, Math.max(1, width * ratio), 3);
+        }
+        drawMonsterOverlays(ctx, mon, px, py, sz);
+      });
     }
 
     /* ===== Draw moving entities at interpolated positions ===== */
@@ -1092,8 +1425,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const _movingMonRef = dg.monsters.find(m => m.id === key.slice(4));
         if (_movingMonRef?.subtype === "itemMimic" && _movingMonRef.disguisedAsItem !== false) continue;
         /* Skip if neither start nor end position is visible to the player */
-        const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];
-        const _toVis = dg.visible[Math.round(mo.toY)]?.[Math.round(mo.toX)];
+        const _fromVis = monsterVisible(dg, _movingMonRef || {}, Math.round(mo.fromX), Math.round(mo.fromY));
+        const _toVis = monsterVisible(dg, _movingMonRef || {}, Math.round(mo.toX), Math.round(mo.toY));
         if (!_fromVis && !_toVis) continue;
         const _monTile2 = _movingMonRef
           ? monsterTileForRender(_movingMonRef, (p.bewitchedTurns || 0) > 0, Math.floor(drawX), Math.floor(drawY))
@@ -1102,11 +1435,12 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         else drawTile(ctx, ts, _monTile2, dpx, dpy, sz);
         /* HP bar for moving monster */
         if (mo.hp != null && mo.maxHp != null && mo.hp < mo.maxHp) {
-          const bw = sz - 2, bh = 2, hpR = mo.hp / mo.maxHp;
+          const body = monsterDrawBounds(_movingMonRef, dpx, dpy, sz);
+          const bw = body.size - 2, bh = 2, hpR = mo.hp / mo.maxHp;
           ctx.fillStyle = "#300";
-          ctx.fillRect(dpx + 1, dpy, bw, bh);
+          ctx.fillRect(body.x + 1, body.y, bw, bh);
           ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
-          ctx.fillRect(dpx + 1, dpy, Math.max(1, bw * hpR), bh);
+          ctx.fillRect(body.x + 1, body.y, Math.max(1, bw * hpR), bh);
         }
         /* status overlays: look up live monster object by id */
         if (_movingMonRef) drawMonsterOverlays(ctx, _movingMonRef, dpx, dpy, sz);
@@ -1119,7 +1453,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       for (const _sm of dg.monsters) {
         if (_sm.wallWalker) continue;
         if (_sm.subtype === "itemMimic" && _sm.disguisedAsItem !== false) continue;
-        if (dg.visible[_sm.y]?.[_sm.x]) continue;
+        if (monsterVisible(dg, _sm)) continue;
         if (_sm.x < sx || _sm.x >= sx + vw || _sm.y < sy || _sm.y >= sy + vh) continue;
         if (_movingEntities.has("mon_" + _sm.id)) continue;
         const _spx = (_sm.x - sx) * sz, _spy = (_sm.y - sy) * sz;
@@ -1165,6 +1499,11 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       }
       drawMonsterOverlays(ctx, _wm, _wpx, _wpy, sz);
     }
+
+    /* 予兆はキャラクター描画の後にも見えるよう重ね、各マスに残りターンを示す。 */
+    drawMeteorWarnings(ctx, dg, sx, sy, sz);
+    drawPetroBreathWarnings(ctx, dg, sx, sy, sz);
+    drawCaswackWarnings(ctx, dg, sx, sy, sz);
 
     /* ===== lookMode cursor ===== */
     if (lookMode) {

@@ -10,15 +10,16 @@ import {
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, ONI_CLUB_T, GOBLIN_BAT_T,
   GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T,
-  BOMB_ARROW_T, STONE_T, MAGIC_STONE_T,
+  BOMB_ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
-  getIdentKey, placeItemAt, killMonster,
+  getIdentKey, placeItemAt, killMonster, applyGeneratedRingPlus,
 } from "./items.js";
 import { trackBigbox, trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
 import { clearPlayerPoison } from "./statusDuration.js";
 import { markBigboxKindIdentified } from "./GameHelpers.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
+import { adjustPlayerBaseMaxHp } from "./equipmentEffects.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
 export const WISH_CHANCE_DRINK = 0.005;
@@ -48,7 +49,7 @@ const SPECIAL_TEMPLATES = [
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, ONI_CLUB_T, GOBLIN_BAT_T,
   GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T,
-  BOMB_ARROW_T, STONE_T, MAGIC_STONE_T,
+  BOMB_ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
 ];
 
@@ -324,9 +325,7 @@ export function makeWishedItem(tmpl, opts = {}) {
     it.contents = [];
     it.capacity = it.capacity || 3;
   }
-  if (it.type === "ring" && (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring")) {
-    it.plus = it.plus ?? 0;
-  }
+  applyGeneratedRingPlus(it);
   if (it.charges != null) it._origCharges = it.charges;
   it.fullIdent = true;
   it.bcKnown = true;
@@ -398,6 +397,9 @@ function clearMajorDebuffs(p) {
   clearPlayerPoison(p);
   p.sleepTurns = 0;
   p.paralyzeTurns = 0;
+  p.paralyzed = false;
+  p.paralyzeHits = 0;
+  p._paralyzeHp = null;
   p.confusedTurns = 0;
   p.slowTurns = 0;
   p.darknessTurns = 0;
@@ -415,7 +417,7 @@ function clearMajorDebuffs(p) {
 function forceLevelUp(p, ml) {
   p.level = (p.level || 1) + 1;
   p.nextExp = Math.floor((p.nextExp || 20) * 1.5);
-  p.maxHp += 5;
+  adjustPlayerBaseMaxHp(p, 5);
   p.hp = Math.min(p.hp + 10, p.maxHp);
   p.atk = (p.atk || 1) + 1;
   if (p.level % 3 === 0) {

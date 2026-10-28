@@ -49,7 +49,7 @@ export function formatInventoryItem(item, {
   let label = equipped + blessCurse + displayName(item);
 
   if (item.type === "arrow") {
-    label += ` (${item.count}${(item.stone || item.magicStone) ? "個" : "本"})`;
+    label += ` (${item.count}${(item.stone || item.magicStone || item.iceChunk) ? "個" : "本"})`;
   } else if (item.type === "weapon") {
     label += formatPlusSuffix(item.plus);
     label += ` (攻+${item.atk + (item.plus || 0)})`;
@@ -63,7 +63,7 @@ export function formatInventoryItem(item, {
   } else if (item.type === "potion" && (item.effect === "heal" || item.effect === "heal_big") && isIdentified) {
     label += ` (HP+${item.value})`;
   } else if (item.type === "food") {
-    const rotMultiplier = item.rotten ? 0.3 : 1;
+    const rotMultiplier = item.yabai ? 0.25 : item.rotten ? 0.5 : 1;
     label += `(満+${Math.max(1, Math.round(item.value * rotMultiplier))})`;
     if (item.rotten || !item.cooked || item.potionEffects?.length) {
       label += "(";

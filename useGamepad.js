@@ -4,6 +4,8 @@ import {
   A_TAP_MS,
   MOVE_REPEAT_MS,
   MOVE_REPEAT_DELAY_MS,
+  GAMEPLAY_MOVE_REPEAT_MS,
+  GAMEPLAY_MOVE_REPEAT_DELAY_MS,
   QUICK_MENU_ITEMS,
   pickFirstGamepad,
   snapshotButtons,
@@ -14,9 +16,15 @@ import {
   readMoveDir,
   readLookDir,
 } from "./gamepadInput.js";
+import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 
 const QUICK_MENU_COLS = 2;
 const WAIT_REPEAT_MS = 130;
+
+function setGamepadModifier(aggregateRef, keyboardRef, gamepadRef, pressed) {
+  if (gamepadRef) gamepadRef.current = pressed;
+  if (aggregateRef) aggregateRef.current = !!keyboardRef?.current || pressed;
+}
 
 function fireKey(key, code, type = "keydown") {
   if (typeof window === "undefined") return;
@@ -39,6 +47,35 @@ function dirToArrow(dx, dy) {
   if (dx === 0 && dy === 1) return { key: "ArrowDown", code: "ArrowDown" };
   if (dx === 1 && dy === 1) return { key: "3", code: "Numpad3" };
   return null;
+}
+
+/**
+ * モーダル表示中用の4方向正規化。
+ * スティック等の斜め入力を上下左右（Arrow*）に丸め、メニューでの斜め誤爆を防ぐ。
+ */
+function modalDirToArrow(dx, dy) {
+  if (dy < 0 && dx === 0) return { key: "ArrowUp", code: "ArrowUp" };
+  if (dy > 0 && dx === 0) return { key: "ArrowDown", code: "ArrowDown" };
+  if (dx < 0 && dy === 0) return { key: "ArrowLeft", code: "ArrowLeft" };
+  if (dx > 0 && dy === 0) return { key: "ArrowRight", code: "ArrowRight" };
+  if (Math.abs(dy) >= Math.abs(dx)) {
+    return dy < 0
+      ? { key: "ArrowUp", code: "ArrowUp" }
+      : { key: "ArrowDown", code: "ArrowDown" };
+  }
+  return dx < 0
+    ? { key: "ArrowLeft", code: "ArrowLeft" }
+    : { key: "ArrowRight", code: "ArrowRight" };
+}
+
+/**
+ * モードに応じた方向キー選択。
+ * 見渡す(look)・投擲/射撃(throw)・場所選択(tpSelect)は斜め含む8方向を許可。
+ * 一般メニュー・モーダルリストは上下左右の4方向に正規化。
+ */
+function getGamepadArrow({ isLook = false, isThrow = false, isTpSelect = false } = {}, dx, dy) {
+  const isDirectional = isLook || isThrow || isTpSelect;
+  return isDirectional ? dirToArrow(dx, dy) : modalDirToArrow(dx, dy);
 }
 
 function dpadPressed(gp) {
@@ -70,6 +107,10 @@ export function useGamepad({
   enabled = true,
   aRef,
   shiftRef,
+  keyboardDashRef,
+  gamepadDashRef,
+  keyboardShiftRef,
+  gamepadShiftRef,
   arrowHeldRef,
   sr,
   invActRef,
@@ -77,12 +118,17 @@ export function useGamepad({
   doDash,
   dead,
   showInv,
+  sortInventory,
+  dropModeRef,
+  setDropMode,
+  setInvMenuSel,
   lookMode,
   mapMode,
   msgLogMode,
   spellListMode,
   exitHubConfirm,
   showSettings,
+  showSound,
   showScores,
   throwMode,
   debugSpellMode,
@@ -100,7 +146,9 @@ export function useGamepad({
   setSpellListMode,
   setSpellMenuSel,
   setShowSettings,
+  setShowSound,
   setShowScores,
+  setShowTileEditor,
   setExitHubConfirm,
   setFacingMode,
   setGs,
@@ -110,18 +158,23 @@ export function useGamepad({
 }) {
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickSel, setQuickSel] = useState(0);
+  const [controllerGuideOpen, setControllerGuideOpen] = useState(false);
   const [ltHeld, setLtHeld] = useState(false);
   const ltHeldUiRef = useRef(false);
   const [rbHeld, setRbHeld] = useState(false);
   const rbHeldUiRef = useRef(false);
   const quickOpenRef = useRef(false);
   quickOpenRef.current = quickOpen;
+  const controllerGuideRef = useRef(false);
+  controllerGuideRef.current = controllerGuideOpen;
   const quickSelRef = useRef(0);
   quickSelRef.current = quickSel;
   const facingModeRef = useRef(!!facingMode);
   facingModeRef.current = !!facingMode;
   const showSettingsRef = useRef(!!showSettings);
   showSettingsRef.current = !!showSettings;
+  const showSoundRef = useRef(!!showSound);
+  showSoundRef.current = !!showSound;
   const showScoresRef = useRef(!!showScores);
   showScoresRef.current = !!showScores;
   const showInvRef = useRef(!!showInv);
@@ -169,6 +222,7 @@ export function useGamepad({
        spellList/tpSelect/look/map/floorSelect/identify/nickname/reveal/debugSpell など全部 */
     return !!(
       quickOpenRef.current ||
+      controllerGuideRef.current ||
       showInvRef.current ||
       lookModeRef.current ||
       mapModeRef.current ||
@@ -176,6 +230,7 @@ export function useGamepad({
       spellListModeRef.current ||
       exitHubConfirmRef.current ||
       showSettingsRef.current ||
+      showSoundRef.current ||
       showScoresRef.current ||
       throwModeRef.current ||
       debugSpellModeRef.current ||
@@ -214,6 +269,9 @@ export function useGamepad({
         case "map":
           setMapMode?.(true);
           break;
+        case "arrow":
+          act?.("shoot_arrow");
+          break;
         case "history":
         case "log":
           openMsgLog();
@@ -234,8 +292,15 @@ export function useGamepad({
         case "scores":
           setShowScores?.(true);
           break;
+        case "tiles":
+        case "tile":
+          setShowTileEditor?.(true);
+          break;
         case "traps":
           act?.("search_traps");
+          break;
+        case "controls":
+          setControllerGuideOpen(true);
           break;
         case "interrupt":
           setExitHubConfirm?.(true);
@@ -253,6 +318,8 @@ export function useGamepad({
       setSpellMenuSel,
       setShowSettings,
       setShowScores,
+      setShowTileEditor,
+      setControllerGuideOpen,
       setExitHubConfirm,
     ],
   );
@@ -272,7 +339,7 @@ export function useGamepad({
     (dx, dy, { convenient, dash } = {}) => {
       if (dead) return;
       if (quickOpenRef.current) return;
-      if (showScoresRef.current || showSettingsRef.current || showInvRef.current) return;
+      if (showScoresRef.current || showSettingsRef.current || showSoundRef.current || showInvRef.current) return;
       if (mapModeRef.current || lookModeRef.current || msgLogModeRef.current) return;
       if (spellListModeRef.current || exitHubConfirmRef.current || throwModeRef.current || debugSpellModeRef.current) return;
       /* 振り向き中・X押し中は絶対に移動しない */
@@ -282,14 +349,14 @@ export function useGamepad({
         return;
       }
       if (dash || aRef?.current) {
-        if (aRef) aRef.current = true;
+        if (dash) setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, true);
         aUsedDashRef.current = true;
         doDash?.(dx, dy);
         return;
       }
       act?.("move", dx, dy);
     },
-    [dead, doDash, act, aRef],
+    [dead, doDash, act, aRef, keyboardDashRef, gamepadDashRef],
   );
 
   const cancelModal = useCallback(() => {
@@ -325,7 +392,8 @@ export function useGamepad({
       raf = requestAnimationFrame(tick);
       const gp = pickFirstGamepad(navigator.getGamepads?.() || []);
       if (!gp) {
-        if (shiftRef) shiftRef.current = false;
+        setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
+        setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
         waitHeldRef.current = false;
         waitStoppedRef.current = false;
         if (rbHeldUiRef.current) {
@@ -339,8 +407,29 @@ export function useGamepad({
       const next = snapshotButtons(gp);
       const prev = prevBtnRef.current;
 
+      if (showSoundRef.current) {
+        setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
+        setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
+        waitHeldRef.current = false;
+        setQuickOpen(false);
+        for (const [button, key] of [[BTN.UP, "ArrowUp"], [BTN.DOWN, "ArrowDown"], [BTN.LEFT, "ArrowLeft"], [BTN.RIGHT, "ArrowRight"]]) {
+          if (edgeDown(prev, next, button)) fireKey(key, key);
+        }
+        const stick = !dpadPressed(gp) && readMoveDir(gp);
+        const moveKey = stick ? `sound:${stick.dx},${stick.dy}` : null;
+        if (moveKey && moveHeldRef.current !== moveKey) {
+          const arrow = modalDirToArrow(stick.dx, stick.dy);
+          fireKey(arrow.key, arrow.code);
+        }
+        moveHeldRef.current = moveKey;
+        if (edgeDown(prev, next, BTN.B)) fireKey("Enter", "Enter");
+        if (edgeDown(prev, next, BTN.A) || edgeDown(prev, next, BTN.Y) || edgeDown(prev, next, BTN.START)) setShowSound?.(false);
+        prevBtnRef.current = next;
+        return;
+      }
+
       const _rbNow = buttonPressed(gp, BTN.RB);
-      if (shiftRef) shiftRef.current = _rbNow;
+      setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, _rbNow);
       if (_rbNow !== rbHeldUiRef.current) {
         rbHeldUiRef.current = _rbNow;
         setRbHeld(_rbNow);
@@ -413,6 +502,35 @@ export function useGamepad({
         return;
       }
 
+      /* 操作ガイド表示中は背景操作を止め、方向入力で内容をスクロールする。 */
+      if (controllerGuideRef.current) {
+        const closeByButton = [BTN.A, BTN.B, BTN.X, BTN.Y, BTN.START].find((button) => edgeDown(prev, next, button));
+        if (closeByButton !== undefined) {
+          if (closeByButton === BTN.A) { aDownAtRef.current = now; aUsedDashRef.current = true; }
+          if (closeByButton === BTN.X) xUsedDirRef.current = true;
+          if (waitChord) { waitHeldRef.current = true; waitStoppedRef.current = true; }
+          setControllerGuideOpen(false);
+        } else {
+          const direction = readMoveDir(gp);
+          const directionKey = direction ? `controls:${direction.dx},${direction.dy}` : null;
+          if (!directionKey) {
+            moveHeldRef.current = null;
+          } else if (moveHeldRef.current !== directionKey) {
+            moveHeldRef.current = directionKey;
+            moveFirstAtRef.current = now;
+            moveRepeatAtRef.current = now;
+            const guide = typeof document !== "undefined" ? document.querySelector("[data-gamepad-controls-guide]") : null;
+            guide?.scrollBy({ left: direction.dx * 120, top: direction.dy * 120 });
+          } else if (now - moveFirstAtRef.current >= MOVE_REPEAT_DELAY_MS && now - moveRepeatAtRef.current >= MOVE_REPEAT_MS) {
+            moveRepeatAtRef.current = now;
+            const guide = typeof document !== "undefined" ? document.querySelector("[data-gamepad-controls-guide]") : null;
+            guide?.scrollBy({ left: direction.dx * 120, top: direction.dy * 120 });
+          }
+        }
+        prevBtnRef.current = next;
+        return;
+      }
+
       /* —— 冒険記録：背景操作を完全遮断。十字はスクロール、A/Bで閉じる —— */
       if (showScoresRef.current) {
         const up = edgeDown(prev, next, BTN.UP) || edgeDown(prev, next, BTN.LEFT);
@@ -436,12 +554,35 @@ export function useGamepad({
             moveHeldRef.current = null;
           }
         }
-        if (edgeDown(prev, next, BTN.A) || edgeDown(prev, next, BTN.B) || edgeDown(prev, next, BTN.Y)) {
+        if (
+          edgeDown(prev, next, BTN.A) ||
+          edgeDown(prev, next, BTN.B) ||
+          edgeDown(prev, next, BTN.X) ||
+          edgeDown(prev, next, BTN.Y) ||
+          edgeDown(prev, next, BTN.START)
+        ) {
           setShowScores?.(false);
         }
         /* RB矢印UIは冒険記録中も更新不要だが状態は落とさない */
         prevBtnRef.current = next;
         return;
+      }
+
+      /* インベントリ中はXで整頓、Yで「置く」モードを切り替える。 */
+      if (showInvRef.current) {
+        if (edgeDown(prev, next, BTN.X)) {
+          sortInventory?.();
+          prevBtnRef.current = next;
+          return;
+        }
+        if (edgeDown(prev, next, BTN.Y)) {
+          const nextDropMode = !dropModeRef?.current;
+          if (dropModeRef) dropModeRef.current = nextDropMode;
+          setDropMode?.(nextDropMode);
+          setInvMenuSel?.(null);
+          prevBtnRef.current = next;
+          return;
+        }
       }
 
       /* LTコード：通常プレイ中だけ有効。モーダル・死亡・クリア後は背景へ操作を通さない。 */
@@ -462,11 +603,13 @@ export function useGamepad({
         }
       }
       if (aHeld && !lt && !anyModalUi() && !facingModeRef.current) {
-        if (aRef && now - aDownAtRef.current >= A_TAP_MS) aRef.current = true;
+        if (now - aDownAtRef.current >= A_TAP_MS) {
+          setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, true);
+        }
       }
       if (edgeUp(prev, next, BTN.A) && !lt) {
         const dur = now - aDownAtRef.current;
-        if (aRef) aRef.current = false;
+        setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
         if (
           !aUsedDashRef.current &&
           dur > 0 &&
@@ -518,7 +661,11 @@ export function useGamepad({
         /* このフレーム先頭で xHeldRef は既に false に更新済みなので、
            単押し判定は「方向を使っていない」だけで見る */
         if (!xUsedDirRef.current && !anyModalUi() && !dead) {
-          fireKey("t", "KeyT");
+          const _p = sr?.current?.player;
+          const _dg = sr?.current?.dungeon;
+          if (_p && _dg && cycleFaceAdjacentEnemy(_p, _dg)) {
+            setGs?.({ ...sr.current });
+          }
         }
         facingModeRef.current = false;
         setFacingMode?.(false);
@@ -621,7 +768,11 @@ export function useGamepad({
               setFacingMode?.(true);
             }
           } else if (inModal) {
-            const arrow = dirToArrow(move.dx, move.dy);
+            const arrow = getGamepadArrow({
+              isLook: !!lookModeRef.current,
+              isThrow: !!throwModeRef.current,
+              isTpSelect: modalTypeRef.current === "tpSelect",
+            }, move.dx, move.dy);
             if (arrow) fireKey(arrow.key, arrow.code);
           } else if (buttonPressed(gp, BTN.LB)) {
             if (sr?.current?.player) {
@@ -639,8 +790,8 @@ export function useGamepad({
           !inModal &&
           !rt &&
           !buttonPressed(gp, BTN.LB) &&
-          now - moveFirstAtRef.current >= MOVE_REPEAT_DELAY_MS &&
-          now - moveRepeatAtRef.current >= MOVE_REPEAT_MS
+          now - moveFirstAtRef.current >= GAMEPLAY_MOVE_REPEAT_DELAY_MS &&
+          now - moveRepeatAtRef.current >= GAMEPLAY_MOVE_REPEAT_MS
         ) {
           moveRepeatAtRef.current = now;
           applyMove(move.dx, move.dy, {
@@ -653,7 +804,11 @@ export function useGamepad({
             now - moveRepeatAtRef.current >= MOVE_REPEAT_MS
           ) {
             moveRepeatAtRef.current = now;
-            const arrow = dirToArrow(move.dx, move.dy);
+            const arrow = getGamepadArrow({
+              isLook: !!lookModeRef.current,
+              isThrow: !!throwModeRef.current,
+              isTpSelect: modalTypeRef.current === "tpSelect",
+            }, move.dx, move.dy);
             if (arrow) fireKey(arrow.key, arrow.code);
           }
         }
@@ -675,8 +830,8 @@ export function useGamepad({
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
-      if (aRef) aRef.current = false;
-      if (shiftRef) shiftRef.current = false;
+      setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
+      setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
       waitHeldRef.current = false;
       waitStoppedRef.current = false;
     };
@@ -684,22 +839,34 @@ export function useGamepad({
     enabled,
     aRef,
     shiftRef,
+    keyboardDashRef,
+    gamepadDashRef,
+    keyboardShiftRef,
+    gamepadShiftRef,
     arrowHeldRef,
     act,
     doDash,
     dead,
+    sortInventory,
+    dropModeRef,
+    setDropMode,
+    setInvMenuSel,
     anyModalUi,
     openLook,
     openMsgLog,
     runQuickAction,
     tryRegisteredItem,
+    setControllerGuideOpen,
     applyMove,
     cancelModal,
     setFacingMode,
     setGs,
     setRbHeldUi,
+    setShowSound,
     sr,
   ]);
 
-  return { quickOpen, quickSel, setQuickOpen, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld };
+  return { quickOpen, quickSel, setQuickOpen, runQuickAction, quickItems: QUICK_MENU_ITEMS, ltHeld, rbHeld, controllerGuideOpen, setControllerGuideOpen };
 }
+
+export { dirToArrow, modalDirToArrow, getGamepadArrow };

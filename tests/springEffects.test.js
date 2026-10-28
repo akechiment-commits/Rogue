@@ -10,8 +10,8 @@ describe("泉の効果", () => {
   });
 
   it("泉の金貨は通常金貨の上限の約2倍まで", () => {
-    expect(springGoldRange(0)).toEqual({ min: 30, max: 200 });
-    expect(springGoldRange(5)).toEqual({ min: 30, max: 500 });
+    expect(springGoldRange(0)).toEqual({ min: 100, max: 400 });
+    expect(springGoldRange(5)).toEqual({ min: 100, max: 700 });
   });
 
   it("泉から飛び出すアイテムは泉の中心を避けて隣へ落とせる", () => {

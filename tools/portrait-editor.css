@@ -137,7 +137,7 @@ main {
 
 .category-body {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
   gap: 16px;
   padding: 16px 18px 20px;
 }
@@ -148,7 +148,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 350px;
+  min-height: 480px;
 }
 
 .slot-head {
@@ -204,7 +204,8 @@ main {
 .dropzone {
   flex: 1;
   position: relative;
-  min-height: 270px;
+  min-height: 400px;
+  overflow: hidden;
   border: 2px dashed var(--border);
   border-radius: 8px;
   background: var(--slot-empty);
@@ -246,9 +247,7 @@ main {
 }
 
 .dropzone img {
-  max-width: 100%;
-  max-height: 250px;
-  object-fit: contain;
+  position: absolute;
   image-rendering: pixelated;
   pointer-events: none;
 }
@@ -330,10 +329,16 @@ main {
 }
 
 .preview-canvas {
+  position: relative;
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   justify-content: center;
-  min-height: 0;
+  width: 100%;
+  height: min(75vh, 800px);
+  min-height: min(50vh, 360px);
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
   padding: clamp(16px, 3vw, 32px);
   background-color: #e8e4dc;
   background-image:
@@ -347,9 +352,7 @@ main {
 
 .preview-canvas img {
   display: block;
-  max-width: 100%;
-  max-height: calc(100vh - 150px);
-  object-fit: contain;
+  position: absolute;
   image-rendering: pixelated;
 }
 
@@ -406,9 +409,8 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
   .stats { margin-left: 0; width: 100%; }
   main { padding: 12px; }
   .category-body { grid-template-columns: 1fr; padding: 14px; }
-  .slot { min-height: 320px; }
-  .dropzone { min-height: 250px; }
-  .dropzone img { max-height: 230px; }
+  .slot { min-height: 400px; }
+  .dropzone { min-height: 320px; }
   .preview-dialog-head { padding: 12px 14px; }
-  .preview-canvas img { max-height: calc(100vh - 125px); }
+  .preview-canvas { min-height: min(45vh, 280px); }
 }

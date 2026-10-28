@@ -24,6 +24,10 @@ export function pickTransformMonsterDef(...args) {
   return requireRuntime("pickTransformMonsterDef")(...args);
 }
 
+export function applyMonsterTransformation(...args) {
+  return requireRuntime("applyMonsterTransformation")(...args);
+}
+
 export function spawnMonsters(...args) {
   return requireRuntime("spawnMonsters")(...args);
 }
@@ -45,14 +49,24 @@ export function monLevelDown(...args) {
 }
 
 export function wakeIfDormant(monster, messages) {
+  const sleepingLion = monster.subtype === "sleepingLion";
   if (monster.dormantHouse) {
     monster.dormantHouse = false;
     monster.aware = true;
+    if (sleepingLion) {
+      monster._movedThisTurn = true;
+      monster._justWoke = true;
+    }
     messages.push(`${monster.name}が目を覚ました！`);
     return;
   }
   if (!monster.dormant) return;
   monster.dormant = false;
+  if (sleepingLion) {
+    monster.aware = true;
+    monster._movedThisTurn = true;
+    monster._justWoke = true;
+  }
   monster._dormantTouched = false;
   delete monster._dormantHp;
   messages.push(`${monster.name}が目を覚ました！`);
@@ -72,4 +86,8 @@ export function scaleMonsterFireDamage(...args) {
 
 export function monsterFireDamageLabel(...args) {
   return requireRuntime("monsterFireDamageLabel")(...args);
+}
+
+export function triggerMushroomCounterSpore(...args) {
+  return requireRuntime("triggerMushroomCounterSpore")(...args);
 }

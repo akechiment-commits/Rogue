@@ -8,20 +8,20 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   1: ["rat", "bat", "centipede"],
   2: ["kobold", "goblin"],
   3: ["skeleton", "imp"],
-  4: ["runner", "zombie"],
-  5: ["archer", "wokka", "slime"],
-  6: ["grabber", "tripper"],
-  7: ["potionthrower", "rakugakima"],
-  8: ["itemMimic", "charger"],
-  9: ["tattoobird", "thief"],
+  4: ["runner", "zombie", "archer"],
+  5: ["grabber", "tripper"],
+  6: ["potionthrower", "potionhealer"],
+  7: ["slime", "rakugakima"],
+  8: ["wokka", "itemMimic", "charger"],
+  9: ["tattoobird", "thief", "manaEater"],
   10: ["wolf", "rustbug", "wizard"],
-  11: ["leprechaun", "itemblaster"],
-  12: ["stealthrower", "itempusher"],
-  13: ["itemThrower", "bombslime", "reflector"],
-  14: ["crystalslime", "rockspirit", "orc"],
+  11: ["leprechaun", "itemblaster", "sylph"],
+  12: ["stealthrower", "itempusher", "bombslime"],
+  13: ["itemThrower", "reflector"],
+  14: ["crystalslime", "rockspirit", "orc", "potRaider", "mushroom", "fireCook"],
   15: ["dangerousPetal", "dreamEater", "wateri"],
   16: ["lizardman", "dragonknight", "gelcube"],
-  17: ["trapmaster", "bombgoblin", "knocker"],
+  17: ["trapmaster", "bombgoblin", "knocker", "machodragon"],
   18: ["magicreflector", "mimic", "walldigger"],
   19: ["waterFlower", "serpent", "trapthrower"],
   20: ["witchdoc", "shaman", "disarmer"],
@@ -45,21 +45,23 @@ for (const [startText, kinds] of Object.entries(ADVANCED_MONSTER_STARTS)) {
 /*
  * 再登場帯。序盤の単純敵は中盤にLv2として戻し、後半の候補には
  * 「能力は厄介だが数値は低め」の敵をもう一度入れる。
- * 追加分は通常帯と重複するため、後半の種類数は最大13種になる。
+ * 追加分は通常帯と重複するため、後半は柳・眠れる獅子を除いて最大13種になる。
  */
 const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   10: ["rat", "bat", "centipede"],
   13: ["kobold", "goblin", "skeleton"],
   16: ["imp", "zombie", "wolf"],
-  18: ["hypnotist"],
-  19: ["hypnotist", "giantEel"],
-  20: ["hypnotist", "giantEel", "seaDevil"],
+  18: ["hypnotist", "manaEater"],
+  19: ["hypnotist", "giantEel", "manaEater"],
+  20: ["hypnotist", "giantEel", "seaDevil", "manaEater"],
   21: ["giantEel", "seaDevil"],
-  22: ["seaDevil"],
-  25: ["dangerousPetal", "dreamEater", "hypnotist"],
-  26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel"],
-  27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel"],
-  28: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
+  22: ["seaDevil", "potionhealer", "sylph"],
+  23: ["potionhealer", "sylph"],
+  24: ["potionhealer", "sylph"],
+  25: ["dangerousPetal", "dreamEater", "hypnotist", "potRaider", "fireCook"],
+  26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook", "machodragon"],
+  27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook", "machodragon"],
+  28: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil", "machodragon"],
   29: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
   30: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
 });
@@ -67,6 +69,16 @@ const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
 for (const [floorText, kinds] of Object.entries(ADVANCED_MONSTER_REINFORCEMENTS)) {
   const floor = Number(floorText);
   _ADVANCED_MONSTER_FLOOR_POOLS[floor].push(...kinds);
+}
+
+/* 巨大敵のお化け柳は上級18〜29階の候補に登録する。形態レベルは下の表で決める。 */
+for (let floor = 18; floor <= 29; floor++) {
+  _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("hauntedWillow");
+}
+
+/* 眠れる獅子はB21Fから登場し、Lv2はB25Fから出現する。 */
+for (let floor = 21; floor <= 30; floor++) {
+  _ADVANCED_MONSTER_FLOOR_POOLS[floor].push("sleepingLion");
 }
 
 /* 28〜30階は上級の締めとして、最終系の候補を少し厚く残す。 */
@@ -94,6 +106,15 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   hypnotist: { min: 25, max: 30 },
   giantEel: { min: 26, max: 30 },
   seaDevil: { min: 26, max: 30 },
+  potionhealer: { min: 22, max: 24 },
+  potRaider: { min: 25, max: 27 },
+  sylph: { min: 22, max: 24 },
+  hauntedWillow: { min: 25, max: 29 },
+  sleepingLion: { min: 25, max: 30 },
+  mushroom: { min: 14, max: 16 },
+  fireCook: { min: 25, max: 27 },
+  machodragon: { min: 26, max: 28 },
+  manaEater: { min: 18, max: 20 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {

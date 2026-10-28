@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "../turnUpkeep.js";
 import { applyPlayerPoison } from "../statusDuration.js";
 
@@ -37,6 +37,19 @@ describe("advancePlayerUpkeep", () => {
     advance(player, messages, { onHungerDamageStarted: () => { warnings++; } });
     expect(player.hp).toBe(8);
     expect(warnings).toBe(1);
+  });
+
+  it("酩酊中は5%で嘔吐し、満腹度を10減らす", () => {
+    const player = makePlayer({ drunkenTurns: 5, hunger: 40 });
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      advance(player, messages);
+    } finally {
+      random.mockRestore();
+    }
+    expect(player.hunger).toBe(29); // 通常の空腹減少1 + 嘔吐10
+    expect(messages).toEqual(["酩酊して嘔吐した！満腹度が10減った！"]);
   });
 
   it("再生防具と回復の指輪は自然回復量をそれぞれ+1する", () => {
@@ -104,9 +117,89 @@ describe("applyArmorAura", () => {
     expect(defeated).toEqual([adjacent]);
     expect(messages).toEqual(["闘気がコウモリに2ダメージ！"]);
   });
+  it.each([
+    { name: "分身", isPlayerClone: true },
+    { name: "店主", type: "shopkeeper", state: "friendly" },
+    { name: "会計待ちの店主", type: "shopkeeper", state: "blocking" },
+    { name: "行商人", type: "shopkeeper", state: "friendly", isWanderingMerchant: true },
+    { name: "冒険者", type: "shopkeeper", state: "friendly", isWanderingAdventurer: true },
+    { name: "友好キャラ", state: "friendly" },
+    { name: "道具に擬態した敵", disguisedAsItem: true },
+  ])("$nameにはダメージを与えない", properties => {
+    const monster = { ...properties, x: 6, y: 5, hp: 20 };
+    const messages = [], killMonster = vi.fn();
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), { monsters: [monster] }, messages,
+      { hasAbility: () => true, killMonster });
+    expect(monster.hp).toBe(20);
+    expect(messages).toEqual([]);
+    expect(killMonster).not.toHaveBeenCalled();
+  });
+  it.each([
+    [3, 7, 5, 6], [3, 3, 5, 6], [3, 5, 7, 6], [3, 5, 3, 6],
+    [3, 7, 7, 2], [3, 8, 5, 0], [2, 6, 5, 4], [2, 3, 5, 4],
+  ])("%sマス角の敵 (%s,%s) に隣接する体のマス数分で%sダメージ", (bodySize, x, y, damage) => {
+    const monster = { name: "大型敵", bodySize, x, y, hp: 100 };
+    const messages = [];
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), { monsters: [monster] }, messages,
+      { hasAbility: () => true, killMonster: vi.fn() });
+    expect(monster.hp).toBe(100 - damage);
+    expect(messages).toEqual(damage ? [`闘気が大型敵に${damage}ダメージ！`] : []);
+  });
+  it("敵対済みの店主・冒険者は攻撃対象になる", () => {
+    const monsters = [
+      { name: "店主", type: "shopkeeper", state: "hostile", hp: 20, x: 6, y: 5 },
+      { name: "冒険者", type: "shopkeeper", state: "hostile", isWanderingAdventurer: true, hp: 20, x: 5, y: 6 },
+    ];
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), { monsters }, [],
+      { hasAbility: () => true, killMonster: vi.fn() });
+    expect(monsters.map(monster => monster.hp)).toEqual([18, 18]);
+  });
+  it("大型敵を倒したときの撃破処理は1回だけ行う", () => {
+    const monster = { name: "大型敵", bodySize: 3, x: 7, y: 5, hp: 3 };
+    const dungeon = { monsters: [monster] }, killMonster = vi.fn(monster => dungeon.monsters.splice(dungeon.monsters.indexOf(monster), 1));
+    applyArmorAura(makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }), dungeon, [],
+      { hasAbility: () => true, killMonster });
+    expect(killMonster).toHaveBeenCalledTimes(1);
+    expect(dungeon.monsters).toEqual([]);
+  });
+
 });
 
 describe("advancePentacleWear", () => {
+  it.each([
+    [2, 5, 5], [2, 6, 6], [3, 4, 4], [3, 6, 6], [3, 4, 6], [3, 6, 4],
+  ])("%sマス角の敵の体(%s,%s)が乗っていても30ターンで消耗する", (bodySize, x, y) => {
+    const pentacle = { name: "雷の魔方陣", kind: "thunder_trap", x, y };
+    const dungeon = { pentacles: [pentacle], monsters: [{ x: 5, y: 5, bodySize, hp: 100 }] };
+    const player = makePlayer({ x: 20, y: 20 }), messages = [];
+    for (let turn = 0; turn < 30; turn++) advancePentacleWear(player, dungeon, messages);
+    expect(pentacle.standTurns).toBe(30);
+    expect(dungeon.pentacles).toEqual([]);
+    expect(messages).toEqual(["雷の魔方陣がかすれてきた…(残り5ターン)", "雷の魔方陣が消えた！"]);
+  });
+
+  it("大型敵の体が複数の魔方陣に乗れば各魔方陣が1拍に1回ずつ消耗する", () => {
+    const pentacles = [{ x: 4, y: 5 }, { x: 6, y: 6 }];
+    const dungeon = { pentacles, monsters: [{ x: 5, y: 5, bodySize: 3, hp: 100 }] };
+    advancePentacleWear(makePlayer({ x: 20, y: 20 }), dungeon, []);
+    expect(pentacles.map(pc => pc.standTurns)).toEqual([1, 1]);
+  });
+
+  it.each([{ hp: 0, x: 5, y: 5 }, { hp: 100, x: 8, y: 5 }])("死亡・範囲外の大型敵%sでは消耗しない", monster => {
+    const pentacle = { x: 6, y: 5 };
+    advancePentacleWear(makePlayer({ x: 20, y: 20 }),
+      { pentacles: [pentacle], monsters: [{ bodySize: 3, ...monster }] }, []);
+    expect(pentacle.standTurns).toBeUndefined();
+  });
+
+  it("大型敵の体の端でも固定転送陣は消耗しない", () => {
+    const portal = { x: 6, y: 5, kind: "fixed_portal" }, fixed = { x: 4, y: 5, fixed: true };
+    advancePentacleWear(makePlayer({ x: 20, y: 20 }),
+      { pentacles: [portal, fixed], monsters: [{ x: 5, y: 5, bodySize: 3, hp: 100 }] }, []);
+    expect(portal.standTurns).toBeUndefined();
+    expect(fixed.standTurns).toBeUndefined();
+  });
+
   it("25ターン目に警告し、30ターン目に非固定の魔方陣だけを消す", () => {
     const fading = { name: "火炎の魔方陣", x: 5, y: 5, standTurns: 24 };
     const portal = { name: "固定転送", kind: "fixed_portal", x: 5, y: 5, standTurns: 29 };
@@ -133,6 +226,21 @@ describe("advanceForcedTurn", () => {
     expect(advanceForcedTurn(player, messages)).toEqual({ advanced: true, exitPotAfterTurn: false });
     expect(player.sleepTurns).toBe(0);
     expect(messages).toEqual(["目が覚めた！"]);
+  });
+
+  it("昏睡で眠っている間も酩酊タイマーと嘔吐判定が進む", () => {
+    const player = makePlayer({ sleepTurns: 20, drunkenTurns: 20, hunger: 30 });
+    const messages = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      advance(player, messages);
+      advanceCoreStatusTimers(player, messages, { hasRingEffect: () => false });
+      advanceForcedTurn(player, messages);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(player).toMatchObject({ sleepTurns: 19, drunkenTurns: 19, hunger: 19 });
+    expect(messages.some((message) => message.includes("酩酊して嘔吐した"))).toBe(true);
   });
 
   it("壺の最終ターンは敵行動後の脱出を要求し、鈍足の種類を引き継ぐ", () => {
@@ -190,6 +298,17 @@ describe("advancePlayerSpeedPhase", () => {
 });
 
 describe("advanceCoreStatusTimers", () => {
+  it("酔いと酩酊の残り時間を進めて終了を通知する", () => {
+    const player = makePlayer({ drunkTurns: 1, drunkenTurns: 2 });
+    const messages = [];
+    advanceCoreStatusTimers(player, messages, { hasRingEffect: () => false });
+    expect(player).toMatchObject({ drunkTurns: 0, drunkenTurns: 1 });
+    expect(messages).toEqual(["酔いが覚めた！"]);
+    advanceCoreStatusTimers(player, messages, { hasRingEffect: () => false });
+    expect(player.drunkenTurns).toBe(0);
+    expect(messages.at(-1)).toBe("酩酊が覚めた！");
+  });
+
   it("鈍足中は行動スキップを予約し、終了時に通知する", () => {
     const player = makePlayer({ slowTurns: 2 });
     advanceCoreStatusTimers(player, [], { hasRingEffect: () => false });

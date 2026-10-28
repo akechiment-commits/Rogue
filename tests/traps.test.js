@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
+import { fireTrapItem, isPlayerFloating, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 import { MONS, makeMonsterFromBase } from "../monsters.js";
@@ -365,6 +365,21 @@ describe("new weird traps", () => {
     const ml = [];
     fireTrapPlayer(trap, p, dg, ml);
     expect(p.floatTurns).toBe(30);
+    expect(isPlayerFloating(p, dg)).toBe(true);
+  });
+
+  it("浮遊中は直接操作で罠を起動しても回避し、効果を受けない", () => {
+    const p = makePlayer({ x: 5, y: 5, floatTurns: 12, hp: 100 });
+    const dg = makeEmptyDg();
+    const trap = { effect: "strong_arrow", name: "強矢の罠", x: 5, y: 5, id: "float-proof", revealed: true };
+    const ml = [];
+
+    const result = fireTrapPlayer(trap, p, dg, ml);
+
+    expect(result).toBe("avoided_float");
+    expect(p.hp).toBe(100);
+    expect(ml).toContain("浮遊しているので強矢の罠を回避した！");
+    expect(trap.revealed).toBe(true);
   });
 
   it("油まみれの罠で oilyTurns が30付く", () => {

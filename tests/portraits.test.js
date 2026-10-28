@@ -12,6 +12,7 @@ import {
   isStarving,
   isStairsMsg,
   isSummonTrapMsg,
+  getTrapPortraitKey,
   isShopMsg,
   isCursedAcquireMsg,
   detectEquipChange,
@@ -168,6 +169,14 @@ describe("portraits", () => {
     expect(msgToActionKey("腐った食料を食べさせられた遺物の番人の攻撃力が半減した！")).toBeNull();
     expect(msgToActionKey("ワッカが石を投げた！")).toBeNull();
     expect(findItemActionKey(["ワッカが石を投げた！", "ワッカの石が命中！8ダメージ！"])).toBeNull();
+  });
+
+  it("敵の弓ログでは射撃立ち絵を出さず、プレイヤーの矢射撃は判定する", () => {
+    const enemyShot = "弓の達人の貫きの矢がつらら小僧に命中！76ダメージ！";
+    expect(msgToActionKey(enemyShot)).toBeNull();
+    expect(findItemActionKey([enemyShot])).toBeNull();
+    expect(msgToActionKey("強矢を射った！")).toBe("act_bow");
+    expect(msgToActionKey("矢を射る方向を選んでください...")).toBe("act_bow");
   });
 
   it("敵に食べさせた腐敗食料ではプレイヤーの食事立ち絵を出さない", () => {
@@ -419,7 +428,7 @@ describe("portraits", () => {
 
     const baseOnly = { damage_fire: ["damage_fire"] };
     expect(pickPortraitForPlayer("damage_fire", { armor: null }, baseOnly)).toBe(
-      "/tiles/Character/damage_fire.png",
+      "/tiles/Character/damage_fire.webp?v=20261023-portrait-webp",
     );
 
     const withBranch = {
@@ -427,7 +436,7 @@ describe("portraits", () => {
       damage_fire_unarmored: ["damage_fire_unarmored"],
     };
     expect(pickPortraitForPlayer("damage_fire", { armor: null }, withBranch)).toMatch(
-      /^\/tiles\/Character\/damage_fire_unarmored\.png\?portraitFallback=/,
+      /^\/tiles\/Character\/damage_fire_unarmored\.webp\?v=20261023-portrait-webp&portraitFallback=/,
     );
   });
 
@@ -567,6 +576,26 @@ describe("portraits", () => {
     expect(event.holdKey).toBe("status_hypnosis");
   });
 
+  it("酔い・酩酊中は酔い立ち絵を維持し、解除時に状態を外す", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      drunkTurns: 0, drunkenTurns: 0,
+    };
+    const player = { ...prev, drunkTurns: 20 };
+    expect(getActiveStatusPortraitKey(player)).toBe("status_drunk");
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "酔い状態になった！" });
+    expect(event.src).toMatch(/status_drunk/);
+    expect(event.holdKey).toBe("status_drunk");
+
+    const sober = { ...player, drunkTurns: 0, drunkenTurns: 0 };
+    const ended = resolvePortraitEvent({
+      player: sober,
+      prev: { ...player, drunkTurns: 0, drunkenTurns: 1 },
+      lastMsg: "酩酊が覚めた！",
+    });
+    expect(ended.statusCleared).toBe(true);
+  });
+
   it("状態異常が解けたフレームを通常立ち絵への復帰対象として返す", () => {
     const prev = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
@@ -578,12 +607,60 @@ describe("portraits", () => {
     expect(event.holdKey).toBeUndefined();
   });
 
-  it("浮遊は継続中の状態異常にせず、開始時とダッシュ時だけ専用立ち絵を返す", () => {
-    const player = { hp: 80, maxHp: 100, x: 6, y: 5, level: 3 };
-    const prev = { ...player, x: 5, y: 5, floating: true };
-    expect(getActiveStatusPortraitKey(player, true)).toBeNull();
-    const event = resolvePortraitEvent({ player, prev, floating: true, dashed: true, lastMsg: "" });
+  it("浮遊中は状態立ち絵を維持し、終了時に通常へ戻す", () => {
+    const player = { hp: 80, maxHp: 100, x: 6, y: 5, level: 3, armor: { id: "armor" } };
+    const prev = { ...player, x: 5, y: 5, armorId: "armor", floating: false };
+    expect(getActiveStatusPortraitKey(player, true)).toBe("status_floating");
+    const event = resolvePortraitEvent({ player, prev, floating: true, lastMsg: "" });
     expect(event.src).toMatch(/status_floating/);
+    expect(event.holdKey).toBe("status_floating");
+
+    const ended = resolvePortraitEvent({
+      player,
+      prev: { ...player, armorId: "armor", floating: true },
+      floating: false,
+      lastMsg: "浮遊が解けた。",
+    });
+    expect(ended.statusCleared).toBe(true);
+  });
+
+  it("浮遊・混乱の罠では汎用の驚きより付与された状態立ち絵を優先する", () => {
+    const base = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      armor: { id: "armor" }, poisoned: false, sleepTurns: 0,
+      confusedTurns: 0, darknessTurns: 0, oilyTurns: 0,
+      paralyzeTurns: 0, slowTurns: 0, bewitchedTurns: 0,
+      immobileTurns: 0, frozenTurns: 0, sealedTurns: 0,
+      soakedTurns: 0, capturedBy: null, potConfinedTurns: 0,
+    };
+    const floating = resolvePortraitEvent({
+      player: { ...base, floatTurns: 30 },
+      prev: { ...base, floating: false },
+      floating: true,
+      newMsgs: ["浮遊の罠が発動！体がふわっと浮いた！(浮遊30ターン)"],
+      lastMsg: "",
+    });
+    expect(floating.src).toMatch(/status_floating/);
+    expect(floating.holdKey).toBe("status_floating");
+
+    const confused = resolvePortraitEvent({
+      player: { ...base, confusedTurns: 10 },
+      prev: base,
+      newMsgs: ["混乱の罠が発動！", "頭がくらくらする！(混乱10ターン)"],
+      lastMsg: "",
+    });
+    expect(confused.src).toMatch(/reaction_confused/);
+    expect(confused.holdKey).toBe("status_confused");
+  });
+
+  it("状態異常中に冒険を再開した場合も対応する立ち絵から始める", () => {
+    const player = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      armor: { id: "armor" }, confusedTurns: 8,
+    };
+    const event = resolvePortraitEvent({ player, prev: null, lastMsg: "" });
+    expect(event.src).toMatch(/reaction_confused/);
+    expect(event.holdKey).toBe("status_confused");
   });
 
   it("拘束中は攻撃など他行動より拘束立ち絵を優先する", () => {
@@ -721,7 +798,7 @@ describe("portraits", () => {
       player,
       prev,
       lastMsg: "岩が命中！19ダメージ！",
-      newMsgs: ["落石の罠が作動！岩が降ってきた！", "岩が命中！19ダメージ！"],
+      newMsgs: ["岩が命中！19ダメージ！"],
     });
     expect(event.force).toBe(false);
     expect(event.lowPriority).toBe(true);
@@ -759,6 +836,49 @@ describe("portraits", () => {
       newMsgs: ["急に空腹を感じた！満腹度が10%下がった。"],
     });
     expect(event.src).toMatch(/hp_hunger/);
+  });
+
+  it("空腹・錆・回転板の罠は状況に合う立ち絵へ対応する", () => {
+    expect(getTrapPortraitKey("空腹の罠が発動！急に空腹を感じた！満腹度が10%下がった。")).toBe("hp_hunger");
+    expect(getTrapPortraitKey("錆の罠が発動！剣が錆びた！")).toBe("reaction_trap_rust");
+    expect(getTrapPortraitKey("回転板が発動！吹き飛ばされた！")).toBe("reaction_trap_spin");
+    const armoredPlayer = { armor: { id: "armor" } };
+    expect(pickPortraitForPlayer("reaction_trap_arrow", armoredPlayer)).toMatch(
+      /^\/tiles\/Character\/reaction_trap_arrow\.webp\?v=20261023-portrait-webp$/,
+    );
+    expect(pickPortraitForPlayer("reaction_trap_mp_absorb", armoredPlayer)).toMatch(
+      /^\/tiles\/Character\/reaction_trap_mp_absorb\.webp\?v=20261023-portrait-webp$/,
+    );
+
+    const player = {
+      hp: 80, maxHp: 100, hunger: 75, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0, darknessTurns: 0,
+      oilyTurns: 0, armor: { id: "armor" },
+    };
+    const prev = { ...player, hunger: 85 };
+    const newMsgs = [
+      "空腹の罠が発動！急に空腹を感じた！満腹度が10%下がった。",
+      "空腹の罠は壊れた。",
+    ];
+    const event = resolvePortraitEvent({ player, prev, newMsgs, lastMsg: newMsgs.at(-1) });
+    expect(event.src).toMatch(/hp_hunger/);
+  });
+
+  it("強矢の罠が直撃しても専用リアクションを優先する", () => {
+    const base = {
+      maxHp: 100, hunger: 50, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const newMsgs = ["強矢の罠が発動！", "強矢が命中！11ダメージ！", "強矢の罠は壊れた。"];
+    const event = resolvePortraitEvent({
+      player: { ...base, hp: 89 },
+      prev: { ...base, hp: 100 },
+      newMsgs,
+      lastMsg: newMsgs.at(-1),
+    });
+    expect(event.src).toMatch(/reaction_trap_strong_arrow/);
+    expect(event.force).toBe(true);
   });
 
   it("isHungerMsg が空腹ログを判定する", () => {
@@ -831,7 +951,7 @@ describe("portraits", () => {
       lastMsg: "ゴブリンの攻撃！10ダメージ！",
       newMsgs: [summonMsg, "ゴブリンの攻撃！10ダメージ！"],
     });
-    expect(event.src).toMatch(/reaction_surprised/);
+    expect(event.src).toMatch(/reaction_trap_summon/);
     expect(event.force).toBe(true);
   });
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { resolveTurnHazards } from "../turnHazards.js";
+import { doTimeBombExplosion } from "../items.js";
+import "../monsters.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 function dependencies(overrides = {}) {
   return {
@@ -16,6 +19,16 @@ function dependencies(overrides = {}) {
 }
 
 describe("resolveTurnHazards", () => {
+  it("期限到達の爆弾と誘爆した爆弾を、それぞれ1回だけ爆発させる", () => {
+    const first = { x: 5, y: 5, turnsLeft: 1 };
+    const second = { x: 6, y: 5, turnsLeft: 1 };
+    const dungeon = makeEmptyDg({ pendingBombs: [first, second] });
+    const messages = [];
+    resolveTurnHazards({ dungeon }, makePlayer({ x: 20, y: 20 }), messages, dependencies({ doTimeBombExplosion }));
+    expect(messages.filter(message => message.includes("5×5マスに爆風"))).toHaveLength(2);
+    expect(dungeon.pendingBombs).toEqual([]);
+  });
+
   it("遅延地雷と時限爆弾を解決し、残りターンを記録する", () => {
     const mine = { name: "地雷" };
     const explodingBomb = { x: 2, y: 3, turnsLeft: 1 };
