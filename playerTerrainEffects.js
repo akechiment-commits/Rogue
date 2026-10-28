@@ -1,6 +1,6 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { MH, MW, T } from "./utils.js";
-import { canPlayerWalkOnWater, hasWaterBreathRing } from "./items.js";
+import { canPlayerWalkOnWater, hasWaterBreathRing, isPlayerFloating } from "./items.js";
 import { releaseInvalidCapture } from "./captureRules.js";
 
 const ADJACENT_DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
@@ -14,7 +14,8 @@ function hasMonsterAt(dungeon, x, y) {
 }
 
 /** 壁抜け解除、壁埋まり、深水・泉での地形ダメージをターンごとに解決する。 */
-export function advancePlayerTerrainEffects(player, dungeon, messages) {
+export function advancePlayerTerrainEffects(player, dungeon, messages, { fireTrapFn } = {}) {
+  const fromX = player.x, fromY = player.y;
   /* 壁埋まり窒息立ち絵は、このターンに実際の壁ダメージが発生した時だけ有効。 */
   player._wallSuffocationDamage = false;
   /* 水没立ち絵も、このターンに実際の水中窒息ダメージが発生した時だけ有効。 */
@@ -101,5 +102,12 @@ export function advancePlayerTerrainEffects(player, dungeon, messages) {
     player._waterSuffocationDamage = true;
     messages.push(`水中の壺の中で息ができない！${damage}ダメージ！`);
     if (player.hp <= 0) player.deathCause = "水没により";
+  }
+
+  // 押し出しで実際に着地した時だけ起動する。発見済みの罠も強制移動では踏む。
+  if ((player.x !== fromX || player.y !== fromY) && player.hp > 0 &&
+      !(dungeon.timeStopTurns > 0) && !isPlayerFloating(player, dungeon)) {
+    const trap = dungeon.traps?.find(trap => trap.x === player.x && trap.y === player.y);
+    if (trap) return fireTrapFn?.(trap, player, dungeon, messages);
   }
 }

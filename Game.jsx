@@ -2185,7 +2185,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           killMonster: (monster) => killMonster(monster, st.dungeon, p, ml, lu),
         });
         advanceEarlyStatusTimers(p, ml);
-        advancePlayerTerrainEffects(p, st.dungeon, ml);
+        const _terrainTrap = advancePlayerTerrainEffects(p, st.dungeon, ml, {
+          fireTrapFn: (trap, player, dungeon, messages) => {
+            trackTrap(trap);
+            showFirstEncounterTip("trap");
+            return fireTrapPlayer(trap, player, dungeon, messages,
+              (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames), lu, { ident: st.ident });
+          },
+        });
+        if (_terrainTrap === "pitfall" && p.hp > 0) {
+          const nextDungeon = chgFloor(p, 1, true);
+          if (nextDungeon) {
+            st.dungeon = nextDungeon;
+            ml.push(`地下${p.depth}階に落ちた！`);
+          }
+        }
         resolvePlayerPentacleEffects(p, st.dungeon, ml, {
           inMagicSealRoom,
           inCursedMagicSealRoom,
@@ -2545,7 +2559,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       finishTrapActivationTurn(st);
     }),
-    [moveMons, lu, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
+    [moveMons, lu, chgFloor, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
   );
 
   /* auto-advance turns while player is sleeping, paralyzed, or slow-skipping */
