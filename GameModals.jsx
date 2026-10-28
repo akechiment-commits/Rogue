@@ -93,9 +93,11 @@ function isBbEffective(kind, item, bb) {
   }
   return false;
 }
-/* 泉に浸すと変化または呪い解除があるアイテムか判定 */
-function isSpringEffective(item) {
-  if (item.type === "bottle" || item.cursed) return true;
+/* 泉に浸すと変化するか、装備から外れて泉へ落ちるアイテムか判定 */
+function isSpringEffective(item, player) {
+  const cursedEquipped = item.cursed && (player?.weapon === item || player?.armor === item ||
+    player?.arrow === item || (player?.rings || []).includes(item));
+  if (item.type === "bottle" || cursedEquipped) return true;
   if (item.type === "scroll" && item.effect !== "blank") return true;
   if (item.type === "spellbook" && item.spell) return true;
   if (item.type === "pot" && item.potEffect === "gunpowder") return true;
@@ -2475,7 +2477,7 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
               _spPageItems.map((it, pi) => {
                 const absI = _spCurPg * 10 + pi;
                 const isSel = menuSel === pi;
-                const isEff = isSpringEffective(it);
+                const isEff = isSpringEffective(it, p);
                 const isRust = it.type === "weapon" || it.type === "armor";
                 return (
                   <div key={absI} onClick={() => { springDoSoak(absI); setPage(0); setMenuSel(0); }}

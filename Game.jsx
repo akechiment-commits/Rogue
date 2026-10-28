@@ -5554,7 +5554,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const it = p.inventory[idx];
       if (!it) return;
       const ml = installPlayerHpMessageHook([], p);
-      if (it.type === "bottle") {
+      const _isEquipped = p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
+      const _targetSpring = dg.springs?.find(s => s === springTargetRef.current) ||
+        dg.springs?.find(s => s.x === p.x && s.y === p.y);
+      let _springOverflowDried = false;
+      if (it.cursed && _isEquipped && _targetSpring) {
+        const _springWasPresent = dg.springs?.includes(_targetSpring);
+        unequipPlayerItem(p, it);
+        p.inventory.splice(idx, 1);
+        ml.push(`${dnameRef(it)}は泉に滑り落ち、装備から外れた！`);
+        soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef);
+        _springOverflowDried = !!_springWasPresent && !dg.springs?.includes(_targetSpring);
+        if (_springOverflowDried && springTargetRef.current === _targetSpring) springTargetRef.current = null;
+      } else if (it.type === "bottle") {
         p.inventory.splice(idx, 1);
         const wb = { ...WATER_BOTTLE, id: uid() };
         if (it.blessed) { wb.blessed = true; wb.bcKnown = true; }
@@ -5564,6 +5576,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         p.inventory.push(wb);
         ml.push(`${dnameRef(it)}に水を汲んだ。${dnameRef(wb)}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
+        const _curseNote = it.cursed ? " 呪いは解けなかった！" : "";
         /* 特殊変化：ロングソード→エクスカリバー(5%)、短剣→猫の爪(5%)、バトルアクス/戦神の斧→ゴールデンアクス(20%) */
         if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
           const _oldPlus = it.plus || 0;
@@ -5572,7 +5585,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           Object.assign(it, { ...EXCALIBUR_T, id: it.id, plus: Math.max(0, _oldPlus) });
           const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が聖なる光を放ち...エクスカリバーに変化した！`);
+          ml.push(`${_oldName}が聖なる光を放ち...エクスカリバーに変化した！${_curseNote}`);
         } else if (it.type === "weapon" && it.name === "短剣" && Math.random() < 0.05) {
           const _oldPlus = it.plus || 0;
           const _oldName = it.name;
@@ -5580,7 +5593,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           Object.assign(it, { ...CAT_CLAW_T, id: it.id, plus: Math.max(0, _oldPlus) });
           const _newAbs = [...new Set([..._oldAbs, CAT_CLAW_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が鋭い輝きを放ち...猫の爪に変化した！`);
+          ml.push(`${_oldName}が鋭い輝きを放ち...猫の爪に変化した！${_curseNote}`);
         } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧") && Math.random() < 0.20) {
           const _oldPlus = it.plus || 0;
           const _oldName = it.name;
@@ -5588,45 +5601,45 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           Object.assign(it, { ...GOLDEN_AXE_T, id: it.id, plus: Math.max(0, _oldPlus) });
           const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が黄金の輝きを放ち...ゴールデンアクスに変化した！`);
+          ml.push(`${_oldName}が黄金の輝きを放ち...ゴールデンアクスに変化した！${_curseNote}`);
         } else {
-          let _rustNote = "";
-          if (it.cursed) { it.cursed = false; _rustNote = " 呪いが解けた！"; }
           const _guard = consumeItemDegradeProtection(it);
           if (_guard) {
             const _guardMsg = _guard.kind === "permanent"
               ? "金でできているので錆びなかった！"
               : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
-            ml.push(`${it.name}が水に浸かったが${_guardMsg}${_rustNote}`);
+            ml.push(`${it.name}が水に浸かったが${_guardMsg}${_curseNote}`);
           } else {
             const _op = it.plus || 0;
             it.plus = _op - 1;
             const _fp = (v) =>
               v > 0 ? `+${v}` : v === 0 ? `\u7121\u5370` : `${v}`;
             ml.push(
-              `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_rustNote}`,
+              `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_curseNote}`,
             );
           }
         }
       } else if (it.type === "scroll") {
+        const _curseNote = it.cursed ? "呪いは解けなかった！" : "";
         if (it.effect !== "blank") {
           const _scrDN = dnameRef(it);
           it.name = "白紙の巻物";
           it.effect = "blank";
           it.desc = "何も書かれていない。魔法の筆で書き込める。";
-          ml.push(`巻物「${_scrDN}」を泉に浸した...文字が消えた！`);
+          ml.push(`巻物「${_scrDN}」を泉に浸した...文字が消えた！${_curseNote}`);
         } else {
-          ml.push("白紙の巻物を泉に浸した...何も起こらなかった。");
+          ml.push(`白紙の巻物を泉に浸した...何も起こらなかった。${_curseNote}`);
         }
       } else if (it.type === "spellbook") {
+        const _curseNote = it.cursed ? "呪いは解けなかった！" : "";
         if (it.spell) {
           const _sbDN = dnameRef(it);
           it.name = "白紙の魔法書";
           it.spell = null;
           it.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
-          ml.push(`魔法書「${_sbDN}」を泉に浸した...文字が消えた！`);
+          ml.push(`魔法書「${_sbDN}」を泉に浸した...文字が消えた！${_curseNote}`);
         } else {
-          ml.push("白紙の魔法書を泉に浸した...何も起こらなかった。");
+          ml.push(`白紙の魔法書を泉に浸した...何も起こらなかった。${_curseNote}`);
         }
       } else if (it.type === "pot" && it.potEffect === "gunpowder") {
         const _savedContents = it.contents || [];
@@ -5636,11 +5649,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           capacity: Math.max(_origCap, _savedContents.length),
           desc: _preserveTpl.desc, tile: _preserveTpl.tile });
         it.contents = _savedContents;
-        ml.push(`火薬壺を泉に浸した...保存の壺に変化した！中身は保たれている。`);
+        ml.push(`火薬壺を泉に浸した...保存の壺に変化した！中身は保たれている。${it.cursed ? "呪いは解けなかった！" : ""}`);
       } else {
-        let _soakNote = "";
-        if (it.cursed) { it.cursed = false; _soakNote = " 呪いが解けた！"; }
-        ml.push(`${dnameRef(it)}を泉に浸した。${_soakNote || "何も起こらなかった。"}`);
+        ml.push(it.cursed
+          ? `${dnameRef(it)}を泉に浸したが、呪いは解けなかった。`
+          : `${dnameRef(it)}を泉に浸した。何も起こらなかった。`);
       }
       /* 超低確率で願い（浸したあと） */
       if (rollWishChance("soak")) {
@@ -5653,7 +5666,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         setGs({ ...sr.current });
         return;
       }
-      const _dried = springTryDry(dg, p, ml);
+      const _dried = _springOverflowDried || springTryDry(dg, p, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (_dried) {

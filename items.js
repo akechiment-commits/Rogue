@@ -5974,8 +5974,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     ml.push(_dn(item) + "が泉に落ちて水になった！" + _wbSuffix);
     spr.contents.push(wb);
   } else if (item.type === "weapon") {
-    let _wNote = "";
-    if (item.cursed) { item.cursed = false; _wNote += " 呪いが解けた！"; }
+    const _wNote = item.cursed ? " 呪いは解けなかった！" : "";
     /* 特殊変化：ロングソード→エクスカリバー(5%)、短剣→猫の爪(5%)、バトルアクス/戦神の斧→ゴールデンアクス(20%) */
     if (item.name === "ロングソード" && Math.random() < 0.05) {
       const _oldPlus = item.plus || 0;
@@ -5983,14 +5982,14 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       Object.assign(item, { ...EXCALIBUR_T, id: item.id, plus: Math.max(0, _oldPlus) });
       const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
-      ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！");
+      ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！" + _wNote);
     } else if (item.name === "短剣" && Math.random() < 0.05) {
       const _oldPlus = item.plus || 0;
       const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
       Object.assign(item, { ...CAT_CLAW_T, id: item.id, plus: Math.max(0, _oldPlus) });
       const _newAbs = [...new Set([..._oldAbs, CAT_CLAW_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
-      ml.push("短剣が泉の中で鋭い輝きを放ち...猫の爪に変化した！");
+      ml.push("短剣が泉の中で鋭い輝きを放ち...猫の爪に変化した！" + _wNote);
     } else if ((item.name === "バトルアクス" || item.name === "戦神の斧") && Math.random() < 0.20) {
       const _oldName = item.name;
       const _oldPlus = item.plus || 0;
@@ -5998,7 +5997,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       Object.assign(item, { ...GOLDEN_AXE_T, id: item.id, plus: Math.max(0, _oldPlus) });
       const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
-      ml.push(_oldName + "が泉の中で黄金の輝きを放ち...ゴールデンアクスに変化した！");
+      ml.push(_oldName + "が泉の中で黄金の輝きを放ち...ゴールデンアクスに変化した！" + _wNote);
     } else {
       const _guard = consumeItemDegradeProtection(item);
       if (_guard) {
@@ -6015,8 +6014,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     }
     spr.contents.push(item);
   } else if (item.type === "armor") {
-    let _aNote = "";
-    if (item.cursed) { item.cursed = false; _aNote += " 呪いが解けた！"; }
+    const _aNote = item.cursed ? " 呪いは解けなかった！" : "";
     const _guard = consumeItemDegradeProtection(item);
     if (_guard) {
       const _guardMsg = _guard.kind === "permanent"
@@ -6031,25 +6029,27 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     }
     spr.contents.push(item);
   } else if (item.type === "scroll") {
+    const _curseNote = item.cursed ? "呪いは解けなかった！" : "";
     if (item.effect !== "blank") {
       const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の巻物";
       item.effect = "blank";
       item.desc = "何も書かれていない。魔法の筆で書き込める。\n呪い：効果なし。";
-      ml.push(`巻物「${oldName}」が泉に落ちた...文字が消えた！`);
+      ml.push(`巻物「${oldName}」が泉に落ちた...文字が消えた！${_curseNote}`);
     } else {
-      ml.push("白紙の巻物が泉に落ちた。");
+      ml.push(`白紙の巻物が泉に落ちた。${_curseNote}`);
     }
     spr.contents.push(item);
   } else if (item.type === "spellbook") {
+    const _curseNote = item.cursed ? "呪いは解けなかった！" : "";
     if (item.spell) {
       const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の魔法書";
       item.spell = null;
       item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。\n呪い：効果なし。";
-      ml.push(`魔法書「${oldName}」が泉に落ちた...文字が消えた！`);
+      ml.push(`魔法書「${oldName}」が泉に落ちた...文字が消えた！${_curseNote}`);
     } else {
-      ml.push("白紙の魔法書が泉に落ちた。");
+      ml.push(`白紙の魔法書が泉に落ちた。${_curseNote}`);
     }
     spr.contents.push(item);
   } else if (item.type === "pot" && item.potEffect === "gunpowder") {
@@ -6061,11 +6061,10 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       capacity: Math.max(_origCap, _savedContents.length),
       desc: _preserveTpl.desc, tile: _preserveTpl.tile });
     item.contents = _savedContents;
-    ml.push(`火薬壺が泉に浸され、保存の壺に変化した！中身は保たれている。`);
+    ml.push(`火薬壺が泉に浸され、保存の壺に変化した！中身は保たれている。${item.cursed ? "呪いは解けなかった！" : ""}`);
     spr.contents.push(item);
   } else {
-    let _elseNote = "";
-    if (item.cursed) { item.cursed = false; _elseNote = " 呪いが解けた！"; }
+    const _elseNote = item.cursed ? "呪いは解けなかった！" : "";
     ml.push(_dn(item) + "が泉に落ちた。" + _elseNote);
     spr.contents.push(item);
   }
