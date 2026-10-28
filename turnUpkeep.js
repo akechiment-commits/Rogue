@@ -3,7 +3,7 @@ import { isStatusImmune } from "./statusImmunity.js";
  * プレイヤーのターン開始後に必ず進む基礎状態（ターン数・空腹・自然回復）を更新する。
  * 依存する装備判定は注入し、ゲーム UI や敵行動には依存しない。
  */
-import { monsterAreaHitCount } from "./monsterGeometry.js";
+import { monsterAreaHitCount, monsterOccupiesCell } from "./monsterGeometry.js";
 import { statusTurns } from "./statusDuration.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { maintainPlayerHaste } from "./actionClock.js";
@@ -85,7 +85,7 @@ export function advancePentacleWear(player, dungeon, messages) {
     if (pentacle.kind === "fixed_portal" || pentacle.fixed) continue;
     const playerOn = pentacle.x === player.x && pentacle.y === player.y;
     const monsterOn = !playerOn && dungeon.monsters.some((monster) =>
-      monster.hp > 0 && monster.x === pentacle.x && monster.y === pentacle.y
+      monster.hp > 0 && monsterOccupiesCell(monster, pentacle.x, pentacle.y)
     );
     if (!playerOn && !monsterOn) continue;
 

@@ -166,6 +166,40 @@ describe("applyArmorAura", () => {
 });
 
 describe("advancePentacleWear", () => {
+  it.each([
+    [2, 5, 5], [2, 6, 6], [3, 4, 4], [3, 6, 6], [3, 4, 6], [3, 6, 4],
+  ])("%sマス角の敵の体(%s,%s)が乗っていても30ターンで消耗する", (bodySize, x, y) => {
+    const pentacle = { name: "雷の魔方陣", kind: "thunder_trap", x, y };
+    const dungeon = { pentacles: [pentacle], monsters: [{ x: 5, y: 5, bodySize, hp: 100 }] };
+    const player = makePlayer({ x: 20, y: 20 }), messages = [];
+    for (let turn = 0; turn < 30; turn++) advancePentacleWear(player, dungeon, messages);
+    expect(pentacle.standTurns).toBe(30);
+    expect(dungeon.pentacles).toEqual([]);
+    expect(messages).toEqual(["雷の魔方陣がかすれてきた…(残り5ターン)", "雷の魔方陣が消えた！"]);
+  });
+
+  it("大型敵の体が複数の魔方陣に乗れば各魔方陣が1拍に1回ずつ消耗する", () => {
+    const pentacles = [{ x: 4, y: 5 }, { x: 6, y: 6 }];
+    const dungeon = { pentacles, monsters: [{ x: 5, y: 5, bodySize: 3, hp: 100 }] };
+    advancePentacleWear(makePlayer({ x: 20, y: 20 }), dungeon, []);
+    expect(pentacles.map(pc => pc.standTurns)).toEqual([1, 1]);
+  });
+
+  it.each([{ hp: 0, x: 5, y: 5 }, { hp: 100, x: 8, y: 5 }])("死亡・範囲外の大型敵%sでは消耗しない", monster => {
+    const pentacle = { x: 6, y: 5 };
+    advancePentacleWear(makePlayer({ x: 20, y: 20 }),
+      { pentacles: [pentacle], monsters: [{ bodySize: 3, ...monster }] }, []);
+    expect(pentacle.standTurns).toBeUndefined();
+  });
+
+  it("大型敵の体の端でも固定転送陣は消耗しない", () => {
+    const portal = { x: 6, y: 5, kind: "fixed_portal" }, fixed = { x: 4, y: 5, fixed: true };
+    advancePentacleWear(makePlayer({ x: 20, y: 20 }),
+      { pentacles: [portal, fixed], monsters: [{ x: 5, y: 5, bodySize: 3, hp: 100 }] }, []);
+    expect(portal.standTurns).toBeUndefined();
+    expect(fixed.standTurns).toBeUndefined();
+  });
+
   it("25ターン目に警告し、30ターン目に非固定の魔方陣だけを消す", () => {
     const fading = { name: "火炎の魔方陣", x: 5, y: 5, standTurns: 24 };
     const portal = { name: "固定転送", kind: "fixed_portal", x: 5, y: 5, standTurns: 29 };
