@@ -21,7 +21,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   LUCK_POTION_TURNS,
   resolveItemName, applyBubbleGoldScroll, pickBigboxType, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
-  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer,
+  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, breakAltar,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
@@ -1574,17 +1574,76 @@ export function useItemActions({
         }
       } else if (it.effect === "break_wall") {
         if (it.cursed) {
-          // 呪い：周囲8マスを壁に（端は変更しない）
+          // 呪い：周囲8マスを壊せる壁に（端は変更しない）。生き物・道具・設備の扱いは呪われた穴掘りの杖に合わせる
           let _bwCount = 0;
           for (const [_dx, _dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
             const _wx = p.x + _dx, _wy = p.y + _dy;
             if (_wx <= 0 || _wx >= MW - 1 || _wy <= 0 || _wy >= MH - 1) continue;
-            if (dg.map[_wy][_wx] === T.FLOOR) {
-              dg.map[_wy][_wx] = T.WALL;
-              const _bwPc = dg.pentacles?.find(pc => pc.x === _wx && pc.y === _wy);
-              if (_bwPc) { dg.pentacles = dg.pentacles.filter(pc => pc !== _bwPc); ml.push(`壁が${_bwPc.name}を押し潰した！`); }
-              _bwCount++;
+            const _tile = dg.map[_wy][_wx];
+            if (_tile !== T.FLOOR && _tile !== T.WATER) continue;
+            const _creature = dg.monsters?.find((mon) => monsterOccupiesCell(mon, _wx, _wy));
+            if (_creature) {
+              /* 生き物がいるマスは壁にせず、壁の魔法でダメージを与える */
+              if (!consumeBarrier(_creature, ml)) {
+                const _dmg = multiplyMagicDamage(rng(5, 15), p?.weapon, _creature, dg);
+                _creature.hp -= _dmg;
+                ml.push(`壁の魔法が${_creature.name}に${_dmg}ダメージ！`);
+                if (_creature.hp <= 0) killMonster(_creature, dg, p, ml, lu);
+              }
+              continue;
             }
+            /* 床の道具は壁の中に残す。壁を掘れば通常どおり拾える */
+            for (const _fi of dg.items || []) {
+              if (_fi.x === _wx && _fi.y === _wy) _fi.wallEmbedded = true;
+            }
+            if (_tile === T.WATER) ml.push("水が壁に潰されて消えた！");
+            if (dg.springs?.some((s) => s.x === _wx && s.y === _wy)) {
+              dg.springs = dg.springs.filter((s) => s.x !== _wx || s.y !== _wy);
+              ml.push("泉が壁に潰されて消えた！");
+            }
+            if (dg.bigboxes?.some((b) => b.x === _wx && b.y === _wy)) {
+              dg.bigboxes = dg.bigboxes.filter((b) => b.x !== _wx || b.y !== _wy);
+              ml.push("大箱が壁に潰されて消えた！");
+            }
+            const _gacha = (dg.gachaMachines || []).filter((g) => g.x === _wx && g.y === _wy);
+            if (_gacha.length) {
+              for (const _gm of _gacha) {
+                if (_gm.shopId != null) declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを壁で潰した！泥棒扱いになった！" });
+              }
+              dg.gachaMachines = dg.gachaMachines.filter((g) => g.x !== _wx || g.y !== _wy);
+              ml.push("ガチャマシーンが壁に潰されて消えた！");
+            }
+            for (const _altar of [...(dg.altars || [])].filter((a) => a.x === _wx && a.y === _wy)) {
+              breakAltar(_altar, dg, ml, p, p, lu);
+            }
+            const _statue = dg.statues?.find((s) => s.x === _wx && s.y === _wy);
+            if (_statue) {
+              hitStatueWithAction(dg, _wx, _wy, p, ml, lu, p.depth || 1, {
+                spawnItem: false, spawnMonster: false,
+                breakMessage: "石像が壁に押し潰された！",
+                itemDeps: getFixtureItemDeps(),
+              });
+            }
+            const _pcs = (dg.pentacles || []).filter((pc) => pc.x === _wx && pc.y === _wy);
+            if (_pcs.length) {
+              const _pairIds = new Set(_pcs.filter((pc) => pc.kind === "fixed_portal").map((pc) => pc.pairId).filter(Boolean));
+              dg.pentacles = dg.pentacles.filter((pc) => (pc.x !== _wx || pc.y !== _wy) && !(pc.kind === "fixed_portal" && _pairIds.has(pc.pairId)));
+              ml.push("魔方陣が壁に潰されて消えた！");
+            }
+            if (dg.vents?.some((v) => v.x === _wx && v.y === _wy)) {
+              dg.vents = dg.vents.filter((v) => v.x !== _wx || v.y !== _wy);
+              ml.push("風穴が壁に潰されて消えた！");
+            }
+            if (dg.dimensionalVaults?.some((v) => v.x === _wx && v.y === _wy)) {
+              dg.dimensionalVaults = dg.dimensionalVaults.filter((v) => v.x !== _wx || v.y !== _wy);
+              ml.push("次元宝物庫が壁に潰されて消えた！");
+            }
+            if (dg.oilyTiles?.some((t) => t.x === _wx && t.y === _wy)) {
+              dg.oilyTiles = dg.oilyTiles.filter((t) => t.x !== _wx || t.y !== _wy);
+              ml.push("油床が壁に潰されて消えた！");
+            }
+            dg.map[_wy][_wx] = T.BWALL;
+            _bwCount++;
           }
           ml.push(_bwCount > 0 ? `周囲が壁に変わった！(${_bwCount}マス)【呪】` : "周囲に床がなかった。【呪】");
         } else {
@@ -2756,8 +2815,12 @@ export function useItemActions({
         blank.desc = template.desc;
         if (template.specialBook) blank.specialBook = template.specialBook;
         else delete blank.specialBook;
+        /* 巻物と同じく、筆の祝福・呪いを書き上がった魔法書にも伝える */
+        if (marker.blessed) { blank.blessed = true; blank.cursed = false; }
+        else if (marker.cursed) { blank.cursed = true; blank.blessed = false; }
         marker.charges -= _cost;
-        ml.push(`${template.name}に変化した！[${marker.name} 残り${marker.charges}回]`);
+        const _bBcLabel = marker.blessed ? "【祝】" : marker.cursed ? "【呪】" : "";
+        ml.push(`${template.name}${_bBcLabel}に変化した！[${marker.name} 残り${marker.charges}回]`);
       } else {
         if (!blank || blank.effect !== "blank") { setMarkerMode(null); return; }
         const _cost = getMarkerInkCost(template);

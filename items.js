@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
-import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense } from './utils.js';
 import { ensureSynthMonsterBox, speedUpSynthMonster } from './synthMonster.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
@@ -24,7 +24,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { lootAllowedInDungeon, lootPoolForDungeon } from "./dungeonContent.js";
+import { lootAllowedInDungeon, lootPoolForDungeon, trapAllowedInDungeon } from "./dungeonContent.js";
 import { ordinaryFloorGoldRange } from "./springRules.js";
 import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
@@ -67,6 +67,7 @@ export function getFixtureItemDeps() {
     pickTrap,
     pickLootFromPool,
     resolveItemName,
+    trapAllowedInDungeon,
   };
 }
 
@@ -575,7 +576,7 @@ export function makeWanderingAdventurerGift(dungeonType = null, floor = 99) {
   const item = { ...template, id: uid() };
   applyGeneratedRingPlus(item);
   if (item.type === "pen") item.charges = penInitialCharges(item);
-  else if (item.type === "wand") item.charges = Math.max(1, (item.charges || 1) + rng(-1, 1));
+  else if (item.type === "wand") item.charges = rollGeneratedWandCharges(item);
   return item;
 }
 
@@ -1175,6 +1176,15 @@ export function makeScrollTransformedItem(source, mode, random = Math.random) {
 /** 願いの杖など、回数を増やせない杖か */
 export function isNoChargeBoostWand(it) {
   return !!(it && it.type === "wand" && (it.effect === "wish" || it.noChargeBoost));
+}
+
+/** 生成時の杖の回数ロール。願い・祝福・呪いの杖と回数増加不可の杖は生成時の回数のまま（dungeon.js の生成規則と同じ）。 */
+export function rollGeneratedWandCharges(item) {
+  if (!item || item.type !== "wand") return item?.charges;
+  if (isNoChargeBoostWand(item) || item.effect === "curse_wand" || item.effect === "bless_wand") {
+    return item.charges || 1;
+  }
+  return Math.max(1, (item.charges || 1) + rng(-1, 1));
 }
 
 export function potOccupancyCount(pot) {
@@ -2303,7 +2313,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     }
   };
   const killBlastedMonster = (monster, noExp = noExpKills || ringExplosion) => {
-    if (mineExplosion || noExpKills) {
+    /* 罠撃破（経験値なし・帰属なし）になるのは noExpKills のときだけ。
+       mineExplosion は爆発の性質（地雷式の即死・耐火判定）の指定であり、
+       這いずり爆弾のような所有者ありの爆発まで罠撃破にしてはいけない。 */
+    if (noExpKills) {
       killMonsterByTrap(monster, dg, p, ml, luFn, `${srcLabel}の爆発`);
     } else {
       killMonster(monster, dg, p, ml, luFn, noExp, killerMon);
@@ -3030,7 +3043,11 @@ function unitsInRoom(dg, cx, cy, p = null) {
 /** 罠の罠：同じフロアに大量の新しい罠を置く（罠の罠自身は出さない） */
 export function scatterNewTrapsOnFloor(dg, p, ml, originTrap = null) {
   const want = rng(12, 20);
-  const pool = TRAPS.filter((t) => t.effect !== "trap_trap");
+  /* まき散らす罠も、そのダンジョン・階層で許可されたものだけにする */
+  const _allPool = TRAPS.filter((t) => t.effect !== "trap_trap");
+  const _floor = p?.depth ?? ((dg?.depth ?? 0) + 1);
+  const _filtered = _allPool.filter((t) => trapAllowedInDungeon(t, dg?.dungeonType ?? null, _floor));
+  const pool = _filtered.length ? _filtered : _allPool;
   let placed = 0;
   for (let i = 0; i < want * 8 && placed < want; i++) {
     let x, y;
@@ -3380,7 +3397,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   try {
   if (trap?.effect === "fake_stair") {
     const _was = trap.name || "偽の階段";
-    materializeFakeStair(trap, getFixtureItemDeps());
+    materializeFakeStair(trap, getFixtureItemDeps(), { dungeonType: dg?.dungeonType ?? null, floor: p?.depth ?? ((dg?.depth ?? 0) + 1) });
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet);
   }
@@ -3508,20 +3525,27 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         if (_spm && !_spm.forcedMoveImmune) {
           if (_spinTpBlock) { ml.push(`呪われたテレポートの魔方陣に阻まれて${_spm.name}は吹き飛ばなかった！`); }
           else {
-            const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
-            _spm.x = rng(_spr.x, _spr.x + _spr.w - 1);
-            _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
-            ml.push(`${_spm.name}も吹き飛ばされた！`);
+            /* 行き先は床マスだけから選ぶ（部屋の矩形そのままだと壁・水の中や他個体と重なる） */
+            const _spDst = randomTeleportDest(dg, _spm.x, _spm.y,
+              (x, y) => !(p && x === p.x && y === p.y) && !dg.monsters.some(o => o !== _spm && monsterOccupiesCell(o, x, y)));
+            if (_spDst) {
+              _spm.x = _spDst.x;
+              _spm.y = _spDst.y;
+              ml.push(`${_spm.name}も吹き飛ばされた！`);
+            }
           }
         } else if (_spm) ml.push(`${_spm.name}は強制移動を受けない！`);
         if (p && p.x === tx && p.y === ty) {
           if (_spinTpBlock) { ml.push("呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！"); }
           else {
             const _spinFromX = p.x, _spinFromY = p.y;
-            const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
-            p.x = rng(_psr.x, _psr.x + _psr.w - 1);
-            p.y = rng(_psr.y, _psr.y + _psr.h - 1);
-            pushPlayerTeleportAnim(_spinFromX, _spinFromY, p.x, p.y);
+            const _spinDstP = randomTeleportDest(dg, p.x, p.y,
+              (x, y) => !dg.monsters.some(m => monsterOccupiesCell(m, x, y)));
+            if (_spinDstP) {
+              p.x = _spinDstP.x;
+              p.y = _spinDstP.y;
+              pushPlayerTeleportAnim(_spinFromX, _spinFromY, p.x, p.y);
+            }
             ml.push(`吹き飛ばされた！`);
             if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
           }
@@ -6059,7 +6083,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     const _origCap = item.capacity;
     Object.assign(item, { name: _preserveTpl.name, potEffect: _preserveTpl.potEffect,
       capacity: Math.max(_origCap, _savedContents.length),
-      desc: _preserveTpl.desc, tile: _preserveTpl.tile });
+      desc: _preserveTpl.desc, tile: _preserveTpl.tile, sellPrice: _preserveTpl.sellPrice });
     item.contents = _savedContents;
     ml.push(`火薬壺が泉に浸され、保存の壺に変化した！中身は保たれている。${item.cursed ? "呪いは解けなかった！" : ""}`);
     spr.contents.push(item);
@@ -6337,7 +6361,7 @@ export function monsterDrop(m, dg, ml, p = null) {
       const _di = { ..._t, id: uid() };
       applyGeneratedRingPlus(_di);
       if (_di.type === "pen") _di.charges = penInitialCharges(_di);
-      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      else if (_di.type === "wand") _di.charges = rollGeneratedWandCharges(_di);
       placeItemAt(dg, m.x, m.y, _di, ml, _ft, 0, p);
     }
     ml.push(`${m.name}を倒した！金貨とアイテムが落ちた！`);
@@ -6422,7 +6446,7 @@ export function monsterDrop(m, dg, ml, p = null) {
       const _di = { ..._t, id: uid() };
       applyGeneratedRingPlus(_di);
       if (_di.type === "pen") _di.charges = penInitialCharges(_di);
-      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      else if (_di.type === "wand") _di.charges = rollGeneratedWandCharges(_di);
       placeItemAt(dg, m.x, m.y, _di, ml, new Set(), 0, p);
       ml.push(`${m.name}は${resolveItemName(_di)}を落とした！`);
     }
@@ -6492,7 +6516,7 @@ export function monsterDrop(m, dg, ml, p = null) {
       const _di = { ..._t, id: uid() };
       applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
-      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      else if (_di.type === "wand") _di.charges = rollGeneratedWandCharges(_di);
       drops.push(_di);
     }
   }
@@ -6505,7 +6529,7 @@ export function monsterDrop(m, dg, ml, p = null) {
       const _di = { ..._t, id: uid() };
       applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
-      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      else if (_di.type === "wand") _di.charges = rollGeneratedWandCharges(_di);
       drops.push(_di);
     }
   }
@@ -6518,7 +6542,7 @@ export function monsterDrop(m, dg, ml, p = null) {
       const _di = { ..._t, id: uid() };
       applyGeneratedRingPlus(_di);
       if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
-      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      else if (_di.type === "wand") _di.charges = rollGeneratedWandCharges(_di);
       drops.push(_di);
     }
   }
@@ -6847,8 +6871,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       }
       if (_bx === null) {
         ml.push(`${mon.name}の骨は行き場がなく消えた。`);
-        return;
-      }
+      } else {
       dg.traps.push({
         id: uid(), name: "骨", effect: "bone", tile: 107,
         x: _bx, y: _by, revealed: true, permanent: false,
@@ -6859,6 +6882,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
           kind: mon.kind, monLevel: mon.monLevel || 1, levels: mon.levels }
       });
       ml.push(`${mon.name}の骨が残った...5ターン後に復活するかもしれない。`);
+      }
     }
   }
   /* 拘束していた敵が死んだ場合：拘束状態を解除 */
@@ -8418,8 +8442,13 @@ export function getSpellBuffDuration(baseDuration, level = 1) {
 /** プレイヤーのステータスだけを一部コピーした、操作不能の分身を作る。 */
 export function makePlayerClone(p, x, y, cloneTurns = 30) {
   const _maxHp = Math.max(1, Math.floor((Number(p?.maxHp) || Number(p?.hp) || 1) * 0.5));
-  const _atk = Math.max(1, Math.floor((Number(p?.atk) || 1) * 0.7));
-  const _def = Math.max(0, Math.floor((Number(p?.def) || 0) * 0.7));
+  /* 分身の攻撃力・防御力は、出現した時点のプレイヤーの実効値（装備・指輪・状態補正込み）と同値にする */
+  const _ringPowerBonus = (p?.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
+  const _atk = Math.max(1, Math.floor(((Number(p?.atk) || 0) + (p?.weapon?.atk || 0) + (p?.weapon?.plus || 0) + _ringPowerBonus)
+    * ((p?.spicyAtkTurns || 0) > 0 ? 1.5 : 1)
+    * ((p?.atkDebuffTurns || 0) > 0 ? 0.5 : 1)
+    * playerDopingMultiplier(p || {})));
+  const _def = Math.max(0, calcPlayerDefense(p || {}));
   return {
     id: uid(),
     name: "分身",
@@ -8735,6 +8764,7 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
       capacity: Math.max(victim.capacity ?? 0, _savedContents.length),
       desc: _preserveTpl.desc,
       tile: _preserveTpl.tile,
+      sellPrice: _preserveTpl.sellPrice,
     });
     victim.contents = _savedContents;
     if (ml) ml.push(`水を浴びて火薬壺が保存の壺に変化した！中身は保たれている。`);

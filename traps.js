@@ -21,7 +21,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
   /* 偽階段：ランダムな通常罠に化けてから再発動 */
   if (trap?.effect === "fake_stair") {
     const _was = trap.name || "偽の階段";
-    materializeFakeStair(trap, getFixtureItemDeps());
+    materializeFakeStair(trap, getFixtureItemDeps(), { dungeonType: dg?.dungeonType ?? null, floor: p?.depth ?? ((dg?.depth ?? 0) + 1) });
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapPlayer(trap, p, dg, ml, nameFn, luFn, ctx);
   }

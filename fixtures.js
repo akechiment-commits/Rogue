@@ -55,11 +55,17 @@ export function makeFakeStairTrap(x, y, dir = "down") {
   };
 }
 
-/** 偽階段をランダムな通常罠に差し替えて返す（同一オブジェクトを破壊的に更新） */
-export function materializeFakeStair(trap, itemDeps) {
+/** 偽階段をランダムな通常罠に差し替えて返す（同一オブジェクトを破壊的に更新）
+ *  filter（{ dungeonType, floor }）があれば、そのダンジョンで許可された罠だけから選ぶ。 */
+export function materializeFakeStair(trap, itemDeps, filter = null) {
   if (!trap || trap.effect !== "fake_stair") return trap;
   const { traps, pickTrap: chooseTrap } = itemDeps;
-  const pool = traps.filter((t) => t.effect !== "fake_stair");
+  const allowed = itemDeps.trapAllowedInDungeon;
+  let pool = traps.filter((t) => t.effect !== "fake_stair");
+  if (filter?.dungeonType && typeof allowed === "function") {
+    const filtered = pool.filter((t) => allowed(t, filter.dungeonType, filter.floor));
+    if (filtered.length) pool = filtered;
+  }
   const t = chooseTrap(pool.length ? pool : traps);
   const id = trap.id, x = trap.x, y = trap.y;
   Object.keys(trap).forEach((k) => { delete trap[k]; });
@@ -199,7 +205,9 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
     const tmpl = (rarePool.length ? chooseLoot(rarePool, "drop") : null) || pick(items);
     if (tmpl && tmpl.type !== "goal") {
       const it = { ...tmpl, id: uid(), x: statue.x, y: statue.y };
-      if (it.type === "wand" && it.charges != null && it.effect !== "wish") {
+      if (it.type === "wand" && it.charges != null
+        && it.effect !== "wish" && !it.noChargeBoost
+        && it.effect !== "curse_wand" && it.effect !== "bless_wand") {
         it.charges = Math.max(1, (it.charges || 1) + rng(-1, 1));
       }
       /* placeItemAt を使うと items↔fixtures 循環になるため直接配置 */
