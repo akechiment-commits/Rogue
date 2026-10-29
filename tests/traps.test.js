@@ -272,7 +272,7 @@ describe("fireTrapItem rockfall", () => {
     const ml = [];
     fireTrapItem(trap, { name: "石", type: "misc" }, dg, 5, 5, ml, new Set(), p);
     expect(dg.monsters).toHaveLength(0);
-    expect(ml.some(m => m.includes("スライムは倒れた！"))).toBe(true);
+    expect(ml.some(m => m.includes("スライムは落石の罠で倒れた！（経験値なし）"))).toBe(true);
   });
 
   it("落石の罠で対象がいないとき石が罠の近くに落ちる", () => {

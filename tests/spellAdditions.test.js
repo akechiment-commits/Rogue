@@ -214,8 +214,8 @@ describe("追加魔法", () => {
       name: "分身",
       hp: 40,
       maxHp: 40,
-      atk: 7,
-      def: 4,
+      atk: 11, // 出現時点のプレイヤー実効攻撃力と同値（このテストでは素のatk 11、装備なし）
+      def: 7, // 出現時点のプレイヤー実効防御力と同値（このテストでは素のdef 7、装備なし）
       cloneTurns: 30,
       isPlayerClone: true,
     });

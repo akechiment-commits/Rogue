@@ -101,7 +101,13 @@ describe("超上級B10Fボス：フロック", () => {
   it("射線がない時は3〜10マスの射線を作れる位置へ積極的に移動する", () => {
     const { dungeon, flock, player } = makeFlockScene({ flockX: 8, flockY: 8, playerX: 12, playerY: 10 });
     const before = { x: flock.x, y: flock.y };
-    monsterAI(flock, dungeon, player, [], { moveOnly: true, monsterWandFn: vi.fn() });
+    // 射程外での20%召喚抽選を外し、移動行動だけを検証する
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      monsterAI(flock, dungeon, player, [], { moveOnly: true, monsterWandFn: vi.fn() });
+    } finally {
+      random.mockRestore();
+    }
 
     expect(flock.x !== before.x || flock.y !== before.y).toBe(true);
     expect(flockDistance(flock, player)).toBeGreaterThanOrEqual(3);
@@ -109,9 +115,15 @@ describe("超上級B10Fボス：フロック", () => {
 
   it("3マスより近づかず、近接されたらテレポートで4マス以上離れる", () => {
     const retreat = makeFlockScene({ playerX: 10 });
-    monsterAI(retreat.flock, retreat.dungeon, retreat.player, [], {
-      moveOnly: true, monsterWandFn: vi.fn(),
-    });
+    // 射程外での20%召喚抽選を外し、距離調整の移動だけを検証する
+    const retreatRandom = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      monsterAI(retreat.flock, retreat.dungeon, retreat.player, [], {
+        moveOnly: true, monsterWandFn: vi.fn(),
+      });
+    } finally {
+      retreatRandom.mockRestore();
+    }
     expect(flockDistance(retreat.flock, retreat.player)).toBe(3);
 
     const escape = makeFlockScene({ playerX: 9 });
@@ -144,7 +156,8 @@ describe("超上級B10Fボス：フロック", () => {
 
   it("距離調整の経路探索では壁を通らず、魔法外の台詞もランダムに話す", () => {
     const chatter = makeFlockScene({ playerX: 10, playerY: 9 });
-    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    // 最初の抽選は射程外での20%召喚（0.99で外す）、以降は雑談抽選30%に当選させる
+    const random = vi.spyOn(Math, "random").mockReturnValueOnce(0.99).mockReturnValue(0);
     try {
       monsterAI(chatter.flock, chatter.dungeon, chatter.player, chatter.dungeon.messages ||= [], {
         moveOnly: true, monsterWandFn: vi.fn(),
@@ -163,10 +176,16 @@ describe("超上級B10Fボス：フロック", () => {
     const boxedMessages = [];
     const boxedEffects = [];
     const boxedWand = vi.fn(monster => boxedEffects.push(monster.wandEffect));
-    monsterAI(boxed.flock, boxed.dungeon, boxed.player, boxedMessages, { moveOnly: true, monsterWandFn: boxedWand });
-    expect(boxed.dungeon.map[boxed.flock.y]?.[boxed.flock.x]).toBe(T.FLOOR);
-    expect({ x: boxed.flock.x, y: boxed.flock.y }).toEqual({ x: 8, y: 10 });
-    monsterAI(boxed.flock, boxed.dungeon, boxed.player, boxedMessages, { attackOnly: true, monsterWandFn: boxedWand });
+    // 射程外での20%召喚抽選を外し、追い詰められた際の詠唱だけを検証する
+    const boxedRandom = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      monsterAI(boxed.flock, boxed.dungeon, boxed.player, boxedMessages, { moveOnly: true, monsterWandFn: boxedWand });
+      expect(boxed.dungeon.map[boxed.flock.y]?.[boxed.flock.x]).toBe(T.FLOOR);
+      expect({ x: boxed.flock.x, y: boxed.flock.y }).toEqual({ x: 8, y: 10 });
+      monsterAI(boxed.flock, boxed.dungeon, boxed.player, boxedMessages, { attackOnly: true, monsterWandFn: boxedWand });
+    } finally {
+      boxedRandom.mockRestore();
+    }
     expect(boxedWand).toHaveBeenCalledTimes(1);
     expect(FLOCK_SPELLS).toContain(boxedEffects[0]);
   });

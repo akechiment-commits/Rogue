@@ -21,6 +21,7 @@ export function createGameBigboxHandlers(state) {
   if ([breakStart, breakEnd, addStart, addEnd].some(index => index < 0)) throw new Error("Game big-box callback boundary not found");
   const deps = { ...items, ...utils, ...wands, ...status, ...discovery, ...gameHelpers,
     sr: { current: state }, useCallback: fn => fn, lu: () => {}, findRoom, monsterBodyCells, itemDisplayName,
+    withPitfallBag: fn => fn(),
     pl, trySynthesize: () => { throw new Error("Synthesis is outside this harness"); } };
   return new Function(...Object.keys(deps), `${source.slice(breakStart, breakEnd)}\n${source.slice(addStart, addEnd)}\nreturn { bigboxAddItem, breakBigbox };`)(...Object.values(deps));
 }

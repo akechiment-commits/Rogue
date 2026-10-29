@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import { genDungeon } from "../dungeon.js";
 import { GWEN_BOSS, makeMonsterFromBase, MONS, monsterAI } from "../monsters.js";
@@ -18,13 +18,15 @@ function makeGwenScene({ x = 10, y = 10, playerX = 5, playerY = 5, visible = tru
 }
 
 describe("超上級B5Fボス：グウェン", () => {
-  it("legendの5階だけグウェンへ差し替え、初期取り巻きを置かない", () => {
+  it("legendの5階だけグウェンへ差し替え、休眠した取り巻き3体を置く", () => {
     const legend = genDungeon(4, "legend");
     const gwen = legend.monsters.find(monster => monster.isBoss);
     expect(gwen.baseKind).toBe("boss_gwen");
     expect(gwen.dormant).toBe(true);
     expect(legend.monsters.filter(monster => monster.isBoss)).toHaveLength(1);
-    expect(legend.monsters.filter(monster => monster !== gwen && monster.dormant)).toHaveLength(0);
+    const minions = legend.monsters.filter(monster => monster !== gwen);
+    expect(minions.map(monster => monster.baseKind).sort()).toEqual(["slime", "wokka", "zombie"]);
+    expect(minions.every(monster => monster.dormant && monster.monLevel === 1)).toBe(true);
 
     expect(genDungeon(4, "beginner").monsters.find(monster => monster.isBoss).baseKind).toBe("boss_blaze");
     expect(genDungeon(4, "advanced").monsters.find(monster => monster.isBoss).baseKind).toBe("boss_batteringram");
@@ -55,20 +57,28 @@ describe("超上級B5Fボス：グウェン", () => {
   it("視界内4ターンごとにB5F候補を隣へ召喚し、視界外では時計を止める", () => {
     const { dungeon, gwen, player } = makeGwenScene({ visible: false });
     const messages = [];
-    for (let turn = 0; turn < 5; turn++) monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
-    expect(dungeon.monsters).toHaveLength(1);
-    expect(gwen.gwenVisibleTurns || 0).toBe(0);
+    // 召喚ウェーブの25%・2体抽選を外し、1体だけ召喚させる
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      for (let turn = 0; turn < 5; turn++) monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
+      expect(dungeon.monsters).toHaveLength(1);
+      expect(gwen.gwenVisibleTurns || 0).toBe(0);
 
-    dungeon.visible = Array.from({ length: 20 }, () => Array(30).fill(true));
-    for (let turn = 0; turn < 3; turn++) monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
-    expect(dungeon.monsters).toHaveLength(1);
-    monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
+      dungeon.visible = Array.from({ length: 20 }, () => Array(30).fill(true));
+      for (let turn = 0; turn < 3; turn++) monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
+      expect(dungeon.monsters).toHaveLength(1);
+      monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
+    } finally {
+      random.mockRestore();
+    }
 
     expect(dungeon.monsters).toHaveLength(2);
     const summoned = dungeon.monsters.find(monster => monster !== gwen);
-    expect(legendMonsterAllowed(summoned.baseKind, 5)).toBe(true);
+    // 召喚プールは取り巻きと同じ3種で、レベルはB10Fプール（10階）基準
+    expect(["zombie", "slime", "wokka"]).toContain(summoned.baseKind);
+    expect(legendMonsterAllowed(summoned.baseKind, 10)).toBe(true);
     const base = MONS.find(monster => monster.baseKind === summoned.baseKind);
-    expect(summoned.monLevel).toBe(legendMonsterSpawnLevel(base, 5));
+    expect(summoned.monLevel).toBe(legendMonsterSpawnLevel(base, 10));
     expect(Math.max(Math.abs(summoned.x - gwen.x), Math.abs(summoned.y - gwen.y))).toBe(1);
     expect(messages.some(message => message.includes(`グウェンの隣に${summoned.name}が現れた`))).toBe(true);
   });

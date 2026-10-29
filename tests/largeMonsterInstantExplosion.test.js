@@ -12,7 +12,8 @@ const explosions = [
   ['爆発の指輪', (dg, p, logs) => doExplosion(10, 10, dg, p, logs, null, '爆発の指輪', null, null, false, true)],
   ['即死指定の爆発', (dg, p, logs) => doExplosion(10, 10, dg, p, logs, null, '即死爆発', null, null, false, false, false, false, { instantMonsterKill: true })],
   ['撃破による爆発の魔方陣', (dg, p, logs) => {
-    const source = { id: 'source', name: '爆発元', x: 9, y: 10, hp: 0, exp: 0 };
+    // ドロップした回復薬が爆発で割れ、対象が飛沫回復するとダメージ制限の検証が汚染されるため、爆発元のドロップは抑止する
+    const source = { id: 'source', name: '爆発元', x: 9, y: 10, hp: 0, exp: 0, dropItemsSuppressed: true };
     dg.monsters.push(source);
     dg.pentacles.push({ kind: 'explosion', name: '爆発の魔方陣', x: 9, y: 10 });
     killMonster(source, dg, p, logs, () => {}, true);

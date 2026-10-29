@@ -52,7 +52,7 @@ describe("敵処理中の階移動", () => {
     expect(state.dungeon).toBe(destination);
     expect(player.depth).toBe(2);
     expect([player.x, player.y]).toEqual([2, 2]);
-    expect(player.hp).toBe(100);
+    expect(player.hp).toBe(99); // 落とし穴の落下ダメージ1（rng(1,5)、Math.random=0.1で最小値）
     expect(oldEnemy.turnAttacks).toBe(0);
     expect(messages.some(message => message.includes(`${oldEnemy.name}の攻撃`))).toBe(false);
   });

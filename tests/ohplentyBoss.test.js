@@ -53,8 +53,8 @@ describe('上級25階ボス オープレンティ', () => {
     expect(boss.maxAttacks).toBe(1);
     expect(boss.kind).toBe('material');
 
-    // 上級以外の25階では通常のボス（魔将軍）
-    expect(genDungeon(24, 'legend').monsters.find(m => m.isBoss).baseKind).toBe('boss_warlord');
+    // 超上級の25階では復讐の群れ長が専用ボスとして生成される
+    expect(genDungeon(24, 'legend').monsters.find(m => m.isBoss).baseKind).toBe('boss_flock_revenge');
   });
 
   it('図鑑・全スタイルのグラフィック定義が揃っている', () => {

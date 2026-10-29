@@ -90,12 +90,15 @@ describe("超上級ダンジョンの敵分布", () => {
     expect(legendMonsterSpawnLevel(dragon, 38)).toBe(2);
     expect(legendMonsterSpawnLevel(dragon, 48)).toBe(3);
     expect(legendMonsterSpawnLevel(daemon, 40)).toBe(1);
-    expect(legendMonsterSpawnLevel(daemon, 48)).toBe(2);
+    // デーモンはLv2帯が廃止され、40〜42階のLv1のみ出現する
+    expect(legendMonsterAllowed("daemon", 42)).toBe(true);
+    expect(legendMonsterAllowed("daemon", 48)).toBe(false);
   });
 
   it("眠れる獅子系はレベル帯の間を空けて自然出現する", () => {
     const lion = MONS.find(monster => monster.baseKind === "sleepingLion");
-    expect(legendMonsterAllowed("sleepingLion", 26)).toBe(true);
+    expect(legendMonsterAllowed("sleepingLion", 26)).toBe(false);
+    expect(legendMonsterAllowed("sleepingLion", 28)).toBe(true);
     expect(legendMonsterAllowed("sleepingLion", 31)).toBe(false);
     expect(legendMonsterSpawnLevel(lion, 28)).toBe(1);
     expect(legendMonsterSpawnLevel(lion, 37)).toBe(2);

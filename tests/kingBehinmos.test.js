@@ -14,7 +14,7 @@ import { makeEmptyDg, makePlayer } from './helpers.js';
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 function setup(overrides = {}) {
-  const boss={...KING_BEHINMOS,id:'king',x:10,y:10,maxHp:950,aware:true,lastPx:5,lastPy:10,dir:{x:0,y:0},...overrides};
+  const boss={...KING_BEHINMOS,id:'king',x:10,y:10,maxHp:950,aware:true,alwaysUseSpecial:true,lastPx:5,lastPy:10,dir:{x:0,y:0},...overrides};
   const player=makePlayer({x:5,y:10,hp:200,maxHp:200,exp:0,atk:10,weapon:{ability:'magic_power_2'}});
   const visible=Array.from({length:MH},()=>Array(MW).fill(true));
   const dungeon=makeEmptyDg({depth:24,monsters:[boss],rooms:[{x:1,y:1,w:20,h:20}],visible,explored:visible.map(row=>[...row])});
@@ -40,7 +40,7 @@ describe('上級20階のキングベヒんもス',()=>{
       for(const other of dg.monsters.filter(mon=>mon!==boss)) expect(monsterBodiesOverlap(boss,other)).toBe(false);
       expect(monsterOccupiesCell(boss,dg.suX,dg.suY)).toBe(false);
     }
-    expect(genDungeon(19,'legend').monsters.find(mon=>mon.isBoss).baseKind).toBe('boss_demonking');
+    expect(genDungeon(19,'legend').monsters.find(mon=>mon.isBoss).baseKind).toBe('boss_gwen_veteran');
     expect(genDungeon(24,'advanced').monsters.find(mon=>mon.isBoss).baseKind).toBe('boss_ohplenty');
   });
   it('図鑑・全スタイルのタイル定義から専用ボスを参照できる',()=>{

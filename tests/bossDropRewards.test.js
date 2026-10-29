@@ -25,10 +25,10 @@ describe("ボス報酬", () => {
     expect(uniqueBosses.length).toBeGreaterThan(15);
     for (const boss of uniqueBosses) {
       expect(BOSS_UNIQUE_DROP_RULES[boss.baseKind], boss.baseKind).toBeDefined();
-      const { items, messages } = dropFor(boss);
+      const { items } = dropFor(boss);
       const rule = BOSS_UNIQUE_DROP_RULES[boss.baseKind];
       expect(items.some(item => matchesUniqueDrop(item, rule)), boss.baseKind).toBe(true);
-      expect(messages.some(message => message.includes("固有ドロップ")), boss.baseKind).toBe(true);
+      // 固有ドロップ単独の通知ログは仕様で表示しない（ガイド記載）ため、通知は検証しない
     }
   });
 

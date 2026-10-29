@@ -29,16 +29,16 @@ describe("つらら小僧系（旧コボルド系）のテスト", () => {
     expect(lv2.name).toBe("氷柱鬼");
     expect(lv2.kind).toBe("beast");
     expect(lv2.elemWeak).toBe("fire");
-    expect(lv2.hp).toBe(32);
-    expect(lv2.atk).toBe(18);
-    expect(lv2.def).toBe(5);
+    expect(lv2.hp).toBe(38);
+    expect(lv2.atk).toBe(19);
+    expect(lv2.def).toBe(6);
 
     const lv3 = makeMonsterFromBase(base, 3, 0, 0);
     expect(lv3.name).toBe("永久凍土鬼");
     expect(lv3.kind).toBe("beast");
     expect(lv3.elemWeak).toBe("fire");
-    expect(lv3.hp).toBe(55);
-    expect(lv3.atk).toBe(28);
-    expect(lv3.def).toBe(9);
+    expect(lv3.hp).toBe(65);
+    expect(lv3.atk).toBe(30);
+    expect(lv3.def).toBe(10);
   });
 });

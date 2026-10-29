@@ -1381,7 +1381,7 @@ describe("doExplosion", () => {
       instantMonsterKill: true,
     });
     expect(p.inventory).toEqual([]);
-    expect(ml.some(m => m.includes("所持していた") && m.includes("割れてなくなった"))).toBe(true);
+    expect(ml.some(m => m.includes("所持していた") && m.includes("炎で割れた"))).toBe(true);
   });
 
   it("自爆のHP1爆発は炎耐性で軽減される", () => {

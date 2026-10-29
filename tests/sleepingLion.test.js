@@ -22,7 +22,7 @@ describe("眠れる獅子系", () => {
     }
   });
 
-  it("視界に入っても起きず、2×2の体へ隣接すると起床してその場に留まる", () => {
+  it("視界に入っても起きず、2×2の体へ隣接しても起きない", () => {
     const lion = makeMonsterFromBase(lionBase, 1, 10, 10);
     const dungeon = makeEmptyDg({ monsters: [lion], visible: visibleMap(), rooms: [] });
     const player = makePlayer({ x: 20, y: 20 });
@@ -32,13 +32,14 @@ describe("眠れる獅子系", () => {
     expect(lion.dormant).toBe(true);
     expect([lion.x, lion.y]).toEqual([10, 10]);
 
+    // 隣接しただけでは起きない（起床は攻撃など何かを受けたときのみ）
     player.x = 9;
     player.y = 10;
     monsterAI(lion, dungeon, player, messages, { moveOnly: true });
-    expect(lion.dormant).toBe(false);
-    expect(lion.aware).toBe(true);
+    expect(lion.dormant).toBe(true);
+    expect(lion.aware).toBeFalsy();
     expect([lion.x, lion.y]).toEqual([10, 10]);
-    expect(messages.join(" ")).toContain("目を覚ました");
+    expect(messages.join(" ")).not.toContain("目を覚ました");
   });
 
   it("被ダメージでも覚醒する", () => {
@@ -66,6 +67,7 @@ describe("眠れる獅子系", () => {
   it("覚醒後の眠れる獅子はHP半分未満でも2ターン後のメテオを詠唱する", () => {
     const lion = makeMonsterFromBase(lionBase, 1, 12, 10, { aware: true });
     lion.dormant = false;
+    lion.alwaysUseSpecial = true; // メテオ詠唱の25%抽選を固定する
     lion.hp = lion.maxHp / 2 - 1;
     const dungeon = makeEmptyDg({ monsters: [lion], visible: visibleMap(), rooms: [] });
     const player = makePlayer({ x: 4, y: 10 });
@@ -80,6 +82,7 @@ describe("眠れる獅子系", () => {
   it("同室で壁に隣接していても認識を保ち、壁越しにメテオを詠唱する", () => {
     const lion = makeMonsterFromBase(lionBase, 1, 12, 10, { aware: true });
     lion.dormant = false;
+    lion.alwaysUseSpecial = true; // メテオ詠唱の25%抽選を固定する
     const rooms = [{ x: 4, y: 5, w: 14, h: 10 }];
     const dungeon = makeEmptyDg({ monsters: [lion], visible: visibleMap(), rooms });
     dungeon.map[11][12] = T.WALL;

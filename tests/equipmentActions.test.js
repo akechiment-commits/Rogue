@@ -75,7 +75,7 @@ describe("外れた飛び道具の着地で起動する罠", () => {
     expect(f.props.endTurn).toHaveBeenCalledOnce();
   });
   it.each([[6, true, 67], [7, false, 100]])("着地の地雷も距離と耐火を考慮する（敵のx:%s、耐火:%s）", (x, protectedByArmor, expectedHp) => {
-    vi.spyOn(Math, "random").mockReturnValue(0.95);
+    vi.spyOn(Math, "random").mockReturnValue(0.05); // 投擲の基礎ミス率0.10未満で確実に外す
     const sword = { id: "projectile", name: "短剣", type: "weapon", atk: 3 };
     const f = fixture([sword], { hp: 100, ...(protectedByArmor ? { armor: { abilities: ["fire_resist"] } } : {}) },
       { throwMode: { idx: 0, mode: "throw" } });
@@ -102,7 +102,7 @@ describe("外れた飛び道具の着地で起動する罠", () => {
 
 describe("外れた壺と落とし穴", () => {
   it("敵の足元の穴へ落ちた壺と敵を次の階へ渡し、元の階へ中身を撒かない", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.95);
+    vi.spyOn(Math, "random").mockReturnValue(0.05); // 投擲の基礎ミス率0.10未満で確実に外す
     const ring = life();
     const pot = { id: "pot", name: "保存の壺", type: "pot", potEffect: "none", capacity: 3, contents: [ring] };
     const fallen = [];
