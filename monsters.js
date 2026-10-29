@@ -1098,7 +1098,7 @@ export const MONS = [
       { name: "シン・ワッカ",       hp: 65,  atk: 30, def: 7,  exp: 180 },
     ],
   },
-  { name: "分裂スライム", hp: 26,  atk: 14, def: 3,  exp: 25,  speed: 1,   tile: 113, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter", dungeonFloors: { beginner: { min: 6, max: 8 }, intermediate: { min: 6, max: 9 }, advanced: { min: 6, max: 14 } },
+  { name: "分裂スライム", hp: 26,  atk: 14, def: 3,  exp: 25,  speed: 1,   tile: 113, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter", dungeonFloors: { beginner: { min: 6, max: 8 }, intermediate: { min: 5, max: 9 }, advanced: { min: 6, max: 14 } },
     levels: [
       { name: "緑分裂スライム",     hp: 52,  atk: 24, def: 6,  exp: 75 },
       { name: "赤分裂スライム",     hp: 95,  atk: 36, def: 10,  exp: 240 },
@@ -1110,7 +1110,7 @@ export const MONS = [
       { name: "弓の達人",           hp: 48,  atk: 36, def: 3, exp: 170, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },
-  { name: "ウルフ",       hp: 18,  atk: 12, def: 1,  exp: 25,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 7, max: 16 } },
+  { name: "ウルフ",       hp: 18,  atk: 12, def: 1,  exp: 25,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null, intermediate: { min: 9, max: 11 }, advanced: { min: 7, max: 16 } },
     levels: [
       { name: "強ウルフ",           hp: 34,  atk: 22, def: 2,  exp: 75,  dungeonFloors: { advanced: { min: 19, max: 22 } } },
       { name: "フェンリル",         hp: 54,  atk: 36, def: 4, exp: 240, dungeonFloors: { advanced: { min: 24, max: 26 } } },
@@ -1180,7 +1180,7 @@ export const MONS = [
       { name: "豪傑九千坊",   hp: 88, atk: 32, def: 9, exp: 250, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
-  { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "同レベルの新たなヤドカリ壺荒らしを容量の残った壺へ押し込む。Lv2は一直線上3マス以内から、Lv3は4マス以内から放物線で投げ込む（外れると隣に出現）。壺を割るか吸い出すとヤドカリ壺荒らしが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "同レベルの新たなヤドカリ壺荒らしを容量の残った壺へ押し込む（1体につき在庫4体まで。残りの在庫がドロップすることはない）。Lv2は一直線上3マス以内から、Lv3は4マス以内から放物線で投げ込む（外れると隣に出現）。壺を割るか吸い出すとヤドカリ壺荒らしが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "大ヤドカリ壺荒らし", hp: 85, atk: 28, def: 22, exp: 200, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "ヤドカリ壺大将", hp: 140, atk: 40, def: 34, exp: 580, dungeonFloors: { legend: { min: 48, max: 50 } } },
@@ -1502,7 +1502,7 @@ export const MONS = [
     ],
   },
   /* ===== ものまね師：隣接キャラの特技を模倣 ===== */
-  { name: "ものまね師",   hp: 28,  atk: 14, def: 3,  exp: 35,  speed: 1,   tile: 248, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 17 }, advanced: { min: 12, max: 24 } },
+  { name: "ものまね師",   hp: 28,  atk: 14, def: 3,  exp: 35,  speed: 1,   tile: 248, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 18 }, advanced: { min: 12, max: 24 } },
     desc: "隣の敵の特技をまねてくる。隣接しているとき高確率で特技を使う。",
     levels: [
       { name: "ものまね名優",     hp: 50,  atk: 22, def: 5,  exp: 85, dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 16, max: 26 } } },
@@ -2287,11 +2287,27 @@ function consumeFailedMonsterSpecial(mon, messages, message) {
   messages.push(`${mon.name}${message}`);
 }
 
+/* ヤドカリ壺荒らしの在庫：1体が押し込み・投げで生み出せるのは4体まで。
+   在庫は単なる残数であり、撃破時にドロップへ変わることはない。 */
+const POT_RAIDER_STOCK_MAX = 4;
+export function potRaiderStockLeft(mon) {
+  if (mon.potRaiderStock == null) mon.potRaiderStock = POT_RAIDER_STOCK_MAX;
+  return Math.max(0, mon.potRaiderStock);
+}
+function consumePotRaiderStock(mon) {
+  if (potRaiderStockLeft(mon) <= 0) return false;
+  mon.potRaiderStock--;
+  return true;
+}
+
 function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   if (potRaiderTargets(player).length === 0) return false;
+  if (potRaiderStockLeft(mon) <= 0) return false;
   mon.turnAttacks++;
   const spawned = makePotRaiderSpawn(mon, player);
-  return insertSpawnedPotRaider(mon, spawned, dungeon, player, messages, luFn);
+  const ok = insertSpawnedPotRaider(mon, spawned, dungeon, player, messages, luFn);
+  if (ok) consumePotRaiderStock(mon);
+  return ok;
 }
 
 /* 生成済みの壺荒らしを、対象の壺へ実際に押し込む（加熱・消費系はその場で撃破）。 */
@@ -2428,6 +2444,7 @@ function enterSpringWithPotRaider(spawned, spr, ml) {
    飛行中の壁で手前に落ち、途中の敵に当たると消滅し、大箱・泉へ入ることもある。 */
 function monsterThrowPotRaider(m, dg, pl, ml, luFn) {
   if (potRaiderTargets(pl).length === 0) return false;
+  if (!consumePotRaiderStock(m)) return false;
   const spawned = makePotRaiderSpawn(m, pl);
   m.turnAttacks++;
   ml.push(`${m.name}が${spawned.name}を投げた！`);
@@ -2545,7 +2562,7 @@ function consumeMonsterProjectileAmmo(mon) {
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
-export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, excludeLarge = false, poolFloor = null, existingMonsters = [] } = {}) {
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false, excludeLarge = false, poolFloor = null, existingMonsters = [], dormant = false } = {}) {
   const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly, { excludeLarge, poolFloor, existingMonsters });
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
@@ -2554,7 +2571,7 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
     ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
-    ...(st.subtype === "sleepingLion" ? { dormant: true, _dormantHp: st.hp } : {}),
+    ...(st.subtype === "sleepingLion" || dormant ? { dormant: true, _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
@@ -3169,10 +3186,10 @@ function safeArrowDrop(x, y, dg) {
 }
 
 /* 落下位置が泉なら泉に落とし、そうでなければ床に置く。posがnullなら消滅 */
-function _monDropWithSpring(pos, item, dg, ml) {
+function _monDropWithSpring(pos, item, dg, ml, pl = null) {
   if (!pos) return;
   const spr = dg.springs?.find(s => s.x === pos.x && s.y === pos.y);
-  if (spr) { soakItemIntoSpring(spr, { ...item, x: pos.x, y: pos.y }, ml, dg, null); }
+  if (spr) { soakItemIntoSpring(spr, { ...item, x: pos.x, y: pos.y }, ml, dg, null, pl); }
   else { dg.items.push({ ...item, x: pos.x, y: pos.y }); }
 }
 
@@ -3191,8 +3208,10 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   /* 矢落下：pierceなら消滅、それ以外は地面/泉に落とす */
   const _dropAr = (px, py, mlx) => {
     if (_isPierce) return;
+    /* 遠投中は敵の弾も落下せず消滅する（プレイヤー側の遠投弾と同じ） */
+    if (getFarcastMode(pl.x, pl.y, dg) === "farcast") return;
     const _d = safeArrowDrop(px, py, dg);
-    _monDropWithSpring(_d, _makeAr(), dg, mlx);
+    _monDropWithSpring(_d, _makeAr(), dg, mlx, pl);
   };
   _resolveBolt(m, dg, pl, ml, null, {
     dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
@@ -3239,7 +3258,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     },
     onSpring: (spr, lx, ly, mlx) => {
       mlx.push(`${m.name}の${_arName}が泉に落ちた！`);
-      soakItemIntoSpring(spr, { ..._makeAr(), x: lx, y: ly }, mlx, dg, null);
+      soakItemIntoSpring(spr, { ..._makeAr(), x: lx, y: ly }, mlx, dg, null, pl);
     },
     onWallStop: _dropAr,
     onFlyOff: _dropAr,
@@ -3299,6 +3318,8 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
   ml.push(`${m.name}が${stoneName}を投げた！`);
 
   const dropMissedStoneAtPlayer = () => {
+    /* 遠投中は敵の投げ物も落下せず消滅する */
+    if (getFarcastMode(pl.x, pl.y, dg) === "farcast") return;
     const x = pl.x, y = pl.y;
     const stone = dropStone();
     /* 直撃を免れた石は足元へ落とし、そこにある床効果へ渡す。 */
@@ -3308,7 +3329,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
     }
     const spring = dg.springs?.find(s => s.x === x && s.y === y);
     if (spring) {
-      soakItemIntoSpring(spring, { ...stone, x, y }, ml, dg, null);
+      soakItemIntoSpring(spring, { ...stone, x, y }, ml, dg, null, pl);
       return;
     }
     const bigbox = dg.bigboxes?.find(b => b.x === x && b.y === y);
@@ -3398,9 +3419,13 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
     }
     const tx = cx + fdx, ty = cy + fdy;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
-      const _sd = safeArrowDrop(lx, ly, dg);
-      _monDropWithSpring(_sd, dropStone(), dg, ml);
-      ml.push(`${stoneName}は壁に当たって落ちた。`);
+      if (getFarcastMode(pl.x, pl.y, dg) === "farcast") {
+        ml.push(`${stoneName}は壁に当たって消えた。`);
+      } else {
+        const _sd = safeArrowDrop(lx, ly, dg);
+        _monDropWithSpring(_sd, dropStone(), dg, ml, pl);
+        ml.push(`${stoneName}は壁に当たって落ちた。`);
+      }
       pushStoneArcAnim(lx, ly);
       return;
     }
@@ -3447,7 +3472,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
   }
 
   const _sd = safeArrowDrop(lx, ly, dg);
-  _monDropWithSpring(_sd, dropStone(), dg, ml);
+  _monDropWithSpring(_sd, dropStone(), dg, ml, pl);
   ml.push(`${stoneName}はどこかへ落ちた。`);
   pushStoneArcAnim(lx, ly);
 }
@@ -4233,11 +4258,13 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
   const result = throwItemAlongLine(m, dg, item, dx, dy, itemThrowerRange(m), ml, pl, luFn, {
     hitChance: 0.82,
     missLandFn: (x, y, missedItem, logs) => {
+      /* 遠投中は敵の投げ物も落下せず消滅する */
+      if (getFarcastMode(pl.x, pl.y, dg) === "farcast") return;
       if (missedItem.type === "charged_fuzzball") {
         placeItemAt(dg, x, y, missedItem, logs, new Set(), 0, pl);
       } else {
         const drop = safeArrowDrop(x, y, dg);
-        _monDropWithSpring(drop, missedItem, dg, logs);
+        _monDropWithSpring(drop, missedItem, dg, logs, pl);
         if (drop) logs.push(`${name}は地面に落ちた。`);
       }
     },
@@ -6195,7 +6222,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
         if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
-        const _depth = Math.max(0, (m.bossTier || 4) * 4);
+        const _depth = Math.max(0, pl.depth ?? (m.bossTier || 4) * 4);
         dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
         ml.push(`${m.name}が魔力で手下を召喚した！`);
         _summoned = true;
@@ -6221,7 +6248,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
           if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
           if (pl.x === _sx && pl.y === _sy) continue;
-          const _depth = Math.max(0, (m.bossTier || 6) * 4);
+          const _depth = Math.max(0, pl.depth ?? (m.bossTier || 6) * 4);
           dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
           _summoned++;
         }
@@ -6304,7 +6331,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
         if (dg.monsters.some(mn => monsterOccupiesCell(mn, _sx, _sy))) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
-        const _depth = Math.max(0, (m.bossTier || 10) * 5);
+        const _depth = Math.max(0, pl.depth ?? (m.bossTier || 10) * 5);
         dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null, excludeLarge: true }));
         _summoned++;
       }
@@ -7938,7 +7965,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ptRange0 = potionThrowRange(m, dg, pl);
       const _ptRdy0 = m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _potRaiderLevel0 = m.monLevel || 1;
-      const _potRaiderRdy0 = m.subtype === "potRaider" && _potRaiderLevel0 >= 2 && !m.sealed &&
+      const _potRaiderRdy0 = m.subtype === "potRaider" && _potRaiderLevel0 >= 2 && !m.sealed && potRaiderStockLeft(m) > 0 &&
         !_plOnBlessedSanc && _rAtks && canSee &&
         ((_potRaiderLevel0 === 2 && _rLine && _rLen >= 2 && _rLen <= 3) ||
          (_potRaiderLevel0 >= 3 && _rLen >= 2 && _rLen <= 4));
@@ -8399,7 +8426,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── ヤドカリ壺荒らし：壺へ潜り込み、壺が割れると再出現する ── */
-    if (m.subtype === "potRaider" && !m.sealed) {
+    if (m.subtype === "potRaider" && !m.sealed && potRaiderStockLeft(m) > 0) {
       const _prAdj = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
       if (_prAdj && _moveOnly) return;
       const _prLvl = m.monLevel || 1;
@@ -8762,7 +8789,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 } else {
                   ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきたが外れた！足元に落ちた。`);
                   const _srDrop = safeArrowDrop(pl.x, pl.y, dg);
-                  _monDropWithSpring(_srDrop, _throwItem, dg, ml);
+                  _monDropWithSpring(_srDrop, _throwItem, dg, ml, pl);
                 }
                 return;
               }

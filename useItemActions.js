@@ -2286,7 +2286,7 @@ export function useItemActions({
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
-      soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef);
+      soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
     } else {
       let _dr;
       withPitfallBag(() => { _dr = placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p); });
@@ -3223,7 +3223,7 @@ export function useItemActions({
               } else {
                 const _msSpr = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
                 const _msBB = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
-                if (_msSpr) soakItemIntoSpring(_msSpr, _stDrop(), ml, dg, null);
+                if (_msSpr) soakItemIntoSpring(_msSpr, _stDrop(), ml, dg, null, p);
                 else if (_msBB) bigboxAddItem(_msBB, _stDrop(), dg, ml);
                 else {
                   const _msft = new Set();
@@ -3347,7 +3347,7 @@ export function useItemActions({
               }
               }
             } else if (_stSpr) {
-              soakItemIntoSpring(_stSpr, _stDrop(), ml, dg, null);
+              soakItemIntoSpring(_stSpr, _stDrop(), ml, dg, null, p);
             } else if (_stBB) {
               bigboxAddItem(_stBB, _stDrop(), dg, ml);
             } else {
@@ -3536,7 +3536,7 @@ export function useItemActions({
           },
           onSpring: _arIsPierce ? null : (spr, lx, ly, mlx) => {
             mlx.push(`${_arName}を射った。`);
-            soakItemIntoSpring(spr, _arDropItem(), mlx, dg, null);
+            soakItemIntoSpring(spr, _arDropItem(), mlx, dg, null, p);
           },
           onWallStop: _arEndDrop,
           onFlyOff: _arEndDrop,
@@ -3920,7 +3920,7 @@ export function useItemActions({
                 const _msSpr2 = dg.springs?.find(s => s.x === _msLx2 && s.y === _msLy2);
                 const _msBB2 = dg.bigboxes?.find(b => b.x === _msLx2 && b.y === _msLy2);
                 if (_msSpr2) {
-                  soakItemIntoSpring(_msSpr2, _invStDrop(), ml, dg, null);
+                  soakItemIntoSpring(_msSpr2, _invStDrop(), ml, dg, null, p);
                 } else if (_msBB2) {
                   bigboxAddItem(_msBB2, _invStDrop(), dg, ml);
                 } else {
@@ -4023,7 +4023,7 @@ export function useItemActions({
                 _invStPeel();
               }
             } else if (_stSpr2) {
-              soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null);
+              soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null, p);
             } else if (_stBB2) {
               bigboxAddItem(_stBB2, _invStDrop(), dg, ml);
             } else {
@@ -4241,7 +4241,7 @@ export function useItemActions({
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
+            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
           } else if (!sprHit) {
             if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
@@ -4372,7 +4372,7 @@ export function useItemActions({
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
+            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
           } else if (_potImprisoned) {
             const _impFt = new Set();
             placeItemAt(dg, lx, ly, it, ml, _impFt, 0, p);
@@ -4724,7 +4724,7 @@ export function useItemActions({
             } else if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);
             } else if (sprHit && !sprHit.kind) {
-              soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
+              soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
             } else if (it.type === "bottle") {
               ml.push(`${resolveItemName(it, dnameRef)}は割れてしまった！`);
             } else {

@@ -6039,7 +6039,7 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
   applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn);
 }
 
-export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
+export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = null) {
   const _dn = (it) => dnFn ? dnFn(it) : resolveItemName(it);
   spr.contents = spr.contents || [];
   if (item.iceCream) {
@@ -6153,6 +6153,8 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     ml.push("泉が干上がった！中のアイテムが飛び出した！");
     const _ft = new Set();
     dg.springs = dg.springs.filter(s => s !== spr);
+    /* 保持されていたモンスターも、他の干上がり経路と同じく放出する */
+    releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, pl, ml);
     for (const _ci of spr.contents) {
       placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
     }
@@ -6247,7 +6249,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
       if (_isBigbox) continue;
       const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
-      soakItemIntoSpring(_spr, item, ml, dg, null);
+      soakItemIntoSpring(_spr, item, ml, dg, null, p);
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       return true;
     }
@@ -6486,7 +6488,7 @@ export function monsterDrop(m, dg, ml, p = null) {
       const _ft = new Set();
       const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
       if (_spr) {
-        soakItemIntoSpring(_spr, _dropItem, ml, dg);
+        soakItemIntoSpring(_spr, _dropItem, ml, dg, null, p);
       } else {
         placeItemAt(dg, m.x, m.y, _dropItem, ml, _ft, 0, p);
       }
@@ -6513,7 +6515,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _ft = new Set();
     for (const it of m.heldItems) {
       const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
-      if (_spr) { soakItemIntoSpring(_spr, it, ml, dg); }
+      if (_spr) { soakItemIntoSpring(_spr, it, ml, dg, null, p); }
       else { placeItemAt(dg, m.x, m.y, it, ml, _ft, 0, p); }
     }
     m.heldItems = [];
@@ -6538,7 +6540,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _ft = new Set();
     for (const it of m.synthBox.contents) {
       const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
-      if (_spr) { soakItemIntoSpring(_spr, it, ml, dg); }
+      if (_spr) { soakItemIntoSpring(_spr, it, ml, dg, null, p); }
       else { placeItemAt(dg, m.x, m.y, it, ml, _ft, 0, p); }
     }
     m.synthBox.contents = [];
@@ -6613,7 +6615,7 @@ export function monsterDrop(m, dg, ml, p = null) {
   for (const _drop of drops) {
     const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
     if (_spr) {
-      soakItemIntoSpring(_spr, _drop, ml, dg);
+      soakItemIntoSpring(_spr, _drop, ml, dg, null, p);
     } else {
       placeItemAt(dg, m.x, m.y, _drop, ml, _ft, 0, p);
     }
@@ -7117,7 +7119,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (item.type === "food" && item.yabai) {
         const _yDmg = rng(15, 25);
         p.hp -= _yDmg;
-        p.deathCause = "跳ね返されたヤバイ食料に当たって";
+        if (reflectedBy?.name) p.deathCause = "跳ね返されたヤバイ食料に当たって";
+        else if (killerMon?.name) p.deathCause = `${killerMon.name}が投げたヤバイ食料に当たって`;
         mlx.push(`ヤバイ食料がぶつかって食べさせられた！さらに${_yDmg}ダメージ！`);
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
@@ -7210,7 +7213,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
   if (res.spring) {
-    soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
+    soakItemIntoSpring(res.spring, item, ml, dg, nameFn, p);
   } else if (res.bigbox) {
     if (bbFn) bbFn(res.bigbox, item, dg, ml, {
       killerMon, sourceIsPlayer: sourceIsPlayer(), fireTrapFn: opts.fireTrapFn,
@@ -7619,7 +7622,7 @@ function landCrawlingBombAsItem(sp, dg, p, ml) {
   const _ft = new Set();
   const _spring = dg.springs?.find(s => s.x === sp.x && s.y === sp.y);
   if (_spring) {
-    soakItemIntoSpring(_spring, _bomb, ml, dg, null);
+    soakItemIntoSpring(_spring, _bomb, ml, dg, null, p);
     ml.push(`${sp.name}は泉に入って残った。`);
     return;
   }

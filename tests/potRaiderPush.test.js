@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
-import { breakBigboxContents } from "../items.js";
+import { breakBigboxContents, soakItemIntoSpring } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -272,5 +272,74 @@ describe("ヤドカリ壺荒らしの押し込み", () => {
     expect(pot.confinedMonsters).toHaveLength(0);
     expect(messages.some((m) => m.includes("加熱の壺に押し込んだ"))).toBe(true);
     expect(dg.monsters.filter((m) => m !== mon && m.hp > 0)).toHaveLength(0);
+  });
+
+  it("泉にアイテムが5個入って干上がると、保持中の壺荒らしも放出される", () => {
+    const held = makeRaider(3, 0, 0);
+    const spr = {
+      x: 5, y: 5,
+      contents: [
+        { id: "i1", name: "薬草", type: "food" },
+        { id: "i2", name: "薬草", type: "food" },
+        { id: "i3", name: "薬草", type: "food" },
+        { id: "i4", name: "薬草", type: "food" },
+      ],
+      confinedMonsters: [JSON.parse(JSON.stringify(held))],
+    };
+    const player = makePlayer({ x: 3, y: 3 });
+    const dg = makeEmptyDg({ rooms: [], monsters: [], springs: [spr] });
+    const messages = [];
+
+    soakItemIntoSpring(spr, { id: "i5", name: "薬草", type: "food" }, messages, dg, null, player);
+
+    expect(dg.springs).toHaveLength(0);
+    const released = dg.monsters.find((m) => m.baseKind === "potRaider" && m.hp > 0);
+    expect(released).toBeTruthy();
+    expect(released.monLevel).toBe(3);
+  });
+
+  it("在庫4体までしか押し込めず、5体目は失敗する", () => {
+    const mon = makeRaider(1, 5, 5);
+    const pots = Array.from({ length: 5 }, (_, i) => ({
+      id: `imp-${i}`, name: "とじこめの壺", type: "pot", potEffect: "imprison", capacity: 3, contents: [], confinedMonsters: [],
+    }));
+    const player = makePlayer({ x: 6, y: 5, inventory: pots });
+    const dg = makeEmptyDg({ rooms: [], monsters: [mon] });
+    const messages = [];
+    const confinedTotal = () => pots.reduce((n, p) => n + p.confinedMonsters.length, 0);
+
+    for (let i = 0; i < 4; i++) {
+      mon.turnAttacks = 0;
+      monsterAI(mon, dg, player, messages, { attackOnly: true });
+    }
+    expect(confinedTotal()).toBe(4);
+    expect(mon.potRaiderStock).toBe(0);
+
+    mon.turnAttacks = 0;
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+    expect(confinedTotal()).toBe(4);
+  });
+
+  it("Lv3の投げも在庫を消費し、在庫0では投げない", () => {
+    const mon = makeRaider(3, 5, 5);
+    mon.potRaiderStock = 1;
+    const pot = { id: "imp-t", name: "とじこめの壺", type: "pot", potEffect: "imprison", capacity: 3, contents: [], confinedMonsters: [] };
+    const player = makePlayer({ x: 8, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    const messages = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      monsterAI(mon, dg, player, messages, { moveOnly: true });
+      monsterAI(mon, dg, player, messages, { attackOnly: true });
+      expect(mon.potRaiderStock).toBe(0);
+      expect(pot.confinedMonsters).toHaveLength(1);
+
+      mon.turnAttacks = 0;
+      monsterAI(mon, dg, player, messages, { moveOnly: true });
+      monsterAI(mon, dg, player, messages, { attackOnly: true });
+      expect(pot.confinedMonsters).toHaveLength(1);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });
