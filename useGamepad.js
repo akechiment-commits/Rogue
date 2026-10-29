@@ -163,6 +163,21 @@ export function useGamepad({
   getLookDesc,
   setMsgs,
 }) {
+  /* 呼び出し側所有の参照は、未指定の呼び出しでも落ちないよう補う
+     （モード系の値は下で内部参照へ写すが、参照そのものは Game.jsx 側も読み書きする） */
+  if (!aRef) aRef = { current: null };
+  if (!shiftRef) shiftRef = { current: false };
+  if (!keyboardDashRef) keyboardDashRef = { current: false };
+  if (!gamepadDashRef) gamepadDashRef = { current: false };
+  if (!keyboardShiftRef) keyboardShiftRef = { current: false };
+  if (!gamepadShiftRef) gamepadShiftRef = { current: false };
+  if (!arrowHeldRef) arrowHeldRef = { current: false };
+  if (!invActRef) invActRef = { current: null };
+  if (!showInvRef) showInvRef = { current: false };
+  if (!dropModeRef) dropModeRef = { current: false };
+  if (!spellListModeRef) spellListModeRef = { current: false };
+  if (!spellConfirmRef) spellConfirmRef = { current: null };
+  if (!msgsRef) msgsRef = { current: [] };
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickSel, setQuickSel] = useState(0);
   const [controllerGuideOpen, setControllerGuideOpen] = useState(false);
