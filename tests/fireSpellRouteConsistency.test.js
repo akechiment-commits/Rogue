@@ -26,17 +26,24 @@ function cast(route, size, near = false, barrier = 0, level = 1) {
   if (route === "book") actions.doReadSpellbook(0);
   else actions.execDirection(1, 0);
   return { playerHp: player.hp, monsterHp: monster.hp, barrier: monster.barrier,
-    mp: player.mp, animations: drainAnims(), endTurn: props.endTurn };
+    mp: player.mp, spellLevel: player.spellLevels.fire_bolt, animations: drainAnims(), endTurn: props.endTurn };
 }
 
 describe("炎の魔法の通常詠唱と魔法書発動", () => {
-  it.each([1, 2, 3].flatMap(size => [1, 3, 6].map(level => [size, level])))("%sマス角の敵にLv%s・同じ乱数なら同じダメージを与える", (size, level) => {
+  it.each([1, 2, 3].flatMap(size => [1, 3, 6].map(level => [size, level])))("%sマス角の敵への魔法書動作をLv%sで確認する", (size, level) => {
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     const manual = cast("manual", size, false, 0, level);
     const book = cast("book", size, false, 0, level);
-    expect(book.monsterHp).toBe(manual.monsterHp);
-    if (level === 1) expect(manual.monsterHp).toBe({ 1: 964, 2: 931, 3: 909 }[size]);
-    expect(book.mp).toBe(manual.mp);
+    if (level === 1) {
+      expect(book.monsterHp).toBe(manual.monsterHp);
+      expect(manual.monsterHp).toBe({ 1: 964, 2: 931, 3: 909 }[size]);
+      expect(book.mp).toBe(manual.mp);
+    } else {
+      expect(book.monsterHp).toBe(1000);
+      expect(book.mp).toBe(100);
+      expect(book.spellLevel).toBe(level);
+      expect(book.animations).toHaveLength(0);
+    }
     expect(book.endTurn).toHaveBeenCalledTimes(1);
   });
 

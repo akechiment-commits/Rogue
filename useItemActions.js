@@ -2572,7 +2572,7 @@ export function useItemActions({
     let _autoSpellLevel = 1;
     let _autoCastEnabled = true;
 
-    /* 魔法書は読むと習得した魔法がその場で発動する。識別状態はこの処理に影響しない。 */
+    /* 新規習得した魔法だけを読む場で発動する。既習得魔法のレベルアップ経路からは呼ばない。 */
     const _autoCastReadSpell = (spellId, spellLevel) => {
       const _spell = SPELLS.find((spell) => spell.id === spellId);
       if (!_spell || _spell.debug || _spell.specialBook) return;
@@ -2732,8 +2732,7 @@ export function useItemActions({
           const _curLv = p.spellLevels[_tgt.id] || 1;
           const _newLv = _curLv + 1;
           p.spellLevels[_tgt.id] = _newLv;
-          _autoSpellId = _tgt.id;
-          _autoSpellLevel = _newLv;
+          _autoCastEnabled = false;
           ml.push(`${_bookName}を読んだ。呪いで魔力が乱れ「${_tgt.name}」がレベルアップした！(Lv.${_newLv})【呪】`);
         } else {
           p.spells = [...p.spells, _tgt.id];
@@ -2761,8 +2760,7 @@ export function useItemActions({
         const _newLv = Math.min(6, _curLv + _gain);
         p.spellLevels[it.spell] = _newLv;
         p.inventory.splice(idx, 1);
-        _autoSpellId = it.spell;
-        _autoSpellLevel = _newLv;
+        _autoCastEnabled = false;
         const _newCost = _spellCost(spellDef, _newLv);
         ml.push(`${_bookName}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})${it.blessed ? "【祝】" : ""}`);
       }
