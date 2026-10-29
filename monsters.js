@@ -10,6 +10,7 @@ import {
   getVenomStingOriginAndDir,
   chiranikuttsunnokuVenomSting,
   chiranikuttsunnokuSharpStrike,
+  setChiranikuCombatDeps,
 } from './chiranikuttsunnoku.js';
 import {
   canUseTaisaijinSpecial,
@@ -17,6 +18,7 @@ import {
   taisaijinHypnosis,
   taisaijinBlazeSpike,
   taisaijinRefresh,
+  setTaisaijinCombatDeps,
 } from './taisaijin.js';
 import {
   canUseOhplentySpecial,
@@ -59,12 +61,17 @@ import {
   legendMonsterSpawnWeight,
   legendMonsterAffinityMultiplier,
 } from "./legendMonsterRules.js";
+import { trapPoolForDungeon } from "./dungeonContent.js";
 import { isWanderingNpc } from "./wanderingAdventurer.js";
 import { beginNpcRetaliation } from "./npcRetaliation.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
 } from "./monsterBuffs.js";
+
+/* ボスモジュールへ戦闘関数を登録する（循環依存の回避。関数宣言は巻き上げられるため、この時点で参照できる） */
+setChiranikuCombatDeps({ _resolveBolt, hasLOS, monsterAttackPlayer });
+setTaisaijinCombatDeps({ hasLOS });
 
 const MONSTER_SPECIAL_RATE = Object.freeze({
   ranged: 0.50,
@@ -3426,6 +3433,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     homingTarget = null,
     bypassDodgemole = false,
     skipProjectileAnim = false,
+    startX = null,
+    startY = null,
   } = opts;
   /* 風穴で方向が変わるため let で保持（opts から分割代入した dx,dy） */
   dx = Math.sign(dx || 0);
@@ -3495,7 +3504,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
 
   let _plHit = false;
   let _lx = m.x, _ly = m.y;
-  let _cx = m.x, _cy = m.y; /* 風で曲がるため現在位置を積算 */
+  let _cx = startX ?? m.x, _cy = startY ?? m.y; /* 風で曲がるため現在位置を積算。startX/startY は大型ボスの体セルなど発射起点の上書き用 */
   let _windAnnounced = false;
   for (let _d = 1; _d <= maxRange; _d++) {
     /* 風穴：現在マス／進入先で進行方向を上書きしてから1マス進む */
@@ -3614,7 +3623,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
         continue;
       }
-      if (checkMonsterEvasion(_mon, { baseMissRate: 0.05 })) {
+      /* 回復役（potionhealer）が味方へ投げる回復薬は必中：対象モンスターの回避で外れない */
+      if (checkMonsterEvasion(_mon, { baseMissRate: 0.05, sureHit: m.subtype === "potionhealer" })) {
         ml.push(_mon.baseKind === "boss_mireu" ? `${_mon.name}は攻撃をかわした！` : `${_mon.name}への${boltName}は外れた！`);
         _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
         continue;
@@ -3788,7 +3798,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
 
   let _hit = false;
   let _cx = m.x, _cy = m.y;
-  for (let _d = 1; _d < range; _d++) {
+  for (let _d = 1; _d <= range; _d++) {
     const _st = stepProjectile(dg, _cx, _cy, dx, dy, { wind: false });
     dx = _st.dx; dy = _st.dy;
     const _tx = _st.x, _ty = _st.y;
@@ -4921,7 +4931,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         if (dg.map[ny]?.[nx] !== T.FLOOR) continue;
         if (dg.traps?.some((t) => t.x === nx && t.y === ny)) continue;
         if (nx === pl.x && ny === pl.y) continue;
-        const tmpl = pick(TRAPS);
+        const tmpl = pick(trapPoolForDungeon(dg.dungeonType ?? null, Math.max(1, Math.floor(Number(pl?.depth) || 1))));
         if (!tmpl) break;
         dg.traps.push({ ...tmpl, id: uid(), x: nx, y: ny, revealed: false });
         m.turnAttacks++;
@@ -6667,13 +6677,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           ml.push(`${m.name}が罠を仕掛けようとしたが失敗した！`);
           return;
         }
-        /* 足元にすでに罠があれば別の種類を選ぶ */
+        /* 足元にすでに罠があれば別の種類を選ぶ（候補はダンジョンの出現制限に従う） */
         const _existTrap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
-        let _candidates = TRAPS;
+        const _trapPool = trapPoolForDungeon(dg.dungeonType ?? null, Math.max(1, Math.floor(Number(pl?.depth) || 1)));
+        let _candidates = _trapPool;
         if (_existTrap) {
-          _candidates = TRAPS.filter(t => t.effect !== _existTrap.effect);
+          _candidates = _trapPool.filter(t => t.effect !== _existTrap.effect);
           /* 全部同じ種類（理論上ありえないが安全策）なら先頭を除く */
-          if (_candidates.length === 0) _candidates = TRAPS.slice(1);
+          if (_candidates.length === 0) _candidates = _trapPool.slice(1);
           /* 既存の罠を除去して新しい罠に置き換える（仕掛け直しなのでアイテムは出さない） */
           removeTrap(dg, _existTrap, ml, { skipLoot: true, p: pl });
         }
@@ -8278,9 +8289,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               }
               if (!_placed) { _wx = _tgt.x; _wy = _tgt.y; }
             } else {
-              const _room = dg.rooms[rng(0, dg.rooms.length - 1)];
-              _wx = rng(_room.x, _room.x + _room.w - 1);
-              _wy = rng(_room.y, _room.y + _room.h - 1);
+              /* 行き先は床マスだけから選ぶ（部屋の矩形そのままだと壁・水の中や他個体と重なる） */
+              const _tpDst = randomTeleportDest(dg, m.x, m.y,
+                (x, y) => !(x === pl.x && y === pl.y) && !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, x, y)));
+              if (_tpDst) { _wx = _tpDst.x; _wy = _tpDst.y; }
+              else { _wx = m.x; _wy = m.y; }
             }
             m.x = _wx; m.y = _wy;
           }
@@ -8606,7 +8619,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_healTarget.kind === "undead") {
           _healTarget.hp -= _heal;
           ml.push(`${m.name}が${_healTarget.name}に回復魔法をかけたが逆効果だ！${_heal}ダメージ！`);
-          if (_healTarget.hp <= 0) killMonster(_healTarget, dg, pl, ml, _luFn);
+          if (_healTarget.hp <= 0) killMonster(_healTarget, dg, pl, ml, _luFn, false, m);
         } else {
           _healTarget.hp = Math.min(_healTarget.maxHp, _healTarget.hp + _heal);
           ml.push(`${m.name}が${_healTarget.name}を回復した！(+${_heal}HP)`);
@@ -8717,23 +8730,29 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── ruster（錆虫等）：攻撃時に武器か防具を錆びさせる ── */
-    if (m.subtype === "ruster" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+    if (m.subtype === "ruster" && !m.sealed && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       if (_moveOnly) return;
       if (_plOnSanc) return;
       if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
-        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
-        /* 錆び効果：武器→防具の順で50%確率 */
-        const _rstCands = [];
-        if (pl.weapon && !hasAbility(pl.weapon, "no_degrade")) _rstCands.push(pl.weapon);
-        if (pl.armor  && !hasAbility(pl.armor,  "no_degrade")) _rstCands.push(pl.armor);
-        if (_rstCands.length > 0 && Math.random() < MONSTER_SPECIAL_RATE.rust) {
-          const _rt = pick(_rstCands);
-          const _op = _rt.plus || 0;
-          _rt.plus = _op - 1;
-          const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
-          ml.push(`${m.name}の体液で${_rt.name}が錆びた！(${_fpp(_op)}→${_fpp(_rt.plus)})`);
-        }
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, {
+          onPlayerHit: (dmg, mon) => {
+            _onHit?.(dmg, mon);
+            /* 錆び効果：武器→防具の順で50%確率（命中時のみ付随する） */
+            const _rstCands = [];
+            if (pl.weapon && !hasAbility(pl.weapon, "no_degrade")) _rstCands.push(pl.weapon);
+            if (pl.armor  && !hasAbility(pl.armor,  "no_degrade")) _rstCands.push(pl.armor);
+            if (_rstCands.length > 0 && Math.random() < MONSTER_SPECIAL_RATE.rust) {
+              const _rt = pick(_rstCands);
+              const _op = _rt.plus || 0;
+              _rt.plus = _op - 1;
+              const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
+              ml.push(`${m.name}の体液で${_rt.name}が錆びた！(${_fpp(_op)}→${_fpp(_rt.plus)})`);
+            }
+          },
+          onPlayerMiss: _onMiss,
+          luFn: _luFn,
+        });
       }
       return;
     }

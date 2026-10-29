@@ -1,4 +1,7 @@
-import { hasLOS } from './monsters.js';
+/* monsters.js 本体との循環依存を避けるため、視線関数は monsters.js 側から登録してもらう */
+let _combatDeps = null;
+export function setTaisaijinCombatDeps(deps) { _combatDeps = deps; }
+function hasLOS(...args) { return _combatDeps.hasLOS(...args); }
 import { inMagicSealRoom } from './items.js';
 import { applyMonsterFlameMantle, resolveParalysisHit } from './statusDuration.js';
 import { isStatusImmune } from './statusImmunity.js';

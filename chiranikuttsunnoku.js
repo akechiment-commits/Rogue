@@ -10,7 +10,12 @@ import { applyPlayerPoison, resolveParalysisHit } from './statusDuration.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { pushSplashAnim, pushAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
-import { _resolveBolt, hasLOS, monsterAttackPlayer } from './monsters.js';
+/* monsters.js 本体との循環依存を避けるため、戦闘関数は monsters.js 側から登録してもらう（fixtures.js の setStatueSpawnHandler と同じ方式） */
+let _combatDeps = null;
+export function setChiranikuCombatDeps(deps) { _combatDeps = deps; }
+function _resolveBolt(...args) { return _combatDeps._resolveBolt(...args); }
+function hasLOS(...args) { return _combatDeps.hasLOS(...args); }
+function monsterAttackPlayer(...args) { return _combatDeps.monsterAttackPlayer(...args); }
 
 /**
  * ちらにくつんのくが特技を使用可能か（封印・睡眠・金縛り・石化・凍結・混乱・盲目等の状態異常中でないか）
@@ -153,13 +158,11 @@ export function getVenomStingOriginAndDir(monster, dungeon, player) {
 export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
   const effAtk = (m.sharpStrikeTurns || 0) > 0 ? Math.floor(m.atk * 1.5) : m.atk;
 
-  const shooterFake = {
-    ...m,
-    x: aim.origin.x,
-    y: aim.origin.y,
-  };
-
-  _resolveBolt(shooterFake, dg, pl, ml, luFn, {
+  /* 発射起点だけを尾の体セルへずらし、射手の同一性は実体 m のままにする
+     （コピーを射手にすると自分の体を別個体と誤認し、風で戻った弾が実体でなくコピーを撃破処理してしまう） */
+  _resolveBolt(m, dg, pl, ml, luFn, {
+    startX: aim.origin.x,
+    startY: aim.origin.y,
     dx: aim.dx,
     dy: aim.dy,
     baseRange: aim.dist,
