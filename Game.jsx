@@ -5922,8 +5922,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doDash,
     dead,
     showInv,
-    setShowInv,
-    setSelIdx,
     sortInventory,
     dropModeRef,
     setDropMode,

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   BTN,
   A_TAP_MS,
-  A_DOUBLE_TAP_MS,
   MOVE_REPEAT_MS,
   MOVE_REPEAT_DELAY_MS,
   GAMEPLAY_MOVE_REPEAT_MS,
@@ -119,8 +118,6 @@ export function useGamepad({
   doDash,
   dead,
   showInv,
-  setShowInv,
-  setSelIdx,
   sortInventory,
   dropModeRef,
   setDropMode,
@@ -210,7 +207,6 @@ export function useGamepad({
   const prevBtnRef = useRef({});
   const aDownAtRef = useRef(0);
   const aUsedDashRef = useRef(false);
-  const lastInventoryTapAtRef = useRef(0);
   const waitHeldRef = useRef(false);
   const waitStoppedRef = useRef(false);
   const waitRepeatAtRef = useRef(0);
@@ -410,10 +406,6 @@ export function useGamepad({
 
       const next = snapshotButtons(gp);
       const prev = prevBtnRef.current;
-      if (lastInventoryTapAtRef.current > 0 &&
-          (!showInvRef.current || now - lastInventoryTapAtRef.current > A_DOUBLE_TAP_MS)) {
-        lastInventoryTapAtRef.current = 0;
-      }
 
       if (showSoundRef.current) {
         setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
@@ -601,24 +593,6 @@ export function useGamepad({
         else if (edgeDown(prev, next, BTN.Y)) openMsgLog();
       }
 
-      /* インベントリを開いた直後のA二度押しで魔法リストへ切り替える。 */
-      if (
-        edgeDown(prev, next, BTN.A) && !lt && !dead && showInvRef.current &&
-        lastInventoryTapAtRef.current > 0 && now - lastInventoryTapAtRef.current <= A_DOUBLE_TAP_MS
-      ) {
-        lastInventoryTapAtRef.current = 0;
-        aDownAtRef.current = now;
-        aUsedDashRef.current = true;
-        setShowInv?.(false);
-        showInvRef.current = false;
-        setSelIdx?.(null);
-        setSpellMenuSel?.(0);
-        setSpellListMode?.(true);
-        spellListModeRef.current = true;
-        prevBtnRef.current = next;
-        return;
-      }
-
       /* A: メニュー中=キャンセル / タップ=インベントリ / 長押し=ダッシュ修飾 */
       if (edgeDown(prev, next, BTN.A) && !lt) {
         aDownAtRef.current = now;
@@ -645,8 +619,6 @@ export function useGamepad({
           !dead
         ) {
           act?.("inventory");
-          lastInventoryTapAtRef.current = now;
-          showInvRef.current = true;
         }
         aDownAtRef.current = 0;
       }
@@ -718,6 +690,14 @@ export function useGamepad({
       /* Start: 登録アイテム */
       if (edgeDown(prev, next, BTN.START) && !dead && !anyModalUi()) {
         tryRegisteredItem();
+      }
+
+      /* R3: 通常プレイ中に魔法リストを直接開く。 */
+      if (edgeDown(prev, next, BTN.R3) && !lt && !dead && !anyModalUi() && !facingModeRef.current) {
+        setSpellMenuSel?.(0);
+        setSpellListMode?.(true);
+        spellListModeRef.current = true;
+        moveHeldRef.current = null;
       }
 
       /* 右スティック: 見渡す */
@@ -875,8 +855,6 @@ export function useGamepad({
     act,
     doDash,
     dead,
-    setShowInv,
-    setSelIdx,
     setSpellListMode,
     setSpellMenuSel,
     sortInventory,
