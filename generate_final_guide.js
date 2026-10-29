@@ -1150,6 +1150,7 @@ for (const sz of RAW_SIZES) {
   foodItemData.push(['', sz.l, `満腹度+${sz.v}（生→${Math.floor(sz.v/2)}）`, sz.w]);
 }
 foodItemData.push(['', '超特大', '満腹度+120（生→60）※満腹の大箱で特大を強化した場合のみ', '-']);
+foodItemData.push(['サイズ表示', '普通の', '内部サイズは通常として保持するが、食料名にはサイズ語を付けない。', '腐敗などの状態接頭語が付いても同じ。別サイズへ変わると該当するサイズ語を表示する。']);
 
 // サイズ（調理済み）
 foodItemData.push(['', '', '', '']);
