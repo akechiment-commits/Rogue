@@ -3150,13 +3150,8 @@ function _arrowBlocked(x, y, dg) {
   return false;
 }
 function safeArrowDrop(x, y, dg) {
-  if (!_arrowBlocked(x, y, dg)) return { x, y };
-  /* 周辺マスを探索して障害物のない床を返す */
-  const DRO = [
-    [0,-1],[0,1],[-1,0],[1,0],
-    [-1,-1],[-1,1],[1,-1],[1,1],
-    [0,-2],[0,2],[-2,0],[2,0],
-  ];
+  /* 落下先の探索順は標準のDRO（placeItemAtと同一）に合わせる。
+     [0,0]の自マスから左・右・上・下、斜め、2マス先まで同順に探す。 */
   for (const [ddx, ddy] of DRO) {
     const nx = x + ddx, ny = y + ddy;
     if (!inBounds(nx, ny)) continue;
