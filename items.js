@@ -10225,6 +10225,23 @@ function _foodSizedName(item) {
   return base;
 }
 
+/** 食料の状態・効果接頭語を保ったままサイズ名を組み直す。 */
+export function foodNameForSize(item, sizeLabel) {
+  if (item?.type !== "food" || !item.name) return null;
+  const base = _foodDisplayBaseName(item);
+  if (!base) return null;
+  const baseIndex = item.name.lastIndexOf(base);
+  if (baseIndex < 0) return null;
+  let prefix = item.name.slice(0, baseIndex);
+  const oldSize = item.sizeLabel;
+  if (oldSize) {
+    const sizeIndex = prefix.lastIndexOf(oldSize);
+    if (sizeIndex >= 0) prefix = prefix.slice(0, sizeIndex) + prefix.slice(sizeIndex + oldSize.length);
+  }
+  const suffix = item.name.slice(baseIndex + base.length);
+  return `${prefix}${sizeLabel && sizeLabel !== "普通の" ? sizeLabel : ""}${base}${suffix}`;
+}
+
 /** 通常の水で腐敗・焦げ状態を戻す。腐敗で失われた食料効果は戻らない。 */
 function restoreFoodWithWater(item, ml) {
   if (item?.type !== "food" || (!item.rotten && !item.burnt && !item.yabai)) return false;

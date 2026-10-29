@@ -35,7 +35,7 @@ import {
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
+  hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
@@ -4925,15 +4925,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const oldName = item.name;
               const cur = szLevels[si];
               const next = szLevels[si + 1];
-              if (_hasSzLabel && item._foodBase && item._foodEfLabel) {
-                /* 新形式：effectLabel + (sizeLabel ≠ 普通の ? sizeLabel : "") + baseName で再構築 */
-                const efStart = item.name.indexOf(item._foodEfLabel);
-                const cookPfx = efStart > 0 ? item.name.slice(0, efStart) : "";
-                item.name = cookPfx + item._foodEfLabel + (next.l === "普通の" ? "" : next.l) + item._foodBase;
-              } else {
-                /* 旧形式または_foodBase未保持：名前の文字列置換 */
-                item.name = item.name.replace(cur.l, next.l === "普通の" ? "" : next.l);
-              }
+              const resizedName = foodNameForSize(item, next.l);
+              item.name = resizedName ?? item.name.replace(cur.l, next.l === "普通の" ? "" : next.l);
               item.sizeLabel = next.l;
               item.value = Math.round((item.value * next.v) / cur.v);
               ml.push(`${_idn}が大きくなった！→${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}`);
