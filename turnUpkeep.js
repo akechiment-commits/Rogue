@@ -211,8 +211,9 @@ export function advanceEarlyStatusTimers(player, messages) {
       player.deathCause = player.poisonSourceName
         ? `${player.poisonSourceName}の毒により`
         : "毒により";
-      player.hp--;
-      messages.push("毒に冒されている！1ダメージ！");
+      const poisonDamage = Math.max(1, Math.floor(player.hp * 0.03));
+      player.hp -= poisonDamage;
+      messages.push(`毒に冒されている！${poisonDamage}ダメージ！`);
     }
     if (player.poisonedTurns <= 0) {
       player.poisoned = false;
