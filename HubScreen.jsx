@@ -122,6 +122,15 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   const [actionSel, setActionSel] = useState(0);
   const [showDescIdx, setShowDescIdx] = useState(null);
   const [checkedIdxs, setCheckedIdxs] = useState(new Set());
+  /* 単品操作でリストから1つ消えたとき、チェック済み番号を同じアイテムに追随させる */
+  const remapCheckedAfterRemoval = (set, removedIdx) => {
+    const n = new Set();
+    for (const i of set) {
+      if (i < removedIdx) n.add(i);
+      else if (i > removedIdx) n.add(i - 1);
+    }
+    return n;
+  };
   const [sellConfirmOpen, setSellConfirmOpen] = useState(false);
   const [sellConfirmSel, setSellConfirmSel] = useState(0); // 0=はい 1=いいえ
   const [expandFocused, setExpandFocused] = useState(false);
@@ -182,7 +191,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       };
     });
     setFocusIdx(p => Math.max(0, p - 1)); setActionSel(0); setShowDescIdx(null);
-    setCheckedIdxs(prev => { const n = new Set(prev); n.delete(idx); return n; });
+    setCheckedIdxs(prev => remapCheckedAfterRemoval(prev, idx));
   };
 
   const moveToCarry = (idx) => {
@@ -198,7 +207,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     });
     setFocusIdx(p => Math.min(p, Math.max(0, wh.length - 2)));
     setActionSel(0); setShowDescIdx(null);
-    setCheckedIdxs(prev => { const n = new Set(prev); n.delete(idx); return n; });
+    setCheckedIdxs(prev => remapCheckedAfterRemoval(prev, idx));
   };
 
   const sellFromWarehouse = (idx) => {
@@ -217,7 +226,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     });
     setFocusIdx(p => Math.min(p, Math.max(0, wh.length - 2)));
     setActionSel(0); setShowDescIdx(null);
-    setCheckedIdxs(prev => { const n = new Set(prev); n.delete(idx); return n; });
+    setCheckedIdxs(prev => remapCheckedAfterRemoval(prev, idx));
   };
 
   const bulkMoveToCarry = () => {
