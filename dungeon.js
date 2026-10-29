@@ -870,7 +870,7 @@ function carveL(map, x1, y1, x2, y2) {
   for (let y = yA; y <= yB; y++) if (map[y]?.[x2] === T.WALL) map[y][x2] = T.FLOOR;
 }
 function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dungeonType = null, spawnOpts = {}) {
-  const _pickOpts = { excludeItemMimic: !!spawnOpts.excludeItemMimic };
+  const _pickOpts = { excludeItemMimic: !!spawnOpts.excludeItemMimic, existingMonsters: spawnOpts.existingMonsters ?? [] };
   /* waterOnlyモンスターは水タイル・泉以外には出現しない。非水タイルの場合は通常モンスターを選び直す */
   let base, spawnLevel;
   for (let _mi = 0; _mi < 8; _mi++) {
@@ -3643,7 +3643,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       map[my]?.[mx] === T.FLOOR &&
       !mons.some((m) => m.x === mx && m.y === my)
     ) {
-      mons.push(mkMon(depth, mx, my, 0.12, null, null, dungeonType));
+      mons.push(mkMon(depth, mx, my, 0.12, null, null, dungeonType, { existingMonsters: mons }));
     }
   }
   const items = [];

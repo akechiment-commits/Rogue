@@ -54,7 +54,8 @@ import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import { trackItem, trackTrap } from "./DiscoveryTracker.js";
-import { advancedMonsterAllowed, advancedMonsterSpawnLevel } from "./advancedMonsterRules.js";
+import { advancedMonsterAllowed, advancedMonsterSpawnLevel, advancedMonsterAffinityMultiplier } from "./advancedMonsterRules.js";
+import { intermediateMonsterAllowed, intermediateMonsterSpawnLevel, intermediateMonsterPackMultiplier } from "./intermediateMonsterRules.js";
 import {
   legendMonsterAllowed,
   legendMonsterSpawnLevel,
@@ -1899,7 +1900,15 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
         legendMonsterSpawnWeight(monster.baseKind, floor) *
         legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
       ))
-      : pick(eligible)
+      : dungeonType === "advanced"
+        ? pickWeightedMonster(eligible, (monster) => (
+          advancedMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+        ))
+        : dungeonType === "intermediate"
+          ? pickWeightedMonster(eligible, (monster) => (
+            intermediateMonsterPackMultiplier(monster.baseKind, existingMonsters)
+          ))
+          : pick(eligible)
     : (fallback[0] ?? MONS[0]);
 
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
@@ -1930,6 +1939,7 @@ function isMonsterDefAllowedAtFloor(base, floor, dungeonType = null, { allowFloo
   }
   if (dungeonType === "advanced") return advancedMonsterAllowed(base.baseKind, floor);
   if (dungeonType === "legend") return legendMonsterAllowed(base.baseKind, floor);
+  if (dungeonType === "intermediate") return intermediateMonsterAllowed(base.baseKind, floor);
   const df = dungeonType ? base.dungeonFloors?.[dungeonType] : undefined;
   if (df === null) return false; // このダンジョンには出現しない
   const minF = df?.min !== undefined ? df.min : base.minFloor;
@@ -1961,6 +1971,7 @@ function monsterSpawnLevelAtFloor(base, floor, dungeonType = null, { allowFloode
   }
   if (dungeonType === "advanced") return advancedMonsterSpawnLevel(base, floor);
   if (dungeonType === "legend") return legendMonsterSpawnLevel(base, floor);
+  if (dungeonType === "intermediate") return intermediateMonsterSpawnLevel(base, floor);
   if (base.levels?.length > 0) {
     for (let i = base.levels.length; i >= 1; i--) {
       const lv = base.levels[i - 1];
@@ -1992,7 +2003,15 @@ export function pickWaterOnlyMonsterDef(depth, dungeonType = null, { poolFloor =
       legendMonsterSpawnWeight(monster.baseKind, floor) *
       legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
     ))
-    : pick(eligible);
+    : dungeonType === "advanced"
+      ? pickWeightedMonster(eligible, (monster) => (
+        advancedMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+      ))
+      : dungeonType === "intermediate"
+        ? pickWeightedMonster(eligible, (monster) => (
+          intermediateMonsterPackMultiplier(monster.baseKind, existingMonsters)
+        ))
+        : pick(eligible);
   return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType) };
 }
 
