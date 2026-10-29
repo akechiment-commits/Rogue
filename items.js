@@ -4231,6 +4231,41 @@ export function thrownItemAttack(item) {
   return 3;
 }
 
+/** 腐った・ヤバイ食料の敵への攻撃力半減。ボスだけ毒矢と同じ時限効果にする。 */
+export function applyFoodAttackHalfToMonster(mon, ml, sourceName) {
+  if (!mon || mon.hp <= 0) return false;
+  if (mon.isBoss) {
+    if (!mon.bossPoisonHalfAtk) {
+      mon.bossPoisonOrigAtk = mon.poisonHalfAtk
+        ? (mon.poisonOrigAtk ?? mon.atk)
+        : mon.atk;
+      mon.bossPoisonHalfAtk = true;
+      mon.bossPoisonHalfAtkTurns = monsterStatusTurns(10, mon);
+    }
+  } else if (mon.poisonHalfAtk) {
+    /* ヤバイ毒が切れても、腐敗食料の永続半減を残す。 */
+    const _poisonOrigAtk = Number(mon.poisonOrigAtk);
+    mon.poisonOrigAtk = Math.max(1, Math.floor((Number.isFinite(_poisonOrigAtk) ? _poisonOrigAtk : (mon.atk || 1)) / 2));
+  }
+  mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+  ml.push(`${sourceName}を食べさせられた${mon.name}の攻撃力が半減した！`);
+  return true;
+}
+
+/** 敵へ投げた腐った食料は通常毒を付与する。食料由来の攻撃力半減とは別に毒時計を進める。 */
+export function applyRottenFoodPoisonToMonster(mon, ml) {
+  if (!mon || mon.hp <= 0) return { blocked: true, turns: 0, remaining: mon?.poisonedTurns || 0 };
+  if (isStatusImmune(mon, ml, mon.name) || blockLargeMonsterStatus(mon, "poison", ml)) {
+    return { blocked: true, turns: 0, remaining: mon.poisonedTurns || 0 };
+  }
+  startLargeMonsterStatusCooldown(mon, "poison");
+  const turns = statusTurns("poison", { kind: "monster", target: mon });
+  mon.poisoned = true;
+  mon.poisonedTurns = (mon.poisonedTurns || 0) + turns;
+  ml.push(`${mon.name}は腐った食料で毒状態になった！(${turns}ターン)`);
+  return { blocked: false, turns, remaining: mon.poisonedTurns };
+}
+
 /** アイスクリームを食べさせたときの共通効果。敵への投擲にも使う。 */
 export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム", hungerAlreadyApplied = false } = {}) {
   if (!target) return { hp: 0, hunger: 0, confused: false };
@@ -4307,6 +4342,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     if (mon.hp > 0 && !isStatusImmune(mon, ml, mon.name)) {
       const _ailments = [];
       let _yPoison = { turns: 0, atkLoss: 0 };
+      applyFoodAttackHalfToMonster(mon, ml, "ヤバイ食料");
       if (!blockLargeMonsterStatus(mon, "poison", ml)) {
         startLargeMonsterStatusCooldown(mon, "poison");
         _yPoison = applyYabaiPoison(mon, "monster");
@@ -4343,8 +4379,13 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
 
   /* 腐った／焦げた食料：攻撃力半減（ヤバイ食料を除く）。 */
   if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0 && !isStatusImmune(mon, ml, mon.name)) {
-    mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
-    ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
+    if (item.rotten) {
+      applyRottenFoodPoisonToMonster(mon, ml);
+      applyFoodAttackHalfToMonster(mon, ml, "腐った食料");
+    } else {
+      mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+      ml.push(`焦げた食料を食べさせられた${mon.name}の攻撃力が半減した！`);
+    }
   }
 
   if (mon.hp > 0) applyFoodEffectsOnHit(item, "monster", mon, dg, p, ml, luFn, killerMon);

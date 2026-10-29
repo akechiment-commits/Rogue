@@ -5803,6 +5803,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m.poisonedTurns <= 0) {
       ml.push(`${m.name}の毒が切れた。`);
       if (m.poisonHalfAtk) { m.atk = m.poisonOrigAtk ?? m.atk; delete m.poisonHalfAtk; delete m.poisonOrigAtk; }
+      m.poisoned = false;
       delete m.sporePoisonKillerId;
       delete m.sporePoisonKillerName;
     }

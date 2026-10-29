@@ -9,6 +9,7 @@ import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
+  applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
@@ -4610,6 +4611,7 @@ export function useItemActions({
                     m.hp -= _yThrowDmg;
                     ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yThrowDmg}ダメージ！`);
                     if (m.hp > 0 && !isStatusImmune(m, ml, m.name)) {
+                      applyFoodAttackHalfToMonster(m, ml, "ヤバイ食料");
                       const _yPoison = applyYabaiPoison(m, "monster");
                       const _yConfuseT = statusTurns("confuse", { kind: "monster", target: m });
                       const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
@@ -4626,8 +4628,13 @@ export function useItemActions({
                     applyIceCreamEffect(m, "monster", ml, { name: dnameRef(it) });
                   }
                   if (it.type === "food" && (it.rotten || it.burnt) && !it.yabai && m.hp > 0 && !isStatusImmune(m, ml, m.name)) {
-                    m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-                    ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
+                    if (it.rotten) {
+                      applyRottenFoodPoisonToMonster(m, ml);
+                      applyFoodAttackHalfToMonster(m, ml, "腐った食料");
+                    } else {
+                      m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+                      ml.push(`焦げた食料を食べさせられた${m.name}の攻撃力が半減した！`);
+                    }
                   }
                   if (m.hp > 0) applyFoodEffectsOnHit(it, "monster", m, dg, p, ml, lu);
                   if (m.hp <= 0) {
