@@ -128,7 +128,7 @@ export function useGamepad({
   lookMode,
   mapMode,
   msgLogMode,
-  spellListMode,
+  spellListModeRef,
   exitHubConfirm,
   showSettings,
   showSound,
@@ -188,8 +188,6 @@ export function useGamepad({
   mapModeRef.current = mapMode;
   const msgLogModeRef = useRef(!!msgLogMode);
   msgLogModeRef.current = !!msgLogMode;
-  const spellListModeRef = useRef(spellListMode);
-  spellListModeRef.current = spellListMode;
   const exitHubConfirmRef = useRef(!!exitHubConfirm);
   exitHubConfirmRef.current = !!exitHubConfirm;
   const throwModeRef = useRef(throwMode);
@@ -239,7 +237,7 @@ export function useGamepad({
       showScoresRef.current ||
       throwModeRef.current ||
       debugSpellModeRef.current ||
-      modalTypeRef.current ||
+      (modalTypeRef.current && modalTypeRef.current !== "spellList") ||
       showSignRef.current ||
       miniTipRefPad.current ||
       showTileEditorRefPad.current ||

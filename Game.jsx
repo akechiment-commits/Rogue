@@ -217,6 +217,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const markerMenuSel = modal.markerMenuSel;
   const markerPage    = modal.markerPage ?? 0;
   const spellListMode = modal.type === 'spellList'    ? modal.data : null;
+  const spellListModeRef = useRef(!!spellListMode);
+  spellListModeRef.current = !!spellListMode;
   const spellMenuSel  = modal.spellMenuSel;
   const spellPage     = modal.spellPage;
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
@@ -264,7 +266,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
   const setMarkerPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { markerPage: typeof v === 'function' ? v(modal.markerPage ?? 0) : v } });
   const setSpellListMode = (v) => {
-    const next = typeof v === 'function' ? v(modal.type === 'spellList') : v;
+    const next = typeof v === 'function' ? v(spellListModeRef.current) : v;
+    spellListModeRef.current = !!next;
     next ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: next }) : dispatchModal({ type: 'CLOSE_MODAL' });
   };
   const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel ?? 0) : v } });
@@ -5931,7 +5934,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     lookMode,
     mapMode,
     msgLogMode,
-    spellListMode,
+    spellListModeRef,
     exitHubConfirm,
     showSettings,
     showSound,
