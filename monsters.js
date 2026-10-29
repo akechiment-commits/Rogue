@@ -41,7 +41,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -1180,7 +1180,7 @@ export const MONS = [
       { name: "豪傑九千坊",   hp: 88, atk: 32, def: 9, exp: 250, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
-  { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "同レベルの新たなヤドカリ壺荒らしを容量の残った壺へ押し込む。Lv2以上は一直線上から壺へ投げ込む。壺を割るか吸い出すとヤドカリ壺荒らしが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "同レベルの新たなヤドカリ壺荒らしを容量の残った壺へ押し込む。Lv2は一直線上3マス以内から、Lv3は4マス以内から放物線で投げ込む（外れると隣に出現）。壺を割るか吸い出すとヤドカリ壺荒らしが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "大ヤドカリ壺荒らし", hp: 85, atk: 28, def: 22, exp: 200, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "ヤドカリ壺大将", hp: 140, atk: 40, def: 34, exp: 580, dungeonFloors: { legend: { min: 48, max: 50 } } },
@@ -2288,13 +2288,19 @@ function consumeFailedMonsterSpecial(mon, messages, message) {
 }
 
 function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
+  if (potRaiderTargets(player).length === 0) return false;
+  mon.turnAttacks++;
+  const spawned = makePotRaiderSpawn(mon, player);
+  return insertSpawnedPotRaider(mon, spawned, dungeon, player, messages, luFn);
+}
+
+/* 生成済みの壺荒らしを、対象の壺へ実際に押し込む（加熱・消費系はその場で撃破）。 */
+function insertSpawnedPotRaider(mon, spawned, dungeon, player, messages, luFn) {
   const targets = potRaiderTargets(player);
   if (targets.length === 0) return false;
   const pot = pick(targets);
-  mon.turnAttacks++;
-  const spawned = makePotRaiderSpawn(mon, player);
   if (!Array.isArray(dungeon.monsters)) dungeon.monsters = [];
-  dungeon.monsters.push(spawned);
+  if (!dungeon.monsters.includes(spawned)) dungeon.monsters.push(spawned);
 
   if (pot.potEffect === "boil") {
     pot.capacity = Math.max(0, (pot.capacity ?? 3) - 1);
@@ -2320,6 +2326,175 @@ function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   pot.confinedMonsters.push(JSON.parse(JSON.stringify(spawned)));
   dungeon.monsters = dungeon.monsters.filter((entry) => entry !== spawned);
   messages.push(`${mon.name}がヤドカリ壺荒らしを壺に押し込んだ！`);
+  return true;
+}
+
+/* 投げられた壺荒らしの落下・出現位置を、基準マスからDRO順に探す。 */
+function placeThrownPotRaider(spawned, cx, cy, dg, pl) {
+  for (const [dx, dy] of DRO) {
+    const x = cx + dx, y = cy + dy;
+    if (x < 0 || x >= MW || y < 0 || y >= MH) continue;
+    const tile = dg.map[y]?.[x];
+    if (tile === T.WALL || tile === T.BWALL || tile === T.SD || tile === T.SU) continue;
+    if (x === pl.x && y === pl.y) continue;
+    if (dg.monsters.some((o) => monsterOccupiesCell(o, x, y))) continue;
+    if (dg.bigboxes?.some((b) => b.x === x && b.y === y)) continue;
+    if (dg.springs?.some((s) => s.x === x && s.y === y)) continue;
+    if (dg.gachaMachines?.some((g) => g.x === x && g.y === y)) continue;
+    if (dg.altars?.some((a) => a.x === x && a.y === y)) continue;
+    if (statueAt(dg, x, y)) continue;
+    if (!canMonsterSurviveOnWater(spawned, dg, x, y)) continue;
+    if (!canPlaceMonsterBody(dg, spawned, x, y, pl)) continue;
+    spawned.x = x;
+    spawned.y = y;
+    spawned.aware = true;
+    spawned.lastPx = pl.x;
+    spawned.lastPy = pl.y;
+    spawned.actionTime = pl?.actionTime || 0;
+    if (!Array.isArray(dg.monsters)) dg.monsters = [];
+    if (!dg.monsters.includes(spawned)) dg.monsters.push(spawned);
+    return true;
+  }
+  return false;
+}
+
+/* 投げられた壺荒らしが大箱へ入った時の処理。拡散は部屋中へ投げた個体の攻撃として拡散し、
+   ゴミ箱・ニトロ箱では消滅して通常撃破扱い、それ以外の大箱では中へ保持される。 */
+function enterBigboxWithPotRaider(spawned, bb, dg, pl, ml, luFn) {
+  if (bb.kind === "scatter") {
+    const room = findRoom(dg.rooms, bb.x, bb.y);
+    const targets = room
+      ? dg.monsters.filter((o) => !o.disguisedAsItem && monsterBodyCells(o).some((c) => c.x >= room.x && c.x < room.x + room.w && c.y >= room.y && c.y < room.y + room.h))
+      : [];
+    const pInRoom = !!room && pl.x >= room.x && pl.x < room.x + room.w && pl.y >= room.y && pl.y < room.y + room.h;
+    if (targets.length === 0 && !pInRoom) {
+      ml.push(`${spawned.name}が${bb.name}に入ったが、部屋には誰もいなかった。`);
+    } else {
+      ml.push(`${spawned.name}が部屋中に拡散した！`);
+      for (const target of [...targets]) {
+        if (!dg.monsters.includes(target) || target.hp <= 0) continue;
+        const dmg = Math.max(1, spawned.atk - Math.floor((target.def || 0) / 2) + rng(-2, 2));
+        target.hp -= dmg;
+        ml.push(`${spawned.name}が${target.name}に命中！${dmg}ダメージ！`);
+        if (target.hp <= 0) killMonster(target, dg, pl, ml, luFn, false, spawned);
+      }
+      if (pInRoom) {
+        const dmg = calcAtkDefDmg(spawned.atk, calcPlayerDef(pl), { defWeight: 1.5 });
+        pl.deathCause = `拡散した${spawned.name}に当たって`;
+        pl.hp -= dmg;
+        ml.push(`${spawned.name}が${plName(pl)}に命中！${playerHpEffectLabel(pl, dmg)}！`);
+        interruptPlayerSleep(pl, ml);
+      }
+    }
+    bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
+    return;
+  }
+  if (bb.kind === "trash" || bb.kind === "nitro") {
+    spawned.x = bb.x;
+    spawned.y = bb.y;
+    if (!Array.isArray(dg.monsters)) dg.monsters = [];
+    dg.monsters.push(spawned);
+    spawned.hp = 0;
+    ml.push(`${spawned.name}が${bb.name}に入って消滅した！`);
+    killMonster(spawned, dg, pl, ml, luFn);
+    return;
+  }
+  spawned.x = bb.x;
+  spawned.y = bb.y;
+  if (!Array.isArray(bb.confinedMonsters)) bb.confinedMonsters = [];
+  bb.confinedMonsters.push(JSON.parse(JSON.stringify(spawned)));
+  ml.push(`${spawned.name}が${bb.name}に入った！`);
+}
+
+/* 投げられた壺荒らしが泉へ入った時：水棲として溺れず、泉の中に保持される。 */
+function enterSpringWithPotRaider(spawned, spr, ml) {
+  spawned.x = spr.x;
+  spawned.y = spr.y;
+  if (!Array.isArray(spr.confinedMonsters)) spr.confinedMonsters = [];
+  spr.confinedMonsters.push(JSON.parse(JSON.stringify(spawned)));
+  ml.push(`${spawned.name}は泉の中に入った！`);
+}
+
+/* Lv3の放物線投げ：同レベルの壺荒らしをプレイヤーへ放物線で投げる。
+   命中（通常投擲と同じ命中率80%と回避判定）すれば壺へ押し込み、外れるとプレイヤーの隣に出現する。
+   飛行中の壁で手前に落ち、途中の敵に当たると消滅し、大箱・泉へ入ることもある。 */
+function monsterThrowPotRaider(m, dg, pl, ml, luFn) {
+  if (potRaiderTargets(pl).length === 0) return false;
+  const spawned = makePotRaiderSpawn(m, pl);
+  m.turnAttacks++;
+  ml.push(`${m.name}が${spawned.name}を投げた！`);
+  const dist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+  let cx = m.x, cy = m.y, lx = m.x, ly = m.y;
+  const path = [{ x: m.x, y: m.y }];
+  const finishAnim = (toX, toY) => {
+    if (path.length > 1) pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX, toY, color: "#d8a860", path: [...path], flightArc: true, flightArcHeight: 0.9 });
+  };
+  const spawnAtFall = (fx, fy) => {
+    if (placeThrownPotRaider(spawned, fx, fy, dg, pl)) ml.push(`${spawned.name}は落ちて現れた！`);
+    else ml.push(`${spawned.name}は落ちて消えた…`);
+  };
+  for (let step = 0; step < dist; step++) {
+    /* 放物線のホーミング：毎マス、プレイヤーの現在位置へ向きを更新する */
+    const dx = Math.sign(pl.x - cx), dy = Math.sign(pl.y - cy);
+    const tx = cx + dx, ty = cy + dy;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL || statueAt(dg, tx, ty)) {
+      ml.push(`${spawned.name}は壁に当たった！`);
+      spawnAtFall(lx, ly);
+      finishAnim(lx, ly);
+      return true;
+    }
+    cx = tx; cy = ty; lx = tx; ly = ty;
+    path.push({ x: tx, y: ty });
+    const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
+    if (bb) {
+      enterBigboxWithPotRaider(spawned, bb, dg, pl, ml, luFn);
+      finishAnim(tx, ty);
+      return true;
+    }
+    const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
+    if (spr) {
+      enterSpringWithPotRaider(spawned, spr, ml);
+      finishAnim(tx, ty);
+      return true;
+    }
+    const blocker = dg.monsters.find((o) => o !== m && !o.disguisedAsItem && monsterOccupiesCell(o, tx, ty));
+    if (blocker) {
+      if (monSubmergesProjectiles(blocker)) {
+        ml.push(`${blocker.name}が潜って${spawned.name}をかわした！`);
+        continue;
+      }
+      ml.push(`${spawned.name}は${blocker.name}に当たって消えた…`);
+      finishAnim(tx, ty);
+      return true;
+    }
+    if (tx === pl.x && ty === pl.y) {
+      const dodgeMode = getDodgePentacleMode(dg, pl.x, pl.y);
+      let missed = false;
+      if (dodgeMode === "dodge") {
+        ml.push(`みかわしの魔方陣の加護で${spawned.name}をかわした！`);
+        missed = true;
+      } else if (dodgeMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
+        ml.push(`${spawned.name}をひらりとかわした！`);
+        missed = true;
+      } else if (dodgeMode !== "sure" && !isEvasionDisabledByStatus(pl) && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+        ml.push(`オリーブオイルの力で${spawned.name}をするりとかわした！`);
+        missed = true;
+      } else if (dodgeMode !== "sure" && !isEvasionDisabledByStatus(pl) && Math.random() >= 0.8) {
+        ml.push(`${m.name}の投げた${spawned.name}は外れた！`);
+        missed = true;
+      }
+      if (missed) {
+        if (placeThrownPotRaider(spawned, pl.x, pl.y, dg, pl)) ml.push(`${spawned.name}が隣に現れた！`);
+        else ml.push(`${spawned.name}は消えた…`);
+      } else {
+        insertSpawnedPotRaider(m, spawned, dg, pl, ml, luFn);
+      }
+      finishAnim(tx, ty);
+      return true;
+    }
+  }
+  spawnAtFall(lx, ly);
+  finishAnim(lx, ly);
   return true;
 }
 
@@ -7737,7 +7912,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ptRdy0 = m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _potRaiderLevel0 = m.monLevel || 1;
       const _potRaiderRdy0 = m.subtype === "potRaider" && _potRaiderLevel0 >= 2 && !m.sealed &&
-        !_plOnBlessedSanc && _rAtks && canSee && _rLine && _rLen >= 2 && _rLen <= 8;
+        !_plOnBlessedSanc && _rAtks && canSee &&
+        ((_potRaiderLevel0 === 2 && _rLine && _rLen >= 2 && _rLen <= 3) ||
+         (_potRaiderLevel0 >= 3 && _rLen >= 2 && _rLen <= 4));
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
       const _dragonBreathRdy = _dragonRdy0 || _iceDragonRdy0;
@@ -8202,10 +8379,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _prDx = pl.x - m.x, _prDy = pl.y - m.y;
       const _prDist = Math.max(Math.abs(_prDx), Math.abs(_prDy));
       const _prLine = _prDx === 0 || _prDy === 0 || Math.abs(_prDx) === Math.abs(_prDy);
-      if (_prLvl >= 2 && !_prAdj && _prLine && _prDist >= 2 && _prDist <= 8 && canSee &&
+      if (_prLvl === 2 && !_prAdj && _prLine && _prDist >= 2 && _prDist <= 3 && canSee &&
           !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
         if (!usePotRaiderAbility(m, dg, pl, ml, _luFn)) {
+          consumeFailedMonsterSpecial(m, ml, "が壺へ押し込もうとしたが、空きのある壺がなかった！");
+        }
+        return;
+      }
+      if (_prLvl >= 3 && !_prAdj && _prDist >= 2 && _prDist <= 4 && canSee &&
+          !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (!monsterThrowPotRaider(m, dg, pl, ml, _luFn)) {
           consumeFailedMonsterSpecial(m, ml, "が壺へ押し込もうとしたが、空きのある壺がなかった！");
         }
         return;

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
+import { breakBigboxContents } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -65,10 +66,10 @@ describe("ヤドカリ壺荒らしの押し込み", () => {
     expect(confined.atk).toBe(40);
   });
 
-  it("Lv2は離れた直線上から大ヤドカリ壺荒らしを投げ込む", () => {
+  it("Lv2は直線3マスから大ヤドカリ壺荒らしを投げ込む", () => {
     const mon = makeRaider(2, 5, 5);
     const pot = imprisonPot();
-    const player = makePlayer({ x: 10, y: 5, inventory: [pot] });
+    const player = makePlayer({ x: 8, y: 5, inventory: [pot] });
     const dg = openRoom(mon);
     const messages = [];
 
@@ -81,6 +82,162 @@ describe("ヤドカリ壺荒らしの押し込み", () => {
     expect(confined.monLevel).toBe(2);
     expect(confined.name).toBe("大ヤドカリ壺荒らし");
     expect(confined.hp).toBe(85);
+  });
+
+  it("Lv2は直線5マスからは届かない", () => {
+    const mon = makeRaider(2, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 11, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(pot.confinedMonsters).toHaveLength(0);
+  });
+
+  it("Lv3の放物線投げが命中すると壺大将が壺に入る", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const mon = makeRaider(3, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 8, y: 7, inventory: [pot] });
+    const dg = openRoom(mon);
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(pot.confinedMonsters).toHaveLength(1);
+    expect(pot.confinedMonsters[0]).toMatchObject({ baseKind: "potRaider", monLevel: 3, name: "ヤドカリ壺大将" });
+    vi.restoreAllMocks();
+  });
+
+  it("Lv3の投げが外れると壺大将がプレイヤーの隣に現れる", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const mon = makeRaider(3, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(pot.confinedMonsters).toHaveLength(0);
+    const spawned = dg.monsters.find((m) => m !== mon && m.baseKind === "potRaider");
+    expect(spawned).toBeTruthy();
+    expect(spawned.monLevel).toBe(3);
+    expect(Math.max(Math.abs(spawned.x - player.x), Math.abs(spawned.y - player.y))).toBe(1);
+    vi.restoreAllMocks();
+  });
+
+  it("Lv3の投げは壁に当たると手前に落ちて現れる", () => {
+    const mon = makeRaider(3, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    dg.map[5][7] = T.WALL;
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(pot.confinedMonsters).toHaveLength(0);
+    const spawned = dg.monsters.find((m) => m !== mon && m.baseKind === "potRaider");
+    expect(spawned).toBeTruthy();
+    expect(spawned.x).toBe(6);
+    expect(spawned.y).toBe(5);
+  });
+
+  it("Lv3の投げは途中の敵に当たると消滅する", () => {
+    const mon = makeRaider(3, 5, 5);
+    const ratBase = MONS.find((m) => m.baseKind === "rat");
+    const blocker = makeMonsterFromBase(ratBase, 1, 7, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    dg.monsters.push(blocker);
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(pot.confinedMonsters).toHaveLength(0);
+    expect(dg.monsters.filter((m) => m.baseKind === "potRaider")).toHaveLength(1);
+    expect(messages.some((m) => m.includes("当たって消えた"))).toBe(true);
+  });
+
+  it("Lv3の投げが泉に入ると泉の中に保持される", () => {
+    const mon = makeRaider(3, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    const spr = { x: 7, y: 5, contents: [] };
+    dg.springs = [spr];
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(pot.confinedMonsters).toHaveLength(0);
+    expect(spr.confinedMonsters).toHaveLength(1);
+    expect(spr.confinedMonsters[0]).toMatchObject({ baseKind: "potRaider", monLevel: 3 });
+    expect(dg.monsters.filter((m) => m.baseKind === "potRaider")).toHaveLength(1);
+  });
+
+  it("Lv3の投げがゴミ箱に入ると消滅して撃破扱いになる", () => {
+    const mon = makeRaider(3, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    dg.bigboxes = [{ kind: "trash", name: "ゴミ箱", x: 7, y: 5, capacity: 5, contents: [] }];
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(dg.monsters.filter((m) => m.baseKind === "potRaider" && m.hp > 0)).toHaveLength(1);
+    expect(messages.some((m) => m.includes("消滅した"))).toBe(true);
+  });
+
+  it("Lv3の投げが拡散の大箱に入ると部屋中の全員にダメージ", () => {
+    const mon = makeRaider(3, 5, 5);
+    const ratBase = MONS.find((m) => m.baseKind === "rat");
+    const victim = makeMonsterFromBase(ratBase, 1, 8, 6);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    dg.monsters.push(victim);
+    dg.bigboxes = [{ kind: "scatter", name: "拡散の大箱", x: 7, y: 5, capacity: 4, contents: [] }];
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    expect(messages.some((m) => m.includes("拡散した"))).toBe(true);
+    expect(player.hp).toBeLessThan(player.maxHp);
+    expect(victim.hp).toBeLessThan(victim.maxHp);
+  });
+
+  it("大箱に保持された壺荒らしは箱が壊れると現れる", () => {
+    const mon = makeRaider(3, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    const bb = { kind: "change", name: "変化の大箱", x: 7, y: 5, capacity: 3, contents: [] };
+    dg.bigboxes = [bb];
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+    expect(bb.confinedMonsters).toHaveLength(1);
+
+    const breakMessages = [];
+    breakBigboxContents(bb, dg, breakMessages, null, null, null, { player });
+    const released = dg.monsters.find((m) => m !== mon && m.baseKind === "potRaider" && m.hp > 0);
+    expect(released).toBeTruthy();
+    expect(released.monLevel).toBe(3);
   });
 
   it("加熱の壺では押し込まれた壺荒らしが焼け死に、容量が減る", () => {

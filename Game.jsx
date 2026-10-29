@@ -4426,6 +4426,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           for (const item of spr.contents)
             placeItemAt(dg, spr.x, spr.y, item, ml, ft);
         }
+        if (spr.confinedMonsters?.length) {
+          releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, p, ml);
+        }
         ml.push("泉は干上がってしまった...");
         return true;
       }
@@ -5352,6 +5355,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push("泉が干上がり、中のアイテムが現れた！");
       const ft = new Set();
       for (const item of spr.contents) placeItemAt(dg, spr.x, spr.y, item, ml, ft);
+    }
+    if (spr.confinedMonsters?.length) {
+      releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, p, ml);
     }
     ml.push("泉は干上がってしまった...");
   }, []);

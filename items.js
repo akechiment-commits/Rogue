@@ -1744,6 +1744,7 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
     } else {
       ml.push(`${resolveItemName(bb, nameFn)}が壊れた！（中は空だった）`);
     }
+    if (bb.confinedMonsters?.length) releaseConfinedMonstersFromPot(bb, dg, x, y, options.player || null, ml);
     return;
   }
   /* 中身の着地で罠・爆発が起きても、同じ箱を再度破壊しないよう先に除去する。 */
@@ -1761,6 +1762,8 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
     placeItemAt(dg, x, y, loot, ml, ft, 0, options.player || null);
     ml.push(`ゴミ箱から${resolveItemName(loot, nameFn)}が飛び出した！`);
   }
+  /* 投げ込まれて保持されていたモンスターは、箱が壊れると解き放たれる。 */
+  if (bb.confinedMonsters?.length) releaseConfinedMonstersFromPot(bb, dg, x, y, options.player || null, ml);
 }
 
 /** 唐辛子・胡椒の壺：容量が残ったまま割れたとき、周囲のキャラを暗闇にする。 */
