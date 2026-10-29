@@ -201,6 +201,25 @@ describe("ヤドカリ壺荒らしの押し込み", () => {
     expect(messages.some((m) => m.includes("消滅した"))).toBe(true);
   });
 
+  it("Lv3の投げがニトロ箱に入ると仕様通り爆発する", () => {
+    const mon = makeRaider(3, 5, 5);
+    const pot = imprisonPot();
+    const player = makePlayer({ x: 9, y: 5, inventory: [pot] });
+    const dg = openRoom(mon);
+    dg.bigboxes = [{ kind: "nitro", name: "ニトロ箱", x: 7, y: 5, capacity: 1, contents: [] }];
+    const messages = [];
+
+    monsterAI(mon, dg, player, messages, { moveOnly: true });
+    monsterAI(mon, dg, player, messages, { attackOnly: true });
+
+    /* 箱は消滅し、投げられた個体も爆発で消える。爆風は火薬爆発の仕様通り：
+       プレイヤーは現在HPの3/4ダメージ、範囲内の投げ手自身も即死する。 */
+    expect(dg.bigboxes).toHaveLength(0);
+    expect(messages.some((m) => m.includes("爆発で消滅した"))).toBe(true);
+    expect(dg.monsters.filter((m) => m.baseKind === "potRaider" && m.hp > 0)).toHaveLength(0);
+    expect(player.hp).toBe(25);
+  });
+
   it("Lv3の投げが拡散の大箱に入ると部屋中の全員にダメージ", () => {
     const mon = makeRaider(3, 5, 5);
     const ratBase = MONS.find((m) => m.baseKind === "rat");

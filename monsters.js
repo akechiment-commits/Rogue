@@ -41,7 +41,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -2359,8 +2359,8 @@ function placeThrownPotRaider(spawned, cx, cy, dg, pl) {
 }
 
 /* 投げられた壺荒らしが大箱へ入った時の処理。拡散は部屋中へ投げた個体の攻撃として拡散し、
-   ゴミ箱・ニトロ箱では消滅して通常撃破扱い、それ以外の大箱では中へ保持される。 */
-function enterBigboxWithPotRaider(spawned, bb, dg, pl, ml, luFn) {
+   ゴミ箱では消滅して通常撃破扱い、ニトロ箱は仕様通り即爆発、それ以外の大箱では中へ保持される。 */
+function enterBigboxWithPotRaider(mon, spawned, bb, dg, pl, ml, luFn) {
   if (bb.kind === "scatter") {
     const room = findRoom(dg.rooms, bb.x, bb.y);
     const targets = room
@@ -2389,7 +2389,15 @@ function enterBigboxWithPotRaider(spawned, bb, dg, pl, ml, luFn) {
     bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
     return;
   }
-  if (bb.kind === "trash" || bb.kind === "nitro") {
+  if (bb.kind === "nitro") {
+    /* ニトロ箱の仕様通り：入った瞬間に箱ごと爆発する。投げられた個体は中身として爆発で消滅し、
+       爆風の帰属は投げた側になる（範囲内の投げ手自身も巻き込まれる）。 */
+    ml.push(`${spawned.name}が${bb.name}に入った！`);
+    detonateNitroBox(bb, dg, pl, ml, luFn, null, null, mon);
+    ml.push(`${spawned.name}がニトロ箱の爆発で消滅した！`);
+    return;
+  }
+  if (bb.kind === "trash") {
     spawned.x = bb.x;
     spawned.y = bb.y;
     if (!Array.isArray(dg.monsters)) dg.monsters = [];
@@ -2447,7 +2455,7 @@ function monsterThrowPotRaider(m, dg, pl, ml, luFn) {
     path.push({ x: tx, y: ty });
     const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
     if (bb) {
-      enterBigboxWithPotRaider(spawned, bb, dg, pl, ml, luFn);
+      enterBigboxWithPotRaider(m, spawned, bb, dg, pl, ml, luFn);
       finishAnim(tx, ty);
       return true;
     }
