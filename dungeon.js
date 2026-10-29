@@ -2095,7 +2095,7 @@ export function genTwinWingFloor(depth, dungeonType = null) {
 }
 
 /* ===== 水地形生成 ===== */
-function addWaterPools(map, rooms, su, sd) {
+function addWaterPools(map, rooms, su, sd, monsters = []) {
   for (const r of rooms) {
     if (r.w < 5 || r.h < 5) continue; /* 小さい部屋はスキップ */
     if (Math.random() >= 0.35) continue; /* 35%の確率で水溜まり */
@@ -2107,7 +2107,8 @@ function addWaterPools(map, rooms, su, sd) {
       for (let wx = px; wx < px + pw; wx++) {
         if (map[wy][wx] === T.FLOOR &&
             !(wx === su.x && wy === su.y) &&
-            !(wx === sd.x && wy === sd.y)) {
+            !(wx === sd.x && wy === sd.y) &&
+            !monsters.some(monster => monsterOccupiesCell(monster, wx, wy))) {
           map[wy][wx] = T.WATER;
         }
       }
@@ -2117,7 +2118,7 @@ function addWaterPools(map, rooms, su, sd) {
 
 /* ===== FLOATING ISLANDS ===== */
 /* 稀に部屋中央に水で囲まれた浮島を生成（浮遊の指輪なしでは到達不可） */
-function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd, dungeonType = null) {
+function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, monsters, su, sd, dungeonType = null) {
   const permSpin = { name: "回転板", effect: "spin", tile: 29, permanent: true };
   for (const r of rooms) {
     if (r.w < 7 || r.h < 7) continue;
@@ -2152,7 +2153,8 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd, d
         if (_wx >= cx && _wx < cx + iw && _wy >= cy && _wy < cy + ih) continue;
         if (items.some(i => i.x === _wx && i.y === _wy) ||
             traps.some(t => t.x === _wx && t.y === _wy) ||
-            bigboxes.some(b => b.x === _wx && b.y === _wy)) { _ringOcc = true; break outer; }
+            bigboxes.some(b => b.x === _wx && b.y === _wy) ||
+            monsters.some(monster => monsterOccupiesCell(monster, _wx, _wy))) { _ringOcc = true; break outer; }
       }
     }
     if (_ringOcc) continue;
@@ -3814,7 +3816,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   genWallItems(map, depth, items, suspiciousWalls, 0.70, dungeonType);
   /* 水地形を生成（一部部屋に水溜まり）— 店の部屋は除外 */
   const nonShopRooms = shopRoomIdx >= 0 ? rooms.filter((_, i) => i !== shopRoomIdx) : rooms;
-  addWaterPools(map, nonShopRooms, su, sd);
+  addWaterPools(map, nonShopRooms, su, sd, mons);
   /* 水タイルに被った罠・アイテムを後処理 */
   for (let ti = traps.length - 1; ti >= 0; ti--) {
     if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);
@@ -3846,7 +3848,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   /* 浮島を生成 — 後処理の後に配置することで水リングのギャップを防ぐ */
-  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd, dungeonType);
+  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, mons, su, sd, dungeonType);
   /* waterOnlyモンスター（わてり等）を水タイルに配置 — 全水面操作の後に行う */
   {
     const _waterTiles = [];
