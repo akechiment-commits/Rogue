@@ -7,7 +7,7 @@ import { getForgeAbilityIds } from "./forgeAbilityRules.js";
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
-import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
+import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors, randomTeleportDest } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
   makeFreshDuplicate, makeScrollTransformedItem, ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
@@ -1267,9 +1267,9 @@ export function useKeyHandler({
             prepareLastFloor(_d, sr.current.dungeonType || "beginner");
           }
           _fsp.depth = _f;
-          const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
-          _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);
-          _fsp.y = rng(_rm.y, _rm.y + _rm.h - 1);
+          const _tpDstK = randomTeleportDest(_d, -999, -999);
+          if (_tpDstK) { _fsp.x = _tpDstK.x; _fsp.y = _tpDstK.y; }
+          else { _fsp.x = _d.stairUp.x; _fsp.y = _d.stairUp.y; }
           if (_floorChanged) resumeFloor(_d, _fsp);
           refreshFOV(_d, _fsp);
           synchronizeFloorArrival(sr.current, _d, { floorChanged: _floorChanged, spawnDelay: rng(10, 50) });
