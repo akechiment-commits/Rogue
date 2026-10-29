@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   BTN,
   A_TAP_MS,
+  A_DOUBLE_TAP_MS,
   MOVE_REPEAT_MS,
   MOVE_REPEAT_DELAY_MS,
   GAMEPLAY_MOVE_REPEAT_MS,
@@ -118,6 +119,8 @@ export function useGamepad({
   doDash,
   dead,
   showInv,
+  setShowInv,
+  setSelIdx,
   sortInventory,
   dropModeRef,
   setDropMode,
@@ -207,6 +210,8 @@ export function useGamepad({
   const prevBtnRef = useRef({});
   const aDownAtRef = useRef(0);
   const aUsedDashRef = useRef(false);
+  const lastInventoryTapAtRef = useRef(0);
+  const aDoubleTapPendingRef = useRef(false);
   const waitHeldRef = useRef(false);
   const waitStoppedRef = useRef(false);
   const waitRepeatAtRef = useRef(0);
@@ -394,6 +399,8 @@ export function useGamepad({
       if (!gp) {
         setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
         setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
+        lastInventoryTapAtRef.current = 0;
+        aDoubleTapPendingRef.current = false;
         waitHeldRef.current = false;
         waitStoppedRef.current = false;
         if (rbHeldUiRef.current) {
@@ -406,6 +413,10 @@ export function useGamepad({
 
       const next = snapshotButtons(gp);
       const prev = prevBtnRef.current;
+      if (lastInventoryTapAtRef.current > 0 &&
+          (!showInvRef.current || now - lastInventoryTapAtRef.current > A_DOUBLE_TAP_MS)) {
+        lastInventoryTapAtRef.current = 0;
+      }
 
       if (showSoundRef.current) {
         setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
@@ -593,6 +604,19 @@ export function useGamepad({
         else if (edgeDown(prev, next, BTN.Y)) openMsgLog();
       }
 
+      /* インベントリを開いた直後のA二度押しは、2回目を離してから切り替える。 */
+      if (
+        edgeDown(prev, next, BTN.A) && !lt && !dead && showInvRef.current &&
+        lastInventoryTapAtRef.current > 0 && now - lastInventoryTapAtRef.current <= A_DOUBLE_TAP_MS
+      ) {
+        lastInventoryTapAtRef.current = 0;
+        aDownAtRef.current = now;
+        aUsedDashRef.current = true;
+        aDoubleTapPendingRef.current = true;
+        prevBtnRef.current = next;
+        return;
+      }
+
       /* A: メニュー中=キャンセル / タップ=インベントリ / 長押し=ダッシュ修飾 */
       if (edgeDown(prev, next, BTN.A) && !lt) {
         aDownAtRef.current = now;
@@ -610,7 +634,20 @@ export function useGamepad({
       if (edgeUp(prev, next, BTN.A) && !lt) {
         const dur = now - aDownAtRef.current;
         setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
-        if (
+        if (aDoubleTapPendingRef.current) {
+          aDoubleTapPendingRef.current = false;
+          if (dur > 0 && dur < A_TAP_MS && showInvRef.current && !dead) {
+            setShowInv?.(false);
+            showInvRef.current = false;
+            setSelIdx?.(null);
+            setSpellListMode?.(true);
+            spellListModeRef.current = true;
+          } else if (showInvRef.current) {
+            setShowInv?.(false);
+            showInvRef.current = false;
+            setSelIdx?.(null);
+          }
+        } else if (
           !aUsedDashRef.current &&
           dur > 0 &&
           dur < A_TAP_MS &&
@@ -619,6 +656,8 @@ export function useGamepad({
           !dead
         ) {
           act?.("inventory");
+          lastInventoryTapAtRef.current = now;
+          showInvRef.current = true;
         }
         aDownAtRef.current = 0;
       }
@@ -690,14 +729,6 @@ export function useGamepad({
       /* Start: 登録アイテム */
       if (edgeDown(prev, next, BTN.START) && !dead && !anyModalUi()) {
         tryRegisteredItem();
-      }
-
-      /* R3: 通常プレイ中に魔法リストを直接開く。 */
-      if (edgeDown(prev, next, BTN.R3) && !lt && !dead && !anyModalUi() && !facingModeRef.current) {
-        setSpellMenuSel?.(0);
-        setSpellListMode?.(true);
-        spellListModeRef.current = true;
-        moveHeldRef.current = null;
       }
 
       /* 右スティック: 見渡す */
