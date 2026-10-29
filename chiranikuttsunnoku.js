@@ -153,7 +153,7 @@ export function getVenomStingOriginAndDir(monster, dungeon, player) {
 
 /**
  * 特技2: ベノムスティング
- * 遠距離直線上にいるとき、ダメージ＋毒を付与する物理飛び道具（命中80%）
+ * 遠距離直線上にいるとき、ダメージ＋毒を付与する物理飛び道具（命中82%）
  */
 export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
   const effAtk = (m.sharpStrikeTurns || 0) > 0 ? Math.floor(m.atk * 1.5) : m.atk;
@@ -170,7 +170,7 @@ export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
     fireMsg: `${m.name}が尾の毒針からベノムスティングを放った！`,
     boltName: "猛毒針",
     deathCause: `${m.name}のベノムスティングで`,
-    hitChance: 0.80,
+    hitChance: 0.82,
     calcPlDmg: () => Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2)),
     calcMonDmg: (mon) => Math.max(1, calcAtkDefDmg(effAtk, mon.def || 0, { defWeight: 1, variance: false }) + rng(-2, 2)),
     onPlHit: (mlx) => {

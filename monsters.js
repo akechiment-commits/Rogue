@@ -1174,7 +1174,7 @@ export const MONS = [
     ],
   },
   { name: "ひょい河童",   hp: 26,  atk: 14, def: 3,  exp: 38,  speed: 1,   tile: 247, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 15, max: 17 }, advanced: { min: 11, max: 25 } },
-    desc: "床のアイテムを拾い、一直線上から投げつける（命中率75%）。投げる前に倒せばアイテムを落とす。",
+    desc: "床のアイテムを拾い、一直線上から投げつける（命中率82%）。投げる前に倒せばアイテムを落とす。",
     levels: [
       { name: "剛腕水虎",     hp: 52,  atk: 22, def: 6,  exp: 85, dungeonFloors: { advanced: { min: 26, max: 30 } } },
       { name: "豪傑九千坊",   hp: 88, atk: 32, def: 9, exp: 250, dungeonFloors: { advanced: { min: 31, max: 35 } } },
@@ -1738,7 +1738,7 @@ export const CHIRANIKUTSUNNOKU = {
   speed: 1, tile: 251, kind: "insect", baseKind: "boss_chiranikuttsunnoku",
   isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
   elemWeak: "thunder",
-  desc: "2×2マスの巨大なサソリのボス。雷弱点。隣接時に10%でデスシザース（2倍打撃）、10%でアースブレイカー（周囲1マス無差別攻撃+転倒、浮遊無効）、直線遠距離で50%でベノムスティング（猛毒針投擲、命中80%）、視界内にプレイヤーがいる時10%でシャープストライク（10ターン攻撃力1.5倍）を繰り出す。",
+  desc: "2×2マスの巨大なサソリのボス。雷弱点。隣接時に10%でデスシザース（2倍打撃）、10%でアースブレイカー（周囲1マス無差別攻撃+転倒、浮遊無効）、直線遠距離で50%でベノムスティング（猛毒針投擲、命中82%）、視界内にプレイヤーがいる時10%でシャープストライク（10ターン攻撃力1.5倍）を繰り出す。",
 };
 
 export const TAISAIJIN = {
@@ -2424,7 +2424,7 @@ function enterSpringWithPotRaider(spawned, spr, ml) {
 }
 
 /* Lv3の放物線投げ：同レベルの壺荒らしをプレイヤーへ放物線で投げる。
-   命中（通常投擲と同じ命中率80%と回避判定）すれば壺へ押し込み、外れるとプレイヤーの隣に出現する。
+   命中（通常投擲と同じ命中率82%と回避判定）すれば壺へ押し込み、外れるとプレイヤーの隣に出現する。
    飛行中の壁で手前に落ち、途中の敵に当たると消滅し、大箱・泉へ入ることもある。 */
 function monsterThrowPotRaider(m, dg, pl, ml, luFn) {
   if (potRaiderTargets(pl).length === 0) return false;
@@ -2487,7 +2487,7 @@ function monsterThrowPotRaider(m, dg, pl, ml, luFn) {
       } else if (dodgeMode !== "sure" && !isEvasionDisabledByStatus(pl) && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
         ml.push(`オリーブオイルの力で${spawned.name}をするりとかわした！`);
         missed = true;
-      } else if (dodgeMode !== "sure" && !isEvasionDisabledByStatus(pl) && Math.random() >= 0.8) {
+      } else if (dodgeMode !== "sure" && !isEvasionDisabledByStatus(pl) && Math.random() >= 0.82) {
         ml.push(`${m.name}の投げた${spawned.name}は外れた！`);
         missed = true;
       }
@@ -3203,7 +3203,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     deathCause: `${m.name}の${_arName}の攻撃で`,
     calcPlDmg: () => calcAtkDefDmg(m.atk + _arAtkBonus, calcPlayerDef(pl), { defWeight: 1.5 }),
     calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
-    hitChance: 0.80,
+    hitChance: 0.82,
     applyVulnPentacle: true,
     pierce: _isPierce,
     onMiss: (px, py, mlx) => {
@@ -3255,7 +3255,7 @@ function monsterThrowChargedFuzzball(m, dg, pl, ml, luFn) {
     animColor: "#66ddff",
     fireMsg: `${m.name}が帯電毛玉を投げつけてきた！`,
     boltName: "帯電毛玉",
-    hitChance: 0.80,
+    hitChance: 0.82,
     /* 帯電毛玉はダメージを与えず、命中時だけインベントリへ入る */
     customPlHit: (mlx) => {
       pushChargedFuzzball(m, pl, mlx, `${m.name}の帯電毛玉が命中！アイテム欄に押し付けられた！`);
@@ -3272,7 +3272,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
   if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
   ammo.count--;
   const isMagic = !!ammo.magicStone;
-  const hitChance = 0.80;
+  const hitChance = 0.82;
   const stoneName = isMagic ? "魔法の石" : "石";
   const dropStone = () => isMagic ? makeMagicStone(1) : makeStone(1);
   const color = isMagic ? "#cc88ff" : "#aaaaaa";
@@ -3442,7 +3442,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
   const maxDist = 8;
   ml.push(`${m.name}が水鉄砲を撃った！`);
   pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff", { wind: true, range: maxDist });
-  const miss = Math.random() < 0.20;
+  const miss = Math.random() < 0.18;
   /* みかわしの魔方陣 */
   const _wDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
   if (_wDodgePcMode === "dodge") {
@@ -3567,7 +3567,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * 遠投の魔方陣: farcast→射程∞+壁貫通+貫通, cursed→射程1
  * みかわしの魔方陣: モンスター射手なら発射前に不発、プレイヤー射手では適用しない
  * みかわしの服: モンスター射手のみ、プレイヤー座標で25%回避
- * hitChance: プレイヤー命中時の命中判定（モンスター射手用、1.0=必中、0.80=矢、0.80=水鉄砲 など）
+ * hitChance: プレイヤー命中時の命中判定（モンスター射手用、1.0=必中、0.82=矢、0.82=水鉄砲 など）
  * onMiss(px, py, ml): 回避/不発/外れ時のコールバック（矢などの弾薬を地面に落とす処理）
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
  * pierce: trueなら壁・敵・プレイヤー・大箱・泉を貫通して飛び続ける（farcastと同等の挙動）
@@ -4207,7 +4207,7 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
   delete m.carriedItem;
   const beforeHp = pl.hp;
   const result = throwItemAlongLine(m, dg, item, dx, dy, itemThrowerRange(m), ml, pl, luFn, {
-    hitChance: 0.75,
+    hitChance: 0.82,
     missLandFn: (x, y, missedItem, logs) => {
       if (missedItem.type === "charged_fuzzball") {
         placeItemAt(dg, x, y, missedItem, logs, new Set(), 0, pl);

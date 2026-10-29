@@ -18,14 +18,14 @@ function setup(item = sword, level = 1) {
   return { enemy, player, dungeon, messages, hit, attack };
 }
 
-describe("ひょい河童の拾い投げ命中率75%", () => {
+describe("ひょい河童の拾い投げ命中率82%", () => {
   for (const level of [1, 2, 3]) {
-    it.each([0.7499, 0.75])(`Lv${level}: 命中境界の乱数 %s`, (randomValue) => {
+    it.each([0.8199, 0.82])(`Lv${level}: 命中境界の乱数 %s`, (randomValue) => {
       const s = setup(sword, level);
       vi.spyOn(Math, "random").mockReturnValue(randomValue);
       s.attack();
       expect(s.enemy.carriedItem).toBeUndefined();
-      if (randomValue < 0.75) {
+      if (randomValue < 0.82) {
         expect(s.player.hp).toBeLessThan(100);
         expect(s.hit).toHaveBeenCalledOnce();
         expect(s.dungeon.items).toHaveLength(0);
@@ -120,7 +120,7 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
     expect(s.player.hp).toBeLessThan(100);
   });
 
-  it("敵の吹き飛ばしで飛んだ道具は75%投擲の対象にしない", () => {
+  it("敵の吹き飛ばしで飛んだ道具は82%投擲の対象にしない", () => {
     const s = setup();
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const result = throwItemAlongLine({ x: 5, y: 5, name: "吹き飛ばし" }, s.dungeon, sword, 0, 1, 5, s.messages, s.player, null, { killerMon: s.enemy });
@@ -150,7 +150,7 @@ describe("ひょい河童の拾い投げ命中率75%", () => {
     expect(s.messages.join(" ")).toContain("瓶が割れて中身が飛び散った！");
   });
 
-  it("75%の命中抽選で外れた毒薬も、その場で割れて薬効を出す", () => {
+  it("82%の命中抽選で外れた毒薬も、その場で割れて薬効を出す", () => {
     const s = setup({ id: 'held', name: '毒薬', type: 'potion', effect: 'poison', value: 5 });
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
     s.attack();
