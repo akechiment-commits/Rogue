@@ -47,6 +47,7 @@ import { fireTrapPlayer } from "./traps.js";
 import { finishTrapActivationTurn } from "./trapActivationTurn.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
+import { trapPoolForDungeon } from "./dungeonContent.js";
 import { trackItem, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
@@ -146,6 +147,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
+  /* 持ち込み（開始金貨・開始所持品）はこの冒険への入場時に消費済み。
+     ゲームオーバー後の再挑戦で再支給しないための消費フラグ。 */
+  const carryInConsumedRef = useRef(false);
   const newMiniTipMessagesRef = useRef([]);
   const messageSoundObserverRef = useRef(null);
   if (!messageSoundObserverRef.current) messageSoundObserverRef.current = createMessageSoundObserver(msgs);
@@ -670,6 +674,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setPutMode(null);
     setDashMode(false);
     resetDiscoveries();
+    /* 持ち込みは最初の開始時だけ有効。再挑戦では再支給しない。 */
+    const _carryIn = !carryInConsumedRef.current;
+    carryInConsumedRef.current = true;
+    /* 新しい冒険ではタイマーを0から計り直す（再挑戦時に前周回の凍結を引き継がない）。 */
+    runTimerRef.current?.reset?.();
     /* ダンジョン生成前に好きな食べ物を食料抽選へ反映 */
     setFavoriteFoodBase(favoriteFood);
     const startDepth = dungeonConfig?.startDepth || 1;
@@ -701,7 +710,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       nextExp: 10,
       hunger: 100,
       maxHunger: 100,
-      gold: dungeonConfig?.startGold || 0,
+      gold: _carryIn ? (dungeonConfig?.startGold || 0) : 0,
       depth: startDepth,
       weapon: null,
       armor: null,
@@ -754,7 +763,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     };
     setActivePlayerName(p.playerName);
     installPlayerHpReverseHook(p);
-    if (dungeonConfig?.startInventory?.length) {
+    if (_carryIn && dungeonConfig?.startInventory?.length) {
       for (const it of dungeonConfig.startInventory) {
         if (p.inventory.length < (p.maxInventory || 100)) {
           const copy = { ...it, id: uid() };
@@ -2286,10 +2295,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         /* ===== 新ペン魔方陣の毎ターン効果 ===== */
         if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
           const _dg2 = st.dungeon;
+          /* 罠生成の魔方陣が作る罠も、そのダンジョン・階層で許可されたものだけにする */
+          const _pickTrapForPentacle = () => pickTrap(trapPoolForDungeon(_dg2.dungeonType ?? null, p?.depth ?? ((_dg2.depth ?? 0) + 1)));
           for (const _pc of _dg2.pentacles) {
             resolveTeleportAndTrapPentacleEffect(_pc, _dg2, p, ml, {
               findRoom, inMagicSealRoom, random: Math.random, randomTeleportDest,
-              pick, rng, T, pickTrap, uid, removeTrap,
+              pick, rng, T, pickTrap: _pickTrapForPentacle, uid, removeTrap,
             });
             resolveStoneAndHealingPentacleEffect(_pc, _dg2, p, ml, {
               findRoom,
@@ -5688,6 +5699,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const it = p.inventory[itemIdx];
       if (!it) return;
       const bb = bigboxRef.current;
+      /* 今のダンジョンに属さない大箱（前周回の残り等）には絶対に入れない。アイテム移動前に確認する。 */
+      if (!dg.bigboxes?.includes(bb)) {
+        setBigboxMode(null);
+        bigboxRef.current = null;
+        return;
+      }
       const ml = installPlayerHpMessageHook([], p);
       if (bb.contents.length >= bb.capacity) {
         ml.push(`${bbDisplayName(bb, sr.current)}はもういっぱいだ。`);
@@ -5706,7 +5723,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       bigboxAddItem(bb, it, dg, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      if (dg.bigboxes?.includes(bb) && bb.contents.length < bb.capacity) {
+      if (p.hp > 0 && dg.bigboxes?.includes(bb) && bb.contents.length < bb.capacity) {
         setBigboxMode("put");
         setBigboxMenuSel(0);
         setBigboxPage(0);

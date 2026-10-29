@@ -57,6 +57,15 @@ export function createRunTimer(initialMs = 0) {
     frozen = true;
   }
 
+  /** 新しい冒険の開始用：累積を0に戻し、凍結を解除して計測を再開する */
+  function reset() {
+    accumulated = 0;
+    segmentStart = null;
+    running = false;
+    frozen = false;
+    start();
+  }
+
   function getElapsedMs() {
     if (running && segmentStart != null) {
       return Math.floor(accumulated + (nowMs() - segmentStart));
@@ -85,6 +94,7 @@ export function createRunTimer(initialMs = 0) {
     start,
     pause,
     freeze,
+    reset,
     getElapsedMs,
     attach,
     isFrozen: () => frozen,
