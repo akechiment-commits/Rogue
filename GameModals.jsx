@@ -3304,7 +3304,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
   const castSpell = (vi) => {
     const spell = pageSpells[vi];
     if (!spell) return;
-    if ((gs?.player?.mp ?? 0) < spell.mpCost) { setMsgs((prev) => [...prev.slice(-80), `MPが足りない！(必要:${spell.mpCost} 現在:${gs?.player?.mp ?? 0})`]); return; }
+    if ((gs?.player?.mp ?? 0) < spell.mpCost) { setMsgs((prev) => [...prev.slice(-80), `MPが足りない！(必要:${spell.mpCost} 現在:${gs?.player?.mp ?? 0})`]); setMode(false); return; }
     setMode(false);
     if (!spell.needsDir) {
       if (!sr.current) return;

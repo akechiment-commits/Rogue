@@ -141,6 +141,9 @@ export function useGamepad({
   miniTip,
   showTileEditor,
   showEnding,
+  spellMenuSel,
+  spellPage,
+  spellConfirmRef,
   setLookMode,
   setMapMode,
   setMsgLogMode,
@@ -148,6 +151,7 @@ export function useGamepad({
   msgsRef,
   setSpellListMode,
   setSpellMenuSel,
+  setSpellPage,
   setShowSettings,
   setShowSound,
   setShowScores,
@@ -202,6 +206,10 @@ export function useGamepad({
   showTileEditorRefPad.current = !!showTileEditor;
   const showEndingRef = useRef(!!showEnding);
   showEndingRef.current = !!showEnding;
+  const spellMenuSelRef = useRef(Number(spellMenuSel) || 0);
+  spellMenuSelRef.current = Number(spellMenuSel) || 0;
+  const spellPageRef = useRef(Number(spellPage) || 0);
+  spellPageRef.current = Number(spellPage) || 0;
 
   const prevBtnRef = useRef({});
   const aDownAtRef = useRef(0);
@@ -580,6 +588,65 @@ export function useGamepad({
         return;
       }
 
+      /* 魔法欄のゲームパッド操作は、合成キーボードイベントを介さず直接処理する。 */
+      if (spellListModeRef.current) {
+        if (edgeDown(prev, next, BTN.A) && !lt) {
+          aDownAtRef.current = now;
+          aUsedDashRef.current = true;
+          aDoubleTapPendingRef.current = false;
+          lastInventoryTapAtRef.current = 0;
+          setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
+          if (showInvRef.current) setShowInv?.(false);
+          showInvRef.current = false;
+          moveHeldRef.current = null;
+          setSpellListMode?.(false);
+          prevBtnRef.current = next;
+          return;
+        }
+        if (edgeDown(prev, next, BTN.B) && !lt) {
+          spellConfirmRef?.current?.(spellMenuSelRef.current);
+          moveHeldRef.current = null;
+          prevBtnRef.current = next;
+          return;
+        }
+
+        const spellDir = dpadPressed(gp) ? readDpadDir(gp) : readMoveDir(gp);
+        const spellArrow = spellDir ? modalDirToArrow(spellDir.dx, spellDir.dy) : null;
+        if (!spellArrow) {
+          moveHeldRef.current = null;
+        } else {
+          const key = `spell:${spellArrow.code}`;
+          const isNew = moveHeldRef.current !== key;
+          const shouldRepeat = !isNew && now - moveFirstAtRef.current >= MOVE_REPEAT_DELAY_MS && now - moveRepeatAtRef.current >= MOVE_REPEAT_MS;
+          if (isNew || shouldRepeat) {
+            moveHeldRef.current = key;
+            if (isNew) moveFirstAtRef.current = now;
+            moveRepeatAtRef.current = now;
+            const totalSpells = sr?.current?.player?.spells?.length || 0;
+            const totalPages = Math.max(1, Math.ceil(totalSpells / 10));
+            const page = Math.min(Math.max(0, spellPageRef.current), totalPages - 1);
+            const pageLength = Math.min(10, Math.max(0, totalSpells - page * 10));
+            if (spellArrow.code === "ArrowUp" || spellArrow.code === "ArrowDown") {
+              if (pageLength > 0) {
+                const delta = spellArrow.code === "ArrowDown" ? 1 : -1;
+                const selection = (spellMenuSelRef.current + delta + pageLength) % pageLength;
+                spellMenuSelRef.current = selection;
+                setSpellMenuSel?.(selection);
+              }
+            } else if (totalPages > 1) {
+              const delta = spellArrow.code === "ArrowRight" ? 1 : -1;
+              const pageNext = (page + delta + totalPages) % totalPages;
+              spellPageRef.current = pageNext;
+              spellMenuSelRef.current = 0;
+              setSpellPage?.(pageNext);
+              setSpellMenuSel?.(0);
+            }
+          }
+        }
+        prevBtnRef.current = next;
+        return;
+      }
+
       /* インベントリ中はXで整頓、Yで「置く」モードを切り替える。 */
       if (showInvRef.current) {
         if (edgeDown(prev, next, BTN.X)) {
@@ -627,7 +694,7 @@ export function useGamepad({
           aUsedDashRef.current = true;
         }
       }
-      if (aHeld && !lt && !anyModalUi() && !facingModeRef.current) {
+      if (aHeld && !lt && !aUsedDashRef.current && !anyModalUi() && !facingModeRef.current) {
         if (now - aDownAtRef.current >= A_TAP_MS) {
           setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, true);
         }
@@ -641,6 +708,7 @@ export function useGamepad({
             setShowInv?.(false);
             showInvRef.current = false;
             setSelIdx?.(null);
+            moveHeldRef.current = null;
             setSpellListMode?.(true);
           } else if (showInvRef.current) {
             setShowInv?.(false);
@@ -888,6 +956,7 @@ export function useGamepad({
     dead,
     setSpellListMode,
     setSpellMenuSel,
+    setSpellPage,
     sortInventory,
     dropModeRef,
     setDropMode,
