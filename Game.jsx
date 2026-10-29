@@ -175,6 +175,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [throwMode, setThrowMode] = useState(null);
   /* ── modal state (mutually exclusive) via useReducer ── */
   const [modal, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
+  /* 魔法リストはゲームパッドから開閉するため、汎用モーダルの reducer と独立させる。 */
+  const [spellListOpen, setSpellListOpen] = useState(false);
+  const spellListModeRef = useRef(false);
 
   // convenience accessors
   const springMode    = modal.type === 'spring'      ? modal.data : null;
@@ -216,9 +219,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const markerMode    = modal.type === 'marker'       ? modal.data : null;
   const markerMenuSel = modal.markerMenuSel;
   const markerPage    = modal.markerPage ?? 0;
-  const spellListMode = modal.type === 'spellList'    ? modal.data : null;
-  const spellListModeRef = useRef(!!spellListMode);
-  spellListModeRef.current = !!spellListMode;
+  const spellListMode = spellListOpen ? true : null;
   const spellMenuSel  = modal.spellMenuSel;
   const spellPage     = modal.spellPage;
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
@@ -266,9 +267,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
   const setMarkerPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { markerPage: typeof v === 'function' ? v(modal.markerPage ?? 0) : v } });
   const setSpellListMode = (v) => {
-    const next = typeof v === 'function' ? v(spellListModeRef.current) : v;
+    const next = !!(typeof v === 'function' ? v(spellListModeRef.current) : v);
     spellListModeRef.current = !!next;
-    next ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: next }) : dispatchModal({ type: 'CLOSE_MODAL' });
+    setSpellListOpen(next);
+    if (next) dispatchModal({ type: 'CLOSE_MODAL' });
   };
   const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel ?? 0) : v } });
   const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage ?? 0) : v } });
@@ -6492,7 +6494,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   execRef.current = execDirection;
   const isModalActive = !!(
-    modal.type || gamepadQuickOpen || gamepadControlsOpen || showInv || msgLogMode || showScores || showSettings ||
+    modal.type || spellListMode || gamepadQuickOpen || gamepadControlsOpen || showInv || msgLogMode || showScores || showSettings ||
     showSound || showSign || miniTip || showTileEditor || exitHubConfirm || dead || showEnding
   );
   const isAnyModalActive = isModalActive || !!throwMode;

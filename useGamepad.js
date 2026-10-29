@@ -375,9 +375,8 @@ export function useGamepad({
       setShowScores?.(false);
       return true;
     }
-    if (spellListModeRef.current || modalTypeRef.current === "spellList") {
+    if (spellListModeRef.current) {
       spellListModeRef.current = false;
-      if (modalTypeRef.current === "spellList") modalTypeRef.current = null;
       setSpellListMode?.(false);
       return true;
     }
@@ -645,7 +644,6 @@ export function useGamepad({
             showInvRef.current = false;
             setSelIdx?.(null);
             setSpellListMode?.(true);
-            spellListModeRef.current = true;
           } else if (showInvRef.current) {
             setShowInv?.(false);
             showInvRef.current = false;
