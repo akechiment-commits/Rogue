@@ -165,7 +165,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       return next;
     });
   }, []);
-  const [showInv, setShowInv] = useState(false);
+  const [showInv, setShowInvState] = useState(false);
+  const showInvRef = useRef(false);
+  const setShowInv = (v) => {
+    const next = typeof v === "function" ? v(showInvRef.current) : v;
+    showInvRef.current = !!next;
+    setShowInvState(!!next);
+  };
   const [dropMode, setDropMode] = useState(false);
   const dropModeRef = useRef(false);
   const [selIdx, setSelIdx] = useState(null);
@@ -5926,7 +5932,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     act,
     doDash,
     dead,
-    showInv,
+    showInvRef,
     setShowInv,
     setSelIdx,
     sortInventory,

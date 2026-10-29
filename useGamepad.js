@@ -118,7 +118,7 @@ export function useGamepad({
   act,
   doDash,
   dead,
-  showInv,
+  showInvRef,
   setShowInv,
   setSelIdx,
   sortInventory,
@@ -180,8 +180,6 @@ export function useGamepad({
   showSoundRef.current = !!showSound;
   const showScoresRef = useRef(!!showScores);
   showScoresRef.current = !!showScores;
-  const showInvRef = useRef(!!showInv);
-  showInvRef.current = !!showInv;
   const lookModeRef = useRef(lookMode);
   lookModeRef.current = lookMode;
   const mapModeRef = useRef(mapMode);
