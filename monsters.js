@@ -41,7 +41,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -3272,6 +3272,23 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
   if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
   ammo.count--;
   const isMagic = !!ammo.magicStone;
+  if (ammo.rightStone) {
+    ml.push(`${m.name}が右を投げた！`);
+    throwItemAlongLine(m, dg, makeRightStone(1), 1, 0, 3, ml, pl, null, {
+      killerMon: m,
+      hitChance: 0.82,
+      calcPlDmg: () => {
+        const attack = m.atk + 3;
+        const defense = calcPlayerDef(pl);
+        return calcAtkDefDmg(attack, defense, { defWeight: 1.5 });
+      },
+      plHitMsg: (dmg) => `${m.name}の右が命中！${playerHpEffectLabel(pl, dmg)}！`,
+      deathCausePhrase: `${m.name}の右投げで`,
+      animColor: "#aaaaaa",
+      bbFn: opts.bbFn,
+    });
+    return true;
+  }
   const hitChance = 0.82;
   const stoneName = isMagic ? "魔法の石" : "石";
   const dropStone = () => isMagic ? makeMagicStone(1) : makeStone(1);
@@ -3622,6 +3639,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     applyVulnPentacle = false,
     wind = true,
     pierce = false,
+    terminalOnly = false,
     isPlayerShooter = false,
     reflectorRange = 20,
     customPlHit = null,
@@ -3640,10 +3658,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   const _killerMon = isPlayerShooter ? null : m;
 
   const _fcMode = getFarcastMode(pl.x, pl.y, dg);
-  const _isFc = _fcMode === "farcast";
-  const _isCursedFc = _fcMode === "cursed";
-  const _passthrough = _isFc || pierce;
-  const maxRange = _isCursedFc ? 1 : _isFc ? FARCAST_RANGE : pierce ? 50 : baseRange;
+  const _isFc = !terminalOnly && _fcMode === "farcast";
+  const _isCursedFc = !terminalOnly && _fcMode === "cursed";
+  const _passthrough = !terminalOnly && (_isFc || pierce);
+  const maxRange = terminalOnly ? baseRange : _isCursedFc ? 1 : _isFc ? FARCAST_RANGE : pierce ? 50 : baseRange;
 
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
 
@@ -3687,6 +3705,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     wind,
     range: maxRange,
     passThrough: _passthrough,
+    terminalOnly,
     passThroughDodgemole: true,
     stopAtBigbox: !!onBigbox,
     stopAtSpring: !!onSpring,
@@ -3717,6 +3736,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
       if (onWallStop) onWallStop(_lx, _ly, ml);
       return;
+    }
+    /* 右の石は指定終点まで途中の生物・物体を飛び越えて、終点だけで判定する。 */
+    if (terminalOnly && _d < maxRange) {
+      _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
+      continue;
     }
     if (isPlayerShooter) {
       const _enemyProjectile = destroyEnemyHomingProjectileAt(dg, _tx, _ty, ml, boltName);

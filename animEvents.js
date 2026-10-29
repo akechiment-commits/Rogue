@@ -156,6 +156,7 @@ export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0", wind
   const opts = typeof windOrOpts === "object" ? windOrOpts : {};
   const maxRange = Number.isFinite(opts.range) ? opts.range : MW + MH;
   const passThrough = !!opts.passThrough;
+  const terminalOnly = !!opts.terminalOnly;
   const passThroughDodgemole = !!opts.passThroughDodgemole;
   const stopAtBigbox = opts.stopAtBigbox ?? true;
   const stopAtSpring = opts.stopAtSpring ?? true;
@@ -172,7 +173,7 @@ export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0", wind
   let endX = tr.endX, endY = tr.endY;
   for (let i = 1; i < path.length; i++) {
     const { x: tx, y: ty } = path[i];
-    if (passThrough) continue;
+    if (passThrough || (terminalOnly && i < path.length - 1)) continue;
     const mon = monsterAt(dg, tx, ty);
     const stopsAtMonster = mon && !(passThroughDodgemole && monSubmergesProjectiles(mon));
     if (stopsAtMonster || itemAt(dg, tx, ty) || dg.traps?.find(t => t.x === tx && t.y === ty) ||
@@ -206,6 +207,7 @@ export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a0
   const opts = typeof windOrOpts === "object" ? windOrOpts : {};
   const maxRange = Number.isFinite(opts.range) ? opts.range : MW + MH;
   const passThrough = !!opts.passThrough;
+  const terminalOnly = !!opts.terminalOnly;
   const passThroughDodgemole = !!opts.passThroughDodgemole;
   const stopAtBigbox = opts.stopAtBigbox ?? true;
   const stopAtSpring = !!opts.stopAtSpring;
@@ -214,7 +216,7 @@ export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a0
     stopAtWall: !passThrough,
     passWall: passThrough,
     stopAtMon: false,
-    stopAtPlayer: pl && !passThrough ? { x: pl.x, y: pl.y } : null,
+    stopAtPlayer: pl && !passThrough && !terminalOnly ? { x: pl.x, y: pl.y } : null,
     stopAtContainers: false,
     wind,
   });
@@ -222,7 +224,7 @@ export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a0
   let lx = tr.endX, ly = tr.endY;
   for (let i = 1; i < path.length; i++) {
     const { x: tx, y: ty } = path[i];
-    if (passThrough) continue;
+    if (passThrough || (terminalOnly && i < path.length - 1)) continue;
     if (pl && tx === pl.x && ty === pl.y) { lx = tx; ly = ty; path = path.slice(0, i + 1); break; }
     const mon = monsterAt(dg, tx, ty);
     const stopsAtMonster = mon && !(passThroughDodgemole && monSubmergesProjectiles(mon));

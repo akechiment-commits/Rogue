@@ -680,7 +680,9 @@ export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,         
 export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"D", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
 export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"C", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
 export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"C", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
+export const RIGHT_STONE_CHANCE = 0.05;
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾し、途中の敵や物体を飛び越える。束投げは全個数を消費し、攻撃力が束数分上がる。99個まで束にできる。遠投では消滅、呪われた遠投では1マス先に着弾。",  count:1, tile:TI.STONE_PROJECTILE };
+export const RIGHT_STONE_T    = { ...STONE_T, name:"右", rightStone:true, desc:"投げるとゲーム画面上の右へ3マス飛ぶ。石と同じ見た目。", };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングする。敵がいなければ石と同じ距離を飛ぶ。束投げは全個数を消費し、攻撃力が束数分上がる。99個まで束にできる。",                                    count:1, tile:TI.STONE_PROJECTILE };
 export const ICE_CHUNK_T    = { name:"氷塊",     type:"arrow", atk:3, iceChunk:true, rarity:"E", weight:0, sellPrice:5,   desc:"石と同じように飛び、途中の敵や物体を飛び越える。束投げは全個数を消費し、攻撃力が束数分上がる。炎で優先的に溶ける。", count:1, tile:TI.ICE_CHUNK };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。爆発範囲内の地雷・時限爆弾も誘爆する。\n99本まで束にできる。",                            count:1, tile:23 };
@@ -1131,7 +1133,7 @@ export function randPotCapacity(potEffect) {
 export function makeFreshDuplicate(source) {
   const catalog = [...ITEMS, ...WANDS, ...POTS, ...RINGS, ...SPELLBOOKS,
     MAGIC_MARKER, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL,
-    ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T,
+    ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T,
     CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T,
     FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T,
     GODBANE_SWORD_T, MAGIC_BANE_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
@@ -4078,8 +4080,16 @@ export function makeStrongArrow(c = 1) {
   return { ...STRONG_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
 
-export function makeStone(c = 1) {
+export function makeNormalStone(c = 1) {
   return { ...STONE_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function makeRightStone(c = 1) {
+  return { ...RIGHT_STONE_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function makeStone(c = 1) {
+  return Math.random() < RIGHT_STONE_CHANCE ? makeRightStone(c) : makeNormalStone(c);
 }
 
 export function makeIceChunk(c = 1) {
@@ -4152,7 +4162,8 @@ export function makeBasicArrowUnit(stack) {
   if (stack.specialProjectile === "homing") return copyDiscoveryMark(makeHomingShot(1));
   if (stack.magicStone) return copyDiscoveryMark(makeMagicStone(1));
   if (stack.iceChunk) return copyDiscoveryMark(makeIceChunk(1));
-  if (stack.stone) return copyDiscoveryMark(makeStone(1));
+  if (stack.rightStone) return copyDiscoveryMark(makeRightStone(1));
+  if (stack.stone) return copyDiscoveryMark(makeNormalStone(1));
   if (stack.bombArrow) return copyDiscoveryMark(makeBombArrow(1));
   if (stack.pierce) return copyDiscoveryMark(makePiercingArrow(1));
   if (stack.poison) return copyDiscoveryMark(makePoisonArrow(1));
@@ -4436,7 +4447,8 @@ function canAddStackCount(inv, c, matches, maxInv) {
 }
 
 export function addStonesInv(inv, c, isMagic = false, maxInv = 30, sourceItem = null) {
-  const matches = (i) => i.type === "arrow" && !!i.stone === !isMagic && !!i.magicStone === isMagic;
+  const rightStone = !isMagic && (sourceItem ? !!sourceItem.rightStone : Math.random() < RIGHT_STONE_CHANCE);
+  const matches = (i) => i.type === "arrow" && !!i.stone === !isMagic && !!i.magicStone === isMagic && !!i.rightStone === rightStone;
   if (!canAddStackCount(inv, c, matches, maxInv)) return false;
   let r = Math.max(0, Number(c) || 0);
   const changedStacks = [];
@@ -4454,7 +4466,7 @@ export function addStonesInv(inv, c, isMagic = false, maxInv = 30, sourceItem = 
   }
   while (r > 0) {
     const n = Math.min(r, 99);
-    const added = isMagic ? makeMagicStone(n) : makeStone(n);
+    const added = isMagic ? makeMagicStone(n) : rightStone ? makeRightStone(n) : makeNormalStone(n);
     inv.push(added);
     changedStacks.push(added);
     r -= n;
@@ -6957,8 +6969,21 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
  *   - 将来: アイテム飛翔系の新規杖
  */
 export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts = {}) {
+  if (item?.rightStone) {
+    dx = 1;
+    dy = 0;
+    range = 0;
+    for (let distance = 1; distance <= 3; distance++) {
+      const tx = shooter.x + distance, ty = shooter.y;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) break;
+      range = distance;
+    }
+    opts = { ...opts, wind: false, terminalOnly: true, homingTarget: null, animColor: "#aaaaaa" };
+  }
   const {
     hitChance = 1,
+    forceMiss = false,
+    calcPlDmg = null,
     missLandFn = null,
     bbFn = null,
     nameFn = null,
@@ -7022,6 +7047,11 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
 
   const hitMonster = (mon, mlx, _prevX, _prevY, hitX = mon.x, hitY = mon.y) => {
+    if (forceMiss) {
+      mlx.push(`${_itemName}は${mon.name}に当たらなかった！`);
+      res.missedPlayer = true; res.x = hitX; res.y = hitY;
+      return;
+    }
     if (shooter === p && !reflectedBy && mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, mlx);
     if (_isPotion) {
       if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
@@ -7043,6 +7073,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     isPlayerShooter: shooter === p,
     dx, dy,
     baseRange: range,
+    calcPlDmg: calcPlDmg || undefined,
+    terminalOnly: !!opts.terminalOnly,
     reflectorRange,
     boltName: _itemName,
     hitChance,
@@ -8061,6 +8093,20 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   }
   st.count--;
   if (st.count <= 0) p.inventory.splice(idx, 1);
+  if (st.rightStone) {
+    const unit = makeArrowUnitFromStack(st);
+    ml.push("右を射った！");
+    throwItemAlongLine(p, dg, unit, 1, 0, 3, ml, p, luFn, {
+      forceMiss,
+      nameFn: (it) => it.name || "右",
+      monHitMsg: (target, dmg) => `右が${target.name}に命中！${dmg}ダメージ！`,
+      plHitMsg: (dmg) => `右が自分に当たった！${playerHpEffectLabel(p, dmg)}！`,
+      deathCausePhrase: "右に当たって",
+      bbFn,
+      animColor: "#aaaaaa",
+    });
+    return;
+  }
   const _isPoison = !!st.poison;
   const _isPierce = !!st.pierce;
   const _arAtk = st.atk || 3;

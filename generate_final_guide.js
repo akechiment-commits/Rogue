@@ -32,7 +32,7 @@ import {
   TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
   GOBLIN_BAT_T, ONI_CLUB_T,
   GODSPARKWAND_T,
-  ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T,
+  ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T,
   TORPEDO_T, CRAWLING_BOMB_T, HOMING_SHOT_T,
   CHARGED_FUZZBALL_T,
   GOLD_NUGGET_T,
@@ -241,6 +241,7 @@ const GUIDE_DESC_OVERRIDES = {
 };
 
 const POT_RANDOM_BC_NOTE = "フロア生成時に祝福抽選になった壺は祝福フラグを持たず容量+1、呪い抽選になった壺は呪いフラグを持たず容量-1（0未満にはならない）。";
+GUIDE_DESC_OVERRIDES["右"] = '石が生成される時に5%の確率で「右」になる。攻撃力・レア度・重み・売値・タイル画像は石と同じ。誰がどの方向を向いて投げても、風穴・遠投・ワッカの指輪の影響を受けず、ゲーム画面上の東（x+）へ最大3マス進み、3マス目だけで命中・着地判定する。途中の敵や床物体は飛び越える。東側の壁またはマップ端に当たる場合は、その手前の最後のマスで止まる。通常の石とは別に積み、束投げ・射撃・敵の投擲でも右方向の性質を維持する。';
 GUIDE_DESC_OVERRIDES["水"] += ' 水を投げて飛沫を浴びた敵は通常10ターン（ボスは5ターン）ずぶ濡れになる。水鉄砲も命中した敵を濡らす。火ダルマの炎特性と、他の敵へ付与された炎まといはずぶ濡れ中に停止する。';
 GUIDE_DESC_OVERRIDES["炎の杖"] = `${GUIDE_DESC_OVERRIDES["炎の杖"] ?? ITEMS.find(item => item.name === "炎の杖")?.desc ?? ""} 床の薬に当てると薬を消費し、着弾点を中心に祝福・呪いを含む薬液の効果を3×3へ飛散させる。炎まとい中の敵は杖の炎を吸収して回復し、ずぶ濡れ中は炎特性が停止する。`;
 const CURSE_DESCRIPTION_TYPES = new Set(['potion', 'scroll', 'wand', 'pen', 'spellbook', 'bottle', 'marker']);
@@ -1337,12 +1338,13 @@ const projectileData = [['名称', '攻撃力', 'レア度', '重み', '売値',
 projectileData.push(['【共通：着地と罠】', '-', '-', '-', '-', '-', '通常の床配置で判定', '矢・石・魔法の石や、武器・防具・指輪・杖などの投擲物が外れたり遮蔽物で止まって着地した際も、プレイヤー情報を渡して罠を判定する。地雷が起動・誘爆した場合は、爆風内のプレイヤーにも通常のHP半減・耐火軽減・所持品への炎の影響を適用する。爆風外にはダメージを与えない。着地後に同じ罠を別途再起動しない。装備中の射撃・所持品からの射撃／投擲で共通。']);
 projectileData.push(['【グラフィック】', '-', '-', '-', '-', '-', '矢=tile 23 / 石系=tile 232 / 氷塊=tile 233', '通常矢は矢の画像。石・魔法の石と氷塊はそれぞれ専用の石・氷画像を飛翔中・床・所持品で共通使用する。']);
 projectileData.push(['【石系投擲】', '-', '-', '-', '-', '-', '途中物体を飛び越え、束投げは全量消費', '石・氷塊は壁またはマップ端以外では途中の敵・石像・敵誘導弾・大箱・泉などを飛び越え、最後に到達したマスだけで衝突・収納・泉への投入を判定する。魔法の石は敵が10マス以内にいない時、石と同じ距離・軌道で飛んで着地する。インベントリから束で投げると束全体を1発として消費し、通常の攻撃力に束数を加算する。敵に当たらず着地した場合は束全体が床に残る。射撃操作では1個だけ消費する。']);
-for (const a of [ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T, TORPEDO_T, CRAWLING_BOMB_T, HOMING_SHOT_T]) {
+for (const a of [ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, BOMB_ARROW_T, TORPEDO_T, CRAWLING_BOMB_T, HOMING_SHOT_T]) {
   const behavior = a.specialProjectile === 'torpedo' ? '水上を1マス/ターン進み、水外で着地'
     : a.specialProjectile === 'crawling_bomb' ? '床を1マス/ターン進み接触爆発'
     : a.specialProjectile === 'homing' ? '敵を追尾して1マス/ターン進む'
     : a.bombArrow ? '着弾点で爆発'
     : a.magicStone ? '10マス以内の敵へ即時ホーミング'
+    : a.rightStone ? '画面右へ3マス固定'
     : (a.stone || a.iceChunk) ? '3マス先に着弾'
     : a.pierce ? '敵・壁を貫通'
     : a.poison ? '命中時に毒'

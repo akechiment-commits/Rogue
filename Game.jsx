@@ -6678,7 +6678,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {p.arrow && (
           <span style={{ color: "#dda050" }}>
-            {p.arrow.iceChunk ? "氷塊" : p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.specialProjectile ? p.arrow.name : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
+            {p.arrow.rightStone ? "右" : p.arrow.iceChunk ? "氷塊" : p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.specialProjectile ? p.arrow.name : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
           </span>
         )}{" "}
         {(p.rings || []).map((r, i) => (

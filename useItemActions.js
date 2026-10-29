@@ -3119,6 +3119,8 @@ export function useItemActions({
       if (!throwMode || !sr.current) return;
       const { idx, mode } = throwMode;
       const { player: p, dungeon: dg } = sr.current;
+      const _selectedProjectile = mode === "shoot_equipped" ? p.arrow : p.inventory[idx];
+      if (_selectedProjectile?.rightStone) { dx = 1; dy = 0; }
       const ml = installPlayerHpMessageHook([], p);
       const _hasWakkaTargetInRange = () => (dg.monsters || []).some(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
         Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10);
@@ -3145,7 +3147,7 @@ export function useItemActions({
 
         /* ワッカの指輪：装備中の通常飛び道具も魔法の石と同じ必中ホーミング。
            這いずり爆弾・魚雷・誘導弾などの特殊飛び道具は従来どおり。 */
-        if (hasRingEffect(p, "wakka_ring") && !_arItem.specialProjectile && _hasWakkaTargetInRange()) {
+        if (hasRingEffect(p, "wakka_ring") && !_arItem.specialProjectile && !_arItem.rightStone && _hasWakkaTargetInRange()) {
           shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
             forceMiss: _forceMiss,
             wakka: true,
@@ -3181,7 +3183,7 @@ export function useItemActions({
             return _stUnit;
           };
           const _stPeelIfNeeded = () => { if (!_stUnit) peelShopArrowUnit(_arItem); };
-          if (_isFarcast) {
+          if (_isFarcast && !_arItem.rightStone) {
             /* 遠投：消滅 */
             ml.push(`${_stName}を投げた。${_stName}は消滅した。`);
             _stPeelIfNeeded();
@@ -3259,7 +3261,7 @@ export function useItemActions({
             }
           } else {
             /* 通常の石：必ず3マス先（呪い遠投は1マス先）に着弾 */
-            const _stRange = _isCursedFc ? 1 : 3;
+            const _stRange = _arItem.rightStone ? 3 : _isCursedFc ? 1 : 3;
             let _stLx = p.x, _stLy = p.y;
             let _stHitStatue = false;
             let _stHitEnemyProjectile = false;
@@ -3782,7 +3784,7 @@ export function useItemActions({
         _forceUnequip(p, it);
 
         /* ── ワッカの指輪：特殊飛び道具以外を魔法の石のようにホーミング ── */
-        const _wakkaRingThrow = mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile;
+        const _wakkaRingThrow = mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile && !it.rightStone;
         const _wakkaTarget = _wakkaRingThrow
           ? [...dg.monsters]
             .filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
@@ -3877,7 +3879,7 @@ export function useItemActions({
             return _invStUnit;
           };
           const _invStPeel = () => { if (!_isGoldNugget && !_bundleThrow && !_invStUnit) peelShopArrowUnit(it); };
-          if (_isFarcast) {
+          if (_isFarcast && !it.rightStone) {
             ml.push(`${_invStName}を投げた。${_invStName}は消滅した。`);
             _invStPeel();
           } else if (it.magicStone) {
@@ -3891,7 +3893,7 @@ export function useItemActions({
             ml.push(`${_invStName}を投げた！`);
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は石と同じ距離を飛んだ。`);
-              const _msRange2 = _isCursedFc ? 1 : 3;
+              const _msRange2 = it.rightStone ? 3 : _isCursedFc ? 1 : 3;
               let _msLx2 = p.x, _msLy2 = p.y;
               for (let d = 1; d <= _msRange2; d++) {
                 const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -3948,7 +3950,7 @@ export function useItemActions({
               }
             }
           } else {
-            const _stRange2 = _isCursedFc ? 1 : 3;
+            const _stRange2 = it.rightStone ? 3 : _isCursedFc ? 1 : 3;
             let _stLx2 = p.x, _stLy2 = p.y;
             let _stHitStatue2 = false;
             let _stHitEnemyProjectile2 = false;
