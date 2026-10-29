@@ -377,9 +377,10 @@ export function useGamepad({
       setShowScores?.(false);
       return true;
     }
-    if (spellListModeRef.current) {
-      setSpellListMode?.(false);
+    if (spellListModeRef.current || modalTypeRef.current === "spellList") {
       spellListModeRef.current = false;
+      if (modalTypeRef.current === "spellList") modalTypeRef.current = null;
+      setSpellListMode?.(false);
       return true;
     }
     if (facingModeRef.current) {
