@@ -671,6 +671,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setSpringMode(null);
     setAltarMode(null);
     setMerchantMode(null);
+    setBigboxMode(null);
+    bigboxRef.current = null;
+    setBigboxMenuSel(0);
+    setBigboxPage(0);
     setPutMode(null);
     setDashMode(false);
     resetDiscoveries();
@@ -817,6 +821,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* 再開データがある場合はinitの代わりにresumeStateを復元 */
   const initOrResume = useCallback(() => {
     if (resumeState) {
+      /* 中断セーブは既に持ち込みを消費した冒険。再開後の再挑戦で再支給しない。 */
+      carryInConsumedRef.current = true;
       setDead(false);
       setGameOverResult(null);
       setGameOverView(null);
@@ -833,6 +839,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setSpringMode(null);
       setAltarMode(null);
       setMerchantMode(null);
+      setBigboxMode(null);
+      bigboxRef.current = null;
+      setBigboxMenuSel(0);
+      setBigboxPage(0);
       setPutMode(null);
       setDashMode(false);
       /* DiscoveryTracker に前回の発見データを復元 */
