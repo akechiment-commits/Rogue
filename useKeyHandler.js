@@ -15,7 +15,7 @@ import {
   itemPrice, formatSoldItemMessage, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
   extractPotContents, scatterPotContents, reducePotCapacity, isPotStorableItem, getPotInputTargets,
-  declareFloorExitTheft,
+  declareFloorExitTheft, releaseConfinedMonstersFromPot,
 } from "./items.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
@@ -304,11 +304,18 @@ export function useKeyHandler({
               const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
               const _bbDN = (isBigboxKindIdentified(_bb, sr.current) || identifyMode.mode === "identify")
                 ? _bb.name : (sr.current.bbFakeNames?.[_bb.kind] || "謎の大箱");
+              /* 大箱が消える・壊れる効果では、保持中のモンスターは壊れた時と同じく放出する */
+              const _releaseBbConfined = () => {
+                if (_bb.confinedMonsters?.length) {
+                  releaseConfinedMonstersFromPot(_bb, sr.current.dungeon, _bb.x, _bb.y, sr.current.player, _bbEffectMsgs);
+                }
+              };
               if (identifyMode.mode === 'identify') {
                 markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
                 _bbMsg = `大箱「${_bbDN}」の正体が明らかになった！`;
               } else if (identifyMode.mode === 'duplicate') {
                 if (identifyMode.cursed) {
+                  _releaseBbConfined();
                   sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
                   _bbMsg = `${_bbDN}が消えてしまった！【呪】`;
                 } else {
@@ -328,6 +335,7 @@ export function useKeyHandler({
                 const _baseG = bigboxSellBaseValue(_bbT) * _remaining;
                 const _earnedG = identifyMode.blessed ? _baseG * 2 : identifyMode.cursed ? Math.floor(_baseG / 2) : _baseG;
                 sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
+                _releaseBbConfined();
                 sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
                 _bbMsg = identifyMode.blessed ? `${_bbDN}を${_earnedG}Gで換金した！（2倍）【祝】`
                        : identifyMode.cursed  ? `${_bbDN}を${_earnedG}Gで換金した…（半額）【呪】`
@@ -349,6 +357,8 @@ export function useKeyHandler({
                 _bb.contents = [];
                 const _extFts = new Set();
                 for (const _ci of _extItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, _bbEffectMsgs, _extFts, 0, sr.current.player);
+                /* 壺の吸い出しと同じく、保持中のモンスターも一緒に出す */
+                _releaseBbConfined();
                 if (identifyMode.cursed) {
                   sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
                   _bbMsg = `${_bbDN}の中身を吸い出した！大箱は壊れた！【呪】`;

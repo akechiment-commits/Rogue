@@ -9,7 +9,7 @@ import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
-import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T } from "./items.js";
+import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T, releaseConfinedMonstersFromPot } from "./items.js";
 import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from "./monsters.js";
@@ -1211,11 +1211,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         const _bbDN = (isBigboxKindIdentified(_bb, sr.current) || mode.mode === 'identify')
           ? _bb.name
           : (sr.current.bbFakeNames?.[_bb.kind] || "謎の大箱");
+        /* 大箱が消える・壊れる効果では、保持中のモンスターは壊れた時と同じく放出する */
+        const _releaseBbConfined = () => {
+          if (_bb.confinedMonsters?.length) {
+            releaseConfinedMonstersFromPot(_bb, sr.current.dungeon, _bb.x, _bb.y, sr.current.player, _bbEffectMsgs);
+          }
+        };
         if (mode.mode === 'identify') {
           markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
           _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
         } else if (mode.mode === 'duplicate') {
           if (mode.cursed) {
+            _releaseBbConfined();
             sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
             _bbMsg = `${_bbDN}が消えてしまった！【呪】`;
           } else {
@@ -1236,6 +1243,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           const _baseG = bigboxSellBaseValue(_bbT) * _remaining;
           const _earnedG = mode.blessed ? _baseG * 2 : mode.cursed ? Math.floor(_baseG / 2) : _baseG;
           sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
+          _releaseBbConfined();
           sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
           _bbMsg = mode.blessed ? `${_bbDN}を${_earnedG}Gで換金した！（2倍）【祝】`
                  : mode.cursed  ? `${_bbDN}を${_earnedG}Gで換金した…（半額）【呪】`
@@ -1259,6 +1267,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           _bb.contents = [];
           const _extBbFts = new Set();
           for (const _ci of _extBbItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, _bbEffectMsgs, _extBbFts, 0, sr.current.player);
+          /* 壺の吸い出しと同じく、保持中のモンスターも一緒に出す */
+          _releaseBbConfined();
           if (mode.cursed) {
             sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
             _bbMsg = `${_bbDN}の中身を吸い出した！大箱は壊れた！【呪】`;
