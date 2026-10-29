@@ -3509,9 +3509,9 @@ export function useItemActions({
             const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (_arDodgePcMode !== "sure" && checkMonsterEvasion(mon, { sureHit: _arSureHit, baseMissRate: 0.10 })));
             if (_arMiss) {
               if (_arDodgePcMode === "dodge") mlx.push(`みかわしの魔方陣の加護で${mon.name}に矢が当たらなかった！`);
-              if (_arIsPierce) {
+              if (_arIsPierce || _isFcM) {
                 mlx.push(`${_arName}は${mon.name}をすり抜けた！`);
-                return; /* 貫通：外れても落ちずに飛び続ける */
+                return; /* 貫通・遠投：外れても落ちずに飛び続ける */
               }
               mlx.push(`${_arName}は${mon.name}に外れ、足元に落ちた！`);
               const _arMissItem = _arDropItem();
