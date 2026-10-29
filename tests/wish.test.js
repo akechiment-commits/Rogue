@@ -256,4 +256,48 @@ describe("wish core", () => {
     expect(resolveWishText("願いの杖").status).toBe("forbidden");
     expect(resolveWishText("願いの壺").status).toBe("forbidden");
   });
+
+  it("実在アイテム名「祝福の杖」「祝福の壺」は名前で願える", () => {
+    const wand = resolveWishText("祝福の杖");
+    expect(wand.status).toBe("exact");
+    expect(wand.matches).toHaveLength(1);
+    expect(wand.matches[0].name).toBe("祝福の杖");
+    expect(wand.matches[0]._wishBlessed).toBe(false);
+    const pot = resolveWishText("祝福の壺");
+    expect(pot.status).toBe("exact");
+    expect(pot.matches).toHaveLength(1);
+    expect(pot.matches[0].name).toBe("祝福の壺");
+    expect(pot.matches[0]._wishBlessed).toBe(false);
+  });
+
+  it("祝福プレフィックス自体は従来どおり働く", () => {
+    const res = resolveWishText("祝福の回復薬");
+    expect(res.status).toBe("exact");
+    expect(res.matches[0].name).toBe("回復薬");
+    expect(res.matches[0]._wishBlessed).toBe(true);
+  });
+
+  it("grantWish wipe_enemies は敵対していない店主・分身・友好を倒さない", () => {
+    const p = makePlayer({ exp: 0, level: 1, nextExp: 99999 });
+    const dg = makeEmptyDg({
+      monsters: [
+        { id: 1, name: "通常敵", hp: 10, maxHp: 10, x: 1, y: 1, exp: 15 },
+        { id: 2, name: "店主", type: "shopkeeper", state: "friendly", hp: 10, maxHp: 10, x: 2, y: 2, exp: 999 },
+        { id: 3, name: "分身", isPlayerClone: true, hp: 10, maxHp: 10, x: 3, y: 3, exp: 999 },
+        { id: 4, name: "敵対店主", type: "shopkeeper", state: "hostile", hp: 10, maxHp: 10, x: 4, y: 4, exp: 30 },
+      ],
+      items: [],
+      traps: [],
+      pentacles: [],
+    });
+    const ml = [];
+    const res = grantWish(
+      { kind: "preset", id: "wipe_enemies" },
+      { player: p, dungeon: dg, ml, luFn: () => {} },
+    );
+    expect(res.ok).toBe(true);
+    const survivors = dg.monsters.map((m) => m.name).sort();
+    expect(survivors).toEqual(["分身", "店主"]);
+    expect(p.exp).toBe(45);
+  });
 });

@@ -2724,14 +2724,33 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (onReturnToHub && endingResult) onReturnToHub(endingResult);
   }, [onReturnToHub, endingResult]);
 
-  /* アイテム効果による強制帰還も、通常の帰還と同じくタイムを確定する。 */
+  /* アイテム効果による強制帰還も、通常の帰還と同じくタイム・図鑑・スコアを確定する。 */
   const returnToHubFromItem = useCallback((result) => {
     if (!onReturnToHub || !result) return;
     runTimerRef.current?.freeze();
     const p = sr.current?.player;
     const extras = p ? buildRunResultExtras(p, runTimerRef.current) : {};
-    onReturnToHub({ ...result, ...extras });
-  }, [onReturnToHub]);
+    /* 通常帰還（performExitToHub）と同様に、大箱の図鑑確定とスコア記録も行う */
+    commitPendingBigboxes();
+    const merged = { ...result, ...extras, discoveries: getDiscoveries() };
+    if (p) {
+      try {
+        recordAdventureScore({
+          dungeonType: merged.dungeonType || sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner",
+          result: merged.cleared ? "clear" : "escape",
+          cause: merged.cleared ? "クリア" : "生還",
+          gold: p.gold,
+          level: p.level,
+          depth: p.depth,
+          turns: p.turns,
+          score: extras.score,
+          itemsValue: extras.itemsValue,
+          elapsedMs: extras.elapsedMs,
+        });
+      } catch (_e) {}
+    }
+    onReturnToHub(merged);
+  }, [onReturnToHub, dungeonConfig]);
 
   const lastMoveAtRef = useRef(0);
   const act = useCallback(
@@ -3370,7 +3389,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       } else {
                         const _msSpring = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
                         const _msBigbox = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
-                        if (_msSpring) soakItemIntoSpring(_msSpring, _srDrop(), ml, dg, null);
+                        if (_msSpring) soakItemIntoSpring(_msSpring, _srDrop(), ml, dg, null, p);
                         else if (_msBigbox) bigboxAddItem(_msBigbox, _srDrop(), dg, ml);
                         else {
                           const _msft = new Set();
@@ -4417,7 +4436,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const sprTarget = springTargetRef.current;
       springTargetRef.current = null;
       const spr =
-        sprTarget || dg.springs?.find((s) => s.x === p.x && s.y === p.y);
+        (sprTarget && dg.springs?.includes(sprTarget) ? sprTarget : null) ||
+        dg.springs?.find((s) => s.x === p.x && s.y === p.y);
       if (spr) {
         dg.springs = dg.springs.filter((s) => s !== spr);
         if (spr.contents?.length > 0) {
@@ -5348,7 +5368,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const drySpringAlways = useCallback((dg, p, ml) => {
     const sprTarget = springTargetRef.current;
     springTargetRef.current = null;
-    const spr = sprTarget || dg.springs?.find((s) => s.x === p.x && s.y === p.y);
+    const spr = (sprTarget && dg.springs?.includes(sprTarget) ? sprTarget : null) ||
+      dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (!spr) return;
     dg.springs = dg.springs.filter((s) => s !== spr);
     if (spr.contents?.length > 0) {
@@ -5596,7 +5617,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         unequipPlayerItem(p, it);
         p.inventory.splice(idx, 1);
         ml.push(`${dnameRef(it)}は泉に滑り落ち、装備から外れた！`);
-        soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef);
+        soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef, p);
         _springOverflowDried = !!_springWasPresent && !dg.springs?.includes(_targetSpring);
         if (_springOverflowDried && springTargetRef.current === _targetSpring) springTargetRef.current = null;
       } else if (it.type === "bottle") {
@@ -6081,7 +6102,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     p.gold -= price;
     const bought = { ...item, id: uid() };
     if (s.allBcKnown) { bought.fullIdent = true; bought.bcKnown = true; }
-    delete bought._encyclopediaTracked;
+    /* 図鑑は個体単位で数える：売った個体の買い戻しで再カウントしないよう、追跡済み印は消さない */
     if (bought.contents) bought.contents = bought.contents.map((content) => ({ ...content }));
     shop.stock.splice(stockIndex, 1);
     trackItem(bought);

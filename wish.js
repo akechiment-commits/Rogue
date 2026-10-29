@@ -242,10 +242,12 @@ export function resolveWishText(raw) {
   const q = normalizeWishText(raw);
   if (!q) return { status: "none", matches: [], message: "何も願っていない。" };
 
-  // 祝福プレフィックス
+  // 祝福プレフィックス（ただし入力自体が実在アイテム名と完全一致する場合は
+  // 「祝福の杖」「祝福の壺」のように名前の一部なので剥がさない）
   let wantBlessed = false;
   let core = q;
-  if (core.startsWith("祝福の") || core.startsWith("祝福") || core.startsWith("祝の")) {
+  const exactNameItem = getWishItemCatalog().some((t) => normalizeWishText(t.name) === q);
+  if (!exactNameItem && (core.startsWith("祝福の") || core.startsWith("祝福") || core.startsWith("祝の"))) {
     wantBlessed = true;
     core = core.replace(/^祝福の?/, "").replace(/^祝の?/, "");
   }
@@ -495,8 +497,11 @@ export function grantWish(wish, ctx) {
         return { ok: true };
       }
       case "wipe_enemies": {
-        /* 自分で倒した扱い：経験値・ドロップ・図鑑登録・レベルアップ判定 */
-        const mons = [...(dg.monsters || [])];
+        /* 自分で倒した扱い：経験値・ドロップ・図鑑登録・レベルアップ判定。
+           敵対していない店主・分身・友好なモンスターは対象外。 */
+        const mons = [...(dg.monsters || [])].filter((mon) =>
+          !mon.isPlayerClone && mon.state !== "friendly" &&
+          !(mon.type === "shopkeeper" && mon.state !== "hostile"));
         if (mons.length === 0) {
           ml.push("倒す敵がいなかった…");
           return { ok: true };
