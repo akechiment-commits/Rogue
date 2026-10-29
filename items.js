@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
-import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense } from './utils.js';
 import { ensureSynthMonsterBox, speedUpSynthMonster } from './synthMonster.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
@@ -8067,7 +8067,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   const _fc = getFarcastMode(p.x, p.y, dg);
   const _isFc = _fc === "farcast";
   const _pierceMode = _isPierce || _isFc;
-  const _maxR = _fc === "cursed" ? 1 : _pierceMode ? 50 : 10;
+  const _maxR = _fc === "cursed" ? 1 : _isFc ? FARCAST_RANGE : _isPierce ? 50 : 10;
   const _arName = st.name || "矢";
   /* 店商品フラグ付き1本。複数回呼ばないよう1回だけ生成して使い回す */
   let _shotUnit = null;

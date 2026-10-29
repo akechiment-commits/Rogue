@@ -4,6 +4,8 @@ import { monsterOccupiesCell } from "./monsterGeometry.js";
 
 export const MW = 60,
   MH = 30;
+/* 遠投は固定50マスで打ち切らず、少なくともマップ全幅を横断できる距離にする。 */
+export const FARCAST_RANGE = Math.max(MW, MH);
 
 export const T = { WALL: "#", FLOOR: ".", DOOR: "+", SD: ">", SU: "<", BWALL: "B", WATER: "~" };
 

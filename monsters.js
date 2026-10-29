@@ -35,7 +35,7 @@ import {
   mireuAbsoluteTerror,
 } from './mireu.js';
 import {
-  rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt,
+  rng, pick, uid, MW, MH, FARCAST_RANGE, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt,
   ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle,
   getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg,
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
@@ -655,7 +655,7 @@ function findPotionHealerTarget(m, dg, pl, preferredTarget = null) {
 
 function potionThrowRange(m, dg, pl) {
   const farcastMode = pl && dg ? getFarcastMode(pl.x, pl.y, dg) : false;
-  if (farcastMode === "farcast") return 50;
+  if (farcastMode === "farcast") return FARCAST_RANGE;
   if (farcastMode === "cursed") return 1;
   const level = m?.monLevel || 1;
   return level >= 3 ? 10 : level >= 2 ? 7 : 5;
@@ -3643,7 +3643,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   const _isFc = _fcMode === "farcast";
   const _isCursedFc = _fcMode === "cursed";
   const _passthrough = _isFc || pierce;
-  const maxRange = _isCursedFc ? 1 : _passthrough ? 50 : baseRange;
+  const maxRange = _isCursedFc ? 1 : _isFc ? FARCAST_RANGE : pierce ? 50 : baseRange;
 
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
 
@@ -8636,7 +8636,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _ibdx = Math.sign(pl.x - m.x), _ibdy = Math.sign(pl.y - m.y);
           /* 遠投の魔方陣判定 */
           const _ibFcMode = getFarcastMode(pl.x, pl.y, dg);
-          const _ibMaxRange = _ibFcMode === "cursed" ? 1 : _ibFcMode === "farcast" ? 50 : 10;
+          const _ibMaxRange = _ibFcMode === "cursed" ? 1 : _ibFcMode === "farcast" ? FARCAST_RANGE : 10;
           /* 仮想射手：プレイヤー位置から弾く（hpなしで反射時の自爆ダメージなし） */
           const _shooter = { x: pl.x, y: pl.y, name: m.name };
           throwItemAlongLine(_shooter, dg, _ibItem, _ibdx, _ibdy, _ibMaxRange, ml, pl, _luFn, {

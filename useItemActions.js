@@ -2,7 +2,7 @@ import { isStatusImmune, statusResultMessage, monsterStatusTurns, applyPlayerPar
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem } from "./utils.js";
+import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
@@ -3131,7 +3131,7 @@ export function useItemActions({
         ? "farcast" : _rawFcMode;
       const _isFarcast = _fcMode === "farcast";
       const _isCursedFc = _fcMode === "cursed";
-      const _maxRange = _isCursedFc ? 1 : _isFarcast ? 50 : 10;
+      const _maxRange = _isCursedFc ? 1 : _isFarcast ? FARCAST_RANGE : 10;
       /* 下手投げの指輪：命中率0%（方向はそのまま、敵に当たっても必ず外れる） */
       const _forceMiss = _throwRelated && hasRingEffect(p, "miss_throw_ring");
       if (mode === "shoot_equipped") {
@@ -3459,7 +3459,7 @@ export function useItemActions({
           withPitfallBag(() => placeItemAt(dg, px, py, _arDropItem(), mlx, _ft, 0, p));
         };
         const _arEndDrop = (px, py, mlx) => {
-          if (_arIsPierce || _isCursedFc) {
+          if (_arIsPierce || _isCursedFc || _isFarcast) {
             mlx.push(`${_arName}を射った。${_arName}は消滅した。`);
             _arPeelIfNeeded();
             return;
