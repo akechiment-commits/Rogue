@@ -8164,7 +8164,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       const _selfD = calcProjectileDmg(p, _arAtk, 0);
       p.hp -= _selfD;
       p.deathCause = "風に煽られた矢に当たって";
-      ml.push(`風に煽られた${_arName}が自分に当たった！${_selfD}ダメージ！`);
+      if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
+        const _poison = applyPlayerPoison(p);
+        ml.push(statusResultMessage(_poison, `風に煽られた${_arName}が自分に当たった！${_selfD}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
+      } else if (_isPoison) {
+        ml.push(`風に煽られた${_arName}が自分に当たった！${_selfD}ダメージ！しかし指輪が毒を消した！`);
+      } else {
+        ml.push(`風に煽られた${_arName}が自分に当たった！${_selfD}ダメージ！`);
+      }
       hit = true; break;
     }
     /* 石像：矢は破壊して止まる（貫通矢も1体分として割る） */
