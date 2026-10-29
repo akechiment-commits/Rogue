@@ -3528,7 +3528,13 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   if (rooms.length < 2) {
-    if (_retries > 10) return genBigRoom(depth, dungeonType);
+    if (_retries > 10) {
+      /* フォールバックでも通常フロアと同じ後付け（種別・ギミック）を欠かさない */
+      const _fb = genBigRoom(depth, dungeonType);
+      _fb.dungeonType = dungeonType;
+      attachFloorGimmicks(_fb, depth);
+      return _fb;
+    }
     return genDungeon(depth, dungeonType, _retries + 1);
   }
   const conn = new Set([0]),
