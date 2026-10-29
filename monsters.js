@@ -8359,9 +8359,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           pl.gold -= _gtAmount;
           m.heldGold = (m.heldGold || 0) + _gtAmount;
           m._stolenFromPlayer = true;
-          const _gtTpDst = randomTeleportDest(dg, m.x, m.y);
-          if (_gtTpDst) { m.x = _gtTpDst.x; m.y = _gtTpDst.y; }
-          ml.push(`${m.name}が金貨${_gtAmount}枚を盗んでテレポートした！`);
+          const _gtTpDst = randomTeleportDest(dg, m.x, m.y, (x, y) =>
+            !(x === m.x && y === m.y) && !(x === pl.x && y === pl.y) &&
+            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, x, y)));
+          if (_gtTpDst) {
+            m.x = _gtTpDst.x;
+            m.y = _gtTpDst.y;
+            ml.push(`${m.name}が金貨${_gtAmount}枚を盗んでテレポートした！`);
+          } else {
+            ml.push(`${m.name}が金貨${_gtAmount}枚を盗んだが、逃げ場がなかった！`);
+          }
           return;
         }
         consumeFailedMonsterSpecial(m, ml, "が金貨を盗もうとしたが、金貨を持っていなかった！");
