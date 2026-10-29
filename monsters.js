@@ -1180,7 +1180,7 @@ export const MONS = [
       { name: "豪傑九千坊",   hp: 88, atk: 32, def: 9, exp: 250, dungeonFloors: { advanced: { min: 31, max: 35 } } },
     ],
   },
-  { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "別のヤドカリを容量の残った壺へ押し込む。Lv2以上は一直線上から壺へ投げ込む。壺を割るか吸い出すとヤドカリが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "同レベルの新たなヤドカリ壺荒らしを容量の残った壺へ押し込む。Lv2以上は一直線上から壺へ投げ込む。壺を割るか吸い出すとヤドカリ壺荒らしが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "大ヤドカリ壺荒らし", hp: 85, atk: 28, def: 22, exp: 200, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "ヤドカリ壺大将", hp: 140, atk: 40, def: 34, exp: 580, dungeonFloors: { legend: { min: 48, max: 50 } } },
@@ -2201,13 +2201,11 @@ function potRaiderTargets(player) {
   );
 }
 
-const POT_RAIDER_HERMIT_CRAB_BASE = Object.freeze({
-  name: "ヤドカリ", hp: 14, atk: 8, def: 2, exp: 8, speed: 1,
-  tile: 235, kind: "beast", baseKind: "hermitCrab", monLevel: 1, elemWeak: "thunder", subtype: "hermitCrab",
-});
-
-function makePotRaiderHermitCrab(mon, player) {
-  return makeMonsterFromBase(POT_RAIDER_HERMIT_CRAB_BASE, 1, mon.x, mon.y, {
+/* 壺へ押し込むのは小型のヤドカリではなく、押し込む個体と同レベルの新たなヤドカリ壺荒らし。 */
+function makePotRaiderSpawn(mon, player) {
+  const base = MONS.find((b) => b.baseKind === "potRaider");
+  const level = Math.min(3, Math.max(1, mon.monLevel || 1));
+  return makeMonsterFromBase(base, level, mon.x, mon.y, {
     aware: true,
     lastPx: player?.x ?? mon.x,
     lastPy: player?.y ?? mon.y,
@@ -2294,15 +2292,15 @@ function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   if (targets.length === 0) return false;
   const pot = pick(targets);
   mon.turnAttacks++;
-  const crab = makePotRaiderHermitCrab(mon, player);
+  const spawned = makePotRaiderSpawn(mon, player);
   if (!Array.isArray(dungeon.monsters)) dungeon.monsters = [];
-  dungeon.monsters.push(crab);
+  dungeon.monsters.push(spawned);
 
   if (pot.potEffect === "boil") {
     pot.capacity = Math.max(0, (pot.capacity ?? 3) - 1);
-    messages.push(`${mon.name}がヤドカリを加熱の壺に押し込んだ！熱で焼けた！`);
-    crab.hp = 0;
-    killMonster(crab, dungeon, player, messages, luFn);
+    messages.push(`${mon.name}がヤドカリ壺荒らしを加熱の壺に押し込んだ！熱で焼けた！`);
+    spawned.hp = 0;
+    killMonster(spawned, dungeon, player, messages, luFn);
     return true;
   }
 
@@ -2312,16 +2310,16 @@ function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
       const potIdx = player.inventory.indexOf(pot);
       if (potIdx >= 0) player.inventory.splice(potIdx, 1);
     }
-    messages.push(`${mon.name}がヤドカリを壺に押し込んだ！`);
-    crab.hp = 0;
-    killMonster(crab, dungeon, player, messages, luFn);
+    messages.push(`${mon.name}がヤドカリ壺荒らしを壺に押し込んだ！`);
+    spawned.hp = 0;
+    killMonster(spawned, dungeon, player, messages, luFn);
     return true;
   }
 
   if (!Array.isArray(pot.confinedMonsters)) pot.confinedMonsters = [];
-  pot.confinedMonsters.push(JSON.parse(JSON.stringify(crab)));
-  dungeon.monsters = dungeon.monsters.filter((entry) => entry !== crab);
-  messages.push(`${mon.name}がヤドカリを壺に押し込んだ！`);
+  pot.confinedMonsters.push(JSON.parse(JSON.stringify(spawned)));
+  dungeon.monsters = dungeon.monsters.filter((entry) => entry !== spawned);
+  messages.push(`${mon.name}がヤドカリ壺荒らしを壺に押し込んだ！`);
   return true;
 }
 
@@ -8208,14 +8206,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
         if (!usePotRaiderAbility(m, dg, pl, ml, _luFn)) {
-          consumeFailedMonsterSpecial(m, ml, "がヤドカリを入れる壺を探したが、空きのある壺がなかった！");
+          consumeFailedMonsterSpecial(m, ml, "が壺へ押し込もうとしたが、空きのある壺がなかった！");
         }
         return;
       }
       if (_prAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           (m.alwaysUseSpecial || Math.random() < 0.5)) {
         if (!usePotRaiderAbility(m, dg, pl, ml, _luFn)) {
-          consumeFailedMonsterSpecial(m, ml, "がヤドカリを入れる壺を探したが、空きのある壺がなかった！");
+          consumeFailedMonsterSpecial(m, ml, "が壺へ押し込もうとしたが、空きのある壺がなかった！");
         }
         return;
       }
