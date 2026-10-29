@@ -8,6 +8,12 @@ import {
 } from "../dungeonContent.js";
 import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS, MAGIC_MARKER } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
+import {
+  INTERMEDIATE_MONSTER_FLOOR_POOLS,
+  intermediateMonsterAllowed,
+  intermediateMonsterPackMultiplier,
+  INTERMEDIATE_PACK_KINDS,
+} from "../intermediateMonsterRules.js";
 import { genDungeon, genCorridorFloor } from "../dungeon.js";
 
 const INTERMEDIATE_TRAP_BAN = [
@@ -23,21 +29,15 @@ const INTERMEDIATE_MONSTER_BAN = [
 ];
 
 function intermediateMonsterKinds(floor) {
+  return [...(INTERMEDIATE_MONSTER_FLOOR_POOLS[floor] ?? [])];
+}
+
+/* データ側（dungeonFloors.intermediate）で中級に出られる種の一覧。プールとの drift 検出用。 */
+function intermediateDataKinds() {
   return MONS.filter((m) => {
     if (m.penaltyOnly || m.floodedOnly) return false;
     if (m.dungeons && !m.dungeons.includes("intermediate")) return false;
-    const df = m.dungeonFloors?.intermediate;
-    if (df === null) return false;
-    const minF = df?.min ?? m.minFloor;
-    const maxF = df?.max ?? m.maxFloor;
-    if (minF <= floor && floor <= maxF) return true;
-    return m.levels?.some((lv) => {
-      const lvDf = lv.dungeonFloors?.intermediate;
-      if (lvDf === null) return false;
-      const lvMin = lvDf?.min ?? lv.minFloor;
-      const lvMax = lvDf?.max ?? lv.maxFloor;
-      return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
-    }) ?? false;
+    return intermediateMonsterFloors(m.baseKind).length > 0;
   }).map((m) => m.baseKind);
 }
 
@@ -157,7 +157,7 @@ describe("中級ダンジョンの敵", () => {
       const extraHealer = kinds.includes('potionhealer') ? 1 : 0;
       const extraPotRaider = kinds.includes('potRaider') ? 1 : 0;
       const extraSylph = kinds.includes('sylph') ? 1 : 0;
-      const extraNew = ['mushroom', 'machodragon', 'manaEater'].filter(k => kinds.includes(k)).length;
+      const extraNew = ['mushroom', 'machodragon', 'manaEater', 'mimic'].filter(k => kinds.includes(k)).length;
       expect(kinds.length).toBeLessThanOrEqual(15 + extraGiant + extraHealer + extraPotRaider + extraSylph + extraNew);
       for (const banned of INTERMEDIATE_MONSTER_BAN) {
         expect(kinds).not.toContain(banned);
@@ -187,7 +187,7 @@ describe("中級ダンジョンの敵", () => {
     expect(intermediateMonsterKinds(16)).not.toContain("dragonknight");
     expect(intermediateMonsterKinds(17)).toHaveLength(15);
     expect(intermediateMonsterKinds(17)).toEqual(expect.arrayContaining(["lizardman", "dragonknight"]));
-    expect(intermediateMonsterKinds(18)).toHaveLength(18);
+    expect(intermediateMonsterKinds(18)).toHaveLength(19);
     expect(intermediateMonsterKinds(19)).toHaveLength(16);
     for (const floor of [8, 9, 10, 17, 18, 19, 20]) expect(intermediateMonsterKinds(floor)).toContain('potionhealer');
     for (const floor of [7, 11, 16]) expect(intermediateMonsterKinds(floor)).not.toContain('potionhealer');
@@ -196,12 +196,16 @@ describe("中級ダンジョンの敵", () => {
   });
 
   it("中級の出現対象はすべて最低3階に出る", () => {
-    for (const monster of MONS) {
-      if (monster.penaltyOnly) continue;
-      if (monster.dungeons && !monster.dungeons.includes("intermediate")) continue;
-      const floors = intermediateMonsterFloors(monster.baseKind);
-      if (floors.length > 0) expect(floors.length).toBeGreaterThanOrEqual(3);
+    const counts = new Map();
+    for (const kinds of INTERMEDIATE_MONSTER_FLOOR_POOLS) {
+      for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
     }
+    for (const [kind, count] of counts) expect(count).toBeGreaterThanOrEqual(3);
+  });
+
+  it("プールの種はデータ側の中級出現種と一致する", () => {
+    const pooled = new Set(INTERMEDIATE_MONSTER_FLOOR_POOLS.flat());
+    expect(pooled).toEqual(new Set(intermediateDataKinds()));
   });
 
   it("pickMonsterDef も同じ出現表に従う", () => {
@@ -209,5 +213,21 @@ describe("中級ダンジョンの敵", () => {
       expect(INTERMEDIATE_MONSTER_BAN).not.toContain(pickMonsterDef(11, "intermediate").base.baseKind);
       expect(INTERMEDIATE_MONSTER_BAN).not.toContain(pickMonsterDef(19, "intermediate").base.baseKind);
     }
+    for (let floor = 1; floor <= 20; floor++) {
+      for (let i = 0; i < 20; i++) {
+        const { base } = pickMonsterDef(floor - 1, "intermediate");
+        expect(intermediateMonsterAllowed(base.baseKind, floor)).toBe(true);
+      }
+    }
+  });
+
+  it("群れ抽選は同種が居るフロアで同種を重くする", () => {
+    const wolfPack = [{ baseKind: "wolf", hp: 10 }];
+    expect(INTERMEDIATE_PACK_KINDS.has("wolf")).toBe(true);
+    expect(intermediateMonsterPackMultiplier("wolf", wolfPack)).toBe(3);
+    expect(intermediateMonsterPackMultiplier("wolf", [])).toBe(1);
+    expect(intermediateMonsterPackMultiplier("wolf", [{ baseKind: "wolf", hp: 0 }])).toBe(1);
+    expect(intermediateMonsterPackMultiplier("wizard", wolfPack)).toBe(1);
+    expect(intermediateMonsterPackMultiplier("slime", [{ baseKind: "slime", hp: 5 }])).toBe(3);
   });
 });

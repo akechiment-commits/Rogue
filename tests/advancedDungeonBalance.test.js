@@ -10,6 +10,7 @@ import {
   ADVANCED_MONSTER_FLOOR_POOLS,
   advancedMonsterAllowed,
   advancedMonsterSpawnLevel,
+  advancedMonsterAffinityMultiplier,
 } from "../advancedMonsterRules.js";
 import { BB_TYPES, TRAPS } from "../dungeonCatalog.js";
 import { ITEMS, SPELLBOOKS } from "../items.js";
@@ -141,5 +142,26 @@ describe("上級ダンジョンの敵分布", () => {
         expect(advancedMonsterAllowed(base.baseKind, floor)).toBe(true);
       }
     }
+  });
+
+  it("搦め手の章立て：忍者は盗の章へ、弓はシルフの相方として再登場する", () => {
+    expect(advancedMonsterAllowed("stealthrower", 9)).toBe(true);
+    expect(advancedMonsterAllowed("stealthrower", 12)).toBe(false);
+    for (const floor of [11, 12, 13, 22, 23, 24]) {
+      expect(advancedMonsterAllowed("archer", floor)).toBe(true);
+    }
+  });
+
+  it("連携グループの片方が居ると相方が出やすくなる", () => {
+    const rustbug = [{ baseKind: "rustbug", hp: 10 }];
+    expect(advancedMonsterAffinityMultiplier("thief", 10, rustbug)).toBe(2);
+    expect(advancedMonsterAffinityMultiplier("rustbug", 10, [{ baseKind: "thief", hp: 10 }])).toBe(2);
+    expect(advancedMonsterAffinityMultiplier("thief", 10, [])).toBe(1);
+    expect(advancedMonsterAffinityMultiplier("thief", 10, [{ baseKind: "rustbug", hp: 0 }])).toBe(1);
+    expect(advancedMonsterAffinityMultiplier("archer", 22, [{ baseKind: "sylph", hp: 10 }])).toBe(2);
+    expect(advancedMonsterAffinityMultiplier("potRaider", 25, [{ baseKind: "fireCook", hp: 10 }])).toBe(2);
+    expect(advancedMonsterAffinityMultiplier("bombgoblin", 18, [{ baseKind: "trapmaster", hp: 10 }])).toBe(2);
+    expect(advancedMonsterAffinityMultiplier("dreamEater", 27, [{ baseKind: "hypnotist", hp: 10 }])).toBe(2);
+    expect(advancedMonsterAffinityMultiplier("dragon", 28, rustbug)).toBe(1);
   });
 });
