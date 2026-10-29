@@ -3,6 +3,11 @@
  * 上級は MONS の minFloor/maxFloor をそのまま足し合わせず、
  * 3階単位の短い帯を順番に入れ替える。各基礎種は原則3階に出し、
  * 序盤の単純敵と、能力は強いが素のステータスが控えめな敵は再登場させる。
+ *
+ * 味付けは「搦め手の章立て」。8〜13階=盗と錆と道具、14〜16階=厨房、
+ * 17〜19階=工房（罠と爆弾）、20〜24階=幻惑と拘束、25階以降=総集編。
+ * 数値は超上級ほど盛らず、代わりに連携グループ（下記）の片方がフロアに居ると
+ * 相方が出やすくなる重み付けで、組み合わせの嫌らしさで殺しにくる。
  */
 const ADVANCED_MONSTER_STARTS = Object.freeze({
   1: ["rat", "bat", "centipede"],
@@ -13,10 +18,10 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   6: ["potionthrower", "potionhealer"],
   7: ["slime", "rakugakima"],
   8: ["wokka", "itemMimic", "charger"],
-  9: ["tattoobird", "thief", "manaEater"],
+  9: ["tattoobird", "thief", "manaEater", "stealthrower"],
   10: ["wolf", "rustbug", "wizard"],
   11: ["leprechaun", "itemblaster", "sylph"],
-  12: ["stealthrower", "itempusher", "bombslime"],
+  12: ["itempusher", "bombslime"],
   13: ["itemThrower", "reflector"],
   14: ["crystalslime", "rockspirit", "orc", "potRaider", "mushroom", "fireCook"],
   15: ["dangerousPetal", "dreamEater", "wateri"],
@@ -49,15 +54,17 @@ for (const [startText, kinds] of Object.entries(ADVANCED_MONSTER_STARTS)) {
  */
 const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   10: ["rat", "bat", "centipede"],
-  13: ["kobold", "goblin", "skeleton"],
+  11: ["archer"],
+  12: ["archer"],
+  13: ["kobold", "goblin", "skeleton", "archer"],
   16: ["imp", "zombie", "wolf"],
   18: ["hypnotist", "manaEater"],
   19: ["hypnotist", "giantEel", "manaEater"],
   20: ["hypnotist", "giantEel", "seaDevil", "manaEater"],
   21: ["giantEel", "seaDevil"],
-  22: ["seaDevil", "potionhealer", "sylph"],
-  23: ["potionhealer", "sylph"],
-  24: ["potionhealer", "sylph"],
+  22: ["seaDevil", "potionhealer", "sylph", "archer"],
+  23: ["potionhealer", "sylph", "archer"],
+  24: ["potionhealer", "sylph", "archer"],
   25: ["dangerousPetal", "dreamEater", "hypnotist", "potRaider", "fireCook"],
   26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook", "machodragon"],
   27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook", "machodragon"],
@@ -130,5 +137,36 @@ export function advancedMonsterSpawnLevel(base, floor) {
   const range = ADVANCED_MONSTER_LEVEL2_RANGES[base.baseKind]
     ?? base.levels[0]?.dungeonFloors?.advanced;
   if (range && floor >= range.min && floor <= range.max) return 2;
+  return 1;
+}
+
+/*
+ * 連携グループ。グループの片方がフロアに居ると、相方の抽選重みが2倍になる。
+ * 超上級の連携と同じ仕組みだが、上級は「道具と行動を封じる組み合わせ」で組む。
+ */
+export const ADVANCED_MONSTER_SYNERGY_GROUPS = Object.freeze([
+  /* 錆で装備を弱らせてから盗む */
+  Object.freeze({ min: 9, max: 30, kinds: Object.freeze(["rustbug", "thief"]) }),
+  /* 風で矢筋を逸らす相方を弓で守る */
+  Object.freeze({ min: 11, max: 30, kinds: Object.freeze(["sylph", "archer"]) }),
+  /* 投げて押し出して、道具をばらまく */
+  Object.freeze({ min: 13, max: 30, kinds: Object.freeze(["itemThrower", "itempusher"]) }),
+  /* 壺を荒らして所持品を焼く厨房コンビ */
+  Object.freeze({ min: 14, max: 30, kinds: Object.freeze(["fireCook", "potRaider"]) }),
+  /* 罠を敷いて爆弾で追い込む工房コンビ */
+  Object.freeze({ min: 17, max: 30, kinds: Object.freeze(["trapmaster", "bombgoblin"]) }),
+  /* 眠らせて夢を喰う幻惑コンビ */
+  Object.freeze({ min: 18, max: 30, kinds: Object.freeze(["hypnotist", "dreamEater"]) }),
+]);
+
+export function advancedMonsterSynergyGroupsAtFloor(floor) {
+  return ADVANCED_MONSTER_SYNERGY_GROUPS.filter(group => group.min <= floor && floor <= group.max);
+}
+
+export function advancedMonsterAffinityMultiplier(baseKind, floor, existingMonsters = []) {
+  const kinds = new Set((existingMonsters || []).filter(monster => monster?.hp > 0).map(monster => monster.baseKind));
+  for (const group of advancedMonsterSynergyGroupsAtFloor(floor)) {
+    if (group.kinds.includes(baseKind) && group.kinds.some(kind => kind !== baseKind && kinds.has(kind))) return 2;
+  }
   return 1;
 }
