@@ -5982,6 +5982,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     spellConfirmRef,
     setLookMode,
     setMapMode,
+    setNicknameMode,
+    setNicknameInput,
     setMsgLogMode,
     setMsgLogScrollTop,
     msgsRef,

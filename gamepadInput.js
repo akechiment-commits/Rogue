@@ -121,6 +121,7 @@ export const QUICK_MENU_ITEMS = [
   { id: "look", label: "見渡す" },
   { id: "log", label: "ログ" },
   { id: "underfoot", label: "足元" },
+  { id: "naming", label: "命名" },
   { id: "magic", label: "魔法" },
   { id: "settings", label: "設定" },
   { id: "scores", label: "冒険記録" },

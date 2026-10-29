@@ -868,11 +868,75 @@ export function ScoresModal({ show, setShow, mobile, dungeonType = "beginner" })
     </div>
   );
 }
+const RUN_NICKNAME_CATEGORIES = [
+  { key: "potion", label: "薬" },
+  { key: "scroll", label: "巻物" },
+  { key: "wand", label: "杖" },
+  { key: "pen", label: "ペン" },
+  { key: "pot", label: "壺" },
+  { key: "spellbook", label: "魔法書" },
+  { key: "ring", label: "指輪" },
+  { key: "bigbox", label: "大箱" },
+];
+const EMPTY_NICKNAME_ENTRIES = [];
+
+function runNicknameGroups(gs) {
+  const discoveries = getDiscoveries();
+  const templates = [...ITEMS, ...WANDS, ...POTS, ...SPELLBOOKS, ...RINGS];
+  const knownKeys = gs?.ident instanceof Set ? gs.ident : new Set(gs?.ident || []);
+  const buckets = new Map(RUN_NICKNAME_CATEGORIES.map(({ key }) => [key, new Map()]));
+
+  for (const [discoveryKey, entry] of Object.entries(discoveries.items || {})) {
+    if (!entry?.type) continue;
+    const categoryKey = entry.type === "potion" ? "potion"
+      : entry.type === "scroll" ? "scroll"
+      : entry.type === "wand" ? "wand"
+      : entry.type === "pen" ? "pen"
+      : entry.type === "pot" ? "pot"
+      : entry.type === "spellbook" ? "spellbook"
+      : entry.type === "ring" ? "ring"
+      : null;
+    if (!categoryKey) continue;
+
+    let template = templates.find((item) => item.type === entry.type && item.name === entry.name);
+    if (!template) {
+      const effect = entry.effect || discoveryKey;
+      template = templates.find((item) => item.type === entry.type && item.effect === effect);
+    }
+    const identKey = getIdentKey(template);
+    if (!identKey || knownKeys.has(identKey)) continue;
+    const fakeName = gs?.fakeNames?.[identKey];
+    if (fakeName) buckets.get(categoryKey).set(identKey, { identKey, fakeName });
+  }
+
+  for (const [kind, entry] of Object.entries(discoveries.bigboxes || {})) {
+    const bigboxKind = entry?.kind || kind;
+    if (!bigboxKind || isBigboxKindIdentified({ kind: bigboxKind }, gs)) continue;
+    const fakeName = gs?.bbFakeNames?.[bigboxKind];
+    if (fakeName) buckets.get("bigbox").set(`bk:${bigboxKind}`, { identKey: `bk:${bigboxKind}`, fakeName });
+  }
+
+  return RUN_NICKNAME_CATEGORIES
+    .map((category) => ({
+      ...category,
+      entries: [...buckets.get(category.key).values()]
+        .sort((a, b) => a.fakeName.localeCompare(b.fakeName, "ja")),
+    }))
+    .filter((category) => category.entries.length > 0);
+}
+
 export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs }) {
   const [_subMode, _setSubMode] = useState(null); /* null=選択中 / "type" / "list" */
   const [_listPage, _setListPage] = useState(0);
   const [_listSel, _setListSel] = useState(0);
   const [_menuSel, _setMenuSel] = useState(0); /* 第1画面のカーソル位置 */
+  const _isCatalog = mode?.kind === "catalog";
+  const _catalogGroups = useMemo(() => _isCatalog ? runNicknameGroups(gs) : [], [_isCatalog, gs]);
+  const _catalogGroup = _catalogGroups.find((group) => group.key === mode?.category) || null;
+  const _catalogEntries = _catalogGroup?.entries || EMPTY_NICKNAME_ENTRIES;
+  const _catalogPage = Math.min(Number(mode?.page) || 0, Math.max(0, Math.ceil(_catalogEntries.length / 10) - 1));
+  const _catalogPages = Math.max(1, Math.ceil(_catalogEntries.length / 10));
+  const _catalogPageEntries = _catalogEntries.slice(_catalogPage * 10, (_catalogPage + 1) * 10);
   /* 名付けを Z/Enter で開いた直後、同じキーで「自分でつける」が即確定するのを防ぐ */
   const _blockConfirmUntilUp = useRef(true);
   const _isBigbox = mode?.identKey?.startsWith("bk:");
@@ -881,7 +945,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   const _targetType = _isBigbox ? null : _typeMap[_typePrefix];
   /* グローバルセーブ＋今回のプレイ分を合算して既発見名リストを作成 */
   const _knownNames = useMemo(() => {
-    if (!mode) return [];
+    if (!mode || _isCatalog) return [];
     const _globalDisc = loadSave().discovered;
     const _runDisc = getDiscoveries();
     if (_isBigbox) {
@@ -896,7 +960,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       ...Object.values(_runDisc.items || {}).filter(e => e.type === _targetType).map(e => e.name),
     ]);
     return [..._names].filter(Boolean).sort((a, b) => a.localeCompare(b, "ja"));
-  }, [mode, _isBigbox, _targetType]);
+  }, [mode, _isCatalog, _isBigbox, _targetType]);
   const _totalPages = Math.max(1, Math.ceil(_knownNames.length / 10));
   const _pageNames = _knownNames.slice(_listPage * 10, (_listPage + 1) * 10);
   const _applyNick = (nick) => {
@@ -923,10 +987,27 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     setMode(null);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   };
+  const _selectCatalogEntry = (entry, page = _catalogPage) => {
+    if (!entry?.identKey) return;
+    setInput(gs?.nicknames?.[entry.identKey] || "");
+    setMode({
+      identKey: entry.identKey,
+      fromCatalog: true,
+      catalogCategory: mode.category,
+      catalogPage: page,
+    });
+  };
+  const _cancelNicknameInput = () => {
+    if (mode?.fromCatalog) {
+      setMode({ kind: "catalog", category: mode.catalogCategory, page: mode.catalogPage || 0 });
+    } else {
+      _setSubMode(null);
+    }
+  };
   /* サブモードリセット（モードが変わったとき）＋開きキーの食いつき防止 */
   useEffect(() => {
-    _setSubMode(null);
-    _setListPage(0);
+    _setSubMode(mode?.fromCatalog ? "type" : null);
+    _setListPage(_isCatalog ? Number(mode?.page) || 0 : 0);
     _setListSel(0);
     _setMenuSel(0);
     _blockConfirmUntilUp.current = true;
@@ -942,12 +1023,12 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       clearTimeout(_t);
       window.removeEventListener("keyup", _onUp);
     };
-  }, [mode?.identKey]);
+  }, [mode?.identKey, mode?.kind, mode?.category]);
   const _isConfirmKey = (e) =>
     e.key === "Enter" || e.key === "z" || e.key === "Z" || e.code === "NumpadEnter";
   /* 第1画面のキーボード操作 */
   useEffect(() => {
-    if (_subMode !== null || !mode) return;
+    if (_isCatalog || mode?.fromCatalog || _subMode !== null || !mode) return;
     const _menuItems = [
       { enabled: true,                      action: () => _setSubMode("type") },
       { enabled: _knownNames.length > 0,    action: () => { _setSubMode("list"); _setListPage(0); _setListSel(0); } },
@@ -973,10 +1054,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     };
     window.addEventListener("keydown", _onKey);
     return () => window.removeEventListener("keydown", _onKey);
-  }, [_subMode, mode, _menuSel, _knownNames.length, setMode]);
+  }, [_isCatalog, _subMode, mode, _menuSel, _knownNames.length, setMode]);
   /* リストモードのキーボード操作 */
   useEffect(() => {
-    if (_subMode !== "list" || !mode) return;
+    if (_isCatalog || _subMode !== "list" || !mode) return;
     const _isUp   = isKeyUp;
     const _isDown = isKeyDown;
     const _isPrev = isKeyLeft;
@@ -1008,7 +1089,51 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     };
     window.addEventListener("keydown", _onKey);
     return () => window.removeEventListener("keydown", _onKey);
-  }, [_subMode, mode, _listSel, _listPage, _pageNames, _totalPages]);
+  }, [_isCatalog, _subMode, mode, _listSel, _listPage, _pageNames, _totalPages]);
+  /* 冒険中に見つけた未識別名カタログの操作 */
+  useEffect(() => {
+    if (!_isCatalog || !mode) return;
+    const _rows = mode.category ? _catalogEntries : _catalogGroups;
+    const _pages = mode.category ? _catalogPages : 1;
+    const _page = mode.category ? _catalogPage : 0;
+    const _visible = _rows.slice(_page * 10, (_page + 1) * 10);
+    const _onKey = (e) => {
+      if (isKeyUp(e)) {
+        e.preventDefault();
+        if (mode.category) {
+          if (_listSel > 0) _setListSel((s) => s - 1);
+          else if (_page > 0) { setMode({ ...mode, page: _page - 1 }); _setListSel(9); }
+        } else if (_menuSel > 0) _setMenuSel((s) => s - 1);
+      } else if (isKeyDown(e)) {
+        e.preventDefault();
+        if (mode.category) {
+          if (_listSel < _visible.length - 1) _setListSel((s) => s + 1);
+          else if (_page < _pages - 1) { setMode({ ...mode, page: _page + 1 }); _setListSel(0); }
+        } else if (_menuSel < _visible.length - 1) _setMenuSel((s) => s + 1);
+      } else if (isKeyLeft(e) && mode.category) {
+        e.preventDefault();
+        if (_page > 0) { setMode({ ...mode, page: _page - 1 }); _setListSel(0); }
+      } else if (isKeyRight(e) && mode.category) {
+        e.preventDefault();
+        if (_page < _pages - 1) { setMode({ ...mode, page: _page + 1 }); _setListSel(0); }
+      } else if (_isConfirmKey(e)) {
+        e.preventDefault();
+        if (_blockConfirmUntilUp.current) return;
+        const _entry = _visible[mode.category ? _listSel : _menuSel];
+        if (!mode.category && _entry?.key) {
+          setMode({ kind: "catalog", category: _entry.key, page: 0 });
+        } else if (mode.category && _entry?.identKey) {
+          _selectCatalogEntry(_entry, _page);
+        }
+      } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
+        e.preventDefault();
+        if (mode.category) setMode({ kind: "catalog" });
+        else setMode(null);
+      }
+    };
+    window.addEventListener("keydown", _onKey);
+    return () => window.removeEventListener("keydown", _onKey);
+  }, [_isCatalog, mode, _catalogEntries, _catalogGroups, _catalogPages, _catalogPage, _listSel, _menuSel, setMode, _selectCatalogEntry]);
   const _btnStyle = (col = "#4a6a9a") => ({
     background: col, border: "1px solid #556", color: "#fff", borderRadius: 4,
     padding: "6px 16px", cursor: "pointer", fontSize: 13,
@@ -1018,14 +1143,70 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)",
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:300 }}>
       <div style={{ background:"#1a2a3a", padding:16, borderRadius:8, maxWidth:400, width:"90%" }}>
-        <div style={{ color:"#ff0", marginBottom:8, fontWeight:"bold" }}>{_isBigbox ? "大箱に名前をつける" : "アイテムに名前をつける"}</div>
-        {_isBigbox
-          ? <div style={{ color:"#888", fontSize:11, marginBottom:8 }}>見た目: {gs?.bbFakeNames?.[mode.identKey.slice(3)] ?? "謎の大箱"}</div>
-          : <div style={{ color:"#888", fontSize:11, marginBottom:8 }}>偽名: {gs?.fakeNames?.[mode.identKey] ?? "?"}</div>
+        <div style={{ color:"#ff0", marginBottom:8, fontWeight:"bold" }}>
+          {_isCatalog ? (_catalogGroup ? `${_catalogGroup.label}の未識別名` : "命名する種類")
+            : _isBigbox ? "大箱に名前をつける" : "アイテムに名前をつける"}
+        </div>
+        {_isCatalog
+          ? <div style={{ color:"#888", fontSize:11, marginBottom:8 }}>
+              この冒険で発見した、まだ識別していない名前から選ぶ。
+            </div>
+          : _isBigbox
+            ? <div style={{ color:"#888", fontSize:11, marginBottom:8 }}>見た目: {gs?.bbFakeNames?.[mode.identKey.slice(3)] ?? "謎の大箱"}</div>
+            : <div style={{ color:"#888", fontSize:11, marginBottom:8 }}>偽名: {gs?.fakeNames?.[mode.identKey] ?? "?"}</div>
         }
 
+        {_isCatalog && (
+          <div>
+            {!_catalogGroups.length ? (
+              <div style={{ color:"#888", padding:"10px 4px", textAlign:"center" }}>この冒険では、命名できる未識別名をまだ発見していない。</div>
+            ) : !_catalogGroup ? (
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {_catalogGroups.map((group, index) => (
+                  <button
+                    key={group.key}
+                    style={{ ..._btnStyle("#263b5c"), textAlign:"left", outline:_menuSel === index ? "2px solid #88f" : "none" }}
+                    onMouseEnter={() => _setMenuSel(index)}
+                    onClick={() => setMode({ kind:"catalog", category:group.key, page:0 })}
+                  >
+                    {group.label}（{group.entries.length}）
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div>
+                {_catalogPageEntries.map((entry, index) => (
+                  <button
+                    key={entry.identKey}
+                    style={{ ..._btnStyle(_listSel === index ? "#2a4a8a" : "#1a2a4a"), width:"100%", marginBottom:4,
+                      outline:_listSel === index ? "2px solid #6af" : "none", textAlign:"left" }}
+                    onMouseEnter={() => _setListSel(index)}
+                    onClick={() => _selectCatalogEntry(entry)}
+                  >
+                    {entry.fakeName}{gs?.nicknames?.[entry.identKey] ? `　→ ${gs.nicknames[entry.identKey]}` : ""}
+                  </button>
+                ))}
+                {_catalogPages > 1 && (
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginTop:6 }}>
+                    <button onClick={() => { setMode({ ...mode, page:_catalogPage - 1 }); _setListSel(0); }} disabled={_catalogPage === 0}
+                      style={{ ..._btnStyle("#2a3a5a"), opacity:_catalogPage === 0 ? 0.4 : 1 }}>◀</button>
+                    <span style={{ color:"#8af", fontSize:12 }}>{_catalogPage + 1} / {_catalogPages}</span>
+                    <button onClick={() => { setMode({ ...mode, page:_catalogPage + 1 }); _setListSel(0); }} disabled={_catalogPage >= _catalogPages - 1}
+                      style={{ ..._btnStyle("#2a3a5a"), opacity:_catalogPage >= _catalogPages - 1 ? 0.4 : 1 }}>▶</button>
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ marginTop:8 }}>
+              <button onClick={() => _catalogGroup ? setMode({ kind:"catalog" }) : setMode(null)} style={_btnStyle("#3a3a3a")}>
+                {_catalogGroup ? "カテゴリへ戻る" : "閉じる"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── 第1画面：方法選択 ── */}
-        {_subMode === null && (
+        {!_isCatalog && !mode.fromCatalog && _subMode === null && (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             <button
               style={{ ..._btnStyle("#2a5a2a"), outline: _menuSel === 0 ? "2px solid #8f8" : "none" }}
@@ -1047,28 +1228,32 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         )}
 
         {/* ── 第2画面A：キーボード入力 ── */}
-        {_subMode === "type" && (
+        {!_isCatalog && (_subMode === "type" || mode.fromCatalog) && (
           <div>
             <input
               value={input}
               onChange={e2 => setInput(e2.target.value)}
               onKeyDown={e2 => {
                 if ((e2.key === 'Enter' || e2.code === 'NumpadEnter') && !e2.nativeEvent?.isComposing) _applyNick(input);
-                if (e2.key === 'Escape') _setSubMode(null);
+                if (e2.key === 'Escape') {
+                  e2.stopPropagation();
+                  if (mode.fromCatalog) _cancelNicknameInput();
+                  else setMode(null);
+                }
               }}
-              placeholder="名前を入力（空欄でリセット）"
+              placeholder={mode.fromCatalog ? "この未識別名につける名前" : "名前を入力（空欄でリセット）"}
               autoFocus
               style={{ width:"100%", background:"#0a1a2a", color:"#fff", border:"1px solid #446", padding:4, borderRadius:4, boxSizing:"border-box" }}
             />
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
               <button onClick={() => _applyNick(input)} style={_btnStyle("#0a4a2a")}>決定</button>
-              <button onClick={() => _setSubMode(null)} style={_btnStyle("#3a3a3a")}>戻る</button>
+              <button onClick={_cancelNicknameInput} style={_btnStyle("#3a3a3a")}>戻る</button>
             </div>
           </div>
         )}
 
         {/* ── 第2画面B：図鑑リスト選択 ── */}
-        {_subMode === "list" && (
+        {!_isCatalog && !mode.fromCatalog && _subMode === "list" && (
           <div>
             {_pageNames.map((n, vi) => (
               <div key={vi} onClick={() => _applyNick(n)}

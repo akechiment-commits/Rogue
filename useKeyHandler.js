@@ -232,7 +232,16 @@ export function useKeyHandler({
          ここでテンキーを return すると魔法欄・識別など後続モーダルが操作不能になる */
       if (nicknameMode) {
         // input要素がフォーカスを持つのでキー入力はinputが処理する。ESCのみ対応
-        if (k === "escape") { e.preventDefault(); setNicknameMode(null); }
+        if (k === "escape") {
+          e.preventDefault();
+          if (nicknameMode.kind === "catalog" && nicknameMode.category) {
+            setNicknameMode({ kind: "catalog" });
+          } else if (nicknameMode.fromCatalog) {
+            setNicknameMode({ kind: "catalog", category: nicknameMode.catalogCategory, page: nicknameMode.catalogPage || 0 });
+          } else {
+            setNicknameMode(null);
+          }
+        }
         return;
       }
       if (identifyMode) {

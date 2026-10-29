@@ -146,6 +146,8 @@ export function useGamepad({
   spellConfirmRef,
   setLookMode,
   setMapMode,
+  setNicknameMode,
+  setNicknameInput,
   setMsgLogMode,
   setMsgLogScrollTop,
   msgsRef,
@@ -306,6 +308,10 @@ export function useGamepad({
         case "underfoot":
           act?.("interact");
           break;
+        case "naming":
+          setNicknameInput?.("");
+          setNicknameMode?.({ kind: "catalog" });
+          break;
         case "magic":
           setSpellListMode?.((f) => !f);
           setSpellMenuSel?.(0);
@@ -336,6 +342,8 @@ export function useGamepad({
     [
       act,
       setMapMode,
+      setNicknameMode,
+      setNicknameInput,
       openMsgLog,
       openLook,
       setSpellListMode,
