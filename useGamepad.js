@@ -377,6 +377,11 @@ export function useGamepad({
       setShowScores?.(false);
       return true;
     }
+    if (spellListModeRef.current) {
+      setSpellListMode?.(false);
+      spellListModeRef.current = false;
+      return true;
+    }
     if (facingModeRef.current) {
       setFacingMode?.(false);
       facingModeRef.current = false;
@@ -385,7 +390,7 @@ export function useGamepad({
     /* 既存キーハンドラに任せる（インベントリ・マップ・ログ等） */
     fireKey("Escape", "Escape");
     return true;
-  }, [setShowSettings, setShowScores, setFacingMode]);
+  }, [setShowSettings, setShowScores, setSpellListMode, setFacingMode]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
