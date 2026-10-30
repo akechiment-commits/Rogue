@@ -237,10 +237,9 @@ export function clearPlayerPoison(player) {
  * 自動ターン処理だけが進み続けるため、HP代入フックから共通で呼ぶ。
  * MP回復禁止（mpSealTurns。HP0復活の1000ターンのみ）や有利な効果は対象外。
  */
-export function clearStatusEffectsOnHpZero(entity) {
+export function hasClearableStatusAilments(entity) {
   if (!entity) return false;
-
-  const hadStatus = [
+  return [
     entity.sleepTurns, entity.sleepInterruptedTurns, entity.paralyzeTurns,
     entity.foodHasteTurns,
     entity.paralyzed, entity.frozenTurns, entity.slowTurns, entity.slowSkip,
@@ -253,6 +252,11 @@ export function clearStatusEffectsOnHpZero(entity) {
     entity.defSoftenedTurns, entity.atkDebuffTurns, entity.defDebuffTurns,
     entity.pacifistTurns, entity.hypnosisPending, entity.caswackTurns,
   ].some((value) => typeof value === "boolean" ? value : (value || 0) > 0);
+}
+
+export function clearStatusEffectsOnHpZero(entity) {
+  if (!entity) return false;
+  const hadStatus = hasClearableStatusAilments(entity);
 
   /* プレイヤーの毒による攻撃力低下を戻す。 */
   if ((entity.poisonAtkLoss || 0) > 0) {

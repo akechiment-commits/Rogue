@@ -3992,7 +3992,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           priestRef.current = mon;
           setPriestMode("menu");
           setPriestMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), "司祭：「祭壇の加護を授けよう。杖やペンの補充、装備の強化を望むか？」"]);
+          setMsgs((prev) => [...prev.slice(-80), "司祭：「祭壇の加護を授けよう。杖やペンの補充、装備の強化、解呪、状態異常の解除を望むか？」"]);
           return;
         }
         const dg6 = sr.current.dungeon;
@@ -6118,10 +6118,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (!s || !priest || !priest.isAltarPriest || priest.hp <= 0 ||
         (priest.state === "hostile" && !priest._npcRetaliationTargetId)) return;
     const p = s.player;
-    const item = itemRef && typeof itemRef === "object"
+    const isStatusCure = service === "cure_status";
+    const item = isStatusCure ? null : itemRef && typeof itemRef === "object"
       ? p.inventory.find((entry) => entry === itemRef || (itemRef.id != null && entry.id === itemRef.id))
       : p.inventory.find((entry) => entry.id === itemRef);
-    if (!item || altarPriestServiceTargets([item], service).length === 0) return;
+    if (isStatusCure) {
+      if (altarPriestServiceTargets(p.inventory, service, p).length === 0) return;
+    } else if (!item || altarPriestServiceTargets([item], service, p).length === 0) return;
     const requestCount = Math.max(0, Math.floor(p.priestServiceCount || 0));
     const price = altarPriestServicePrice(item, service, requestCount);
     if (!price) return;
@@ -6129,14 +6132,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs((prev) => [...prev.slice(-80), `お金が足りない！(必要:${price}G)`]);
       return;
     }
-    const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
     p.gold -= price;
     let result;
-    if (service === "refill_wand" || service === "refill_pen") {
+    if (isStatusCure) {
+      const hadDopingAftereffect = (p.dopingAftereffectTurns || 0) > 0;
+      if (hadDopingAftereffect) {
+        p.dopingAftereffectTurns = 0;
+        if ((p.dopingTurns || 0) <= 0) p.dopingAftereffectPending = false;
+      }
+      const hadStatus = clearStatusEffectsOnHpZero(p);
+      result = `${hadStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}${hadDopingAftereffect ? " ドーピングの副作用も消えた！" : ""}`;
+    } else if (service === "remove_curse") {
+      const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
+      setPlayerItemProperties(p, item, { cursed: false, bcKnown: true });
+      result = `${name}の呪いが解けた！`;
+    } else if (service === "refill_wand" || service === "refill_pen") {
+      const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
       const before = Math.max(0, item.charges || 0);
       item.charges = before + 1;
       result = `${name}の回数が1回分補充された！(${before}→${item.charges}回)`;
     } else {
+      const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
       const before = item.plus || 0;
       setPlayerItemProperties(p, item, { plus: before + 1 });
       result = `${name}が強化された！(${before >= 0 ? `+${before}` : before}→+${item.plus})`;

@@ -3146,15 +3146,15 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
   const serviceCount = p.priestServiceCount || 0;
   const menuRows = ALTAR_PRIEST_SERVICES.map((service) => ({
     ...service,
-    targetCount: altarPriestServiceTargets(p.inventory, service.id).length,
+    targetCount: altarPriestServiceTargets(p.inventory, service.id, p).length,
   }));
-  const targets = mode === "menu" ? [] : altarPriestServiceTargets(p.inventory, mode);
+  const targets = mode === "menu" ? [] : altarPriestServiceTargets(p.inventory, mode, p);
   const rows = mode === "menu"
     ? [
         ...menuRows.map((service) => ({
           id: service.id,
           label: `${service.label}（${service.targetCount}件）`,
-          desc: service.id.startsWith("refill_") ? "+1回" : "+1",
+          desc: service.id.startsWith("refill_") ? "+1回" : service.id === "upgrade" ? "+1" : service.id === "remove_curse" ? "1個を解呪" : "全状態異常を解除",
           disabled: service.targetCount === 0,
         })),
         { id: "close", label: "やめる", desc: "", disabled: false },
@@ -3162,7 +3162,15 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
     : [
         ...targets.map(({ item }) => {
           const price = altarPriestServicePrice(item, mode, serviceCount);
-          const detail = mode === "upgrade"
+          if (mode === "cure_status") {
+            return {
+              id: "cure_status",
+              item: null,
+              label: `状態異常を解除　${price.toLocaleString()}G`,
+              disabled: (p.gold || 0) < price,
+            };
+          }
+          const detail = mode === "remove_curse" ? "呪いを解く" : mode === "upgrade"
             ? `現在 ${item.plus > 0 ? `+${item.plus}` : item.plus || 0} → +${(item.plus || 0) + 1}`
             : `現在 ${item.charges || 0}回 → ${(item.charges || 0) + 1}回`;
           return {
@@ -3204,6 +3212,8 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
   if (actionsRef) actionsRef.current = { confirm, cancel, count: rows.length };
   const heading = mode === "menu"
     ? "司祭：「望む加護を選ぶがよい。」"
+    : mode === "cure_status"
+      ? `司祭：「状態異常を全て取り除く。依頼${serviceCount + 1}回目の料金だ。」（所持金: ${(p.gold || 0).toLocaleString()}G）`
     : `司祭：「対象を選べ。依頼${serviceCount + 1}回目の料金だ。」（所持金: ${(p.gold || 0).toLocaleString()}G）`;
   return (
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
