@@ -942,7 +942,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   const _blockConfirmUntilUp = useRef(true);
   const _isBigbox = mode?.identKey?.startsWith("bk:");
   const _typePrefix = _isBigbox ? null : mode?.identKey?.[0];
-  const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot' };
+  const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot', b: 'spellbook', r: 'ring' };
   const _targetType = _isBigbox ? null : _typeMap[_typePrefix];
   /* グローバルセーブ＋今回のプレイ分を合算して既発見名リストを作成 */
   const _knownNames = useMemo(() => {
@@ -993,10 +993,17 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     setInput(gs?.nicknames?.[entry.identKey] || "");
     setMode({
       identKey: entry.identKey,
-      fromCatalog: true,
+      returnToCatalog: true,
       catalogCategory: mode.category,
       catalogPage: page,
     });
+  };
+  const _closeNamingMethodMenu = () => {
+    if (mode?.returnToCatalog) {
+      setMode({ kind: "catalog", category: mode.catalogCategory, page: mode.catalogPage || 0 });
+    } else {
+      setMode(null);
+    }
   };
   const _cancelNicknameInput = () => {
     if (mode?.fromCatalog) {
@@ -1033,7 +1040,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     const _menuItems = [
       { enabled: true,                      action: () => _setSubMode("type") },
       { enabled: _knownNames.length > 0,    action: () => { _setSubMode("list"); _setListPage(0); _setListSel(0); } },
-      { enabled: true,                      action: () => setMode(null) },
+      { enabled: true,                      action: _closeNamingMethodMenu },
     ];
     const _onKey = (e) => {
       if (isKeyUp(e)) {
@@ -1050,12 +1057,12 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         if (item?.enabled) item.action();
       } else if (e.key === "Escape" || (e.key || "").toLowerCase() === "x") {
         e.preventDefault();
-        setMode(null);
+        _closeNamingMethodMenu();
       }
     };
     window.addEventListener("keydown", _onKey);
     return () => window.removeEventListener("keydown", _onKey);
-  }, [_isCatalog, _subMode, mode, _menuSel, _knownNames.length, setMode]);
+  }, [_isCatalog, _subMode, mode, _menuSel, _knownNames.length, setMode, _closeNamingMethodMenu]);
   /* リストモードのキーボード操作 */
   useEffect(() => {
     if (_isCatalog || _subMode !== "list" || !mode) return;
@@ -1224,7 +1231,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
             <button
               style={{ ..._btnStyle("#3a1a1a"), outline: _menuSel === 2 ? "2px solid #f88" : "none" }}
               onMouseEnter={() => _setMenuSel(2)}
-              onClick={() => setMode(null)}>キャンセル</button>
+              onClick={_closeNamingMethodMenu}>キャンセル</button>
           </div>
         )}
 
@@ -1238,11 +1245,11 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
                 if ((e2.key === 'Enter' || e2.code === 'NumpadEnter') && !e2.nativeEvent?.isComposing) _applyNick(input);
                 if (e2.key === 'Escape') {
                   e2.stopPropagation();
-                  if (mode.fromCatalog) _cancelNicknameInput();
+                  if (mode.fromCatalog || mode.returnToCatalog) _cancelNicknameInput();
                   else setMode(null);
                 }
               }}
-              placeholder={mode.fromCatalog ? "この未識別名につける名前" : "名前を入力（空欄でリセット）"}
+              placeholder={mode.fromCatalog || mode.returnToCatalog ? "この未識別名につける名前" : "名前を入力（空欄でリセット）"}
               autoFocus
               style={{ width:"100%", background:"#0a1a2a", color:"#fff", border:"1px solid #446", padding:4, borderRadius:4, boxSizing:"border-box" }}
             />

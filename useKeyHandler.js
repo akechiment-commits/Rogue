@@ -237,7 +237,7 @@ export function useKeyHandler({
           e.preventDefault();
           if (nicknameMode.kind === "catalog" && nicknameMode.category) {
             setNicknameMode({ kind: "catalog" });
-          } else if (nicknameMode.fromCatalog) {
+          } else if (nicknameMode.fromCatalog || nicknameMode.returnToCatalog) {
             setNicknameMode({ kind: "catalog", category: nicknameMode.catalogCategory, page: nicknameMode.catalogPage || 0 });
           } else {
             setNicknameMode(null);
