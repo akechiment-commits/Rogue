@@ -1,3 +1,5 @@
+import { BB_TYPES } from "./dungeonCatalog.js";
+
 /* ===== RUN DISCOVERY TRACKER =====
    Module-level singleton so any game code can track discoveries
    without threading refs through deeply nested callbacks.         */
@@ -124,6 +126,13 @@ function _bumpEntry(bucket, key, entry) {
   }
 }
 
+const BIGBOX_TYPE_BY_KIND = new Map(BB_TYPES.map((entry) => [entry.kind, entry]));
+
+function isDiscoverableBigbox(bb) {
+  const definition = BIGBOX_TYPE_BY_KIND.get(bb?.kind);
+  return !!definition && !bb.internalMonsterSynthesis && bb.name === definition.name;
+}
+
 export function trackItem(item) {
   if (!markEntityTracked(item)) return;
   const key = item.type === "food"
@@ -150,14 +159,14 @@ export function trackTrap(trap) {
 }
 
 export function trackBigbox(bb) {
-  if (!bb?.kind || !bb?.name || !markEntityTracked(bb)) return;
+  if (!isDiscoverableBigbox(bb) || !markEntityTracked(bb)) return;
   const key = bb.kind;
   _bumpEntry(_disc.bigboxes, key, { name: bb.name, tile: 38, kind: bb.kind });
 }
 
 /* 今回の冒険で壊した大箱を一時ステージ（ゲームオーバー/帰還時に確定） */
 export function stageBigbox(bb) {
-  if (!bb?.kind || !bb?.name || typeof bb !== "object") return;
+  if (!isDiscoverableBigbox(bb) || typeof bb !== "object") return;
   if (_trackedEntities.has(bb) || _pendingBigboxEntities.has(bb)) return;
   _pendingBigboxEntities.add(bb);
   _pendingBigboxes.push({

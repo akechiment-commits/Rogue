@@ -912,7 +912,8 @@ function runNicknameGroups(gs) {
 
   for (const [kind, entry] of Object.entries(discoveries.bigboxes || {})) {
     const bigboxKind = entry?.kind || kind;
-    if (!bigboxKind || isBigboxKindIdentified({ kind: bigboxKind }, gs)) continue;
+    const bigboxType = BB_TYPES.find((candidate) => candidate.kind === bigboxKind);
+    if (!bigboxType || entry?.name !== bigboxType.name || isBigboxKindIdentified({ kind: bigboxKind }, gs)) continue;
     const fakeName = gs?.bbFakeNames?.[bigboxKind];
     if (fakeName) buckets.get("bigbox").set(`bk:${bigboxKind}`, { identKey: `bk:${bigboxKind}`, fakeName });
   }
@@ -950,10 +951,15 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     const _globalDisc = loadSave().discovered;
     const _runDisc = getDiscoveries();
     if (_isBigbox) {
-      const _names = new Set([
-        ...Object.values(_globalDisc.bigboxes || {}).map(e => e.name),
-        ...Object.values(_runDisc.bigboxes || {}).map(e => e.name),
-      ]);
+      const _names = new Set();
+      for (const [kind, entry] of Object.entries(_globalDisc.bigboxes || {})) {
+        const _type = BB_TYPES.find((candidate) => candidate.kind === (entry?.kind || kind));
+        if (_type && entry?.name === _type.name) _names.add(_type.name);
+      }
+      for (const [kind, entry] of Object.entries(_runDisc.bigboxes || {})) {
+        const _type = BB_TYPES.find((candidate) => candidate.kind === (entry?.kind || kind));
+        if (_type && entry?.name === _type.name) _names.add(_type.name);
+      }
       return [..._names].filter(Boolean).sort((a, b) => a.localeCompare(b, "ja"));
     }
     const _names = new Set([
