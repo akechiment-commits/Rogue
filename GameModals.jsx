@@ -16,7 +16,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from ".
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor, GOAL_ITEMS } from "./dungeon.js";
-import { makeVent, makeStatue, makeAltar } from "./fixtures.js";
+import { makeVent, makeStatue, makeAltar, placeAltarPriest } from "./fixtures.js";
 import { getDiscoveries, trackItem, trackBigbox } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
@@ -33,6 +33,7 @@ import { GACHA_COST } from "./gachaRules.js";
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 import { foodPotionEffectLabel } from "./foodData.js";
 import { deleteImage } from "./imageStorage.js";
+import { ALTAR_PRIEST_SERVICES, altarPriestServicePrice, altarPriestServiceTargets } from "./priestServiceRules.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -3135,6 +3136,102 @@ export function GachaModal({ mode, setMode, gs, gachaRef, menuSel, setMenuSel, o
   );
 }
 
+/* ===== Altar Priest Modal ===== */
+export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel, setMenuSel, onService, mobile, dname }) {
+  if (!mode || !gs?.player || !priestRef.current) {
+    if (actionsRef) actionsRef.current = null;
+    return null;
+  }
+  const p = gs.player;
+  const serviceCount = p.priestServiceCount || 0;
+  const menuRows = ALTAR_PRIEST_SERVICES.map((service) => ({
+    ...service,
+    targetCount: altarPriestServiceTargets(p.inventory, service.id).length,
+  }));
+  const targets = mode === "menu" ? [] : altarPriestServiceTargets(p.inventory, mode);
+  const rows = mode === "menu"
+    ? [
+        ...menuRows.map((service) => ({
+          id: service.id,
+          label: `${service.label}（${service.targetCount}件）`,
+          desc: service.id.startsWith("refill_") ? "+1回" : "+1",
+          disabled: service.targetCount === 0,
+        })),
+        { id: "close", label: "やめる", desc: "", disabled: false },
+      ]
+    : [
+        ...targets.map(({ item }) => {
+          const price = altarPriestServicePrice(item, mode, serviceCount);
+          const detail = mode === "upgrade"
+            ? `現在 ${item.plus > 0 ? `+${item.plus}` : item.plus || 0} → +${(item.plus || 0) + 1}`
+            : `現在 ${item.charges || 0}回 → ${(item.charges || 0) + 1}回`;
+          return {
+            id: item.id,
+            item,
+            label: `${dname(item)}　${detail}　${price.toLocaleString()}G`,
+            disabled: (p.gold || 0) < price,
+          };
+        }),
+        { id: "back", label: "戻る", desc: "", disabled: false },
+      ];
+  let completed = false;
+  const close = () => {
+    setMode(null);
+    priestRef.current = null;
+  };
+  const confirm = (index) => {
+    const row = rows[index];
+    if (completed || !row || row.disabled) return;
+    if (actionsRef && actionsRef.current?.confirm !== confirm) return;
+    completed = true;
+    if (actionsRef) actionsRef.current = null;
+    if (mode === "menu") {
+      if (row.id === "close") close();
+      else { setMode(row.id); setMenuSel(0); }
+    } else if (row.id === "back") {
+      setMode("menu"); setMenuSel(0);
+    } else {
+      onService?.(mode, row.item);
+      setMenuSel(0);
+    }
+  };
+  const cancel = () => {
+    if (completed) return;
+    completed = true;
+    if (actionsRef) actionsRef.current = null;
+    close();
+  };
+  if (actionsRef) actionsRef.current = { confirm, cancel, count: rows.length };
+  const heading = mode === "menu"
+    ? "司祭：「望む加護を選ぶがよい。」"
+    : `司祭：「対象を選べ。依頼${serviceCount + 1}回目の料金だ。」（所持金: ${(p.gold || 0).toLocaleString()}G）`;
+  return (
+    <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+      background: "#17140a", border: "1px solid #c6a85b", padding: mobile ? 10 : 14,
+      zIndex: 11, borderRadius: 8, boxShadow: "0 4px 20px rgba(90,70,20,0.65)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ color: "#f3d67a", fontSize: 13, fontWeight: "bold" }}>✦ 祭壇の司祭</span>
+        <button onClick={cancel} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+      </div>
+      <div style={{ color: "#e1d2a0", fontSize: 13, marginBottom: 8 }}>{heading}</div>
+      <div style={{ maxHeight: "55dvh", overflowY: "auto" }}>
+        {rows.map((row, index) => (
+          <button key={`${row.id}-${index}`} onClick={() => confirm(index)} disabled={row.disabled} style={{
+            display: "block", width: "100%", padding: "7px 10px", margin: "5px 0", textAlign: "left",
+            background: row.disabled ? "#1b1912" : menuSel === index ? "#4b3c17" : "#29230f",
+            color: row.disabled ? "#746b4b" : menuSel === index ? "#fff1b0" : "#ddca84",
+            border: `1px solid ${menuSel === index ? "#f3d67a" : "#6c5c2d"}`, borderRadius: 5,
+            cursor: row.disabled ? "default" : "pointer", fontSize: 13,
+          }}>
+            {index + 1}. {row.label}{row.desc ? <span style={{ color: "#a8955d", marginLeft: 8 }}>— {row.desc}</span> : null}
+          </button>
+        ))}
+      </div>
+      <div style={{ color: "#817650", fontSize: 11, marginTop: 4 }}>↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる</div>
+    </div>
+  );
+}
+
 /* ===== Altar Modal ===== */
 export function AltarModal({ mode, setMode, p, menuSel, setMenuSel, onOffer, mobile, dname }) {
   if (!mode || !p) return null;
@@ -4753,7 +4850,8 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         } else if (objectKind === "altar") {
           const altar = makeAltar(nx, ny);
           (dg.altars || (dg.altars = [])).push(altar);
-          ml.push("祭壇を設置した！");
+          if (placeAltarPriest(dg, altar, Math.random, sr.current?.player)) ml.push("祭壇と司祭を設置した！");
+          else { dg.altars = dg.altars.filter((entry) => entry !== altar); ml.push("司祭が立つ場所がないため祭壇を設置できなかった！"); }
         } else if (objectKind === "dimensionalVault") {
           /* 召喚地点を入口に合わせ、壁・水・アイテムは入室時まで保留する。 */
           const outerCandidates = [];

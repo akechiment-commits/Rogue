@@ -1610,14 +1610,8 @@ export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
   return true;
 }
 
-/** 祭壇を壊し、杖を当てた破壊者本人へ罰を与える。 */
-export function breakAltar(altar, dg, ml, p = null, breaker = null, luFn = null) {
-  if (!altar || !dg?.altars?.includes(altar)) return false;
-  const victim = breaker || p;
-  dg.altars = dg.altars.filter((entry) => entry !== altar && entry.id !== altar.id);
-  ml.push(`${altar.name || "祭壇"}が壊れた！`);
-  if (!victim) return true;
-
+function applyAltarPunishment(victim, dg, ml, p = null, luFn = null) {
+  if (!victim) return false;
   const victimName = victim.name || (victim === p ? "あなた" : "破壊者");
   const damage = rng(20, 30);
   if (victim === p) {
@@ -1632,7 +1626,7 @@ export function breakAltar(altar, dg, ml, p = null, breaker = null, luFn = null)
      モンスターの撃破後処理に、睡眠・鈍足などを持ち越させない。 */
   if (victim.hp <= 0) {
     clearStatusEffectsOnHpZero(victim);
-    if (victim !== p) killMonster(victim, dg, p, ml, luFn, true);
+    if (victim !== p) killMonster(victim, dg, p, ml, luFn, true, null, false, false, false, "祭壇の罰");
     return true;
   }
 
@@ -1675,6 +1669,22 @@ export function breakAltar(altar, dg, ml, p = null, breaker = null, luFn = null)
   if (victim.hp <= 0 && victim !== p) {
     killMonster(victim, dg, p, ml, luFn, true);
   }
+  return true;
+}
+
+/** 祭壇を壊し、判明している破壊者へ天罰を与えて司祭を敵対させる。 */
+export function breakAltar(altar, dg, ml, p = null, breaker = undefined, luFn = null) {
+  if (!altar || !dg?.altars?.includes(altar)) return false;
+  const victim = breaker === undefined ? p : breaker;
+  const priest = dg.monsters?.find((monster) => monster.isAltarPriest && monster.hp > 0 &&
+    (monster.id === altar.priestId || monster.altarId === altar.id));
+  dg.altars = dg.altars.filter((entry) => entry !== altar && entry.id !== altar.id);
+  ml.push(`${altar.name || "祭壇"}が壊れた！`);
+  if (priest && victim) {
+    if (victim === p) markShopkeeperHostileToPlayer(priest, dg, p, ml);
+    else beginNpcRetaliation(priest, victim, ml);
+  }
+  applyAltarPunishment(victim, dg, ml, p, luFn);
   return true;
 }
 
@@ -6880,6 +6890,10 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   /* 先に撃破対象を消す。ドロップが骨の上に落ちて骨を壊しても、
      既に倒れた同じモンスターを骨の衝突対象として再処理しない。 */
   removeMonster(dg, mon);
+  if (mon.isAltarPriest) {
+    const priestKiller = killerMon && killerMon !== mon ? killerMon : noExpCause ? null : p;
+    if (priestKiller && priestKiller.hp > 0) applyAltarPunishment(priestKiller, dg, ml, p, luFn);
+  }
   triggerPetalDeathSleep(mon, dg, p, ml);
   if (mon.baseKind === "boss_flock_revenge" && !mon._flockRevengeClone) {
     const linkedClones = (dg.monsters || []).filter(clone =>
@@ -8440,7 +8454,7 @@ export function markShopkeeperHostileToPlayer(monster, dungeon, player, messages
   monster.aware = true;
   monster.lastPx = player.x;
   monster.lastPy = player.y;
-  messages?.push("店主が怒った！");
+  messages?.push(monster.isAltarPriest ? "司祭が怒った！" : "店主が怒った！");
   return true;
 }
 
@@ -8487,7 +8501,7 @@ export function calmShopkeeperIfFullyHealed(m, dg, p, ml) {
   m.state = "friendly";
   if (isWanderingNpc(m)) m.speed = m.baseSpeed ?? 0.5;
   else if (returnHome) m._npcReturningHome = returnHome;
-  const name = m.isWanderingMerchant ? "行商人" : m.isWanderingAdventurer ? m.name : "店主";
+  const name = m.isAltarPriest ? "司祭" : m.isWanderingMerchant ? "行商人" : m.isWanderingAdventurer ? m.name : "店主";
   if (ml) ml.push(`${name}のHPが全快した！敵対状態が解除された。`);
   return true;
 }

@@ -153,6 +153,7 @@ export const TILE_NAMES = {
   256: "gwen_veteran",
   257: "flock",
   258: "flock_revenge",
+  260: "altar_priest",
   [TI.STONE_PROJECTILE]: "stone_projectile",
   [TI.ICE_CHUNK]: "ice_chunk",
   230: "loxonin",
@@ -398,6 +399,7 @@ export const TILE_RENDER = {
   227: { bg: null, fg: "#60a8d0", ch: "A" }, /* 冒険者・女性術師 */
   228: { bg: null, fg: "#d07050", ch: "A" }, /* 冒険者・男性剣士 */
   229: { bg: null, fg: "#c0a050", ch: "A" }, /* 冒険者・男性弓使い */
+  260: { bg: null, fg: "#d8ba63", ch: "P" }, /* 司祭 */
   230: { bg: null, fg: "#40d0a0", ch: "n" }, /* ロキソ忍系 */
   231: { bg: null, fg: "#e8c060", ch: "L" }, /* 眠れる獅子系 */
   234: { bg: null, fg: "#d99a55", ch: "c" }, /* ヤドカリ壺荒らし */

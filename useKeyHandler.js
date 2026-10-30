@@ -121,7 +121,7 @@ export { isDuplicateDirectionEvent, directionFamily, isRepeatBlockedKey };
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, keyboardShiftRef = null, keyboardDashRef = null, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, shopActionsRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
+  sr, shiftRef, aRef, keyboardShiftRef = null, keyboardDashRef = null, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, priestActionsRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, shopActionsRef, identifyConfirmRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showEnding, showScores, showSound = false, gameOverSel, gameOverView, endingSel = 0, endingView,
   facingMode,
@@ -170,6 +170,7 @@ export function useKeyHandler({
     bigboxMode = legacyArgs.bigboxMode, bigboxMenuSel = legacyArgs.bigboxMenuSel ?? 0, bigboxPage = legacyArgs.bigboxPage ?? 0,
     gachaMode = legacyArgs.gachaMode, gachaMenuSel = legacyArgs.gachaMenuSel ?? 0,
     altarMode = legacyArgs.altarMode, altarMenuSel = legacyArgs.altarMenuSel ?? 0,
+    priestMode = legacyArgs.priestMode, priestMenuSel = legacyArgs.priestMenuSel ?? 0,
     merchantMode = legacyArgs.merchantMode, merchantMenuSel = legacyArgs.merchantMenuSel ?? 0,
     nicknameMode = legacyArgs.nicknameMode, identifyMode = legacyArgs.identifyMode, revealMode = legacyArgs.revealMode,
     tpSelectMode = legacyArgs.tpSelectMode, floorSelectMode = legacyArgs.floorSelectMode, lookMode = legacyArgs.lookMode,
@@ -214,7 +215,7 @@ export function useKeyHandler({
   const handleDialogModalKey = (e) => {
     const k = (e.key || "").toLowerCase();
     if (!revealMode && !nicknameMode && !identifyMode && !putMode && !markerMode &&
-        !spellListMode && !debugSpellMode && !shopMode && !merchantMode && !altarMode &&
+        !spellListMode && !debugSpellMode && !shopMode && !merchantMode && !altarMode && !priestMode &&
         !bigboxMode && !gachaMode && !wishMode && !springMode) {
       return false;
     }
@@ -837,6 +838,21 @@ export function useKeyHandler({
         const digit = shopMode === "pay" ? getDigitNumber(e) : null;
         if (k === "enter" || k === "z" || digit === 1 || digit === 2) {
           actions?.confirm(digit === 1 ? 0 : digit === 2 ? 1 : shopMenuSel);
+        }
+        return;
+      }
+      if (priestMode) {
+        e.preventDefault();
+        const actions = priestActionsRef?.current;
+        if (k === "escape" || k === "x") { actions?.cancel(); return; }
+        if (isKeyUp(e) || isKeyDown(e)) {
+          const count = actions?.count || 1;
+          setPriestMenuSel((value) => (value + (isKeyDown(e) ? 1 : -1) + count) % count);
+          return;
+        }
+        const digit = getDigitNumber(e);
+        if (k === "enter" || k === "z" || digit !== null) {
+          actions?.confirm(digit !== null ? digit - 1 : priestMenuSel);
         }
         return;
       }

@@ -36,7 +36,7 @@ export function beginNpcRetaliation(npc, attacker, messages) {
   npc.lastPx = attacker.x;
   npc.lastPy = attacker.y;
   if (previousTarget !== attacker.id) {
-    const label = npc.isWanderingMerchant ? "行商人" : npc.isWanderingAdventurer ? npc.name : "店主";
+    const label = npc.isAltarPriest ? "司祭" : npc.isWanderingMerchant ? "行商人" : npc.isWanderingAdventurer ? npc.name : "店主";
     messages?.push(`${label}が${attacker.name}に怒った！`);
   }
   return true;

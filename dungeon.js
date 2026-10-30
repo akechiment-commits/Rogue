@@ -7,7 +7,7 @@ import {
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
 } from './items.js';
-import { scatterFloorGimmicks, makeAltar } from './fixtures.js';
+import { scatterFloorGimmicks, makeAltar, placeAltarPriest, ensureAltarPriests } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
 import {
   legendMonsterKindsAtFloor,
@@ -3264,6 +3264,10 @@ function placeDebugAltar(dg, randomFn = Math.random) {
   const cell = pick(candidates, randomFn);
   const altar = makeAltar(cell.x, cell.y);
   dg.altars.push(altar);
+  if (!placeAltarPriest(dg, altar, randomFn)) {
+    dg.altars = dg.altars.filter((entry) => entry !== altar);
+    return null;
+  }
   return altar;
 }
 
@@ -3275,6 +3279,7 @@ function attachDebugSpecialFixtures(dg, depth) {
   dg.dimensionalVaults ||= [];
   dg.merchantShops ||= [];
   placeDebugAltar(dg, Math.random);
+  ensureAltarPriests(dg, Math.random);
   placeDimensionalVault(dg, depth, Math.random);
   placeWanderingMerchant(dg, depth, Math.random);
   placeWanderingAdventurer(dg, depth, Math.random);
@@ -3428,6 +3433,7 @@ function attachFloorGimmicks(dg, depth) {
   if (g.statues?.length) dg.statues.push(...g.statues);
   if (g.pentacles?.length) dg.pentacles.push(...g.pentacles);
   if (g.altars?.length) dg.altars.push(...g.altars);
+  ensureAltarPriests(dg, Math.random);
   placeDimensionalVault(dg, depth);
   placeWanderingMerchant(dg, depth);
   placeWanderingAdventurer(dg, depth);

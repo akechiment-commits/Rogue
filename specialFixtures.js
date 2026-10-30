@@ -23,7 +23,7 @@ export const SPECIAL_FIXTURE_RATES = Object.freeze({
   dimensionalVault: 0.03,
   wanderingMerchant: 0.05,
   wanderingAdventurer: 0.50,
-  altar: 0.05,
+  altar: 0.06,
 });
 
 /* デバッグダンジョンでは、実際に触って挙動を確認しやすいよう大幅に増やす。 */

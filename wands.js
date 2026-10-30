@@ -18,7 +18,7 @@ import {
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
-import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
+import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue, placeAltarPriest } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
@@ -547,7 +547,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     const _fixtureName = target.name || (_isAltar ? "祭壇" : "ガチャマシーン");
     if (wandEffectBreaksFloorFixture(eff)) {
       if (_isAltar) {
-        breakAltar(target, dg, ml, p, breaker || (sourceIsPlayer ? p : killerMon), luFn);
+        breakAltar(target, dg, ml, p, breaker ?? (sourceIsPlayer ? p : killerMon ?? null), luFn);
       } else {
         breakGachaMachine(target, dg, ml, p, nameFn);
       }
@@ -557,6 +557,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const [ox, oy] = [p.x, p.y];
       _swapPlayerTo(target.x, target.y);
       target.x = ox; target.y = oy;
+      if (_isAltar) placeAltarPriest(dg, target, Math.random, p);
       if (!_isAltar) checkGachaShopTheft(target, dg, p, ml);
       ml.push(`${_fixtureName}と位置が入れ替わった！`);
       return;
@@ -565,6 +566,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _dest = pickFreeFloorObjectCell(dg, target, p, target.x, target.y);
       if (!_dest) { ml.push(`${_fixtureName}は動かなかった。`); return; }
       target.x = _dest.x; target.y = _dest.y;
+      if (_isAltar) placeAltarPriest(dg, target, Math.random, p);
       if (!_isAltar) checkGachaShopTheft(target, dg, p, ml);
       ml.push(`${_fixtureName}はどこかへ飛んだ！`);
       return;
@@ -575,7 +577,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       for (let i = 0; i < _maxDist; i++) {
         const _nx = _gx + dx, _ny = _gy + dy;
         if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-          if (_isAltar) breakAltar(target, dg, ml, p, breaker || (sourceIsPlayer ? p : killerMon), luFn);
+          if (_isAltar) breakAltar(target, dg, ml, p, breaker ?? (sourceIsPlayer ? p : killerMon ?? null), luFn);
           else breakGachaMachine(target, dg, ml, p, nameFn);
           return;
         }
@@ -583,6 +585,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         _gx = _nx; _gy = _ny;
       }
       target.x = _gx; target.y = _gy;
+      if (_isAltar) placeAltarPriest(dg, target, Math.random, p);
       if (!_isAltar) checkGachaShopTheft(target, dg, p, ml);
       ml.push(`${_fixtureName}が吹き飛んだ！`);
       return;
