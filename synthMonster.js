@@ -14,11 +14,15 @@ export function ensureSynthMonsterBox(monster) {
   return box;
 }
 
-export function speedUpSynthMonster(monster, messages) {
+export function boostSynthMonster(monster, messages) {
   const previousSpeed = monster.speed || 0.5;
   monster.speed = Math.min(3, previousSpeed + 0.5);
   monster.maxAttacks = Math.ceil(monster.speed);
   if (monster.speed !== previousSpeed) {
     messages.push(`${monster.name}の動きが速くなった！(速度${monster.speed})`);
   }
+  if (!monster._synthBaseAtk) monster._synthBaseAtk = monster.atk;
+  monster._synthAtkBoost = Math.min(10, (monster._synthAtkBoost || 1) * 1.2);
+  monster.atk = Math.round(monster._synthBaseAtk * monster._synthAtkBoost);
+  messages.push(`${monster.name}の攻撃力が上がった！（攻撃力×${monster._synthAtkBoost.toFixed(2)}→${monster.atk}）`);
 }

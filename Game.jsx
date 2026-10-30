@@ -104,7 +104,7 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
-import { ensureSynthMonsterBox, speedUpSynthMonster } from "./synthMonster.js";
+import { ensureSynthMonsterBox, boostSynthMonster } from "./synthMonster.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -3485,7 +3485,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       onMonHit: (mon, mlx) => {
                         if (mon.baseKind === "synthmonster" && !_isPierce && !_srFarcast && !_srForceMiss) {
                           bigboxAddItem(ensureSynthMonsterBox(mon), _srDrop(), dg, mlx);
-                          speedUpSynthMonster(mon, mlx);
+                          boostSynthMonster(mon, mlx);
                           _srPeel();
                           return;
                         }
