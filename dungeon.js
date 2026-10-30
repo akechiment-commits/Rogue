@@ -3238,7 +3238,7 @@ export function placeWanderingAdventurer(dg, depth, randomFn = Math.random) {
 
 /** デバッグダンジョン用に祭壇を1つ配置する（通常の他ギミック抽選は増やさない）。 */
 function placeDebugAltar(dg, randomFn = Math.random) {
-  if (!dg?.map || !dg.isDebugDungeon || dg.isTreasureRoom) return null;
+  if (!dg?.map || !dg.isDebugDungeon || dg.isTreasureRoom || dg.isBossFloor || dg.floorType === "bossFloor") return null;
   dg.altars ||= [];
   if (dg.altars.length > 0 || randomFn() >= specialFixtureRate("altar", dg)) return null;
   const shops = getShops(dg);
@@ -3423,7 +3423,7 @@ function attachFloorGimmicks(dg, depth) {
     pentacles: dg.pentacles,
     items: dg.items || [],
     altars: dg.altars,
-    altarRate: specialFixtureRate("altar", dg),
+    altarRate: dg.isBossFloor || dg.floorType === "bossFloor" ? 0 : specialFixtureRate("altar", dg),
     stairUp: dg.stairUp,
     stairDown: dg.stairDown,
     dungeonType: dg.dungeonType,

@@ -48,7 +48,7 @@ const ALTAR_PRIEST_NEIGHBORS = Object.freeze([
 
 /** 祭壇の隣に立つ司祭を配置する。既存セーブでは祭壇の移動後の位置調整にも使う。 */
 export function placeAltarPriest(dg, altar, randomFn = Math.random, player = null) {
-  if (!dg?.map || !altar || !(dg.altars || []).includes(altar)) return null;
+  if (!dg?.map || dg.isBossFloor || dg.floorType === "bossFloor" || !altar || !(dg.altars || []).includes(altar)) return null;
   dg.monsters ||= [];
   const existing = dg.monsters.find((monster) => monster.isAltarPriest &&
     (monster.id === altar.priestId || monster.altarId === altar.id));
@@ -170,7 +170,13 @@ export function placeAltarPriest(dg, altar, randomFn = Math.random, player = nul
 
 /** 再開セーブや生成済みフロアの欠落した司祭だけを補う。死亡済みの司祭は復活させない。 */
 export function ensureAltarPriests(dg, randomFn = Math.random, player = null) {
-  if (!dg?.altars?.length) return [];
+  if (!dg) return [];
+  if (dg.isBossFloor || dg.floorType === "bossFloor") {
+    dg.altars = [];
+    dg.monsters = (dg.monsters || []).filter((monster) => !monster.isAltarPriest);
+    return [];
+  }
+  if (!dg.altars?.length) return [];
   const priests = [];
   for (const altar of dg.altars) {
     if (altar.priestId != null) {

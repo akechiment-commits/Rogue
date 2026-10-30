@@ -3013,22 +3013,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   ml.push(`${attackMon.name}には体当たりできない。前を調べて話しかけよう。`);
                 }
                 acted = true;
-              }
-              const _bumpShop = !isWanderingNpc(attackMon) && getShops(dg).find(s => s.shopkeeperId === attackMon.id);
-              if (_bumpShop) {
-                const _bumpFis = dg.items.filter(
-                  (i) => !i.shopPrice && i.x >= _bumpShop.room.x && i.x < _bumpShop.room.x + _bumpShop.room.w &&
-                    i.y >= _bumpShop.room.y && i.y < _bumpShop.room.y + _bumpShop.room.h,
-                );
-                if (_bumpFis.length > 0) {
-                  setShopMode("sell"); setShopMenuSel(0);
-                  ml.push("店主：「買い取りましょうか？」");
-                } else if (_bumpShop.unpaidTotal > 0) {
+              } else if (mon === attackMon && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
+                const _bumpShop = attackMon.isAltarPriest
+                  ? null
+                  : getShops(dg).find((shop) => shop.shopkeeperId === attackMon.id);
+                if (_bumpShop && _bumpShop.unpaidTotal > 0) {
                   setShopMode("pay"); setShopMenuSel(0);
                   ml.push(`店主：「お代は${_bumpShop.unpaidTotal}Gです。」`);
                 } else {
-                  setShopMode("browse"); setShopMenuSel(0);
-                  ml.push("店主：「いらっしゃいませ！」");
+                  attackMon.x = _oldPx;
+                  attackMon.y = _oldPy;
+                  p.x = nx;
+                  p.y = ny;
+                  _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
+                  ml.push(`${attackMon.name || (attackMon.isAltarPriest ? "司祭" : "店主")}と場所を入れ替えた。`);
+                  acted = true;
                 }
               }
             } else if (isAttackSealed(p)) {

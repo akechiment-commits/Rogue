@@ -4848,10 +4848,14 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           (dg.statues || (dg.statues = [])).push(statue);
           ml.push("石像を設置した！");
         } else if (objectKind === "altar") {
-          const altar = makeAltar(nx, ny);
-          (dg.altars || (dg.altars = [])).push(altar);
-          if (placeAltarPriest(dg, altar, Math.random, sr.current?.player)) ml.push("祭壇と司祭を設置した！");
-          else { dg.altars = dg.altars.filter((entry) => entry !== altar); ml.push("司祭が立つ場所がないため祭壇を設置できなかった！"); }
+          if (dg.isBossFloor || dg.floorType === "bossFloor") {
+            ml.push("ボス階には祭壇を設置できない！");
+          } else {
+            const altar = makeAltar(nx, ny);
+            (dg.altars || (dg.altars = [])).push(altar);
+            if (placeAltarPriest(dg, altar, Math.random, sr.current?.player)) ml.push("祭壇と司祭を設置した！");
+            else { dg.altars = dg.altars.filter((entry) => entry !== altar); ml.push("司祭が立つ場所がないため祭壇を設置できなかった！"); }
+          }
         } else if (objectKind === "dimensionalVault") {
           /* 召喚地点を入口に合わせ、壁・水・アイテムは入室時まで保留する。 */
           const outerCandidates = [];
