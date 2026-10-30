@@ -18,7 +18,8 @@ const RAW_GROUPS = [
   { label: "ハーブ・香辛料", start: "しょうが", end: "昆布", detail: "料理の香りや辛味を加える香草・香辛料。" },
   { label: "海藻・水草", start: "昆布", end: "むかご", detail: "汁物や和え物にも使う海藻。" },
   { label: "芋・その他根菜", start: "むかご", end: "まぐろ", detail: "煮物や蒸し物に使う根菜・でんぷん作物。" },
-  { label: "魚介", start: "まぐろ", end: "鶏肉", detail: "刺身や焼き物にする魚介。" },
+  { label: "魚介", start: "まぐろ", end: "レイスの死体", detail: "刺身や焼き物にする魚介。" },
+  { label: "架空・幻想", start: "レイスの死体", end: "鶏肉", detail: "物語や異界から来た謎の食べ物。" },
   { label: "肉類・卵", start: "鶏肉", end: null, detail: "加熱して食べる肉や卵。" },
 ];
 

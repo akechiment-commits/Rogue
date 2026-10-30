@@ -148,8 +148,8 @@ describe("foodData", () => {
   });
 
   it("重複整理後の目標数に揃い、新規料理の相性も個別設定される", () => {
-    expect(RAW_FOODS).toHaveLength(400);
-    expect(COOKED_FOODS).toHaveLength(1072);
+    expect(RAW_FOODS).toHaveLength(420);
+    expect(COOKED_FOODS).toHaveLength(1100);
     expect(FOOD_CAT_MAP.get("バインセオ")).toBe("southeast_asian");
     expect(FOOD_CAT_MAP.get("チョリソー")).toBe("spanish");
     expect(FOOD_CAT_MAP.get("パブロバ")).toBe("western_sweets");
@@ -192,7 +192,8 @@ describe("foodData", () => {
     }
     for (const name of COOKED_FOODS) {
       const category = FOOD_CAT_MAP.get(name);
-      expect(Object.values(POT_CAT_BONUS).some(tags => tags.includes(category)), name).toBe(true);
+      const tags = [category, ...(FOOD_POT_EXTRA[name] || [])];
+      expect(tags.some(tag => potTags.includes(tag)), name).toBe(true);
     }
   });
 

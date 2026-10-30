@@ -66,6 +66,11 @@ export const RAW_FOODS = [
   "牡蠣","ホタテ","ハマグリ","アサリ","シジミ","アワビ","サザエ","トコブシ",
   "ウニ","いくら","とびっこ","数の子","ナマコ","ホヤ","シラウオ","ワカサギ","アユ",
   "ヒラマサ","カワハギ","キス","メバル",
+  /* ── 架空・幻想 ── */
+  "レイスの死体","浮き目の死体","ニュートの死体","とかげの死体","コカトリスの卵",
+  "大きな肉の塊","ローヤルゼリーの塊","トリカブトの小枝","ユーカリの葉","光るキノコ",
+  "マンドラゴラの根","世界樹の実","黄金のリンゴ","まほうの豆",
+  "悪魔の実","ギサールの野菜","オレンの実","蟠桃","ロートスの実","チコの実",
   /* ── 肉類・卵 ── */
   "鶏肉","豚肉","牛肉","羊肉","鹿肉","猪肉","馬肉","カモ肉","ウサギ肉","ターキー",
   "鶏卵","うずら卵",
@@ -215,6 +220,11 @@ export const COOKED_FOODS_SAVORY = [
   /* スカンジナビア */
   "スモーブロー","ヤンソンの誘惑","コットブッラル","グラブラックスタルタル",
   "ピッティパンナ","ルーテフィスク","カレリアパイ","マッティヘリング","グラトゥンタウマ",
+  /* 架空 */
+  "グンヨキ","レンバス","クラム","トライブレーション","Kレーション","スライムモルド",
+  "ミートボール","肉の指輪","ほうれん草の缶詰","謎の缶詰",
+  "ラピュタパン","マーボーカレー","こんがり肉",
+  "ニシンとカボチャのパイ","こんがり魚",
 ];
 
 /* ── スイーツ ── */
@@ -274,6 +284,11 @@ export const COOKED_FOODS_SWEET = [
   /* インド系スイーツ */
   "グラブジャムン","ラドゥー","ジャレビ","バルフィ","ラスマライ",
   "ガジャルハルワ","シュリカンド","ペダ","サンデシュ","チャムチャム",
+  /* 架空スイーツ */
+  "フォーチュンクッキー","キャンディーバー","クリームパイ","ビヨルンの蜂蜜ケーキ",
+  "魔女のキャンディ","マナ","アンブロシア",
+  "スイートロール","百味ビーンズ","カエルチョコ",
+  "エバーラスティングゴブストッパー","食べてと書かれたケーキ","にがだんご",
 ];
 
 /* genFood()後方互換用 — 両カテゴリを結合 */
@@ -302,14 +317,16 @@ function _buildFoodCatMap() {
     { cat: "russian",         items: S.slice(S.indexOf("ピロシキ"), S.indexOf("ヒンカリ")) },
     { cat: "georgian",        items: S.slice(S.indexOf("ヒンカリ"), S.indexOf("プロフ")) },
     { cat: "central_asian",   items: S.slice(S.indexOf("プロフ"), S.indexOf("フォンデュ")) },
-    { cat: "other",           items: S.slice(S.indexOf("フォンデュ")) },
+    { cat: "other",           items: S.slice(S.indexOf("フォンデュ"), S.indexOf("グンヨキ")) },
+    { cat: "fiction",         items: S.slice(S.indexOf("グンヨキ")) },
   ];
   const W = COOKED_FOODS_SWEET;
   const _catSweet = [
     { cat: "western_sweets",  items: W.slice(0, W.indexOf("たい焼き")) },
     { cat: "japanese_sweets", items: W.slice(W.indexOf("たい焼き"), W.indexOf("杏仁豆腐")) },
     { cat: "asian_sweets",    items: W.slice(W.indexOf("杏仁豆腐"), W.indexOf("バクラヴァ")) },
-    { cat: "mideast_sweets",  items: W.slice(W.indexOf("バクラヴァ")) },
+    { cat: "mideast_sweets",  items: W.slice(W.indexOf("バクラヴァ"), W.indexOf("フォーチュンクッキー")) },
+    { cat: "fiction",         items: W.slice(W.indexOf("フォーチュンクッキー")) },
   ];
   for (const { cat, items } of [..._catSavory, ..._catSweet]) {
     for (const name of items) m.set(name, cat);
@@ -327,7 +344,7 @@ export const FOOD_CAT_NAMES = {
   turkish: "トルコ", indian: "インド", russian: "東欧・ロシア",
   georgian: "ジョージア", central_asian: "中央アジア", other: "北欧等",
   western_sweets: "洋菓子", japanese_sweets: "和菓子", asian_sweets: "アジア菓子",
-  mideast_sweets: "中東菓子",
+  mideast_sweets: "中東菓子", fiction: "架空",
   curry: "カレー料理", yoshoku: "洋風日本料理",
   spicy: "辛料理", sesame: "ごま・きなこ料理", garlic: "にんにく料理",
   lemon: "柑橘・酸系料理", choco: "チョコ菓子", yogurt: "ヨーグルト料理",
@@ -444,6 +461,24 @@ function _buildRawFoodPotExtra() {
   /* 肉・卵：醤油・にんにくを基本に、卵だけバターも追加。 */
   add(["鶏卵","うずら卵"], ["butter"]);
   add(["羊肉","鹿肉","猪肉","馬肉","カモ肉","ウサギ肉","ターキー"], ["spicy"]);
+
+  /* 架空・幻想は範囲割り当て（魚介）の影響を受けるため、最後に個別タグで上書き確定する。 */
+  const fictionRawTags = {
+    "レイスの死体": ["miso", "garlic"], "浮き目の死体": ["lemon", "soy"],
+    "ニュートの死体": ["soy", "lemon"], "とかげの死体": ["soy", "garlic"],
+    "コカトリスの卵": ["spicy", "pepper"], "大きな肉の塊": ["soy", "garlic", "pepper"],
+    "ローヤルゼリーの塊": ["honey", "yogurt"], "トリカブトの小枝": ["miso", "soy"],
+    "ユーカリの葉": ["lemon", "honey"], "光るキノコ": ["butter", "garlic"],
+    "マンドラゴラの根": ["miso", "soy"], "世界樹の実": ["honey", "yogurt"],
+    "黄金のリンゴ": ["honey", "choco"], "まほうの豆": ["soy", "curry"],
+    "悪魔の実": ["lemon", "pepper"], "ギサールの野菜": ["lemon", "soy"],
+    "オレンの実": ["honey", "lemon"], "蟠桃": ["honey", "yogurt"], "ロートスの実": ["honey", "lemon"],
+    "チコの実": ["honey", "sesame"],
+  };
+  for (const [name, tags] of Object.entries(fictionRawTags)) {
+    if (!RAW_FOODS.includes(name)) throw new Error(`架空食料相性の対象が不正: ${name}`);
+    m[name] = [...tags];
+  }
 
   const missing = RAW_FOODS.filter(name => !m[name] || m[name].length === 0);
   if (missing.length) throw new Error(`生食料相性が未設定: ${missing.join(", ")}`);
@@ -562,6 +597,17 @@ export const FOOD_POT_EXTRA = {
   "フルーツポンチ": ["honey", "lemon"], "ミルクレープ": ["butter"], "きんつば": ["honey"], "あんこ餅": ["honey"],
   "きなこ餅": ["honey", "sesame"], "ポップコーン": ["butter"], "たまごボーロ": ["honey", "butter"], "エッグタルト": ["butter"],
   "焼きまんじゅう": ["honey"], "かるかん": ["honey"], "しるこサンド": ["honey", "butter"],
+  "グンヨキ": ["soy", "miso"], "レンバス": ["honey", "butter"], "クラム": ["butter", "honey"],
+  "トライブレーション": ["soy", "pepper"], "Kレーション": ["soy", "pepper"], "スライムモルド": ["lemon", "honey"],
+  "ミートボール": ["soy", "pepper"], "肉の指輪": ["pepper", "garlic"], "ほうれん草の缶詰": ["butter", "garlic"],
+  "謎の缶詰": ["curry", "spicy"], "フォーチュンクッキー": ["honey", "choco"], "キャンディーバー": ["choco", "honey"],
+  "クリームパイ": ["honey", "choco"], "ビヨルンの蜂蜜ケーキ": ["honey", "butter"], "魔女のキャンディ": ["choco", "honey"],
+  "マナ": ["honey", "butter"], "アンブロシア": ["honey", "yogurt"],
+  "ラピュタパン": ["butter", "pepper"], "マーボーカレー": ["curry", "spicy"],
+  "こんがり肉": ["soy", "garlic", "pepper"], "スイートロール": ["honey", "butter"],
+  "百味ビーンズ": ["choco", "honey"], "カエルチョコ": ["choco", "honey"],
+  "ニシンとカボチャのパイ": ["butter", "pepper"], "エバーラスティングゴブストッパー": ["honey", "lemon"],
+  "食べてと書かれたケーキ": ["honey", "butter"], "にがだんご": ["miso", "soy"], "こんがり魚": ["soy", "lemon"],
 };
 
 /* 料理カテゴリだけでは胡椒・マヨネーズの相性を表しにくい料理を個別に補う。 */
