@@ -26,3 +26,12 @@ export function boostSynthMonster(monster, messages) {
   monster.atk = Math.round(monster._synthBaseAtk * monster._synthAtkBoost);
   messages.push(`${monster.name}の攻撃力が上がった！（攻撃力×${monster._synthAtkBoost.toFixed(2)}→${monster.atk}）`);
 }
+
+export function absorbGelCubeProjectile(monster, item) {
+  monster.heldItems ||= [];
+  monster.heldItems.push(item);
+  if (!monster._gelBaseAtk) monster._gelBaseAtk = monster.atk;
+  monster._gelBoost = Math.min(10, (monster._gelBoost || 1) * 1.2);
+  monster.atk = Math.round(monster._gelBaseAtk * monster._gelBoost);
+  return { boost: monster._gelBoost, attack: monster.atk };
+}

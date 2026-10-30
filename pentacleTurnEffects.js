@@ -83,6 +83,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   hasAbility,
   makeMagicStone,
   placeItemAt,
+  absorbProjectileItem = null,
   onMonsterDefeated,
 }) {
   if (pc.kind !== "stone_throw" && pc.kind !== "heal_aura") return;
@@ -208,6 +209,10 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   }
   if (dodged) return;
 
+  if (target.kind === "monster" &&
+      (targetMonster.baseKind === "synthmonster" || targetMonster.baseKind === "gelcube") &&
+      absorbProjectileItem?.(targetMonster, makeMagicStone(1), pc, messages)) return;
+
   if (pc.cursed) {
     if (target.kind === "player") {
       const heal = Math.min(baseAmount, player.maxHp - player.hp);
@@ -236,26 +241,6 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
     player.hp -= damage;
     messages.push(`${pc.name}の魔法の石が${pl()}に当たった！${damage}ダメージ！`);
     resolveParalysisHit(player, messages);
-    return;
-  }
-
-  if (targetMonster.baseKind === "gelcube") {
-    targetMonster.heldItems ||= [];
-    targetMonster.heldItems.push(makeMagicStone(1));
-    if (!targetMonster._gelBaseAtk) targetMonster._gelBaseAtk = targetMonster.atk;
-    targetMonster._gelBoost = Math.min(10, (targetMonster._gelBoost || 1) * 1.2);
-    targetMonster.atk = Math.round(targetMonster._gelBaseAtk * targetMonster._gelBoost);
-    messages.push(`${pc.name}の魔法の石が${targetMonster.name}に飲み込まれた！（攻撃力×${targetMonster._gelBoost.toFixed(2)}→${targetMonster.atk}）`);
-    return;
-  }
-
-  if (targetMonster.baseKind === "synthmonster") {
-    targetMonster.heldItems ||= [];
-    targetMonster.heldItems.push(makeMagicStone(1));
-    const previousSpeed = targetMonster.speed || 0.5;
-    targetMonster.speed = Math.min(3, previousSpeed + 0.5);
-    targetMonster.maxAttacks = Math.ceil(targetMonster.speed);
-    messages.push(`${pc.name}の魔法の石が${targetMonster.name}に飲み込まれた！${targetMonster.speed !== previousSpeed ? `(速度${targetMonster.speed})` : ""}`);
     return;
   }
 

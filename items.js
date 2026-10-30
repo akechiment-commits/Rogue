@@ -1,6 +1,6 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense } from './utils.js';
-import { ensureSynthMonsterBox, boostSynthMonster } from './synthMonster.js';
+import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } from './synthMonster.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -2935,10 +2935,17 @@ export function removeTraps(dg, traps, ml, opts = {}) {
 }
 
 /** 落石罠：対象がいなければ石を通常落下と同様に近くへ置く（罠マスには重ならない） */
-export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
+export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null, bbFn = null) {
   let hit = false;
   const _rfm = monsterAt(dg, tx, ty);
   if (_rfm) {
+    if ((_rfm.baseKind === "synthmonster" || _rfm.baseKind === "gelcube") &&
+        getFarcastMode(p?.x, p?.y, dg) !== "farcast" &&
+        absorbProjectileIntoMonster(_rfm, makeStone(1), dg, p, ml, null, {
+      bbFn,
+      sourceIsPlayer: false,
+      messagePrefix: `${trap?.name || "落石の罠"}の岩`,
+    })) return true;
     wakeIfDormant(_rfm, ml);
     hit = true;
     if (!consumeBarrier(_rfm, ml) && !blockLargeMonsterDamage(_rfm, p, ml)) {
@@ -3255,7 +3262,7 @@ export function unidentPlayerItems(p, identSet) {
  * @param {{ poison?: boolean, strong?: boolean, ft?: Set }} opts
  * @returns {boolean} 命中（または回避で矢が落ちた）したか
  */
-export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, strong = false, ft = null } = {}) {
+export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, strong = false, ft = null, bbFn = null } = {}) {
   const _ft = ft || new Set([trap?.id].filter(Boolean));
   const face = (p && p.facing) || { dx: 0, dy: 1 };
   let fdx = Math.sign(face.dx || 0);
@@ -3372,6 +3379,13 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
       if (getDodgePentacleMode(dg, m.x, m.y) === "dodge") {
         ml.push(`みかわしの魔方陣の加護で${label}が${m.name}に当たらなかった！矢が落ちた。`);
         placeItemAt(dg, cx, cy, arrow, ml, _ft);
+      } else if (absorbProjectileIntoMonster(m, arrow, dg, p, ml, null, {
+        bbFn,
+        sourceIsPlayer: false,
+        messagePrefix: "",
+      })) {
+        hit = true;
+        break;
       } else {
         wakeIfDormant(m, ml);
         if (!consumeBarrier(m, ml) && !blockLargeMonsterDamage(m, p, ml)) {
@@ -3405,7 +3419,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
 }
 
 let _fireTrapDepth = 0;
-export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null, identSet = null) {
+export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null, identSet = null, bbFn = null) {
   if ((dg?.timeStopTurns || 0) > 0) return "time_stopped";
   if (_fireTrapDepth > 5) return "stop";
   _fireTrapDepth++;
@@ -3414,7 +3428,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     const _was = trap.name || "偽の階段";
     materializeFakeStair(trap, getFixtureItemDeps(), { dungeonType: dg?.dungeonType ?? null, floor: p?.depth ?? ((dg?.depth ?? 0) + 1) });
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
-    return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet);
+    return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet, bbFn);
   }
   if (!claimTrapActivation(dg, trap)) return "already_activated";
   trackTrap(trap);
@@ -3515,7 +3529,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "arrow_trap": {
       ml.push(`${trap.name}が発動！`);
-      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: false, ft });
+      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: false, ft, bbFn });
       return "restart";
     }
     case "watergun_trap": {
@@ -3592,12 +3606,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "poison_arrow": {
       ml.push(`${trap.name}が発動！`);
-      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: true, ft });
+      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: true, ft, bbFn });
       return "restart";
     }
     case "strong_arrow": {
       ml.push(`${trap.name}が発動！`);
-      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { strong: true, ft });
+      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { strong: true, ft, bbFn });
       return "restart";
     }
     case "summon_trap": {
@@ -3757,7 +3771,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "rockfall": {
       ml.push(`${trap.name}が発動！岩が降ってきた！`);
-      applyRockfallEffect(dg, tx, ty, trap, ml, ft, p);
+      applyRockfallEffect(dg, tx, ty, trap, ml, ft, p, bbFn);
       return "restart";
     }
     case "time_bomb": {
@@ -4335,6 +4349,14 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     hitMessage = (target, dmg) => `${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
     onKilled = null,
   } = opts;
+  if (absorbProjectileIntoMonster(mon, item, dg, p, ml, luFn, {
+    bbFn: opts.bbFn,
+    killerMon,
+    sourceIsPlayer: opts.sourceIsPlayer ?? !killerMon,
+    fireTrapFn: opts.fireTrapFn,
+    nameFn,
+    messagePrefix: opts.messagePrefix ?? "飛んできた",
+  })) return { blocked: true, killed: false, swallowed: true };
   return withParalysisHit(mon, ml, () => {
   if (consumeBarrier(mon, ml)) return { blocked: true, killed: false };
 
@@ -4433,6 +4455,39 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   }
   return { blocked: false, killed };
   });
+}
+
+/** 物理飛翔物を合成獣／ゼラチンキューブが吸収する。遠投中だけは通常の着弾処理へ渡す。 */
+export function absorbProjectileIntoMonster(monster, item, dg, p, ml, luFn, opts = {}) {
+  if (!monster || !item || !dg) return false;
+  const {
+    bbFn = null,
+    killerMon = null,
+    sourceIsPlayer = false,
+    fireTrapFn = null,
+    nameFn = null,
+    messagePrefix = "飛んできた",
+  } = opts;
+  const farcastMode = getFarcastMode(p?.x, p?.y, dg);
+  if (farcastMode === "farcast" || (sourceIsPlayer && farcastMode !== "cursed" && hasRingEffect(p, "farcast_ring"))) return false;
+  if (monster.baseKind === "synthmonster") {
+    const box = ensureSynthMonsterBox(monster);
+    if (bbFn) {
+      bbFn(box, item, dg, ml, { killerMon, sourceIsPlayer, fireTrapFn });
+    } else {
+      box.contents.push(item);
+      ml.push(`${monster.name}が${resolveItemName(item, nameFn)}を飲み込んだ！`);
+    }
+    boostSynthMonster(monster, ml);
+    return true;
+  }
+  if (monster.baseKind === "gelcube") {
+    const { boost, attack } = absorbGelCubeProjectile(monster, item);
+    const itemName = nameFn ? nameFn(item) : resolveItemName(item);
+    ml.push(`${messagePrefix}${itemName}が${monster.name}に飲み込まれた！（攻撃力×${boost.toFixed(2)}→${attack}）`);
+    return true;
+  }
+  return false;
 }
 
 function finalizePickedStack(sourceItem, changedStacks) {
@@ -6244,7 +6299,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       ft.add(trap.id);
       trap.revealed = true;
-      const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
+      const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p, null, null, null, null);
       if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
         removeTrap(dg, trap, ml, { activated: true, message: `${trap.name}は壊れた。`, ft, p });
       }
@@ -7049,7 +7104,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   const _landOnTrap = (trap, lx, ly, mlx) => {
     trap.revealed = true;
     _trapFt.add(trap.id);
-    const r = fireTrapItem(trap, item, dg, lx, ly, mlx, _trapFt, p);
+    const r = fireTrapItem(trap, item, dg, lx, ly, mlx, _trapFt, p, null, null, null, opts.bbFn);
     if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
       removeTrap(dg, trap, mlx, { activated: true, message: `${trap.name}は壊れた。`, ft: _trapFt, p });
     }
@@ -7066,6 +7121,16 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     if (forceMiss) {
       mlx.push(`${_itemName}は${mon.name}に当たらなかった！`);
       res.missedPlayer = true; res.x = hitX; res.y = hitY;
+      return;
+    }
+    if (absorbProjectileIntoMonster(mon, item, dg, p, mlx, luFn, {
+      bbFn,
+      killerMon,
+      sourceIsPlayer: sourceIsPlayer(),
+      fireTrapFn: opts.fireTrapFn,
+      nameFn,
+    })) {
+      res.consumed = true; res.swallowed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
       return;
     }
     if (shooter === p && !reflectedBy && mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, mlx);
@@ -7218,6 +7283,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 
   /* 薬瓶・壺は外れても着地点で割れる。他の外れた投擲物は破損・爆発せず落とす。
      貫通中に別の対象へ命中した場合は、その着弾処理を優先する。 */
+  if (res.swallowed) return res;
   if (res.missedPlayer && !res.consumed && !_isPotion && !_isPot) {
     if (missLandFn) missLandFn(res.x, res.y, item, ml);
     else placeItemAt(dg, res.x, res.y, item, ml, new Set(), 0, p);
@@ -7678,7 +7744,7 @@ function chooseSpecialProjectileFloor(dg, p, sp) {
   return { x: sp.x, y: sp.y };
 }
 
-function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
+function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn, bbFn = null) {
   const _trap = dg.traps?.find(t => t.x === x && t.y === y);
   if (!_trap) return { action: "none" };
   const _effect = _trap.effect;
@@ -7691,7 +7757,7 @@ function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   };
   _trap.revealed = true;
   const _ft = new Set(_trap.id != null ? [_trap.id] : []);
-  const _result = fireTrapItem(_trap, _trigger, dg, x, y, ml, _ft, p, null, luFn);
+  const _result = fireTrapItem(_trap, _trigger, dg, x, y, ml, _ft, p, null, luFn, null, bbFn);
   if (_result === "already_activated" || _result === "time_stopped") return { action: "continue" };
   if (_trap.effect !== "explode" && !_trap.permanent && Math.random() < trapStepBreakChance(_trap)) {
     removeTrap(dg, _trap, ml, { activated: true, message: `${_trap.name}は壊れた。`, ft: _ft, p });
@@ -7874,6 +7940,8 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
   const _displayName = bundle && _bundleCount > 1 ? `${_name}(${_bundleCount}個)` : _name;
   const _verb = bundle ? "投げた" : "射った";
   const _launchAtk = (st.atk || 1) + (bundle ? _bundleCount : 0);
+  const _itemProjectile = { ...st, id: uid(), count: _bundleCount };
+  peelShopArrowUnit(_itemProjectile);
   if (!bundle) consumeSpecialProjectileArrow(p, idx, st);
   const _fc = getFarcastMode(p.x, p.y, dg);
   if (forceMiss || _fc === "farcast") {
@@ -7915,6 +7983,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
     targetId: _target?.id ?? null, turnsLeft: _kind === "torpedo" ? 30 : 20,
     count: _kind === "torpedo" ? _bundleCount : 1,
     bundleCount: _kind === "crawling_bomb" ? _bundleCount : 1,
+    item: _itemProjectile,
     hasMoved: false,
   });
   ml.push(`${_displayName}を${_verb}！`);
@@ -7922,7 +7991,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
 }
 
 /** 床を進む特殊飛び道具をプレイヤーの1ターン分だけ進める。 */
-export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = null) {
+export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = null, bbFn = null) {
   if (!dg?.specialProjectiles?.length) return;
   const _remaining = [];
   const _homingOccupied = new Map();
@@ -7975,11 +8044,21 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     if (sp.hasMoved) {
       const _currentMonster = specialProjectileMonsterAt(dg, sp.x, sp.y);
       const _currentPlayer = p && p.x === sp.x && p.y === sp.y;
+      if (_currentMonster && sp.item && absorbProjectileIntoMonster(_currentMonster, sp.item, dg, p, ml, luFn, {
+        bbFn,
+        sourceIsPlayer: true,
+        messagePrefix: "飛んできた",
+      })) continue;
       if (sp.kind === "crawling_bomb" && (_currentMonster || _currentPlayer)) {
         detonateCrawlingBomb(sp, dg, p, ml, luFn, `${sp.name}が${_currentMonster?.name || "自分"}に触れて爆発した！`);
         continue;
       }
       if (_currentMonster) {
+        if (sp.item && absorbProjectileIntoMonster(_currentMonster, sp.item, dg, p, ml, luFn, {
+          bbFn,
+          sourceIsPlayer: true,
+          messagePrefix: "飛んできた",
+        })) continue;
         if (sp.kind === "torpedo") {
           detonateTorpedo(sp, dg, p, ml, luFn, _currentMonster);
           continue;
@@ -8061,10 +8140,15 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     sp.hasMoved = true;
     sp.turnsLeft--;
     if (_trap) {
-      const _trapResult = triggerSpecialProjectileTrap(sp, dg, p, sp.x, sp.y, ml, luFn);
+      const _trapResult = triggerSpecialProjectileTrap(sp, dg, p, sp.x, sp.y, ml, luFn, bbFn);
       if (_trapResult.action === "continue" && sp.turnsLeft > 0) _remaining.push(sp);
       continue;
     }
+    if (_monster && sp.item && absorbProjectileIntoMonster(_monster, sp.item, dg, p, ml, luFn, {
+      bbFn,
+      sourceIsPlayer: true,
+      messagePrefix: "飛んできた",
+    })) continue;
     if (sp.kind === "crawling_bomb" && (_monster || _bigbox || _statue || _player)) {
       detonateCrawlingBomb(sp, dg, p, ml, luFn, `${sp.name}が${_monster?.name || "障害物"}に触れて爆発した！`);
       continue;
@@ -8170,11 +8254,12 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       _ensureShopPeeled();
       return;
     }
-    if (_wakkaTarget.baseKind === "synthmonster" && !_isPierce && !_isFc && !st.bombArrow && !forceMiss) {
-      const synthBox = ensureSynthMonsterBox(_wakkaTarget);
-      if (bbFn) bbFn(synthBox, _dropItem(), dg, ml);
-      else synthBox.contents.push(_dropItem());
-      boostSynthMonster(_wakkaTarget, ml);
+    if (!forceMiss && absorbProjectileIntoMonster(_wakkaTarget, _dropItem(), dg, p, ml, luFn, {
+      bbFn,
+      sourceIsPlayer: true,
+      nameFn: (it) => it.name || _arName,
+      messagePrefix: "",
+    })) {
       _ensureShopPeeled();
       return;
     }
@@ -8263,11 +8348,12 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         hit = true;
         break;
       }
-      if (!_pierceMode && !st.bombArrow && m.baseKind === "synthmonster") {
-        const synthBox = ensureSynthMonsterBox(m);
-        if (bbFn) bbFn(synthBox, _dropItem(), dg, ml);
-        else synthBox.contents.push(_dropItem());
-        boostSynthMonster(m, ml);
+      if (absorbProjectileIntoMonster(m, _dropItem(), dg, p, ml, luFn, {
+        bbFn,
+        sourceIsPlayer: true,
+        nameFn: (it) => it.name || _arName,
+        messagePrefix: "",
+      })) {
         hit = true;
         break;
       }

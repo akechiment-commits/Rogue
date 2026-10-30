@@ -42,7 +42,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     }
     case "arrow_trap": {
       ml.push(`${trap.name}が発動！`);
-      fireTrapArrowFromFacing(trap, p, dg, ml, { poison: false });
+      fireTrapArrowFromFacing(trap, p, dg, ml, { poison: false, bbFn: ctx?.bbFn });
       break;
     }
     case "pitfall":
@@ -102,12 +102,12 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     case "poison_arrow": {
       ml.push(`${trap.name}が発動！`);
-      fireTrapArrowFromFacing(trap, p, dg, ml, { poison: true });
+      fireTrapArrowFromFacing(trap, p, dg, ml, { poison: true, bbFn: ctx?.bbFn });
       break;
     }
     case "strong_arrow": {
       ml.push(`${trap.name}が発動！`);
-      fireTrapArrowFromFacing(trap, p, dg, ml, { strong: true });
+      fireTrapArrowFromFacing(trap, p, dg, ml, { strong: true, bbFn: ctx?.bbFn });
       break;
     }
     case "summon_trap": {
@@ -219,7 +219,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     }
     case "rockfall": {
       ml.push(`${trap.name}が作動！岩が降ってきた！`);
-      applyRockfallEffect(dg, trap.x, trap.y, trap, ml, new Set([trap.id]), p);
+      applyRockfallEffect(dg, trap.x, trap.y, trap, ml, new Set([trap.id]), p, ctx?.bbFn);
       break;
     }
     case "time_bomb": {

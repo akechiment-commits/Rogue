@@ -20,6 +20,7 @@ import {
   taisaijinRefresh,
   setTaisaijinCombatDeps,
 } from './taisaijin.js';
+import { absorbGelCubeProjectile } from "./synthMonster.js";
 import {
   canUseOhplentySpecial,
   isFarLineToPlayer as isOhplentyFarLine,
@@ -41,7 +42,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -350,11 +351,8 @@ function _gelCubeAbsorbItems(m, dg, ml) {
   if (_onTile.length === 0) return;
   m.heldItems = m.heldItems || [];
   for (const it of _onTile) {
-    m.heldItems.push(it);
-    if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;
-    m._gelBoost = Math.min(10, (m._gelBoost || 1) * 1.2);
-    m.atk = Math.round(m._gelBaseAtk * m._gelBoost);
-    ml.push(`${m.name}が「${resolveItemName(it)}」を取り込んだ！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
+    const { boost, attack } = absorbGelCubeProjectile(m, it);
+    ml.push(`${m.name}が「${resolveItemName(it)}」を取り込んだ！（攻撃力×${boost.toFixed(2)}→${attack}）`);
   }
   dg.items = dg.items.filter(it => !(it.x === m.x && it.y === m.y));
 }
@@ -3234,16 +3232,13 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       }
     },
     onMonHit: (mon, mlx) => {
-      const _isFc = getFarcastMode(pl.x, pl.y, dg) === "farcast";
-      /* gelcube：貫通/遠投以外なら矢を飲み込んで攻撃力上昇 */
-      if (mon.baseKind === "gelcube" && !_isPierce && !_isFc) {
-        mon.heldItems = mon.heldItems || [];
-        mon.heldItems.push(_makeAr());
-        if (!mon._gelBaseAtk) mon._gelBaseAtk = mon.atk;
-        mon._gelBoost = Math.min(10, (mon._gelBoost || 1) * 1.2);
-        mon.atk = Math.round(mon._gelBaseAtk * mon._gelBoost);
-        mlx.push(`${m.name}の${_arName}が${mon.name}に飲み込まれた！（攻撃力×${mon._gelBoost.toFixed(2)}→${mon.atk}）`);
-        return;
+      if (absorbProjectileIntoMonster(mon, _makeAr(), dg, pl, mlx, null, {
+        bbFn: opts.bbFn,
+        killerMon: m,
+        sourceIsPlayer: false,
+        messagePrefix: `${m.name}の`,
+      })) {
+        return "consumed";
       }
       wakeIfDormant(mon, mlx);
       const _dmg = Math.max(1, m.atk + rng(-2, 2));
@@ -3443,6 +3438,20 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
       return;
     }
 
+    const _stoneInterceptMon = dg.monsters?.find((monster) => monster !== m && monsterOccupiesCell(monster, tx, ty));
+    if (_stoneInterceptMon &&
+        (_stoneInterceptMon.baseKind === "synthmonster" || _stoneInterceptMon.baseKind === "gelcube") &&
+        getFarcastMode(pl.x, pl.y, dg) !== "farcast" &&
+        absorbProjectileIntoMonster(_stoneInterceptMon, dropStone(), dg, pl, ml, null, {
+      bbFn: opts.bbFn,
+      killerMon: m,
+      sourceIsPlayer: false,
+      messagePrefix: `${m.name}の`,
+    })) {
+      pushStoneArcAnim(tx, ty);
+      return;
+    }
+
     /* 本来の着弾点に風がある → 以降は風向きに直進（ホーミング終了） */
     if (!deflected && windAtAim && tx === aimX && ty === aimY) {
       const wdx = windAtAim.dx, wdy = windAtAim.dy;
@@ -3580,7 +3589,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
 
 /* ===== MONSTER AI ===== */
 /* 重力ゾーンで罠を踏む処理 */
-function _checkGravityTrap(m, dg, pl, ml, luFn) {
+function _checkGravityTrap(m, dg, pl, ml, luFn, bbFn = null) {
   if (!hasGravityPentacle(dg, m.x, m.y)) return;
   const trap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
   if (!trap) return;
@@ -3598,6 +3607,8 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
     pl,
     it => it.name,
     luFn,
+    null,
+    bbFn,
   );
   if (result !== "already_activated" && result !== "time_stopped" && trap.effect !== "explode") {
     maybeBreakTrapAfterStep(trap, dg, ml, { fromStep: true, p: pl });
@@ -3933,13 +3944,15 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onFlyOff) onFlyOff(_rrx, _rry, ml);
         return;
       }
-      if (onMonHit) { onMonHit(_mon, ml, _lx, _ly, _tx, _ty); }
-      else {
-        wakeIfDormant(_mon, ml);
-        const _mdmg = calcMonDmg(_mon);
-        _mon.hp -= _mdmg; ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
-        if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, _killerMon);
+      if (onMonHit) {
+        if (onMonHit(_mon, ml, _lx, _ly, _tx, _ty) === "consumed") return;
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
+        return;
       }
+      wakeIfDormant(_mon, ml);
+      const _mdmg = calcMonDmg(_mon);
+      _mon.hp -= _mdmg; ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
+      if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, _killerMon);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
     /* 大箱命中（onBigbox未指定なら素通り：シオン銃弾などアイテムでない弾向け）。遠投中は無視して素通り */
@@ -5426,7 +5439,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const moved = m.x !== _sx || m.y !== _sy;
     if (moved) {
       _clearDodgemoleTrap(m, dg, ml, pl);
-      _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
+      _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}), opts.bbFn);
     }
     const movementDisabled =
       m.paralyzed ||
@@ -5474,7 +5487,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (m._idleStuck >= 9 || stuckHist) {
           if (tryUnstickMove(m, dg, pl, _float)) {
             _clearDodgemoleTrap(m, dg, ml, pl);
-            _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
+            _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}), opts.bbFn);
           }
         }
       }

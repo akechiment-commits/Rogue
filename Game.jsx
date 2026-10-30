@@ -37,7 +37,7 @@ import {
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
-  applyPotionEffect, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
+  applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
@@ -104,7 +104,6 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
-import { ensureSynthMonsterBox, boostSynthMonster } from "./synthMonster.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
@@ -1387,7 +1386,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
     onActivated?.(trap);
-    return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu, { ident: sr.current?.ident });
+    return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
   }, [lu, showFirstEncounterTip]);
   const moveMons = useCallback((dg, pl, ml, phaseMode, extraOpts = {}) => {
     const opts = {
@@ -1397,7 +1396,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       applyWandFn: applyWandEffect,
       ...extraOpts,
       fireTrapFn: (trap, p, dg2, ml2) => {
-        const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu, { ident: sr.current?.ident });
+        const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
         if (_tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
           if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
@@ -2234,7 +2233,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             trackTrap(trap);
             showFirstEncounterTip("trap");
             return fireTrapPlayer(trap, player, dungeon, messages,
-              (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames), lu, { ident: st.ident });
+              (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames), lu, { ident: st.ident, bbFn: bigboxAddItem });
           },
         });
         if (_terrainTrap === "pitfall" && p.hp > 0) {
@@ -2282,7 +2281,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (!_timeStopActive) transitMonstersThroughPortals(st, p, ml, _monSnap, { randomTeleportDest });
       /* 特殊飛び道具：敵の移動後に進め、移動経路との交差も命中扱いにする */
       if (!_skipMonAct || _worldTick) {
-        withEnemyDamageContext(p, () => advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap));
+        withEnemyDamageContext(p, () => advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap, bigboxAddItem));
       }
       /* プレイヤーがポータルの上で1ターン経過したらワープ（移動・ダッシュで既に転送済みならスキップ） */
       if (_worldTick) {
@@ -2299,7 +2298,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             doExplosion,
             runMineExplosion,
             doTimeBombExplosion,
-            fireTrapPlayer,
+            fireTrapPlayer: (trap, player, dungeon, messages, nameFn, luFn, ctx = {}) =>
+              fireTrapPlayer(trap, player, dungeon, messages, nameFn, luFn, { ...ctx, bbFn: bigboxAddItem }),
             getItemName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
             lu,
             ident: sr.current?.ident,
@@ -2348,6 +2348,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               hasAbility,
               makeMagicStone,
               placeItemAt,
+              absorbProjectileItem: (monster, item, pc, messages) => absorbProjectileIntoMonster(monster, item, _dg2, p, messages, lu, {
+                bbFn: bigboxAddItem,
+                sourceIsPlayer: false,
+                messagePrefix: `${pc.name}の`,
+              }),
               onMonsterDefeated: (monster, { killerMon = null, noBone = false, noExp = false } = {}) => {
                 /* ラクガキ魔の魔方陣による撃破は、所有者のキル扱いにする。 */
                 if (killerMon && (!_dg2.monsters.includes(killerMon) || (killerMon.hp ?? 0) <= 0)) return;
@@ -3360,12 +3365,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, _srDrop(), ml, _stRft);
                       }
                     } else if (_stM && !_srForceMiss && !checkMonsterEvasion(_stM, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 })) {
-                      const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
-                      _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                      if (_stM.type === "shopkeeper") markWanderingNpcHostile(_stM, dg, p, ml);
-                      _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
-                      if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
-                      _srPeel();
+                      if (absorbProjectileIntoMonster(_stM, _srDrop(), dg, p, ml, lu, {
+                        bbFn: bigboxAddItem,
+                        sourceIsPlayer: true,
+                        nameFn: (it) => it.name || _arName,
+                        messagePrefix: "",
+                      })) {
+                        _srPeel();
+                      } else {
+                        const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
+                        _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
+                        if (_stM.type === "shopkeeper") markWanderingNpcHostile(_stM, dg, p, ml);
+                        _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
+                        if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
+                        _srPeel();
+                      }
                     } else {
                       if (_stM) ml.push(`${_arName}は${_stM.name}に外れた！`);
                       const _stft = new Set(); placeItemAt(dg, _stLx, _stLy, _srDrop(), ml, _stft);
@@ -3433,12 +3447,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     } else {
                       const _baMaxR = _srCursedFc ? 1 : 10;
                       let _baLx = p.x, _baLy = p.y;
+                      let _baSwallowed = false;
                       for (let _d = 1; _d <= _baMaxR; _d++) {
                         const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
                         if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
                         if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                         const _baM = monsterAt(dg, _tx, _ty);
                         if (_baM && !_srForceMiss) {
+                          if (absorbProjectileIntoMonster(_baM, _srDrop(), dg, p, ml, lu, {
+                            bbFn: bigboxAddItem,
+                            sourceIsPlayer: true,
+                            nameFn: (it) => it.name || _arName,
+                            messagePrefix: "",
+                          })) {
+                            _baSwallowed = true;
+                            _baLx = _tx; _baLy = _ty;
+                            break;
+                          }
                           const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
                           if (_baM.type === "shopkeeper") markWanderingNpcHostile(_baM, dg, p, ml);
@@ -3448,8 +3473,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         }
                         _baLx = _tx; _baLy = _ty;
                       }
-                      if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-                      doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu, false, false, false, false, { projectileAtk: _srAr.atk || 6 });
+                      if (_baSwallowed) {
+                        _srPeel();
+                      } else {
+                        if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
+                        doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu, false, false, false, false, { projectileAtk: _srAr.atk || 6 });
+                      }
                     }
                   /* ── 通常矢 / 毒矢 / 貫きの矢 ── */
                   } else {
@@ -3483,9 +3512,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         _srPeel();
                       },
                       onMonHit: (mon, mlx) => {
-                        if (mon.baseKind === "synthmonster" && !_isPierce && !_srFarcast && !_srForceMiss) {
-                          bigboxAddItem(ensureSynthMonsterBox(mon), _srDrop(), dg, mlx);
-                          boostSynthMonster(mon, mlx);
+                        if (!_srForceMiss && absorbProjectileIntoMonster(mon, _srDrop(), dg, p, mlx, lu, {
+                          bbFn: bigboxAddItem,
+                          sourceIsPlayer: true,
+                          messagePrefix: "",
+                        })) {
                           _srPeel();
                           return;
                         }
@@ -3851,7 +3882,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               } else {
                 const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                 showFirstEncounterTip("trap");
-                const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu, { ident: sr.current?.ident });
+                const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
                 if (_tr2 === "pitfall") {
                   const nd2 = chgFloor(p, 1, true);
                   if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
@@ -5294,18 +5325,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発＋箱も破壊 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              const _baSwallowedMons = new Set();
               for (const _baMon of [..._scMons]) {
                 if (floorChanged()) break;
                 if (!dg.monsters.includes(_baMon) || _baMon.hp <= 0) continue;
-                applyThrownItemToMonster(item, _baMon, dg, p, ml, lu, {
+                const _baHit = applyThrownItemToMonster(item, _baMon, dg, p, ml, lu, {
                   killerMon,
+                  bbFn: bigboxAddItem,
+                  sourceIsPlayer: true,
                   nameFn: _baNF,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
+                if (_baHit.swallowed) _baSwallowedMons.add(_baMon);
               }
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _baMon of [..._scMons]) {
                   if (floorChanged()) break;
+                  if (_baSwallowedMons.has(_baMon)) continue;
                   doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { ...effectContext, projectileAtk: item.atk || 6 });
                 }
                 if (_scPInRoom && !floorChanged()) {
@@ -5321,6 +5357,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 if (!dg.monsters.includes(m) || m.hp <= 0) continue;
                 applyThrownItemToMonster(item, m, dg, p, ml, lu, {
                   killerMon,
+                  bbFn: bigboxAddItem,
+                  sourceIsPlayer: true,
                   nameFn: _scDnFn,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
@@ -6280,7 +6318,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _tnFn = (it) => itemDisplayName(it, s.fakeNames, s.ident, s.nicknames);
     showFirstEncounterTip("trap");
     trackTrap(trap);
-    const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu, { ident: sr.current?.ident });
+    const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
     if (_tr2 === "pitfall") { const nd2 = chgFloor(_p, 1, true); if (nd2) { s.dungeon = nd2; ml.push(`地下${_p.depth}階に落ちた！`); } }
 
     endTurn(s, _p, ml);

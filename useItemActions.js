@@ -14,7 +14,7 @@ import {
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect, applyFireSpellBlast,
-  makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
+  makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone, absorbProjectileIntoMonster,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, potOccupancyCount,
   canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
@@ -41,7 +41,6 @@ import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monH
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
-import { ensureSynthMonsterBox, boostSynthMonster } from "./synthMonster.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
@@ -3242,13 +3241,13 @@ export function useItemActions({
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
                 const _msft = new Set();
                 withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, _stDrop(), ml, _msft, 0, p));
-              } else if (_msTarget.baseKind === "gelcube") {
-                _msTarget.heldItems = _msTarget.heldItems || [];
-                _msTarget.heldItems.push(_stDrop());
-                if (!_msTarget._gelBaseAtk) _msTarget._gelBaseAtk = _msTarget.atk;
-                _msTarget._gelBoost = Math.min(10, (_msTarget._gelBoost || 1) * 1.2);
-                _msTarget.atk = Math.round(_msTarget._gelBaseAtk * _msTarget._gelBoost);
-                ml.push(`${_stName}が${_msTarget.name}に飲み込まれた！（攻撃力×${_msTarget._gelBoost.toFixed(2)}→${_msTarget.atk}）`);
+              } else if (absorbProjectileIntoMonster(_msTarget, _stDrop(), dg, p, ml, lu, {
+                bbFn: bigboxAddItem,
+                sourceIsPlayer: true,
+                nameFn: (it) => it.name || _stName,
+                messagePrefix: "",
+              })) {
+                _stPeelIfNeeded();
               } else {
                 _msTarget.hp -= _msDmg;
                 markWanderingNpcHostile(_msTarget, dg, p, ml);
@@ -3320,13 +3319,13 @@ export function useItemActions({
                 } else {
                   _stPeelIfNeeded();
                 }
-              } else if (_stM.baseKind === "gelcube") {
-              _stM.heldItems = _stM.heldItems || [];
-              _stM.heldItems.push(_stDrop());
-              if (!_stM._gelBaseAtk) _stM._gelBaseAtk = _stM.atk;
-              _stM._gelBoost = Math.min(10, (_stM._gelBoost || 1) * 1.2);
-              _stM.atk = Math.round(_stM._gelBaseAtk * _stM._gelBoost);
-              ml.push(`${_stName}が${_stM.name}に飲み込まれた！（攻撃力×${_stM._gelBoost.toFixed(2)}→${_stM.atk}）`);
+              } else if (absorbProjectileIntoMonster(_stM, _stDrop(), dg, p, ml, lu, {
+                bbFn: bigboxAddItem,
+                sourceIsPlayer: true,
+                nameFn: (it) => it.name || _stName,
+                messagePrefix: "",
+              })) {
+                _stPeelIfNeeded();
               } else {
               const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
               const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (_stDodgePcMode !== "sure" && checkMonsterEvasion(_stM, { sureHit: _stSureHit, baseMissRate: 0.10 })));
@@ -3487,20 +3486,12 @@ export function useItemActions({
             _arPeelIfNeeded();
           },
           onMonHit: (mon, mlx) => {
-            const _isFcM = getFarcastMode(p.x, p.y, dg) === "farcast";
-            /* gelcube：非貫通・非遠投なら矢を飲み込んで攻撃力上昇 */
-            if (mon.baseKind === "gelcube" && !_arIsPierce && !_isFcM) {
-              mon.heldItems = mon.heldItems || [];
-              mon.heldItems.push(_arDropItem());
-              if (!mon._gelBaseAtk) mon._gelBaseAtk = mon.atk;
-              mon._gelBoost = Math.min(10, (mon._gelBoost || 1) * 1.2);
-              mon.atk = Math.round(mon._gelBaseAtk * mon._gelBoost);
-              mlx.push(`${_arName}が${mon.name}に飲み込まれた！（攻撃力×${mon._gelBoost.toFixed(2)}→${mon.atk}）`);
-              return;
-            }
-            if (mon.baseKind === "synthmonster" && !_arIsPierce && !_isFcM && !_forceMiss) {
-              bigboxAddItem(ensureSynthMonsterBox(mon), _arDropItem(), dg, mlx);
-              boostSynthMonster(mon, mlx);
+            if (!_forceMiss && absorbProjectileIntoMonster(mon, _arDropItem(), dg, p, mlx, lu, {
+              bbFn: bigboxAddItem,
+              sourceIsPlayer: true,
+              nameFn: (it) => it.name || _arName,
+              messagePrefix: "",
+            })) {
               return;
             }
             /* 命中率: dodge魔方陣・必中状態を考慮 */
@@ -4186,14 +4177,16 @@ export function useItemActions({
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
                 _potHits.push(m);
+              } else if (absorbProjectileIntoMonster(m, it, dg, p, ml, lu, {
+                bbFn: bigboxAddItem,
+                sourceIsPlayer: true,
+                nameFn: dnameRef,
+                messagePrefix: "",
+              })) {
+                lx = tx; ly = ty; _fdBurned = true; break;
               } else if (monHasFlameMantle(m) && it.effect !== "water" && it.effect !== "fire") {
                 /* 火ダルマ：非遠投の薬を燃やして消滅（水は消火できるので着弾する） */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！`);
-                lx = tx; ly = ty; _fdBurned = true; break;
-              } else if (m.baseKind === "synthmonster") {
-                /* 合成獣：薬を飲み込んで合成 */
-                bigboxAddItem(ensureSynthMonsterBox(m), it, dg, ml);
-                boostSynthMonster(m, ml);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else if (monReflectsProjectiles(m)) {
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
@@ -4279,15 +4272,17 @@ export function useItemActions({
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
               const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && _potDodgePcMode !== "sure" && checkMonsterEvasion(m, { sureHit: _potSureHit, baseMissRate: 0.10 })));
+              if (absorbProjectileIntoMonster(m, it, dg, p, ml, lu, {
+                bbFn: bigboxAddItem,
+                sourceIsPlayer: true,
+                nameFn: dnameRef,
+                messagePrefix: "",
+              })) {
+                lx = tx; ly = ty; _potFdBurned = true; break;
+              }
               if (!_isFarcast && monHasFlameMantle(m)) {
                 /* 火ダルマ：非遠投の壺を燃やして消滅 */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
-                lx = tx; ly = ty; _potFdBurned = true; break;
-              }
-              if (!_isFarcast && m.baseKind === "synthmonster") {
-                /* 合成獣：壺を飲み込んで合成（ミス判定なし） */
-                bigboxAddItem(ensureSynthMonsterBox(m), it, dg, ml);
-                boostSynthMonster(m, ml);
                 lx = tx; ly = ty; _potFdBurned = true; break;
               }
               if (!_isFarcast && monReflectsProjectiles(m)) {
@@ -4311,7 +4306,7 @@ export function useItemActions({
                 const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
                 if (_ptTrap) {
                   let _ptResult;
-                  withPitfallBag(() => { _ptResult = fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu); });
+                  withPitfallBag(() => { _ptResult = fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu, null, bigboxAddItem); });
                   _potFellIntoPit = _ptTrap.effect === "pitfall" && (_ptResult === "destroyed" || _ptResult === "pitfall_player");
                 }
                 break;
@@ -4469,30 +4464,20 @@ export function useItemActions({
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
               const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && _thDodgePcMode !== "sure" && checkMonsterEvasion(m, { sureHit: _thSureHit, baseMissRate: 0.10 })));
-              if (!_isFarcast && monHasFlameMantle(m)) {
-                /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
-                ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
-                lx = tx; ly = ty; hit = true; break;
-              }
-              if (!_isFarcast && m.baseKind === "gelcube") {
-                /* ゼラチンキューブ：飛んできたアイテムを取り込む */
-                m.heldItems = m.heldItems || [];
-                m.heldItems.push(it);
-                if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;
-                m._gelBoost = Math.min(10, (m._gelBoost || 1) * 1.2);
-                m.atk = Math.round(m._gelBaseAtk * m._gelBoost);
-                ml.push(`${lb}が${m.name}に飲み込まれた！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
+              if (absorbProjectileIntoMonster(m, it, dg, p, ml, lu, {
+                bbFn: bigboxAddItem,
+                sourceIsPlayer: true,
+                nameFn: () => lb,
+                messagePrefix: "",
+              })) {
                 lx = tx; ly = ty; hit = true;
                 if (it.type === "wand") _wandFiredEffect = true;
                 break;
               }
-              if (!_isFarcast && m.baseKind === "synthmonster") {
-                /* 合成獣：種別を問わずアイテムを飲み込んで合成 */
-                bigboxAddItem(ensureSynthMonsterBox(m), it, dg, ml);
-                boostSynthMonster(m, ml);
-                lx = tx; ly = ty; hit = true;
-                if (it.type === "wand") _wandFiredEffect = true; /* 杖の二重配置を防止 */
-                break;
+              if (!_isFarcast && monHasFlameMantle(m)) {
+                /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
+                ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
+                lx = tx; ly = ty; hit = true; break;
               }
               /* ── reflector（ミラーゴーレム等）：投げたアイテムをプレイヤーに向かって跳ね返す ── */
               if (!_isFarcast && monReflectsProjectiles(m)) {
