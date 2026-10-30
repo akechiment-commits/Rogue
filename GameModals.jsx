@@ -1703,6 +1703,15 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
   if (shopActionsRef) shopActionsRef.current = null;
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
+  const _shopIdentifyMode = mode === "identify" || mode === "identifyFromPay" || mode === "identifyFromSell";
+  const _identifyReturnMode = mode === "identifyFromPay" ? "pay" : mode === "identifyFromSell" ? "sell" : "browse";
+  const _identifyTargets = gs.player.inventory
+    .map((item, index) => ({ item, index }))
+    .filter(({ item, index }) => isScrollTargetCandidate({ mode: "identify" }, item, index, gs.ident));
+  const _identifyServiceOption = (returnMode) => ({
+    label: `所持品を識別してもらう（${_identifyTargets.length}件）`,
+    fn: () => { setMode(returnMode); setMenuSel(0); },
+  });
   let confirmShopOption = () => {};
   let completed = false;
   const cancelShop = () => {
@@ -1723,6 +1732,36 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
     };
     if (shopActionsRef) shopActionsRef.current = { confirm: confirmShopOption, cancel: cancelShop, count: options.length };
     return options;
+  };
+  const _doShopIdentify = (inventoryIndex) => {
+    const s = sr.current;
+    const item = s?.player?.inventory?.[inventoryIndex];
+    if (!s || !item) return;
+    if (!(s.ident instanceof Set)) s.ident = new Set(s.ident || []);
+    if (!isScrollTargetCandidate({ mode: "identify" }, item, inventoryIndex, s.ident)) return;
+    const price = Math.max(1, Math.ceil(itemPrice(item) * 0.5));
+    if ((s.player.gold || 0) < price) {
+      setMsgs((prev) => [...prev.slice(-80), `識別料が足りない！（必要:${price}G）`]);
+      return;
+    }
+    s.player.gold -= price;
+    const isInstanceOnly = isBcInstanceType(item);
+    const key = isInstanceOnly ? null : getIdentKey(item);
+    const wasAlreadyNamed = !isInstanceOnly && key && s.ident.has(key);
+    if (key) {
+      s.ident.add(key);
+      if (!wasAlreadyNamed) trackItem(item);
+    }
+    item.fullIdent = true;
+    item.bcKnown = true;
+    const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
+    const result = item.type === "gold_nugget"
+      ? `${name}の正体が判明した！`
+      : ((isInstanceOnly || wasAlreadyNamed) ? `${item.name}の祝呪が判明した！` : `${item.name}と判明した！`);
+    setMsgs((prev) => [...prev.slice(-80), `識別料${price}Gを支払った。${result}`]);
+    setMode(null);
+    sr.current = { ...s };
+    setGs({ ...sr.current });
   };
   const _adjSkH = gs.dungeon?.monsters?.find(m =>
     m.type === "shopkeeper" && (m.state !== "hostile" || m._npcRetaliationTargetId) &&
@@ -1831,6 +1870,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 },
               },
               { label: "やめる", fn: () => setMode(null) },
+              ...(_identifyTargets.length > 0 ? [_identifyServiceOption("identifyFromPay")] : []),
             ]).map((item, mi) => (
               <button
                 key={mi}
@@ -1849,6 +1889,41 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 {item.label}
               </button>
             ))}
+            <div style={{ color: "#665533", fontSize: 11, marginTop: 4 }}>
+              ↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる
+            </div>
+          </div>
+        );
+      })()}
+      {_shopIdentifyMode && (() => {
+        const options = [
+          ..._identifyTargets.map(({ item, index }) => {
+            const price = Math.max(1, Math.ceil(itemPrice(item) * 0.5));
+            return {
+              label: `${itemDisplayName(item, gs.fakeNames, gs.ident, gs.nicknames)}　${price}G`,
+              disabled: (gs.player.gold || 0) < price,
+              fn: () => _doShopIdentify(index),
+            };
+          }),
+          { label: "戻る", fn: () => { setMode(_identifyReturnMode); setMenuSel(0); } },
+        ];
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
+              店主：「識別する品をお選びください。料金は品物の値段の半額です。」（所持金: {(gs.player.gold || 0).toLocaleString()}G）
+            </div>
+            {_identifyTargets.length === 0 && <div style={{ color: "#888", fontSize: 13 }}>識別できる品を持っていない。</div>}
+            <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
+              {shopOptions(options).map((item, mi) => (
+                <button key={`${item.label}-${mi}`} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
+                  display: "block", width: "100%", padding: "6px 10px", marginBottom: 2,
+                  background: item.disabled ? "#1b160f" : menuSel === mi ? "#4a2a00" : "#2a1a00",
+                  border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
+                  color: item.disabled ? "#664422" : menuSel === mi ? "#ffa" : "#fa8",
+                  fontSize: 14, cursor: item.disabled ? "default" : "pointer", textAlign: "left",
+                }}>{item.label}</button>
+              ))}
+            </div>
             <div style={{ color: "#665533", fontSize: 11, marginTop: 4 }}>
               ↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる
             </div>
@@ -1920,6 +1995,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 disabled: _sellItems.length === 0 || !_inShop,
                 fn: () => { if (_sellItems.length > 0 && _inShop) { setMode("browseConfirm"); setMenuSel(0); } },
               },
+              ...(_identifyTargets.length > 0 ? [_identifyServiceOption("identify")] : []),
             ]).map((item, mi) => (
               <button key={mi} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
                 padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
@@ -1985,6 +2061,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
               },
             })),
             { label: "やめる", fn: () => setMode(null) },
+            ...(_identifyTargets.length > 0 ? [_identifyServiceOption("identifyFromSell")] : []),
           ];
           return (
             <div
