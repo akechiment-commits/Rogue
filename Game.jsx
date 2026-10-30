@@ -6784,11 +6784,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           攻:
           {(p.poisonAtkLoss || 0) > 0 ? (
             <span style={{ color: "#fa0" }}>
-              {Math.floor((p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)) * playerDopingMultiplier(p))}/
-              <span style={{ color: "#aaa", fontSize: "0.9em" }}>{Math.floor((p.atk + (p.poisonAtkLoss || 0) + (p.weapon?.atk || 0)) * playerDopingMultiplier(p))}</span>
+              {Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)) * playerDopingMultiplier(p))}/
+              <span style={{ color: "#aaa", fontSize: "0.9em" }}>{Math.floor((p.atk + (p.poisonAtkLoss || 0) + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)) * playerDopingMultiplier(p))}</span>
             </span>
           ) : (
-            <span style={{ color: "#fa0" }}>{Math.floor((p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)) * playerDopingMultiplier(p))}</span>
+            <span style={{ color: "#fa0" }}>{Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)) * playerDopingMultiplier(p))}</span>
           )}
         </span>{" "}
         <span>
