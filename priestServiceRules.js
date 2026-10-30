@@ -33,12 +33,12 @@ export function altarPriestServiceTargets(inventory, service, player = null) {
     });
 }
 
-/** 依頼ごとに50%ずつ加算。itemPriceには杖・ペンの回数と装備の+値が含まれる。 */
+/** 同じ司祭への完了依頼1回ごとに20%ずつ加算。 */
 export function altarPriestServicePrice(item, service, completedRequests = 0) {
-  const escalation = 1 + Math.max(0, Number(completedRequests) || 0) * 0.5;
+  const escalation = 1 + Math.max(0, Math.floor(Number(completedRequests) || 0)) * 0.2;
   if (service === "cure_status") {
     const panacea = ITEMS.find((entry) => entry.type === "potion" && entry.effect === "panacea");
-    return Math.max(1500, Math.ceil((panacea ? itemPrice(panacea) : 2500) * 1.5 * escalation));
+    return Math.max(300, Math.ceil((panacea ? itemPrice(panacea) : 2500) * 0.3 * escalation));
   }
   if (!item) return 0;
   const itemValue = Math.max(1, itemPrice(item));
@@ -50,7 +50,7 @@ export function altarPriestServicePrice(item, service, completedRequests = 0) {
     return Math.max(500, Math.ceil(itemValue * (2.5 + currentPlus * 0.5) * escalation));
   }
   if (service === "remove_curse" && altarPriestServiceTargets([item], service).length > 0) {
-    return Math.max(1000, Math.ceil(itemValue * 2.5 * escalation));
+    return Math.max(100, Math.ceil(itemValue * 0.5 * escalation));
   }
   return 0;
 }

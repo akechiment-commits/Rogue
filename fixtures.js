@@ -113,6 +113,7 @@ export function placeAltarPriest(dg, altar, randomFn = Math.random, player = nul
         tile: TI.ALTAR_PRIEST,
         isAltarPriest: true,
         altarId: altar.id,
+        priestServiceCount: 0,
         homePos: { ...nearby },
         x: nearby.x,
         y: nearby.y,

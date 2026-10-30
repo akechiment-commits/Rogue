@@ -3143,7 +3143,7 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
     return null;
   }
   const p = gs.player;
-  const serviceCount = p.priestServiceCount || 0;
+  const serviceCount = Math.max(0, Math.floor(Number(priestRef.current.priestServiceCount) || 0));
   const menuRows = ALTAR_PRIEST_SERVICES.map((service) => ({
     ...service,
     targetCount: altarPriestServiceTargets(p.inventory, service.id, p).length,

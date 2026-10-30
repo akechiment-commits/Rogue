@@ -735,7 +735,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       hunger: 100,
       maxHunger: 100,
       gold: _carryIn ? (dungeonConfig?.startGold || 0) : 0,
-      priestServiceCount: 0,
       depth: startDepth,
       weapon: null,
       armor: null,
@@ -871,7 +870,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       /* DiscoveryTracker に前回の発見データを復元 */
       restoreDiscoveries(resumeState.discoveries);
       const _resumePlayer = resumeState.player;
-      _resumePlayer.priestServiceCount = Math.max(0, Number(_resumePlayer.priestServiceCount) || 0);
+      delete _resumePlayer.priestServiceCount;
       if (resumeState.dungeonType === "debug") {
         const _debugItemSpells = ["debug_get_blessed_item", "debug_get_cursed_item", "debug_goto_special"];
         _resumePlayer.spells = [...new Set([...(Array.isArray(_resumePlayer.spells) ? _resumePlayer.spells : []), ..._debugItemSpells])];
@@ -6125,7 +6124,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (isStatusCure) {
       if (altarPriestServiceTargets(p.inventory, service, p).length === 0) return;
     } else if (!item || altarPriestServiceTargets([item], service, p).length === 0) return;
-    const requestCount = Math.max(0, Math.floor(p.priestServiceCount || 0));
+    const requestCount = Math.max(0, Math.floor(Number(priest.priestServiceCount) || 0));
     const price = altarPriestServicePrice(item, service, requestCount);
     if (!price) return;
     if ((p.gold || 0) < price) {
@@ -6157,7 +6156,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setPlayerItemProperties(p, item, { plus: before + 1 });
       result = `${name}が強化された！(${before >= 0 ? `+${before}` : before}→+${item.plus})`;
     }
-    p.priestServiceCount = requestCount + 1;
+    priest.priestServiceCount = requestCount + 1;
     setMsgs((prev) => [...prev.slice(-80), `司祭に${price}Gを渡した。${result}`]);
     setPriestMenuSel(0);
     sr.current = { ...s };
