@@ -4,6 +4,7 @@ import {
   isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch,
   applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero,
 } from "../statusDuration.js";
+import { hasForcedTurn } from "../turnUpkeep.js";
 
 describe("statusTurns", () => {
   it("祝福は×2（永続にはしない）", () => {
@@ -118,6 +119,15 @@ describe("applyMonsterParalyze", () => {
 });
 
 describe("clearStatusEffectsOnHpZero", () => {
+  it("石化中の死亡・復活後に行動不能を持ち越さない", () => {
+    const player = { hp: 0, petrifiedTurns: 3, mpSealTurns: 1000 };
+    expect(clearStatusEffectsOnHpZero(player)).toBe(true);
+    player.hp = 10;
+    expect(player.petrifiedTurns).toBe(0);
+    expect(hasForcedTurn(player)).toBe(false);
+    expect(player.mpSealTurns).toBe(1000);
+  });
+
   it("HP0時に行動阻害・デバフ・毒を解除し、毒の攻撃力低下も戻す", () => {
     const player = {
       hp: 0,

@@ -243,7 +243,7 @@ export function hasClearableStatusAilments(entity) {
   return [
     entity.sleepTurns, entity.sleepInterruptedTurns, entity.paralyzeTurns,
     entity.foodHasteTurns,
-    entity.paralyzed, entity.frozenTurns, entity.slowTurns, entity.slowSkip,
+    entity.paralyzed, entity.frozenTurns, entity.petrifiedTurns, entity.slowTurns, entity.slowSkip,
     entity.confusedTurns, entity.drunkTurns, entity.drunkenTurns,
     entity.poisoned, entity.poisonedTurns,
     entity.sealedTurns, entity.sealed, entity.attackSealTurns, entity.darknessTurns, entity.blind,
@@ -280,6 +280,7 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity._paralyzeHp = null;
   entity.paralyzeHits = 0;
   entity.frozenTurns = 0;
+    entity.petrifiedTurns = 0;
   entity.slowTurns = 0;
   entity.slowSkip = false;
   entity.confusedTurns = 0;
