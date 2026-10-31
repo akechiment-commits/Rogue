@@ -37,7 +37,7 @@ import {
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
-  applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
+  applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, tickDamagedFoodReveals, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
@@ -2210,6 +2210,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _worldTick = _clock.worldTicks > 0 && !_timeStopActive;
       if (_worldTick) {
         st.floorTurns = (st.floorTurns || 0) + 1;
+        tickDamagedFoodReveals(st.dungeon);
         const _activatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
         if (_activatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
         advanceDimensionalVaults(st.dungeon, ml, {

@@ -34,7 +34,7 @@ function inBounds(x, y) {
 }
 
 export function isFloorMapCellKnown(dg, x, y) {
-  return !!(dg?.visible?.[y]?.[x] || dg?.explored?.[y]?.[x]);
+  return !!(dg?.visible?.[y]?.[x] || dg?.explored?.[y]?.[x] || (dg?.foodMapRevealTurns || 0) > 0);
 }
 
 function isVisible(dg, x, y) {

@@ -1381,10 +1381,11 @@ export function applyPlayerSeal(p, ml, opts = {}) {
   const {
     blessed = false,
     proofMsg = "封印効果を受けたが防具が防いだ！(耐封印)",
+    durationMultiplier = 1,
   } = opts;
   if (!p) return 0;
   if (blockPlayerStatus(p, ml, { proofAbility: "seal_proof", proofMsg })) return 0;
-  const turns = statusTurns("seal", { kind: "player", blessed });
+  const turns = Math.max(1, Math.floor(statusTurns("seal", { kind: "player", blessed }) * Math.max(0, Number(durationMultiplier) || 0)));
   p.sealedTurns = (p.sealedTurns || 0) + turns;
   return turns;
 }
@@ -4313,15 +4314,16 @@ export function applyRottenFoodPoisonToMonster(mon, ml) {
 }
 
 /** アイスクリームを食べさせたときの共通効果。敵への投擲にも使う。 */
-export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム", hungerAlreadyApplied = false } = {}) {
+export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム", hungerAlreadyApplied = false, effectMultiplier = 1 } = {}) {
   if (!target) return { hp: 0, hunger: 0, confused: false };
   const isPlayer = kind === "player";
   const maxHp = Math.max(0, Number(target.maxHp ?? target.hp ?? 0));
-  const hpGain = Math.max(0, Math.min(15, maxHp - (Number(target.hp) || 0)));
+  const hpAmount = Math.max(1, Math.floor(15 * Math.max(0, Number(effectMultiplier) || 0)));
+  const hpGain = Math.max(0, Math.min(hpAmount, maxHp - (Number(target.hp) || 0)));
   target.hp = (Number(target.hp) || 0) + hpGain;
   let hungerGain = 0;
   if (isPlayer && !hungerAlreadyApplied) {
-    hungerGain = addFoodHunger(target, 15);
+    hungerGain = addFoodHunger(target, hpAmount);
   }
   const alreadyProtected = (target.iceCreamFireResTurns || 0) > 0;
   if (alreadyProtected) {
@@ -4330,15 +4332,16 @@ export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリ�
       : (target.statusImmune || 0) <= 0 && !blockLargeMonsterStatus(target, "confuse", ml);
     if (canConfuse) {
       if (!isPlayer) startLargeMonsterStatusCooldown(target, "confuse");
-      const turns = statusTurns("confuse", { kind, target });
+      const turns = Math.max(1, Math.floor(statusTurns("confuse", { kind, target }) * Math.max(0, Number(effectMultiplier) || 0)));
       target.confusedTurns = (target.confusedTurns || 0) + turns;
       ml?.push(`${name}の冷たさで頭がキーンと痛くなり、${isPlayer ? "混乱した" : `${target.name || "敵"}は混乱した`}！(${turns}ターン)`);
     } else {
       ml?.push(`${name}の冷たさで頭が痛くなったが、混乱は防がれた！`);
     }
   } else {
-    target.iceCreamFireResTurns = 100;
-    ml?.push(`${name}の冷たさが体に染みた！炎ダメージ半減・所持品への炎を防ぐ状態になった。(100ターン)`);
+    const turns = Math.max(1, Math.floor(100 * Math.max(0, Number(effectMultiplier) || 0)));
+    target.iceCreamFireResTurns = Math.max(target.iceCreamFireResTurns || 0, turns);
+    ml?.push(`${name}の冷たさが体に染みた！炎ダメージ半減・所持品への炎を防ぐ状態になった。(${turns}ターン)`);
   }
   if (hpGain > 0 && Number.isFinite(target.x) && Number.isFinite(target.y)) pushHealAnim(target.x, target.y);
   return { hp: hpGain, hunger: hungerGain, confused: alreadyProtected };
@@ -4654,7 +4657,12 @@ const POTION_DIRECT_MONSTER_STATUS_KEYS = {
   poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
 };
 
-export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false, skipLargeMonsterStatus = false) {
+export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false, skipLargeMonsterStatus = false, effectMultiplier = 1) {
+  const effectScale = Math.min(1, Math.max(0, Number(effectMultiplier) || 0));
+  const weakEffect = effectScale < 1;
+  const scaledPotionTurns = (turns) => Math.max(1, Math.floor(turns * effectScale));
+  const scaledPotionAmount = (amount, minimum = 1) => Math.max(minimum, Math.floor(amount * effectScale));
+  const weakDiscreteEffect = () => !weakEffect || Math.random() < effectScale;
   if (kind === "monster") wakeIfDormant(target, ml);
   if (kind === "monster" && monHasFlameMantle(target) && eff !== "water" && eff !== "fire") {
     ml.push(`${target.name}は炎をまとっていて、薬の効果が蒸発した！`);
@@ -4681,7 +4689,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   };
   switch (eff) {
     case "water": {
-      const amt = Math.max(1, Math.round(val * (cursed ? 1 : blessAmountMul(blessed))));
+      const baseAmount = Math.max(1, Math.round(val * (cursed ? 1 : blessAmountMul(blessed))));
+      const amt = weakEffect ? scaledPotionAmount(baseAmount) : baseAmount;
       if (kind === "monster") {
         const isFireDemon = target.baseKind === "firedemon";
         if (isFireDemon) {
@@ -4733,7 +4742,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       {
       if (cursed) {
         // 反転→ダメージ（通常の回復量と同じ）
-        const d = Math.max(1, Math.round(val));
+        const d = weakEffect ? scaledPotionAmount(val) : Math.max(1, Math.round(val));
         if (kind === "monster") {
           if (target.kind === "undead") {
             const h = Math.min(d, Math.max(0, target.maxHp - target.hp));
@@ -4759,14 +4768,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             const _ud = Math.max(1, Math.round(val * _mult));
             target.hp -= _ud; ml.push(`${target.name}はアンデッドのため${_ud}ダメージを受けた！`); _monKill(target);
           } else {
-            const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp);
+            const h = Math.min(weakEffect ? scaledPotionAmount(val * _mult) : Math.round(val * _mult), target.maxHp - target.hp);
             if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); }
             else { const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
             if (blessed) appendCuredAilments(ml, cureBlessedHealAilments(target, "monster"));
           }
         }
         if (kind === "player") {
-          const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp);
+          const h = Math.min(weakEffect ? scaledPotionAmount(val * _mult) : Math.round(val * _mult), p.maxHp - p.hp);
           if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
           else {
             const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1);
@@ -4788,7 +4797,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       const _shMult = blessed ? 2 : 1;
       if (cursed) {
         // 呪い：回復量と同じ値のダメージ
-        const _shd = Math.max(1, Math.round(val));
+        const _shd = weakEffect ? scaledPotionAmount(val) : Math.max(1, Math.round(val));
         if (kind === "monster") {
           if (target.kind === "undead") {
             const _shh = Math.min(_shd, Math.max(0, target.maxHp - target.hp));
@@ -4812,14 +4821,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const _shUd = Math.max(1, Math.round(val * _shMult));
           target.hp -= _shUd; ml.push(`${target.name}はアンデッドのため${_shUd}ダメージを受けた！`); _monKill(target);
         } else {
-          const _shHeal = Math.round(val * _shMult);
+          const _shHeal = weakEffect ? scaledPotionAmount(val * _shMult) : Math.round(val * _shMult);
           const _shh = Math.min(_shHeal, target.maxHp - target.hp);
           if (_shh > 0) { target.hp += _shh; ml.push(`${target.name}のHPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(target.x, target.y); }
           else { const _shUp = blessed ? 6 : 3; target.maxHp += _shUp; target.hp += _shUp; ml.push(`${target.name}のHP最大値が${_shUp}上昇した！`); pushHealAnim(target.x, target.y); }
           if (blessed) appendCuredAilments(ml, cureBlessedHealAilments(target, "monster"));
         }
       } else if (kind === "player") {
-        const _shHeal = Math.round(val * _shMult);
+        const _shHeal = weakEffect ? scaledPotionAmount(val * _shMult) : Math.round(val * _shMult);
         const _shh = Math.min(_shHeal, p.maxHp - p.hp);
         if (_shh > 0) { p.hp += _shh; ml.push(`HPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
         else {
@@ -4841,7 +4850,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "monster") {
         if (cursed) {
           // 反転→モンスター回復（通常ダメージと同じ出目。アンデッドはさらに反転してダメージ）
-          const _ph = poisonContactAmount(val, { cursed: true });
+            const _phRaw = poisonContactAmount(val, { cursed: true });
+            const _ph = weakEffect ? scaledPotionAmount(_phRaw) : _phRaw;
           if (target.kind === "undead") {
             target.hp -= _ph; ml.push(`${target.name}はアンデッドのため${_ph}ダメージを受けた！`); _monKill(target);
           } else {
@@ -4849,19 +4859,24 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             if (h > 0) { target.hp += h; ml.push(`${target.name}は変な薬で回復した！${h}HP`); }
           }
         } else {
-          const dmg = poisonContactAmount(val, { blessed });
+          const rawDmg = poisonContactAmount(val, { blessed });
+          const dmg = weakEffect ? scaledPotionAmount(rawDmg) : rawDmg;
           target.hp -= dmg;
           if (_skipLargeMonsterStatus || isStatusImmune(target, ml, target.name)) {
             ml.push(`${target.name}は毒の薬液で${dmg}ダメージ！`);
           } else {
-            const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
+            const _poisonTurns = scaledPotionTurns(statusTurns("poison", { kind: "monster", blessed, target }));
             target.poisonedTurns = (target.poisonedTurns || 0) + _poisonTurns;
+            let _poisonAtkReduced = !!target.poisonHalfAtk;
             if (!target.poisonHalfAtk) {
               target.poisonOrigAtk = target.atk;
-              target.atk = Math.max(1, Math.floor(target.atk / 2));
-              target.poisonHalfAtk = true;
+              if (!weakEffect || weakDiscreteEffect()) {
+                target.atk = Math.max(1, Math.floor(target.atk / 2));
+                target.poisonHalfAtk = true;
+                _poisonAtkReduced = true;
+              }
             }
-            ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態(${_poisonTurns}ターン)になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
+            ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態(${_poisonTurns}ターン)になった！${_poisonAtkReduced ? "攻撃力が半減した！" : ""}${blessed ? "(強毒)" : ""}`);
           }
           _monKill(target);
         }
@@ -4878,7 +4893,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒を浴びたが指輪が毒を消した！");
         } else {
-          const _poison = applyPlayerPoison(p, { blessed });
+          const _poison = applyPlayerPoison(p, { blessed, atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale });
           if (blessed) {
             ml.push(statusResultMessage(_poison, `強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！(強毒)`));
           } else {
@@ -4900,7 +4915,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { const h = Math.min(heal, target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}は炎の薬で温まった！${h}HP回復`); } }
         if (kind === "player") { const h = Math.min(heal, p.maxHp - p.hp); p.hp += h; ml.push(`体が温まりHP+${h}回復した！【呪→回復】`); }
       } else {
-        const dmg = rng(45, 55);
+        const rawDmg = rng(45, 55);
+        const dmg = weakEffect ? scaledPotionAmount(rawDmg) : rawDmg;
         const _oilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
         if (kind === "monster") {
           /* 火ダルマは炎で回復（封印中は特性無効で通常ダメ） */
@@ -4934,14 +4950,19 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 反転→覚醒（モンスター）/ フロア中全敵透視（プレイヤー）
         if (kind === "monster") { target.sleepTurns = 0; ml.push(`${target.name}が目を覚ました！(覚醒)`); }
-        if (kind === "player") { dg.monsterSenseActive = true; ml.push("幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】"); }
+        if (kind === "player") {
+          if (weakEffect) {
+            p.monsterSenseTurns = Math.max(p.monsterSenseTurns || 0, scaledPotionTurns(statusTurns("monsterSense", { kind: "player" })));
+            ml.push(`わずかな幻覚が見えた...フロアの敵を短時間感知する！(${p.monsterSenseTurns}ターン)【呪→透視】`);
+          } else { dg.monsterSenseActive = true; ml.push("幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】"); }
+        }
       } else {
         if (kind === "monster") {
-          const t = statusTurns("sleep", { kind: "monster", blessed, target });
+          const t = scaledPotionTurns(statusTurns("sleep", { kind: "monster", blessed, target }));
           if (!isStatusImmune(target, ml, target.name)) { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！(${t}ターン)${blessed ? "(強眠)" : ""}`); }
         }
         if (kind === "player") {
-          const t = statusTurns("sleep", { kind: "player", blessed });
+          const t = scaledPotionTurns(statusTurns("sleep", { kind: "player", blessed }));
           if (!isStatusImmune(p, ml)) { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
         }
       }
@@ -4950,10 +4971,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "power":
       if (cursed) {
         // 反転→攻撃力減少（通常の増加量と同じ）
-        if (kind === "monster") { const _pv = Math.max(1, Math.round(val)); target.atk = Math.max(1, target.atk - _pv); ml.push(`${target.name}の攻撃力が下がった！`); }
-        if (kind === "player") { const _pv = Math.max(1, Math.round(val)); p.atk = Math.max(1, p.atk - _pv); ml.push(`力が抜けた...攻撃力-${_pv}【呪】`); }
+        if (kind === "monster") { const _pv = weakEffect ? Math.max(0.1, val * effectScale) : Math.max(1, Math.round(val)); target.atk = Math.max(1, target.atk - _pv); ml.push(`${target.name}の攻撃力が下がった！`); }
+        if (kind === "player") { const _pv = weakEffect ? Math.max(0.1, val * effectScale) : Math.max(1, Math.round(val)); p.atk = Math.max(1, p.atk - _pv); ml.push(`力が抜けた...攻撃力-${_pv}【呪】`); }
       } else {
-        const _pv = Math.max(1, Math.round(val * blessAmountMul(blessed)));
+        const _pv = weakEffect ? Math.max(0.1, val * blessAmountMul(blessed) * effectScale) : Math.max(1, Math.round(val * blessAmountMul(blessed)));
         if (kind === "monster") { target.atk += _pv; ml.push(`${target.name}の攻撃力が上がった！`); }
         if (kind === "player") { p.atk += _pv; ml.push(`攻撃力が${_pv}上がった！${blessed ? "(祝福)" : ""}`); }
       }
@@ -4964,7 +4985,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         // 反転→加速
         if (kind === "monster") { target.speed = Math.min(2, (target.speed ?? target.baseSpeed ?? 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
         if (kind === "player") {
-          const _ht = statusTurns("haste", { kind: "player" });
+          const _ht = scaledPotionTurns(statusTurns("haste", { kind: "player" }));
           grantPlayerHaste(p, _ht);
           ml.push(`体が軽くなった！(${hasteDurationLabel(p, _ht)})【呪→加速】`);
         }
@@ -4972,13 +4993,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") {
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed ?? target.baseSpeed ?? 1;
           target.speed = Math.max(0.25, (target.speed ?? target.baseSpeed ?? 1) * (blessed ? 0.25 : 0.5));
-          const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed, target }) : 0;
+          const _slowT = target.isBoss ? scaledPotionTurns(statusTurns("bossSlow", { kind: "monster", blessed, target })) : 0;
           if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
           ml.push(`${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}${blessed ? "(強鈍足)" : ""}`);
         }
         if (kind === "player") {
           if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "鈍足効果を受けたが防具が防いだ！(耐鈍足)" })) {
-            const _st = statusTurns("slow", { kind: "player", blessed });
+            const _st = scaledPotionTurns(statusTurns("slow", { kind: "player", blessed }));
             p.slowTurns = (p.slowTurns || 0) + _st;
             ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`);
           }
@@ -4989,12 +5010,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 呪い→状態異常防止
         if (kind === "monster") {
-          const _si = statusTurns("statusImmune", { kind: "monster", target });
+          const _si = scaledPotionTurns(statusTurns("statusImmune", { kind: "monster", target }));
           target.statusImmune = (target.statusImmune || 0) + _si;
           ml.push(`${target.name}は状態異常を防ぐ力を得た！(${_si}ターン)`);
         }
         if (kind === "player") {
-          const _si = statusTurns("statusImmune", { kind: "player" });
+          const _si = scaledPotionTurns(statusTurns("statusImmune", { kind: "player" }));
           p.statusImmune = (p.statusImmune || 0) + _si;
           ml.push(`状態異常を防ぐ力が宿った！(${_si}ターン)【呪→状態防止】`);
         }
@@ -5007,7 +5028,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (isStatusImmune(p, ml)) break;
           if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)"); }
           else {
-            const _pt = statusTurns("paralyze", { kind: "player", blessed });
+            const _pt = scaledPotionTurns(statusTurns("paralyze", { kind: "player", blessed }));
             applyPlayerParalyze(p, _pt, { blessed });
             ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
           }
@@ -5020,19 +5041,19 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { target.confusedTurns = 0; ml.push(`${target.name}の混乱が解けた！`); }
         if (kind === "player") {
           p.confusedTurns = 0;
-          const _sh = statusTurns("sureHit", { kind: "player" });
+          const _sh = scaledPotionTurns(statusTurns("sureHit", { kind: "player" }));
           p.sureHitTurns = (p.sureHitTurns || 0) + _sh;
           ml.push(`頭が冴えた！混乱が消え、必中状態になった！(${_sh}ターン)【呪→必中】`);
         }
       } else {
         if (kind === "monster") {
-          const _ct = statusTurns("confuse", { kind: "monster", blessed, target });
+          const _ct = scaledPotionTurns(statusTurns("confuse", { kind: "monster", blessed, target }));
           target.confusedTurns = (target.confusedTurns || 0) + _ct;
           ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
         }
         if (kind === "player") {
           if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "混乱効果を受けたが防具が防いだ！(耐混乱)" })) {
-            const _ct = statusTurns("confuse", { kind: "player", blessed });
+            const _ct = scaledPotionTurns(statusTurns("confuse", { kind: "player", blessed }));
             p.confusedTurns = (p.confusedTurns || 0) + _ct;
             ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
           }
@@ -5044,7 +5065,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (!entity) break;
       const entityName = kind === "monster" ? target.name : "頭";
       if (!cursed && (kind === "monster" ? isStatusImmune(target, ml, target.name) : isStatusImmune(p, ml))) break;
-      const result = applySakeEffect(entity, { kind, target, blessed, cursed });
+      const result = applySakeEffect(entity, { kind, target, blessed, cursed, durationMultiplier: effectScale });
       if (cursed) {
         if (result.cleared.length > 0) {
           ml.push(kind === "player"
@@ -5073,14 +5094,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "mana":
       if (kind === "player") {
         if (cursed) {
-          const _st = applyPlayerSeal(p, ml, { proofMsg: "呪われた薬の封印を防具が防いだ！(耐封印)" });
+          const _st = applyPlayerSeal(p, ml, { proofMsg: "呪われた薬の封印を防具が防いだ！(耐封印)", durationMultiplier: effectScale });
           if (_st) ml.push(`魔力が封じられた！魔法封印${_st}ターン【呪】`);
         } else if (isMpRecoveryBlocked(p)) {
           ml.push(`MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
-          const add = Math.min(Math.round(val * blessAmountMul(blessed)), (p.maxMp || 20) - (p.mp || 0));
+          const add = Math.min(weakEffect ? scaledPotionAmount(val * blessAmountMul(blessed)) : Math.round(val * blessAmountMul(blessed)), (p.maxMp || 20) - (p.mp || 0));
           if (add <= 0) {
-            const _maxMpGain = blessed ? 2 : 1;
+            const _maxMpGain = weakEffect ? 0.1 : blessed ? 2 : 1;
             p.maxMp = (p.maxMp || 20) + _maxMpGain;
             p.mp = (p.mp || 0) + _maxMpGain;
             ml.push(`MPが最大なので最大MP+${_maxMpGain}！${blessed ? "(祝福)" : ""}`);
@@ -5093,27 +5114,29 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "monster") {
         if (cursed) {
           // 呪い：封印（ボスは有限ターン）
-          const _sealT = statusTurns("seal", { kind: "monster", target });
+          const _sealT = scaledPotionTurns(statusTurns("seal", { kind: "monster", target }));
           applyMonsterSeal(target, dg, p, ml, luFn, {
             sealedTurns: _sealT,
             message: `${target.name}は封印された！${isPermanentTurns(_sealT) ? "(永続)" : `(${_sealT}ターン)`}【呪→封印】`,
           });
         } else {
           // 通常/祝福：特技使用率100%
-          target.alwaysUseSpecial = true;
-          ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+          if (weakDiscreteEffect()) {
+            target.alwaysUseSpecial = true;
+            ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+          } else ml.push(`${target.name}はかすかな魔力を感じた。`);
         }
       }
       break;
     case "darkness":
       if (kind === "player") {
         if (cursed) {
-          const _ms = statusTurns("monsterSense", { kind: "player" });
+          const _ms = scaledPotionTurns(statusTurns("monsterSense", { kind: "player" }));
           p.monsterSenseTurns = (p.monsterSenseTurns || 0) + _ms;
           ml.push(`呪われた薬！フロアのモンスターが感知できる！(${_ms}ターン)【呪→感知】`);
         } else {
           if (!blockPlayerStatus(p, ml, { proofAbility: "darkness_proof", proofMsg: "暗闇効果を受けたが防具が防いだ！(耐暗闇)" })) {
-            const _dt = statusTurns("darkness", { kind: "player", blessed });
+            const _dt = scaledPotionTurns(statusTurns("darkness", { kind: "player", blessed }));
             p.darknessTurns = (p.darknessTurns || 0) + _dt;
             ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
           }
@@ -5128,7 +5151,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`${target.name}には暗闇が効かなかった！`);
         } else {
           if (!isStatusImmune(target, ml, target.name)) {
-            const _dt = statusTurns("darkness", { kind: "monster", blessed, target });
+            const _dt = scaledPotionTurns(statusTurns("darkness", { kind: "monster", blessed, target }));
             if (applyMonsterDarkness(target, _dt, ml) > 0) {
               ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
             }
@@ -5139,11 +5162,16 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "bewitch":
       if (kind === "player") {
         if (cursed) {
-          dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
-          ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
+          if (weakEffect) {
+            applyDamagedFoodTrapReveal(dg, DAMAGED_FOOD_REVEAL_TURNS + 1);
+            ml.push("かすかな看破の力で、フロア全体の罠が短時間見えた！【呪→罠看破】");
+          } else {
+            dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
+            ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
+          }
         } else {
           if (!blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "幻惑効果を受けたが防具が防いだ！(耐惑わし)" })) {
-            const _bt = statusTurns("bewitch", { kind: "player", blessed });
+            const _bt = scaledPotionTurns(statusTurns("bewitch", { kind: "player", blessed }));
             p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
             ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
           }
@@ -5154,7 +5182,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.fleeingTurns = 0;
           ml.push(`${target.name}の幻惑が解けた！【呪→解除】`);
         } else {
-          const _bt = statusTurns("bewitch", { kind: "monster", blessed, target });
+          const _bt = scaledPotionTurns(statusTurns("bewitch", { kind: "monster", blessed, target }));
           if (applyMonsterBewitch(target, _bt, ml) > 0) {
             ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bt) ? "(永続)" : `(${_bt}ターン)`}`);
           }
@@ -5164,6 +5192,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "levelup":
       if (kind === "player") {
         if (cursed) {
+          if (weakEffect && !weakDiscreteEffect()) {
+            ml.push("わずかな呪いが頭上をかすめたが、転移するほどの力はなかった。");
+            break;
+          }
           applyFallImpactDamage(p, ml, "呪われたレベルアップで天井を突き破った衝撃で", "天井を突き破る衝撃！");
           if (p.hp > 0) {
             // 呪い：1階上へワープ（フラグ経由でGame.jsx側が処理）
@@ -5172,6 +5204,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           } else {
             ml.push("呪われたレベルアップの薬！天井を突き破った衝撃で倒れた！【呪】");
           }
+        } else if (weakEffect) {
+          const exp = Math.max(1, Math.floor((p.nextExp || 1) * effectScale));
+          p.exp += exp;
+          ml.push(`わずかな知恵が付いた。経験値+${exp}`);
+          luFn?.(p, ml);
         } else {
           const _times = blessed ? 2 : 1;
           for (let _i = 0; _i < _times; _i++) {
@@ -5183,7 +5220,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       if (kind === "monster") {
         if (cursed) {
+          if (weakEffect && !weakDiscreteEffect()) {
+            ml.push(`${target.name}はかすかな退化の気配を感じた。`);
+            break;
+          }
           monLevelDown(target, dg, ml);
+        } else if (weakEffect) {
+          if (weakDiscreteEffect()) monLevelUp(target, dg, ml);
+          else ml.push(`${target.name}はかすかな成長の気配を感じた。`);
         } else {
           const _times2 = blessed ? 2 : 1;
           for (let _i = 0; _i < _times2; _i++) {
@@ -5196,10 +5240,15 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "monster") {
         if (cursed) {
           // 呪い：特技使用率100%
-          target.alwaysUseSpecial = true;
-          ml.push(`${target.name}の特技使用率が100%になった！【呪】`);
+          if (weakDiscreteEffect()) {
+            target.alwaysUseSpecial = true;
+            ml.push(`${target.name}の特技使用率が100%になった！【呪】`);
+          } else ml.push(`${target.name}は一瞬だけ特技を使いたくなったが、すぐに元へ戻った。`);
         } else {
-          applyMonsterSeal(target, dg, p, ml, luFn, { blessed });
+          applyMonsterSeal(target, dg, p, ml, luFn, {
+            blessed,
+            sealedTurns: scaledPotionTurns(statusTurns("seal", { kind: "monster", blessed, target })),
+          });
           if (blessed && target.hp > 0 && dg.monsters?.includes(target)) {
             const _at = applyAttackSeal(target, { kind: "monster", target });
             ml.push(`さらに${target.name}は攻撃封印になった！(${_at}ターン)(祝福)`);
@@ -5210,7 +5259,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (cursed) {
           ml.push(`${curePlayerSealWithCursedPotion(p)}【呪→解封】`);
         } else {
-          const _st = applyPlayerSeal(p, ml, { blessed, proofMsg: "封印効果を受けたが防具が防いだ！(耐封印)" });
+          const _st = applyPlayerSeal(p, ml, { blessed, proofMsg: "封印効果を受けたが防具が防いだ！(耐封印)", durationMultiplier: effectScale });
           if (_st) {
             ml.push(`魔法が封印された！(${_st}ターン)${blessed ? "(祝福)" : ""}`);
             if (blessed) {
@@ -5222,34 +5271,41 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       break;
     case "luck": {
-      const _turns = cursed
+      const baseTurns = cursed
         ? LUCK_POTION_TURNS.cursed
         : blessed ? LUCK_POTION_TURNS.blessed : LUCK_POTION_TURNS.normal;
+      const _turns = scaledPotionTurns(baseTurns);
       if (kind === "player") {
         if (cursed) {
           p.luckTurns = 0;
           p.unluckTurns = (p.unluckTurns || 0) + _turns;
           ml.push(`不運になった！敵がアイテムを落とさなくなる！(${_turns}ターン)【呪】`);
         } else {
-          p.unluckTurns = 0;
-          p.luckTurns = (p.luckTurns || 0) + _turns;
-          ml.push(`幸運になった！敵を倒すたび追加ドロップ判定！(${_turns}ターン)${blessed ? "【祝福】" : ""}`);
+          if (!weakEffect || weakDiscreteEffect()) {
+            p.unluckTurns = 0;
+            p.luckTurns = (p.luckTurns || 0) + _turns;
+            ml.push(`幸運になった！敵を倒すたび追加ドロップ判定！(${_turns}ターン)${blessed ? "【祝福】" : ""}`);
+          } else ml.push("かすかな幸運を感じたが、追加ドロップには結びつかなかった。");
         }
       }
       if (kind === "monster") {
         if (cursed) {
+          if (weakEffect && !weakDiscreteEffect()) {
+            ml.push(`${target.name}はかすかな不運を感じた。`);
+            break;
+          }
           target.dropExtraItem = false;
           target.dropItemsSuppressed = true;
           delete target.dropLuckTurns;
           delete target.dropNoItemTurns;
           ml.push(`${target.name}は不運になり、倒された時にアイテムを落とさなくなった！【呪】`);
-        } else {
+        } else if (!weakEffect || weakDiscreteEffect()) {
           target.dropItemsSuppressed = false;
           target.dropExtraItem = true;
           delete target.dropLuckTurns;
           delete target.dropNoItemTurns;
           ml.push(`${target.name}は幸運になった！倒された時に追加ドロップ判定！${blessed ? "【祝福】" : ""}`);
-        }
+        } else ml.push(`${target.name}はかすかな幸運を感じた。`);
       }
       break;
     }
@@ -5258,13 +5314,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (cursed) {
           const _poison = hasRingEffect(p, "antidote_ring")
             ? null
-            : applyPlayerPoison(p);
-          const _sleep = statusTurns("sleep", { kind: "player" });
-          const _confuse = statusTurns("confuse", { kind: "player" });
-          const _slow = statusTurns("slow", { kind: "player" });
-          const _dark = statusTurns("darkness", { kind: "player" });
-          const _bewitch = statusTurns("bewitch", { kind: "player" });
-          const _seal = statusTurns("seal", { kind: "player" });
+            : applyPlayerPoison(p, { atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale });
+          const _sleep = scaledPotionTurns(statusTurns("sleep", { kind: "player" }));
+          const _confuse = scaledPotionTurns(statusTurns("confuse", { kind: "player" }));
+          const _slow = scaledPotionTurns(statusTurns("slow", { kind: "player" }));
+          const _dark = scaledPotionTurns(statusTurns("darkness", { kind: "player" }));
+          const _bewitch = scaledPotionTurns(statusTurns("bewitch", { kind: "player" }));
+          const _seal = scaledPotionTurns(statusTurns("seal", { kind: "player" }));
           p.sleepTurns = (p.sleepTurns || 0) + _sleep;
           p.confusedTurns = (p.confusedTurns || 0) + _confuse;
           p.slowTurns = (p.slowTurns || 0) + _slow;
@@ -5273,19 +5329,33 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.sealedTurns = (p.sealedTurns || 0) + _seal;
           ml.push(statusResultMessage(_poison, `万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`));
         } else {
-          const _hadDopingAftereffect = (p.dopingAftereffectTurns || 0) > 0;
+          const _hadDopingAftereffect = !weakEffect && (p.dopingAftereffectTurns || 0) > 0;
           if (_hadDopingAftereffect) {
             p.dopingAftereffectTurns = 0;
             if ((p.dopingTurns || 0) <= 0) p.dopingAftereffectPending = false;
           }
-          const _wasStatus = clearStatusEffectsOnHpZero(p);
+          let _wasStatus = false;
+          if (weakEffect) {
+            const weakCures = [
+              ["poisoned", () => clearPlayerPoison(p), "毒"],
+              ["sleepTurns", () => { p.sleepTurns = 0; }, "眠り"],
+              ["confusedTurns", () => { p.confusedTurns = 0; }, "混乱"],
+              ["slowTurns", () => { p.slowTurns = 0; }, "鈍足"],
+              ["darknessTurns", () => { p.darknessTurns = 0; }, "暗闇"],
+              ["bewitchedTurns", () => { p.bewitchedTurns = 0; }, "幻惑"],
+              ["sealedTurns", () => { p.sealedTurns = 0; }, "封印"],
+              ["paralyzeTurns", () => { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; }, "金縛り"],
+            ];
+            const [key, clear, label] = weakCures.find(([field]) => (p[field] || 0) > 0) || [];
+            if (key) { clear(); _wasStatus = true; }
+          } else _wasStatus = clearStatusEffectsOnHpZero(p);
           const _dopingCuredMsg = _hadDopingAftereffect ? " ドーピングの副作用も消えた！" : "";
           if (blessed) {
-            const _immune = statusTurns("statusImmune", { kind: "player" });
+          const _immune = scaledPotionTurns(statusTurns("statusImmune", { kind: "player" }));
             p.statusImmune = Math.max(p.statusImmune || 0, _immune);
-            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}${_dopingCuredMsg}さらに状態異常免疫になった！(${_immune}ターン)【祝福】`);
+            ml.push(`万能薬を飲んだ。${_wasStatus ? (weakEffect ? "状態異常が1つ治った！" : "全ての状態異常が治った！") : "状態異常はなかった。"}${_dopingCuredMsg}さらに状態異常免疫になった！(${_immune}ターン)【祝福】`);
           } else {
-            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}${_dopingCuredMsg}`);
+            ml.push(`万能薬を飲んだ。${_wasStatus ? (weakEffect ? "状態異常が1つ治った！" : "全ての状態異常が治った！") : "状態異常はなかった。"}${_dopingCuredMsg}`);
           }
         }
       } else if (kind === "monster") {
@@ -5294,8 +5364,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (!blockLargeMonsterStatus(target, "poison", ml)) {
             startLargeMonsterStatusCooldown(target, "poison");
             target.poisoned = true;
-            target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
-            if (!target.poisonHalfAtk) {
+            target.poisonedTurns = (target.poisonedTurns || 0) + scaledPotionTurns(statusTurns("poison", { kind: "monster", target }));
+            if (!target.poisonHalfAtk && weakDiscreteEffect()) {
               target.poisonOrigAtk = target.atk;
               target.atk = Math.max(1, Math.floor(target.atk / 2));
               target.poisonHalfAtk = true;
@@ -5304,47 +5374,70 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           }
           if (!blockLargeMonsterStatus(target, "sleep", ml)) {
             startLargeMonsterStatusCooldown(target, "sleep");
-            target.sleepTurns = (target.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target });
+            target.sleepTurns = (target.sleepTurns || 0) + scaledPotionTurns(statusTurns("sleep", { kind: "monster", target }));
             _panaceaAilments.push("眠り");
           }
           if (!blockLargeMonsterStatus(target, "confuse", ml)) {
             startLargeMonsterStatusCooldown(target, "confuse");
-            target.confusedTurns = (target.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target });
+            target.confusedTurns = (target.confusedTurns || 0) + scaledPotionTurns(statusTurns("confuse", { kind: "monster", target }));
             _panaceaAilments.push("混乱");
           }
           if (!blockLargeMonsterStatus(target, "slow", ml)) {
             startLargeMonsterStatusCooldown(target, "slow");
-            target.slowTurns = (target.slowTurns || 0) + statusTurns("slow", { kind: "monster", target });
+            target.slowTurns = (target.slowTurns || 0) + scaledPotionTurns(statusTurns("slow", { kind: "monster", target }));
             if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + scaledPotionTurns(statusTurns("bossSlow", { kind: "monster", target }));
             _panaceaAilments.push("鈍足");
           }
-          const _panaceaDark = statusTurns("darkness", { kind: "monster", target });
+          const _panaceaDark = scaledPotionTurns(statusTurns("darkness", { kind: "monster", target }));
           if (applyMonsterDarkness(target, _panaceaDark, ml) > 0) _panaceaAilments.push("暗闇");
-          const _panaceaBewitch = statusTurns("bewitch", { kind: "monster", target });
+          const _panaceaBewitch = scaledPotionTurns(statusTurns("bewitch", { kind: "monster", target }));
           if (applyMonsterBewitch(target, _panaceaBewitch, ml) > 0) _panaceaAilments.push("幻惑");
           if (!blockLargeMonsterStatus(target, "seal", ml)) {
-            applyMonsterSeal(target, dg, p, ml, luFn);
+            applyMonsterSeal(target, dg, p, ml, luFn, {
+              sealedTurns: scaledPotionTurns(statusTurns("seal", { kind: "monster", target })),
+            });
             _panaceaAilments.push("封印");
           }
           ml.push(_panaceaAilments.length
             ? `${target.name}は万能薬の呪いで${_panaceaAilments.join("・")}になった！【呪】`
             : `${target.name}は状態異常耐性中で万能薬の呪いが効かなかった！`);
         } else {
-          const _wasStatus = clearStatusEffectsOnHpZero(target);
+          let _wasStatus = false;
+          if (weakEffect) {
+            const weakCures = [
+              ["poisoned", () => { target.poisoned = false; target.poisonedTurns = 0; if (target.poisonHalfAtk) { target.atk = target.poisonOrigAtk ?? target.atk; delete target.poisonHalfAtk; delete target.poisonOrigAtk; } }],
+              ["sleepTurns", () => { target.sleepTurns = 0; }],
+              ["confusedTurns", () => { target.confusedTurns = 0; }],
+              ["slowTurns", () => { target.slowTurns = 0; target.bossSlowTurns = 0; }],
+              ["darknessTurns", () => { target.darknessTurns = 0; target.darkDir = null; }],
+              ["fleeingTurns", () => { target.fleeingTurns = 0; }],
+              ["sealedTurns", () => { target.sealedTurns = 0; }],
+            ];
+            const [key, clear] = weakCures.find(([field]) => (target[field] || 0) > 0) || [];
+            if (key) {
+              clear();
+              if (key === "slowTurns") { target.speed = target._preSlowSpeed || target.baseSpeed || 1; delete target._preSlowSpeed; }
+              _wasStatus = true;
+            }
+          } else _wasStatus = clearStatusEffectsOnHpZero(target);
           if (blessed) {
-            const _immune = statusTurns("statusImmune", { kind: "monster", target });
+          const _immune = scaledPotionTurns(statusTurns("statusImmune", { kind: "monster", target }));
             target.statusImmune = Math.max(target.statusImmune || 0, _immune);
           }
-          ml.push(`${target.name}の状態異常が全て治った！${blessed ? `状態異常免疫(${target.statusImmune}ターン)！` : ""}${_wasStatus ? "" : "（異常なし）"}`);
+          const cureMessage = _wasStatus
+            ? `${target.name}の状態異常が${weakEffect ? "1つ" : "全て"}治った！`
+            : `${target.name}に治す状態異常はなかった。`;
+          ml.push(`${cureMessage}${blessed ? `状態異常免疫(${target.statusImmune}ターン)！` : ""}`);
         }
       }
       break;
     }
     case "milk": {
       if (kind === "player") {
-        const _delta = cursed ? -15 : blessed ? 30 : 15;
+        const baseDelta = cursed ? -15 : blessed ? 30 : 15;
+        const _delta = weakEffect ? Math.max(1, Math.floor(Math.abs(baseDelta) * effectScale)) * Math.sign(baseDelta) : baseDelta;
         const _before = p.hunger || 0;
         p.hunger = Math.max(0, Math.min(p.maxHunger || 100, _before + _delta));
         if (p.hunger > 0) delete p._hungerDmgStarted;
@@ -5352,7 +5445,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (hasRingEffect(p, "antidote_ring")) {
             ml.push(`牛乳でお腹を壊したが、防具が毒を防いだ！満腹度${_delta}`);
           } else {
-            const _poison = applyPlayerPoison(p);
+            const _poison = applyPlayerPoison(p, { atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale });
             ml.push(statusResultMessage(_poison, `牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`));
           }
         } else {
@@ -5364,8 +5457,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           startLargeMonsterStatusCooldown(target, "poison");
           target.poisoned = true;
-          target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
-          if (!target.poisonHalfAtk) {
+          target.poisonedTurns = (target.poisonedTurns || 0) + scaledPotionTurns(statusTurns("poison", { kind: "monster", target }));
+          if (!target.poisonHalfAtk && weakDiscreteEffect()) {
             target.poisonOrigAtk = target.atk;
             target.atk = Math.max(1, Math.floor(target.atk / 2));
             target.poisonHalfAtk = true;
@@ -5377,8 +5470,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     }
     case "doping": {
       if (cursed && isStatusImmune(kind === "player" ? p : target, ml, kind === "monster" ? target.name : null)) break;
-      const _active = DOPING_POTION_TURNS.active;
-      const _after = DOPING_POTION_TURNS.aftereffect;
+      const _active = scaledPotionTurns(DOPING_POTION_TURNS.active);
+      const _after = scaledPotionTurns(DOPING_POTION_TURNS.aftereffect);
       if (kind === "player") {
         if (cursed) {
           p.dopingTurns = 0;
@@ -5418,13 +5511,15 @@ function applyFoodLuckToMonster(target, ml) {
   ml.push(`${target.name}は幸運になった！倒された時に金貨を落とす判定！`);
 }
 
-export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null) {
+export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, killerMon = null, { skipHunger = false, skipInnate = false } = {}) {
   if (item?.type !== "food") return false;
   const entity = kind === "player" ? p : target;
   if (!entity || entity.hp <= 0) return false;
 
+  const effectMultiplier = foodEffectMultiplier(item);
   const isIceCream = item.iceCream && !item.yabai && !item.rotten && !item.burnt;
-  if (kind === "player") {
+  const isDamagedIceCream = item.iceCream && !item.yabai && effectMultiplier < 1;
+  if (kind === "player" && !skipHunger) {
     const maxValue = Number(p.maxHunger ?? 100);
     const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
     const hunger = Math.floor(Math.max(0, Number(p.hunger) || 0));
@@ -5443,22 +5538,28 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
     }
   }
 
+  if (isDamagedIceCream && !skipInnate) {
+    applyIceCreamEffect(entity, kind, ml, { name: "アイスクリーム", hungerAlreadyApplied: true, effectMultiplier });
+  }
+
   const hasPotionEffects = Array.isArray(item?.potionEffects) && item.potionEffects.length > 0;
-  if ((!item.effect && !hasPotionEffects) || item.yabai || isIceCream) return false;
+  if ((!item.effect && !hasPotionEffects && !isDamagedIceCream) || item.yabai || isIceCream) return false;
 
   const applyPotion = (effect, value = 0, cursed = false, blessed = false) =>
-    applyPotionEffect(effect, value, kind, target, dg, p, ml, luFn, blessed, cursed, killerMon);
+    applyPotionEffect(effect, value, kind, target, dg, p, ml, luFn, blessed, cursed, killerMon, false, false, effectMultiplier);
   const value = item.value || 35;
   const foodTier = value <= 10 ? 0 : value <= 20 ? 1 : value <= 35 ? 2 : value <= 55 ? 3 : value <= 80 ? 4 : 5;
-  const effectMultiplier = foodEffectMultiplier(item);
+  if (!skipInnate) applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier, effectMultiplier);
 
-  applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier, effectMultiplier);
-
-  for (const effect of (effectMultiplier < 1 ? [] : item.potionEffects || [])) {
+  const weak = effectMultiplier < 1;
+  const scaled = (amount, minimum = 1) => Math.max(minimum, Math.floor(amount * effectMultiplier));
+  const weakDiscrete = () => !weak || Math.random() < effectMultiplier;
+  for (const effect of item.potionEffects || []) {
     switch (effect) {
       case "heal":
       case "superheal": {
-        const heal = rng(10, 25);
+        const baseHeal = rng(10, 25);
+        const heal = weak ? scaled(baseHeal) : baseHeal;
         const maxHp = kind === "player" ? (p.maxHp || 0) : (target.maxHp || 0);
         const gained = Math.min(heal, Math.max(0, maxHp - entity.hp));
         if (gained > 0) {
@@ -5476,30 +5577,32 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
           if (hasRingEffect(p, "antidote_ring")) {
             ml.push("毒が混じっていたが指輪が毒を消した！");
           } else {
-            const poison = applyPlayerPoison(p);
+            const poison = applyPlayerPoison(p, { atkLoss: weak ? 0.1 : undefined, durationMultiplier: effectMultiplier });
             ml.push(statusResultMessage(poison, `毒が混じっていた！毒状態(${poison.turns}ターン)になった！${poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
           }
         } else if (!blockLargeMonsterStatus(target, "poison", ml) && !isStatusImmune(target, ml, target.name)) {
           startLargeMonsterStatusCooldown(target, "poison");
-          const turns = statusTurns("poison", { kind: "monster", target });
+          const turns = Math.max(1, Math.floor(statusTurns("poison", { kind: "monster", target }) * effectMultiplier));
           target.poisoned = true;
           target.poisonedTurns = (target.poisonedTurns || 0) + turns;
-          if (!target.poisonHalfAtk) {
+          let atkReduced = !!target.poisonHalfAtk;
+          if (!target.poisonHalfAtk && weakDiscrete()) {
             target.poisonOrigAtk = target.atk;
             target.atk = Math.max(1, Math.floor((target.atk || 1) / 2));
             target.poisonHalfAtk = true;
+            atkReduced = true;
           }
-          ml.push(`${target.name}は毒状態になった！(${turns}ターン)攻撃力が半減した！`);
+          ml.push(`${target.name}は毒状態になった！(${turns}ターン)${atkReduced ? "攻撃力が半減した！" : ""}`);
         }
         break;
       }
       case "c_poison":
-        if (kind === "player") {
+        if (kind === "player" && (!weak || weakDiscrete())) {
           if (p.poisoned || (p.poisonAtkLoss || 0) > 0) {
             clearPlayerPoison(p);
             ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
           } else ml.push("解毒成分が入っていたが毒ではなかった。");
-        } else if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
+        } else if (kind === "monster" && (!weak || weakDiscrete()) && (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk)) {
           target.poisoned = false;
           target.poisonedTurns = 0;
           delete target.sporePoisonKillerId;
@@ -5510,7 +5613,9 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
             delete target.poisonOrigAtk;
           }
           ml.push(`${target.name}の毒が消え、攻撃力が戻った！`);
-        } else ml.push(`${target.name}は毒にかかっていない。`);
+        } else ml.push(weak
+          ? `${kind === "player" ? "弱い解毒成分" : `${target.name}に弱い解毒成分`}は届かなかった。`
+          : kind === "player" ? "解毒成分が入っていたが毒ではなかった。" : `${target.name}は毒にかかっていない。`);
         break;
       case "sleep":
         applyPotion("sleep");
@@ -5523,13 +5628,16 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
           if (isMpRecoveryBlocked(p)) {
             ml.push(`MP回復禁止中のため魔力効果は発揮されなかった！(残り${mpRecoveryBlockTurns(p)}ターン)`);
           } else {
-            const gain = Math.min(10, Math.max(0, (p.maxMp || 0) - (p.mp || 0)));
+            const baseGain = Math.min(10, Math.max(0, (p.maxMp || 0) - (p.mp || 0)));
+            const gain = weak ? Math.min(scaled(baseGain), Math.max(0, (p.maxMp || 0) - (p.mp || 0))) : baseGain;
             p.mp = (p.mp || 0) + gain;
             if (gain > 0) ml.push(`魔力効果でMP+${gain}`);
           }
         } else {
-          target.alwaysUseSpecial = true;
-          ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+          if (weakDiscrete()) {
+            target.alwaysUseSpecial = true;
+            ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+          } else ml.push(`${target.name}はかすかな魔力を感じた。`);
         }
         break;
       case "confuse":
@@ -5579,39 +5687,46 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
         break;
       case "levelup":
         if (kind === "player") {
-          const exp = rng(5, 10 + p.level * 3);
+          const baseExp = rng(5, 10 + p.level * 3);
+          const exp = weak ? scaled(baseExp) : baseExp;
           p.exp += exp;
           ml.push(`知恵が付いた。経験値+${exp}`);
           luFn?.(p, ml);
-        } else monLevelUp(target, dg, ml);
+        } else if (weakDiscrete()) monLevelUp(target, dg, ml);
+        else ml.push(`${target.name}はかすかな知恵を感じたが、変化はなかった。`);
         break;
       case "c_levelup":
-        entity.atk = Math.max(1, (entity.atk || 1) - 2);
-        ml.push(kind === "player" ? "退化成分が！攻撃力-2..." : `${target.name}の攻撃力が下がった！`);
+        {
+          const loss = weak ? Math.max(0.1, 2 * effectMultiplier) : 2;
+          entity.atk = Math.max(1, (entity.atk || 1) - loss);
+          ml.push(kind === "player" ? `退化成分が！攻撃力-${loss}...` : `${target.name}の攻撃力が下がった！`);
+        }
         break;
       case "seal":
         applyPotion("seal");
         break;
       case "c_seal":
-        if (kind === "player") {
+        if (kind === "player" && (!weak || weakDiscrete())) {
           if ((p.sealedTurns || 0) > 0) {
             p.sealedTurns = 0;
             ml.push("解封成分が！魔法封印が解けた！");
           } else ml.push("解封成分が入っていたが、封印はかかっていなかった。");
-        } else {
+        } else if (kind === "monster" && (!weak || weakDiscrete())) {
           target.sealed = false;
           target.sealedTurns = 0;
           ml.push(`${target.name}の封印が解けた！`);
-        }
+        } else ml.push("弱い解封成分だったが、封印は解けなかった。");
         break;
       case "luck":
         if (kind === "player") {
           const ranges = [[30, 70], [80, 150], [180, 320], [350, 550], [600, 900], [850, 1200]];
           const range = ranges[foodTier];
-          const gold = rng(range[0], range[1]);
+          const baseGold = rng(range[0], range[1]);
+          const gold = weak ? scaled(baseGold) : baseGold;
           p.gold = (p.gold || 0) + gold;
           ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
-        } else applyFoodLuckToMonster(target, ml);
+        } else if (weakDiscrete()) applyFoodLuckToMonster(target, ml);
+        else ml.push(`${target.name}はかすかな幸運を感じた。`);
         break;
       case "c_luck":
         applyPotion("luck", LUCK_POTION_TURNS.cursed, true);
@@ -5726,16 +5841,17 @@ export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, 
       break;
     case "reveal_food":
       if (kind === "player") {
-        const radius = weak ? 2 : Number.POSITIVE_INFINITY;
-        for (let y = 0; y < (dg.explored || []).length; y++) {
-          for (let x = 0; x < (dg.explored[y] || []).length; x++) {
-            if (Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) <= radius) dg.explored[y][x] = true;
+        if (weak) {
+          applyDamagedFoodMapReveal(dg, DAMAGED_FOOD_REVEAL_TURNS + 1);
+          applyDamagedFoodTrapReveal(dg, DAMAGED_FOOD_REVEAL_TURNS + 1);
+          ml.push("目が少し冴え、フロア全体が短時間見えた！");
+        } else {
+          for (let y = 0; y < (dg.explored || []).length; y++) {
+            for (let x = 0; x < (dg.explored[y] || []).length; x++) dg.explored[y][x] = true;
           }
+          for (const trap of dg.traps || []) { trap.revealed = true; trackTrap(trap); }
+          ml.push("目が冴えてフロア全体が見えた！");
         }
-        for (const trap of dg.traps || []) {
-          if (Math.max(Math.abs(trap.x - p.x), Math.abs(trap.y - p.y)) <= radius) { trap.revealed = true; trackTrap(trap); }
-        }
-        ml.push(weak ? "目が少し冴え、近くの地形が見えた！" : "目が冴えてフロア全体が見えた！");
       } else ml.push(`${target.name}にはフロアを見通す力が働かなかった。`);
       break;
     case "antidote_food": {
@@ -10508,17 +10624,12 @@ function restoreFoodDamage(item) {
   delete item._foodYabaiWasBurnt;
 }
 
-/** 祝福・呪い・薬効・壺味などを除去するが、食料本来の接頭語効果は残す。 */
+/** 食料本来の接頭語効果に加え、薬効・壺味も保ったまま状態だけを傷める。 */
 function _stripFoodEnchantments(item) {
   delete item.blessed;
   delete item.cursed;
   delete item.bcKnown;
   delete item.fullIdent;
-  delete item.potionEffects;
-  delete item.potFlavors;
-  delete item.smoked;
-  delete item.iceCream;
-  delete item.iceCreamFlavor;
 }
 
 function _upgradeToYabai(item) {
@@ -10586,6 +10697,48 @@ export function foodHungerAmount(item, blessMultiplier = 1) {
   const value = Math.max(1, Number(item?.value) || 35);
   const stateMultiplier = item?.yabai ? 0.25 : item?.rotten ? 0.5 : 1;
   return Math.max(1, Math.round(value * blessMultiplier * stateMultiplier));
+}
+
+export const DAMAGED_FOOD_REVEAL_TURNS = 5;
+
+/** 腐敗・焦げた食料の全体看破は一時表示だけにし、探索済み情報を変更しない。 */
+export function applyDamagedFoodMapReveal(dg, turns = DAMAGED_FOOD_REVEAL_TURNS) {
+  if (!dg) return 0;
+  dg.foodMapRevealTurns = Math.max(Number(dg.foodMapRevealTurns) || 0, Math.max(1, Math.floor(turns)));
+  return dg.foodMapRevealTurns;
+}
+
+/** 一時看破した罠だけを期限後に隠す。既に発見済みの罠には触れない。 */
+export function applyDamagedFoodTrapReveal(dg, turns = DAMAGED_FOOD_REVEAL_TURNS) {
+  if (!dg) return 0;
+  dg.foodTrapRevealTurns = Math.max(Number(dg.foodTrapRevealTurns) || 0, Math.max(1, Math.floor(turns)));
+  for (const trap of dg.traps || []) {
+    if (trap.revealed) continue;
+    trap.revealed = true;
+    trap._foodTemporaryReveal = true;
+  }
+  return dg.foodTrapRevealTurns;
+}
+
+/** フロア時間が進んだ時だけ呼ぶ。一時看破の期限切れは恒久発見を消さない。 */
+export function tickDamagedFoodReveals(dg) {
+  if (!dg) return;
+  if ((dg.foodMapRevealTurns || 0) > 0) {
+    dg.foodMapRevealTurns--;
+    if (dg.foodMapRevealTurns <= 0) delete dg.foodMapRevealTurns;
+  }
+  if ((dg.foodTrapRevealTurns || 0) > 0) {
+    dg.foodTrapRevealTurns--;
+    if (dg.foodTrapRevealTurns <= 0) {
+      delete dg.foodTrapRevealTurns;
+      for (const trap of dg.traps || []) {
+        if (trap._foodTemporaryReveal) {
+          trap.revealed = false;
+          delete trap._foodTemporaryReveal;
+        }
+      }
+    }
+  }
 }
 
 /* プレイヤーが浮遊状態か判定（呪い重力は強制浮遊、通常重力は浮遊抑制） */

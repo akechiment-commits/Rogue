@@ -153,6 +153,7 @@ export function trackMonster(mon) {
 }
 
 export function trackTrap(trap) {
+  if (trap) delete trap._foodTemporaryReveal;
   if (!markEntityTracked(trap)) return;
   const key = trap.effect || trap.name;
   _bumpEntry(_disc.traps, key, { name: trap.name, tile: trap.tile });

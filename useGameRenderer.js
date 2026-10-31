@@ -974,7 +974,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const px2 = vx * sz,
           py2 = vy * sz;
         const vis = dg.visible[y][x],
-          exp2 = dg.explored[y][x];
+          exp2 = dg.explored[y][x] || (dg.foodMapRevealTurns || 0) > 0;
         if (!vis && !exp2) {
           if (tpSelectMode && dg.map[y][x] !== T.WALL && dg.map[y][x] !== T.BWALL) {
             ctx.fillStyle = "#0d0d1a";

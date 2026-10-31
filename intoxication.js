@@ -12,6 +12,7 @@ export function applySakeEffect(entity, {
   target = entity,
   blessed = false,
   cursed = false,
+  durationMultiplier = 1,
 } = {}) {
   if (!entity) return { status: "none", turns: 0, cleared: [] };
 
@@ -29,13 +30,15 @@ export function applySakeEffect(entity, {
   if (isStatusImmune(entity)) return { status: "blocked", turns: 0, cleared: [] };
 
   if ((entity.drunkenTurns || 0) > 0) {
-    entity.sleepTurns = DRUNKEN_COMA_TURNS;
-    return { status: "coma", turns: DRUNKEN_COMA_TURNS, cleared: [] };
+    const turns = Math.max(1, Math.floor(DRUNKEN_COMA_TURNS * Math.max(0, Number(durationMultiplier) || 0)));
+    entity.sleepTurns = turns;
+    return { status: "coma", turns, cleared: [] };
   }
 
   const escalating = (entity.drunkTurns || 0) > 0;
   const status = escalating ? "drunken" : "drunk";
-  const turns = statusTurns(status, { kind, blessed, target });
+  const baseTurns = statusTurns(status, { kind, blessed, target });
+  const turns = Math.max(1, Math.floor(baseTurns * Math.max(0, Number(durationMultiplier) || 0)));
   entity.drunkTurns = escalating ? 0 : turns;
   entity.drunkenTurns = escalating ? turns : 0;
   return { status, turns, cleared: [] };

@@ -16,7 +16,7 @@ export function describeLookCell({
 }) {
   if (!dungeon) return "";
   const tile = dungeon.map[y]?.[x];
-  if (!dungeon.explored[y]?.[x]) return "未探索";
+  if (!dungeon.explored[y]?.[x] && !(dungeon.foodMapRevealTurns > 0)) return "未探索";
 
   if (tile === T.WALL || tile === T.BWALL) {
     if (dungeon.itemsRevealed) {

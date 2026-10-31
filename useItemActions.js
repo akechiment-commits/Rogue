@@ -824,83 +824,97 @@ export function useItemActions({
           }
         }
       }
+      if (!it.yabai && foodEffectMultiplier(it) < 1) {
+        applyFoodEffectsOnHit(it, "player", p, dg, p, ml, lu, null, { skipHunger: true, skipInnate: true });
+        if (it.iceCream) {
+          applyIceCreamEffect(p, "player", ml, {
+            name: _useItemName,
+            hungerAlreadyApplied: true,
+            effectMultiplier: foodEffectMultiplier(it),
+          });
+        }
+      }
       /* 壺の味付け特殊効果 */
-      if (it.smoked) {
-        const _smInc = rng(3, 5);
+      const _damagedFoodMultiplier = foodEffectMultiplier(it);
+      const _potFlavorTurns = Math.max(1, Math.floor(100 * _damagedFoodMultiplier));
+      if (!it.yabai && it.smoked) {
+        const _smInc = _damagedFoodMultiplier < 1 ? 1 : rng(3, 5);
         p.maxHunger = (p.maxHunger || 100) + _smInc;
         ml.push(`燻製の風味で最大満腹度が${_smInc}上がった！(最大${p.maxHunger})`);
       }
-      if (it.potFlavors) {
+      if (!it.yabai && it.potFlavors) {
         for (const _pf of it.potFlavors) {
           if (_pf === "choco") {
-            const _chAh = Math.min(35, p.maxHp - p.hp);
+            const _chAh = Math.min(_damagedFoodMultiplier < 1 ? Math.max(1, Math.floor(35 * _damagedFoodMultiplier)) : 35, p.maxHp - p.hp);
             p.hp += _chAh;
             const _chCured = [];
-            if (p.poisoned) { clearPlayerPoison(p); _chCured.push("毒"); }
-            if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _chCured.push("眠り"); }
-            if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; _chCured.push("金縛り"); }
-            if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _chCured.push("混乱"); }
-            if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _chCured.push("鈍足"); }
-            if ((p.oilyTurns || 0) > 0) { p.oilyTurns = 0; _chCured.push("油まみれ"); }
-            if ((p.bewitchedTurns || 0) > 0) { p.bewitchedTurns = 0; _chCured.push("魅了"); }
-            if ((p.darknessTurns || 0) > 0) { p.darknessTurns = 0; _chCured.push("暗闇"); }
-            if ((p.atkDebuffTurns || 0) > 0) { p.atkDebuffTurns = 0; _chCured.push("攻撃力低下"); }
-            if ((p.defDebuffTurns || 0) > 0) { p.defDebuffTurns = 0; _chCured.push("防御力低下"); }
-            if ((p.defSoftenedTurns || 0) > 0) { p.defSoftenedTurns = 0; _chCured.push("防御軟化"); }
-            if ((p.sealedTurns || 0) > 0) { p.sealedTurns = 0; _chCured.push("封印"); }
-            if ((p.attackSealTurns || 0) > 0) { p.attackSealTurns = 0; _chCured.push("攻撃封印"); }
+            const _chCureLimit = _damagedFoodMultiplier < 1 ? 1 : Infinity;
+            if (_chCured.length < _chCureLimit && p.poisoned) { clearPlayerPoison(p); _chCured.push("毒"); }
+            if (_chCured.length < _chCureLimit && (p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _chCured.push("眠り"); }
+            if (_chCured.length < _chCureLimit && (p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; _chCured.push("金縛り"); }
+            if (_chCured.length < _chCureLimit && (p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _chCured.push("混乱"); }
+            if (_chCured.length < _chCureLimit && (p.slowTurns || 0) > 0) { p.slowTurns = 0; _chCured.push("鈍足"); }
+            if (_chCured.length < _chCureLimit && (p.oilyTurns || 0) > 0) { p.oilyTurns = 0; _chCured.push("油まみれ"); }
+            if (_chCured.length < _chCureLimit && (p.bewitchedTurns || 0) > 0) { p.bewitchedTurns = 0; _chCured.push("魅了"); }
+            if (_chCured.length < _chCureLimit && (p.darknessTurns || 0) > 0) { p.darknessTurns = 0; _chCured.push("暗闇"); }
+            if (_chCured.length < _chCureLimit && (p.atkDebuffTurns || 0) > 0) { p.atkDebuffTurns = 0; _chCured.push("攻撃力低下"); }
+            if (_chCured.length < _chCureLimit && (p.defDebuffTurns || 0) > 0) { p.defDebuffTurns = 0; _chCured.push("防御力低下"); }
+            if (_chCured.length < _chCureLimit && (p.defSoftenedTurns || 0) > 0) { p.defSoftenedTurns = 0; _chCured.push("防御軟化"); }
+            if (_chCured.length < _chCureLimit && (p.sealedTurns || 0) > 0) { p.sealedTurns = 0; _chCured.push("封印"); }
+            if (_chCured.length < _chCureLimit && (p.attackSealTurns || 0) > 0) { p.attackSealTurns = 0; _chCured.push("攻撃封印"); }
             let _chMsg = _chAh > 0 ? `チョコの甘さでHP+${_chAh}回復！` : "チョコの甘さ…HPは満タンだ。";
             if (_chCured.length > 0) _chMsg += `${_chCured.join("・")}が回復した！`;
             ml.push(_chMsg);
           } else if (_pf === "spicy") {
-            p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 100;
-            ml.push("辛さでパワーアップ！直接攻撃・矢ダメージ1.5倍(100ターン)");
+            p.spicyAtkTurns = (p.spicyAtkTurns || 0) + _potFlavorTurns;
+            ml.push(`辛さでパワーアップ！直接攻撃・矢ダメージ1.5倍(${_potFlavorTurns}ターン)`);
           } else if (_pf === "honey") {
-            p.honeyRegenTurns = (p.honeyRegenTurns || 0) + 100;
-            ml.push("蜂蜜パワーでHPが自然回復する！(100ターン)");
+            p.honeyRegenTurns = (p.honeyRegenTurns || 0) + _potFlavorTurns;
+            ml.push(`蜂蜜パワーでHPが自然回復する！(${_potFlavorTurns}ターン)`);
           } else if (_pf === "curry") {
-            p.curryFireResTurns = (p.curryFireResTurns || 0) + 100;
-            ml.push("カレーの熱で炎耐性がついた！(100ターン)");
+            p.curryFireResTurns = (p.curryFireResTurns || 0) + _potFlavorTurns;
+            ml.push(`カレーの熱で炎耐性がついた！(${_potFlavorTurns}ターン)`);
           } else if (_pf === "miso") {
-            p.misoDefTurns = (p.misoDefTurns || 0) + 100;
-            ml.push("味噌の滋養で守りが固くなった！防御+8(100ターン)");
+            p.misoDefTurns = (p.misoDefTurns || 0) + _potFlavorTurns;
+            ml.push(`味噌の滋養で守りが固くなった！防御+8(${_potFlavorTurns}ターン)`);
           } else if (_pf === "olive") {
-            p.oliveEvasionTurns = (p.oliveEvasionTurns || 0) + 100;
-            ml.push("オリーブオイルで身のこなしが滑らかに！回避率UP(100ターン)");
+            p.oliveEvasionTurns = (p.oliveEvasionTurns || 0) + _potFlavorTurns;
+            ml.push(`オリーブオイルで身のこなしが滑らかに！回避率UP(${_potFlavorTurns}ターン)`);
           } else if (_pf === "sesame") {
-            p.sesameCritTurns = (p.sesameCritTurns || 0) + 100;
-            ml.push("ごまパワーで会心が出やすい！(100ターン)");
+            p.sesameCritTurns = (p.sesameCritTurns || 0) + _potFlavorTurns;
+            ml.push(`ごまパワーで会心が出やすい！(${_potFlavorTurns}ターン)`);
           } else if (_pf === "butter") {
-            p.butterHungerTurns = (p.butterHungerTurns || 0) + 100;
-            ml.push("バターのカロリーで腹持ち抜群！満腹度減少半減(100ターン)");
+            p.butterHungerTurns = (p.butterHungerTurns || 0) + _potFlavorTurns;
+            ml.push(`バターのカロリーで腹持ち抜群！満腹度減少半減(${_potFlavorTurns}ターン)`);
           } else if (_pf === "mayonnaise") {
-            p.mayonnaiseWaterProofTurns = (p.mayonnaiseWaterProofTurns || 0) + 100;
-            ml.push("マヨネーズの油分が水を弾く！耐水状態になった。(100ターン)");
+            p.mayonnaiseWaterProofTurns = (p.mayonnaiseWaterProofTurns || 0) + _potFlavorTurns;
+            ml.push(`マヨネーズの油分が水を弾く！耐水状態になった。(${_potFlavorTurns}ターン)`);
           } else if (_pf === "yogurt") {
-            p.yogurtImmuneTurns = (p.yogurtImmuneTurns || 0) + 100;
-            if (p.poisoned) { clearPlayerPoison(p); ml.push("乳酸菌が毒を中和した！"); }
-            if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; ml.push("乳酸菌が混乱を鎮めた！"); }
-            ml.push("乳酸菌パワーで毒・混乱を寄せ付けない！(100ターン)");
+            p.yogurtImmuneTurns = (p.yogurtImmuneTurns || 0) + _potFlavorTurns;
+            let _yogurtCured = false;
+            if (p.poisoned) { clearPlayerPoison(p); _yogurtCured = true; ml.push("乳酸菌が毒を中和した！"); }
+            if (!_yogurtCured && (p.confusedTurns || 0) > 0) { p.confusedTurns = 0; ml.push("乳酸菌が混乱を鎮めた！"); }
+            ml.push(`乳酸菌パワーで毒・混乱を寄せ付けない！(${_potFlavorTurns}ターン)`);
           } else if (_pf === "coconut") {
             if (isMpRecoveryBlocked(p)) {
               ml.push(`ココナッツの力が湧いたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
             } else {
-              const _ccMp = Math.min(10, (p.maxMp || 50) - (p.mp || 0));
+              const _ccMp = Math.min(_damagedFoodMultiplier < 1 ? 1 : 10, (p.maxMp || 50) - (p.mp || 0));
               p.mp = (p.mp || 0) + _ccMp;
               ml.push(_ccMp > 0 ? `ココナッツの力でMP+${_ccMp}回復！` : "ココナッツの力…MPは満タンだ。");
             }
           } else if (_pf === "soy") {
-            p.soyExpTurns = (p.soyExpTurns || 0) + 100;
-            ml.push("醤油の旨味で集中力UP！経験値1.3倍(100ターン)");
+            p.soyExpTurns = (p.soyExpTurns || 0) + _potFlavorTurns;
+            ml.push(`醤油の旨味で集中力UP！経験値1.3倍(${_potFlavorTurns}ターン)`);
           } else if (_pf === "garlic") {
-            p.garlicDmgTurns = (p.garlicDmgTurns || 0) + 100;
-            ml.push("にんにくパワーで攻撃に+5追加ダメージ！(100ターン)");
+            p.garlicDmgTurns = (p.garlicDmgTurns || 0) + _potFlavorTurns;
+            ml.push(`にんにくパワーで攻撃に+5追加ダメージ！(${_potFlavorTurns}ターン)`);
           } else if (_pf === "lemon") {
-            p.lemonThrowTurns = (p.lemonThrowTurns || 0) + 100;
-            ml.push("レモンの爽快感で投擲が冴える！投擲ダメ1.5倍(100ターン)");
+            p.lemonThrowTurns = (p.lemonThrowTurns || 0) + _potFlavorTurns;
+            ml.push(`レモンの爽快感で投擲が冴える！投擲ダメ1.5倍(${_potFlavorTurns}ターン)`);
           } else if (_pf === "pepper") {
-            p.sureHitTurns = (p.sureHitTurns || 0) + 100;
-            ml.push("胡椒の刺激で狙いが研ぎ澄まされた！必中状態になった。(100ターン)");
+            p.sureHitTurns = (p.sureHitTurns || 0) + _potFlavorTurns;
+            ml.push(`胡椒の刺激で狙いが研ぎ澄まされた！必中状態になった。(${_potFlavorTurns}ターン)`);
           }
         }
       }
