@@ -187,6 +187,7 @@ export function useKeyHandler({
     setBigboxMode = legacyArgs.setBigboxMode, setBigboxMenuSel = legacyArgs.setBigboxMenuSel, setBigboxPage = legacyArgs.setBigboxPage,
     setGachaMode = legacyArgs.setGachaMode, setGachaMenuSel = legacyArgs.setGachaMenuSel,
     setAltarMode = legacyArgs.setAltarMode, setAltarMenuSel = legacyArgs.setAltarMenuSel,
+    setPriestMenuSel = legacyArgs.setPriestMenuSel,
     setMerchantMode = legacyArgs.setMerchantMode, setMerchantMenuSel = legacyArgs.setMerchantMenuSel,
     setIdentifyMode = legacyArgs.setIdentifyMode, setRevealMode = legacyArgs.setRevealMode,
     setDebugSpellMode = legacyArgs.setDebugSpellMode, setDebugSpellMenuSel = legacyArgs.setDebugSpellMenuSel,

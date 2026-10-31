@@ -98,18 +98,18 @@ describe("DiscoveryTracker", () => {
   });
 
   it("大箱も同じ個体は一度だけ、別個体は帰還時にそれぞれ確定する", () => {
-    const first = { id: "bigbox-1", kind: "identify", name: "識別の大箱" };
-    const second = { id: "bigbox-2", kind: "identify", name: "識別の大箱" };
+    const first = { id: "bigbox-1", kind: "identify", name: "鑑定の大箱" };
+    const second = { id: "bigbox-2", kind: "identify", name: "鑑定の大箱" };
     stageBigbox(first);
     stageBigbox(first);
     stageBigbox(second);
     expect(getDiscoveries().bigboxes.identify).toBeUndefined();
     commitPendingBigboxes();
-    expect(getDiscoveries().bigboxes.identify).toMatchObject({ name: "識別の大箱", count: 2 });
+    expect(getDiscoveries().bigboxes.identify).toMatchObject({ name: "鑑定の大箱", count: 2 });
   });
 
   it("直接発見した大箱も同じ個体は一度だけ数える", () => {
-    const bigbox = { id: "bigbox-1", kind: "identify", name: "識別の大箱" };
+    const bigbox = { id: "bigbox-1", kind: "identify", name: "鑑定の大箱" };
     trackBigbox(bigbox);
     trackBigbox(bigbox);
     expect(getDiscoveries().bigboxes.identify.count).toBe(1);

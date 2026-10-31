@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { T } from "../utils.js";
+import { absorbProjectileIntoMonster } from "../items.js";
 import {
   resolveStoneAndHealingPentacleEffect,
   resolveTeleportAndTrapPentacleEffect,
@@ -296,22 +297,36 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
 
   it.each([
     ["gelcube", { atk: 10 }, { atk: 12, _gelBoost: 1.2 }],
-    ["synthmonster", { speed: 1 }, { speed: 1.5, maxAttacks: 2 }],
+    ["synthmonster", { atk: 10, speed: 1 }, { atk: 12, speed: 1.5, maxAttacks: 2 }],
   ])("%sは通常の魔法の石を飲み込んで強化される", (baseKind, stats, expected) => {
     const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", x: 2, y: 2 };
     const monster = { name: "対象", baseKind, x: 2, y: 2, hp: 20, maxHp: 20, ...stats };
     const dg = dungeon({ pentacles: [pc], monsters: [monster] });
+    const player = { x: 5, y: 5, hp: 20, maxHp: 20 };
+    const messages = [];
 
     resolveStoneAndHealingPentacleEffect(
       pc,
       dg,
-      { x: 5, y: 5, hp: 20, maxHp: 20 },
-      [],
-      effectDeps({ random: () => 0 }),
+      player,
+      messages,
+      effectDeps({
+        random: () => 0,
+        absorbProjectileItem: (target, item, pentacle, log) =>
+          absorbProjectileIntoMonster(target, item, dg, player, log, null, {
+            bbFn: (box, contentsItem) => box.contents.push(contentsItem),
+            sourceIsPlayer: false,
+            messagePrefix: `${pentacle.name}の`,
+          }),
+      }),
     );
 
     expect(monster).toMatchObject(expected);
-    expect(monster.heldItems).toHaveLength(1);
+    if (baseKind === "synthmonster") {
+      expect(monster.synthBox.contents).toHaveLength(1);
+    } else {
+      expect(monster.heldItems).toHaveLength(1);
+    }
     expect(monster.hp).toBe(20);
   });
 

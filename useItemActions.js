@@ -3486,6 +3486,7 @@ export function useItemActions({
             _arPeelIfNeeded();
           },
           onMonHit: (mon, mlx) => {
+            const _isFcM = getFarcastMode(p.x, p.y, dg) === "farcast";
             if (!_forceMiss && absorbProjectileIntoMonster(mon, _arDropItem(), dg, p, mlx, lu, {
               bbFn: bigboxAddItem,
               sourceIsPlayer: true,

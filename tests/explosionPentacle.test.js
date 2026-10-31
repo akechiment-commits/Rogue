@@ -43,7 +43,7 @@ describe("爆発の魔方陣", () => {
       { name: "遠くの魔方陣", kind: "healing", x: 8, y: 5, cursed: false },
     ]);
     expect(messages).toEqual(expect.arrayContaining([
-      "爆発で爆発の魔方陣が消えた！",
+      "爆発の魔方陣の力で爆発した！",
       "爆発で回復の魔方陣が消えた！",
     ]));
   });

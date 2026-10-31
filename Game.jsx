@@ -5966,6 +5966,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setBigboxMode, setBigboxMenuSel, setBigboxPage,
     setGachaMode, setGachaMenuSel,
     setAltarMode, setAltarMenuSel,
+    setPriestMenuSel,
     setMerchantMode, setMerchantMenuSel,
     setIdentifyMode, setRevealMode,
     setDebugSpellMode, setDebugSpellMenuSel,
