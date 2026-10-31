@@ -11,6 +11,34 @@ import { useItemActions } from "../useItemActions.js";
 
 afterEach(() => vi.restoreAllMocks());
 
+describe.each([
+  ["darkness", "darknessTurns", "darkness_proof"],
+  ["bewitch", "bewitchedTurns", "bewitch_proof"],
+])("食料の%sと状態防止", (effect, field, proofAbility) => {
+  it.each([
+    ["状態防止中", { statusImmune: 100 }, 5, 5],
+    ["耐性防具あり", { armor: { ability: proofAbility } }, 0, 0],
+    ["防止なし", {}, 0, 20],
+  ])("%sでは既存状態を維持しつつ付与可否を判定する", (_label, protection, before, expected) => {
+    const food = { type: "food", name: "薬効付きパン", value: 20, cooked: true, potionEffects: [effect] };
+    const player = makePlayer({ hunger: 0, inventory: [food], [field]: before, ...protection });
+    const dungeon = makeEmptyDg({
+      visible: Array.from({ length: MH }, () => Array(MW).fill(false)),
+      explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
+    });
+    const endTurn = vi.fn();
+    useItemActions({
+      sr: { current: { player, dungeon, ident: new Set() } }, endTurn,
+      dnameRef: item => item.name, setGs: vi.fn(), setMsgs: vi.fn(), setShowInv: vi.fn(),
+      setSelIdx: vi.fn(), setShowDesc: vi.fn(),
+    }).doUseItem(0);
+    expect(player[field] || 0).toBe(expected);
+    expect(player.hunger).toBe(20);
+    expect(player.inventory).toEqual([]);
+    expect(endTurn).toHaveBeenCalledOnce();
+  });
+});
+
 describe("腐敗状態の食料を食べる", () => {
   it.each([
     ["通常", {}, 20],

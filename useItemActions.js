@@ -735,10 +735,12 @@ export function useItemActions({
             else if (hasAbility(p.armor, "slow_proof")) ml.push("鈍足成分！しかし防具が防いだ！(耐鈍足)");
             else { const _st = statusTurns("slow", { kind: "player" }); p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`鈍足成分が！体が重くなった...(鈍足${_st}ターン)`); }
           } else if (pe === "darkness") {
-            if (hasAbility(p.armor, "darkness_proof")) { ml.push("暗闇成分！しかし防具が防いだ！(耐暗闇)"); }
+            if (isStatusImmune(p, ml)) { /* 食料からの薬効も状態防止で遮断する。 */ }
+            else if (hasAbility(p.armor, "darkness_proof")) { ml.push("暗闇成分！しかし防具が防いだ！(耐暗闇)"); }
             else { const _dt = statusTurns("darkness", { kind: "player" }); p.darknessTurns = (p.darknessTurns || 0) + _dt; ml.push(`暗闇成分が！視界が1マスになった...(${_dt}ターン)`); }
           } else if (pe === "bewitch") {
-            if (hasAbility(p.armor, "bewitch_proof")) { ml.push("幻惑成分！しかし防具が防いだ！(耐惑わし)"); }
+            if (isStatusImmune(p, ml)) { /* 既存の幻惑は解除・延長しない。 */ }
+            else if (hasAbility(p.armor, "bewitch_proof")) { ml.push("幻惑成分！しかし防具が防いだ！(耐惑わし)"); }
             else { const _bt = statusTurns("bewitch", { kind: "player" }); p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt; ml.push(`幻惑成分が！周囲の見た目がおかしくなった！(${_bt}ターン)`); }
           } else if (pe === "paralyze") {
             if ((p.statusImmune || 0) > 0) ml.push("金縛り成分！状態防止中のため効かなかった！");
