@@ -5003,7 +5003,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const resizedName = foodNameForSize(item, next.l);
               item.name = resizedName ?? item.name.replace(cur.l, next.l === "普通の" ? "" : next.l);
               item.sizeLabel = next.l;
-              item.value = Math.round((item.value * next.v) / cur.v);
+              const _sizeRatio = next.v / cur.v;
+              item.value = Math.round(item.value * _sizeRatio);
+              if (Number.isFinite(item._foodOriginalValue)) item._foodOriginalValue = Math.round(item._foodOriginalValue * _sizeRatio);
               ml.push(`${_idn}が大きくなった！→${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}`);
               upgraded = true;
               break;

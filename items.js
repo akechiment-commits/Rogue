@@ -690,7 +690,7 @@ export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, special
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。爆発範囲内の地雷・時限爆弾も誘爆する。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵にぶつけて倒すと薬になる。", tile:16 };
-export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。\n祝福：所持品1つを祝福。\n投げると腐敗・焦げた食料を戻す。敵には効かないが、火ダルマにはダメージ。\n呪い：所持品1つを呪う。投げると敵にダメージ。", tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。\n祝福：所持品1つを祝福。\n投げても食料の腐敗・焦げ・ヤバイ状態は変わらない。敵には効かないが、火ダルマにはダメージ。\n呪い：所持品1つを呪う。投げると敵にダメージ。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"C", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
 export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"B", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
@@ -2437,6 +2437,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, nameFn, killerMon);
         } else if (it.type === "food") {
           if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
+          else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+          else if (it.rotten) { burnFoodItem(it, ml); }
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
@@ -2607,6 +2609,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         fireBreakFloorPotion(it, it.x, it.y, dg, p, ml, luFn, null, killerMon);
       } else if (it.type === "food") {
         if (it.iceCream) { _blasted.add(it); ml.push(`${resolveItemName(it)}が炎で溶けて消滅した！`); }
+        else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+        else if (it.rotten) { burnFoodItem(it, ml); }
         else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); }
       } else if (it.type === "pot") {
@@ -2771,6 +2775,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, nameFn, options.killerMon || null);
         } else if (it.type === "food") {
           if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
+          else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+          else if (it.rotten) { burnFoodItem(it, ml); }
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
@@ -3988,6 +3994,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _itOrigName = item.name;
         const _itResult = rotFood(item);
         if (_itResult === "yabai") ml.push(`${_itOrigName}がヤバイことになった！`);
+        else if (_itResult === "restored") ml.push(`${_itOrigName}の焦げが取れて元に戻った！`);
         else ml.push(`${_itOrigName}が腐ってしまった！`);
       }
       const _rtm = monsterAt(dg, tx, ty);
@@ -4028,6 +4035,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           const _rOrigName = _rTarget.name;
           const _rRes = rotFood(_rTarget);
           if (_rRes === "yabai") ml.push(`${_rOrigName}がヤバイことになった！`);
+          else if (_rRes === "restored") ml.push(`${_rOrigName}の焦げが取れて元に戻った！`);
           else ml.push(`${_rOrigName}が腐ってしまった！`);
         } else {
           ml.push("腐らせるものがなかった。");
@@ -5425,9 +5433,7 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
       p.hunger = Math.max(0, hunger - loss);
       ml.push(`お腹いっぱいのところに食べ物が当たり、嘔吐した！満腹度が${loss}減った！`);
     } else {
-      const amount = isIceCream
-        ? 15
-        : Math.max(1, Math.round((Number(item.value) || 35) * getBlessMultiplier(item) * (item.yabai ? 0.25 : item.rotten ? 0.5 : 1)));
+      const amount = isIceCream ? 15 : foodHungerAmount(item, getBlessMultiplier(item));
       const gained = addFoodHunger(p, amount);
       ml.push(`食べ物が当たって食べてしまった。(満腹度+${gained})`);
     }
@@ -5438,16 +5444,17 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
   }
 
   const hasPotionEffects = Array.isArray(item?.potionEffects) && item.potionEffects.length > 0;
-  if ((!item.effect && !hasPotionEffects) || item.yabai || item.rotten || isIceCream) return false;
+  if ((!item.effect && !hasPotionEffects) || item.yabai || isIceCream) return false;
 
   const applyPotion = (effect, value = 0, cursed = false, blessed = false) =>
     applyPotionEffect(effect, value, kind, target, dg, p, ml, luFn, blessed, cursed, killerMon);
   const value = item.value || 35;
   const foodTier = value <= 10 ? 0 : value <= 20 ? 1 : value <= 35 ? 2 : value <= 55 ? 3 : value <= 80 ? 4 : 5;
+  const effectMultiplier = foodEffectMultiplier(item);
 
-  applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier);
+  applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier, effectMultiplier);
 
-  for (const effect of item.potionEffects || []) {
+  for (const effect of (effectMultiplier < 1 ? [] : item.potionEffects || [])) {
     switch (effect) {
       case "heal":
       case "superheal": {
@@ -5630,9 +5637,12 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
   return true;
 }
 
-function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier) {
+export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier, effectMultiplier = 1) {
   const entity = kind === "player" ? p : target;
   const healRange = [[12, 18], [24, 32], [37, 45], [50, 60], [63, 73], [76, 86]][foodTier];
+  const weak = effectMultiplier < 1;
+  const scaledAmount = (amount) => Math.max(1, Math.floor(amount * effectMultiplier));
+  const weakDiscreteEffect = () => !weak || Math.random() < effectMultiplier;
   const heal = (amount, label) => {
     const gained = Math.min(amount, Math.max(0, (entity.maxHp || 0) - entity.hp));
     entity.hp += gained;
@@ -5641,17 +5651,20 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
   };
 
   switch (item.effect) {
-    case "heal_food":
-      heal(rng(healRange[0], healRange[1]), kind === "player" ? "体が温まり" : `${target.name}は体が温まり`);
+    case "heal_food": {
+      const amount = rng(healRange[0], healRange[1]);
+      heal(weak ? scaledAmount(amount) : amount, kind === "player" ? "体が温まり" : `${target.name}は体が温まり`);
       break;
+    }
     case "power_food": {
-      const amount = foodTier >= 5 ? 2 : 1;
+      const amount = weak ? (foodTier >= 5 ? 0.2 : 0.1) : (foodTier >= 5 ? 2 : 1);
       entity.atk = (entity.atk || 0) + amount;
-      ml.push(kind === "player" ? `力が湧いてきた！攻撃力+${amount}` : `${target.name}の攻撃力が${amount}上がった！`);
+      const amountLabel = weak ? amount.toFixed(1) : String(amount);
+      ml.push(kind === "player" ? `力が湧いてきた！攻撃力+${amountLabel}` : `${target.name}の攻撃力が${amountLabel}上がった！`);
       break;
     }
     case "speed_food": {
-      const turns = 5 + foodTier * 4;
+      const turns = weak ? scaledAmount(5 + foodTier * 4) : 5 + foodTier * 4;
       if (kind === "player") {
         if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; ml.push("目が覚めた！"); }
         grantPlayerHaste(p, turns);
@@ -5666,13 +5679,18 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
       break;
     }
     case "def_food": {
-      const amount = foodTier >= 5 ? 2 : 1;
+      const amount = weak ? (foodTier >= 5 ? 0.2 : 0.1) : (foodTier >= 5 ? 2 : 1);
       entity.def = (entity.def || 0) + amount;
-      ml.push(kind === "player" ? `体が頑丈になった！防御力+${amount}` : `${target.name}の防御力が${amount}上がった！`);
+      const amountLabel = weak ? amount.toFixed(1) : String(amount);
+      ml.push(kind === "player" ? `体が頑丈になった！防御力+${amountLabel}` : `${target.name}の防御力が${amountLabel}上がった！`);
       break;
     }
     case "vitality_food": {
-      const amount = foodTier + 1;
+      if (weak && !weakDiscreteEffect()) {
+        ml.push(kind === "player" ? "わずかに生命力を感じたが、最大HPは変わらなかった。" : `${target.name}はわずかに生命力を感じたが、最大HPは変わらなかった。`);
+        break;
+      }
+      const amount = weak ? 1 : foodTier + 1;
       if (kind === "player") {
         p.hp += adjustPlayerBaseMaxHp(p, amount);
       } else {
@@ -5685,43 +5703,66 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
     case "exp_food":
       if (kind === "player") {
         const percent = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6][foodTier];
-        const exp = Math.max(1, Math.floor((p.nextExp || 1) * percent));
+        const exp = Math.max(1, Math.floor((p.nextExp || 1) * percent * effectMultiplier));
         p.exp += exp;
         ml.push(`知恵が付いた。経験値+${exp}`);
         luFn?.(p, ml);
+      } else if (weak) {
+        if (weakDiscreteEffect()) monLevelUp(target, dg, ml);
+        else ml.push(`${target.name}はかすかな知恵を感じたが、変化はなかった。`);
       } else monLevelUp(target, dg, ml);
       break;
     case "luck_food":
       if (kind === "player") {
         const ranges = [[30, 70], [80, 150], [180, 320], [350, 550], [600, 900], [850, 1200]];
         const [min, max] = ranges[foodTier];
-        const gold = rng(min, max);
+        const gold = scaledAmount(rng(min, max));
         p.gold = (p.gold || 0) + gold;
         ml.push(`幸運だ！${gold}ゴールドを見つけた。`);
+      } else if (weak) {
+        if (weakDiscreteEffect()) applyFoodLuckToMonster(target, ml);
+        else ml.push(`${target.name}はかすかな幸運を感じた。`);
       } else applyFoodLuckToMonster(target, ml);
       break;
     case "reveal_food":
       if (kind === "player") {
-        for (const row of dg.explored || []) row.fill(true);
-        for (const trap of dg.traps || []) { trap.revealed = true; trackTrap(trap); }
-        ml.push("目が冴えてフロア全体が見えた！");
+        const radius = weak ? 2 : Number.POSITIVE_INFINITY;
+        for (let y = 0; y < (dg.explored || []).length; y++) {
+          for (let x = 0; x < (dg.explored[y] || []).length; x++) {
+            if (Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) <= radius) dg.explored[y][x] = true;
+          }
+        }
+        for (const trap of dg.traps || []) {
+          if (Math.max(Math.abs(trap.x - p.x), Math.abs(trap.y - p.y)) <= radius) { trap.revealed = true; trackTrap(trap); }
+        }
+        ml.push(weak ? "目が少し冴え、近くの地形が見えた！" : "目が冴えてフロア全体が見えた！");
       } else ml.push(`${target.name}にはフロアを見通す力が働かなかった。`);
       break;
     case "antidote_food": {
       const cured = [];
-      if ((entity.sleepTurns || 0) > 0) { entity.sleepTurns = 0; cured.push("睡眠"); }
-      if (kind === "player") {
-        if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; cured.push("金縛り"); }
-        if (p.poisoned || (p.poisonAtkLoss || 0) > 0) { clearPlayerPoison(p); cured.push("毒"); }
-      } else {
-        if (target.paralyzed || (target.paralyzeTurns || 0) > 0) {
+      const hasSleep = (entity.sleepTurns || 0) > 0;
+      const hasParalysis = kind === "player"
+        ? (p.paralyzeTurns || 0) > 0
+        : (target.paralyzed || (target.paralyzeTurns || 0) > 0);
+      const hasPoison = kind === "player"
+        ? (p.poisoned || (p.poisonAtkLoss || 0) > 0)
+        : (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk);
+      const cureOne = weak ? [hasSleep, hasParalysis, hasPoison].filter(Boolean).slice(0, 1) : null;
+      if (hasSleep && (!weak || cureOne[0] === hasSleep)) { entity.sleepTurns = 0; cured.push("睡眠"); }
+      if (hasParalysis && (!weak || (!hasSleep && cureOne[0] === hasParalysis))) {
+        if (kind === "player") {
+          p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null;
+        } else {
           target.paralyzed = false;
           target.paralyzeTurns = 0;
           target._paralyzeHp = null;
           target.paralyzeHits = 0;
-          cured.push("金縛り");
         }
-        if (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk) {
+        cured.push("金縛り");
+      }
+      if (hasPoison && (!weak || (!hasSleep && !hasParalysis && cureOne[0] === hasPoison))) {
+        if (kind === "player") clearPlayerPoison(p);
+        else {
           target.poisoned = false;
           target.poisonedTurns = 0;
           delete target.sporePoisonKillerId;
@@ -5731,11 +5772,11 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
             delete target.poisonHalfAtk;
             delete target.poisonOrigAtk;
           }
-          cured.push("毒");
         }
+        cured.push("毒");
       }
       const range = [[3, 6], [5, 9], [7, 12], [10, 16], [13, 20], [16, 25]][foodTier];
-      const amount = rng(range[0], range[1]);
+      const amount = weak ? scaledAmount(rng(range[0], range[1])) : rng(range[0], range[1]);
       const gained = Math.min(amount, Math.max(0, (entity.maxHp || 0) - entity.hp));
       entity.hp += gained;
       ml.push(`${cured.length ? `状態異常が消えた！(${cured.join("・")}) ` : ""}${kind === "player" ? `体の調子が良くなった。HP+${gained}` : `${target.name}の体の調子が良くなった。HP+${gained}`}`);
@@ -5743,7 +5784,7 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
       break;
     }
     case "satiate_food":
-      ml.push("とても腹持ちが良い！");
+      ml.push(weak ? "少し腹持ちが良い。" : "とても腹持ちが良い！");
       break;
     case "mp_food":
       if (kind === "player") {
@@ -5751,11 +5792,16 @@ function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTie
           ml.push(`魔力が湧いてきたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
           const ranges = [[2, 6], [5, 9], [8, 13], [11, 16], [15, 20], [21, 28]][foodTier];
-          const amount = rng(ranges[0], ranges[1]);
+          const amount = weak ? scaledAmount(rng(ranges[0], ranges[1])) : rng(ranges[0], ranges[1]);
           const gained = Math.min(amount, Math.max(0, (p.maxMp || 0) - (p.mp || 0)));
           p.mp = Math.min(p.maxMp || 0, (p.mp || 0) + amount);
           ml.push(gained > 0 ? `魔力が湧いてきた！MP+${gained}` : "魔力が湧いてきたが、MPは既に満タンだ。");
         }
+      } else if (weak) {
+        if (weakDiscreteEffect()) {
+          target.alwaysUseSpecial = true;
+          ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
+        } else ml.push(`${target.name}はかすかな魔力を感じた。`);
       } else {
         target.alwaysUseSpecial = true;
         ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
@@ -5823,19 +5869,23 @@ export function cookFoodMeta(item) {
   }
 }
 
-/** 調理済み食糧をさらに加熱して「焦げた」またはヤバイ状態にする共通ヘルパー */
+/** 食料を加熱する。腐敗は元に戻し、焦げた食料はヤバイ化する。 */
 export function burnFoodItem(item, ml) {
   if (item.yabai) { return false; }
+  if (item.rotten) {
+    const before = item.name;
+    restoreFoodDamage(item);
+    ml.push(`${before}を焦がして腐敗を取り除いた！`);
+    return "restored";
+  }
   if (item.burnt) {
     _upgradeToYabai(item);
     ml.push(`${item.name}になった！`);
     return "yabai";
   }
-  if (item.name.startsWith("焼いた")) {
-    item.name = "焦げた" + item.name.slice("焼いた".length);
-  } else {
-    item.name = "焦げた" + item.name;
-  }
+  _prepareFoodDamage(item);
+  item.value = _foodValueForDamagedState(item, "burnt");
+  item.name = _foodStateName(item, "焦げた");
   item.value = Math.max(1, Math.floor(item.value * 0.6));
   item.burnt = true;
   ml.push(`${item.name}になった！`);
@@ -5847,9 +5897,6 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
   if (item.iceCream && (eff === "water" || eff === "fire")) {
     ml.push(`${_dn}が${eff === "water" ? "水" : "炎"}の影響で溶けて消滅した！`);
     return "burn";
-  }
-  if (eff === "water" && item.type === "food") {
-    return restoreFoodWithWater(item, ml) ? "changed" : undefined;
   }
   /* 火薬壺は炎で誘爆 */
   if (item.type === "pot" && item.potEffect === "gunpowder" && eff === "fire") return "gunpowder_explode";
@@ -5894,8 +5941,14 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
   if (_foodEff !== eff) eff = _foodEff;
   if (eff === "fire") {
     // 呪いでも通常でも同じ（焼き調理）
+    if (item.yabai) return;
+    if (item.rotten) {
+      burnFoodItem(item, ml);
+      return "changed";
+    }
     if (!item.cooked) {
       item.value = item.value * 2;
+      if (Number.isFinite(item._foodOriginalValue)) item._foodOriginalValue *= 2;
       cookFoodMeta(item);
       item.name = "焼いた" + item.name;
       ml.push(`${item.name}になった！`);
@@ -6066,7 +6119,7 @@ function washOilyFromWater(dg, x, y, entity, ml) {
   if (washed) ml.push("水で油が流れた！");
 }
 
-/* 通常の水は薬と同じ3×3の共通飛散処理を行い、食料を元に戻す。
+/* 通常の水は薬と同じ3×3の共通飛散処理を行う。食料の腐敗・焦げ・ヤバイ状態は変えない。
    祝福・呪いの水は着弾点のアイテム1つだけを祝呪し、生き物への水効果は3×3に飛散する。 */
 export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn = null, dnFn = null) {
   if (!blessed && !cursed) {
@@ -8876,7 +8929,11 @@ export function shrinkFoodOneStep(item, ml = null, nameFn = null) {
       item.name = item.name.replace(cur.l, prev.l === "普通の" ? "" : prev.l);
     }
     item.sizeLabel = prev.l;
-    item.value = Math.max(1, Math.round((item.value * prev.v) / cur.v));
+    const _sizeRatio = prev.v / cur.v;
+    item.value = Math.max(1, Math.round(item.value * _sizeRatio));
+    if (Number.isFinite(item._foodOriginalValue)) {
+      item._foodOriginalValue = Math.max(1, Math.round(item._foodOriginalValue * _sizeRatio));
+    }
     if (ml) {
       const _dn = resolveItemName({ ...item, name: oldName }, nameFn);
       ml.push(`水を浴びて${_dn}が小さくなった！→${item.name}`);
@@ -9280,6 +9337,12 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
     if (victim.iceCream) {
       removeVictim();
       ml.push(`所持していた「${dn(victim)}」が炎で溶けて消滅した！`);
+    } else if (victim.yabai) {
+      ml.push(`所持していた「${dn(victim)}」は炎を受けても変化しなかった。`);
+    } else if (victim.rotten) {
+      const oldName = dn(victim);
+      burnFoodItem(victim, []);
+      ml.push(`所持していた「${oldName}」を焼いて腐敗を取り除いた！`);
     } else if (!victim.cooked) {
       const oldName = dn(victim);
       victim.value *= 2;
@@ -10337,8 +10400,7 @@ export function calcHungerDrainRate(p) {
 }
 
 /* ===== 食料の腐敗 ===== */
-/* food アイテムに「腐った」接頭語を付け、rotten:true フラグを立てる */
-/* 既に腐っている場合はヤバイに昇格する。食料以外には適用しない。 */
+/* 食料の腐敗・焦げ・ヤバイ状態と相互復元を扱う。食料以外には適用しない。 */
 
 const _FOOD_STATE_PREFIXES = [
   "ヤバイ", "腐った", "焦げた", "焼いた",
@@ -10380,38 +10442,73 @@ function _foodSizedName(item) {
 /** 食料の状態・効果接頭語を保ったままサイズ名を組み直す。 */
 export function foodNameForSize(item, sizeLabel) {
   if (item?.type !== "food" || !item.name) return null;
-  const base = _foodDisplayBaseName(item);
-  if (!base) return null;
-  const baseIndex = item.name.lastIndexOf(base);
-  if (baseIndex < 0) return null;
-  let prefix = item.name.slice(0, baseIndex);
-  const oldSize = item.sizeLabel;
-  if (oldSize) {
-    const sizeIndex = prefix.lastIndexOf(oldSize);
-    if (sizeIndex >= 0) prefix = prefix.slice(0, sizeIndex) + prefix.slice(sizeIndex + oldSize.length);
+  const resizeName = (name) => {
+    const nameItem = { ...item, name };
+    const base = _foodDisplayBaseName(nameItem);
+    if (!base) return null;
+    const baseIndex = name.lastIndexOf(base);
+    if (baseIndex < 0) return null;
+    let prefix = name.slice(0, baseIndex);
+    const oldSize = item.sizeLabel;
+    if (oldSize) {
+      const sizeIndex = prefix.lastIndexOf(oldSize);
+      if (sizeIndex >= 0) prefix = prefix.slice(0, sizeIndex) + prefix.slice(sizeIndex + oldSize.length);
+    }
+    const suffix = name.slice(baseIndex + base.length);
+    return `${prefix}${sizeLabel && sizeLabel !== "普通の" ? sizeLabel : ""}${base}${suffix}`;
+  };
+  const resizedName = resizeName(item.name);
+  if (item._foodOriginalName) {
+    item._foodOriginalName = resizeName(item._foodOriginalName) || item._foodOriginalName;
   }
-  const suffix = item.name.slice(baseIndex + base.length);
-  return `${prefix}${sizeLabel && sizeLabel !== "普通の" ? sizeLabel : ""}${base}${suffix}`;
+  return resizedName;
 }
 
-/** 通常の水で腐敗・焦げ状態を戻す。腐敗で失われた食料効果は戻らない。 */
-function restoreFoodWithWater(item, ml) {
-  if (item?.type !== "food" || (!item.rotten && !item.burnt && !item.yabai)) return false;
-  const before = item.name;
-  if (item.burnt) item.value = Math.max(1, Math.ceil((item.value || 1) / 0.6));
-  /* 調理済み食料は料理名自体が完成形なので、「焼いた」を付けない。 */
-  item.name = _foodSizedName(item);
-  item.desc = FOOD_DESCRIPTIONS[item._foodBase || _foodDisplayBaseName(item)]
-    || FOOD_DESCS[item.effect]
-    || "食べると満腹度が回復する。";
+function _foodEffectLabel(item) {
+  return item?._foodEfLabel || FOOD_EFFECTS.find((effect) => effect.e === item?.effect)?.l || "";
+}
+
+function _foodNormalName(item) {
+  if (item?._foodOriginalName) return item._foodOriginalName;
+  const cookedPrefix = item?.name?.startsWith("焼いた") ? "焼いた" : "";
+  return `${cookedPrefix}${_foodEffectLabel(item)}${_foodSizedName(item)}`;
+}
+
+function _prepareFoodDamage(item) {
+  if (!Number.isFinite(item._foodOriginalValue)) item._foodOriginalValue = Number(item.value) || 1;
+  if (!item._foodOriginalName) item._foodOriginalName = _foodNormalName(item);
+}
+
+function _foodValueForDamagedState(item) {
+  const originalValue = Math.max(1, Number(item._foodOriginalValue) || Number(item.value) || 1);
+  if (item.effect !== "satiate_food") return originalValue;
+  const baseValue = originalValue / 1.5;
+  return Math.max(1, Math.round(baseValue + (originalValue - baseValue) * 0.1));
+}
+
+function _foodStateName(item, statePrefix) {
+  let normalName = _foodNormalName(item);
+  if (normalName.startsWith("焼いた")) normalName = normalName.slice("焼いた".length);
+  return `${statePrefix}${normalName}`;
+}
+
+function restoreFoodDamage(item) {
+  let originalValue = Number(item._foodOriginalValue);
+  if (!Number.isFinite(originalValue)) {
+    originalValue = item.burnt ? Math.ceil((Number(item.value) || 1) / 0.6) : (Number(item.value) || 1);
+  }
+  item.name = _foodNormalName(item);
+  item.value = Math.max(1, originalValue);
+  item.desc = _foodDescription(item) || "食べると満腹度が回復する。";
   delete item.rotten;
   delete item.burnt;
   delete item.yabai;
-  ml.push(`${before}が水で元に戻った！`);
-  return true;
+  delete item._foodOriginalName;
+  delete item._foodOriginalValue;
+  delete item._foodYabaiWasBurnt;
 }
 
-/** 祝福・呪い・壺加工・特殊効果などを除去（腐敗・ヤバイ化時） */
+/** 祝福・呪い・薬効・壺味などを除去するが、食料本来の接頭語効果は残す。 */
 function _stripFoodEnchantments(item) {
   delete item.blessed;
   delete item.cursed;
@@ -10422,13 +10519,13 @@ function _stripFoodEnchantments(item) {
   delete item.smoked;
   delete item.iceCream;
   delete item.iceCreamFlavor;
-  delete item.effect;
-  delete item._foodEfLabel;
 }
 
 function _upgradeToYabai(item) {
+  _prepareFoodDamage(item);
+  item._foodYabaiWasBurnt = !!item.burnt;
   _stripFoodEnchantments(item);
-  item.name = "ヤバイ" + _foodSizedName(item);
+  item.name = _foodStateName(item, "ヤバイ");
   item.yabai = true;
   item.rotten = true;
   item.burnt = true;
@@ -10438,15 +10535,57 @@ function _upgradeToYabai(item) {
 export function rotFood(item) {
   if (item.type !== "food") return false;
   if (item.yabai) return false;
+  if (item.burnt) {
+    restoreFoodDamage(item);
+    return "restored";
+  }
   if (item.rotten) {
     _upgradeToYabai(item);
     return "yabai";
   }
+  _prepareFoodDamage(item);
   _stripFoodEnchantments(item);
+  item.value = _foodValueForDamagedState(item);
   item.rotten = true;
-  item.name = "腐った" + _foodSizedName(item);
+  item.name = _foodStateName(item, "腐った");
   item.desc = "腐っている。食べるのは危険そうだ。";
   return true;
+}
+
+/** 炎の料理人だけがヤバイ食料を焦げた状態へ再調理できる。 */
+export function recookYabaiFood(item) {
+  if (item?.type !== "food" || !item.yabai) return false;
+  _prepareFoodDamage(item);
+  if (!item._foodYabaiWasBurnt) {
+    if (!item.cooked) {
+      item._foodOriginalValue *= 2;
+      if (!item._foodOriginalName.startsWith("焼いた")) item._foodOriginalName = `焼いた${item._foodOriginalName}`;
+      const previousSize = item.sizeLabel;
+      cookFoodMeta(item);
+      if (previousSize && item.sizeLabel && previousSize !== item.sizeLabel) {
+        item._foodOriginalName = item._foodOriginalName.replace(previousSize, item.sizeLabel);
+      }
+    }
+    item.value = Math.max(1, Math.floor(_foodValueForDamagedState(item) * 0.6));
+  }
+  item.name = _foodStateName(item, "焦げた");
+  delete item.yabai;
+  delete item.rotten;
+  item.burnt = true;
+  delete item._foodYabaiWasBurnt;
+  item.desc = "焦げている。食べると満腹度と食料本来の効果が弱まる。";
+  return true;
+}
+
+export function foodEffectMultiplier(item) {
+  if (item?.yabai) return 0;
+  return item?.rotten || item?.burnt ? 0.1 : 1;
+}
+
+export function foodHungerAmount(item, blessMultiplier = 1) {
+  const value = Math.max(1, Number(item?.value) || 35);
+  const stateMultiplier = item?.yabai ? 0.25 : item?.rotten ? 0.5 : 1;
+  return Math.max(1, Math.round(value * blessMultiplier * stateMultiplier));
 }
 
 /* プレイヤーが浮遊状態か判定（呪い重力は強制浮遊、通常重力は浮遊抑制） */

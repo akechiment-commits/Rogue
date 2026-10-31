@@ -8,7 +8,7 @@ import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage,
-  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, hasFireResist, reduceFireDamage, fireResistDamageLabel,
+  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, applyInnateFoodEffectOnHit, foodEffectMultiplier, foodHungerAmount, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
@@ -588,9 +588,9 @@ export function useItemActions({
           p.slowTurns = (p.slowTurns || 0) + _ySlowT;
           ml.push(`体が重くなった…(鈍足${_ySlowT}ターン)`);
         }
-      /* 腐った食料：通常の満腹度1/2、毒＋ダメージ、効果なし */
+      /* 腐った食料：通常の満腹度1/2、毒＋ダメージ。接頭語効果は1割だけ残る。 */
       } else if (it.rotten) {
-        const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.5));
+        const _rotVal = foodHungerAmount(it, _foodBm);
         p.inventory.splice(idx, 1);
         const _rotAdded = addFoodHunger(p, _rotVal);
         const _rotDmg = rng(5, 10);
@@ -604,8 +604,11 @@ export function useItemActions({
           const _poison = applyPlayerPoison(p);
           ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
+        const _rotFoodSize = it.value || 35;
+        const _rotFoodTier = _rotFoodSize <= 10 ? 0 : _rotFoodSize <= 20 ? 1 : _rotFoodSize <= 35 ? 2 : _rotFoodSize <= 55 ? 3 : _rotFoodSize <= 80 ? 4 : 5;
+        applyInnateFoodEffectOnHit(it, "player", p, dg, p, ml, lu, _rotFoodTier, foodEffectMultiplier(it));
       } else {
-      const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
+      const _foodVal = foodHungerAmount(it, _foodBm);
       p.inventory.splice(idx, 1);
       const _foodAdded = addFoodHunger(p, _foodVal);
       ml.push(
@@ -617,6 +620,9 @@ export function useItemActions({
       const _fTier = _fSz <= 10 ? 0 : _fSz <= 20 ? 1 : _fSz <= 35 ? 2 : _fSz <= 55 ? 3 : _fSz <= 80 ? 4 : 5;
       /* heal_food: 極小≈15, 爆盛≈80 */
       const _healRange = [[12,18],[24,32],[37,45],[50,60],[63,73],[76,86]][_fTier];
+      if (foodEffectMultiplier(it) < 1) {
+        applyInnateFoodEffectOnHit(it, "player", p, dg, p, ml, lu, _fTier, foodEffectMultiplier(it));
+      } else {
       if (fe === "heal_food") {
         const h = rng(_healRange[0], _healRange[1]);
         const ah = Math.min(h, p.maxHp - p.hp);
@@ -679,7 +685,8 @@ export function useItemActions({
           ml.push(_mpAdded > 0 ? `魔力が湧いてきた！MP+${_mpAdded}` : "魔力が湧いてきたが、MPは既に満タンだ。");
         }
       }
-      if (it.potionEffects && it.potionEffects.length > 0) {
+      }
+      if (!it.rotten && !it.burnt && it.potionEffects && it.potionEffects.length > 0) {
         for (const pe of it.potionEffects) {
           if (pe === "heal") {
             const ph = rng(10, 25);

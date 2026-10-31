@@ -297,6 +297,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
         const _rResult = rotFood(_rTarget);
         if (_rResult === "yabai") {
           ml.push(`${trap.name}が発動！${_rOrigName}がヤバイことになった！`);
+        } else if (_rResult === "restored") {
+          ml.push(`${trap.name}が発動！${_rOrigName}の焦げが取れて元に戻った！`);
         } else {
           ml.push(`${trap.name}が発動！${_rOrigName}が腐ってしまった！`);
         }

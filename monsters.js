@@ -42,7 +42,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -330,15 +330,24 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
       splashPotion(dg, m.x, m.y, it.effect, it.value || 0, p, ml, null,
         !!it.blessed, !!it.cursed, null, m);
     } else if (it.type === "food") {
-      if (!it.cooked) {
+      if (it.yabai) {
+        ml.push(`${m.name}が通った！ヤバイ食料「${resolveItemName(it)}」は炎でも変化しなかった。`);
+      } else if (it.rotten) {
+        const _prevFoodName = it.name;
+        burnFoodItem(it, []);
+        ml.push(`${m.name}が通った！「${_prevFoodName}」を焼いて腐敗を取り除いた！`);
+      } else if (!it.cooked) {
         it.value = Math.floor((it.value || 10) * 2); cookFoodMeta(it);
         it.name = "焼いた" + it.name;
         ml.push(`${m.name}が通った！食料が焼けて「${it.name}」になった！`);
       } else {
         const _prevFoodName = it.name;
         const _dummy = [];
-        burnFoodItem(it, _dummy);
-        ml.push(`${m.name}が通った！「${_prevFoodName}」がさらに焦げて「${it.name}」になった！`);
+        const _burned = burnFoodItem(it, _dummy);
+        if (_burned === "yabai") ml.push(`${m.name}が通った！「${_prevFoodName}」がヤバイ食料になった！`);
+        else if (_burned === "restored") ml.push(`${m.name}が通った！「${_prevFoodName}」の焦げが取れて元に戻った！`);
+        else if (_burned) ml.push(`${m.name}が通った！「${_prevFoodName}」が焦げた！`);
+        else ml.push(`${m.name}が通った！ヤバイ食料「${_prevFoodName}」は炎でも変化しなかった。`);
       }
     }
   }
@@ -1184,7 +1193,7 @@ export const MONS = [
       { name: "ヤドカリ壺大将", hp: 140, atk: 40, def: 34, exp: 580, dungeonFloors: { legend: { min: 48, max: 50 } } },
     ],
   },
-  { name: "炎の料理人", hp: 32, atk: 15, def: 4, exp: 42, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "ice", subtype: "fireCook", desc: "隣接すると装備中でない所持品を焦げた料理へ変える。焦げた料理とヤバイ料理は互いに変化。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
+  { name: "炎の料理人", hp: 32, atk: 15, def: 4, exp: 42, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "ice", subtype: "fireCook", desc: "隣接すると装備中でない所持品を焦げた料理へ変える。ヤバイ料理は焦げた料理に再調理し、腐った食料は元に戻す。焦げた料理をさらに焦がすとヤバイ料理になる。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "炎の中華料理人", hp: 58, atk: 24, def: 7, exp: 95, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
       { name: "炎の中華体育料理人", hp: 90, atk: 34, def: 11, exp: 250, dungeonFloors: { intermediate: null, advanced: { min: 44, max: 47 }, legend: { min: 48, max: 50 } } },
@@ -2242,17 +2251,19 @@ function useFireCookAbility(mon, dungeon, player, messages, luFn) {
   const targetName = target.name || "道具";
 
   if (target.type === "food" && target.yabai) {
-    target.name = target.name?.startsWith("ヤバイ")
-      ? `焦げた${target.name.slice("ヤバイ".length)}`
-      : `焦げた${target.name || "料理"}`;
-    delete target.rotten;
-    delete target.yabai;
-    target.burnt = true;
+    recookYabaiFood(target);
     target.tile = 66;
-    target.desc = "焦げた料理。食べると満腹度が回復する。";
     trackItem(target);
     mon.turnAttacks++;
     messages.push(`${mon.name}が${targetName}を焦がし直し、焦げた料理に変えた！`);
+    return true;
+  }
+
+  if (target.type === "food" && target.rotten) {
+    burnFoodItem(target, []);
+    trackItem(target);
+    mon.turnAttacks++;
+    messages.push(`${mon.name}が${targetName}を焼いて腐敗を取り除いた！`);
     return true;
   }
 
@@ -3573,8 +3584,10 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
         const _canDegrade = pl.weapon && !hasAbility(pl.weapon, "no_degrade");
         if (_foods.length > 0 && (_canDegrade ? Math.random() < 0.6 : true)) {
           const _tf = pick(_foods);
-          rotFood(_tf);
-          ml.push(`水びたしになって${resolveItemName(_tf)}が腐ってしまった！`);
+          const _rotResult = rotFood(_tf);
+          if (_rotResult === "restored") ml.push(`水びたしになって${resolveItemName(_tf)}の焦げが取れた！`);
+          else if (_rotResult === "yabai") ml.push(`水びたしになって${resolveItemName(_tf)}がヤバイことになった！`);
+          else ml.push(`水びたしになって${resolveItemName(_tf)}が腐ってしまった！`);
         } else if (_canDegrade) {
           const _op = pl.weapon.plus || 0;
           pl.weapon.plus = _op - 1;

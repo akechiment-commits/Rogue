@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, doTimeBombExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, burnFoodItem, recookYabaiFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, doTimeBombExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook, playerDopingMultiplier } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -1056,12 +1056,13 @@ describe("ゴミ箱の破壊報酬", () => {
   });
 });
 
-describe("rotFood", () => {
-  it("腐敗時に祝福・特殊効果・壺味を除去し大きさは残す", () => {
+describe("食料の腐敗・焦げ", () => {
+  it("腐敗時は接頭語効果を残し、祝福・薬効・壺味を外す", () => {
     const food = {
       type: "food",
       name: "カレー味の満腹の特盛りおにぎり",
       _foodBase: "おにぎり",
+      _foodEfLabel: "満腹の",
       sizeLabel: "特盛り",
       effect: "satiate_food",
       blessed: true,
@@ -1072,16 +1073,17 @@ describe("rotFood", () => {
     };
     rotFood(food);
     expect(food.rotten).toBe(true);
-    expect(food.name).toBe("腐った特盛りおにぎり");
+    expect(food.name).toBe("腐った満腹の特盛りおにぎり");
     expect(food.sizeLabel).toBe("特盛り");
-    expect(food.value).toBe(120);
+    expect(food.value).toBe(84);
     expect(food.blessed).toBeUndefined();
     expect(food.cursed).toBeUndefined();
-    expect(food.effect).toBeUndefined();
+    expect(food.effect).toBe("satiate_food");
+    expect(food._foodEfLabel).toBe("満腹の");
     expect(food.potFlavors).toBeUndefined();
   });
 
-  it("腐った食料はヤバイ化でエンチャントだけ除去し大きさは残す", () => {
+  it("腐った食料は再腐敗でヤバイになり、接頭語効果は保持する", () => {
     const food = {
       type: "food",
       name: "腐った特盛りおにぎり",
@@ -1094,31 +1096,78 @@ describe("rotFood", () => {
     };
     expect(rotFood(food)).toBe("yabai");
     expect(food.yabai).toBe(true);
-    expect(food.name).toBe("ヤバイ特盛りおにぎり");
+    expect(food.name).toBe("ヤバイ癒しの特盛りおにぎり");
     expect(food.sizeLabel).toBe("特盛り");
     expect(food.blessed).toBeUndefined();
-    expect(food.effect).toBeUndefined();
+    expect(food.effect).toBe("heal_food");
     expect(food.value).toBe(80);
+  });
+
+  it("腐敗は焦がすと、焦げは腐らせると元の状態・値・効果へ戻る", () => {
+    const rotten = {
+      type: "food", name: "腐った力の特盛りおにぎり", _foodBase: "おにぎり",
+      _foodEfLabel: "力の", effect: "power_food", sizeLabel: "特盛り", value: 80, rotten: true,
+    };
+    const burnt = {
+      type: "food", name: "焦げた力の特盛りおにぎり", _foodBase: "おにぎり",
+      _foodEfLabel: "力の", effect: "power_food", sizeLabel: "特盛り", value: 48, burnt: true,
+    };
+
+    expect(burnFoodItem(rotten, [])).toBe("restored");
+    expect(rotten).toMatchObject({ name: "力の特盛りおにぎり", effect: "power_food", value: 80 });
+    expect(rotten.rotten).toBeUndefined();
+    expect(rotFood(burnt)).toBe("restored");
+    expect(burnt).toMatchObject({ name: "力の特盛りおにぎり", effect: "power_food", value: 80 });
+    expect(burnt.burnt).toBeUndefined();
+
+    const rottenByPotion = {
+      type: "food", name: "腐った力の特盛りおにぎり", _foodBase: "おにぎり",
+      _foodEfLabel: "力の", effect: "power_food", sizeLabel: "特盛り", value: 80, rotten: true,
+    };
+    expect(applyPotionToItem("fire", 0, rottenByPotion, makeEmptyDg(), [])).toBe("changed");
+    expect(rottenByPotion).toMatchObject({ name: "力の特盛りおにぎり", effect: "power_food", value: 80 });
+  });
+
+  it("ヤバイ食料は水・炎・腐敗で変化せず、炎の料理人の再調理で焦げる", () => {
+    const food = {
+      type: "food", name: "ヤバイ力の特盛りおにぎり", _foodBase: "おにぎり",
+      _foodEfLabel: "力の", effect: "power_food", cooked: true, sizeLabel: "特盛り", value: 80,
+      yabai: true, rotten: true, burnt: true,
+    };
+    const before = { ...food };
+
+    expect(rotFood(food)).toBe(false);
+    expect(burnFoodItem(food, [])).toBe(false);
+    expect(food).toEqual(before);
+    expect(recookYabaiFood(food)).toBe(true);
+    expect(food).toMatchObject({ name: "焦げた力の特盛りおにぎり", effect: "power_food", cooked: true, burnt: true, value: 48 });
+    expect(food.yabai).toBeUndefined();
+
+    const rawYabai = {
+      type: "food", name: "ヤバイ癒しのパン", _foodBase: "パン", _foodEfLabel: "癒しの",
+      effect: "heal_food", sizeLabel: "普通の", value: 17, yabai: true, rotten: true, burnt: true,
+    };
+    expect(recookYabaiFood(rawYabai)).toBe(true);
+    expect(rawYabai).toMatchObject({ name: "焦げた癒しのパン", cooked: true, burnt: true, value: 20 });
+    expect(rawYabai.yabai).toBeUndefined();
   });
 });
 
 describe("水の飛散", () => {
-  it("通常の水は3×3内の腐敗・焦げた食料を元に戻す", () => {
+  it("通常の水は3×3内の腐敗・焦げ・ヤバイ状態を変えない", () => {
     const rotten = { type: "food", name: "腐ったおにぎり", _foodBase: "おにぎり", rotten: true, value: 20, x: 4, y: 4 };
-    const burnt = { type: "food", name: "焦げた焼いたパン", _foodBase: "パン", cooked: true, burnt: true, value: 12, x: 6, y: 6 };
-    const outside = { type: "food", name: "腐った肉", _foodBase: "肉", rotten: true, value: 20, x: 7, y: 7 };
+    const burnt = { type: "food", name: "焦げたパン", _foodBase: "パン", cooked: true, burnt: true, value: 12, x: 5, y: 5 };
+    const yabai = { type: "food", name: "ヤバイ肉", _foodBase: "肉", rotten: true, burnt: true, yabai: true, value: 20, x: 6, y: 6 };
     const pentacle = { name: "回復の魔方陣", x: 4, y: 5 };
-    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [rotten, burnt, outside], monsters: [], traps: [], pentacles: [pentacle], pendingBombs: [] };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [rotten, burnt, yabai], monsters: [], traps: [], pentacles: [pentacle], pendingBombs: [] };
     const ml = [];
     const p = { x: 0, y: 0, hp: 10, maxHp: 10 };
 
     applyWaterSplash(dg, 5, 5, false, false, ml, p, () => {});
 
-    expect(rotten).toMatchObject({ name: "おにぎり" });
-    expect(rotten.rotten).toBeUndefined();
-    expect(burnt).toMatchObject({ name: "パン", value: 20 });
-    expect(burnt.burnt).toBeUndefined();
-    expect(outside.rotten).toBe(true);
+    expect(rotten).toMatchObject({ name: "腐ったおにぎり", rotten: true });
+    expect(burnt).toMatchObject({ name: "焦げたパン", burnt: true, value: 12 });
+    expect(yabai).toMatchObject({ name: "ヤバイ肉", yabai: true, rotten: true, burnt: true });
     expect(dg.pentacles).toHaveLength(0);
   });
 

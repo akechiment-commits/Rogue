@@ -47,7 +47,7 @@ export const TRAPS = [
   { name:"盗みの罠",       effect:"steal_trap",    tile:49,  rarity:"C", weight:4,  desc:"踏むと所持品が1つランダムにフロアのどこかへ飛ばされる。\nアイテムで起動した場合もそのアイテムが飛ばされる。\nロングソードは10%でソボロ助広に変化する。\nキーアイテムは盗まれない。" },
   { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71,  rarity:"E", weight:12, desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84,  rarity:"C", weight:4,  desc:"踏むと50ターン幻惑状態。\n周囲の見た目と、見渡すで得られる情報が狂う。" },
-  { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。敵が踏むと通常敵は食料に変わり、ボスは現在HPの1/4ダメージを受ける。\n腐った食料は満腹回復が0.4倍に。" },
+  { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。焦げた食料は腐敗の作用で元に戻る。敵が踏むと通常敵は食料に変わり、ボスは現在HPの1/4ダメージを受ける。\n腐った食料は満腹回復が半分に。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, rarity:"C", weight:4,  desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   /* B: レア（危険） */
   { name:"地雷",           effect:"explode",       tile:25,  rarity:"C", weight:4,  desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死（経験値なし）、プレイヤーはHP半減（耐火で軽減）。耐火なしなら所持品1つが焼ける。\n壁・罠・大箱・床のアイテムも破壊される。爆発範囲内の地雷・時限爆弾は、爆発の種類によらず誘爆する。" },

@@ -20,6 +20,27 @@ describe("fireTrapPlayer mp_absorb_trap", () => {
 });
 
 describe("fireTrapPlayer", () => {
+  it("腐敗の罠は焦げた食料を元の状態に戻す", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const food = {
+        type: "food", name: "焦げた癒しのパン", _foodBase: "パン", _foodEfLabel: "癒しの",
+        effect: "heal_food", cooked: true, burnt: true, value: 21,
+      };
+      const p = makePlayer({ x: 5, y: 5, inventory: [food] });
+      const trap = { effect: "rot_trap", name: "腐敗の罠", x: 5, y: 5, id: "rot-burnt" };
+      const messages = [];
+
+      fireTrapPlayer(trap, p, makeEmptyDg(), messages);
+
+      expect(food).toMatchObject({ name: "癒しのパン", effect: "heal_food", value: 35 });
+      expect(food.burnt).toBeUndefined();
+      expect(messages.some(message => message.includes("焦げが取れて元に戻った"))).toBe(true);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it("吹き飛ばしの罠はプレイヤーのスライド演出を発行する", () => {
     drainAnims();
     const p = makePlayer({ x: 5, y: 5, facing: { dx: 1, dy: 0 } });
