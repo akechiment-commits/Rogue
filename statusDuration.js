@@ -245,7 +245,7 @@ export function hasClearableStatusAilments(entity) {
     entity.foodHasteTurns,
     entity.paralyzed, entity.frozenTurns, entity.petrifiedTurns, entity.slowTurns, entity.slowSkip,
     entity.confusedTurns, entity.drunkTurns, entity.drunkenTurns,
-    entity.poisoned, entity.poisonedTurns,
+    entity.poisoned, entity.poisonedTurns, entity.poisonAtkLoss, entity.poisonHalfAtk,
     entity.sealedTurns, entity.sealed, entity.attackSealTurns, entity.darknessTurns, entity.blind,
     entity.blindTurns, entity.bewitchedTurns, entity.fleeingTurns,
     entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,

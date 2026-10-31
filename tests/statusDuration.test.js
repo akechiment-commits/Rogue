@@ -119,6 +119,15 @@ describe("applyMonsterParalyze", () => {
 });
 
 describe("clearStatusEffectsOnHpZero", () => {
+  it("毒切れ後の攻撃力低下だけでも状態異常として治療を報告する", () => {
+    const player = { hp: 50, atk: 10, poisoned: false, poisonedTurns: 0, poisonAtkLoss: 2 };
+    expect(clearStatusEffectsOnHpZero(player)).toBe(true);
+    expect(player.atk).toBe(12);
+    expect(player.poisonAtkLoss).toBe(0);
+    expect(clearStatusEffectsOnHpZero(player)).toBe(false);
+    expect(player.atk).toBe(12);
+  });
+
   it("石化中の死亡・復活後に行動不能を持ち越さない", () => {
     const player = { hp: 0, petrifiedTurns: 3, mpSealTurns: 1000 };
     expect(clearStatusEffectsOnHpZero(player)).toBe(true);
