@@ -220,12 +220,18 @@ describe("かわしモグラ", () => {
     const player = makePlayer({ x: 10, y: 10 });
     const dg = makeEmptyDg({ monsters: [shooter, adventurer] });
 
-    throwItemAlongLine(
-      shooter, dg,
-      { name: "回復薬", type: "potion", effect: "heal", value: 30, tile: 16, id: "npc-potion" },
-      1, 0, MW + 1, [], player, noop,
-      { killerMon: shooter, sourceIsPlayer: false, wind: false },
-    );
+    // 命中時の友好状態を調べるテストなので、ランダムな投擲ミスを除外する。
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      throwItemAlongLine(
+        shooter, dg,
+        { name: "回復薬", type: "potion", effect: "heal", value: 30, tile: 16, id: "npc-potion" },
+        1, 0, MW + 1, [], player, noop,
+        { killerMon: shooter, sourceIsPlayer: false, wind: false },
+      );
+    } finally {
+      random.mockRestore();
+    }
 
     expect(adventurer.hp).toBe(70);
     expect(adventurer.state).toBe("friendly");
