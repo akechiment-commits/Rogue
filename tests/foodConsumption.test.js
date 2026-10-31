@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { MW, MH } from "../utils.js";
 
@@ -8,6 +8,8 @@ vi.mock("react", () => ({
   useRef: initial => ({ current: initial }),
 }));
 import { useItemActions } from "../useItemActions.js";
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("腐敗状態の食料を食べる", () => {
   it.each([
