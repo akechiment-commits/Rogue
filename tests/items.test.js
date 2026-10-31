@@ -1057,7 +1057,7 @@ describe("ゴミ箱の破壊報酬", () => {
 });
 
 describe("食料の腐敗・焦げ", () => {
-  it("腐敗時は接頭語効果を残し、祝福・薬効・壺味を外す", () => {
+  it("腐敗時は接頭語効果・壺味を残し、祝呪だけを外す", () => {
     const food = {
       type: "food",
       name: "カレー味の満腹の特盛りおにぎり",
@@ -1080,7 +1080,7 @@ describe("食料の腐敗・焦げ", () => {
     expect(food.cursed).toBeUndefined();
     expect(food.effect).toBe("satiate_food");
     expect(food._foodEfLabel).toBe("満腹の");
-    expect(food.potFlavors).toBeUndefined();
+    expect(food.potFlavors).toEqual(["curry"]);
   });
 
   it("腐った食料は再腐敗でヤバイになり、接頭語効果は保持する", () => {

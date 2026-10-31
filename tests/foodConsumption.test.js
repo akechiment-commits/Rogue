@@ -8,6 +8,7 @@ vi.mock("react", () => ({
   useRef: initial => ({ current: initial }),
 }));
 import { useItemActions } from "../useItemActions.js";
+import { burnFoodItem, rotFood } from "../items.js";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -40,6 +41,26 @@ describe.each([
 });
 
 describe("腐敗状態の食料を食べる", () => {
+  it.each([
+    ["power_food", "atk", "通常", 2], ["power_food", "atk", "焦げ", 0.2], ["power_food", "atk", "腐敗", 0.2],
+    ["def_food", "def", "通常", 2], ["def_food", "def", "焦げ", 0.2], ["def_food", "def", "腐敗", 0.2],
+  ])("大サイズの%sを%sとして%sで食べても元のサイズから効果を弱める", (effect, field, state, gain) => {
+    const food = { type: "food", name: "大きなパン", value: 100, cooked: true, effect };
+    if (state === "焦げ") burnFoodItem(food, []);
+    if (state === "腐敗") rotFood(food);
+    const player = makePlayer({ hunger: 0, atk: 10, def: 10, inventory: [food], rings: [{ effect: "antidote_ring" }] });
+    const dungeon = makeEmptyDg({
+      visible: Array.from({ length: MH }, () => Array(MW).fill(false)),
+      explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
+    });
+    useItemActions({
+      sr: { current: { player, dungeon, ident: new Set() } }, endTurn: vi.fn(),
+      dnameRef: item => item.name, setGs: vi.fn(), setMsgs: vi.fn(), setShowInv: vi.fn(),
+      setSelIdx: vi.fn(), setShowDesc: vi.fn(),
+    }).doUseItem(0);
+    expect(player[field]).toBeCloseTo(10 + gain);
+  });
+
   it.each([
     ["通常", {}, 20],
     ["腐った", { rotten: true }, 10],

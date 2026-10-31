@@ -5547,8 +5547,7 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
 
   const applyPotion = (effect, value = 0, cursed = false, blessed = false) =>
     applyPotionEffect(effect, value, kind, target, dg, p, ml, luFn, blessed, cursed, killerMon, false, false, effectMultiplier);
-  const value = item.value || 35;
-  const foodTier = value <= 10 ? 0 : value <= 20 ? 1 : value <= 35 ? 2 : value <= 55 ? 3 : value <= 80 ? 4 : 5;
+  const foodTier = foodEffectTier(item);
   if (!skipInnate) applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier, effectMultiplier);
 
   const weak = effectMultiplier < 1;
@@ -10691,6 +10690,13 @@ export function recookYabaiFood(item) {
 export function foodEffectMultiplier(item) {
   if (item?.yabai) return 0;
   return item?.rotten || item?.burnt ? 0.1 : 1;
+}
+
+/** 効果のサイズは傷む前の価値を使い、腐敗・焦げの弱体化を二重に掛けない。 */
+export function foodEffectTier(item) {
+  const originalValue = item?._foodOriginalValue;
+  const value = Number.isFinite(originalValue) && originalValue > 0 ? originalValue : (item?.value || 35);
+  return value <= 10 ? 0 : value <= 20 ? 1 : value <= 35 ? 2 : value <= 55 ? 3 : value <= 80 ? 4 : 5;
 }
 
 export function foodHungerAmount(item, blessMultiplier = 1) {

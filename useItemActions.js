@@ -9,7 +9,7 @@ import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, applyInnateFoodEffectOnHit, foodEffectMultiplier, foodHungerAmount, hasFireResist, reduceFireDamage, fireResistDamageLabel,
-  applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster,
+  applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster, foodEffectTier,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
@@ -604,9 +604,7 @@ export function useItemActions({
           const _poison = applyPlayerPoison(p);
           ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
-        const _rotFoodSize = it.value || 35;
-        const _rotFoodTier = _rotFoodSize <= 10 ? 0 : _rotFoodSize <= 20 ? 1 : _rotFoodSize <= 35 ? 2 : _rotFoodSize <= 55 ? 3 : _rotFoodSize <= 80 ? 4 : 5;
-        applyInnateFoodEffectOnHit(it, "player", p, dg, p, ml, lu, _rotFoodTier, foodEffectMultiplier(it));
+        applyInnateFoodEffectOnHit(it, "player", p, dg, p, ml, lu, foodEffectTier(it), foodEffectMultiplier(it));
       } else {
       const _foodVal = foodHungerAmount(it, _foodBm);
       p.inventory.splice(idx, 1);
@@ -616,8 +614,7 @@ export function useItemActions({
       );
       const fe = it.effect;
       /* 大きさによる効果 tier: 極小/一口=0, 小/小盛=1, 普通=2, 大/大盛=3, 特大/特盛=4, 超特大/爆盛=5 */
-      const _fSz = it.value || 35;
-      const _fTier = _fSz <= 10 ? 0 : _fSz <= 20 ? 1 : _fSz <= 35 ? 2 : _fSz <= 55 ? 3 : _fSz <= 80 ? 4 : 5;
+      const _fTier = foodEffectTier(it);
       /* heal_food: 極小≈15, 爆盛≈80 */
       const _healRange = [[12,18],[24,32],[37,45],[50,60],[63,73],[76,86]][_fTier];
       if (foodEffectMultiplier(it) < 1) {
