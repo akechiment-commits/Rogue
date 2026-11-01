@@ -1148,7 +1148,9 @@ export function makeFreshDuplicate(source) {
   else delete copy.abilities;
   if (!template) delete copy.ability;
   delete copy.oilProofUses;
-  if (copy.type === "wand" || copy.type === "pen" || copy.type === "marker") {
+  if (copy.type === "pen") {
+    copy.charges = penInitialCharges(copy);
+  } else if (copy.type === "wand" || copy.type === "marker") {
     copy.charges = template?.charges ?? source.maxCharges ?? 1;
   }
   if (copy.type === "pot") {

@@ -82,6 +82,16 @@ function choose(input, source, action = "duplicate", modifiers = {}, nameState =
 
 const inputs = ["click", "tap", "keyboard", "controller", "mobileConfirm"];
 describe.each(inputs)("複製の新品生成: %s", input => {
+  it.each([
+    ["plain", 4, 5], ["light", 2, 3], ["sanctuary", 1, 2], ["portal", 2, 3],
+  ])("%sのペンは元の消耗回数によらず通常生成の範囲になる", (effect, minimum, maximum) => {
+    const source = ITEMS.find(item => item.type === "pen" && item.effect === effect);
+    const { target, copy } = choose(input, { ...source, charges: 0 });
+    expect(copy.charges).toBeGreaterThanOrEqual(minimum);
+    expect(copy.charges).toBeLessThanOrEqual(maximum);
+    expect(target.charges).toBe(0);
+  });
+
   it("食料の複製を味付け・薬液加工しても元へ効果が移らず、逆方向にも共有しない", () => {
     const source = { type: "food", name: "カレー味のパン", value: 20, cooked: true,
       potFlavors: ["curry"], potionEffects: ["heal"] };
