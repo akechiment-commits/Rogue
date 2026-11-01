@@ -24,7 +24,7 @@ describe("超上級B5Fボス：グウェン", () => {
     expect(gwen.baseKind).toBe("boss_gwen");
     expect(gwen.dormant).toBe(true);
     expect(legend.monsters.filter(monster => monster.isBoss)).toHaveLength(1);
-    const minions = legend.monsters.filter(monster => monster !== gwen);
+    const minions = legend.monsters.filter(monster => monster !== gwen && monster.type !== "shopkeeper");
     expect(minions.map(monster => monster.baseKind).sort()).toEqual(["slime", "wokka", "zombie"]);
     expect(minions.every(monster => monster.dormant && monster.monLevel === 1)).toBe(true);
 

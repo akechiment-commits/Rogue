@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   monEffectiveFloat, monEffectiveMagicImmune, monReflectsProjectiles,
   monReflectsMagic, monEffectiveMaxAttacks, monEffectiveWallWalker,
@@ -162,7 +162,12 @@ describe("封印中の敵特性無効化", () => {
     const attackPlayer = makePlayer({ x: 6, y: 5 });
     const attackDg = makeEmptyDg({ map, rooms, monsters: [bat], items: [], pentacles: [gravity] });
     const hpBefore = attackPlayer.hp;
-    monsterAI(bat, attackDg, attackPlayer, [], { attackOnly: true });
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      monsterAI(bat, attackDg, attackPlayer, [], { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
     expect(attackPlayer.hp).toBeLessThan(hpBefore);
 
     const hypnotist = makeMonsterFromBase(MONS.find((mon) => mon.baseKind === "hypnotist"), 1, 5, 5, { aware: true });

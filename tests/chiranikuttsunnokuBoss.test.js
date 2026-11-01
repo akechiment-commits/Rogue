@@ -184,6 +184,7 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
     });
 
     it("体幹の指輪を装備していればプレイヤーはアイテムを落とさない", () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.5); // 命中時の転倒防止を検証する。
       const dg = makeEmptyDg();
       const boss = {
         ...CHIRANIKUTSUNNOKU,

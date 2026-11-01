@@ -124,14 +124,19 @@ describe("かわしモグラ", () => {
     const dg = makeEmptyDg({ monsters: [mole, target] });
     const ml = [];
 
-    _resolveBolt(p, dg, p, ml, null, {
-      isPlayerShooter: true,
-      dx: 1,
-      dy: 0,
-      baseRange: 5,
-      boltName: "飛び道具",
-      calcMonDmg: () => 10,
-    });
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      _resolveBolt(p, dg, p, ml, null, {
+        isPlayerShooter: true,
+        dx: 1,
+        dy: 0,
+        baseRange: 5,
+        boltName: "飛び道具",
+        calcMonDmg: () => 10,
+      });
+    } finally {
+      random.mockRestore();
+    }
 
     expect(mole.hp).toBe(80);
     expect(target.hp).toBe(70);
