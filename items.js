@@ -4888,8 +4888,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "player") {
         if (cursed) {
           // 反転→解毒
-          if (p.poisoned) {
-            clearPlayerPoison(p);
+          if (clearPlayerPoison(p)) {
             ml.push("毒が体から消えた！攻撃力も回復！【呪→解毒】");
           } else {
             ml.push("変な味がするが…毒はかかっていなかった。【呪→解毒】");

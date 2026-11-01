@@ -191,13 +191,6 @@ export function useItemActions({
         : 3;
       p.hunger = Math.max(0, Math.min(p.maxHunger || 100, (p.hunger || 0) + _potionHunger));
       if (p.hunger > 0) delete p._hungerDmgStarted;
-      // 毒回復ヘルパー
-      const _curePoison = () => {
-        if (p.poisoned) {
-          return clearPlayerPoison(p);
-        }
-        return false;
-      };
       if (it.effect === "heal" || it.effect === "heal_big") {
         const _isReverseHp = (p.reverseTurns || 0) > 0;
         if (it.cursed) {
@@ -265,10 +258,7 @@ export function useItemActions({
       } else if (it.effect === "poison") {
         if (it.cursed) {
           // 呪い：反転→解毒薬
-          const _wasPoison = _curePoison();
-          const _hadAtkLoss = !p.poisoned && (p.poisonAtkLoss || 0) > 0;
-          if (_hadAtkLoss) clearPlayerPoison(p);
-          if (_wasPoison || _hadAtkLoss) {
+          if (clearPlayerPoison(p)) {
             ml.push(`${_useItemName}を飲んだ。毒が体から消えた！攻撃力も回復！【呪→解毒】`);
           } else {
             ml.push(`${_useItemName}を飲んだ。変な味がするが…毒はかかっていなかった。【呪→解毒】`);
@@ -756,8 +746,7 @@ export function useItemActions({
               ml.push(statusResultMessage(_poison, `呪いの回復成分が！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
             }
           } else if (pe === "c_poison") {
-            if (p.poisoned) {
-              clearPlayerPoison(p);
+            if (clearPlayerPoison(p)) {
               ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
             } else ml.push("解毒成分が入っていたが毒ではなかった。");
           } else if (pe === "c_sleep") {

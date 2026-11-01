@@ -231,7 +231,7 @@ export function applyYabaiPoison(entity, kind, opts = {}) {
 /** プレイヤーの毒と、それに紐づく攻撃力低下をまとめて解除する。 */
 export function clearPlayerPoison(player) {
   if (!player) return false;
-  const hadPoison = !!player.poisoned || (player.poisonedTurns || 0) > 0;
+  const hadPoison = !!player.poisoned || (player.poisonedTurns || 0) > 0 || (player.poisonAtkLoss || 0) > 0;
   player.poisoned = false;
   player.poisonedTurns = 0;
   delete player.poisonSourceName;
