@@ -7317,7 +7317,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     }
                     if (springMode === "soak") {
                       const _spInv2 = sr.current?.player?.inventory || [];
-                      const _spAbsIdx = springPage * 10 + springMenuSel;
+                      const _spTotalPg2 = Math.max(1, Math.ceil(_spInv2.length / 10));
+                      const _spCurPg2 = Math.max(0, Math.min(springPage, _spTotalPg2 - 1));
+                      const _spPageItemCount2 = Math.max(0, Math.min(10, _spInv2.length - _spCurPg2 * 10));
+                      if (springMenuSel >= _spPageItemCount2) {
+                        setSpringMode("menu");
+                        setSpringMenuSel(0);
+                        setSpringPage(0);
+                        return;
+                      }
+                      const _spAbsIdx = _spCurPg2 * 10 + springMenuSel;
                       if (_spInv2[_spAbsIdx]) { springDoSoak(_spAbsIdx); setSpringPage(0); setSpringMenuSel(0); }
                       return;
                     }

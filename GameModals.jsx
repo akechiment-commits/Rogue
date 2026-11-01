@@ -2742,8 +2742,10 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
         const _spInv = p.inventory;
         const _spLen = _spInv.length;
         const _spTotalPg = Math.max(1, Math.ceil(_spLen / 10));
-        const _spCurPg = Math.min(page, _spTotalPg - 1);
+        const _spCurPg = Math.max(0, Math.min(Number.isFinite(page) ? page : 0, _spTotalPg - 1));
         const _spPageItems = _spInv.slice(_spCurPg * 10, (_spCurPg + 1) * 10);
+        const _spSelectionCount = _spPageItems.length + 1;
+        const _spBackSelected = menuSel === _spPageItems.length;
         return (
           <div style={{ maxHeight: mobile ? "50dvh" : "60%", overflowY: "auto" }}>
             <div style={{ color: "#8ac", fontSize: 13, marginBottom: 4 }}>
@@ -2787,11 +2789,11 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
             <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
               ↑↓:選択　←→:ページ　Z:決定　X:戻る
             </div>
-            {mobile && _spPageItems.length > 0 && (
+            {mobile && (
               <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginTop:6 }}>
-                <button onClick={() => setMenuSel(s => Math.max(0, s - 1))}
+                <button onClick={() => setMenuSel(s => (s - 1 + _spSelectionCount) % _spSelectionCount)}
                   style={{ background:"#0a1a2a", color:"#4af", border:"1px solid #2a5a7a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▲</button>
-                <button onClick={() => setMenuSel(s => Math.min(_spPageItems.length - 1, s + 1))}
+                <button onClick={() => setMenuSel(s => (s + 1) % _spSelectionCount)}
                   style={{ background:"#0a1a2a", color:"#4af", border:"1px solid #2a5a7a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▼</button>
                 {_spTotalPg > 1 && <>
                   <button onClick={() => { setPage(pg => (pg - 1 + _spTotalPg) % _spTotalPg); setMenuSel(0); }}
@@ -2799,15 +2801,19 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
                   <button onClick={() => { setPage(pg => (pg + 1) % _spTotalPg); setMenuSel(0); }}
                     style={{ background:"#0a1a2a", color:"#4af", border:"1px solid #2a5a7a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▶</button>
                 </>}
-                <button onClick={() => { const _ai = _spCurPg * 10 + menuSel; if (_spInv[_ai]) { springDoSoak(_ai); setPage(0); setMenuSel(0); } }}
+                <button onClick={() => {
+                  if (menuSel >= _spPageItems.length) { setMode("menu"); setMenuSel(0); setPage(0); return; }
+                  const _ai = _spCurPg * 10 + menuSel;
+                  if (_spInv[_ai]) { springDoSoak(_ai); setPage(0); setMenuSel(0); }
+                }}
                   style={{ background:"#1a4a2a", color:"#6f6", border:"1px solid #4a8a4a", borderRadius:4, padding:"5px 14px", cursor:"pointer", touchAction:"manipulation", fontWeight:"bold" }}>決定</button>
                 <button onClick={() => { setMode("menu"); setMenuSel(0); setPage(0); }}
-                  style={{ background:"#222", color:"#888", border:"1px solid #444", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>戻る</button>
+                  style={{ background:_spBackSelected ? "#3a3a4a" : "#222", color:_spBackSelected ? "#fff" : "#888", border:"1px solid #444", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>戻る</button>
               </div>
             )}
             {!mobile && (
               <button onClick={() => { setMode("menu"); setMenuSel(0); setPage(0); }}
-                style={{ marginTop: 4, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
+                style={{ marginTop: 4, padding: "5px 16px", background: _spBackSelected ? "#3a3a4a" : "#222", color: _spBackSelected ? "#fff" : "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
                 戻る
               </button>
             )}

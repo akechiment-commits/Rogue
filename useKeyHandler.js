@@ -1051,6 +1051,7 @@ export function useKeyHandler({
           if (springMode === "soak") {
             setSpringMode("menu");
             setSpringMenuSel(0);
+            setSpringPage(0);
           } else {
             setSpringMode(null);
             setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
@@ -1089,16 +1090,25 @@ export function useKeyHandler({
           const inv = sr.current?.player?.inventory || [];
           const ilen = inv.length;
           const _spTotalPg = Math.max(1, Math.ceil(ilen / 10));
+          const _spCurPg = Math.max(0, Math.min(springPage, _spTotalPg - 1));
+          const _spPageItemCount = Math.max(0, Math.min(10, ilen - _spCurPg * 10));
+          const _spSelectionCount = _spPageItemCount + 1;
           const isLeft = isKeyLeft(e);
           const isRight = isKeyRight(e);
-          if ((isUp || isDown) && ilen > 0) {
-            setSpringMenuSel((s) => (s + (isDown ? 1 : -1) + 10) % 10);
+          if (isUp || isDown) {
+            setSpringMenuSel((s) => ((s % _spSelectionCount) + (isDown ? 1 : -1) + _spSelectionCount) % _spSelectionCount);
             return;
           }
           if (isLeft) { setSpringPage((pg) => (pg - 1 + _spTotalPg) % _spTotalPg); setSpringMenuSel(0); return; }
           if (isRight) { setSpringPage((pg) => (pg + 1) % _spTotalPg); setSpringMenuSel(0); return; }
-          if ((k === "enter" || k === "z") && ilen > 0) {
-            const _spAbsIdx = springPage * 10 + springMenuSel;
+          if (k === "enter" || k === "z") {
+            if (springMenuSel >= _spPageItemCount) {
+              setSpringMode("menu");
+              setSpringMenuSel(0);
+              setSpringPage(0);
+              return;
+            }
+            const _spAbsIdx = _spCurPg * 10 + springMenuSel;
             if (inv[_spAbsIdx]) { springDoSoak(_spAbsIdx); setSpringPage(0); setSpringMenuSel(0); }
             return;
           }
