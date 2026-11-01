@@ -17,6 +17,41 @@ function advance(player, messages = [], overrides = {}) {
 }
 
 describe("advancePlayerUpkeep", () => {
+  it("蜂蜜の2回復を空腹の1ダメージより先に適用する", () => {
+    const player = makePlayer({ hp: 1, hunger: 0, honeyRegenTurns: 1 });
+    let hpBeforeStarvation;
+    const messages = advance(player, [], { onHungerDamageStarted: () => { hpBeforeStarvation = player.hp; } });
+    expect(hpBeforeStarvation).toBe(3);
+    expect(player.hp).toBe(2);
+    advanceConsumableBuffTimers(player, messages);
+    expect(player.hp).toBe(2);
+    expect(player.honeyRegenTurns).toBe(0);
+  });
+
+  it("満タンでは蜂蜜で上限を超えず、その後に空腹ダメージを受ける", () => {
+    const player = makePlayer({ hp: 100, hunger: 0, honeyRegenTurns: 5 });
+    advance(player);
+    expect(player.hp).toBe(99);
+  });
+
+  it("後半の強化タイマーでは死亡したプレイヤーを蜂蜜で復活させない", () => {
+    const player = makePlayer({ hp: 11, honeyRegenTurns: 5 });
+    advance(player);
+    expect(player.hp).toBe(14); // 蜂蜜+2、通常の自然回復+1。
+    player.hp -= 15; // その後に受ける地形ダメージなど。
+    advanceConsumableBuffTimers(player, []);
+    expect(player.hp).toBe(-1);
+  });
+
+  it("蜂蜜は毒中・すでにHP0の時には回復しない", () => {
+    for (const player of [makePlayer({ hp: 90, poisoned: true, honeyRegenTurns: 1 }),
+      makePlayer({ hp: 0, honeyRegenTurns: 1 })]) {
+      const before = player.hp;
+      advance(player);
+      expect(player.hp).toBe(before);
+    }
+  });
+
   it("ターンを進め、空腹度を規定量だけ減らして自然回復する", () => {
     const player = makePlayer();
     advance(player);
@@ -331,11 +366,11 @@ describe("advanceCoreStatusTimers", () => {
 });
 
 describe("advanceConsumableBuffTimers", () => {
-  it("食料由来の強化を減らし、蜂蜜は回復して終了を通知する", () => {
+  it("食料由来の強化を減らし、蜂蜜は追加回復せず終了を通知する", () => {
     const player = makePlayer({ hp: 90, spicyAtkTurns: 1, curryFireResTurns: 1, mayonnaiseWaterProofTurns: 1, honeyRegenTurns: 1 });
     const messages = [];
     advanceConsumableBuffTimers(player, messages);
-    expect(player.hp).toBe(92);
+    expect(player.hp).toBe(90);
     expect(messages).toEqual(["辛さによるダメージブーストが切れた！", "カレーの炎耐性が切れた！", "マヨネーズの耐水効果が切れた！", "蜂蜜の自然回復が切れた！"]);
   });
 

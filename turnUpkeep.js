@@ -41,6 +41,12 @@ export function advancePlayerUpkeep(player, messages, {
     }
   }
 
+  /* 蜂蜜回復は空腹ダメージより先。HP0以下や毒状態からは回復させない。 */
+  if ((player.honeyRegenTurns || 0) > 0 && player.hp > 0 && !player.poisoned) {
+    const heal = Math.min(2, player.maxHp - player.hp);
+    if (heal > 0) player.hp += heal;
+  }
+
   if (player.hunger === 0) {
     player.deathCause = "空腹により";
     if (!player._hungerDmgStarted) {
@@ -341,10 +347,6 @@ export function advanceConsumableBuffTimers(player, messages) {
     if (player.dopingAftereffectTurns <= 0) messages.push("ドーピングの副作用が切れた！攻撃力と防御力が戻った！");
   }
   if ((player.honeyRegenTurns || 0) > 0) {
-    if (!player.poisoned) {
-      const heal = Math.min(2, player.maxHp - player.hp);
-      if (heal > 0) player.hp += heal;
-    }
     player.honeyRegenTurns--;
     if (player.honeyRegenTurns <= 0) messages.push("蜂蜜の自然回復が切れた！");
   }
