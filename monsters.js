@@ -5774,35 +5774,6 @@ function flockDistance(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
 }
 
-function flockHasOffensiveSpellInRange(monster, dungeon, player, opts) {
-  const isRevenge = monster.baseKind === "boss_flock_revenge";
-  const dx = player.x - monster.x, dy = player.y - monster.y;
-  const distance = flockDistance(monster.x, monster.y, player.x, player.y);
-  const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
-  const playerHidden = (player.potConfinedTurns || 0) > 0 || (player.invisibleTurns || 0) > 0;
-  const canSeePlayer = !!dungeon.visible?.[monster.y]?.[monster.x] && !playerHidden &&
-    hasLOS(dungeon.map, monster.x, monster.y, player.x, player.y);
-  const playerRoom = findRoom(dungeon.rooms, player.x, player.y);
-  const monsterRoom = findRoom(dungeon.rooms, monster.x, monster.y);
-  const sameRoom = !!playerRoom && !!monsterRoom && playerRoom.x === monsterRoom.x && playerRoom.y === monsterRoom.y;
-  const playerOnBlessedSanctuary = !inMagicSealRoom(player.x, player.y, dungeon) &&
-    dungeon.pentacles?.some((pentacle) => pentacle.kind === "sanctuary" && pentacle.blessed &&
-      pentacle.x === player.x && pentacle.y === player.y);
-  const canUseMagic = !!opts.monsterWandFn && !monster.sealed && !isAttackSealed(monster) &&
-    !inMagicSealRoom(monster.x, monster.y, dungeon) && !playerOnBlessedSanctuary;
-  if (!canSeePlayer || !canUseMagic) return false;
-  const effects = isRevenge ? FLOCK_REVENGE_ATTACK_EFFECTS : FLOCK_MAGIC_EFFECTS;
-  const hasAvailableAttack = effects.some((effect) => monster.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10));
-  const minRange = isRevenge ? 2 : 3;
-  const ordinaryRange = inLine && distance >= minRange && distance <= 10 && hasAvailableAttack;
-  const roomRange = isRevenge && sameRoom && (
-    monster.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic ||
-    monster.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster
-  );
-  const corneredRange = inLine && distance >= 1 && distance <= 3 && hasAvailableAttack;
-  return ordinaryRange || roomRange || corneredRange;
-}
-
 function moveFlockToFiringLine(monster, dungeon, player) {
   const flockFloat = monEffectiveFloat(monster) &&
     (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, monster.x, monster.y));
@@ -5994,21 +5965,61 @@ function hasFlockPurgeableStatus(monster) {
 }
 
 function purifyFlockStatus(monster, messages) {
-  const hadStatus = hasFlockPurgeableStatus(monster);
-  if (!hadStatus) return false;
-  if (monster.poisonHalfAtk) monster.atk = monster.poisonOrigAtk ?? monster.atk;
-  if (monster._preSlowSpeed !== undefined) monster.speed = monster._preSlowSpeed;
-  if ((monster.debuffAtkHalfTurns || 0) > 0 && monster._debuffOrigAtk !== undefined) monster.atk = monster._debuffOrigAtk;
-  if ((monster.debuffDefHalfTurns || 0) > 0 && monster._debuffOrigDef !== undefined) monster.def = monster._debuffOrigDef;
-  for (const key of [
-    "poisonedTurns", "poisonHalfAtk", "poisonOrigAtk", "slowTurns", "bossSlowTurns", "_preSlowSpeed",
-    "sporePoisonKillerId", "sporePoisonKillerName",
-    "confusedTurns", "drunkenTurns", "darknessTurns", "darkDir", "fleeingTurns",
-    "blind", "blindTurns", "bewitched", "bewitchedTurns", "immobileTurns", "pacifistTurns",
-    "attackSealTurns", "oilyTurns", "soakedTurns", "caswackTurns",
-    "debuffAtkHalfTurns", "debuffDefHalfTurns", "_debuffOrigAtk", "_debuffOrigDef",
-  ]) delete monster[key];
-  messages.push(`${monster.name}は浄化の魔法で行動不能以外の状態異常を解除した！`);
+  const cures = [
+    {
+      label: "毒",
+      active: () => (monster.poisonedTurns || 0) > 0 || monster.poisoned || monster.poisonHalfAtk,
+      clear: () => {
+        if (monster.poisonHalfAtk) monster.atk = monster.poisonOrigAtk ?? monster.atk;
+        for (const key of ["poisoned", "poisonedTurns", "poisonHalfAtk", "poisonOrigAtk", "sporePoisonKillerId", "sporePoisonKillerName"]) delete monster[key];
+      },
+    },
+    {
+      label: "鈍足",
+      active: () => (monster.slowTurns || 0) > 0 || (monster.bossSlowTurns || 0) > 0 || monster._preSlowSpeed !== undefined,
+      clear: () => {
+        if (monster._preSlowSpeed !== undefined) monster.speed = monster._preSlowSpeed;
+        for (const key of ["slowTurns", "bossSlowTurns", "_preSlowSpeed"]) delete monster[key];
+      },
+    },
+    { label: "混乱", active: () => (monster.confusedTurns || 0) > 0, clear: () => { delete monster.confusedTurns; } },
+    { label: "酩酊", active: () => (monster.drunkenTurns || 0) > 0, clear: () => { delete monster.drunkenTurns; } },
+    { label: "暗闇", active: () => (monster.darknessTurns || 0) > 0, clear: () => { delete monster.darknessTurns; delete monster.darkDir; } },
+    {
+      label: "幻惑",
+      active: () => (monster.fleeingTurns || 0) > 0 || monster.bewitched || (monster.bewitchedTurns || 0) > 0,
+      clear: () => { delete monster.fleeingTurns; delete monster.bewitched; delete monster.bewitchedTurns; },
+    },
+    { label: "盲目", active: () => monster.blind || (monster.blindTurns || 0) > 0, clear: () => { delete monster.blind; delete monster.blindTurns; } },
+    { label: "移動封じ", active: () => (monster.immobileTurns || 0) > 0, clear: () => { delete monster.immobileTurns; } },
+    { label: "平和主義", active: () => (monster.pacifistTurns || 0) > 0, clear: () => { delete monster.pacifistTurns; } },
+    { label: "攻撃封印", active: () => (monster.attackSealTurns || 0) > 0, clear: () => { delete monster.attackSealTurns; } },
+    { label: "油まみれ", active: () => (monster.oilyTurns || 0) > 0, clear: () => { delete monster.oilyTurns; } },
+    { label: "ずぶ濡れ", active: () => (monster.soakedTurns || 0) > 0, clear: () => { delete monster.soakedTurns; } },
+    { label: "カスワック", active: () => (monster.caswackTurns || 0) > 0, clear: () => { delete monster.caswackTurns; } },
+    {
+      label: "攻撃力低下",
+      active: () => (monster.debuffAtkHalfTurns || 0) > 0,
+      clear: () => {
+        if (monster._debuffOrigAtk !== undefined) monster.atk = monster._debuffOrigAtk;
+        delete monster.debuffAtkHalfTurns;
+        delete monster._debuffOrigAtk;
+      },
+    },
+    {
+      label: "防御力低下",
+      active: () => (monster.debuffDefHalfTurns || 0) > 0,
+      clear: () => {
+        if (monster._debuffOrigDef !== undefined) monster.def = monster._debuffOrigDef;
+        delete monster.debuffDefHalfTurns;
+        delete monster._debuffOrigDef;
+      },
+    },
+  ];
+  const cure = cures.find((entry) => entry.active());
+  if (!cure) return false;
+  cure.clear();
+  messages.push(`${monster.name}は浄化の魔法で${cure.label}を1つ解除した！`);
   return true;
 }
 
@@ -6205,20 +6216,23 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   /* 逆襲のフロックは、毒の継続ダメージを受けてから行動可能な異常を浄化する。 */
-  const _flockHasSpellRangeWhileImmobile = _isFlockRevenge && (m.immobileTurns || 0) > 0 &&
-    flockHasOffensiveSpellInRange(m, dg, pl, opts);
-  if (_isFlockRevenge && !_attackOnly && !_flockHasSpellRangeWhileImmobile && hasFlockPurgeableStatus(m) &&
+  if (_isFlockRevenge && hasFlockPurgeableStatus(m) &&
       !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
       !!opts.monsterWandFn && !m.sealed &&
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
       ensureFlockMp(m) >= FLOCK_MAGIC_MP_COSTS.purify_magic) {
-    if (_moveOnly) {
+    if (_moveOnly && !_attackOnly) {
       m._flockEarlySpellPending = "purify_magic";
       m._rangedAttackThisTurn = true;
       return;
     }
-    m.turnAttacks++;
-    if (castFlockSpell(m, opts, 0, 0, "purify_magic", ml, { invoke: false })) purifyFlockStatus(m, ml);
+    if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      delete m._flockPendingSpell;
+      delete m._flockPendingCorneredSpell;
+      delete m._rangedAttackThisTurn;
+      m.turnAttacks++;
+      if (castFlockSpell(m, opts, 0, 0, "purify_magic", ml, { invoke: false })) purifyFlockStatus(m, ml);
+    }
     return;
   }
   /* 盲目状態（ボスのみターン経過で解除） */

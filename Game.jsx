@@ -1589,7 +1589,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
             if (blockLargeMonsterStatus(target, "poison", mlx)) return;
             startLargeMonsterStatusCooldown(target, "poison");
-            const turns = monsterStatusTurns("poison", { kind: "monster", target });
+            const turns = statusTurns("poison", { kind: "monster", target });
             target.poisonedTurns = (target.poisonedTurns || 0) + turns;
             mlx.push(`毒の魔法が${target.name}に命中！毒に侵された！(${turns}ターン)`);
           };
