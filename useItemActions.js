@@ -2,6 +2,7 @@ import { isStatusImmune, statusResultMessage, monsterStatusTurns, applyPlayerPar
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
+import { hasForcedTurn } from "./turnUpkeep.js";
 import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
@@ -141,6 +142,10 @@ function _applyRingHpBonus(p, it, wasFullHp) {
   adjustRingHp(p, ringHpBonus(it), wasFullHp);
 }
 
+function cannotActWithItems(player) {
+  return !player || player.hp <= 0 || hasForcedTurn(player);
+}
+
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
   setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
@@ -160,7 +165,7 @@ export function useItemActions({
     const { player: p, dungeon: dg } = sr.current;
     const it = p.inventory[idx];
     if (!it) return;
-    if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.petrifiedTurns || 0) > 0) return;
+    if (cannotActWithItems(p)) return;
     if (it.type === "food" && (Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)) {
       setMsgs((prev) => [...prev.slice(-80), "満腹度が限界を超えていて、食べられない！"]);
       return;
@@ -2275,6 +2280,7 @@ export function useItemActions({
   const doDropItem = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
+    if (cannotActWithItems(p)) return;
     const it = p.inventory[idx];
     if (!it) return;
     if (it.noDrop) {
@@ -2344,6 +2350,7 @@ export function useItemActions({
     setGs({ ...sr.current });
   }, [endTurn]);
   const doThrow = useCallback((idx) => {
+    if (cannotActWithItems(sr.current?.player)) return;
     const _it = sr.current?.player?.inventory[idx];
     if (_it?.noThrow) {
       setMsgs((prev) => [...prev.slice(-80), `${_it.name}は投げられない！`]);
@@ -2366,6 +2373,7 @@ export function useItemActions({
     setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
   }, []);
   const doShoot = useCallback((idx) => {
+    if (cannotActWithItems(sr.current?.player)) return;
     setShowInv(false);
     setSelIdx(null);
     setShowDesc(null);
@@ -2383,6 +2391,7 @@ export function useItemActions({
   }, []);
   const doWaveWand = useCallback((idx) => {
     if (!sr.current) return;
+    if (cannotActWithItems(sr.current.player)) return;
     const it = sr.current.player.inventory[idx];
     if (!it || it.type !== "wand") return;
     if (it.charges <= 0) {
@@ -2414,6 +2423,7 @@ export function useItemActions({
     (idx) => {
       if (!sr.current) return;
       const { player: p, dungeon: dg } = sr.current;
+      if (cannotActWithItems(p)) return;
       const it = p.inventory[idx];
       if (!it || it.type !== "wand") return;
       p.inventory.splice(idx, 1);
@@ -2471,6 +2481,7 @@ export function useItemActions({
   const doUseMarker = useCallback((idx, options = {}) => {
     if (!sr.current) return;
     const { player: p } = sr.current;
+    if (cannotActWithItems(p)) return;
     const it = p.inventory[idx];
     if (!it || it.type !== "marker") return;
     const autoSelect = !!options.autoSelect;
@@ -2534,6 +2545,7 @@ export function useItemActions({
   const doReadSpellbook = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
+    if (cannotActWithItems(p)) return;
     const it = p.inventory[idx];
     if (!it || it.type !== "spellbook") return;
     const ml = installPlayerHpMessageHook([], p);
@@ -2807,6 +2819,7 @@ export function useItemActions({
     (blankIdx, template, modeOverride = markerMode) => {
       if (!sr.current || !modeOverride) return;
       const { player: p } = sr.current;
+      if (cannotActWithItems(p)) return;
       const marker = p.inventory[modeOverride.markerIdx];
       const blank = p.inventory[blankIdx];
       if (!marker || marker.type !== "marker") { setMarkerMode(null); return; }
@@ -2894,6 +2907,7 @@ export function useItemActions({
       const activePutMode = putModeOverride || putMode;
       if (!sr.current || !activePutMode) return;
       const { player: p, dungeon: dg } = sr.current;
+      if (cannotActWithItems(p)) return;
       const pot = activePutMode.floorPot || p.inventory[activePutMode.potIdx];
       if (!pot || pot.type !== "pot") {
         setPutMode(null);
@@ -3102,6 +3116,7 @@ export function useItemActions({
     (idx) => {
       if (!sr.current) return;
       const { player: p, dungeon: dg } = sr.current;
+      if (cannotActWithItems(p)) return;
       const it = p.inventory[idx];
       if (!it || it.type !== "pot") return;
       p.inventory.splice(idx, 1);
@@ -3128,6 +3143,7 @@ export function useItemActions({
       if (!throwMode || !sr.current) return;
       const { idx, mode } = throwMode;
       const { player: p, dungeon: dg } = sr.current;
+      if (cannotActWithItems(p)) return;
       const _selectedProjectile = mode === "shoot_equipped" ? p.arrow : p.inventory[idx];
       if (_selectedProjectile?.rightStone) { dx = 1; dy = 0; }
       const ml = installPlayerHpMessageHook([], p);

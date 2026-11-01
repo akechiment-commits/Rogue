@@ -6282,6 +6282,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const _doFloorPickup = (item) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon, ml = [];
+    if (_p.hp <= 0 || hasForcedTurn(_p)) return;
     if (revealItemMimicAt(_dg, _p.x, _p.y, _p, ml, lu)) {
       endTurn(s, _p, ml);
       setMsgs(prev => [...prev.slice(-80), ...ml]);
@@ -6434,6 +6435,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const _doFloorItemAction = (item, actionFn, skipCapCheck = false, keepInInventory = false) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
+    if (_p.hp <= 0 || hasForcedTurn(_p)) return;
     /* 満杯チェック（action前に記録） */
     const _wasInvFull = _p.inventory.length >= (_p.maxInventory || 30);
     if (!skipCapCheck && _wasInvFull) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
@@ -6488,6 +6490,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const _doFloorWaveWand = (item) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
+    if (_p.hp <= 0 || hasForcedTurn(_p)) return;
     _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
@@ -6501,6 +6504,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const _doFloorPen = (item) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
+    if (_p.hp <= 0 || hasForcedTurn(_p)) return;
     if (item.charges <= 0) { setMsgs(prev => [...prev.slice(-80), "マーカーのインクが切れている..."]); return; }
     const blanks = _p.inventory.filter(b => (b.type === "scroll" && b.effect === "blank") || (b.type === "spellbook" && !b.spell));
     if (blanks.length === 0) { setMsgs(prev => [...prev.slice(-80), "白紙の巻物も白紙の魔法書もない。"]); return; }
@@ -6515,6 +6519,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doUseMarker(_idx);
   };
   const _doFloorOpenPutMode = (pot) => {
+    if (!sr.current || sr.current.player.hp <= 0 || hasForcedTurn(sr.current.player)) return;
     if (potOccupancyCount(pot) >= pot.capacity) {
       setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`]);
       return;
@@ -6528,6 +6533,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setMsgs(prev => [...prev.slice(-80), "入れるアイテムを選んでください。"]);
   };
   const _doFloorItemOpenPutMode = (item) => {
+    if (!sr.current || sr.current.player.hp <= 0 || hasForcedTurn(sr.current.player)) return;
     const s = sr.current;
     if (!s) return;
     const { player: _p, dungeon: _dg } = s;
@@ -6568,6 +6574,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const s = sr.current;
     if (!s) return;
     const { player: _p, dungeon: _dg } = s;
+    if (_p.hp <= 0 || hasForcedTurn(_p)) return;
     if (!item || !_dg.items?.includes(item) || item.x !== _p.x || item.y !== _p.y || item.noPickup ||
         floorEntryRole(item, _dg.items, _dg.traps) !== "item" || typeof item.type !== "string") {
       setPutMode(null);
