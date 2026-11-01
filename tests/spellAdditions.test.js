@@ -271,7 +271,7 @@ describe("追加魔法", () => {
     expect(messages).toContain("罠探知の魔法で罠が1個見えた！");
   });
 
-  it("浄化の魔法は有利な効果とMP回復禁止を残して状態異常を解除する", () => {
+  it("浄化の魔法は捕獲・有利な効果・MP回復禁止を残して状態異常を解除する", () => {
     const dungeon = makeEmptyDg();
     const player = makePlayer({
       atk: 9,
@@ -312,7 +312,7 @@ describe("追加魔法", () => {
       oilyTurns: 0,
       soakedTurns: 0,
       defSoftenedTurns: 0,
-      capturedBy: null,
+      capturedBy: "grabber-1",
       potConfinedTurns: 0,
       mpSealTurns: 1000,
       hasteTurns: 10,

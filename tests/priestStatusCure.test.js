@@ -21,6 +21,18 @@ function requestCure(player) {
 }
 
 describe("司祭による毒の後遺症の治療", () => {
+  it("捕獲だけでは治療を選べず課金せず、他の異常を治しても捕獲は残す", () => {
+    const player = makePlayer({ capturedBy: "captor", gold: 10000 });
+    expect(altarPriestServiceTargets([], "cure_status", player)).toEqual([]);
+    const noTreatment = requestCure(player);
+    expect(player.gold).toBe(10000);
+    expect(noTreatment.priest.priestServiceCount).toBeUndefined();
+    player.confusedTurns = 5;
+    requestCure(player);
+    expect(player.confusedTurns).toBe(0);
+    expect(player.capturedBy).toBe("captor");
+    expect(player.gold).toBeLessThan(10000);
+  });
   it("毒の攻撃力低下だけ残っていても選択でき、料金1回分で治す", () => {
     const player = makePlayer({ atk: 10, poisonAtkLoss: 2, poisoned: false, poisonedTurns: 0, gold: 10000 });
     expect(altarPriestServiceTargets([], "cure_status", player)).toHaveLength(1);

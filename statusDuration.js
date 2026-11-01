@@ -260,7 +260,7 @@ export function hasClearableStatusAilments(entity) {
     entity.sealedTurns, entity.sealed, entity.attackSealTurns, entity.darknessTurns, entity.blind,
     entity.blindTurns, entity.bewitchedTurns, entity.fleeingTurns,
     entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,
-    entity.capturedBy, entity.oilyTurns, entity.soakedTurns, entity.flameMantleTurns,
+    entity.oilyTurns, entity.soakedTurns, entity.flameMantleTurns,
     entity.defSoftenedTurns, entity.atkDebuffTurns, entity.defDebuffTurns,
     entity.pacifistTurns, entity.hypnosisPending, entity.caswackTurns,
   ].some((value) => typeof value === "boolean" ? value : (value || 0) > 0);
@@ -316,7 +316,8 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.knockdownTurns = 0;
   entity.potConfinedTurns = 0;
   entity.potConfinedPotId = null;
-  entity.capturedBy = null;
+  // 捕獲は物理的な拘束なので通常の治療では解除しない。死亡時の清算だけは従来どおり行う。
+  if (entity.hp <= 0) entity.capturedBy = null;
   entity.oilyTurns = 0;
   entity.soakedTurns = 0;
   entity.flameMantleTurns = 0;
