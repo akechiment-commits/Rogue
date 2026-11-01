@@ -480,7 +480,7 @@ export const ITEMS = [
   { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"B", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。\n部屋内で投げ物・矢・石が必ず外れる(魔法・炎は除く)。\n呪い：逆に必ず命中。", tile:42 },
   { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"C", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n呪い：全員鈍足。", tile:42 },
   { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n呪い：逆に5ダメージ。", tile:42 },
-  { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"A", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n呪い：同じ部屋での蘇りをすべて封じる（MP復活・復活魔方陣・骨からの復活など）。", tile:42 },
+  { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"A", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・繰り返し有効）。\n呪い：同じ部屋での蘇りをすべて封じる（MP復活・復活魔方陣・骨からの復活など）。", tile:42 },
   { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n呪い：ランダムワープになる。", tile:42 },
   { name:"短剣",             type:"weapon", atk:1,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
@@ -7066,7 +7066,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* 呪われた復活の魔方陣：同部屋の蘇りを封じる（復活魔方陣・骨残しなど） */
   const _reviveBlocked = isRevivalSuppressedAt(dg, mx, my);
-  /* 復活の魔方陣チェック：魔方陣上/同部屋内でHPゼロになったら全回復で復活（使い捨て） */
+  /* 復活の魔方陣チェック：魔方陣上/同部屋内でHPゼロになったら全回復。発動では消費しない。 */
   /* noRevive: 願いの敵全滅など、特別に復活させない撃破 */
   if (!noRevive && !_reviveBlocked && dg.pentacles?.length > 0) {
     const _revPc = dg.pentacles.find(pc => {

@@ -257,7 +257,10 @@ export function hasClearableStatusAilments(entity) {
 
 export function clearStatusEffectsOnHpZero(entity) {
   if (!entity) return false;
-  const hadStatus = hasClearableStatusAilments(entity);
+  const clearReverse = entity.hp <= 0 && (entity.reverseTurns || 0) > 0;
+  const hadStatus = hasClearableStatusAilments(entity) || clearReverse;
+  // 逆転は死亡時に解除し、復活のHP回復を反転させない。生存中の治療では維持する。
+  if (clearReverse) entity.reverseTurns = 0;
 
   /* プレイヤーの毒による攻撃力低下を戻す。 */
   if ((entity.poisonAtkLoss || 0) > 0) {
@@ -280,7 +283,7 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity._paralyzeHp = null;
   entity.paralyzeHits = 0;
   entity.frozenTurns = 0;
-    entity.petrifiedTurns = 0;
+  entity.petrifiedTurns = 0;
   entity.slowTurns = 0;
   entity.slowSkip = false;
   entity.confusedTurns = 0;

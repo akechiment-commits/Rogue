@@ -2486,7 +2486,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         clearStatusEffectsOnHpZero(p);
         /* 呪われた復活の魔方陣：同部屋の蘇りをすべて封じる */
         const _reviveBlocked = isRevivalSuppressedAt(st.dungeon, p.x, p.y);
-        /* 復活の魔方陣チェック：魔方陣上/同部屋（祝福）にいればHP全回復で復活（使い捨て） */
+        /* 復活の魔方陣チェック：魔方陣上/同部屋（祝福）にいればHP全回復。発動では消費しない。 */
         const _revPcP = _reviveBlocked ? null : st.dungeon.pentacles?.find(pc => {
           if (pc.kind !== "revival" || pc.cursed) return false;
           if (pc.x === p.x && pc.y === p.y) return true;
