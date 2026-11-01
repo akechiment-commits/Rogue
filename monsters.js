@@ -5084,29 +5084,36 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       const _chRange = _chLvl >= 3 ? 8 : _chLvl >= 2 ? 5 : 3;
       const _chStartX = m.x, _chStartY = m.y;
       let _chMoved = 0;
+      let _chHitPlayer = false, _chHitMonster = null, _chHitMonsterDmg = 0;
       for (let _ci = 0; _ci < _chRange; _ci++) {
         const _cnx = m.x + _chdx, _cny = m.y + _chdy;
         if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
         if (dg.map[_cny]?.[_cnx] === T.WALL || dg.map[_cny]?.[_cnx] === T.BWALL) break;
         if (_cnx === pl.x && _cny === pl.y) {
-          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          _chHitPlayer = true;
           break;
         }
         const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
         if (_chOther) {
-          const _chDmg = Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2));
-          _chOther.hp -= _chDmg;
-          ml.push(`${m.name}が突進して${_chOther.name}に当たった！${_chDmg}ダメージ！`);
-          if (_chOther.hp <= 0) {
-            killMonster(_chOther, dg, pl, ml, _luFn, false, m);
-          }
+          _chHitMonster = _chOther;
+          _chHitMonsterDmg = Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2));
           break;
         }
         m.x = _cnx; m.y = _cny; _chMoved++;
       }
+      /* 突進移動のログを、衝突・ダメージのログより先に出す。 */
       if (_chMoved > 0) {
         m._chargerMoveAnimation = { fromX: _chStartX, fromY: _chStartY, toX: m.x, toY: m.y };
         ml.push(`${m.name}が突進した！`);
+      }
+      if (_chHitPlayer) {
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      } else if (_chHitMonster) {
+        _chHitMonster.hp -= _chHitMonsterDmg;
+        ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_chHitMonsterDmg}ダメージ！`);
+        if (_chHitMonster.hp <= 0) {
+          killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
+        }
       }
       return true;
     }
@@ -8161,31 +8168,38 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _chdx = Math.sign(_chAdx), _chdy = Math.sign(_chAdy);
           const _chStartX = m.x, _chStartY = m.y;
           let _chMoved = 0;
+          let _chHitPlayer = false, _chHitMonster = null, _chHitMonsterDmg = 0;
           for (let _ci = 0; _ci < _chRange; _ci++) {
             const _cnx = m.x + _chdx, _cny = m.y + _chdy;
             if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
             if (dg.map[_cny][_cnx] === T.WALL || dg.map[_cny][_cnx] === T.BWALL) break;
             if (_cnx === pl.x && _cny === pl.y) {
-              if (!_plOnSanc) {
-                m.turnAttacks++;
-                monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
-              }
+              _chHitPlayer = true;
               break;
             }
             const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
             if (_chOther) {
-              m.turnAttacks++;
-              const _chDmg = Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
-              _chOther.hp -= _chDmg;
-              ml.push(`${m.name}が突進して${_chOther.name}に当たった！${_chDmg}ダメージ！`);
-              if (_chOther.hp <= 0) killMonster(_chOther, dg, pl, ml, _luFn, false, m);
+              _chHitMonster = _chOther;
+              _chHitMonsterDmg = Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
               break;
             }
             m.x = _cnx; m.y = _cny; _chMoved++;
           }
+          /* 突進移動のログを、衝突・ダメージのログより先に出す。 */
           if (_chMoved > 0) {
             m._chargerMoveAnimation = { fromX: _chStartX, fromY: _chStartY, toX: m.x, toY: m.y };
             ml.push(`${m.name}が突進した！`);
+          }
+          if (_chHitPlayer) {
+            if (!_plOnSanc) {
+              m.turnAttacks++;
+              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+            }
+          } else if (_chHitMonster) {
+            m.turnAttacks++;
+            _chHitMonster.hp -= _chHitMonsterDmg;
+            ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_chHitMonsterDmg}ダメージ！`);
+            if (_chHitMonster.hp <= 0) killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
           }
           return;
         }
