@@ -296,15 +296,20 @@ describe("fireTrapItem rockfall", () => {
     expect(ml.some(m => m.includes("スライムは落石の罠で倒れた！（経験値なし）"))).toBe(true);
   });
 
-  it("落石の罠で対象がいないとき石が罠の近くに落ちる", () => {
+  it.each([[0.5, "石"], [0.01, "右"]])("落石の罠で対象がいないとき乱数%sでは%sが罠の近くに落ちる", (randomValue, expectedName) => {
     const p = makePlayer({ x: 1, y: 1 });
     const trap = { effect: "rockfall", name: "落石の罠", x: 5, y: 5, id: "t1" };
     const dg = makeEmptyDg({ traps: [trap] });
     const ml = [];
-    fireTrapItem(trap, { name: "薬", type: "potion" }, dg, 5, 5, ml, new Set(["t1"]), p);
+    const random = vi.spyOn(Math, "random").mockReturnValue(randomValue);
+    try {
+      fireTrapItem(trap, { name: "薬", type: "potion" }, dg, 5, 5, ml, new Set(["t1"]), p);
+    } finally {
+      random.mockRestore();
+    }
     expect(dg.items).toHaveLength(1);
     const stone = dg.items[0];
-    expect(stone.name).toBe("石");
+    expect(stone.name).toBe(expectedName);
     expect(stone.x === 5 && stone.y === 5).toBe(false);
     expect(Math.abs(stone.x - 5) + Math.abs(stone.y - 5)).toBeLessThanOrEqual(2);
     expect(ml.some(m => m.includes("転がった"))).toBe(true);
