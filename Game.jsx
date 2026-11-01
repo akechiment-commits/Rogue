@@ -5337,7 +5337,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   killerMon,
                   bbFn: bigboxAddItem,
                   sourceIsPlayer: true,
-                  allowSynthAbsorption: false,
+                  allowAbsorption: false,
                   nameFn: _baNF,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
@@ -5364,7 +5364,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   killerMon,
                   bbFn: bigboxAddItem,
                   sourceIsPlayer: true,
-                  allowSynthAbsorption: false,
+                  allowAbsorption: false,
                   nameFn: _scDnFn,
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
