@@ -575,8 +575,11 @@ function applyRareMods(it, depth) {
     if (pr < 0.15 + depth * 0.02) it.plus = rng(2, 4);
     else if (pr < 0.40 + depth * 0.03) it.plus = 1;
     else it.plus = 0;
-    if (!it.ability && Math.random() < 0.20)
-      it.ability = pick(it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES).id;
+    if (!it.ability && Math.random() < 0.20) {
+      const abilities = (it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES)
+        .filter((ability) => !ability.specialOnly);
+      it.ability = pick(abilities).id;
+    }
     if (it.ability === "pickaxe" && it.durability == null) it.durability = rng(15, 45);
   }
   return it;
@@ -640,8 +643,11 @@ function applyStdMods(it, depth) {
     if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
     else if (pr < 0.20 + depth * 0.02) it.plus = 1;
     else it.plus = 0;
-    if (!it.ability && Math.random() < 0.10)
-      it.ability = pick(it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES).id;
+    if (!it.ability && Math.random() < 0.10) {
+      const abilities = (it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES)
+        .filter((ability) => !ability.specialOnly);
+      it.ability = pick(abilities).id;
+    }
     if (it.ability === "pickaxe" && it.durability == null) it.durability = rng(15, 45);
   }
   return it;
@@ -3730,8 +3736,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
         else if (pr < 0.2 + depth * 0.02) it.plus = 1;
         else it.plus = 0;
-        if (!it.ability && Math.random() < 0.10)
-          it.ability = pick(it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES).id;
+        if (!it.ability && Math.random() < 0.10) {
+          const abilities = (it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES)
+            .filter((ability) => !ability.specialOnly);
+          it.ability = pick(abilities).id;
+        }
         if (it.ability === "pickaxe" && it.durability == null) it.durability = rng(15, 45);
       }
       items.push(it);

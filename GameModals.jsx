@@ -1522,7 +1522,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     } else if (mode.mode === 'transform_item') {
       /* ===== 変換の巻物 ===== */
       const _p_tsf = sr.current.player;
-      const _newIt = makeScrollTransformedItem(_selIt, mode);
+      const _newIt = makeScrollTransformedItem(_selIt, mode, Math.random, { floor: _p_tsf.depth });
       if (_newIt) {
         const _rmIdx_tsf = _p_tsf.inventory.indexOf(_selIt);
         if (_rmIdx_tsf !== -1) {

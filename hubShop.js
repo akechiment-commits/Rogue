@@ -2,7 +2,7 @@ import { ITEMS, WANDS, POTS, RINGS } from "./items.js";
 
 /** 拠点ショップの抽選プール（金貨以外の全ITEMS + 杖・壺・指輪） */
 export const HUB_SHOP_POOL = [
-  ...ITEMS.filter((it) => it.type !== "gold"),
+  ...ITEMS.filter((it) => it.type !== "gold" && !Number.isFinite(it.minFloor)),
   ...WANDS,
   ...POTS,
   ...RINGS,

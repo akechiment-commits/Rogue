@@ -33,7 +33,7 @@ import {
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
-  WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
+  WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, weaponCriticalDamageMultiplier, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
@@ -48,7 +48,7 @@ import { finishTrapActivationTurn } from "./trapActivationTurn.js";
 import { statueAt, hitStatueWithAction, ensureAltarPriests } from "./fixtures.js";
 import { altarPriestServicePrice, altarPriestServiceTargets } from "./priestServiceRules.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
-import { trapPoolForDungeon } from "./dungeonContent.js";
+import { lootPoolForDungeon, trapPoolForDungeon } from "./dungeonContent.js";
 import { trackItem, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
@@ -3068,15 +3068,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (p.weapon?.blessed) d += 3;
               let crit = false;
               const _criticalRate = weaponCriticalRate(p.weapon, (p.sesameCritTurns || 0) > 0);
+              const _criticalDamageMultiplier = weaponCriticalDamageMultiplier(p.weapon);
               if (_criticalRate > 0 && Math.random() < _criticalRate) {
-                d *= 2;
+                d *= _criticalDamageMultiplier;
                 crit = true;
               }
               /* 背水の指輪：HP低下で会心率上昇（HP20%以下で必ず会心、75%以下から発動） */
               if (!crit && hasRingEffect(p, "desperation_ring")) {
                 const _despRatio = p.hp / p.maxHp;
                 const _despChance = _despRatio <= 0.2 ? 1.0 : Math.max(0, (0.75 - _despRatio) / 0.55);
-                if (Math.random() < _despChance) { d *= 2; crit = true; }
+                if (Math.random() < _despChance) { d *= _criticalDamageMultiplier; crit = true; }
               }
               /* 炎属性武器：fire弱点×(1.5/2)、油まみれ×(1.5/2)、火ダルマ×0.5 */
               const _hasFireElem2 = wab === "fire_elem_2" || p.weapon?.abilities?.some(a => a === "fire_elem_2");
@@ -4001,7 +4002,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             if (Math.random() < 0.20) {
               const gift = makeWanderingAdventurerGift(
                 dg.dungeonType || sr.current?.dungeonType || p.dungeonType || null,
-                Number.isFinite(p.depth) ? p.depth : 99,
+                Number.isFinite(p.depth) ? p.depth : 1,
               );
               if (gift) {
                 const giftName = itemDisplayName(gift, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -6124,7 +6125,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       { ...ARROW_T },
       { ...MAGIC_MARKER },
     ];
-    const template = pickAltarRewardTemplate(rewardPool, altar.offerCount);
+    const altarRewardPool = lootPoolForDungeon(rewardPool, null, Number.isFinite(p.depth) ? p.depth : 1);
+    const template = pickAltarRewardTemplate(altarRewardPool, altar.offerCount);
     const reward = template ? { ...template, id: uid() } : null;
     if (reward?.type === "pot") {
       reward.contents = [];
@@ -6365,7 +6367,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const ml = installPlayerHpMessageHook([], p2);
     p2.gold -= GACHA_COST;
     const prizeRarity = rollGachaRarity();
-    const prize = makeGachaPrize(prizeRarity);
+    const prize = makeGachaPrize(prizeRarity, p2.depth);
     placeItemAt(dg2, machine.x, machine.y, prize, ml, new Set(), 0, p2);
     const resultLabel = prize.rarity === "A" ? "大当たり！" : prize.rarity === "B" ? "当たり！" : "";
     ml.push(resultLabel

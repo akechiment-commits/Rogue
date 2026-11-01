@@ -413,7 +413,7 @@ export function useKeyHandler({
               (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
           } else if (identifyMode.mode === 'transform_item') {
             /* ===== 変換の巻物 ===== */
-            const _newIt = makeScrollTransformedItem(_selIt, identifyMode);
+            const _newIt = makeScrollTransformedItem(_selIt, identifyMode, Math.random, { floor: sr.current?.player?.depth });
             if (_newIt) {
               unequipPlayerItem(_p_id, _selIt);
               const _rmIdx_tsf = _p_id.inventory.indexOf(_selIt);

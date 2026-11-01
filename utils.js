@@ -905,10 +905,33 @@ export function playerHpEffectLabel(p, amount, intent = "damage") {
   return `${amount}${isDamage ? "ダメージ" : "回復"}`;
 }
 
+function setPendingPlayerHpEffectMessage(player, effect) {
+  if (Object.prototype.hasOwnProperty.call(player, "_lastHpEffectForMessage")) {
+    player._lastHpEffectForMessage = effect;
+  } else {
+    Object.defineProperty(player, "_lastHpEffectForMessage", {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: effect,
+    });
+  }
+}
+
 function rewritePlayerHpMessage(message, p, effect) {
-  if (!effect || (p?.reverseTurns || 0) <= 0) return message;
+  if (!effect) return message;
   const text = typeof message === "string" ? message : message?.text;
   if (typeof text !== "string") return message;
+  if (effect.nullified) {
+    let next = text
+      .replace(/\d+\/\d+ダメージ/, "ダメージを無効化")
+      .replace(/\d+ダメージ/, "ダメージを無効化")
+      .replace(/HPが1になった/g, "HPの減少を防いだ")
+      .replace(/即死した/g, "即死を防いだ");
+    next += `${next ? " " : ""}スリヴァーザの力で被ダメージを無効化した！`;
+    return typeof message === "string" ? next : { ...message, text: next };
+  }
+  if ((p?.reverseTurns || 0) <= 0) return message;
   const amount = String(effect.amount);
   let next = text;
   if (effect.intent === "damage") {
@@ -932,6 +955,12 @@ function rewritePlayerHpMessage(message, p, effect) {
   return typeof message === "string" ? next : { ...message, text: next };
 }
 
+function isNullifiedPlayerDamageMessage(message, effect) {
+  const text = typeof message === "string" ? message : message?.text;
+  if (typeof text !== "string") return false;
+  return text.includes(`${effect.amount}ダメージ`) || /HPが1になった|即死した|HP.{0,6}(?:減った|減少)/.test(text);
+}
+
 /**
  * プレイヤーHPの直後に追加されるログを、逆転状態の実際の効果に合わせる。
  * ゲーム側の各HP処理を個別に書き換えなくても、既存のログ形式を保ったまま補正できる。
@@ -949,9 +978,19 @@ export function installPlayerHpMessageHook(messages, p) {
       delete p._lastHpEffectForMessage;
       const guts = p._lastHpGutsTriggered;
       delete p._lastHpGutsTriggered;
+      let nullificationMessageHandled = false;
       const nextItems = effect
-        ? items.map((message) => rewritePlayerHpMessage(message, p, effect))
+        ? items.map((message) => {
+            if (effect.nullified) {
+              if (nullificationMessageHandled || !isNullifiedPlayerDamageMessage(message, effect)) return message;
+              nullificationMessageHandled = true;
+            }
+            return rewritePlayerHpMessage(message, p, effect);
+          })
         : [...items];
+      if (effect?.nullified && !nullificationMessageHandled) {
+        nextItems.push("スリヴァーザの力で被ダメージを無効化した！");
+      }
       if (guts) {
         nextItems.push("しかし根性でHP1で踏みとどまった！");
       }
@@ -1009,16 +1048,7 @@ export function installPlayerHpReverseHook(p) {
             amount: Math.abs(delta),
             intent: delta < 0 ? "damage" : "heal",
           };
-          if (Object.prototype.hasOwnProperty.call(this, "_lastHpEffectForMessage")) {
-            this._lastHpEffectForMessage = effect;
-          } else {
-            Object.defineProperty(this, "_lastHpEffectForMessage", {
-              configurable: true,
-              enumerable: false,
-              writable: true,
-              value: effect,
-            });
-          }
+          setPendingPlayerHpEffectMessage(this, effect);
           let next = raw - delta;
           /* ダメージ意図（delta<0）→回復：maxHp を超えない */
           if (delta < 0) next = Math.min(this.maxHp ?? next, next);
@@ -1031,8 +1061,17 @@ export function installPlayerHpReverseHook(p) {
           return;
         }
       }
-      /* HPを確定する前に被ダメージを軽減する。残HPでは通常ダメージと固定効果を判別しない。 */
       const fixedEffect = playerFixedHpEffects.has(this);
+      if (n < raw && !fixedEffect && hasAbility(this.armor, "damage_nullify_10") && Math.random() < 0.1) {
+        setPendingPlayerHpEffectMessage(this, {
+          amount: raw - n,
+          intent: "damage",
+          nullified: true,
+        });
+        delete this.deathCause;
+        return;
+      }
+      /* HPを確定する前に被ダメージを軽減する。残HPでは通常ダメージと固定効果を判別しない。 */
       const next = n < raw && !fixedEffect
         ? raw - reduceFinalPlayerDamage(this, raw - n)
         : n;

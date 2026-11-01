@@ -498,6 +498,7 @@ export const ITEMS = [
   { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"C", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"C", weight:4,  sellPrice:1500, desc:"雷属性の剣。雷弱点の敵に1.5倍ダメージ。",             tile:20 },
   { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"C", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
+  { name:"カラドボルグ", type:"weapon", atk:35, ability:"critical_damage_3x", rarity:"S", weight:0.05, minFloor:31, sellPrice:50000, desc:"伝説の剣。会心の一撃のダメージが3倍になる。", tile:20 },
   { name:"革の鎧",           type:"armor",  def:1,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
   { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"D", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。", tile:21 },
   { name:"プレートメイル",   type:"armor",  def:10,                      rarity:"B", weight:2,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
@@ -510,6 +511,7 @@ export const ITEMS = [
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
+  { name:"スリヴァーザ", type:"armor", def:35, ability:"damage_nullify_10", rarity:"S", weight:0.05, minFloor:31, sellPrice:50000, desc:"伝説の鎧。受けるダメージを10%の確率で完全に無効化する。", tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵が特技を常用する。\n呪い：魔法封印。投げると敵も封印。",                 tile:16 },
   { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むと50ターン魔法が封印される。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱。\n呪い：混乱解除＋必中。投げると敵の混乱解除。", tile:16 },
@@ -560,14 +562,14 @@ export const ITEMS = [
 ];
 
 /** 空き瓶で敵を倒した際に出現する、レア度重み付きの通常薬を1つ生成する。 */
-export function makeRandomPotion(randomFn = Math.random, dungeonType = null, floor = 99) {
+export function makeRandomPotion(randomFn = Math.random, dungeonType = null, floor = 1) {
   const potionPool = lootPoolForDungeon(ITEMS.filter((item) => item.type === "potion"), dungeonType, floor);
   const potion = pickLootFromPool(potionPool, "drop", randomFn) || WATER_BOTTLE;
   return { ...potion, id: uid() };
 }
 
 /** さすらいの冒険者が会話で渡す品。撃破時の確定ドロップと同じ抽選・階制限を使う。 */
-export function makeWanderingAdventurerGift(dungeonType = null, floor = 99) {
+export function makeWanderingAdventurerGift(dungeonType = null, floor = 1) {
   const pool = lootPoolForDungeon([
     ...ITEMS.filter(item => item.type !== "gold" && item.type !== "goal"),
     ...WANDS,
@@ -1163,11 +1165,15 @@ export function makeFreshDuplicate(source) {
 }
 
 /* 変換の巻物の候補・重み・新品初期化は全入力で共通にする。 */
-export function makeScrollTransformedItem(source, mode, random = Math.random) {
+export function makeScrollTransformedItem(source, mode, random = Math.random, options = {}) {
   const rarityUp = { E: "D", D: "C", C: "B", B: "A", A: "S", S: "S" };
   const rarityDown = { E: "E", D: "E", C: "D", B: "C", A: "B", S: "A" };
-  const fallback = ITEMS.filter(item => item.type !== "gold" &&
-    !(item.effect === source.effect && item.type === source.type));
+  const floor = Number.isFinite(options.floor) ? options.floor : 1;
+  const fallback = lootPoolForDungeon(
+    ITEMS.filter((item) => item.type !== "gold" && !(item.effect === source.effect && item.type === source.type)),
+    null,
+    floor,
+  );
   const targetRarity = mode.blessed ? rarityUp[source.rarity || "C"]
     : mode.cursed ? rarityDown[source.rarity || "C"] : null;
   const pool = targetRarity ? fallback.filter(item => item.rarity === targetRarity) : fallback;
@@ -1507,7 +1513,7 @@ export function resolveImprisonPotExit(p, dg, ml, luFn, nameFn = null) {
 function dungeonLootOptions(options = {}) {
   return {
     dungeonType: options?.dungeonType ?? null,
-    floor: Number.isFinite(options?.floor) ? options.floor : 99,
+    floor: Number.isFinite(options?.floor) ? options.floor : 1,
   };
 }
 
@@ -1585,13 +1591,13 @@ export function makeChangeBoxItem(context = "change", options = {}) {
 }
 
 /** ガチャマシーンの景品を生成する。指定レア度はそのレア度、未指定はD/Eから抽選する。 */
-export function makeGachaPrize(rarity = null) {
-  const all = [...ITEMS, ...WANDS, ...POTS, ...SPELLBOOKS, ...RINGS,
+export function makeGachaPrize(rarity = null, floor = 1) {
+  const all = lootPoolForDungeon([...ITEMS, ...WANDS, ...POTS, ...SPELLBOOKS, ...RINGS,
     EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, ARROW_T]
-    .filter((item) => item && item.type !== "gem" && item.type !== "goal" && item.effect !== "wish" && item.potEffect !== "wish_pot");
+    .filter((item) => item && item.type !== "gem" && item.type !== "goal" && item.effect !== "wish" && item.potEffect !== "wish_pot"), null, floor);
   const targetRarities = ["A", "B", "C", "D", "E"].includes(rarity) ? [rarity] : ["D", "E"];
   const pool = all.filter((item) => targetRarities.includes(item.rarity));
-  const tmpl = pickGachaTemplate(pool.length ? pool : all) || makeChangeBoxItem("floor");
+  const tmpl = pickGachaTemplate(pool.length ? pool : all) || makeChangeBoxItem("floor", { floor });
   if (tmpl.type === "food") return { ...genFood(), id: uid() };
   if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(tmpl.potEffect) };
   if (tmpl.type === "ring") return applyGeneratedRingPlus({ ...tmpl, id: uid() });
@@ -1608,7 +1614,7 @@ export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
   if (machine.shopId != null && p) {
     declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを壊した！泥棒扱いになった！" });
   }
-  const prize = makeGachaPrize();
+  const prize = makeGachaPrize(null, Number.isFinite(p?.depth) ? p.depth : 1);
   const ft = new Set();
   placeItemAt(dg, x, y, prize, ml, ft, 0, p);
   ml.push(`${machine.name || "ガチャマシーン"}が壊れた！${resolveItemName(prize, nameFn)}が1個落ちた！`);
@@ -1777,7 +1783,7 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
   if (bb.kind === "trash") {
     const loot = makeChangeBoxItem("change", {
       dungeonType: dg?.dungeonType ?? options?.player?.dungeonType ?? null,
-      floor: Number.isFinite(options?.player?.depth) ? options.player.depth : 99,
+      floor: Number.isFinite(options?.player?.depth) ? options.player.depth : 1,
     });
     placeItemAt(dg, x, y, loot, ml, ft, 0, options.player || null);
     ml.push(`ゴミ箱から${resolveItemName(loot, nameFn)}が飛び出した！`);
@@ -1839,7 +1845,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
       ml.push(`${_remaining}個のランダムなアイテムが飛び出した！`);
       const _lootOptions = {
         dungeonType: dg?.dungeonType ?? p?.dungeonType ?? null,
-        floor: Number.isFinite(p?.depth) ? p.depth : 99,
+        floor: Number.isFinite(p?.depth) ? p.depth : 1,
       };
       const _greedPool = dungeonLootPool(ITEMS, _lootOptions);
       for (let i = 0; i < _remaining; i++) {
@@ -2060,6 +2066,10 @@ export function weaponCriticalRate(weapon, sesameActive = false) {
   return Math.min(1, criticalKinds * 0.25 + sesameBonus);
 }
 
+export function weaponCriticalDamageMultiplier(weapon) {
+  return hasAbility(weapon, "critical_damage_3x") ? 3 : 2;
+}
+
 export const WEAPON_ABILITIES = [
   { id:"reach",         name:"長柄",      desc:"2マス先の敵まで攻撃できる" },
   { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・にじりヘビ)に1.5倍ダメージ" },
@@ -2075,6 +2085,7 @@ export const WEAPON_ABILITIES = [
   { id:"critical_oni_club",    name:"会心",    desc:"会心の一撃が出やすくなる" },
   { id:"critical_war_god_axe", name:"会心",    desc:"会心の一撃が出やすくなる" },
   { id:"critical_cat_claw",    name:"会心",    desc:"会心の一撃が出やすくなる" },
+  { id:"critical_damage_3x",  name:"会心強化", desc:"会心の一撃のダメージが3倍になる", specialOnly:true },
   { id:"oil_proof",       name:"油膜",      desc:"錆・劣化を3回防ぐ。防ぐたび残り回数が減り、0回で能力が消える" },
   { id:"no_degrade",    name:"不錆",      desc:"錆の罠や泉に落ちても＋値が下がらない" },
   { id:"pickaxe",       name:"穴掘り",    desc:"装備して壁に体当たりすると壁を掘れる（耐久制）" },
@@ -2125,6 +2136,7 @@ export const ARMOR_ABILITIES = [
   { id:"water_proof",      name:"耐水",     desc:"水鉄砲の所持品被害とずぶ濡れを無効化する" },
   /* 特殊合成専用（錬成では出ない） */
   { id:"dmg_reduce",       name:"被ダメ軽減", desc:"最終的な被ダメージが1割減少する", specialOnly:true },
+  { id:"damage_nullify_10", name:"完全無効化", desc:"あらゆる被ダメージを10%の確率で無効化する", specialOnly:true },
   /* 呪い専用デメリット能力 */
   { id:"frail",            name:"脆弱",     desc:"近接攻撃を受けた時、ダメージが+3増加する",         curseOnly:true },
   { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
@@ -3691,7 +3703,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       const _stm = monsterAt(dg, tx, ty);
       if (_stm) {
         /* 敵の一般ドロップと同系統の抽選 */
-        const _stPool = ITEMS.filter((i) => i.type !== "gold");
+        const _stPool = lootPoolForDungeon(
+          ITEMS.filter((i) => i.type !== "gold"),
+          dg?.dungeonType ?? null,
+          Number.isFinite(p?.depth) ? p.depth : 1,
+        );
         const _stTmpl = pickLootFromPool(_stPool, "drop") || pick(_stPool);
         const _stNewItem = { ..._stTmpl, id: uid() };
         const _stFtm = new Set([...(ft || [])]);
@@ -4464,7 +4480,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
       const _bottleDrop = makeRandomPotion(
         Math.random,
         dg?.dungeonType ?? p?.dungeonType ?? null,
-        Number.isFinite(p?.depth) ? p.depth : 99,
+        Number.isFinite(p?.depth) ? p.depth : 1,
       );
       const _bottleFt = new Set();
       placeItemAt(dg, mon.x, mon.y, _bottleDrop, ml, _bottleFt, 0, p);
@@ -6596,7 +6612,8 @@ const BOSS_RANDOM_FOOD_TEMPLATE = Object.freeze({
   rarity: "C",
   weight: 4,
 });
-function isBossRewardTemplate(item, includeEquipment = false) {
+function isBossRewardTemplate(item, includeEquipment = false, floor = 1) {
+  if (Number.isFinite(item?.minFloor) && (!Number.isFinite(floor) ? 1 : floor) < item.minFloor) return false;
   const allowedType = BOSS_RANDOM_REWARD_TYPES.has(item?.type) ||
     (includeEquipment && ["weapon", "armor"].includes(item?.type));
   if (!allowedType || !isRarityAtLeast(item, "C")) return false;
@@ -6621,20 +6638,20 @@ function bossRewardCatalogs() {
   };
 }
 
-function bossRandomRewardPool() {
+function bossRandomRewardPool(floor = 1) {
   return [
     ...ITEMS,
     ...WANDS,
     ...POTS,
     ...RINGS,
     ...SPELLBOOKS,
-  ].filter((item) => isBossRewardTemplate(item)).concat(BOSS_RANDOM_FOOD_TEMPLATE);
+  ].filter((item) => isBossRewardTemplate(item, false, floor)).concat(BOSS_RANDOM_FOOD_TEMPLATE);
 }
 
-function bossUniqueDropTemplate(monster) {
+function bossUniqueDropTemplate(monster, floor = 1) {
   const rule = BOSS_UNIQUE_DROP_RULES[monster?.baseKind];
   if (!rule || rule.type === "food") return null;
-  const candidates = (bossRewardCatalogs()[rule.type] || []).filter((item) => isBossRewardTemplate(item, true));
+  const candidates = (bossRewardCatalogs()[rule.type] || []).filter((item) => isBossRewardTemplate(item, true, floor));
   return pickLootFromPool(candidates, "drop") || null;
 }
 
@@ -6661,9 +6678,8 @@ export function monsterDrop(m, dg, ml, p = null) {
     return;
   }
   const _dropDungeonType = dg?.dungeonType ?? p?.dungeonType ?? null;
-  /* p.depth は1始まり。テストや特殊呼び出しで階が不明な場合は、
-     初心者・中級者の全階共通の禁止対象だけを適用する。 */
-  const _dropFloor = Number.isFinite(p?.depth) ? p.depth : 99;
+  /* p.depth は1始まり。階が不明な呼び出しでは1階として扱い、後半解禁品を先行させない。 */
+  const _dropFloor = Number.isFinite(p?.depth) ? p.depth : 1;
   const _dropPool = (pool) => lootPoolForDungeon(pool, _dropDungeonType, _dropFloor);
   const _pickDrop = (pool) => pickLootFromPool(_dropPool(pool), "drop");
   /* 遺物の番人：ボス特性は維持し、戦利品だけ専用の通常枠に置き換える。 */
@@ -6697,10 +6713,14 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _gv = _goldBase + rng(0, 100 * _tier);
     placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 22, id: uid() }, ml, _ft, 0, p);
     /* どの階級でも、強化値付き装備を1つだけ保証する。 */
-    const _weaponPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity));
-    const _armorPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity));
+    const _gearAvailableAtFloor = (item) => !Number.isFinite(item.minFloor) || _dropFloor >= item.minFloor;
+    const _weaponPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity) && _gearAvailableAtFloor(i));
+    const _armorPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity) && _gearAvailableAtFloor(i));
     const _equipmentPool = [..._weaponPool, ..._armorPool];
-    const _equipment = pick(_equipmentPool.length ? _equipmentPool : ITEMS.filter(i => i.type === "weapon" || i.type === "armor"));
+    const _availableEquipment = _equipmentPool.length
+      ? _equipmentPool
+      : ITEMS.filter(i => (i.type === "weapon" || i.type === "armor") && _gearAvailableAtFloor(i));
+    const _equipment = pickLootFromPool(_availableEquipment, "drop");
     if (_equipment) {
       const _equipmentPlus = _tier + (_equipment.type === "weapon" ? 1 : 0);
       placeItemAt(dg, m.x, m.y, { ..._equipment, plus: _equipmentPlus, id: uid() }, ml, _ft, 0, p);
@@ -6708,7 +6728,7 @@ export function monsterDrop(m, dg, ml, p = null) {
 
     /* ボスごとの固有品。グウェンの固有品は毎回生成する食料。 */
     const _uniqueRule = BOSS_UNIQUE_DROP_RULES[m.baseKind];
-    const _uniqueTemplate = bossUniqueDropTemplate(m);
+    const _uniqueTemplate = bossUniqueDropTemplate(m, _dropFloor);
     const _uniqueDrop = _uniqueRule?.type === "food"
       ? makeBossRewardItem(BOSS_RANDOM_FOOD_TEMPLATE)
       : makeBossRewardItem(_uniqueTemplate);
@@ -6723,7 +6743,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     /* 強化壺・杖・指輪の階級固定をやめ、有益な候補から複数抽選する。 */
     const _excludedTemplates = new Set([_uniqueTemplate, _expandScroll].filter(Boolean));
     if (_uniqueRule?.type === "food") _excludedTemplates.add(BOSS_RANDOM_FOOD_TEMPLATE);
-    let _bonusPool = bossRandomRewardPool().filter(item => !_excludedTemplates.has(item));
+    let _bonusPool = bossRandomRewardPool(_dropFloor).filter(item => !_excludedTemplates.has(item));
     const _bonusMax = Math.min(BOSS_RANDOM_DROP_COUNT.max, 2 + Math.ceil(_tier / 2));
     const _bonusCount = rng(BOSS_RANDOM_DROP_COUNT.min, Math.max(BOSS_RANDOM_DROP_COUNT.min, _bonusMax));
     for (let _bi = 0; _bi < _bonusCount && _bonusPool.length > 0; _bi++) {

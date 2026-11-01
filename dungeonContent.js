@@ -184,6 +184,8 @@ export function bbAllowedInDungeon(box, dungeonType, floor) {
  */
 export function lootAllowedInDungeon(item, dungeonType, floor) {
   if (!item) return false;
+  const currentFloor = Number.isFinite(floor) ? floor : 1;
+  if (Number.isFinite(item.minFloor) && currentFloor < item.minFloor) return false;
   if (item.type === "gold" || item.type === "food") return true;
   if (dungeonType === "beginner") {
     const id = beginnerLootId(item);
@@ -215,6 +217,9 @@ export function bbPoolForDungeon(dungeonType, floor, pool = BB_TYPES) {
 
 export function lootPoolForDungeon(pool, dungeonType, floor) {
   if (!pool?.length) return pool || [];
-  const filtered = pool.filter((it) => lootAllowedInDungeon(it, dungeonType, floor));
-  return filtered.length ? filtered : pool.filter((it) => lootAllowedInDungeon(it, dungeonType, 99));
+  const currentFloor = Number.isFinite(floor) ? floor : 1;
+  /* Floor-gated items must not leak through the compatibility fallback. */
+  const floorEligible = pool.filter((it) => !Number.isFinite(it?.minFloor) || currentFloor >= it.minFloor);
+  const filtered = floorEligible.filter((it) => lootAllowedInDungeon(it, dungeonType, currentFloor));
+  return filtered.length ? filtered : floorEligible.filter((it) => lootAllowedInDungeon(it, dungeonType, 99));
 }
