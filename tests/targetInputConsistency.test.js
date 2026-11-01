@@ -11,7 +11,7 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { useGamepad } from "../useGamepad.js";
 import { BTN } from "../gamepadInput.js";
 import { soundEngine } from "../soundEngine.js";
-import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, BB_TYPES, generateBbFakeNames, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES } from "../items.js";
+import { ITEMS, WANDS, POTS, RINGS, MAGIC_MARKER, EXCALIBUR_T, BB_TYPES, generateBbFakeNames, generateFakeNames, getIdentKey, WEAPON_ABILITIES, ARMOR_ABILITIES, applyPotEffect, applyPotionToItem } from "../items.js";
 import { getDiscoveries, resetDiscoveries, trackItem } from "../DiscoveryTracker.js";
 import { itemDisplayName } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -82,6 +82,23 @@ function choose(input, source, action = "duplicate", modifiers = {}, nameState =
 
 const inputs = ["click", "tap", "keyboard", "controller", "mobileConfirm"];
 describe.each(inputs)("複製の新品生成: %s", input => {
+  it("食料の複製を味付け・薬液加工しても元へ効果が移らず、逆方向にも共有しない", () => {
+    const source = { type: "food", name: "カレー味のパン", value: 20, cooked: true,
+      potFlavors: ["curry"], potionEffects: ["heal"] };
+    const { target, copy } = choose(input, source);
+    applyPotEffect({ name: "ヨーグルトの壺", potEffect: "yogurt" }, copy, []);
+    applyPotionToItem("sleep", 0, copy, makeEmptyDg(), []);
+    expect(copy.potFlavors).toEqual(["curry", "yogurt"]);
+    expect(copy.potionEffects).toEqual(["heal", "sleep"]);
+    expect(target).toMatchObject({ name: source.name, value: 20, potFlavors: ["curry"], potionEffects: ["heal"] });
+    applyPotEffect({ name: "蜂蜜の壺", potEffect: "honey" }, target, []);
+    applyPotionToItem("confuse", 0, target, makeEmptyDg(), []);
+    expect(target.potFlavors).toEqual(["curry", "honey"]);
+    expect(target.potionEffects).toEqual(["heal", "confuse"]);
+    expect(copy.potFlavors).toEqual(["curry", "yogurt"]);
+    expect(copy.potionEffects).toEqual(["heal", "sleep"]);
+  });
+
   it("消耗した杖は新品の使用回数になり、元の杖は変更しない", () => {
     const source = WANDS.find(w => w.effect === "fire_wand");
     const { target, copy } = choose(input, { ...source, charges: 1, shopPrice: 600, _shopCharge: 600 });

@@ -1141,7 +1141,7 @@ export function makeFreshDuplicate(source) {
     GODBANE_SWORD_T, MAGIC_BANE_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
     GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T];
   const template = catalog.find(item => item.type === source.type && item.name === source.name);
-  const copy = { ...(template || source), id: uid() };
+  const copy = { ...structuredClone(template || source), id: uid() };
   for (const key of ["blessed", "cursed", "bcKnown", "fullIdent", "plus", "_encyclopediaTracked",
     "shopPrice", "_shopId", "_shopCharge", "_origCharges", "_origCount", "x", "y", "wallEmbedded"]) delete copy[key];
   if (template?.abilities) copy.abilities = [...template.abilities];
