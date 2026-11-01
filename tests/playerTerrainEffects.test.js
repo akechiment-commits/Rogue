@@ -16,6 +16,30 @@ function makeDungeon(map, overrides = {}) {
 }
 
 describe("advancePlayerTerrainEffects", () => {
+  it.each([T.WALL, T.WATER])("地形%sからの押し出しでは石像を避けて別の空き床を選ぶ", tile => {
+    const player = makePlayer({ wallWalkTurns: tile === T.WALL ? 1 : 0 });
+    const statue = { id: "statue", x: 4, y: 5 };
+    const dungeon = makeEmptyDg({ statues: [statue] });
+    dungeon.map = dungeon.map.map(row => row.map(() => T.WALL));
+    dungeon.map[5][5] = tile;
+    dungeon.map[5][4] = T.FLOOR;
+    dungeon.map[5][6] = T.FLOOR;
+    advancePlayerTerrainEffects(player, dungeon, []);
+    expect(player).toMatchObject({ x: 6, y: 5, hp: 100 });
+    expect(dungeon.statues).toEqual([statue]);
+  });
+
+  it.each([T.WALL, T.WATER])("地形%sの周囲が壁と石像だけなら重ならず元の場所でダメージを受ける", tile => {
+    const player = makePlayer({ wallWalkTurns: tile === T.WALL ? 1 : 0 });
+    const dungeon = makeEmptyDg({ statues: [{ id: "statue", x: 4, y: 5 }] });
+    dungeon.map = dungeon.map.map(row => row.map(() => T.WALL));
+    dungeon.map[5][5] = tile;
+    dungeon.map[5][4] = T.FLOOR;
+    advancePlayerTerrainEffects(player, dungeon, []);
+    expect(player).toMatchObject({ x: 5, y: 5, hp: 85 });
+    expect(dungeon.statues).toHaveLength(1);
+  });
+
   it.each([T.WALL, T.WATER])("地形%sからの押し出し先で既知の落とし穴が発動する", tile => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const player = makePlayer({ wallWalkTurns: tile === T.WALL ? 1 : 0 });

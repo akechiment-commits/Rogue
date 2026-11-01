@@ -2,6 +2,7 @@ import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { MH, MW, T } from "./utils.js";
 import { canPlayerWalkOnWater, hasWaterBreathRing, isPlayerFloating } from "./items.js";
 import { releaseInvalidCapture } from "./captureRules.js";
+import { statueAt } from "./fixtureQueries.js";
 
 const ADJACENT_DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
 
@@ -31,7 +32,7 @@ export function advancePlayerTerrainEffects(player, dungeon, messages, { fireTra
           const x = player.x + dx;
           const y = player.y + dy;
           if (x >= 0 && x < MW && y >= 0 && y < MH &&
-              !isWall(dungeon.map[y][x]) && !hasMonsterAt(dungeon, x, y)) {
+              !isWall(dungeon.map[y][x]) && !hasMonsterAt(dungeon, x, y) && !statueAt(dungeon, x, y)) {
             player.x = x;
             player.y = y;
             messages.push("壁の外に押し出された！");
@@ -78,7 +79,7 @@ export function advancePlayerTerrainEffects(player, dungeon, messages, { fireTra
         const x = player.x + dx;
         const y = player.y + dy;
         if (x >= 0 && x < MW && y >= 0 && y < MH &&
-            !isWall(dungeon.map[y][x]) && dungeon.map[y][x] !== T.WATER && !hasMonsterAt(dungeon, x, y)) {
+            !isWall(dungeon.map[y][x]) && dungeon.map[y][x] !== T.WATER && !hasMonsterAt(dungeon, x, y) && !statueAt(dungeon, x, y)) {
           player.x = x;
           player.y = y;
           messages.push("浮遊が解けて水から弾き出された！");
