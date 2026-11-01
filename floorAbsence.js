@@ -31,13 +31,13 @@ export function suspendFloor(dungeon, player, { stairs = false } = {}) {
 }
 
 function canPatrol(monster, dungeon) {
-  return monster.hp > 0 && !monster.waitDuringAbsence && !monster.dormant &&
+  return monster.hp > 0 && !monster.waitDuringAbsence && !monster.dormant && !monster.dormantHouse &&
     !monster.stationary && !monster.paralyzed && !monster.waterOnly &&
     !(monster.flightOnly && !monEffectiveMagicImmune(monster) && hasGravityPentacle(dungeon, monster.x, monster.y)) &&
     monster.subtype !== "grabber" && monster.baseKind !== "grabber" &&
     !(monster.subtype === "itemMimic" && monster.disguisedAsItem !== false) &&
     !(monster.type === "shopkeeper" && !isWanderingNpc(monster)) &&
-    !["sleepTurns", "frozenTurns", "immobileTurns", "knockdownTurns"].some(k => monster[k] > 0);
+    !["sleepTurns", "frozenTurns", "petrifiedTurns", "immobileTurns", "knockdownTurns"].some(k => monster[k] > 0);
 }
 
 function patrolDestination(monster, dungeon, occupied, blocked, player, distance, random) {

@@ -128,6 +128,8 @@ describe("不在フロアの巡回と復帰", () => {
 
   it.each([
     { dormant: true }, { sleepTurns: 10 }, { paralyzed: true }, { immobileTurns: 10 },
+    { frozenTurns: 5 }, { petrifiedTurns: 4 }, { knockdownTurns: 2 },
+    { isBoss: true, paralyzed: true, paralyzeTurns: 25 }, { dormantHouse: true, dormant: false },
     { stationary: true }, { subtype: "grabber" }, { waterOnly: true },
     { type: "shopkeeper" }, { subtype: "itemMimic" }, { hp: 0 },
   ])("行動不能・固定型の敵は動かない: %j", extra => {
@@ -136,6 +138,26 @@ describe("不在フロアの巡回と復帰", () => {
     player.actionTime += 480;
     resumeFloor(dungeon, player);
     expect([monster.x, monster.y]).toEqual([5, 5]);
+    expect(monster).toMatchObject(extra);
+  });
+
+  it("石化中の倍速敵は短い不在でも動かず、石化時間も減らない", () => {
+    const { monster, dungeon, player } = setup({ speed: 2, petrifiedTurns: 4 });
+    suspendFloor(dungeon, player);
+    player.actionTime += 24;
+    expect(resumeFloor(dungeon, player, { random: () => 0 })).toBe(0);
+    expect(monster).toMatchObject({ x: 5, y: 5, petrifiedTurns: 4 });
+  });
+
+  it.each([
+    { poisonedTurns: 5 }, { confusedTurns: 5 }, { darknessTurns: 5 },
+    { sealed: true }, { attackSealTurns: 5 }, { speed: 0.5 },
+  ])("移動可能な状態では不在巡回でき、状態時間は減らない: %j", extra => {
+    const { monster, dungeon, player } = setup(extra);
+    suspendFloor(dungeon, player);
+    player.actionTime += 480;
+    expect(resumeFloor(dungeon, player, { random: () => 0 })).toBe(1);
+    expect([monster.x, monster.y]).not.toEqual([5, 5]);
     expect(monster).toMatchObject(extra);
   });
 
