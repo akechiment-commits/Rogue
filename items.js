@@ -850,6 +850,7 @@ export function genFood() {
 
 /* ===== WANDS ===== */
 export const WANDS = [
+  { name:"ただの杖",       type:"wand", effect:"plain",     charges:5, rarity:"E", weight:12, sellPrice:50,   desc:"振っても何も起こらない杖。\n他の杖に合成して回数を補充できる。", tile:24 },
   { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:6, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
   { name:"雷の杖",         type:"wand", effect:"lightning", charges:6, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
   { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:4, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },

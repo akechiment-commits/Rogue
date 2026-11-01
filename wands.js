@@ -597,6 +597,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   /* any wand bolt hitting a monster weakens/clears its paralysis */
   return withParalysisHit(kind === "monster" ? target : null, ml, () => {
   switch (eff) {
+    case "plain": {
+      if (kind === "monster") {
+        ml.push(`${target.name}に光が当たったが、何も起こらなかった。`);
+      } else if (kind === "player") {
+        ml.push("光を浴びたが、何も起こらなかった。");
+      } else {
+        ml.push("何も起こらなかった。");
+      }
+      break;
+    }
     case "knockback": {
       const _blessed = blMult > 1, _cursed = blMult < 1;
       if (_cursed) {
@@ -2821,7 +2831,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     ? multiplyMagicDamage(amount, p?.weapon, monster, dg)
     : multiplyCursedMagicDamage(amount, monster, dg);
   const _defeat = monster => killMonster(monster, dg, p, ml, luFn, false, killerMon);
-  if (eff === "leap") { ml.push("杖が壊れたが何も起こらなかった。"); return; }
+  if (eff === "plain" || eff === "leap") { ml.push("杖が壊れたが何も起こらなかった。"); return; }
   if (eff === "dig") {
     if (blMult < 1) {
       /* 呪われた穴掘りの杖を壊した：周囲8方向を壊せる壁で囲む（敵がいたらダメージのみ） */
