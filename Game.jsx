@@ -27,7 +27,7 @@ import {
 } from "./monsters.js";
 import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
-  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  KATANA_T, MURAMASA_T, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
@@ -3118,6 +3118,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 壁の中の壁歩きモンスターへの攻撃：ダメージ半減 */
               const _atkInWall = attackMon.wallWalker && !attackMon.sealed && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
+              /* 妖刀村正：与ダメージ1.5倍 */
+              if (wabHas("muramasa")) d = Math.max(1, Math.floor(d * 1.5));
               /* 水晶スライム系：固定ダメージ以外は1ダメージ（近接は非固定扱い） */
               d = clampDmgFixed(attackMon, d, true);
               /* 平和の指輪：近接与ダメージを1に */
@@ -3161,6 +3163,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (_isBane ? (_baneMult >= 2 ? "上位特効！" : "特効！") : "") +
+                (wabHas("muramasa") ? "（妖刀1.5倍）" : "") +
                 (_hasFireElem && (monHasFlameMantle(attackMon) || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
                 (_hasFireElem && attackMon.fireImmune ? "炎無効！" : "") +
                 (_hasFireElem && !attackMon.fireImmune && monHasElementWeakness(attackMon, "fire") ? (_hasFireElem2 ? "炎弱点×2！" : "炎弱点×1.5！") : "") +
@@ -5705,6 +5708,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${_oldName}が聖なる光を放ち...エクスカリバーに変化した！${_curseNote}`);
+        } else if (it.type === "weapon" && it.name === "カタナ" && Math.random() < 0.05) {
+          const _oldPlus = it.plus || 0;
+          const _oldName = it.name;
+          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
+          Object.assign(it, { ...MURAMASA_T, id: it.id, plus: Math.max(0, _oldPlus) });
+          const _newAbs = [...new Set([..._oldAbs, MURAMASA_T.ability])];
+          it.abilities = _newAbs; it.ability = _newAbs[0];
+          ml.push(`${_oldName}が不気味な妖気を放ち...妖刀村正に変化した！${_curseNote}`);
         } else if (it.type === "weapon" && it.name === "短剣" && Math.random() < 0.05) {
           const _oldPlus = it.plus || 0;
           const _oldName = it.name;

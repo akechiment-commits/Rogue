@@ -890,8 +890,14 @@ export function clampDmgFixed(m, damage, isPhysical = false) {
  */
 export function reduceFinalPlayerDamage(p, dmg) {
   if (!p || !Number.isFinite(dmg) || dmg <= 0) return dmg;
-  if (!hasAbility(p.armor, "dmg_reduce")) return dmg;
-  return Math.max(1, Math.floor(dmg * 0.9));
+  let finalDmg = dmg;
+  if (hasAbility(p?.weapon, "muramasa")) {
+    finalDmg = Math.max(1, Math.floor(finalDmg * 1.5));
+  }
+  if (hasAbility(p?.armor, "dmg_reduce")) {
+    finalDmg = Math.max(1, Math.floor(finalDmg * 0.9));
+  }
+  return finalDmg;
 }
 
 /**

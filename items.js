@@ -486,6 +486,7 @@ export const ITEMS = [
   { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n呪い：ランダムワープになる。", tile:42 },
   { name:"短剣",             type:"weapon", atk:1,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
+  { name:"カタナ",           type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"鋭い切れ味を誇る東洋の刀。",       tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"C", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
   { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"B", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
   { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"B", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。", tile:20 },
@@ -631,6 +632,8 @@ export function recoveryScrollAmount({ blessed = false, cursed = false } = {}) {
   return cursed ? RECOVERY_SCROLL_HEAL : RECOVERY_SCROLL_HEAL * blessAmountMul(blessed);
 }
 
+export const KATANA_T       = { name:"カタナ",         type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"鋭い切れ味を誇る東洋の刀。",       tile:20 };
+export const MURAMASA_T     = { name:"妖刀村正",       type:"weapon", atk:12, ability:"muramasa", sellPrice:5000, desc:"敵への与ダメと受ける全ダメージが1.5倍になる妖刀。", tile:20 };
 export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:8, ability:"critical_cat_claw", sellPrice:3000, desc:"会心の一撃が出やすい武器。", tile:20 };
 export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
 /** カラペン系が押し付ける、置くことも投げることもできない敵専用アイテム */
@@ -639,13 +642,14 @@ export const CHARGED_FUZZBALL_T = {
   sellPrice:0, desc:"置くことも投げることもできない。箱や壺には入れられるが、床に落ちると消える。",
 };
 
-/** 盗み系：ロングソードは10%でソボロ助広に変化 */
-export function maybeLongswordToSoboro(item) {
-  if (item?.name === "ロングソード" && Math.random() < 0.10) {
+/** 盗み系：カタナは10%でソボロ助広に変化（ロングソードは変化しない） */
+export function maybeKatanaToSoboro(item) {
+  if (item?.name === "カタナ" && Math.random() < 0.10) {
     return { ...SOBURO_T, id: uid(), plus: item.plus || 0 };
   }
   return item;
 }
+export const maybeLongswordToSoboro = maybeKatanaToSoboro;
 
 /** 部屋内のランダムな床マス（盗みの罠などで使用） */
 export function pickRandomFloorInRooms(dg) {
@@ -2086,6 +2090,7 @@ export const WEAPON_ABILITIES = [
   { id:"critical_war_god_axe", name:"会心",    desc:"会心の一撃が出やすくなる" },
   { id:"critical_cat_claw",    name:"会心",    desc:"会心の一撃が出やすくなる" },
   { id:"critical_damage_3x",  name:"会心強化", desc:"会心の一撃のダメージが3倍になる", specialOnly:true },
+  { id:"muramasa",            name:"妖刀",     desc:"与ダメージ1.5倍、受けるあらゆるダメージも1.5倍になる", specialOnly:true },
   { id:"oil_proof",       name:"油膜",      desc:"錆・劣化を3回防ぐ。防ぐたび残り回数が減り、0回で能力が消える" },
   { id:"no_degrade",    name:"不錆",      desc:"錆の罠や泉に落ちても＋値が下がらない" },
   { id:"pickaxe",       name:"穴掘り",    desc:"装備して壁に体当たりすると壁を掘れる（耐久制）" },
@@ -3725,7 +3730,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           const _stFt = new Set([...(ft || [])]);
           if (trap.id != null) _stFt.add(trap.id);
           const _stPos = pickRandomFloorInRooms(dg) || { x: tx, y: ty };
-          const _stFinal = maybeLongswordToSoboro(_stItem);
+          const _stFinal = maybeKatanaToSoboro(_stItem);
           placeItemAt(dg, _stPos.x, _stPos.y, _stFinal, ml, _stFt, 0, p);
           const _soboro = _stFinal !== _stItem && _stFinal?.name === "ソボロ助広";
           ml.push(`${resolveItemName(_stItem, nameFn)}がどこかへ飛んでいった！${_soboro ? "なぜかソボロ助広に変化した…！" : ""}`);
@@ -3736,7 +3741,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _stFt2 = new Set([...(ft || [])]);
         if (trap.id != null) _stFt2.add(trap.id);
         const _stPos2 = pickRandomFloorInRooms(dg) || { x: tx, y: ty };
-        const _stFinal2 = maybeLongswordToSoboro(item);
+        const _stFinal2 = maybeKatanaToSoboro(item);
         placeItemAt(dg, _stPos2.x, _stPos2.y, _stFinal2, ml, _stFt2, 0, p);
         const _soboro2 = _stFinal2 !== item && _stFinal2?.name === "ソボロ助広";
         ml.push(`${resolveItemName(item, nameFn)}がどこかへ飛んでいった！${_soboro2 ? "なぜかソボロ助広に変化した…！" : ""}`);
@@ -6340,6 +6345,13 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
       const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
       ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！" + _wNote);
+    } else if (item.name === "カタナ" && Math.random() < 0.05) {
+      const _oldPlus = item.plus || 0;
+      const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
+      Object.assign(item, { ...MURAMASA_T, id: item.id, plus: Math.max(0, _oldPlus) });
+      const _newAbs = [...new Set([..._oldAbs, MURAMASA_T.ability])];
+      item.abilities = _newAbs; item.ability = _newAbs[0];
+      ml.push("カタナが泉の中で不気味な妖気を放ち...妖刀村正に変化した！" + _wNote);
     } else if (item.name === "短剣" && Math.random() < 0.05) {
       const _oldPlus = item.plus || 0;
       const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);

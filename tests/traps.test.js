@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, isPlayerFloating, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
+import { fireTrapItem, isPlayerFloating, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeKatanaToSoboro, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 import { MONS, makeMonsterFromBase } from "../monsters.js";
@@ -613,26 +613,29 @@ describe("new weird traps", () => {
     expect(ml.some((m) => String(m).includes("どこかへ飛んでいった"))).toBe(true);
   });
 
-  it("maybeLongswordToSoboro がロングソードを変換し得る", () => {
+  it("maybeKatanaToSoboro がカタナを変換しロングソードは変換しない", () => {
     const rnd = vi.spyOn(Math, "random").mockReturnValue(0.05);
     try {
-      const out = maybeLongswordToSoboro({ name: "ロングソード", type: "weapon", plus: 1, id: "ls1" });
-      expect(out.name).toBe(SOBURO_T.name);
-      expect(out.plus).toBe(1);
+      const outKatana = maybeKatanaToSoboro({ name: "カタナ", type: "weapon", plus: 1, id: "k1" });
+      expect(outKatana.name).toBe(SOBURO_T.name);
+      expect(outKatana.plus).toBe(1);
+
+      const outLongsword = maybeKatanaToSoboro({ name: "ロングソード", type: "weapon", plus: 1, id: "ls1" });
+      expect(outLongsword.name).toBe("ロングソード");
     } finally {
       rnd.mockRestore();
     }
-    expect(maybeLongswordToSoboro({ name: "石", type: "misc" }).name).toBe("石");
+    expect(maybeKatanaToSoboro({ name: "石", type: "misc" }).name).toBe("石");
   });
 
-  it("アイテム起動の盗みの罠でロングソードがソボロ助広になり得る", () => {
+  it("アイテム起動の盗みの罠でカタナがソボロ助広になり得る", () => {
     const rnd = vi.spyOn(Math, "random").mockReturnValue(0.05);
     const map = Array.from({ length: 15 }, () => Array(20).fill(T.FLOOR));
     const rooms = [{ x: 1, y: 1, w: 10, h: 10 }];
     const trap = { effect: "steal_trap", name: "盗みの罠", x: 5, y: 5, id: "st2" };
     const dg = makeEmptyDg({ map, rooms, traps: [trap], monsters: [], items: [] });
     const p = makePlayer({ x: 1, y: 1 });
-    const sword = { name: "ロングソード", type: "weapon", plus: 2, id: "ls2", tile: 20 };
+    const sword = { name: "カタナ", type: "weapon", plus: 2, id: "k2", tile: 20 };
     const ml = [];
     try {
       fireTrapItem(trap, sword, dg, 5, 5, ml, new Set(["st2"]), p);

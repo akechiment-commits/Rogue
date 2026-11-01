@@ -26,7 +26,7 @@ import {
   RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS,
   POTION_FOOD_PREFIX,
   WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER,
-  CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T,
+  KATANA_T, MURAMASA_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T,
   TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
@@ -51,6 +51,9 @@ function addSheet(name, data) {
 const PROJECTILE_PICKUP_NOTE = "床上の同一個体は最初に乗った時、または所持品へ入った時に図鑑へ1回だけ記録する。拾得処理は所持枠が足りない場合に所持数を変更せず、成功時だけ床から消える。使用・投擲・同一個体の再拾得では追加記録しない。";
 const REFLECTED_ITEM_NOTE = '共通投擲で跳ね返した道具が射手または別の敵へ当たる場合も、道具本来の命中処理を使う。薬瓶は余計な物理ダメージを与えず着弾点の3×3へ1回だけ飛散し、大型敵には接触した体のマスを起点にする。杖は命中時の破損効果を適用して床へ再配置せず、残回数0の方向効果も反射後の進行方向へ作用する。毒矢の毒・食料の追加効果・壺の激突と中身散乱も通常投擲と共通で、敵命中を床への着地と誤認して罠を起動しない。命中と破損による撃破は反射した敵に帰属し、プレイヤー経験値を加算しない。';
 const GUIDE_DESC_OVERRIDES = {
+  "カタナ": "攻撃力6。ロングソードと同等の基本武器。盗みモンスターや盗みの罠で盗まれると、10%の確率でソボロ助広に変化する。泉に浸す／落とすと5%の確率で妖刀村正に変化する。",
+  "妖刀村正": "攻撃力12、特殊能力「妖刀」。装備中は敵への通常与ダメージが1.5倍になるが、プレイヤーが受けるあらゆる被ダメージ（モンスターの直接攻撃・特技・遠距離、罠、魔法、壁衝突、毒など全てのダメージ）も1.5倍になる。カタナを泉に浸す／落とすことで5%の確率で変化する。",
+  "ソボロ助広": "攻撃力8、特殊能力「連撃」（通常攻撃が2回連続になり、2回目は威力60%）。カタナが盗みモンスターや盗みの罠で盗まれた時に10%の確率で変化する。ロングソードからは変化しない。",
   "炎の魔法書": "読むと炎の魔法を習得またはレベルアップし、その場で通常詠唱と同じMPを使って発動する。MPの基準は10。炎の弾は直撃後、着弾点を中心とする3×3マスへ爆風を与える。敵への爆風の基礎威力は8〜14、自分への爆風は10〜15で、魔法レベルの威力倍率を適用する。敵の爆風は体が範囲に重なるマスごとに命中し、2×2・3×3の大型敵も通常詠唱と読書発動で同じ回数・威力になる。バリアも各命中に対して消費し、撃破後は同じ敵へ追加処理しない。魔封じで止まった弾や炎・爆発が無効の場所では追加爆風を出さない。",
   "ふきとばしの杖": "振ると対象を吹き飛ばし、壊すと周囲全てを吹き飛ばす。呪いの引き寄せは、敵の基準マスではなく体の端が自分に隣接する位置へ移す。1マス・2×2・3×3の全8方向に対応し、体全体がプレイヤーや別の敵と重なる場合、または移動先の基準マスが壁・範囲外の場合は元の位置に残す。強制移動無効の敵は引き寄せない。大型敵の体の端が壁をまたぐ既存ルールは維持する。階段は水タイルを飛び越えるが、水中で止まると消滅し、階段復元処理で空き床へ再配置される。",
   "場所替えの杖": "振ると対象と位置を交換する。壁抜けできない通常敵は壁内で即死、水に適応できない通常敵は水没で即死する。水中で生存できないボスは水没時、壁抜けできないボスは壁内へ移動した時に現在HPの1/4ダメージを受け、出られない間も各フロア時計拍で同量の割合ダメージを受ける。階段との交換では、プレイヤーの元のマスが通常壁・壊せる壁・水なら交換を成立させて階段を破壊し、通常の階段復元処理で別の空き床へ再配置する。壊すと周囲をシャッフルする。\n呪い：対象の1マス手前へ飛びつく。",
@@ -632,7 +635,7 @@ addSheet('03_巻物', injectGuideDescriptions(injectRarityAndPrice(scrollData)))
 const _weapons = ITEMS.filter(i => i.type === 'weapon');
 const _armors  = ITEMS.filter(i => i.type === 'armor');
 const _specialWeapons = [
-  CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, MURAMASA_T, GOBLIN_BAT_T, ONI_CLUB_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T,
 ];
