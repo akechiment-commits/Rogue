@@ -3995,7 +3995,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "rot_trap": {
       ml.push(`${trap.name}が発動！`);
       /* 踏んだアイテム自体が食料なら腐らせる（既に腐っていればヤバイに） */
-      if (item && item.type === "food" && !item.yabai) {
+      if (item && item.type === "food" && !item.yabai && !item.iceCream) {
         const _itOrigName = item.name;
         const _itResult = rotFood(item);
         if (_itResult === "yabai") ml.push(`${_itOrigName}がヤバイことになった！`);
@@ -4034,7 +4034,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         }
       }
       if (p && p.x === tx && p.y === ty && p.inventory) {
-        const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai);
+        const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai && !i.iceCream);
         if (_rAllFoods.length > 0) {
           const _rTarget = _rAllFoods[rng(0, _rAllFoods.length - 1)];
           const _rOrigName = _rTarget.name;
@@ -10669,7 +10669,7 @@ function _upgradeToYabai(item) {
 }
 
 export function rotFood(item) {
-  if (item.type !== "food") return false;
+  if (item?.type !== "food" || item.iceCream) return false;
   if (item.yabai) return false;
   if (item.burnt) {
     restoreFoodDamage(item);

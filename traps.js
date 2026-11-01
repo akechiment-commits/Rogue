@@ -289,7 +289,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "rot_trap": {
-      const _rAllFoods = (p.inventory || []).filter(i => i.type === "food" && !i.yabai);
+      const _rAllFoods = (p.inventory || []).filter(i => i.type === "food" && !i.yabai && !i.iceCream);
       const _rTarget = _rAllFoods.length > 0 ? _rAllFoods[rng(0, _rAllFoods.length - 1)] : null;
       if (_rTarget) {
         const _rOrigName = _rTarget.name;
