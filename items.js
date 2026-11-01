@@ -1,6 +1,7 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense } from './utils.js';
 import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } from './synthMonster.js';
+import { adjustMonsterPermanentStat } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -4974,11 +4975,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "power":
       if (cursed) {
         // 反転→攻撃力減少（通常の増加量と同じ）
-        if (kind === "monster") { const _pv = weakEffect ? Math.max(0.1, val * effectScale) : Math.max(1, Math.round(val)); target.atk = Math.max(1, target.atk - _pv); ml.push(`${target.name}の攻撃力が下がった！`); }
+        if (kind === "monster") { const _pv = weakEffect ? Math.max(0.1, val * effectScale) : Math.max(1, Math.round(val)); adjustMonsterPermanentStat(target, "atk", -_pv); ml.push(`${target.name}の攻撃力が下がった！`); }
         if (kind === "player") { const _pv = weakEffect ? Math.max(0.1, val * effectScale) : Math.max(1, Math.round(val)); p.atk = Math.max(1, p.atk - _pv); ml.push(`力が抜けた...攻撃力-${_pv}【呪】`); }
       } else {
         const _pv = weakEffect ? Math.max(0.1, val * blessAmountMul(blessed) * effectScale) : Math.max(1, Math.round(val * blessAmountMul(blessed)));
-        if (kind === "monster") { target.atk += _pv; ml.push(`${target.name}の攻撃力が上がった！`); }
+        if (kind === "monster") { adjustMonsterPermanentStat(target, "atk", _pv); ml.push(`${target.name}の攻撃力が上がった！`); }
         if (kind === "player") { p.atk += _pv; ml.push(`攻撃力が${_pv}上がった！${blessed ? "(祝福)" : ""}`); }
       }
       break;
@@ -5701,7 +5702,8 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
       case "c_levelup":
         {
           const loss = weak ? Math.max(0.1, 2 * effectMultiplier) : 2;
-          entity.atk = Math.max(1, (entity.atk || 1) - loss);
+          if (kind === "monster") adjustMonsterPermanentStat(entity, "atk", -loss);
+          else entity.atk = Math.max(1, (entity.atk || 1) - loss);
           ml.push(kind === "player" ? `退化成分が！攻撃力-${loss}...` : `${target.name}の攻撃力が下がった！`);
         }
         break;
@@ -5794,7 +5796,8 @@ export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, 
     }
     case "power_food": {
       const amount = weak ? (foodTier >= 5 ? 0.2 : 0.1) : (foodTier >= 5 ? 2 : 1);
-      entity.atk = (entity.atk || 0) + amount;
+      if (kind === "monster") adjustMonsterPermanentStat(entity, "atk", amount);
+      else entity.atk = (entity.atk || 0) + amount;
       const amountLabel = weak ? amount.toFixed(1) : String(amount);
       ml.push(kind === "player" ? `力が湧いてきた！攻撃力+${amountLabel}` : `${target.name}の攻撃力が${amountLabel}上がった！`);
       break;
@@ -5816,7 +5819,8 @@ export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, 
     }
     case "def_food": {
       const amount = weak ? (foodTier >= 5 ? 0.2 : 0.1) : (foodTier >= 5 ? 2 : 1);
-      entity.def = (entity.def || 0) + amount;
+      if (kind === "monster") adjustMonsterPermanentStat(entity, "def", amount);
+      else entity.def = (entity.def || 0) + amount;
       const amountLabel = weak ? amount.toFixed(1) : String(amount);
       ml.push(kind === "player" ? `体が頑丈になった！防御力+${amountLabel}` : `${target.name}の防御力が${amountLabel}上がった！`);
       break;

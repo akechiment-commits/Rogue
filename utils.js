@@ -154,6 +154,19 @@ export function restoreMonsterDopingStats(monster) {
   delete monster._dopingBaseDef;
 }
 
+/** 薬・食料による恒久増減を基礎値へ記録し、現在のドーピング倍率を掛け直す。 */
+export function adjustMonsterPermanentStat(monster, stat, delta) {
+  const minimum = stat === "atk" ? 1 : 0;
+  const baseKey = stat === "atk" ? "_dopingBaseAtk" : "_dopingBaseDef";
+  if (monster[baseKey] !== undefined) {
+    monster[baseKey] = Math.max(minimum, monster[baseKey] + delta);
+    const multiplier = (monster.dopingTurns || 0) > 0 ? 2 : (monster.dopingAftereffectTurns || 0) > 0 ? 0.5 : 1;
+    monster[stat] = Math.max(minimum, Math.floor(monster[baseKey] * multiplier));
+  } else {
+    monster[stat] = Math.max(minimum, (monster[stat] || 0) + delta);
+  }
+}
+
 /** 風穴 5x5 内なら風向き、なければ null（dg.vents 依存・循環 import 回避のため utils に置く） */
 export const WIND_AURA_DIRS = Object.freeze([
   [1, 0], [-1, 0], [0, 1], [0, -1],
