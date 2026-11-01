@@ -5774,6 +5774,35 @@ function flockDistance(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
 }
 
+function flockHasOffensiveSpellInRange(monster, dungeon, player, opts) {
+  const isRevenge = monster.baseKind === "boss_flock_revenge";
+  const dx = player.x - monster.x, dy = player.y - monster.y;
+  const distance = flockDistance(monster.x, monster.y, player.x, player.y);
+  const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+  const playerHidden = (player.potConfinedTurns || 0) > 0 || (player.invisibleTurns || 0) > 0;
+  const canSeePlayer = !!dungeon.visible?.[monster.y]?.[monster.x] && !playerHidden &&
+    hasLOS(dungeon.map, monster.x, monster.y, player.x, player.y);
+  const playerRoom = findRoom(dungeon.rooms, player.x, player.y);
+  const monsterRoom = findRoom(dungeon.rooms, monster.x, monster.y);
+  const sameRoom = !!playerRoom && !!monsterRoom && playerRoom.x === monsterRoom.x && playerRoom.y === monsterRoom.y;
+  const playerOnBlessedSanctuary = !inMagicSealRoom(player.x, player.y, dungeon) &&
+    dungeon.pentacles?.some((pentacle) => pentacle.kind === "sanctuary" && pentacle.blessed &&
+      pentacle.x === player.x && pentacle.y === player.y);
+  const canUseMagic = !!opts.monsterWandFn && !monster.sealed && !isAttackSealed(monster) &&
+    !inMagicSealRoom(monster.x, monster.y, dungeon) && !playerOnBlessedSanctuary;
+  if (!canSeePlayer || !canUseMagic) return false;
+  const effects = isRevenge ? FLOCK_REVENGE_ATTACK_EFFECTS : FLOCK_MAGIC_EFFECTS;
+  const hasAvailableAttack = effects.some((effect) => monster.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10));
+  const minRange = isRevenge ? 2 : 3;
+  const ordinaryRange = inLine && distance >= minRange && distance <= 10 && hasAvailableAttack;
+  const roomRange = isRevenge && sameRoom && (
+    monster.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic ||
+    monster.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster
+  );
+  const corneredRange = inLine && distance >= 1 && distance <= 3 && hasAvailableAttack;
+  return ordinaryRange || roomRange || corneredRange;
+}
+
 function moveFlockToFiringLine(monster, dungeon, player) {
   const flockFloat = monEffectiveFloat(monster) &&
     (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, monster.x, monster.y));
@@ -6018,6 +6047,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (_isFlockVariant) ensureFlockMp(m);
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
+  let _flockMovementLocked = false;
   if (_isFlockVariant) flockHpChangeDialogue(m, dg, ml, _attackOnly);
   if (_isFlockRevenge && _attackOnly && m._flockEarlySpellPending) {
     const effect = m._flockEarlySpellPending;
@@ -6092,20 +6122,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m._dormantHp = m.hp;
       return;
     }
-  }
-  if (_isFlockRevenge && !_attackOnly && hasFlockPurgeableStatus(m) &&
-      !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
-      !!opts.monsterWandFn && !m.sealed &&
-      !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
-      ensureFlockMp(m) >= FLOCK_MAGIC_MP_COSTS.purify_magic) {
-    if (_moveOnly) {
-      m._flockEarlySpellPending = "purify_magic";
-      m._rangedAttackThisTurn = true;
-      return;
-    }
-    m.turnAttacks++;
-    if (castFlockSpell(m, opts, 0, 0, "purify_magic", ml, { invoke: false })) purifyFlockStatus(m, ml);
-    return;
   }
   /* 状態異常防止：毎ターンカウントダウン */
   if ((m.statusImmune || 0) > 0 && !_attackOnly) {
@@ -6187,6 +6203,23 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m.sporePoisonKillerId;
       delete m.sporePoisonKillerName;
     }
+  }
+  /* 逆襲のフロックは、毒の継続ダメージを受けてから行動可能な異常を浄化する。 */
+  const _flockHasSpellRangeWhileImmobile = _isFlockRevenge && (m.immobileTurns || 0) > 0 &&
+    flockHasOffensiveSpellInRange(m, dg, pl, opts);
+  if (_isFlockRevenge && !_attackOnly && !_flockHasSpellRangeWhileImmobile && hasFlockPurgeableStatus(m) &&
+      !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
+      !!opts.monsterWandFn && !m.sealed &&
+      !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
+      ensureFlockMp(m) >= FLOCK_MAGIC_MP_COSTS.purify_magic) {
+    if (_moveOnly) {
+      m._flockEarlySpellPending = "purify_magic";
+      m._rangedAttackThisTurn = true;
+      return;
+    }
+    m.turnAttacks++;
+    if (castFlockSpell(m, opts, 0, 0, "purify_magic", ml, { invoke: false })) purifyFlockStatus(m, ml);
+    return;
   }
   /* 盲目状態（ボスのみターン経過で解除） */
   if (m.blind && m.isBoss && !_attackOnly) {
@@ -6619,8 +6652,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.immobileTurns||0) > 0) {
     if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - 1);
     if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
-    if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
-    else _attackOnly = true;
+    if (_isFlockVariant) {
+      if (flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
+      _flockMovementLocked = true;
+      if (_attackOnly && !m._flockPendingSpell) _attackOnly = false;
+    } else {
+      _attackOnly = true;
+    }
   }
   /* ===== 混乱・酩酊・酔い：ランダム方向に移動・攻撃 ===== */
   const _isConfused = (m.confusedTurns || 0) > 0;
@@ -6807,7 +6845,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         castFlockSpell(m, opts, Math.sign(dx), Math.sign(dy), pendingSpell, ml);
         return;
       }
-      if (!_isFlockRevenge && distance <= 1 && canSeePlayer && canUseMagic) {
+      if (!_flockMovementLocked && !_isFlockRevenge && distance <= 1 && canSeePlayer && canUseMagic) {
         if (teleportFlockAway(m, dg, pl, ml)) m._flockEscapedThisTurn = true;
       }
       return;
@@ -6834,7 +6872,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._flockEscapedThisTurn = true;
         return;
       }
-      if (teleportFlockAway(m, dg, pl, ml)) {
+      if (!_flockMovementLocked && teleportFlockAway(m, dg, pl, ml)) {
         m._flockEscapedThisTurn = true;
         return;
       }
@@ -6876,7 +6914,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
     if (canSeePlayer && !(inLine && distance > 10)) {
-      const repositioned = moveFlockToFiringLine(m, dg, pl);
+      const repositioned = _flockMovementLocked ? false : moveFlockToFiringLine(m, dg, pl);
       const canCastWhileCornered = !repositioned && inLine && distance >= 1 && distance <= 3 &&
         canUseMagic && availableAttacks.length > 0 && m.turnAttacks < monEffectiveMaxAttacks(m);
       if (canCastWhileCornered) {
