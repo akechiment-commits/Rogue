@@ -27,7 +27,7 @@ import {
 } from "./monsters.js";
 import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
-  KATANA_T, MURAMASA_T, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  KATANA_T, MURAMASA_T, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, SILVER_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
@@ -5724,14 +5724,38 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const _newAbs = [...new Set([..._oldAbs, CAT_CLAW_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${_oldName}が鋭い輝きを放ち...猫の爪に変化した！${_curseNote}`);
-        } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧") && Math.random() < 0.20) {
-          const _oldPlus = it.plus || 0;
-          const _oldName = it.name;
-          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-          Object.assign(it, { ...GOLDEN_AXE_T, id: it.id, plus: Math.max(0, _oldPlus) });
-          const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
-          it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が黄金の輝きを放ち...ゴールデンアクスに変化した！${_curseNote}`);
+        } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧")) {
+          const _rAxe = Math.random();
+          if (_rAxe < 0.20) {
+            const _oldPlus = it.plus || 0;
+            const _oldName = it.name;
+            const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
+            Object.assign(it, { ...GOLDEN_AXE_T, id: it.id, plus: Math.max(0, _oldPlus) });
+            const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
+            it.abilities = _newAbs; it.ability = _newAbs[0];
+            ml.push(`${_oldName}が黄金の輝きを放ち...ゴールデンアクスに変化した！${_curseNote}`);
+          } else if (_rAxe < 0.50) {
+            const _oldPlus = it.plus || 0;
+            const _oldName = it.name;
+            const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
+            Object.assign(it, { ...SILVER_AXE_T, id: it.id, plus: Math.max(0, _oldPlus) });
+            const _newAbs = [...new Set([..._oldAbs, SILVER_AXE_T.ability])];
+            it.abilities = _newAbs; it.ability = _newAbs[0];
+            ml.push(`${_oldName}が白銀の輝きを放ち...シルバーアクスに変化した！${_curseNote}`);
+          } else {
+            const _guard = consumeItemDegradeProtection(it);
+            if (_guard) {
+              const _guardMsg = _guard.kind === "permanent"
+                ? "金でできているので錆びなかった！"
+                : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+              ml.push(`${it.name}が水に浸かったが${_guardMsg}${_curseNote}`);
+            } else {
+              const _op = it.plus || 0;
+              it.plus = _op - 1;
+              const _fp = (v) => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
+              ml.push(`${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_curseNote}`);
+            }
+          }
         } else {
           const _guard = consumeItemDegradeProtection(it);
           if (_guard) {

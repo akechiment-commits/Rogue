@@ -664,6 +664,7 @@ export function pickRandomFloorInRooms(dg) {
 }
 export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead_2", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ（上位特効）。", tile:20 };
 export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
+export const SILVER_AXE_T  = { name:"シルバーアクス",   type:"weapon", atk:10, ability:"bane_undead", sellPrice:2000, desc:"銀でできた戦斧。アンデッド系に1.5倍ダメージを与える。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], sellPrice:9000, desc:"炎・氷・雷の三元素を宿した剣。\n属性弱点の敵に1.5倍ダメージ。", tile:20 };
 export const FLAMBERGE_T    = { name:"フランベルジュ", type:"weapon", atk:13, ability:"fire_elem_2",    sellPrice:9000, desc:"上位炎属性の剣。炎弱点・油まみれの敵に2倍ダメージ。", tile:20 };
 export const ICESWORD_T     = { name:"アイスソード",   type:"weapon", atk:13, ability:"ice_elem_2",     sellPrice:9000, desc:"上位氷属性の剣。氷弱点の敵に2倍ダメージ。", tile:20 };
@@ -6359,14 +6360,38 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
       const _newAbs = [...new Set([..._oldAbs, CAT_CLAW_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
       ml.push("短剣が泉の中で鋭い輝きを放ち...猫の爪に変化した！" + _wNote);
-    } else if ((item.name === "バトルアクス" || item.name === "戦神の斧") && Math.random() < 0.20) {
-      const _oldName = item.name;
-      const _oldPlus = item.plus || 0;
-      const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
-      Object.assign(item, { ...GOLDEN_AXE_T, id: item.id, plus: Math.max(0, _oldPlus) });
-      const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
-      item.abilities = _newAbs; item.ability = _newAbs[0];
-      ml.push(_oldName + "が泉の中で黄金の輝きを放ち...ゴールデンアクスに変化した！" + _wNote);
+    } else if (item.name === "バトルアクス" || item.name === "戦神の斧") {
+      const _rAxe = Math.random();
+      if (_rAxe < 0.20) {
+        const _oldName = item.name;
+        const _oldPlus = item.plus || 0;
+        const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
+        Object.assign(item, { ...GOLDEN_AXE_T, id: item.id, plus: Math.max(0, _oldPlus) });
+        const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
+        item.abilities = _newAbs; item.ability = _newAbs[0];
+        ml.push(_oldName + "が泉の中で黄金の輝きを放ち...ゴールデンアクスに変化した！" + _wNote);
+      } else if (_rAxe < 0.50) {
+        const _oldName = item.name;
+        const _oldPlus = item.plus || 0;
+        const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
+        Object.assign(item, { ...SILVER_AXE_T, id: item.id, plus: Math.max(0, _oldPlus) });
+        const _newAbs = [...new Set([..._oldAbs, SILVER_AXE_T.ability])];
+        item.abilities = _newAbs; item.ability = _newAbs[0];
+        ml.push(_oldName + "が泉の中で白銀の輝きを放ち...シルバーアクスに変化した！" + _wNote);
+      } else {
+        const _guard = consumeItemDegradeProtection(item);
+        if (_guard) {
+          const _guardMsg = _guard.kind === "permanent"
+            ? "金でできているので錆びなかった！"
+            : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+          ml.push(`${item.name}が水に浸かったが${_guardMsg}${_wNote}`);
+        } else {
+          const _op = item.plus || 0;
+          item.plus = _op - 1;
+          const _fp = (v) => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
+          ml.push(`${item.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(item.plus)})${_wNote}`);
+        }
+      }
     } else {
       const _guard = consumeItemDegradeProtection(item);
       if (_guard) {

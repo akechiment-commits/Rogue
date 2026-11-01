@@ -26,7 +26,7 @@ import {
   RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS,
   POTION_FOOD_PREFIX,
   WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER,
-  KATANA_T, MURAMASA_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T,
+  KATANA_T, MURAMASA_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, SILVER_AXE_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T,
   TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
@@ -51,6 +51,7 @@ function addSheet(name, data) {
 const PROJECTILE_PICKUP_NOTE = "床上の同一個体は最初に乗った時、または所持品へ入った時に図鑑へ1回だけ記録する。拾得処理は所持枠が足りない場合に所持数を変更せず、成功時だけ床から消える。使用・投擲・同一個体の再拾得では追加記録しない。";
 const REFLECTED_ITEM_NOTE = '共通投擲で跳ね返した道具が射手または別の敵へ当たる場合も、道具本来の命中処理を使う。薬瓶は余計な物理ダメージを与えず着弾点の3×3へ1回だけ飛散し、大型敵には接触した体のマスを起点にする。杖は命中時の破損効果を適用して床へ再配置せず、残回数0の方向効果も反射後の進行方向へ作用する。毒矢の毒・食料の追加効果・壺の激突と中身散乱も通常投擲と共通で、敵命中を床への着地と誤認して罠を起動しない。命中と破損による撃破は反射した敵に帰属し、プレイヤー経験値を加算しない。';
 const GUIDE_DESC_OVERRIDES = {
+  "シルバーアクス": "攻撃力10、特殊能力「聖属性（アンデッド特効）」。不死系の敵（スケルトン・ゾンビ・ヴァンパイア）に1.5倍ダメージを与える。バトルアクスや戦神の斧を泉に浸す／落とすと30%の確率で変化する。ゴールデンアクスとは異なり、不錆（錆びない）能力は持たない。",
   "カタナ": "攻撃力6。ロングソードと同等の基本武器。盗みモンスターや盗みの罠で盗まれると、10%の確率でソボロ助広に変化する。泉に浸す／落とすと5%の確率で妖刀村正に変化する。",
   "妖刀村正": "攻撃力12、特殊能力「妖刀」。装備中は敵への通常与ダメージが1.5倍になるが、プレイヤーが受けるあらゆる被ダメージ（モンスターの直接攻撃・特技・遠距離、罠、魔法、壁衝突、毒など全てのダメージ）も1.5倍になる。カタナを泉に浸す／落とすことで5%の確率で変化する。",
   "ソボロ助広": "攻撃力8、特殊能力「連撃」（通常攻撃が2回連続になり、2回目は威力60%）。カタナが盗みモンスターや盗みの罠で盗まれた時に10%の確率で変化する。ロングソードからは変化しない。",
@@ -635,7 +636,7 @@ addSheet('03_巻物', injectGuideDescriptions(injectRarityAndPrice(scrollData)))
 const _weapons = ITEMS.filter(i => i.type === 'weapon');
 const _armors  = ITEMS.filter(i => i.type === 'armor');
 const _specialWeapons = [
-  CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, MURAMASA_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, SILVER_AXE_T, MURAMASA_T, GOBLIN_BAT_T, ONI_CLUB_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T,
 ];
