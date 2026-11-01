@@ -10177,6 +10177,7 @@ export const RINGS = [
   { name: "足音の指輪",     type:"ring", effect:"footstep_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、歩くたびに足音が響き近くの敵が目を覚ます。" },
   { name: "観光客の指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },
   { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:5000, tile:60, desc:"自慢げに輝いているが、特に効果はない。見た目だけで妙に高い。" },
+  { name: "黄金の指輪",     type:"ring", effect:"gold_ring",              rarity:"B", weight:2,  sellPrice:10000, tile:60, desc:"純金で作られた指輪。特殊な効果はないが非常に高く売れる。" },
   { name: "暗闇の指輪",     type:"ring", effect:"darkness_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、廊下での視界が1マス狭くなる。" },
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
   { name: "体幹の指輪",     type:"ring", effect:"core_ring",              rarity:"B", weight:2,  sellPrice:3500, tile:60, desc:"装備中、転倒しなくなる。\n敵による吹き飛ばし・引き寄せ・罠への投げつけなど、強制的な移動を防ぐ。" },
