@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { hasForcedTurn } from "../turnUpkeep.js";
 import { canAcceptPotItem, isPotStorableItem } from "../items.js";
 import { MONS, makeMonsterFromBase, monsterAI, revealItemMimicAt } from "../monsters.js";
 import { clearDimensionalVaultItemCounter, ensureItemMimicFloorItems } from "../utils.js";
@@ -29,7 +30,7 @@ function setup(effect, floorPot) {
     monsterAI(mimic, dungeon, player, [], { attackOnly: true });
     expect(player.hp).toBe(hpAfterReveal);
   });
-  const deps = { sr, ...setters, doPutItem, endTurn, canAcceptPotItem, isPotStorableItem,
+  const deps = { sr, ...setters, doPutItem, endTurn, hasForcedTurn, canAcceptPotItem, isPotStorableItem,
     floorEntryRole, revealItemMimicAt, clearDimensionalVaultItemCounter, trackItem, lu: vi.fn() };
   const source = fs.readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
   const start = source.indexOf("  const _doPutFloorItem = (item, target) => {");
