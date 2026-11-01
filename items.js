@@ -4363,6 +4363,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   const {
     nameFn = null,
     killerMon = null,
+    allowSynthAbsorption = true,
     hitMessage = (target, dmg) => `${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
     onKilled = null,
   } = opts;
@@ -4373,6 +4374,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     fireTrapFn: opts.fireTrapFn,
     nameFn,
     messagePrefix: opts.messagePrefix ?? "飛んできた",
+    allowSynthAbsorption,
   })) return { blocked: true, killed: false, swallowed: true };
   return withParalysisHit(mon, ml, () => {
   if (consumeBarrier(mon, ml)) return { blocked: true, killed: false };
@@ -4484,10 +4486,12 @@ export function absorbProjectileIntoMonster(monster, item, dg, p, ml, luFn, opts
     fireTrapFn = null,
     nameFn = null,
     messagePrefix = "飛んできた",
+    allowSynthAbsorption = true,
   } = opts;
   const farcastMode = getFarcastMode(p?.x, p?.y, dg);
   if (farcastMode === "farcast" || (sourceIsPlayer && farcastMode !== "cursed" && hasRingEffect(p, "farcast_ring"))) return false;
   if (monster.baseKind === "synthmonster") {
+    if (!allowSynthAbsorption) return false;
     const box = ensureSynthMonsterBox(monster);
     if (bbFn) {
       bbFn(box, item, dg, ml, { killerMon, sourceIsPlayer, fireTrapFn });
