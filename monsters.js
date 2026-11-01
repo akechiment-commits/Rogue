@@ -5370,6 +5370,128 @@ function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
   return false;
 }
 
+function strifeRingTarget(monster, dungeon, player) {
+  if (!monster || !dungeon || !player || !hasRingEffect(player, "strife_ring") ||
+      monsterDistance(monster, player) > 3) return null;
+  const playerOnSanctuary = !inMagicSealRoom(player.x, player.y, dungeon) &&
+    dungeon.pentacles?.some((pentacle) => pentacle.kind === "sanctuary" &&
+      pentacle.x === player.x && pentacle.y === player.y);
+  if (!playerOnSanctuary && monsterCanInteractAtRange(monster, dungeon, player.x, player.y, 1)) {
+    return player;
+  }
+  const adjacentCreatures = (dungeon.monsters || []).filter((other) => {
+    if (other === monster || other.hp <= 0 || monsterDistance(monster, other) !== 1) return false;
+    if (monsterBodySize(monster) <= 1) return true;
+    return monsterBodyCells(other).some((cell) =>
+      monsterCanInteractAtRange(monster, dungeon, cell.x, cell.y, 1)
+    );
+  });
+  return pick(adjacentCreatures) || null;
+}
+
+function strifeRingPlayerThreat(monster, dungeon, player, opts, context) {
+  if (!monster || !dungeon || !player || !hasRingEffect(player, "strife_ring") ||
+      monsterDistance(monster, player) > 3) return false;
+  if (monsterCanInteractAtRange(monster, dungeon, player.x, player.y, 1) && !context.plOnSanc) return true;
+  if (!context.canSee || context.plOnBlessedSanc) return false;
+  if (monster._rangedAttackThisTurn) return true;
+  const dx = player.x - monster.x, dy = player.y - monster.y;
+  const distance = Math.max(Math.abs(dx), Math.abs(dy));
+  const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+  const level = monster.monLevel || 1;
+  const rangedSubtypes = new Set([
+    "archer", "charger", "dangerousPetal", "defhalf", "hypnotist", "monsterthrow",
+    "potionthrow", "stonethrow", "trapthrower", "wanduser", "waterFlower", "watergunner",
+  ]);
+  if (rangedSubtypes.has(monster.subtype) &&
+      canMimicSourceSkill(monster, monster, dungeon, player, opts, context)) return true;
+  if (monster.subtype === "waterFlower" && !monster.sealed && context.canSee && context.sameRoom) return true;
+  if (monster.subtype === "mimic" && getAdjacentMimicSources(monster, dungeon).some((source) =>
+    (rangedSubtypes.has(source.subtype) || ["dragon", "icedragon", "im_boss_salamander"].includes(source.baseKind) || source.type === "guard") &&
+    canMimicSourceSkill(source, monster, dungeon, player, opts, context)
+  )) return true;
+  if (monster.subtype === "puller" && !monster.sealed && distance >= 2 &&
+      distance <= (level >= 3 ? 8 : level >= 2 ? 6 : 4)) return true;
+  if (monster.subtype === "itemThrower" && monster.carriedItem && !monster.sealed && context.canSee && inLine &&
+      distance >= 2 && distance <= itemThrowerRange(monster)) return true;
+  if (monster.subtype === "itempusher" && level >= 3 && !monster.sealed &&
+      !context.plOnBlessedSanc && inLine && distance >= 2 && distance <= 10) return true;
+  if (monster.subtype === "potRaider" && level >= 2 && !monster.sealed &&
+      potRaiderStockLeft(monster) > 0 && !context.plOnBlessedSanc && ((level === 2 && inLine && distance >= 2 && distance <= 3) ||
+        (level >= 3 && distance >= 2 && distance <= 4))) return true;
+  if (monster.type === "guard" && !monster.sealed && (dx === 0 || dy === 0) &&
+      distance >= 2 && distance <= 8) return true;
+  if (monster.baseKind === "boss_darkbullet" && !monster.sealed && inLine &&
+      distance >= 2 && distance <= 10) return true;
+  if ((monster.baseKind === "dragon" || monster.baseKind === "icedragon" ||
+       monster.baseKind === "im_boss_salamander" || monster.baseKind === "boss_korgon") &&
+      !monster.sealed && distance >= 2 && (monster.baseKind === "boss_korgon"
+        ? !!dragonBreathOrigin(monster, player)
+        : level >= 3 || (level >= 2 && context.sameRoom) || inLine)) return true;
+  if (monster.baseKind === "boss_batteringram" && !monster.sealed &&
+      monsterCanInteractAtRange(monster, dungeon, player.x, player.y, 2) && canCastPetroBreath(monster, dungeon)) return true;
+  if (monster.baseKind === "boss_chiranikuttsunnoku" && canUseChiranikuttsunnokuSpecial(monster) &&
+      getVenomStingOriginAndDir(monster, dungeon, player)) return true;
+  if (monster.baseKind === "boss_taisaijin" && canUseTaisaijinSpecial(monster) &&
+      isTaisaijinFarLine(monster, dungeon, player)) return true;
+  if (monster.baseKind === "boss_ohplenty" && canUseOhplentySpecial(monster) &&
+      isOhplentyFarLine(monster, dungeon, player)) return true;
+  if (monster.baseKind === "boss_mireu" && canUseMireuSpecial(monster) &&
+      (isMireuFarLine(monster, dungeon, player) || (context.canSee && canCastMeteor(monster, dungeon)))) return true;
+  if (monster.baseKind === "boss_gwen_veteran" && !monster.sealed && !isAttackSealed(monster) &&
+      !context.plOnBlessedSanc && context.canSee && inLine && distance >= 2 && distance <= 10 &&
+      (hasMonsterProjectileAmmo(monster) || (opts.monsterWandFn && monster.gwenWandCharges > 0 &&
+        !inMagicSealRoom(monster.x, monster.y, dungeon)))) return true;
+  if ((monster.baseKind === "boss_flock" || monster.baseKind === "boss_flock_revenge") &&
+      !monster.sealed && opts.monsterWandFn && !inMagicSealRoom(monster.x, monster.y, dungeon) &&
+      inLine && distance >= (monster.baseKind === "boss_flock_revenge" ? 2 : 3) && distance <= 10 &&
+      monster.mp > 0) return true;
+  return false;
+}
+
+function performStrifeRingAttack(monster, target, dungeon, player, messages, opts = {}) {
+  if (!target || monster.turnAttacks >= monEffectiveMaxAttacks(monster)) return true;
+  if (isAttackSealed(monster)) {
+    messages.push(`${monster.name}は争いの指輪にあおられたが、攻撃を封じられている！`);
+    return true;
+  }
+  monster.turnAttacks++;
+  monster.dir = { x: Math.sign(target.x - monster.x), y: Math.sign(target.y - monster.y) };
+  if (target === player) {
+    monsterAttackPlayer(monster, dungeon, player, messages,
+      (damage) => `${monster.name}は争いの指輪にあおられて襲いかかった！${damage}ダメージ！`, {
+        onPlayerHit: opts.onPlayerHit,
+        onPlayerMiss: opts.onPlayerMiss,
+        luFn: opts.luFn,
+      });
+    return true;
+  }
+  if (Math.random() >= 0.90) {
+    messages.push(`${monster.name}は争いの指輪にあおられて${target.name}に襲いかかったが、外れた！`);
+    return true;
+  }
+  if (consumeBarrier(target, messages)) {
+    messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
+    return true;
+  }
+  const damage = Math.max(1,
+    calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1));
+  target.hp -= damage;
+  messages.push(`${monster.name}は争いの指輪にあおられて${target.name}を攻撃！${damage}ダメージ！`);
+  if (target.hp <= 0 && dungeon.monsters.includes(target)) {
+    killMonster(target, dungeon, player, messages, opts.luFn || (() => {}), false, monster);
+  }
+  return true;
+}
+
+function tryStrifeRingNpcAction(monster, dungeon, player, messages, opts) {
+  if (monster.type !== "shopkeeper") return false;
+  const target = strifeRingTarget(monster, dungeon, player);
+  if (!target) return false;
+  if (opts.moveOnly) return true;
+  return performStrifeRingAttack(monster, target, dungeon, player, messages, opts);
+}
+
 function rememberLethalPlayerCause(player) {
   if (!player || player.hp > 0 || player._lethalDamageCause) return;
   Object.defineProperty(player, "_lethalDamageCause", {
@@ -6598,6 +6720,41 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
 
+  const _strifeTargetBeforeAI = strifeRingTarget(m, dg, pl);
+  if (_strifeTargetBeforeAI) {
+    const _strifePlayerRoom = findRoom(dg.rooms, pl.x, pl.y);
+    const _strifeMonsterRoom = findRoom(dg.rooms, m.x, m.y);
+    const _strifeSameRoom = !!_strifePlayerRoom && !!_strifeMonsterRoom &&
+      _strifePlayerRoom.x === _strifeMonsterRoom.x && _strifePlayerRoom.y === _strifeMonsterRoom.y;
+    const _strifeHidden = _plPotHidden || (pl.invisibleTurns || 0) > 0;
+    const _strifeGiant = monsterBodySize(m) > 1;
+    const _strifeSightline = !_strifeGiant || monsterBodyHasLineOfSight(m, dg, pl.x, pl.y);
+    const _strifeInFov = monsterBodyCells(m).some((cell) => dg.visible?.[cell.y]?.[cell.x]);
+    const _strifeCanSee = !_strifeHidden && (_strifeSameRoom ||
+      (_strifeSightline && (monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1) || _strifeInFov)));
+    const _strifePlayerRoomSeal = inMagicSealRoom(pl.x, pl.y, dg);
+    const _strifePlayerSanc = !_strifePlayerRoomSeal && dg.pentacles?.some((pentacle) =>
+      pentacle.kind === "sanctuary" && pentacle.x === pl.x && pentacle.y === pl.y
+    );
+    const _strifePlayerBlessedSanc = _strifePlayerSanc && dg.pentacles?.some((pentacle) =>
+      pentacle.kind === "sanctuary" && pentacle.blessed && pentacle.x === pl.x && pentacle.y === pl.y
+    );
+    const _strifeCanAttackPlayer = strifeRingPlayerThreat(m, dg, pl, opts, {
+      canSee: _strifeCanSee,
+      sameRoom: _strifeSameRoom,
+      plOnSanc: _strifePlayerSanc,
+      plOnBlessedSanc: _strifePlayerBlessedSanc,
+    });
+    if (!_strifeCanAttackPlayer) {
+      m.aware = true;
+      m.lastPx = _strifeTargetBeforeAI.x;
+      m.lastPy = _strifeTargetBeforeAI.y;
+      if (_moveOnly) return;
+      performStrifeRingAttack(m, _strifeTargetBeforeAI, dg, pl, ml, opts);
+      return;
+    }
+  }
+
   if (_isFlockVariant) {
     ensureFlockMp(m);
     const dx = pl.x - m.x, dy = pl.y - m.y;
@@ -7059,6 +7216,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* プレイヤーに隣接していれば詰まり扱いしない（攻撃ターンは正常） */
   if (_forceAlt && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) _forceAlt = false;
 
+  if (tryStrifeRingNpcAction(m, dg, pl, ml, opts)) return;
   if (npcRetaliationAI(m, dg, pl, ml, opts, _effFloat)) return;
 
   /* 通常店主は固定。行商人・冒険者は友好的な間も巡回する。 */
@@ -7172,7 +7330,24 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     : null;
   const _cloneTargeted = !!_cloneDecoy?.isPlayerClone;
   const canSee = (!_plInvis && (_sameRoom || (_giantSightline && (_adjPl || _inPlayerFov)))) || _cloneTargeted;
-  if (_isGiant && !_sameRoom && !_giantSightline && !_cloneTargeted) {
+  const _strifeTarget = strifeRingTarget(m, dg, pl);
+  const _strifePlayerThreat = strifeRingPlayerThreat(m, dg, pl, opts, {
+    canSee,
+    sameRoom: _sameRoom,
+    plOnSanc: _plOnSanc,
+    plOnBlessedSanc: _plOnBlessedSanc,
+  });
+  if (_strifeTarget) {
+    m.aware = true;
+    m.lastPx = _strifeTarget.x;
+    m.lastPy = _strifeTarget.y;
+  }
+  if (_strifeTarget && !_strifePlayerThreat) {
+    if (_moveOnly) return;
+    performStrifeRingAttack(m, _strifeTarget, dg, pl, ml, opts);
+    return;
+  }
+  if (_isGiant && !_sameRoom && !_giantSightline && !_cloneTargeted && !_strifeTarget) {
     /* 別室の壁越しに見失った巨大敵は、古い認識位置を追い続けない。 */
     m.aware = false;
     m.lastPx = m.x;
@@ -7180,7 +7355,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     delete m._rangedAttackThisTurn;
     delete m._willowAttackType;
   }
-  if (_plPotHidden && !_cloneTargeted) {
+  if (_plPotHidden && !_cloneTargeted && !_strifeTarget) {
     m.aware = false;
     m.lastPx = m.x;
     m.lastPy = m.y;
@@ -9099,10 +9274,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1
       );
       const _bcAdjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc;
+      const _strifeRingPlayerPriority = strifeRingTarget(m, dg, pl) === pl;
       /* 攻撃フェーズ：隣接ターゲットを攻撃 */
       if (!_moveOnly && (_bcAdj.length > 0 || _bcAdjPl) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
-        if (_bcAdjPl && (_bcAdj.length === 0 || Math.random() < 0.5)) {
+        if (_strifeRingPlayerPriority || (_bcAdjPl && (_bcAdj.length === 0 || Math.random() < 0.5))) {
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         } else {
           const _bTarget = pick(_bcAdj);
@@ -9115,6 +9291,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       /* 移動フェーズ：最も近いターゲット（店主除く）に向かう */
       if (!_attackOnly) {
+        if (_strifeRingPlayerPriority) return;
         let _bTx = pl.x, _bTy = pl.y;
         let _bNearDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         for (const _bm of dg.monsters) {
@@ -9468,6 +9645,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* adjacent attack：隣接していれば canSee 不問（透明時は _plInvis で除外済み） */
+    const _strifeRingTarget = strifeRingTarget(m, dg, pl);
+    if (_strifeRingTarget && (_strifeRingTarget === pl || !_strifePlayerThreat) &&
+        !m._rangedAttackThisTurn && !_rangedAttackReady) {
+      if (_moveOnly) return;
+      performStrifeRingAttack(m, _strifeRingTarget, dg, pl, ml, opts);
+      return;
+    }
     if (_adjPl && !_plInvis) {
       if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */

@@ -10131,6 +10131,7 @@ export const RINGS = [
   { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
   { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、通常の敵への近接攻撃で与えたダメージの8分の1だけHPを吸収する。アンデッドへの攻撃では同量の反動ダメージを受ける。" },
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
+  { name: "争いの指輪",     type:"ring", effect:"strife_ring",            rarity:"S", weight:0.05, sellPrice:20000, tile:60, desc:"装備中、プレイヤーから3マス以内の生物が、隣接する相手を無差別に攻撃する。プレイヤーと隣接していれば優先して狙う。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },
   { name: "鈍亀の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、速度が半減する（2ターンに1回しか行動できない）が、防御力が2倍になる。" },
