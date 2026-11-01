@@ -33,6 +33,8 @@ export const WISH_GOLD_MAX = 20000;
 const ITEM_NAME_BLACKLIST = new Set([
   "全能キラー",
   "アルテマソード",
+  "ミスリルの胴着",
+  "神盾の鎧",
   "願いの杖",
   "願いの壺",
   "伝説の王冠",
