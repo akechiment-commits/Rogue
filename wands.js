@@ -21,7 +21,7 @@ import { interruptPlayerSleep } from './turnUpkeep.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue, placeAltarPriest } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
-import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -1659,8 +1659,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)");
         } else {
           const _cfTurns = statusTurns("confuse", { kind: "player", blessed: _cfBlessed });
-          p.confusedTurns = (p.confusedTurns || 0) + _cfTurns;
-          ml.push(`混乱した！(${p.confusedTurns}ターン)${_cfBlessed ? "【祝=強混乱】" : ""}`);
+          if (applyPlayerConfusion(p, _cfTurns, ml)) ml.push(`混乱した！(${p.confusedTurns}ターン)${_cfBlessed ? "【祝=強混乱】" : ""}`);
         }
         break;
       }

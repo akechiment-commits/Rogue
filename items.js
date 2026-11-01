@@ -30,7 +30,8 @@ import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { isYogurtImmune } from './statusImmunity.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness,
@@ -1646,7 +1647,8 @@ function applyAltarPunishment(victim, dg, ml, p = null, luFn = null) {
   }
   if (_allowConfuse) {
     if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "confuse");
-    victim.confusedTurns = Math.max(victim.confusedTurns || 0, confuseTurns);
+    if (_monsterVictim) victim.confusedTurns = Math.max(victim.confusedTurns || 0, confuseTurns);
+    else applyPlayerConfusion(victim, confuseTurns, ml, { mode: "max" });
   }
   if (_allowSlow) {
     if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "slow");
@@ -1655,7 +1657,9 @@ function applyAltarPunishment(victim, dg, ml, p = null, luFn = null) {
   if (victim === p) {
     const paralyzeTurns = statusTurns("paralyze", { kind: "player" });
     applyPlayerParalyze(victim, paralyzeTurns, { mode: "max" });
-    ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns}/${slowTurns}ターン)`);
+    ml.push(isYogurtImmune(victim)
+      ? `${victimName}は眠り・金縛り・鈍足になった！(${sleepTurns}/${paralyzeTurns}/${slowTurns}ターン)`
+      : `${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns}/${slowTurns}ターン)`);
   } else {
     const _allowParalyze = !blockLargeMonsterStatus(victim, "paralyze", ml);
     const paralyzeTurns = _allowParalyze ? applyMonsterParalyze(victim, { ml: null }) : 0;
@@ -3852,8 +3856,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) {
           const _ct = statusTurns("confuse", { kind: "player" });
-          p.confusedTurns = (p.confusedTurns || 0) + _ct;
-          ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
+          if (applyPlayerConfusion(p, _ct, ml)) ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
         }
       }
       return "restart";
@@ -4328,7 +4331,7 @@ export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリ�
   const alreadyProtected = (target.iceCreamFireResTurns || 0) > 0;
   if (alreadyProtected) {
     const canConfuse = isPlayer
-      ? (target.statusImmune || 0) <= 0 && !hasAbility(target.armor, "confuse_proof")
+      ? (target.statusImmune || 0) <= 0 && !isYogurtImmune(target) && !hasAbility(target.armor, "confuse_proof")
       : (target.statusImmune || 0) <= 0 && !blockLargeMonsterStatus(target, "confuse", ml);
     if (canConfuse) {
       if (!isPlayer) startLargeMonsterStatusCooldown(target, "confuse");
@@ -5054,8 +5057,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") {
           if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "混乱効果を受けたが防具が防いだ！(耐混乱)" })) {
             const _ct = scaledPotionTurns(statusTurns("confuse", { kind: "player", blessed }));
-            p.confusedTurns = (p.confusedTurns || 0) + _ct;
-            ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
+            if (applyPlayerConfusion(p, _ct, ml)) ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
           }
         }
       }
@@ -5322,12 +5324,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const _bewitch = scaledPotionTurns(statusTurns("bewitch", { kind: "player" }));
           const _seal = scaledPotionTurns(statusTurns("seal", { kind: "player" }));
           p.sleepTurns = (p.sleepTurns || 0) + _sleep;
-          p.confusedTurns = (p.confusedTurns || 0) + _confuse;
+          applyPlayerConfusion(p, _confuse, ml);
           p.slowTurns = (p.slowTurns || 0) + _slow;
           p.darknessTurns = (p.darknessTurns || 0) + _dark;
           p.bewitchedTurns = (p.bewitchedTurns || 0) + _bewitch;
           p.sealedTurns = (p.sealedTurns || 0) + _seal;
-          ml.push(statusResultMessage(_poison, `万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`));
+          ml.push(isYogurtImmune(p)
+            ? "万能薬の呪い！眠り・鈍足・暗闇・幻惑・封印になった！毒・混乱は乳酸菌が防いだ！【呪】"
+            : statusResultMessage(_poison, `万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`));
         } else {
           const _hadDopingAftereffect = !weakEffect && (p.dopingAftereffectTurns || 0) > 0;
           if (_hadDopingAftereffect) {
@@ -5749,6 +5753,24 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
     }
   }
   return true;
+}
+
+/** 通常は毒・混乱を両方治療し、傷んだヨーグルト食料は1状態だけ治療する。 */
+export function applyYogurtFoodEffect(player, messages, effectMultiplier = 1) {
+  if (!player || player.hp <= 0) return;
+  const turns = Math.max(1, Math.floor(100 * effectMultiplier));
+  player.yogurtImmuneTurns = (player.yogurtImmuneTurns || 0) + turns;
+  let curedPoison = false;
+  if (player.poisoned || (player.poisonAtkLoss || 0) > 0) {
+    clearPlayerPoison(player);
+    curedPoison = true;
+    messages.push("乳酸菌が毒を中和した！");
+  }
+  if ((!curedPoison || effectMultiplier >= 1) && (player.confusedTurns || 0) > 0) {
+    player.confusedTurns = 0;
+    messages.push("乳酸菌が混乱を鎮めた！");
+  }
+  messages.push(`乳酸菌パワーで毒・混乱を寄せ付けない！(${turns}ターン)`);
 }
 
 export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, foodTier, effectMultiplier = 1) {
@@ -7376,11 +7398,11 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           mlx.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
         }
         if (!isStatusImmune(p, mlx)) {
-          p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
+          const confused = applyPlayerConfusion(p, statusTurns("confuse", { kind: "player" }), mlx);
           p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
           const _yConfuseT = statusTurns("confuse", { kind: "player" });
           const _ySlowT = statusTurns("slow", { kind: "player" });
-          mlx.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+          mlx.push(confused ? `混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！` : `鈍足(${_ySlowT}ターン)状態になった！`);
         }
       } else if (item.type === "food" && item.rotten && !item.yabai) {
         if (hasRingEffect(p, "antidote_ring")) {

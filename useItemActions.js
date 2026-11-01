@@ -9,7 +9,7 @@ import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, applyInnateFoodEffectOnHit, foodEffectMultiplier, foodHungerAmount, hasFireResist, reduceFireDamage, fireResistDamageLabel,
-  applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster, foodEffectTier,
+  applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster, foodEffectTier, applyYogurtFoodEffect,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
@@ -32,7 +32,7 @@ import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } fr
 import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
-import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
+import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
 import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
@@ -415,8 +415,7 @@ export function useItemActions({
         } else {
           // 通常/祝福：混乱（祝福=2倍ターン）
           const _cturns = statusTurns("confuse", { kind: "player", blessed: !!it.blessed });
-          p.confusedTurns = (p.confusedTurns || 0) + _cturns;
-          ml.push(`${_useItemName}を飲んだ。頭がくらくらする！(混乱${p.confusedTurns}ターン)${it.blessed ? "【祝=強混乱】" : ""}`);
+          if (applyPlayerConfusion(p, _cturns, ml)) ml.push(`${_useItemName}を飲んだ。頭がくらくらする！(混乱${p.confusedTurns}ターン)${it.blessed ? "【祝=強混乱】" : ""}`);
         }
       } else if (it.effect === "paralyze") {
         if (it.cursed) {
@@ -574,8 +573,7 @@ export function useItemActions({
             ml.push("乳酸菌が混乱を防いだ！");
           } else {
             const _yConfuseT = statusTurns("confuse", { kind: "player" });
-            p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
-            ml.push(`混乱した！(${_yConfuseT}ターン)`);
+            if (applyPlayerConfusion(p, _yConfuseT, ml)) ml.push(`混乱した！(${_yConfuseT}ターン)`);
           }
           if (hasAbility(p.armor, "bewitch_proof")) {
             ml.push("防具が幻惑を防いだ！");
@@ -605,6 +603,7 @@ export function useItemActions({
           ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
         applyInnateFoodEffectOnHit(it, "player", p, dg, p, ml, lu, foodEffectTier(it), foodEffectMultiplier(it));
+        if (it.potFlavors?.includes("yogurt")) applyYogurtFoodEffect(p, ml, foodEffectMultiplier(it));
       } else {
       const _foodVal = foodHungerAmount(it, _foodBm);
       p.inventory.splice(idx, 1);
@@ -715,7 +714,7 @@ export function useItemActions({
           } else if (pe === "confuse") {
             if ((p.statusImmune || 0) > 0) { ml.push("混乱成分！状態防止中のため効かなかった！"); }
             else if (hasAbility(p.armor, "confuse_proof")) { ml.push("混乱成分！しかし防具が防いだ！(耐混乱)"); }
-            else { const _ct = statusTurns("confuse", { kind: "player" }); p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`); }
+            else { const _ct = statusTurns("confuse", { kind: "player" }); if (applyPlayerConfusion(p, _ct, ml)) ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`); }
           } else if (pe === "sake" || pe === "sake_blessed") {
             if ((p.statusImmune || 0) > 0) {
               ml.push("酒の効果を受けたが、状態防止中のため酔わなかった！");
@@ -889,11 +888,7 @@ export function useItemActions({
             p.mayonnaiseWaterProofTurns = (p.mayonnaiseWaterProofTurns || 0) + _potFlavorTurns;
             ml.push(`マヨネーズの油分が水を弾く！耐水状態になった。(${_potFlavorTurns}ターン)`);
           } else if (_pf === "yogurt") {
-            p.yogurtImmuneTurns = (p.yogurtImmuneTurns || 0) + _potFlavorTurns;
-            let _yogurtCured = false;
-            if (p.poisoned) { clearPlayerPoison(p); _yogurtCured = true; ml.push("乳酸菌が毒を中和した！"); }
-            if (!_yogurtCured && (p.confusedTurns || 0) > 0) { p.confusedTurns = 0; ml.push("乳酸菌が混乱を鎮めた！"); }
-            ml.push(`乳酸菌パワーで毒・混乱を寄せ付けない！(${_potFlavorTurns}ターン)`);
+            applyYogurtFoodEffect(p, ml, _damagedFoodMultiplier);
           } else if (_pf === "coconut") {
             if (isMpRecoveryBlocked(p)) {
               ml.push(`ココナッツの力が湧いたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
@@ -1401,15 +1396,14 @@ export function useItemActions({
           const _pct = statusTurns("confuse", { kind: "player" });
           if ((p.statusImmune || 0) > 0) ml.push("混乱ガスが辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
           else if (hasAbility(p.armor, "confuse_proof")) ml.push("混乱ガスが辺りを包んだ！しかし防具が防いだ！(耐混乱)【呪】");
-          else { p.confusedTurns = (p.confusedTurns || 0) + _pct; ml.push(`混乱ガスが辺りを包んだ！${_pct}ターン混乱する…【呪】`); }
+          else if (applyPlayerConfusion(p, _pct, ml)) { ml.push(`混乱ガスが辺りを包んだ！${_pct}ターン混乱する…【呪】`); }
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (skipDodgemoleScroll(_m, ml, "混乱ガス")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
               if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
-              p.confusedTurns = (p.confusedTurns || 0) + _pct;
-              ml.push(`${_m.name}が混乱を跳ね返した！さらに${_pct}ターン混乱する…`); continue;
+              if (applyPlayerConfusion(p, _pct, ml)) ml.push(`${_m.name}が混乱を跳ね返した！さらに${_pct}ターン混乱する…`); continue;
             }
             if (consumeBarrier(_m, ml)) continue;
             if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
@@ -1428,8 +1422,7 @@ export function useItemActions({
               if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
-                p.confusedTurns = (p.confusedTurns || 0) + _ctPl;
-                ml.push(`${_m.name}が混乱を跳ね返した！${_ctPl}ターン混乱する…`); continue;
+                if (applyPlayerConfusion(p, _ctPl, ml)) ml.push(`${_m.name}が混乱を跳ね返した！${_ctPl}ターン混乱する…`); continue;
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
@@ -2613,8 +2606,7 @@ export function useItemActions({
         if (!isStatusImmune(p, ml)) {
           if (_shortage >= 5) {
             const _confuseTurns = Math.min(12, statusTurns("confuse", { kind: "player" }) + Math.floor(_shortage / 3));
-            p.confusedTurns = (p.confusedTurns || 0) + _confuseTurns;
-            ml.push(`魔力が乱れて混乱した！(${_confuseTurns}ターン)`);
+            if (applyPlayerConfusion(p, _confuseTurns, ml)) ml.push(`魔力が乱れて混乱した！(${_confuseTurns}ターン)`);
           }
           if (_shortage >= 10) {
             const _slowTurns = statusTurns("slow", { kind: "player" }) + Math.floor(_shortage / 4);
@@ -4537,9 +4529,9 @@ export function useItemActions({
                     const _rfConfuseT = statusTurns("confuse", { kind: "player" });
                     const _rfSlowT = statusTurns("slow", { kind: "player" });
                     if (!isStatusImmune(p, ml)) {
-                      p.confusedTurns = (p.confusedTurns || 0) + _rfConfuseT;
+                      const confused = applyPlayerConfusion(p, _rfConfuseT, ml);
                       p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
-                      ml.push(`混乱(${_rfConfuseT}ターン)・鈍足(${_rfSlowT}ターン)状態になった！`);
+                      ml.push(confused ? `混乱(${_rfConfuseT}ターン)・鈍足(${_rfSlowT}ターン)状態になった！` : `鈍足(${_rfSlowT}ターン)状態になった！`);
                     }
                   } else if (it.type === "food" && it.rotten && !it.yabai) {
                     if (hasRingEffect(p, "antidote_ring")) {
@@ -4687,9 +4679,9 @@ export function useItemActions({
               if (it.type === "food" && it.yabai) {
                 const _poison = applyYabaiPoison(p, "player");
                 if (!isStatusImmune(p, ml)) {
-                  p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
+                  if (applyPlayerConfusion(p, statusTurns("confuse", { kind: "player" }), ml)) ml.push("ヤバイ食料の影響で混乱した！");
                 }
-                ml.push(statusResultMessage(_poison, `ヤバイ食料の影響で毒(${_poison.turns}ターン)・混乱した！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
+                ml.push(statusResultMessage(_poison, `ヤバイ食料の影響で毒(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
               } else if (it.type === "food" && it.rotten) {
                 if (!hasRingEffect(p, "antidote_ring")) {
                   const _poison = applyPlayerPoison(p);

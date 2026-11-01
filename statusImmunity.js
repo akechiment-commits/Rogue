@@ -5,3 +5,10 @@ export function isStatusImmune(entity, messages = null, name = null) {
   return true;
 }
 
+/** ヨーグルトの限定免疫。全状態防止と違い、毒・混乱にだけ使用する。 */
+export function isYogurtImmune(entity, messages = null, ailment = "混乱") {
+  if ((entity?.yogurtImmuneTurns || 0) <= 0) return false;
+  messages?.push(`乳酸菌が${ailment}を防いだ！`);
+  return true;
+}
+

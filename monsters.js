@@ -50,7 +50,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyPlayerConfusion, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
@@ -807,8 +807,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         ml.push(`${m.name}の鋭い爪が頭を掻いた！しかし乳酸菌が混乱を防いだ！`);
       } else {
         const _ct = statusTurns("confuse", { kind: "player" });
-        pl.confusedTurns = (pl.confusedTurns || 0) + _ct;
-        ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(${_ct}ターン)`);
+        if (applyPlayerConfusion(pl, _ct, ml)) ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(${_ct}ターン)`);
       }
     }
     if (m.baseKind === "boss_demonking" && Math.random() < MONSTER_SPECIAL_RATE.status) {
@@ -4624,8 +4623,7 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
           ml.push("防具が混乱胞子を防いだ！");
         } else {
           const turns = statusTurns("confuse", { kind: "player" });
-          p.confusedTurns = (p.confusedTurns || 0) + turns;
-          ml.push(`混乱胞子を浴びて混乱してしまった！(${turns}ターン)`);
+          if (applyPlayerConfusion(p, turns, ml)) ml.push(`混乱胞子を浴びて混乱してしまった！(${turns}ターン)`);
         }
       }
     } else {
@@ -6316,7 +6314,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
         else if (_r < 0.66) {
           if ((pl.yogurtImmuneTurns || 0) > 0) { ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`); }
-          else { const _ct = statusTurns("confuse", { kind: "player" }); pl.confusedTurns = (pl.confusedTurns || 0) + _ct; ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`); }
+          else { const _ct = statusTurns("confuse", { kind: "player" }); if (applyPlayerConfusion(pl, _ct, ml)) ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`); }
         }
         else { const _st = statusTurns("seal", { kind: "player" }); pl.sealedTurns = (pl.sealedTurns || 0) + _st; ml.push(`${m.name}の空間歪曲で魔法が封印された！(${_st}ターン)`); }
       }

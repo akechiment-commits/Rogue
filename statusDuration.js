@@ -1,4 +1,4 @@
-import { isStatusImmune } from "./statusImmunity.js";
+import { isStatusImmune, isYogurtImmune } from "./statusImmunity.js";
 export { isStatusImmune } from "./statusImmunity.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 
@@ -154,7 +154,17 @@ export function monsterStatusTurns(baseTurns, target) {
 export function statusResultMessage(result, message) {
   if (!result?.blocked) return message;
   const damage = String(message).match(/\d+ダメージ！/g) || [];
-  return damage.join("") + "状態防止中のため効かなかった！";
+  return damage.join("") + (result.blockedBy === "yogurt" ? "乳酸菌が毒を防いだ！" : "状態防止中のため効かなかった！");
+}
+
+/** プレイヤーへの混乱付与を、付与元によらず同じ免疫判定で処理する。 */
+export function applyPlayerConfusion(player, turns, messages = null, { mode = "add" } = {}) {
+  if (!player || !(turns > 0)) return 0;
+  if (isStatusImmune(player, messages) || isYogurtImmune(player, messages)) return 0;
+  player.confusedTurns = mode === "max"
+    ? Math.max(player.confusedTurns || 0, turns)
+    : (player.confusedTurns || 0) + turns;
+  return turns;
 }
 
 /**
@@ -165,6 +175,7 @@ export function statusResultMessage(result, message) {
 export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOverride, sourceName = null, durationMultiplier = 1 } = {}) {
   if (!player) return { newlyApplied: false, atkLoss: 0, turns: 0, remaining: 0 };
   if (isStatusImmune(player)) return { blocked: true, newlyApplied: false, atkLoss: 0, turns: 0, remaining: player.poisonedTurns || 0 };
+  if (isYogurtImmune(player)) return { blocked: true, blockedBy: "yogurt", newlyApplied: false, atkLoss: 0, turns: 0, remaining: player.poisonedTurns || 0 };
   player.poisonSourceName = sourceName || player._activeDamageSourceName || null;
   const newlyApplied = !player.poisoned;
   const baseTurns = statusTurns("poison", { kind: "player", blessed });

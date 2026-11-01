@@ -108,7 +108,7 @@ import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { placeFallenEntities } from "./pitfallPlacement.js";
-import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed, applyMonsterParalyze, applyMonsterBewitch } from "./statusDuration.js";
+import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed, applyMonsterParalyze, applyMonsterBewitch } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { withLargeMonsterDamageTurn } from "./largeMonsterDamage.js";
@@ -1715,8 +1715,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               const _prev = pl.confusedTurns || 0;
-              pl.confusedTurns = _prev + statusTurns("confuse", { kind: "player", blessed: _wandBlessed });
-              mlx.push(_prev > 0 ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)` : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
+              if (applyPlayerConfusion(pl, statusTurns("confuse", { kind: "player", blessed: _wandBlessed }), mlx)) {
+                mlx.push(_prev > 0 ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)` : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
+              }
             },
             onMonsterHit: (mon, mlx) => {
               if (blockLargeMonsterStatus(mon, "confuse", mlx)) return;
@@ -5390,9 +5391,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   const _yConfuseT = statusTurns("confuse", { kind: "player" });
                   const _ySlowT = statusTurns("slow", { kind: "player" });
                   if (!isStatusImmune(p, ml)) {
-                    p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
+                    const confused = applyPlayerConfusion(p, _yConfuseT, ml);
                     p.slowTurns = (p.slowTurns || 0) + _ySlowT;
-                    ml.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
+                    ml.push(confused ? `混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！` : `鈍足(${_ySlowT}ターン)状態になった！`);
                   }
                 } else if (item.type === "food" && item.rotten && !item.yabai) {
                   if (hasRingEffect(p, "antidote_ring")) {
@@ -5602,8 +5603,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       // 混乱になる
       if (!isStatusImmune(p, ml)) {
         const _springConfuseT = SPRING_CONFUSION_TURNS;
-        p.confusedTurns = (p.confusedTurns || 0) + _springConfuseT;
-        ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
+        if (applyPlayerConfusion(p, _springConfuseT, ml)) ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
       }
     } else if (r < 0.84) {
       // ダメージ

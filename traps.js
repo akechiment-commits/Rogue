@@ -3,7 +3,7 @@ import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, rando
 import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
-import { statusTurns, resolveParalysisHit } from "./statusDuration.js";
+import { statusTurns, resolveParalysisHit, applyPlayerConfusion } from "./statusDuration.js";
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
 import { claimTrapActivation } from "./trapActivationTurn.js";
@@ -137,8 +137,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) break;
       {
         const _ct = statusTurns("confuse", { kind: "player" });
-        p.confusedTurns = (p.confusedTurns || 0) + _ct;
-        ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
+        if (applyPlayerConfusion(p, _ct, ml)) ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
       }
       break;
     }
