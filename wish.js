@@ -23,7 +23,8 @@ import { adjustPlayerBaseMaxHp } from "./equipmentEffects.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
 export {
-  WISH_CHANCE_DRINK, WISH_CHANCE_SOAK, WISH_CHANCE_GOLD_COIN, WISH_CHANCE_GOLD_NUGGET, rollWishChance
+  WISH_CHANCE_DRINK, WISH_CHANCE_SOAK, WISH_CHANCE_GOLD_COIN, WISH_CHANCE_GOLD_NUGGET,
+  goldCoinWishChance, goldCoinEjectChance, rollWishChance
 } from "./springRules.js";
 
 /** 願いで得られるゴールド量 */

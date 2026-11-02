@@ -33,7 +33,7 @@ import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import { isYogurtImmune } from './statusImmunity.js';
-import { rollWishChance } from "./springRules.js";
+import { rollWishChance, goldCoinEjectChance } from "./springRules.js";
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness,
@@ -6348,13 +6348,15 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
     return { wish: false, dried: false, itemEjected: null };
   }
   if (item.type === "gold") {
-    if (rollWishChance("gold_coin", rngFn)) {
-      ml.push(`${_dn(item)}が泉の底へ沈むと、泉が神秘的な光を放ち始めた！`);
+    const coinValue = Math.max(0, Number(item.value) || 0);
+    if (rollWishChance("gold_coin", rngFn, coinValue)) {
+      ml.push(`${_dn(item)}が泉の底へ吸い込まれると、泉が神秘的な光を放ち始めた！`);
       ml.push("「何を願う？」");
       return { wish: true, dried: false, itemEjected: null };
     }
-    ml.push(`${_dn(item)}は泉の底へ沈んでいった…`);
-    if (rngFn() < SPRING_EJECT_CHANCE) {
+    ml.push(`${_dn(item)}は泉の底へ吸い込まれて消えた…`);
+    const ejectChance = goldCoinEjectChance(coinValue);
+    if (rngFn() < ejectChance) {
       const ejected = makeSpringEjectedItem(rngFn);
       if (dg) {
         const _eft = new Set();
@@ -6367,11 +6369,11 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
   }
   if (item.type === "gold_nugget") {
     if (!item.isFake && rollWishChance("gold_nugget", rngFn)) {
-      ml.push(`${_dn(item)}が泉の底へ沈むと、眩い光が泉全体から溢れ出した！`);
+      ml.push(`${_dn(item)}が泉の底へ吸い込まれると、眩い光が泉全体から溢れ出した！`);
       ml.push("「何を願う？」");
       return { wish: true, dried: false, itemEjected: null };
     }
-    ml.push(item.isFake ? `${_dn(item)}は泉の底へ沈んでいった…何も起こらなかった。` : `${_dn(item)}は泉の底へ静かに沈んでいった…`);
+    ml.push(item.isFake ? `${_dn(item)}は泉の底へ吸い込まれて消えた…何も起こらなかった。` : `${_dn(item)}は泉の底へ吸い込まれて静かに消えた…`);
     return { wish: false, dried: false, itemEjected: null };
   }
   if (item.type === "bottle") {

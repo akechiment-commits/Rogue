@@ -97,12 +97,16 @@ function isBbEffective(kind, item, bb) {
 }
 /* 泉に浸すと変化するか、装備から外れて泉へ落ちるアイテムか判定 */
 function isSpringEffective(item, player) {
+  if (!item) return false;
   const cursedEquipped = item.cursed && (player?.weapon === item || player?.armor === item ||
     player?.arrow === item || (player?.rings || []).includes(item));
   if (item.type === "bottle" || cursedEquipped) return true;
   if (item.type === "scroll" && item.effect !== "blank") return true;
   if (item.type === "spellbook" && item.spell) return true;
   if (item.type === "pot" && item.potEffect === "gunpowder") return true;
+  if (item.type === "gold" || item.type === "gold_nugget") return true;
+  if (item.type === "weapon" && ["ロングソード", "カタナ", "短剣", "バトルアクス", "戦神の斧"].includes(item.name)) return true;
+  if (item.type === "ring" && item.cursed) return true;
   return false;
 }
 

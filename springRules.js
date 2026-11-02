@@ -7,11 +7,25 @@ export const WISH_CHANCE_SOAK = 0.005;
 export const WISH_CHANCE_GOLD_COIN = 0.015;
 export const WISH_CHANCE_GOLD_NUGGET = 0.15;
 
+/** 金額に応じた金貨投入時の願い確率（100G: 約0.5% 〜 1000G: 約1.0% 〜 10000G以上: 最大8.0%） */
+export function goldCoinWishChance(value = null) {
+  if (value == null) return WISH_CHANCE_GOLD_COIN;
+  const v = Math.max(0, Number(value) || 0);
+  return Math.min(0.08, 0.005 + (v / 10000) * 0.05);
+}
+
+/** 金額に応じたアイテム射出確率（100G: 約15% 〜 1000G: 約20% 〜 5000G以上: 最大50%） */
+export function goldCoinEjectChance(value = null) {
+  if (value == null) return 0.20;
+  const v = Math.max(0, Number(value) || 0);
+  return Math.min(0.50, 0.15 + (v / 5000) * 0.25);
+}
+
 /** 超低確率ロール */
-export function rollWishChance(kind = "drink", rngFn = Math.random) {
+export function rollWishChance(kind = "drink", rngFn = Math.random, value = null) {
   let p = WISH_CHANCE_DRINK;
   if (kind === "gold_nugget") p = WISH_CHANCE_GOLD_NUGGET;
-  else if (kind === "gold_coin" || kind === "gold") p = WISH_CHANCE_GOLD_COIN;
+  else if (kind === "gold_coin" || kind === "gold") p = goldCoinWishChance(value);
   else if (kind === "soak") p = WISH_CHANCE_SOAK;
   return rngFn() < p;
 }
