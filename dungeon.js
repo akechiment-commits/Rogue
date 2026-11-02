@@ -5,7 +5,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
-  GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
+  GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, rollGeneratedWandCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
 } from './items.js';
 import { scatterFloorGimmicks, makeAltar, placeAltarPriest, ensureAltarPriests } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
@@ -538,7 +538,7 @@ function pickRareItem(depth, dungeonType = null) {
     { w: 5, fn: () => {
       const t = pickLootFromPool(wandPool);
       if (!t) return { ...genFood(), id: uid() };
-      return { ...t, id: uid(), charges: (t.effect === "wish" || t.noChargeBoost || t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(0, 2) };
+      return { ...t, id: uid(), charges: rollGeneratedWandCharges(t) };
     } },
     { w: 4, fn: () => pickTyped(_rPool.filter((i) => i.type === "weapon")) },
     { w: 3, fn: () => pickTyped(_rPool.filter((i) => i.type === "armor")) },
@@ -605,7 +605,7 @@ function buildUniPool(depth, dungeonType) {
     { w:  8, fn: () => {
       const t = pickLootFromPool(wandPool);
       if (!t) return { ...genFood(), id: uid() };
-      return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) };
+      return { ...t, id: uid(), charges: rollGeneratedWandCharges(t) };
     } },
     { w:  6, fn: () => lootOrFood(iPool.filter(i => i.type === "weapon")) },
     { w:  5, fn: () => lootOrFood(iPool.filter(i => i.type === "armor")) },
@@ -1055,7 +1055,7 @@ function setupShopRoom(room, map, depth, items, mons, dungeonType = null) {
   const shopFloor = depth + 1;
   const shopOk = (it) => it && (it.type === "gem" || it.type === "food" || lootAllowedInDungeon(it, dungeonType, shopFloor));
   /* 専門店の抽選（30%） */
-  const _wandsCands = (pool) => pool.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand" || w.effect === "wish" || w.noChargeBoost) ? 1 : Math.max(1, w.charges + rng(-1, 1)) }));
+  const _wandsCands = (pool) => pool.map(w => ({ ...w, charges: rollGeneratedWandCharges(w) }));
   const _specialtyOptions = [
     /* luxury: B 以上（weight≤2）。旧 A/S 相当の希少枠 */
     { type: "weapon",    name: "武器屋",   cands: () => [...ITEMS.filter(i => i.type === "weapon"), { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) }], luxury: () => ITEMS.filter(i => i.type === "weapon" && (i.rarity === "B" || i.rarity === "A" || i.rarity === "S")) },
@@ -3680,7 +3680,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     { w:  8, fn: () => {
       const t = pickLootFromPool(_WAND_POOL);
       if (!t) return { ...genFood(), id: uid() };
-      return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) };
+      return { ...t, id: uid(), charges: rollGeneratedWandCharges(t) };
     } },
     { w:  6, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "weapon")) },
     { w:  5, fn: () => lootOrFood(_ITEMS_POOL.filter(i => i.type === "armor")) },

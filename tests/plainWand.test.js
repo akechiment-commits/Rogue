@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { WANDS } from "../items.js";
+import { WANDS, rollGeneratedWandCharges } from "../items.js";
 import { applyWandEffect, breakWandAoE } from "../wands.js";
 import { makePlayer } from "./helpers.js";
 
@@ -8,11 +8,18 @@ describe("ただの杖の実装", () => {
     const wand = WANDS.find((w) => w.name === "ただの杖");
     expect(wand).toBeDefined();
     expect(wand.effect).toBe("plain");
-    expect(wand.charges).toBe(5);
     expect(wand.rarity).toBe("E");
     expect(wand.weight).toBe(12);
     expect(wand.sellPrice).toBe(50);
     expect(wand.tile).toBe(24);
+  });
+
+  it("rollGeneratedWandCharges でただの杖の回数は3〜7回でランダム生成される", () => {
+    const wand = WANDS.find((w) => w.name === "ただの杖");
+    const minC = rollGeneratedWandCharges(wand, () => 3);
+    const maxC = rollGeneratedWandCharges(wand, () => 7);
+    expect(minC).toBe(3);
+    expect(maxC).toBe(7);
   });
 
   it("振ってモンスターに命中しても何も起こらない", () => {

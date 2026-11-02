@@ -424,7 +424,7 @@ export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
  */
 /** ペンの通常生成時初期回数。ポータルは必要数を確保しやすく通常枠にする。 */
 export function penInitialCharges(pen, randomFn = Math.random) {
-  if (pen?.effect === "plain" || pen?.rarity === "E") return rng(4, 5, randomFn);
+  if (pen?.effect === "plain" || pen?.rarity === "E") return rng(3, 6, randomFn);
   if (pen?.effect !== "portal" && (pen?.rarity === "A" || pen?.rarity === "B")) return rng(1, 2, randomFn);
   return rng(2, 3, randomFn);
 }
@@ -1199,12 +1199,15 @@ export function isNoChargeBoostWand(it) {
 }
 
 /** 生成時の杖の回数ロール。願い・祝福・呪いの杖と回数増加不可の杖は生成時の回数のまま（dungeon.js の生成規則と同じ）。 */
-export function rollGeneratedWandCharges(item) {
+export function rollGeneratedWandCharges(item, rngFn = rng) {
   if (!item || item.type !== "wand") return item?.charges;
   if (isNoChargeBoostWand(item) || item.effect === "curse_wand" || item.effect === "bless_wand") {
     return item.charges || 1;
   }
-  return Math.max(1, (item.charges || 1) + rng(-1, 1));
+  if (item.effect === "plain") {
+    return rngFn(3, 7);
+  }
+  return Math.max(1, (item.charges || 1) + rngFn(-1, 1));
 }
 
 export function potOccupancyCount(pot) {

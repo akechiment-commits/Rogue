@@ -923,15 +923,15 @@ describe("applyPotionEffect", () => {
 });
 
 describe("ペン初期回数", () => {
-  it("強力なペンは1〜2、通常は2〜3、ただのペンは4〜5", () => {
+  it("強力なペンは1〜2、通常は2〜3、ただのペンは3〜6", () => {
     expect(penInitialCharges({ effect: "sanctuary", rarity: "A" }, () => 0)).toBe(1);
     expect(penInitialCharges({ effect: "sanctuary", rarity: "A" }, () => 0.99)).toBe(2);
     expect(penInitialCharges({ effect: "portal", rarity: "B" }, () => 0)).toBe(2);
     expect(penInitialCharges({ effect: "portal", rarity: "B" }, () => 0.99)).toBe(3);
     expect(penInitialCharges({ effect: "vulnerability", rarity: "C" }, () => 0)).toBe(2);
     expect(penInitialCharges({ effect: "vulnerability", rarity: "C" }, () => 0.99)).toBe(3);
-    expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0)).toBe(4);
-    expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0.99)).toBe(5);
+    expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0)).toBe(3);
+    expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0.99)).toBe(6);
   });
 });
 
