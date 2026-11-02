@@ -3,7 +3,7 @@ import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./mon
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { hasForcedTurn } from "./turnUpkeep.js";
-import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem } from "./utils.js";
+import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem, clearDimensionalVaultItemCounter } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
@@ -182,6 +182,19 @@ export function useItemActions({
     const _revReal = _wasUnknown ? it.name : null;
     /* 消費前の表示名を固定する。使用処理の途中で識別状態が変わっても真名を漏らさない。 */
     const _useItemName = _wasUnknown ? _revFake : dnameRef(it);
+    if (it.type === "gold") {
+      p.inventory.splice(idx, 1);
+      const _val = it.value || 0;
+      p.gold = (p.gold || 0) + _val;
+      ml.push(`${_val}枚の金貨を財布に入れた！（所持金: ${p.gold}G）`);
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      setShowInv(false);
+      setSelIdx(null);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+      return;
+    }
     if (it.type === "potion") {
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
@@ -2324,7 +2337,7 @@ export function useItemActions({
       } else if (it.type === "arrow") {
         _dropLbl += `(${it.count}${it.stone || it.magicStone || it.iceChunk || it.specialProjectile ? "個" : "本"})`;
       } else if (it.type === "gold") {
-        _dropLbl += `(${it.count}枚)`;
+        _dropLbl = `${it.value}枚の金貨`;
       }
       ml.push(`${_dropLbl}${_itemPickupSuffix(it, sr.current?.ident)}を置いた。`);
     }
@@ -2335,6 +2348,61 @@ export function useItemActions({
     if (!dropModeRef.current) {
       setShowInv(false);
     }
+    sr.current = { ...sr.current };
+    setGs({ ...sr.current });
+  }, [endTurn]);
+  const doSwapItem = useCallback((idx) => {
+    if (!sr.current) return;
+    const { player: p, dungeon: dg } = sr.current;
+    if (cannotActWithItems(p)) return;
+    const it = p.inventory[idx];
+    if (!it) return;
+    if (it.noDrop) {
+      setMsgs((prev) => [...prev.slice(-80), `${it.name}は置けない！`]);
+      return;
+    }
+    const _isEquipped = p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
+    if (_isEquipped && it.cursed) {
+      setMsgs((prev) => [...prev.slice(-80), "呪われているので外せない！"]);
+      return;
+    }
+    const floorItems = (dg.items || []).filter(item => item.x === p.x && item.y === p.y && item.type !== "sign");
+    if (floorItems.length === 0) {
+      setMsgs((prev) => [...prev.slice(-80), "足元に交換できるアイテムがない。"]);
+      return;
+    }
+    const floorIt = floorItems[0];
+    _forceUnequip(p, it);
+
+    dg.items = dg.items.filter(item => item !== floorIt);
+    clearDimensionalVaultItemCounter(floorIt);
+    trackItem(floorIt);
+    delete floorIt.wallEmbedded;
+    if (floorIt.type === "gold" && !floorIt.name?.includes("枚")) {
+      floorIt.name = `${floorIt.value}枚の金貨`;
+    }
+
+    p.inventory[idx] = floorIt;
+
+    const ml = installPlayerHpMessageHook([], p);
+    const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
+    if (_dropSpr) {
+      soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
+    } else {
+      it.x = p.x;
+      it.y = p.y;
+      dg.items.push(it);
+    }
+
+    const itNm = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+    const flNm = itemDisplayName(floorIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+    ml.push(`${itNm}を置き、足元の${flNm}を拾った。`);
+
+    endTurn(sr.current, p, ml);
+    setMsgs((prev) => [...prev.slice(-80), ...ml]);
+    setSelIdx(null);
+    setShowDesc(null);
+    setShowInv(false);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
   }, [endTurn]);
@@ -4397,6 +4465,7 @@ export function useItemActions({
           /* 投げメッセージ用ラベル生成：武器/防具は+値付き、杖/ペンはチャージ付き、矢は本数付き */
           const _mkThrowLb = () => {
             if (it.type === "arrow") return (it.stone || it.magicStone || it.iceChunk || it.specialProjectile) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
+            if (it.type === "gold") return `${it.value}枚の金貨`;
             const _tnm = dnameRef(it);
             if (it.type === "weapon") {
               const _tp = it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";
@@ -4517,7 +4586,7 @@ export function useItemActions({
                 pushItemReturnAnim(tx, ty, _rfToX, _rfToY, it.tile);
                 if (_rfHitPlayer) {
                   p.deathCause = `跳ね返された${resolveItemName(it, dnameRef)}に`;
-                  const _rfTdDmg = calcProjectileDmg(p, _tdBaseAtk, 0);
+                  const _rfTdDmg = it.type === "gold" ? Math.max(1, Math.floor((it.value || 0) / 10)) : calcProjectileDmg(p, _tdBaseAtk, 0);
                   p.hp -= _rfTdDmg;
                   ml.push(`跳ね返された${lb}が${pl()}に命中！${_rfTdDmg}ダメージ！消滅した。`);
                   if (it.type === "food" && it.yabai) {
@@ -4605,7 +4674,8 @@ export function useItemActions({
               } else {
                 if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; } }
                 else {
-                  const _itd = clampDmgFixed(m, calcProjectileDmg(p, _tdBaseAtk, m.def), true);
+                  const _goldThrowDmg = it.type === "gold" ? Math.max(1, Math.floor((it.value || 0) / 10)) : null;
+                  const _itd = _goldThrowDmg !== null ? clampDmgFixed(m, _goldThrowDmg, true) : clampDmgFixed(m, calcProjectileDmg(p, _tdBaseAtk, m.def), true);
                   m.hp -= _itd;
                   markWanderingNpcHostile(m, dg, p, ml);
                   ml.push(`${lb}が${m.name}に命中！${_itd}ダメージ！`);
@@ -4677,7 +4747,7 @@ export function useItemActions({
             } else if (it.type === "arrow" && it.bombArrow) {
               doExplosion(p.x, p.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu, false, false, false, false, { projectileAtk: it.atk || 6 });
             } else {
-              const _selfD = Math.max(1, calcProjectileDmg(p, _tdBaseAtk, 0));
+              const _selfD = it.type === "gold" ? Math.max(1, Math.floor((it.value || 0) / 10)) : Math.max(1, calcProjectileDmg(p, _tdBaseAtk, 0));
               p.hp -= _selfD;
               p.deathCause = "風に煽られた投げ物に当たって";
               ml.push(`${_selfD}ダメージ！`);
@@ -4776,7 +4846,7 @@ export function useItemActions({
     return undefined;
   }, [throwMode, execDirection]);
   return {
-    doUseItem, doHypnotizedAction, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
+    doUseItem, doHypnotizedAction, doDropItem, doSwapItem, doThrow, doShoot, doWaveWand, doBreakWand,
     doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
     execDirection,
   };

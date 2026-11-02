@@ -41,5 +41,5 @@ export function getInventoryUseLabel(item, player) {
 }
 
 export function canUseInventoryItem(item) {
-  return ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(item.type);
+  return ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen", "gold"].includes(item.type);
 }

@@ -556,6 +556,9 @@ export function processPitfallBag(bag, floors, depth, session = null) {
 
 /* アイテム表示名を返す（未識別なら偽名 or ニックネーム、識別済みなら本名優先） */
 export function itemDisplayName(it, fakeNames, ident, nicknames) {
+  if (it?.type === "gold") {
+    return it.value ? `${it.value}枚の金貨` : (it.name || "金貨");
+  }
   if (it?.type === "gold_nugget") {
     return it.fullIdent || it.bcKnown ? (it.isFake ? "偽物の金塊" : "金塊") : "金塊";
   }

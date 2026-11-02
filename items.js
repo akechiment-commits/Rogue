@@ -4302,6 +4302,7 @@ export function makeArrowUnitFromStack(stack) {
 export function thrownItemAttack(item) {
   if (item?.type === "weapon") return (item.atk || 3) + (item.plus || 0);
   if (item?.type === "armor") return (item.def || 3) + (item.plus || 0);
+  if (item?.type === "gold") return Math.max(1, Math.floor((item.value || 0) / 10));
   if (item?.type === "ring" || item?.type === "scroll") return 1;
   if (item?.type === "pot") return 5;
   if (item?.type === "bottle") return 3;

@@ -6128,7 +6128,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* callbacks内で sr.current を参照するバージョン */
   const dnameRef = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   const {
-    doUseItem, doHypnotizedAction, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
+    doUseItem, doHypnotizedAction, doDropItem, doSwapItem, doThrow, doShoot, doWaveWand, doBreakWand,
     doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
     execDirection,
   } = useItemActions({
@@ -6352,6 +6352,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     clearDimensionalVaultItemCounter(item);
     trackItem(item);
     delete item.wallEmbedded;
+    if (item.type === "gold" && !item.name?.includes("枚")) {
+      item.name = `${item.value}枚の金貨`;
+    }
     _p.inventory.push(item);
     if (item.type === "goal") showFirstEncounterTip("goal_item");
     else if (!item.shopPrice) maybeTipForItem(item);
@@ -6706,7 +6709,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setShowDesc(null);
     }
   };
-  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorGacha: _doFloorGacha, floorAltar: _doFloorAltar, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorItemOpenPutMode: _doFloorItemOpenPutMode, floorPutItem: _doPutFloorItem, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
+  invActRef.current = { use: doUseItem, drop: doDropItem, swap: doSwapItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorGacha: _doFloorGacha, floorAltar: _doFloorAltar, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorItemOpenPutMode: _doFloorItemOpenPutMode, floorPutItem: _doPutFloorItem, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
   /* fixtures.js 等（render 循環回避）から未識別名でメッセージを出す用 */
   globalThis.__rogueItemNameFn = (it) =>
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -7654,7 +7657,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <WishModal mode={wishMode} setMode={setWishMode} onConfirm={confirmWish} onCancel={cancelWish} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorGacha={_doFloorGacha} doFloorAltar={_doFloorAltar} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorItemOpenPutMode={_doFloorItemOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doSwapItem={doSwapItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorGacha={_doFloorGacha} doFloorAltar={_doFloorAltar} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorItemOpenPutMode={_doFloorItemOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
       <GameOverModal
         dead={dead && !gameOverView}
         p={p}

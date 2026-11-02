@@ -3869,7 +3869,7 @@ export function InventoryModal({
   setShowInv, setDropMode, setSelIdx, setShowDesc, setInvPage, setInvMenuSel,
   setNicknameMode, setNicknameInput,
   sortInventory, canUse, useLabel, iLabel,
-  doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
+  doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doSwapItem, doThrow,
   containerRef, penMergeMode,
   doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorAltar, doFloorItemAction, doFloorOpenPutMode, doFloorItemOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
@@ -4121,6 +4121,9 @@ export function InventoryModal({
           if (it.type === "pot") acts.push({ label: "割る", fn: () => { doBreakPot(i); setInvMenuSel(null); } });
           if (!it.noDrop) acts.push({ label: "置く", fn: () => { doDropItem(i); setInvMenuSel(null); } });
           { const _isCursedEquipped = it.cursed && (p.weapon === it || p.armor === it || (p.rings || []).includes(it));
+            if (_flItems && _flItems.length > 0 && !_isCursedEquipped && !it.noDrop) {
+              acts.push({ label: "交換", fn: () => { doSwapItem?.(i); setInvMenuSel(null); } });
+            }
             if (!_isCursedEquipped && !it.noThrow) acts.push({ label: it.type === "arrow" ? "投げる(束)" : "投げる", fn: () => { doThrow(i); setInvMenuSel(null); } }); }
           acts.push({ label: "説明", fn: () => { setShowDesc((prev) => (prev === i ? null : i)); setInvMenuSel(null); } });
           { const _nik = getIdentKey(it);
