@@ -20,17 +20,19 @@ describe("wish core", () => {
     _resetWishCatalogCache();
   });
 
-  it("カタログに回復薬・ゴッドスパーク・大箱が含まれる", () => {
+  it("カタログに回復薬・雷の杖・大箱が含まれ、ゴッドスパークは除外される", () => {
     const cat = getWishItemCatalog();
     expect(cat.some((t) => t.name === "回復薬")).toBe(true);
-    expect(cat.some((t) => t.name === "ゴッドスパークの杖")).toBe(true);
+    expect(cat.some((t) => t.name === "雷の杖")).toBe(true);
+    expect(cat.some((t) => t.name === "ゴッドスパークの杖")).toBe(false);
     expect(cat.some((t) => t.name === "合成の大箱" && t.type === "bigbox")).toBe(true);
     expect(cat.some((t) => t.name === "全能キラー")).toBe(false);
   });
 
-  it("canWishItem が最上位を拒否しゴッドスパークは許可", () => {
+  it("canWishItem が最上位を拒否し通常杖は許可", () => {
     expect(canWishItem({ name: "全能キラー", type: "weapon" }).ok).toBe(false);
-    expect(canWishItem({ name: "ゴッドスパークの杖", type: "wand" }).ok).toBe(true);
+    expect(canWishItem({ name: "ゴッドスパークの杖", type: "wand" }).ok).toBe(false);
+    expect(canWishItem({ name: "雷の杖", type: "wand" }).ok).toBe(true);
     expect(canWishItem({ name: "回復薬", type: "potion", effect: "heal" }).ok).toBe(true);
   });
 
@@ -195,12 +197,20 @@ describe("wish core", () => {
     expect(it.cursed).toBeUndefined();
   });
 
-  it("rollWishChance が確率に従う（0.5%）", () => {
+  it("rollWishChance が種類ごとの確率に従う", () => {
+    // drink: 0.1%
     expect(rollWishChance("drink", () => 0)).toBe(true);
-    expect(rollWishChance("drink", () => 0.004)).toBe(true);
-    expect(rollWishChance("drink", () => 0.005)).toBe(false);
+    expect(rollWishChance("drink", () => 0.0009)).toBe(true);
+    expect(rollWishChance("drink", () => 0.001)).toBe(false);
+    // soak: 0.5%
     expect(rollWishChance("soak", () => 0.004)).toBe(true);
-    expect(rollWishChance("soak", () => 0.01)).toBe(false);
+    expect(rollWishChance("soak", () => 0.005)).toBe(false);
+    // gold_coin: 1.5%
+    expect(rollWishChance("gold_coin", () => 0.014)).toBe(true);
+    expect(rollWishChance("gold_coin", () => 0.015)).toBe(false);
+    // gold_nugget: 15%
+    expect(rollWishChance("gold_nugget", () => 0.14)).toBe(true);
+    expect(rollWishChance("gold_nugget", () => 0.15)).toBe(false);
   });
 
   it("願いの杖・壺は超低出現 weight", () => {

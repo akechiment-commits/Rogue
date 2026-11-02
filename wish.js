@@ -22,8 +22,9 @@ import { isMpRecoveryBlocked } from "./mpRules.js";
 import { adjustPlayerBaseMaxHp } from "./equipmentEffects.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
-export const WISH_CHANCE_DRINK = 0.005;
-export const WISH_CHANCE_SOAK = 0.005;
+export {
+  WISH_CHANCE_DRINK, WISH_CHANCE_SOAK, WISH_CHANCE_GOLD_COIN, WISH_CHANCE_GOLD_NUGGET, rollWishChance
+} from "./springRules.js";
 
 /** 願いで得られるゴールド量 */
 export const WISH_GOLD_MIN = 10000;
@@ -567,8 +568,3 @@ export function grantWish(wish, ctx) {
   return { ok: false, message: "そんな願いは叶わないようだ…" };
 }
 
-/** 超低確率ロール */
-export function rollWishChance(kind = "drink", rngFn = Math.random) {
-  const p = kind === "soak" ? WISH_CHANCE_SOAK : WISH_CHANCE_DRINK;
-  return rngFn() < p;
-}

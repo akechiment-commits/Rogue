@@ -5697,6 +5697,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef, p);
         _springOverflowDried = !!_springWasPresent && !dg.springs?.includes(_targetSpring);
         if (_springOverflowDried && springTargetRef.current === _targetSpring) springTargetRef.current = null;
+      } else if (it.type === "gold" || it.type === "gold_nugget") {
+        p.inventory.splice(idx, 1);
+        const _res = soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef, p);
+        if (_res?.wish) {
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setSpringMode(null);
+          setWishMode({ source: "spring", endTurnOnCancel: true });
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
+        endTurn(sr.current, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        setSpringMode(null);
+        sr.current = { ...sr.current };
+        setGs({ ...sr.current });
+        return;
       } else if (it.type === "bottle") {
         p.inventory.splice(idx, 1);
         const wb = { ...WATER_BOTTLE, id: uid() };

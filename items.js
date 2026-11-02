@@ -33,6 +33,7 @@ import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import { isYogurtImmune } from './statusImmunity.js';
+import { rollWishChance } from "./springRules.js";
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness,
@@ -6325,12 +6326,53 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
   applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn);
 }
 
-export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = null) {
+export const SPRING_EJECT_CHANCE = 0.25;
+
+export function makeSpringEjectedItem(rngFn = Math.random) {
+  const p1 = ITEMS.find(i => i.name === "幸運の薬");
+  const p2 = ITEMS.find(i => i.name === "テレポートの巻物");
+  const p3 = ITEMS.find(i => i.name === "テレポートのペン");
+  const p4 = WANDS.find(w => w.name === "テレポートの杖");
+  const p5 = SPELLBOOKS.find(sb => sb.name === "テレポートの魔法書");
+  const candidates = [p1, p2, p3, p4, p5].filter(Boolean);
+  const choice = candidates[Math.floor(rngFn() * candidates.length)];
+  return { ...choice, id: uid() };
+}
+
+export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = null, opts = {}) {
   const _dn = (it) => dnFn ? dnFn(it) : resolveItemName(it);
+  const rngFn = opts.rngFn || Math.random;
   spr.contents = spr.contents || [];
   if (item.iceCream) {
     ml.push(`${_dn(item)}が泉に落ちて溶けて消滅した！`);
-    return;
+    return { wish: false, dried: false, itemEjected: null };
+  }
+  if (item.type === "gold") {
+    if (rollWishChance("gold_coin", rngFn)) {
+      ml.push(`${_dn(item)}が泉の底へ沈むと、泉が神秘的な光を放ち始めた！`);
+      ml.push("「何を願う？」");
+      return { wish: true, dried: false, itemEjected: null };
+    }
+    ml.push(`${_dn(item)}は泉の底へ沈んでいった…`);
+    if (rngFn() < SPRING_EJECT_CHANCE) {
+      const ejected = makeSpringEjectedItem(rngFn);
+      if (dg) {
+        const _eft = new Set();
+        placeItemAt(dg, spr.x, spr.y, ejected, ml, _eft, 0, pl, spr.x, spr.y, false, true);
+      }
+      ml.push(`泉から${_dn(ejected)}が飛び出してきた！`);
+      return { wish: false, dried: false, itemEjected: ejected };
+    }
+    return { wish: false, dried: false, itemEjected: null };
+  }
+  if (item.type === "gold_nugget") {
+    if (!item.isFake && rollWishChance("gold_nugget", rngFn)) {
+      ml.push(`${_dn(item)}が泉の底へ沈むと、眩い光が泉全体から溢れ出した！`);
+      ml.push("「何を願う？」");
+      return { wish: true, dried: false, itemEjected: null };
+    }
+    ml.push(item.isFake ? `${_dn(item)}は泉の底へ沈んでいった…何も起こらなかった。` : `${_dn(item)}は泉の底へ静かに沈んでいった…`);
+    return { wish: false, dried: false, itemEjected: null };
   }
   if (item.type === "bottle") {
     const wb = { ...WATER_BOTTLE, id:uid() };
@@ -6486,6 +6528,8 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
       placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
     }
   }
+
+  return { wish: false, dried: dg ? spr.contents.length >= 5 : false, itemEjected: null };
 }
 
 function soakItem(item) {

@@ -2306,7 +2306,8 @@ export function useItemActions({
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
-      soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
+      const _dropSoakRes = soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
+      if (_dropSoakRes?.wish) setWishMode({ source: "spring", endTurnOnCancel: true });
     } else {
       let _dr;
       withPitfallBag(() => { _dr = placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p); });
@@ -2387,7 +2388,8 @@ export function useItemActions({
     const ml = installPlayerHpMessageHook([], p);
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
-      soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
+      const _swapSoakRes = soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
+      if (_swapSoakRes?.wish) setWishMode({ source: "spring", endTurnOnCancel: true });
     } else {
       it.x = p.x;
       it.y = p.y;
@@ -4098,7 +4100,8 @@ export function useItemActions({
                 _invStPeel();
               }
             } else if (_stSpr2) {
-              soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null, p);
+              const _soakRes3 = soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null, p);
+              if (_soakRes3?.wish) setWishMode({ source: "spring", endTurnOnCancel: true });
             } else if (_stBB2) {
               bigboxAddItem(_stBB2, _invStDrop(), dg, ml);
             } else {
@@ -4318,7 +4321,8 @@ export function useItemActions({
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
+            const _soakRes4 = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
+              if (_soakRes4?.wish) setWishMode({ source: "spring", endTurnOnCancel: true });
           } else if (!sprHit) {
             if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
@@ -4451,7 +4455,8 @@ export function useItemActions({
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
+            const _potSoakRes = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
+            if (_potSoakRes?.wish) setWishMode({ source: "spring", endTurnOnCancel: true });
           } else if (_potImprisoned) {
             const _impFt = new Set();
             placeItemAt(dg, lx, ly, it, ml, _impFt, 0, p);
@@ -4795,7 +4800,8 @@ export function useItemActions({
             } else if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);
             } else if (sprHit && !sprHit.kind) {
-              soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
+              const _genSoakRes = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
+              if (_genSoakRes?.wish) setWishMode({ source: "spring", endTurnOnCancel: true });
             } else if (it.type === "bottle") {
               ml.push(`${resolveItemName(it, dnameRef)}は割れてしまった！`);
             } else {
