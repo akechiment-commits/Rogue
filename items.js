@@ -33,7 +33,7 @@ import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import { isYogurtImmune } from './statusImmunity.js';
-import { rollWishChance, goldCoinEjectChance } from "./springRules.js";
+import { rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness,
@@ -6329,14 +6329,21 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
 export const SPRING_EJECT_CHANCE = 0.25;
 
 export function makeSpringEjectedItem(rngFn = Math.random) {
-  const p1 = ITEMS.find(i => i.name === "幸運の薬");
-  const p2 = ITEMS.find(i => i.name === "テレポートの巻物");
-  const p3 = ITEMS.find(i => i.name === "テレポートのペン");
-  const p4 = WANDS.find(w => w.name === "テレポートの杖");
-  const p5 = SPELLBOOKS.find(sb => sb.name === "テレポートの魔法書");
-  const candidates = [p1, p2, p3, p4, p5].filter(Boolean);
-  const choice = candidates[Math.floor(rngFn() * candidates.length)];
-  return { ...choice, id: uid() };
+  const totalWeight = SPRING_EJECT_CANDIDATES.reduce((s, c) => s + c.weight, 0);
+  let roll = rngFn() * totalWeight;
+  let chosenName = SPRING_EJECT_CANDIDATES[SPRING_EJECT_CANDIDATES.length - 1].name;
+  for (const c of SPRING_EJECT_CANDIDATES) {
+    if (roll < c.weight) {
+      chosenName = c.name;
+      break;
+    }
+    roll -= c.weight;
+  }
+  const template =
+    ITEMS.find(i => i.name === chosenName) ||
+    WANDS.find(w => w.name === chosenName) ||
+    SPELLBOOKS.find(sb => sb.name === chosenName);
+  return { ...template, id: uid() };
 }
 
 export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = null, opts = {}) {

@@ -22,6 +22,7 @@ import {
   WISH_CHANCE_GOLD_NUGGET,
   goldCoinWishChance,
   goldCoinEjectChance,
+  SPRING_EJECT_CANDIDATES,
 } from "../wish.js";
 
 afterEach(() => {
@@ -107,17 +108,52 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
     expect(goldCoinEjectChance(20000)).toBe(0.50);
   });
 
-  it("makeSpringEjectedItem は5種の対象アイテム（テレポート系4種＋幸運の薬）を生成する", () => {
-    const names = new Set();
-    for (let i = 0; i < 50; i++) {
-      const it = makeSpringEjectedItem(() => (i % 5) / 5);
-      names.add(it.name);
-    }
-    expect(names.has("テレポートの巻物")).toBe(true);
-    expect(names.has("テレポートのペン")).toBe(true);
-    expect(names.has("テレポートの魔法書")).toBe(true);
-    expect(names.has("テレポートの杖")).toBe(true);
-    expect(names.has("幸運の薬")).toBe(true);
+  it("射出アイテム候補の重みが仕様（巻物 > ペン > 杖 > 幸運の薬 > 魔法書）に従っている", () => {
+    const scrollW = SPRING_EJECT_CANDIDATES.find((c) => c.name === "テレポートの巻物")?.weight;
+    const penW = SPRING_EJECT_CANDIDATES.find((c) => c.name === "テレポートのペン")?.weight;
+    const wandW = SPRING_EJECT_CANDIDATES.find((c) => c.name === "テレポートの杖")?.weight;
+    const potionW = SPRING_EJECT_CANDIDATES.find((c) => c.name === "幸運の薬")?.weight;
+    const bookW = SPRING_EJECT_CANDIDATES.find((c) => c.name === "テレポートの魔法書")?.weight;
+
+    // テレポートは巻物がいちばん高確率でペン、杖、魔法書の順で低確率
+    expect(scrollW).toBeGreaterThan(penW);
+    expect(penW).toBeGreaterThan(wandW);
+    expect(wandW).toBeGreaterThan(bookW);
+
+    // 薬は杖と魔法書の間
+    expect(wandW).toBeGreaterThan(potionW);
+    expect(potionW).toBeGreaterThan(bookW);
+
+    // 各重み値（40, 25, 18, 12, 5）の合計が100
+    const totalW = SPRING_EJECT_CANDIDATES.reduce((s, c) => s + c.weight, 0);
+    expect(totalW).toBe(100);
+    expect(scrollW).toBe(40);
+    expect(penW).toBe(25);
+    expect(wandW).toBe(18);
+    expect(potionW).toBe(12);
+    expect(bookW).toBe(5);
+  });
+
+  it("makeSpringEjectedItem は乱数に応じた重み付けで5種のアイテムを生成する", () => {
+    // 0〜39% -> テレポートの巻物
+    expect(makeSpringEjectedItem(() => 0.0).name).toBe("テレポートの巻物");
+    expect(makeSpringEjectedItem(() => 0.39).name).toBe("テレポートの巻物");
+
+    // 40〜64% -> テレポートのペン
+    expect(makeSpringEjectedItem(() => 0.40).name).toBe("テレポートのペン");
+    expect(makeSpringEjectedItem(() => 0.64).name).toBe("テレポートのペン");
+
+    // 65〜82% -> テレポートの杖
+    expect(makeSpringEjectedItem(() => 0.65).name).toBe("テレポートの杖");
+    expect(makeSpringEjectedItem(() => 0.82).name).toBe("テレポートの杖");
+
+    // 83〜94% -> 幸運の薬
+    expect(makeSpringEjectedItem(() => 0.83).name).toBe("幸運の薬");
+    expect(makeSpringEjectedItem(() => 0.94).name).toBe("幸運の薬");
+
+    // 95〜99% -> テレポートの魔法書
+    expect(makeSpringEjectedItem(() => 0.95).name).toBe("テレポートの魔法書");
+    expect(makeSpringEjectedItem(() => 0.99).name).toBe("テレポートの魔法書");
   });
 
   it("soakItemIntoSpring: 金貨投入で願いが発動した場合（高額金貨で確率上昇）", () => {

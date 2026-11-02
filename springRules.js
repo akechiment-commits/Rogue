@@ -21,6 +21,19 @@ export function goldCoinEjectChance(value = null) {
   return Math.min(0.50, 0.15 + (v / 5000) * 0.25);
 }
 
+/**
+ * 泉に金貨を投入した際に飛び出すアイテムの候補と確率の重み（合計 100）。
+ * テレポートは 巻物(40%) > ペン(25%) > 杖(18%) > 魔法書(5%) の順で低確率。
+ * 幸運の薬(12%) は杖と魔法書の間。
+ */
+export const SPRING_EJECT_CANDIDATES = [
+  { name: "テレポートの巻物", weight: 40 },
+  { name: "テレポートのペン", weight: 25 },
+  { name: "テレポートの杖", weight: 18 },
+  { name: "幸運の薬", weight: 12 },
+  { name: "テレポートの魔法書", weight: 5 },
+];
+
 /** 超低確率ロール */
 export function rollWishChance(kind = "drink", rngFn = Math.random, value = null) {
   let p = WISH_CHANCE_DRINK;
