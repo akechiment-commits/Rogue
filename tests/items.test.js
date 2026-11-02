@@ -231,7 +231,7 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
   it("祝福された万能薬は状態異常免疫を追加し、呪われた万能薬は7種を付与する", () => {
     const blessed = makePlayer({ sleepTurns: 2 });
     applyPotionEffect("panacea", 0, "player", null, makeEmptyDg(), blessed, [], () => {}, true, false);
-    expect(blessed).toMatchObject({ sleepTurns: 0, statusImmune: 200 });
+    expect(blessed).toMatchObject({ sleepTurns: 0, statusImmune: 100 });
 
     const cursed = makePlayer({ atk: 10 });
     applyPotionEffect("panacea", 0, "player", null, makeEmptyDg(), cursed, [], () => {}, false, true);

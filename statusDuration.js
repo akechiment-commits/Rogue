@@ -81,7 +81,7 @@ export const STATUS_BASE = {
   poison:        { player: 5,   monster: 5 },
   haste:         { player: 10,  monster: 10 },
   sureHit:       { player: 100, monster: 100 },
-  statusImmune:  { player: 200, monster: 200 },
+  statusImmune:  { player: 100, monster: 100 },
   oily:          { player: 50,  monster: 100 },
   flameMantle:   { player: 0,   monster: 10 },
   float:         { player: 30,  monster: 30 },
