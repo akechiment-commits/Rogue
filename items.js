@@ -424,7 +424,7 @@ export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
  */
 /** ペンの通常生成時初期回数。ポータルは必要数を確保しやすく通常枠にする。 */
 export function penInitialCharges(pen, randomFn = Math.random) {
-  if (pen?.effect === "plain" || pen?.rarity === "E") return rng(3, 6, randomFn);
+  if (pen?.effect === "plain" || pen?.rarity === "E") return rng(4, 5, randomFn);
   if (pen?.effect !== "portal" && (pen?.rarity === "A" || pen?.rarity === "B")) return rng(1, 2, randomFn);
   return rng(2, 3, randomFn);
 }
@@ -1205,7 +1205,7 @@ export function rollGeneratedWandCharges(item, rngFn = rng) {
     return item.charges || 1;
   }
   if (item.effect === "plain") {
-    return rngFn(3, 7);
+    return rngFn(4, 7);
   }
   return Math.max(1, (item.charges || 1) + rngFn(-1, 1));
 }

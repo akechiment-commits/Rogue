@@ -4,7 +4,7 @@ import { ITEMS, MAGIC_MARKER, makeFreshDuplicate, penInitialCharges } from "../i
 afterEach(() => vi.restoreAllMocks());
 
 describe.each([
-  ["plain", 3, 6], ["light", 2, 3], ["sanctuary", 1, 2], ["portal", 2, 3],
+  ["plain", 4, 5], ["light", 2, 3], ["sanctuary", 1, 2], ["portal", 2, 3],
 ])("%sのペンの複製初期回数", (effect, minimum, maximum) => {
   it.each([0, 0.99999])("乱数%sでは通常生成と同じ下限・上限になり、元の回数を変えない", random => {
     const template = ITEMS.find(item => item.type === "pen" && item.effect === effect);

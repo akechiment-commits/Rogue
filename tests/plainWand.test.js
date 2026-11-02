@@ -14,11 +14,11 @@ describe("ただの杖の実装", () => {
     expect(wand.tile).toBe(24);
   });
 
-  it("rollGeneratedWandCharges でただの杖の回数は3〜7回でランダム生成される", () => {
+  it("rollGeneratedWandCharges でただの杖の回数は4〜7回でランダム生成される", () => {
     const wand = WANDS.find((w) => w.name === "ただの杖");
-    const minC = rollGeneratedWandCharges(wand, () => 3);
+    const minC = rollGeneratedWandCharges(wand, () => 4);
     const maxC = rollGeneratedWandCharges(wand, () => 7);
-    expect(minC).toBe(3);
+    expect(minC).toBe(4);
     expect(maxC).toBe(7);
   });
 
