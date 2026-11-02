@@ -127,7 +127,7 @@ export function playerDopingMultiplier(player) {
 export function calcPlayerDefense(player) {
   const misoDef = (player?.misoDefTurns || 0) > 0 ? 8 : 0;
   const base = (player?.def || 0) + (player?.armor?.def || 0) + (player?.armor?.plus || 0)
-    + (player?.rings || []).reduce((sum, ring) => ring.effect === "defense_ring" ? sum + (ring.plus || 0) : sum, 0)
+    + (player?.rings || []).reduce((sum, ring) => (ring.effect === "defense_ring" || ring.effect === "niebelung_ring") ? sum + (ring.plus || 0) : sum, 0)
     + (hasAbility(player?.weapon, "def_bonus") ? 5 : 0) + misoDef;
   const slowTurtleMult = (player?.rings || []).some(ring => ring.effect === "slow_ring") ? 2 : 1;
   return Math.floor(base * slowTurtleMult

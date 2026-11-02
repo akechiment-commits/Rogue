@@ -1,6 +1,6 @@
 import { getIdentKey } from "./items.js";
 
-const PLUS_RING_EFFECTS = new Set(["power_ring", "defense_ring", "life_ring"]);
+const PLUS_RING_EFFECTS = new Set(["power_ring", "defense_ring", "life_ring", "niebelung_ring"]);
 const BC_ONLY_TYPES = new Set(["weapon", "armor", "food", "gold_nugget"]);
 
 /**

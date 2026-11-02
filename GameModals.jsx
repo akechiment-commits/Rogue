@@ -36,7 +36,7 @@ import { deleteImage } from "./imageStorage.js";
 import { ALTAR_PRIEST_SERVICES, altarPriestServicePrice, altarPriestServiceTargets } from "./priestServiceRules.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
-const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
+const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring","niebelung_ring"];
 const _FOOD_POT_EFFECTS = new Set(["choco","spicy","honey","curry","miso","smoke","olive","sesame","butter","yogurt","coconut","soy","garlic","lemon"]);
 const ITEM_DESC_TEXT_STYLE = {
   whiteSpace: "pre-wrap",
@@ -4187,7 +4187,7 @@ export function InventoryModal({
                         {it.type === "scroll" && " — 巻物"}
                         {it.type === "food" && ` — 食料${it.cooked ? "(調理済)" : "(生)"}`}
                         {it.type === "pot" && ` — 壺 [${potOccupancyCount(it)}/${it.capacity}]`}
-                        {it.type === "ring" && ` — 指輪${!_isUnidentInv && ["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
+                        {it.type === "ring" && ` — 指輪${!_isUnidentInv && ["power_ring","defense_ring","life_ring","niebelung_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
                       <div style={ITEM_DESC_TEXT_STYLE}>{_isUnidentInv ? "未識別のためわからない。" : formatFoodItemDesc(it)}</div>
                       {it.ability && (() => {
@@ -4669,7 +4669,7 @@ const _DBG_ITEM_CATS = [
   ]},
   { key: "wands",      label: "杖",           build: () => WANDS.map(w => ({ label: w.name, value: { ...w } })) },
   { key: "spellbooks", label: "魔法書",       build: () => SPELLBOOKS.map(sb => ({ label: sb.name, value: { ...sb } })) },
-  { key: "rings",      label: "指輪",         build: () => RINGS.map(r => { const rv = { ...r }; if (["power_ring","defense_ring","life_ring"].includes(rv.effect)) rv.plus = rng(1,3); return { label: r.name, value: rv }; }) },
+  { key: "rings",      label: "指輪",         build: () => RINGS.map(r => { const rv = { ...r }; if (["power_ring","defense_ring","life_ring","niebelung_ring"].includes(rv.effect)) rv.plus = rng(1,3); return { label: r.name, value: rv }; }) },
   { key: "pots",       label: "壺",           build: () => POTS.map(p => ({ label: p.name, value: { ...p, contents: [] } })) },
   { key: "raw_food",   label: "生の食べ物",   build: () => RAW_FOODS.map(n => _mkFoodEntry(n, false)) },
   { key: "cooked_food",label: "調理済み食べ物",build: () => COOKED_FOODS.map(n => _mkFoodEntry(n, true)) },

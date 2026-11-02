@@ -27,7 +27,7 @@ import {
 } from "./monsters.js";
 import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
-  KATANA_T, MURAMASA_T, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, SILVER_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  KATANA_T, MURAMASA_T, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, SILVER_AXE_T, NIEBELUNG_RING_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
@@ -3051,7 +3051,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
                 acted = true;
               } else {
-              const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
+              const _ringPowerBonus = (p.rings || []).reduce((s, r) => (r.effect === "power_ring" || r.effect === "niebelung_ring") ? s + (r.plus || 0) : s, 0);
               let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1) * playerDopingMultiplier(p)));
               if ((p.garlicDmgTurns || 0) > 0) ap += 5;
               const _getBaneMult = (a) => {
@@ -3691,6 +3691,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
               }
               if (_fsWoke > 0) ml.push(`足音が響いた！（${_fsWoke}体が目を覚ました）`);
+            }
+            /* ニーベルングの指輪：フロア中の全モンスターが目覚め、常にプレイヤーを発見状態になる */
+            if (hasRingEffect(p, "niebelung_ring")) {
+              for (const _nm of dg.monsters) {
+                if (_nm.dormant || _nm.dormantHouse) wakeIfDormant(_nm, ml);
+                _nm.aware = true;
+                _nm.lastPx = p.x;
+                _nm.lastPy = p.y;
+              }
             }
             }
           }
@@ -4534,7 +4543,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         sr.current?.nicknames,
       );
       /* 力・守り・命の指輪（異種混合OK） → 先に入れた指輪に後の+値を加算して後を消す */
-      const _PLUS_RING_EFFECTS = ["power_ring", "defense_ring", "life_ring"];
+      const _PLUS_RING_EFFECTS = ["power_ring", "defense_ring", "life_ring", "niebelung_ring"];
       const _plusRings = bb.contents.filter(i => i.type === "ring" && _PLUS_RING_EFFECTS.includes(i.effect));
       if (_plusRings.length >= 2) {
         const [ra, rb] = _plusRings;
@@ -4967,7 +4976,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (idx >= 0) bb.contents[idx] = nit;
         ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
       } else if (bb.kind === "enhance") {
-        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
+        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring", "niebelung_ring"].includes(item.effect))) {
           const before = item.plus || 0;
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
@@ -5772,6 +5781,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_curseNote}`,
             );
           }
+        }
+      } else if (it.type === "ring") {
+        if (it.cursed) {
+          const _oldPlus = it.plus || 0;
+          const _oldName = it.name;
+          Object.assign(it, { ...NIEBELUNG_RING_T, id: it.id, plus: _oldPlus, cursed: false, bcKnown: true });
+          ml.push(`${_oldName}が水底の黄金と共鳴し...ニーベルングの指輪に変化した！呪いが浄化された！`);
+        } else {
+          ml.push(`${dnameRef(it)}を泉に浸した。何も起こらなかった。`);
         }
       } else if (it.type === "scroll") {
         const _curseNote = it.cursed ? "呪いは解けなかった！" : "";
@@ -6872,7 +6890,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.rings || []).map((r, i) => (
           <span key={i} style={{ color: "#c0a0ff", fontSize: "0.85em" }}>
-            💍{["power_ring","defense_ring","life_ring"].includes(r.effect) && gs?.ident?.has(`r:${r.effect}`) ? `${r.name}+${r.plus || 0}` : dname(r)}
+            💍{["power_ring","defense_ring","life_ring","niebelung_ring"].includes(r.effect) && gs?.ident?.has(`r:${r.effect}`) ? `${r.name}+${r.plus || 0}` : dname(r)}
           </span>
         ))}{" "}
         {p.poisoned && (

@@ -665,6 +665,7 @@ export function pickRandomFloorInRooms(dg) {
 export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead_2", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ（上位特効）。", tile:20 };
 export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
 export const SILVER_AXE_T  = { name:"シルバーアクス",   type:"weapon", atk:10, ability:"bane_undead", sellPrice:2000, desc:"銀でできた戦斧。アンデッド系に1.5倍ダメージを与える。", tile:20 };
+export const NIEBELUNG_RING_T = { name:"ニーベルングの指輪", type:"ring", effect:"niebelung_ring", plus:0, rarity:"S", weight:0.05, sellPrice:15000, tile:60, desc:"力・守り・命を兼ね備えた黄金の魔環。強化可能。\n装備中はフロア中の全敵に常に感知され、全員が目覚める。" };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], sellPrice:9000, desc:"炎・氷・雷の三元素を宿した剣。\n属性弱点の敵に1.5倍ダメージ。", tile:20 };
 export const FLAMBERGE_T    = { name:"フランベルジュ", type:"weapon", atk:13, ability:"fire_elem_2",    sellPrice:9000, desc:"上位炎属性の剣。炎弱点・油まみれの敵に2倍ダメージ。", tile:20 };
 export const ICESWORD_T     = { name:"アイスソード",   type:"weapon", atk:13, ability:"ice_elem_2",     sellPrice:9000, desc:"上位氷属性の剣。氷弱点の敵に2倍ダメージ。", tile:20 };
@@ -793,7 +794,7 @@ export function itemPrice(it) {
   if (it.type === "spellbook") return Math.round(200 * _bcMult);
   if (it.type === "ring") {
     const ringBase = it.sellPrice ?? 100;
-    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring") return Math.max(1, Math.round((ringBase + (it.plus || 0) * 100) * _bcMult));
+    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring" || it.effect === "niebelung_ring") return Math.max(1, Math.round((ringBase + (it.plus || 0) * 100) * _bcMult));
     return Math.round(ringBase * _bcMult);
   }
   return Math.round(30 * _bcMult);
@@ -1036,7 +1037,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   }
   if (pe === "boil") { /* 実効果はGame.jsx側で処理 */ return; }
   if (pe === "enhance") {
-    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
+    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring", "niebelung_ring"].includes(item.effect))) {
       const _g = rng(1, 2);
       item.plus = (item.plus || 0) + _g;
       ml.push(`${resolveItemName(item, nameFn)}が強化された！(+${item.plus})`);
@@ -2205,7 +2206,7 @@ function calcPlayerDefForProjectile(p) {
   const _base = (p?.def || 0)
     + (p?.armor?.def || 0)
     + (p?.armor?.plus || 0)
-    + (p?.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)
+    + (p?.rings || []).reduce((s, r) => (r.effect === "defense_ring" || r.effect === "niebelung_ring") ? s + (r.plus || 0) : s, 0)
     + (hasAbility(p?.weapon, "def_bonus") ? 5 : 0)
     + _misoDef;
   const _slowTurtleMult = (p?.rings || []).some((r) => r.effect === "slow_ring") ? 2 : 1;
@@ -6447,6 +6448,16 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
       ml.push(`白紙の魔法書が泉に落ちた。${_curseNote}`);
     }
     spr.contents.push(item);
+  } else if (item.type === "ring") {
+    if (item.cursed) {
+      const _oldPlus = item.plus || 0;
+      const _oldName = item.name;
+      Object.assign(item, { ...NIEBELUNG_RING_T, id: item.id, plus: _oldPlus, cursed: false, bcKnown: true });
+      ml.push(`${_oldName}が水底の黄金と共鳴し...ニーベルングの指輪に変化した！呪いが浄化された！`);
+    } else {
+      ml.push(_dn(item) + "が泉に落ちた。");
+    }
+    spr.contents.push(item);
   } else if (item.type === "pot" && item.potEffect === "gunpowder") {
     /* 火薬壺を泉に浸す/投げ入れると保存の壺に変化（中身保持） */
     const _savedContents = item.contents || [];
@@ -7819,7 +7830,7 @@ export function getFarcastMode(x, y, dg) {
 
 /* 飛び道具ダメージ計算（近接と同じ式、武器ATKの代わりに矢/石ATKを参照） */
 export function calcProjectileDmg(p, arAtk, def = 0) {
-  const _ringBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
+  const _ringBonus = (p.rings || []).reduce((s, r) => (r.effect === "power_ring" || r.effect === "niebelung_ring") ? s + (r.plus || 0) : s, 0);
   const ap = Math.max(1, Math.floor(
     (p.atk + arAtk + _ringBonus)
     * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1)
@@ -8897,7 +8908,7 @@ export function getSpellBuffDuration(baseDuration, level = 1) {
 export function makePlayerClone(p, x, y, cloneTurns = 30) {
   const _maxHp = Math.max(1, Math.floor((Number(p?.maxHp) || Number(p?.hp) || 1) * 0.5));
   /* 分身の攻撃力・防御力は、出現した時点のプレイヤーの実効値（装備・指輪・状態補正込み）と同値にする */
-  const _ringPowerBonus = (p?.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
+  const _ringPowerBonus = (p?.rings || []).reduce((s, r) => (r.effect === "power_ring" || r.effect === "niebelung_ring") ? s + (r.plus || 0) : s, 0);
   const _atk = Math.max(1, Math.floor(((Number(p?.atk) || 0) + (p?.weapon?.atk || 0) + (p?.weapon?.plus || 0) + _ringPowerBonus)
     * ((p?.spicyAtkTurns || 0) > 0 ? 1.5 : 1)
     * ((p?.atkDebuffTurns || 0) > 0 ? 0.5 : 1)
@@ -10178,6 +10189,7 @@ export const RINGS = [
   { name: "観光客の指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },
   { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:5000, tile:60, desc:"自慢げに輝いているが、特に効果はない。見た目だけで妙に高い。" },
   { name: "黄金の指輪",     type:"ring", effect:"gold_ring",              rarity:"B", weight:2,  sellPrice:10000, tile:60, desc:"純金で作られた指輪。特殊な効果はないが非常に高く売れる。" },
+  { name: "ニーベルングの指輪", type:"ring", effect:"niebelung_ring", plus:0, rarity:"S", weight:0.05, sellPrice:15000, tile:60, desc:"力・守り・命を兼ね備えた黄金の魔環。強化可能。\n装備中はフロア中の全敵に常に感知され、全員が目覚める。" },
   { name: "暗闇の指輪",     type:"ring", effect:"darkness_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、廊下での視界が1マス狭くなる。" },
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
   { name: "体幹の指輪",     type:"ring", effect:"core_ring",              rarity:"B", weight:2,  sellPrice:3500, tile:60, desc:"装備中、転倒しなくなる。\n敵による吹き飛ばし・引き寄せ・罠への投げつけなど、強制的な移動を防ぐ。" },

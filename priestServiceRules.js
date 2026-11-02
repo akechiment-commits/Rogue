@@ -9,7 +9,7 @@ export const ALTAR_PRIEST_SERVICES = Object.freeze([
   Object.freeze({ id: "cure_status", label: "状態異常を解除" }),
 ]);
 
-const PLUS_RING_EFFECTS = new Set(["power_ring", "defense_ring", "life_ring"]);
+const PLUS_RING_EFFECTS = new Set(["power_ring", "defense_ring", "life_ring", "niebelung_ring"]);
 
 export function altarPriestServiceTargets(inventory, service, player = null) {
   if (service === "cure_status") {

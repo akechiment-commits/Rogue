@@ -3,7 +3,7 @@ import { setPlayerItemProperties } from "./equipmentEffects.js";
 
 /* 対象選択の入力経路によらず、同じ確率・同じ効果で装備を強化する。 */
 export function applyEquipmentUpgradeScroll(player, item, mode, displayName = item.name, random = Math.random) {
-  const ring = item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect);
+  const ring = item.type === "ring" && ["power_ring", "defense_ring", "life_ring", "niebelung_ring"].includes(item.effect);
   const valid = ring || item.type === (mode.mode === "weapon_up" ? "weapon" : "armor");
   if (!valid) return `${displayName}には効果がなかった。巻物は消えた。`;
   const before = item.plus || 0;

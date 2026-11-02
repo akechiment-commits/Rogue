@@ -1,7 +1,7 @@
 import { setPlayerHpForCapacityChange } from "./utils.js";
 
 export function ringHpBonus(ring) {
-  return (ring.effect === "life_ring" ? (ring.plus || 0) * 5 : 0) + (ring.blessed ? 10 : 0);
+  return ((ring.effect === "life_ring" || ring.effect === "niebelung_ring") ? (ring.plus || 0) * 5 : 0) + (ring.blessed ? 10 : 0);
 }
 
 /* 下限で隠れた補正は装備変更・セーブ後も保持し、外す際に足し戻しすぎない。 */

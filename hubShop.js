@@ -8,7 +8,7 @@ export const HUB_SHOP_POOL = [
   ...RINGS,
 ];
 
-const PLUS_RING_EFFECTS = new Set(["power_ring", "defense_ring", "life_ring"]);
+const PLUS_RING_EFFECTS = new Set(["power_ring", "defense_ring", "life_ring", "niebelung_ring"]);
 
 /**
  * 拠点ショップの在庫を5〜9点ロールする。

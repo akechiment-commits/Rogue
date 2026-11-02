@@ -6121,6 +6121,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
   /* ボスは同じ部屋にプレイヤーが踏み込んだ瞬間に目覚める */
+  /* ニーベルングの指輪：装備中はフロア中の全モンスターが目覚める */
+  if (hasRingEffect(pl, "niebelung_ring") && m.dormant) {
+    wakeIfDormant(m, ml);
+  }
   if (m.dormant) {
     const _wasHit = m.hp < (m._dormantHp ?? m.hp);
     const _bossRoomEntry = m.isBoss && (() => {
@@ -7423,7 +7427,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
 
-  if (canSee) {
+  if (canSee || hasRingEffect(pl, "niebelung_ring")) {
     m.aware = true;
     m.lastPx = _cloneTargeted ? _cloneDecoy.x : pl.x;
     m.lastPy = _cloneTargeted ? _cloneDecoy.y : pl.y;
