@@ -639,3 +639,53 @@ describe("destroyFloorWand", () => {
     expect(ml.some(m => m.includes("崩れ落ちた"))).toBe(true);
   });
 });
+describe("万能の杖", () => {
+  const noop = () => {};
+
+  it("敵に当てると状態異常を全て治す", () => {
+    const dg = makeEmptyDg();
+    const mon = { name: "スライム", hp: 20, maxHp: 20, x: 6, y: 5, atk: 3, sleepTurns: 4, confusedTurns: 3 };
+    const p = makePlayer();
+    const ml = [];
+    applyWandEffect("panacea", "monster", mon, 1, 0, dg, p, ml, noop);
+    expect(mon.sleepTurns).toBe(0);
+    expect(mon.confusedTurns).toBe(0);
+    expect(ml.some(m => m.includes("状態異常が全て治った"))).toBe(true);
+  });
+
+  it("祝福は自分の状態異常を治して免疫100ターンを付与する", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ sleepTurns: 2 });
+    const ml = [];
+    applyWandEffect("panacea", "player", p, 1, 0, dg, p, ml, noop, null, 2);
+    expect(p.sleepTurns).toBe(0);
+    expect(p.statusImmune).toBe(100);
+    expect(ml.some(m => m.includes("万能の杖の効果"))).toBe(true);
+  });
+
+  it("呪いは自分に7種の状態異常を付与する", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ atk: 10 });
+    const ml = [];
+    applyWandEffect("panacea", "player", p, 1, 0, dg, p, ml, noop, null, 0.5);
+    expect(p.poisoned).toBe(true);
+    expect(p.sleepTurns).toBe(6);
+    expect(p.confusedTurns).toBe(5);
+    expect(p.sealedTurns).toBe(50);
+  });
+
+  it("水の瓶に当てると万能薬に変化する", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [], traps: [],
+    });
+    const bottle = { name: "水", type: "potion", effect: "water", value: 10, x: 8, y: 5 };
+    dg.items.push(bottle);
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+    fireWandBolt(p, dg, "panacea", 1, 0, ml, noop, null, 1);
+    expect(bottle.name).toBe("万能薬");
+    expect(bottle.effect).toBe("panacea");
+    expect(ml.some(m => m.includes("万能薬に変化した"))).toBe(true);
+  });
+});

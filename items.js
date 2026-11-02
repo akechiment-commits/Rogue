@@ -876,6 +876,7 @@ export const WANDS = [
   { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。ボスには現在HPの1/4ダメージを与え、プレイヤーHPをそのダメージと同値にする。巨大敵への爆発・割合ダメージは合計で1ターン1回まで。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別（祝福は2個）。\n壊すと周囲のアイテム・大箱にも効果。\n呪い：対象が未識別に戻る。", tile:24 },
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
+  { name:"万能の杖",       type:"wand", effect:"panacea",       charges:3, rarity:"A", weight:1,  sellPrice:8000, desc:"振ると万能薬と同じ効果を発揮する。敵：状態異常を全て治す。祝福：さらに状態異常免疫100ターン。\n呪い：毒・眠り・混乱・鈍足・暗闇・幻惑・封印を付与。\n水の瓶に当てると万能薬に変化する。", tile:24 },
 ];
 
 /** 所持品ではなく床の大箱として配置・落下させるエンティティ。 */
@@ -4693,7 +4694,7 @@ const POTION_DIRECT_MONSTER_STATUS_KEYS = {
   poison: "poison", sleep: "sleep", slow: "slow", confuse: "confuse",
 };
 
-export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false, skipLargeMonsterStatus = false, effectMultiplier = 1) {
+export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null, skipKillerLevelUp = false, skipLargeMonsterStatus = false, effectMultiplier = 1, wandUse = false) {
   const effectScale = Math.min(1, Math.max(0, Number(effectMultiplier) || 0));
   const weakEffect = effectScale < 1;
   const scaledPotionTurns = (turns) => Math.max(1, Math.floor(turns * effectScale));
@@ -5389,9 +5390,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (blessed) {
           const _immune = scaledPotionTurns(statusTurns("statusImmune", { kind: "player" }));
             p.statusImmune = Math.max(p.statusImmune || 0, _immune);
-            ml.push(`万能薬を飲んだ。${_wasStatus ? (weakEffect ? "状態異常が1つ治った！" : "全ての状態異常が治った！") : "状態異常はなかった。"}${_dopingCuredMsg}さらに状態異常免疫になった！(${_immune}ターン)【祝福】`);
+            ml.push(`${wandUse ? "万能の杖の効果！" : "万能薬を飲んだ。"}${_wasStatus ? (weakEffect ? "状態異常が1つ治った！" : "全ての状態異常が治った！") : "状態異常はなかった。"}${_dopingCuredMsg}さらに状態異常免疫になった！(${_immune}ターン)【祝福】`);
           } else {
-            ml.push(`万能薬を飲んだ。${_wasStatus ? (weakEffect ? "状態異常が1つ治った！" : "全ての状態異常が治った！") : "状態異常はなかった。"}${_dopingCuredMsg}`);
+            ml.push(`${wandUse ? "万能の杖の効果！" : "万能薬を飲んだ。"}${_wasStatus ? (weakEffect ? "状態異常が1つ治った！" : "全ての状態異常が治った！") : "状態異常はなかった。"}${_dopingCuredMsg}`);
           }
         }
       } else if (kind === "monster") {

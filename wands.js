@@ -5,7 +5,7 @@ import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransfor
 import {
   resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft, declareShopTheft, applyFallImpactDamage,
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
-  soakItemIntoSpring, splashPotion, inMagicSealRoom,
+  soakItemIntoSpring, splashPotion, applyPotionEffect, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, withParalysisHit,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
@@ -1402,6 +1402,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       ml.push("魔法弾は効果なく消えた。");
       break;
     }
+    case "panacea": {
+      /* 万能薬と同効果（薬側の処理をそのまま使う。祝福・呪いは杖の状態を引き継ぐ） */
+      if (kind === "monster" || kind === "player") {
+        applyPotionEffect("panacea", 0, kind, target, dg, p, ml, luFn, blMult > 1, blMult < 1, null, false, false, 1, true);
+      } else {
+        ml.push("魔法弾は効果なく消えた。");
+      }
+      break;
+    }
     case "sleep": {
       const _slBlessed = blMult > 1, _slCursed = blMult < 1;
       if (_slCursed) {
@@ -2350,7 +2359,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       if (_generatedIceChunks.includes(it)) { lastX = tx; lastY = ty; continue; }
       if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${resolveItemName(it, nameFn)}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
-      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬", seal:"封印の薬" };
+      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬", seal:"封印の薬", panacea:"万能薬" };
       if (it.effect === "water" && BOTTLE_XFORM[eff]) {
         const nm = BOTTLE_XFORM[eff];
         Object.assign(it, { name: nm, effect: eff, value: eff === "sleep" ? 4 : 0 });
