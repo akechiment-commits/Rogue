@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodyCells, monsterBodySize } from "./monsterGeometry.js";
 import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -2409,7 +2409,8 @@ function genBossFloor(depth, dungeonType = null) {
   /* ボス配置 */
   const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
-  const bt = dungeonType === "legend" && depth === 24 ? FLOCK_REVENGE_BOSS
+  const bt = dungeonType === "legend" && depth === 29 ? PYROBOLOS_BOSS
+    : dungeonType === "legend" && depth === 24 ? FLOCK_REVENGE_BOSS
     : dungeonType === "legend" && depth === 19 ? GWEN_VETERAN_BOSS
     : dungeonType === "legend" && depth === 9 ? FLOCK_BOSS
     : dungeonType === "legend" && depth === 14 ? KORGON_BOSS
@@ -2454,6 +2455,11 @@ function genBossFloor(depth, dungeonType = null) {
     ...((bt.baseKind === "boss_flock" || bt.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: bt.hp } : {}),
     ...(bt.baseKind === "boss_gwen_veteran" ? { projectileAmmo: makePiercingArrow(12) } : {}),
   };
+  const pyrobolosGroupId = bt.baseKind === "boss_pyrobolos" ? uid() : null;
+  if (pyrobolosGroupId) {
+    boss.pyrobolosGroupId = pyrobolosGroupId;
+    boss.pyrobolosMemberIndex = 0;
+  }
 
   /* 取り巻き：ボスごとに固定種を配置 */
   /* { baseKind, level }[] の配列でボスごとに取り巻き種を定義 */
@@ -2464,6 +2470,7 @@ function genBossFloor(depth, dungeonType = null) {
       case "boss_flock":         return [];
       case "boss_flock_revenge": return [];
       case "boss_korgon":        return [];
+      case "boss_pyrobolos":    return [];
       case "im_boss_salamander": return [{ bk: "skeleton", lv: 1 }, { bk: "skeleton", lv: 1 }];
       case "im_boss_titan":      return [{ bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }];
       case "im_boss_kraken":     return [{ bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }];
@@ -2503,6 +2510,34 @@ function genBossFloor(depth, dungeonType = null) {
       if (map[_my]?.[_mx] !== T.FLOOR) continue;
       if (_occ(_mx, _my)) continue;
       minionMonsters.push(makeMonster(minionDepth, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY, dungeonType }));
+    }
+  }
+
+  /* 超上級B30Fのピュロボロスは、同じステータスの個体を合わせて6体配置する。 */
+  if (pyrobolosGroupId) {
+    const occupiedByGroup = (x, y) => monsterOccupiesCell(boss, x, y) ||
+      minionMonsters.some(monster => monster.pyrobolosGroupId === pyrobolosGroupId && monster.x === x && monster.y === y);
+    const floorCells = [];
+    for (let y = 1; y < MH - 1; y++) for (let x = 1; x < MW - 1; x++) {
+      if (map[y]?.[x] === T.FLOOR && !(x === suX && y === suY) && !(x === sdX && y === sdY)) floorCells.push({ x, y });
+    }
+    const mainFloorCells = [];
+    for (const cell of floorCells) {
+      if (cell.x >= main.x && cell.x < main.x + main.w && cell.y >= main.y && cell.y < main.y + main.h) mainFloorCells.push(cell);
+    }
+    for (let memberIndex = 1; memberIndex < 6; memberIndex++) {
+      let candidates = shuffle(mainFloorCells.filter(cell => !occupiedByGroup(cell.x, cell.y)));
+      if (candidates.length === 0) candidates = shuffle(floorCells.filter(cell => !occupiedByGroup(cell.x, cell.y)));
+      const spaced = candidates.find(cell => ![boss, ...minionMonsters].some(monster =>
+        monster.pyrobolosGroupId === pyrobolosGroupId && Math.max(Math.abs(monster.x - cell.x), Math.abs(monster.y - cell.y)) < 2,
+      ));
+      const cell = spaced || candidates[0];
+      if (!cell) break;
+      minionMonsters.push({
+        ...boss, id: uid(), x: cell.x, y: cell.y,
+        dir: { x: 0, y: 0 }, lastPx: cell.x, lastPy: cell.y,
+        pyrobolosMemberIndex: memberIndex,
+      });
     }
   }
 
@@ -2615,6 +2650,12 @@ function genBossFloor(depth, dungeonType = null) {
     floorType: "bossFloor",
     isBossFloor: true,
     bossLayout,
+    ...(pyrobolosGroupId ? {
+      pyrobolosBossGroup: {
+        id: pyrobolosGroupId, name: bt.name, baseKind: bt.baseKind, bossTier: bt.bossTier,
+        rewardX: bossX, rewardY: bossY, rewardFloor: depth + 1, rewardGranted: false, initialCount: 6,
+      },
+    } : {}),
   };
 }
 

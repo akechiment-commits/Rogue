@@ -1,6 +1,7 @@
 import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterPointDistance, monsterDistance, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { releaseInvalidCapture } from "./captureRules.js";
+import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { castMeteor, canCastMeteor } from './meteor.js';
 import { castPetroBreath, canCastPetroBreath } from './petroBreath.js';
 import {
@@ -1854,6 +1855,15 @@ export const BOSSES = [
     isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
 ];
 
+/* 超上級B30F専用の群体ボス。個体ごとの報酬は抑止し、6体と骨の処理後に一括報酬を出す。 */
+export const PYROBOLOS_BOSS = {
+  name: "ピュロボロス", hp: 200, atk: 34, def: 16, exp: 120,
+  speed: 1, tile: 261, kind: "beast", baseKind: "boss_pyrobolos",
+  isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1,
+  explosionImmune: true,
+  desc: "超上級B30Fに6体で現れる。爆発無効。隣接時20%で自爆し、遠距離の直線上では25%で入場後ターン数の半分を切り捨てた固定ダメージを与える。倒されると必ず骨を残し、同じ群れのピュロボロスが隣接すると魔法扱いで蘇生する。魔封じの魔方陣では蘇生できず、呪われた復活の魔方陣では骨が消えて蘇生に失敗する。全6体を倒し、残った骨もすべて壊すとボス報酬が出る。",
+};
+
 /* 上級20階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔神王は維持する。 */
 export const KING_BEHINMOS = {
   name: "キングベヒんもス", hp: 950, atk: 74, def: 42, exp: 5500,
@@ -1970,7 +1980,7 @@ export const FLOCK_REVENGE_BOSS = {
   desc: "超上級B25Fの浮遊ボス。最大MP1300（同室交戦で魔法約70回分）。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。雷は反射の鎧／魔法反射状態に跳ね返される。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS];
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -5571,6 +5581,9 @@ function strifeRingPlayerThreat(monster, dungeon, player, opts, context) {
       isOhplentyFarLine(monster, dungeon, player)) return true;
   if (monster.baseKind === "boss_mireu" && canUseMireuSpecial(monster) &&
       (isMireuFarLine(monster, dungeon, player) || (context.canSee && canCastMeteor(monster, dungeon)))) return true;
+  if (monster.baseKind === "boss_pyrobolos" && !monster.sealed && !isAttackSealed(monster) &&
+      !context.plOnBlessedSanc && context.canSee && inLine && distance >= 2 && distance <= 10 &&
+      !(dungeon.traps || []).some(trap => trap.effect === "bone" && trap.pyrobolosGroupId === monster.pyrobolosGroupId)) return true;
   if (monster.baseKind === "boss_gwen_veteran" && !monster.sealed && !isAttackSealed(monster) &&
       !context.plOnBlessedSanc && context.canSee && inLine && distance >= 2 && distance <= 10 &&
       (hasMonsterProjectileAmmo(monster) || (opts.monsterWandFn && monster.gwenWandCharges > 0 &&
@@ -5743,8 +5756,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1) &&
         (pl.potConfinedTurns || 0) <= 0;
-      if (m.baseKind === "boss_ohplenty") {
-        /* 引き寄せ・壁際への飛びつきに失敗した拍を、汎用のランダム脱出移動へ数えない */
+      if (m.baseKind === "boss_ohplenty" || (m.baseKind === "boss_pyrobolos" && m._pyrobolosPursuingBone)) {
+        /* 特殊AIの目的地へ向かう敵は、汎用のランダム脱出移動で目標から離さない。 */
         m._idleStuck = 0;
         m.posHistory = [];
       } else if (_adjPl) {
@@ -6494,6 +6507,282 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (m.paralyzed) return;
+  }
+
+  /* ピュロボロス：同群の骨への復帰を優先し、隣接自爆・歩数光線を予約して行動する。 */
+  if (m.baseKind === "boss_pyrobolos") {
+    const _pyroAdjPlayer = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+    const _pyroBones = () => (dg.traps || []).filter(trap =>
+      trap.effect === "bone" && trap.pyrobolosGroupId === m.pyrobolosGroupId,
+    );
+    const _pyroBoneAdjacent = (bone) => Math.max(Math.abs(m.x - bone.x), Math.abs(m.y - bone.y)) <= 1;
+    const _pyroLine = () => {
+      const dx = pl.x - m.x, dy = pl.y - m.y;
+      const distance = Math.max(Math.abs(dx), Math.abs(dy));
+      const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+      const visible = !_plPotHidden && (pl.invisibleTurns || 0) <= 0 &&
+        !!dg.visible?.[m.y]?.[m.x] && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+      return visible && inLine && distance >= 2 && distance <= 10;
+    };
+    const _pyroFireBeam = () => {
+      const damage = Math.floor(Math.max(0, Number(dg.floorTurns) || 0) / 2);
+      m.turnAttacks++;
+      _resolveBolt(m, dg, pl, ml, _luFn, {
+        dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
+        baseRange: 10, terminalOnly: true, wind: false, animColor: "#ff642d",
+        fireMsg: `${m.name}が歩数光線を放った！`, boltName: "歩数光線",
+        deathCause: `${m.name}の歩数光線で`,
+        calcPlDmg: () => damage,
+        calcMonDmg: () => damage,
+      });
+    };
+    const _pyroSelfDestruct = () => {
+      if (isFireExplosionNullified(dg, pl)) {
+        ml.push(`呪われた爆発の魔方陣が${m.name}の自爆を打ち消した！`);
+        m.turnAttacks++;
+        return;
+      }
+      const x = m.x, y = m.y, name = m.name;
+      m.turnAttacks++;
+      m.hp = 0;
+      killMonster(m, dg, pl, ml, _luFn, true, m);
+      if (m.hp > 0 || (dg.monsters || []).includes(m)) return;
+      doExplosion(x, y, dg, pl, ml, null, `${name}の自爆`, null, _luFn, false, true, true, true);
+    };
+    const _pyroTryRevive = (bone) => {
+      if (!bone || !(dg.traps || []).includes(bone)) return false;
+      m.turnAttacks++;
+      if (isRevivalSuppressedAt(dg, bone.x, bone.y)) {
+        removeTrap(dg, bone, ml, {
+          skipLoot: true, p: pl,
+          message: `${REVIVAL_SUPPRESS_MSG}骨からの復活は失敗した。`,
+        });
+        return true;
+      }
+      if (m.sealed || isAttackSealed(m)) {
+        const turn = Number(dg.floorTurns) || 0;
+        if (bone._pyrobolosSealMessageTurn !== turn) {
+          bone._pyrobolosSealMessageTurn = turn;
+          ml.push(`${m.name}は封印されていて復活魔法を使えない！`);
+        }
+        return true;
+      }
+      const _pyroMagicSealBlocked = inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(bone.x, bone.y, dg);
+      if (_pyroMagicSealBlocked) {
+        const turn = Number(dg.floorTurns) || 0;
+        if (bone._pyrobolosSealMessageTurn !== turn) {
+          bone._pyrobolosSealMessageTurn = turn;
+          ml.push(`魔封じの魔方陣が${m.name}の復活魔法を封じた！`);
+        }
+        return true;
+      }
+      const dirs = [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]];
+      let spawn = null;
+      for (const [dx, dy] of dirs) {
+        const x = bone.x + dx, y = bone.y + dy;
+        if (dg.map[y]?.[x] !== T.FLOOR || (x === pl.x && y === pl.y)) continue;
+        if ((dg.monsters || []).some(other => monsterOccupiesCell(other, x, y))) continue;
+        if (dg.items?.some(item => item.x === x && item.y === y) ||
+            dg.traps?.some(trap => trap !== bone && trap.x === x && trap.y === y) ||
+            dg.springs?.some(spring => spring.x === x && spring.y === y) ||
+            dg.bigboxes?.some(box => box.x === x && box.y === y) ||
+            dg.pentacles?.some(pentacle => pentacle.x === x && pentacle.y === y) ||
+            dg.statues?.some(statue => statue.x === x && statue.y === y) ||
+            dg.altars?.some(altar => altar.x === x && altar.y === y) ||
+            dg.gachaMachines?.some(machine => machine.x === x && machine.y === y) ||
+            dg.dimensionalVaults?.some(vault => vault.x === x && vault.y === y) ||
+            (dg.stairUp?.x === x && dg.stairUp?.y === y) || (dg.stairDown?.x === x && dg.stairDown?.y === y)) continue;
+        spawn = { x, y };
+        break;
+      }
+      if (!spawn) {
+        ml.push(`${bone.name}の周囲に復活できる空き場所がない！`);
+        return true;
+      }
+      if (inMagicSealRoom(spawn.x, spawn.y, dg)) {
+        const turn = Number(dg.floorTurns) || 0;
+        if (bone._pyrobolosSealMessageTurn !== turn) {
+          bone._pyrobolosSealMessageTurn = turn;
+          ml.push(`魔封じの魔方陣が${m.name}の復活魔法を封じた！`);
+        }
+        return true;
+      }
+      const data = bone.monData || {};
+      removeTrap(dg, bone, ml, { skipLoot: true, p: pl });
+      const revived = {
+        ...data, id: uid(), x: spawn.x, y: spawn.y,
+        hp: data.maxHp ?? data.hp, maxHp: data.maxHp ?? data.hp,
+        baseSpeed: data.speed ?? 1, turnAccum: 0, turnAttacks: 0,
+        aware: true, dormant: false,
+        dir: { x: 0, y: 0 }, lastPx: pl.x, lastPy: pl.y, patrolTarget: null,
+        _summonedAtActionTime: pl.actionTime || 0,
+      };
+      delete revived._dormantHp;
+      dg.monsters.push(revived);
+      ml.push(`${bone.name}から${revived.name}が蘇った！`);
+      return true;
+    };
+    const _pyroMoveToBone = (bone) => {
+      const targets = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const x = bone.x + dx, y = bone.y + dy;
+        if ((x === pl.x && y === pl.y) || !_canMoveTo(x, y)) continue;
+        if ((dg.monsters || []).some(other => other !== m && monsterOccupiesCell(other, x, y))) continue;
+        targets.push({ x, y, distance: Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) });
+      }
+      targets.sort((a, b) => a.distance - b.distance);
+      const tileFilter = (x, y) => !(x === pl.x && y === pl.y) && _canMoveTo(x, y);
+      for (const target of targets) {
+        const next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, target.x, target.y, m,
+          40, dg.pentacles, _effFloat, tileFilter, false, dg.rooms, dg);
+        if (!next || (next.x === pl.x && next.y === pl.y) ||
+            (dg.monsters || []).some(other => other !== m && monsterOccupiesCell(other, next.x, next.y))) continue;
+        m.dir = { x: next.x - m.x, y: next.y - m.y };
+        m.x = next.x;
+        m.y = next.y;
+        m._movedThisTurn = true;
+        return true;
+      }
+      return false;
+    };
+    const _pyroAct = () => {
+      if (m._pyrobolosSanctuaryBlocked) {
+        delete m._pyrobolosSanctuaryBlocked;
+        m.turnAttacks++;
+        return true;
+      }
+      if (m._pyrobolosSelfDestructReady) {
+        delete m._pyrobolosSelfDestructReady;
+        _pyroSelfDestruct();
+        return true;
+      }
+      if (m._pyrobolosBeamReady) {
+        delete m._pyrobolosBeamReady;
+        _pyroFireBeam();
+        return true;
+      }
+      if (m._pyrobolosMeleeReady) {
+        delete m._pyrobolosMeleeReady;
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, damage => `${m.name}の攻撃！${damage}ダメージ！`, {
+          onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn,
+        });
+        return true;
+      }
+      return false;
+    };
+
+    const bones = _pyroBones();
+    const _pyroRoom = findRoom(dg.rooms, m.x, m.y);
+    const _pyroSameRoom = !!_pyroRoom && findRoom(dg.rooms, pl.x, pl.y) === _pyroRoom;
+    const _pyroHiddenPlayer = _plPotHidden || (pl.invisibleTurns || 0) > 0;
+    const _pyroCanSee = !_pyroHiddenPlayer && (_pyroSameRoom ||
+      (!!dg.visible?.[m.y]?.[m.x] && hasLOS(dg.map, m.x, m.y, pl.x, pl.y)));
+    const _pyroStrifeTarget = strifeRingTarget(m, dg, pl);
+    const _pyroStrifeThreat = strifeRingPlayerThreat(m, dg, pl, opts, {
+      canSee: _pyroCanSee,
+      sameRoom: _pyroSameRoom,
+      plOnSanc: _plOnSanc,
+      plOnBlessedSanc: _plOnBlessedSanc,
+    });
+    if (_pyroStrifeTarget && !_pyroStrifeThreat) {
+      m.aware = true;
+      m.lastPx = _pyroStrifeTarget.x;
+      m.lastPy = _pyroStrifeTarget.y;
+      if (_moveOnly) return;
+      performStrifeRingAttack(m, _pyroStrifeTarget, dg, pl, ml, opts);
+      return;
+    }
+    if (_moveOnly) {
+      delete m._pyrobolosPursuingBone;
+      delete m._pyrobolosSanctuaryBlocked;
+      delete m._pyrobolosSelfDestructReady;
+      delete m._pyrobolosBeamReady;
+      delete m._pyrobolosMeleeReady;
+      if (_pyroAdjPlayer) {
+        if (_plOnSanc) {
+          m._pyrobolosSanctuaryBlocked = true;
+          return;
+        }
+        if (monCanUseExplosiveAbility(m) && !isAttackSealed(m) &&
+            m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < 0.20) {
+          m._pyrobolosSelfDestructReady = true;
+          return;
+        }
+        const bone = bones.find(_pyroBoneAdjacent);
+        if (bone) {
+          m._pyrobolosReviveBoneId = bone.id;
+          return;
+        }
+        m._pyrobolosMeleeReady = true;
+        return;
+      }
+      if (bones.length > 0) {
+        m._pyrobolosPursuingBone = true;
+        const bone = [...bones].sort((a, b) =>
+          Math.max(Math.abs(m.x - a.x), Math.abs(m.y - a.y)) - Math.max(Math.abs(m.x - b.x), Math.abs(m.y - b.y)),
+        )[0];
+        if (_pyroBoneAdjacent(bone)) {
+          m._pyrobolosReviveBoneId = bone.id;
+          return;
+        }
+        m._pyrobolosPursuingBone = true;
+        _pyroMoveToBone(bone);
+        return;
+      }
+      if (!isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m) && _pyroLine() && Math.random() < 0.25) {
+        m._pyrobolosBeamReady = true;
+        return;
+      }
+    } else if (_attackOnly) {
+      if (_pyroAct()) return;
+      const pendingBone = bones.find(bone => bone.id === m._pyrobolosReviveBoneId);
+      delete m._pyrobolosReviveBoneId;
+      if (pendingBone) { _pyroTryRevive(pendingBone); return; }
+      if (_pyroAdjPlayer) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, damage => `${m.name}の攻撃！${damage}ダメージ！`, {
+          onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn,
+        });
+        return;
+      }
+      if (bones.length > 0) {
+        const bone = bones.find(_pyroBoneAdjacent);
+        if (bone) _pyroTryRevive(bone);
+        return;
+      }
+      return;
+    } else {
+      if (_pyroAdjPlayer) {
+        if (_plOnSanc) { m.turnAttacks++; return; }
+        if (monCanUseExplosiveAbility(m) && !isAttackSealed(m) &&
+            m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < 0.20) {
+          _pyroSelfDestruct();
+          return;
+        }
+        const bone = bones.find(_pyroBoneAdjacent);
+        if (bone) { _pyroTryRevive(bone); return; }
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, damage => `${m.name}の攻撃！${damage}ダメージ！`, {
+          onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn,
+        });
+        return;
+      }
+      if (bones.length > 0) {
+        m._pyrobolosPursuingBone = true;
+        const bone = [...bones].sort((a, b) =>
+          Math.max(Math.abs(m.x - a.x), Math.abs(m.y - a.y)) - Math.max(Math.abs(m.x - b.x), Math.abs(m.y - b.y)),
+        )[0];
+        if (_pyroBoneAdjacent(bone)) _pyroTryRevive(bone);
+        else _pyroMoveToBone(bone);
+        return;
+      }
+      if (!isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m) && _pyroLine() && Math.random() < 0.25) {
+        _pyroFireBeam();
+        return;
+      }
+    }
   }
 
   /* バタリングラムのブレス予約中：状態異常や強制移動を受けない限り、移動・別攻撃を行わず次ターンのブレス発射に専念する */

@@ -34,7 +34,7 @@ import {
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, weaponCriticalDamageMultiplier, inMagicSealRoom, inCursedMagicSealRoom,
-  monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
+  monsterDrop, killMonster, checkPyrobolosBossReward, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES,
   applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, tickDamagedFoodReveals, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
@@ -2211,6 +2211,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _worldTick = _clock.worldTicks > 0 && !_timeStopActive;
       if (_worldTick) {
         st.floorTurns = (st.floorTurns || 0) + 1;
+        st.dungeon.floorTurns = st.floorTurns;
         tickDamagedFoodReveals(st.dungeon);
         const _activatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
         if (_activatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
@@ -2610,6 +2611,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           signalPinchAlert();
         }
       }
+      checkPyrobolosBossReward(st.dungeon, ml, p);
+      for (const floor of Object.values(st.floors || {})) checkPyrobolosBossReward(floor, ml, p);
       finishTrapActivationTurn(st);
     }),
     [moveMons, lu, chgFloor, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],

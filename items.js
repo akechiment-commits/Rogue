@@ -2883,6 +2883,7 @@ export function removeTrap(dg, trap, ml, opts = {}) {
   dg.traps = (dg.traps || []).filter(t => t !== trap);
   if (message) ml.push(message);
   if (!fromStep && !activated && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
+  if (trap?.pyrobolosGroupId) checkPyrobolosBossReward(dg, ml, p, trap);
 }
 
 /** 踏んだ後に罠が壊れる確率（罠の罠・道具魔物化は必ず、盗み・召喚・増殖は50%、それ以外25%） */
@@ -2974,6 +2975,8 @@ export function removeTraps(dg, traps, ml, opts = {}) {
   if (!opts.fromStep) {
     for (const t of gone) dropTrapBreakLoot(dg, t, ml, ids, opts.p);
   }
+  const pyroBones = gone.filter(trap => trap.pyrobolosGroupId);
+  for (const bone of pyroBones) checkPyrobolosBossReward(dg, ml, opts.p, bone);
 }
 
 /** 落石罠：対象がいなければ石を通常落下と同様に近くへ置く（罠マスには重ならない） */
@@ -4126,6 +4129,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       ml.push("骨が壊れた。");
       dg.traps = dg.traps.filter(t => t !== trap);
+      if (trap.pyrobolosGroupId) checkPyrobolosBossReward(dg, ml, p, trap);
       return "destroyed";
     }
     default:
@@ -6782,14 +6786,37 @@ function makeBossRewardItem(template) {
   return item;
 }
 
+/** 群体ボスは最後の個体と専用骨がすべてなくなった時だけ、通常のボス報酬を一度出す。 */
+export function checkPyrobolosBossReward(dg, ml, p = null, removedBone = null) {
+  const group = dg?.pyrobolosBossGroup;
+  if (!group || group.rewardGranted) return false;
+  if ((dg.monsters || []).some(monster => monster.pyrobolosGroupId === group.id && monster.hp > 0)) return false;
+  if ((dg.traps || []).some(trap => trap.effect === "bone" && trap.pyrobolosGroupId === group.id)) return false;
+  if (removedBone) {
+    group.rewardX = removedBone.x;
+    group.rewardY = removedBone.y;
+  }
+  group.rewardGranted = true;
+  monsterDrop({
+    name: group.name || "ピュロボロス", baseKind: group.baseKind || "boss_pyrobolos",
+    bossTier: group.bossTier || 6, isBoss: true,
+    rewardFloor: group.rewardFloor,
+    x: group.rewardX, y: group.rewardY,
+  }, dg, ml, p);
+  ml.push(`${group.name || "ピュロボロス"}の群れと骨をすべて倒した！ボス報酬を得た！`);
+  return true;
+}
+
 export function monsterDrop(m, dg, ml, p = null) {
+  /* ピュロボロス個体は、群れ全体の討伐条件を満たすまで個別ドロップしない。 */
+  if (m?.pyrobolosGroupId) return;
   if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, p)) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
     return;
   }
   const _dropDungeonType = dg?.dungeonType ?? p?.dungeonType ?? null;
-  /* p.depth は1始まり。階が不明な呼び出しでは1階として扱い、後半解禁品を先行させない。 */
-  const _dropFloor = Number.isFinite(p?.depth) ? p.depth : 1;
+  /* p.depth と rewardFloor は1始まり。階が不明な呼び出しでは1階として扱い、後半解禁品を先行させない。 */
+  const _dropFloor = Number.isFinite(m?.rewardFloor) ? m.rewardFloor : (Number.isFinite(p?.depth) ? p.depth : 1);
   const _dropPool = (pool) => lootPoolForDungeon(pool, _dropDungeonType, _dropFloor);
   const _pickDrop = (pool) => pickLootFromPool(_dropPool(pool), "drop");
   /* 遺物の番人：ボス特性は維持し、戦利品だけ専用の通常枠に置き換える。 */
@@ -7298,8 +7325,52 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     }
   }
   monsterDrop(mon, dg, ml, p);
+  /* ピュロボロスは撃破方法やnoBone指定に関係なく、群れIDと個体番号を持つ骨を必ず残す。 */
+  if (mon.pyrobolosGroupId) {
+    dg.traps ||= [];
+    const candidates = [];
+    const seen = new Set();
+    const addCandidate = (x, y) => {
+      const key = `${x},${y}`;
+      if (seen.has(key) || dg.map?.[y]?.[x] !== T.FLOOR ||
+          (dg.stairUp?.x === x && dg.stairUp?.y === y) || (dg.stairDown?.x === x && dg.stairDown?.y === y) ||
+          dg.traps.some(trap => trap.effect === "bone" && trap.pyrobolosGroupId === mon.pyrobolosGroupId && trap.x === x && trap.y === y)) return;
+      seen.add(key);
+      candidates.push({ x, y });
+    };
+    for (const [dx, dy] of DRO) addCandidate(mx + dx, my + dy);
+    const rest = [];
+    for (let y = 1; y < (dg.map?.length || 0) - 1; y++) for (let x = 1; x < (dg.map?.[y]?.length || 0) - 1; x++) {
+      const key = `${x},${y}`;
+      if (!seen.has(key) && dg.map[y]?.[x] === T.FLOOR) rest.push({ x, y });
+    }
+    rest.sort((a, b) => Math.max(Math.abs(a.x - mx), Math.abs(a.y - my)) - Math.max(Math.abs(b.x - mx), Math.abs(b.y - my)));
+    for (const cell of rest) addCandidate(cell.x, cell.y);
+    const pos = candidates.find(cell => !dg.traps.some(trap => trap.x === cell.x && trap.y === cell.y)) || candidates[0];
+    if (pos) {
+      dg.traps.push({
+        id: uid(), name: "ピュロボロスの骨", effect: "bone", tile: 107,
+        x: pos.x, y: pos.y, revealed: true, permanent: false,
+        pyrobolosGroupId: mon.pyrobolosGroupId,
+        pyrobolosMemberIndex: mon.pyrobolosMemberIndex,
+        desc: "ピュロボロスの骨。同じ群れの個体が隣接すると復活することがある。飛び道具などで壊せる。",
+        monData: {
+          baseKind: mon.baseKind, name: mon.name, hp: mon.maxHp, maxHp: mon.maxHp,
+          atk: mon.atk, def: mon.def, exp: mon.exp, speed: mon.speed ?? 1, tile: mon.tile,
+          kind: mon.kind, monLevel: mon.monLevel || 1, levels: mon.levels,
+          isBoss: true, bossTier: mon.bossTier, maxAttacks: mon.maxAttacks,
+          explosionImmune: true,
+          pyrobolosGroupId: mon.pyrobolosGroupId,
+          pyrobolosMemberIndex: mon.pyrobolosMemberIndex,
+        },
+      });
+      ml.push(`${mon.name}は骨を残した。`);
+    } else {
+      ml.push(`${mon.name}の骨を置く床が見つからなかった。`);
+    }
+  }
   /* スケルトン：50%で骨を残し5ターン後に復活（復活抑制下では骨を残さない） */
-  if (!noBone && mon.baseKind === "skeleton" && Math.random() < 0.5) {
+  else if (!noBone && mon.baseKind === "skeleton" && Math.random() < 0.5) {
     if (_reviveBlocked) {
       ml.push(REVIVAL_SUPPRESS_MSG);
       ml.push(`${mon.name}の骨は散らばって消えた。`);
