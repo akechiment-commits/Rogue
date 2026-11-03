@@ -1857,7 +1857,7 @@ export const BOSSES = [
 
 /* 超上級B30F専用の群体ボス。個体ごとの報酬は抑止し、6体と骨の処理後に一括報酬を出す。 */
 export const PYROBOLOS_BOSS = {
-  name: "ピュロボロス", hp: 200, atk: 34, def: 16, exp: 120,
+  name: "ピュロボロス", hp: 400, atk: 60, def: 35, exp: 500,
   speed: 1, tile: 261, kind: "beast", baseKind: "boss_pyrobolos",
   isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1,
   explosionImmune: true,
