@@ -55,18 +55,19 @@ describe("範囲近接攻撃後の吹き飛ばし", () => {
     expect(mon.x).toBe(8);
     expect(ml.at(-1)).toBe("対象は吹き飛んだ！");
   });
-  it.each([[{}, 12], [{ cursed: true }, 8], [{ blessed: true }, utils.MW - 1]])("魔方陣%sも全命中後に1回だけ適用する", (pentacle, x) => {
+  it.each([[{}, 12], [{ cursed: true }, 8], [{ blessed: true }, utils.MW - 1]])("魔方陣%sは1発目で吹き飛ばし、範囲外の後続は当たらない", (pentacle, x) => {
     const { mon, ml } = attack({ abilities: ["frontal_sweep"], pentacle });
-    expect(ml.filter(m => m.startsWith("対象に"))).toHaveLength(3);
+    expect(ml.filter(m => m.startsWith("対象に"))).toHaveLength(1);
     expect(mon.x).toBe(x);
     expect(ml.filter(m => m.includes("の力で対象が"))).toHaveLength(1);
     expect(ml.findIndex(m => m.includes("の力で対象が"))).toBeGreaterThan(ml.map(m => m.startsWith("対象に")).lastIndexOf(true));
   });
-  it("武器と魔方陣が両方ある場合も、それぞれ1回だけ適用する", () => {
+  it("魔方陣は命中直後、武器の吹き飛ばしは全攻撃後に適用する", () => {
     const { mon, ml } = attack({ pentacle: {} });
     expect(mon.x).toBe(13);
     expect(ml.filter(m => m === "対象は吹き飛んだ！")).toHaveLength(1);
     expect(ml.filter(m => m.includes("の力で対象が"))).toHaveLength(1);
+    expect(ml.at(-1)).toBe("対象は吹き飛んだ！");
   });
   it.each([1, 25])("攻撃で倒した相手（HP%s）には吹き飛ばしを適用しない", hp => {
     const { mon, ml, kill } = attack({ hp });
@@ -97,9 +98,38 @@ describe("範囲近接攻撃後の吹き飛ばし", () => {
     expect(ml.filter(m => m.includes("は吹き飛んだ"))).toHaveLength(2);
     expect(ml.findIndex(m => m.includes("吹き飛んだ"))).toBeGreaterThan(ml.findIndex(m => m.startsWith("別の敵に")));
   });
-  it("魔方陣による壁への衝突ダメージも全攻撃後に1回だけ発生する", () => {
+  it("壁で移動できず範囲内に残れば、各命中で魔方陣の衝突も発生する", () => {
     const { ml } = attack({ abilities: ["frontal_sweep"], pentacle: {}, walls: [[8, 5]] });
     expect(ml.filter(m => m.startsWith("対象に"))).toHaveLength(3);
-    expect(ml.filter(m => m.includes("壁に叩きつけられた"))).toHaveLength(1);
+    expect(ml.filter(m => m.includes("壁に叩きつけられた"))).toHaveLength(3);
+  });
+  it("魔方陣で範囲外へ飛ばしたら連撃も発動しない", () => {
+    const { mon, ml } = attack({ bodySize: 1, abilities: ["double_strike"], pentacle: {} });
+    expect(mon.x).toBe(11);
+    expect(ml.filter(m => m.startsWith("対象に"))).toHaveLength(1);
+    expect(ml.some(m => m.startsWith("連撃！"))).toBe(false);
+  });
+  it("長柄の範囲内に残れば、連撃が当たり再び魔方陣で飛ぶ", () => {
+    const { mon, ml } = attack({ bodySize: 1, abilities: ["reach", "double_strike"], pentacle: { cursed: true } });
+    expect(mon.x).toBe(8);
+    expect(ml.filter(m => m.startsWith("連撃！"))).toHaveLength(1);
+    expect(ml.filter(m => m.includes("の力で対象が"))).toHaveLength(2);
+  });
+  it("大型敵の体が長柄の後続セルに残っていれば、そのセルの攻撃は当たる", () => {
+    const { mon, ml } = attack({ abilities: ["reach", "frontal_sweep"], pentacle: { cursed: true } });
+    expect(mon.x).toBe(9);
+    expect(ml.filter(m => m.startsWith("対象に"))).toHaveLength(2);
+    expect(ml.filter(m => m.includes("の力で対象が"))).toHaveLength(2);
+  });
+  it("途中まで飛んで壁で止まり範囲に残れば、残りの攻撃が当たる", () => {
+    const { mon, ml } = attack({ abilities: ["reach", "frontal_sweep"], pentacle: {}, walls: [[9, 5]] });
+    expect(mon.x).toBe(8);
+    expect(ml.filter(m => m.startsWith("対象に"))).toHaveLength(2);
+  });
+  it("魔方陣の衝突で倒れた相手へ連撃を当てず、撃破処理も1回だけ行う", () => {
+    const { mon, ml, kill } = attack({ hp: 12, abilities: ["frontal_sweep", "double_strike"], pentacle: {}, walls: [[8, 5]] });
+    expect(mon.hp).toBeLessThanOrEqual(0);
+    expect(kill).toHaveBeenCalledTimes(1);
+    expect(ml.some(m => m.startsWith("連撃！"))).toBe(false);
   });
 });
