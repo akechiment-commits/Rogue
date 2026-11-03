@@ -6508,13 +6508,13 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
     }
     spr.contents.push(item);
   } else if (item.type === "ring") {
-    if (item.cursed) {
+    if (item.cursed && Math.random() < 0.05) {
       const _oldPlus = item.plus || 0;
       const _oldName = item.name;
       Object.assign(item, { ...NIEBELUNG_RING_T, id: item.id, plus: _oldPlus, cursed: false, bcKnown: true });
       ml.push(`${_oldName}が水底の黄金と共鳴し...ニーベルングの指輪に変化した！呪いが浄化された！`);
     } else {
-      ml.push(_dn(item) + "が泉に落ちた。");
+      ml.push(_dn(item) + "が泉に落ちた。" + (item.cursed ? "呪いは解けなかった！" : ""));
     }
     spr.contents.push(item);
   } else if (item.type === "pot" && item.potEffect === "gunpowder") {
