@@ -27,7 +27,7 @@ import {
 } from "./monsters.js";
 import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
-  KATANA_T, MURAMASA_T, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, SILVER_AXE_T, NIEBELUNG_RING_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  CAT_CLAW_T, EXCALIBUR_T, NIEBELUNG_RING_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
@@ -36,7 +36,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, weaponCriticalDamageMultiplier, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
-  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
+  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES,
   applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, tickDamagedFoodReveals, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets,
@@ -5701,11 +5701,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _targetSpring = dg.springs?.find(s => s === springTargetRef.current) ||
         dg.springs?.find(s => s.x === p.x && s.y === p.y);
       let _springOverflowDried = false;
-      if (it.cursed && _isEquipped && _targetSpring) {
+      const _isSpringGear = ["weapon", "armor", "ring"].includes(it.type) || (it.cursed && _isEquipped);
+      if (_isSpringGear && !_targetSpring) {
+        setMsgs((prev) => [...prev.slice(-80), `${dnameRef(it)}を浸す泉が見つからない。`]);
+        return;
+      }
+      if (_isSpringGear) {
         const _springWasPresent = dg.springs?.includes(_targetSpring);
-        unequipPlayerItem(p, it);
+        const _oldItemName = dnameRef(it);
+        if (_isEquipped) unequipPlayerItem(p, it);
         p.inventory.splice(idx, 1);
-        ml.push(`${dnameRef(it)}は泉に滑り落ち、装備から外れた！`);
+        ml.push(_isEquipped
+          ? `${_oldItemName}は装備から外れ、泉に滑り落ちた！`
+          : `${_oldItemName}は泉に滑り落ちた！`);
+        if (it.type === "ring" && it.cursed) {
+          const _oldPlus = it.plus || 0;
+          Object.assign(it, { ...NIEBELUNG_RING_T, id: it.id, plus: _oldPlus, cursed: false, bcKnown: true });
+          ml.push(`${_oldItemName}が水底の黄金と共鳴し...ニーベルングの指輪に変化した！呪いが浄化された！`);
+        }
         soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef, p);
         _springOverflowDried = !!_springWasPresent && !dg.springs?.includes(_targetSpring);
         if (_springOverflowDried && springTargetRef.current === _targetSpring) springTargetRef.current = null;
@@ -5735,91 +5748,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         trackItem(wb);
         p.inventory.push(wb);
         ml.push(`${dnameRef(it)}に水を汲んだ。${dnameRef(wb)}を手に入れた！${_sfx}`);
-      } else if (it.type === "weapon" || it.type === "armor") {
-        const _curseNote = it.cursed ? " 呪いは解けなかった！" : "";
-        /* 特殊変化：ロングソード→エクスカリバー(5%)、短剣→猫の爪(5%)、バトルアクス/戦神の斧→ゴールデンアクス(20%) */
-        if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
-          const _oldPlus = it.plus || 0;
-          const _oldName = it.name;
-          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-          Object.assign(it, { ...EXCALIBUR_T, id: it.id, plus: Math.max(0, _oldPlus) });
-          const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
-          it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が聖なる光を放ち...エクスカリバーに変化した！${_curseNote}`);
-        } else if (it.type === "weapon" && it.name === "カタナ" && Math.random() < 0.05) {
-          const _oldPlus = it.plus || 0;
-          const _oldName = it.name;
-          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-          Object.assign(it, { ...MURAMASA_T, id: it.id, plus: Math.max(0, _oldPlus) });
-          const _newAbs = [...new Set([..._oldAbs, MURAMASA_T.ability])];
-          it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が不気味な妖気を放ち...妖刀村正に変化した！${_curseNote}`);
-        } else if (it.type === "weapon" && it.name === "短剣" && Math.random() < 0.05) {
-          const _oldPlus = it.plus || 0;
-          const _oldName = it.name;
-          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-          Object.assign(it, { ...CAT_CLAW_T, id: it.id, plus: Math.max(0, _oldPlus) });
-          const _newAbs = [...new Set([..._oldAbs, CAT_CLAW_T.ability])];
-          it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が鋭い輝きを放ち...猫の爪に変化した！${_curseNote}`);
-        } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧")) {
-          const _rAxe = Math.random();
-          if (_rAxe < 0.20) {
-            const _oldPlus = it.plus || 0;
-            const _oldName = it.name;
-            const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-            Object.assign(it, { ...GOLDEN_AXE_T, id: it.id, plus: Math.max(0, _oldPlus) });
-            const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
-            it.abilities = _newAbs; it.ability = _newAbs[0];
-            ml.push(`${_oldName}が黄金の輝きを放ち...ゴールデンアクスに変化した！${_curseNote}`);
-          } else if (_rAxe < 0.50) {
-            const _oldPlus = it.plus || 0;
-            const _oldName = it.name;
-            const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-            Object.assign(it, { ...SILVER_AXE_T, id: it.id, plus: Math.max(0, _oldPlus) });
-            const _newAbs = [...new Set([..._oldAbs, SILVER_AXE_T.ability])];
-            it.abilities = _newAbs; it.ability = _newAbs[0];
-            ml.push(`${_oldName}が白銀の輝きを放ち...シルバーアクスに変化した！${_curseNote}`);
-          } else {
-            const _guard = consumeItemDegradeProtection(it);
-            if (_guard) {
-              const _guardMsg = _guard.kind === "permanent"
-                ? "金でできているので錆びなかった！"
-                : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
-              ml.push(`${it.name}が水に浸かったが${_guardMsg}${_curseNote}`);
-            } else {
-              const _op = it.plus || 0;
-              it.plus = _op - 1;
-              const _fp = (v) => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
-              ml.push(`${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_curseNote}`);
-            }
-          }
-        } else {
-          const _guard = consumeItemDegradeProtection(it);
-          if (_guard) {
-            const _guardMsg = _guard.kind === "permanent"
-              ? "金でできているので錆びなかった！"
-              : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
-            ml.push(`${it.name}が水に浸かったが${_guardMsg}${_curseNote}`);
-          } else {
-            const _op = it.plus || 0;
-            it.plus = _op - 1;
-            const _fp = (v) =>
-              v > 0 ? `+${v}` : v === 0 ? `\u7121\u5370` : `${v}`;
-            ml.push(
-              `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_curseNote}`,
-            );
-          }
-        }
-      } else if (it.type === "ring") {
-        if (it.cursed) {
-          const _oldPlus = it.plus || 0;
-          const _oldName = it.name;
-          Object.assign(it, { ...NIEBELUNG_RING_T, id: it.id, plus: _oldPlus, cursed: false, bcKnown: true });
-          ml.push(`${_oldName}が水底の黄金と共鳴し...ニーベルングの指輪に変化した！呪いが浄化された！`);
-        } else {
-          ml.push(`${dnameRef(it)}を泉に浸した。何も起こらなかった。`);
-        }
       } else if (it.type === "scroll") {
         const _curseNote = it.cursed ? "呪いは解けなかった！" : "";
         if (it.effect !== "blank") {
