@@ -4192,8 +4192,9 @@ export function makeHomingShot(c = 1) {
 }
 
 /** 敵が発射する誘導弾を床上の特殊弾として登録する。 */
-export function launchMonsterHomingProjectile(monster, dg, player, ml) {
+export function launchMonsterHomingProjectile(monster, dg, player, ml, options = {}) {
   if (!monster || !dg || !player) return false;
+  const projectileName = options.name || "誘導弾";
   const dx = Math.sign(player.x - monster.x);
   const dy = Math.sign(player.y - monster.y);
   dg.specialProjectiles ||= [];
@@ -4204,7 +4205,7 @@ export function launchMonsterHomingProjectile(monster, dg, player, ml) {
     id: uid(),
     kind: "homing",
     owner: "monster",
-    name: "誘導弾",
+    name: projectileName,
     sourceId: monster.id ?? null,
     sourceName: monster.name || "敵",
     atk: Math.max(1, monster.atk || 1),
@@ -4215,7 +4216,7 @@ export function launchMonsterHomingProjectile(monster, dg, player, ml) {
     turnsLeft: 20,
     hasMoved: false,
   });
-  ml?.push(`${monster.name}が誘導弾を射った！`);
+  ml?.push(options.message || `${monster.name}が${projectileName}を射った！`);
   return true;
 }
 

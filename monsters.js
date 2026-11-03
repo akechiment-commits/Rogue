@@ -1859,9 +1859,9 @@ export const BOSSES = [
 export const PYROBOLOS_BOSS = {
   name: "ピュロボロス", hp: 400, atk: 60, def: 35, exp: 500,
   speed: 1, tile: 261, kind: "beast", baseKind: "boss_pyrobolos",
-  isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1,
+  isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, float: true, elemWeak: "ice",
   explosionImmune: true,
-  desc: "超上級B30Fに6体で現れる。爆発無効。隣接時20%で自爆し、遠距離の直線上では25%で入場後ターン数の半分を切り捨てた固定ダメージを与える。倒されると必ず骨を残し、同じ群れのピュロボロスが隣接すると魔法扱いで蘇生する。魔封じの魔方陣では蘇生できず、呪われた復活の魔方陣では骨が消えて蘇生に失敗する。全6体を倒し、残った骨もすべて壊すとボス報酬が出る。",
+  desc: "超上級B30Fに6体で現れる浮遊・氷弱点の爆発無効ボス。隣接時20%で自爆し、遠距離の直線上では25%で入場後ターン数の半分を切り捨てた固定ダメージを与える。倒されると必ず骨を残し、同じ群れのピュロボロスが隣接すると魔法扱いで蘇生する。魔封じの魔方陣では蘇生できず、呪われた復活の魔方陣では骨が消えて蘇生に失敗する。全6体を倒し、残った骨もすべて壊すとボス報酬が出る。",
 };
 
 /* 上級20階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔神王は維持する。 */
@@ -1980,7 +1980,16 @@ export const FLOCK_REVENGE_BOSS = {
   desc: "超上級B25Fの浮遊ボス。最大MP1300（同室交戦で魔法約70回分）。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。雷は反射の鎧／魔法反射状態に跳ね返される。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS];
+/* 超上級B35F専用。中級クラーケンの水域戦術を進化させた2×2マスの水棲ボス。 */
+export const KRAKEN_BIO_BOSS = {
+  name: "クラーケンバイオ", hp: 1800, atk: 110, def: 75, exp: 30000,
+  speed: 1, tile: 262, kind: "beast", baseKind: "boss_krakenbio",
+  isBoss: true, bossTier: 7, monLevel: 1, maxAttacks: 2, bodySize: 2,
+  waterWalker: true, elemWeak: "thunder",
+  desc: "超上級B35Fに現れる2×2マスの水棲ボス。雷弱点。水中では毎ターン30HP回復し、HP50%以下で水場へ逃走、80%以上まで回復すると再び攻めてくる。直線上に墨を吐いて暗闇にし、水鉄砲はわてりと同じ弾道で攻撃する。水中にいて通常攻撃の射程外なら、50%で水中花と同じ追尾弾（竜巻）を放つ。",
+};
+
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS];
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -3684,7 +3693,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
         ml.push(`${hitMon.name}が潜って水鉄砲をかわした！`);
         continue;
       }
-      const _wgWater = hitMon.waterOnly || hitMon.baseKind === "im_boss_kraken";
+      const _wgWater = hitMon.waterOnly || hitMon.baseKind === "im_boss_kraken" || hitMon.baseKind === "boss_krakenbio";
       if (_wgWater) {
         /* 水属性モンスターは回復 */
         const heal = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
@@ -5581,6 +5590,9 @@ function strifeRingPlayerThreat(monster, dungeon, player, opts, context) {
       isOhplentyFarLine(monster, dungeon, player)) return true;
   if (monster.baseKind === "boss_mireu" && canUseMireuSpecial(monster) &&
       (isMireuFarLine(monster, dungeon, player) || (context.canSee && canCastMeteor(monster, dungeon)))) return true;
+  if (monster.baseKind === "boss_krakenbio" && !monster.sealed && context.canSee &&
+      ((inLine && distance >= 1 && distance <= 19) ||
+       (dungeon.map?.[monster.y]?.[monster.x] === T.WATER && context.sameRoom))) return true;
   if (monster.baseKind === "boss_pyrobolos" && !monster.sealed && !isAttackSealed(monster) &&
       !context.plOnBlessedSanc && context.canSee && inLine && distance >= 2 && distance <= 10 &&
       !(dungeon.traps || []).some(trap => trap.effect === "bone" && trap.pyrobolosGroupId === monster.pyrobolosGroupId)) return true;
@@ -6992,11 +7004,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* クラーケン：逃走AI＋墨吐き（二フェーズシステム対応） ※HP回復はGame.jsx側で実施 */
-  if (m.baseKind === "im_boss_kraken") {
+  if (m.baseKind === "im_boss_kraken" || m.baseKind === "boss_krakenbio") {
+    const _krakenBio = m.baseKind === "boss_krakenbio";
     if (_moveOnly) {
-      if (!m._krakFleeing && m.hp < m.maxHp * 0.5) {
+      if (!m._krakFleeing && (_krakenBio ? m.hp <= m.maxHp * 0.5 : m.hp < m.maxHp * 0.5)) {
         m._krakFleeing = true;
-        ml.push(`${m.name}はHPが半分を切り、水の奥へ逃げ出した！`);
+        ml.push(`${m.name}はHPが半分以下になり、水の奥へ逃げ出した！`);
       } else if (m._krakFleeing && m.hp >= m.maxHp * 0.8) {
         m._krakFleeing = false;
         ml.push(`${m.name}は体力を回復し、再び向かってきた！`);
@@ -7008,7 +7021,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       let _target = null, _bestWaterScore = -1;
       for (let _wy = 0; _wy < MH; _wy++) {
         for (let _wx = 0; _wx < MW; _wx++) {
-          if (dg.map[_wy]?.[_wx] !== T.WATER) continue;
+          if (dg.map[_wy]?.[_wx] !== T.WATER || !_canMoveTo(_wx, _wy)) continue;
           let _ws = 0;
           for (const [_dx2, _dy2] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]])
             if (dg.map[_wy + _dy2]?.[_wx + _dx2] === T.WATER) _ws++;
@@ -7016,13 +7029,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
       if (_target) {
-        const _next = bfsNext(dg.map, dg.monsters, m.x, m.y, _target.x, _target.y, m, 40, dg.pentacles, true, null, false, dg.rooms, dg);
-        if (_next && !(_next.x === pl.x && _next.y === pl.y)) { m.x = _next.x; m.y = _next.y; }
+        const _krakenWaterStep = (x, y) => _canMoveTo(x, y);
+        const _next = bfsNext(dg.map, dg.monsters, m.x, m.y, _target.x, _target.y, m, 40, dg.pentacles, true, _krakenWaterStep, false, dg.rooms, dg);
+        if (_next && !(_next.x === pl.x && _next.y === pl.y) && _canMoveTo(_next.x, _next.y)) {
+          m.dir = { x: _next.x - m.x, y: _next.y - m.y };
+          m.x = _next.x; m.y = _next.y; m._movedThisTurn = true;
+        }
       }
       return;
     }
     /* 逃走中はattackOnlyで何もしない */
     if (m._krakFleeing) return;
+    if (_krakenBio && _moveOnly && (m._krakInkReady || m._krakenBioWaterGunReady || m._krakenBioTornadoReady)) return;
     /* 墨吐き：moveOnlyで25%予約→attackOnlyで実行 */
     if (_moveOnly) {
       const _kiAdx = pl.x - m.x, _kiAdy = pl.y - m.y;
@@ -7034,10 +7052,26 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._krakInkReady = true;
         return; /* 移動しない→attackOnlyで墨発動 */
       }
+      if (_krakenBio && !m.sealed && !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        const _bioWaterGunRange = _kiInLine && _kiDist >= 1 && _kiDist <= 8;
+        if (_bioWaterGunRange && Math.random() < 0.25) {
+          m._krakenBioWaterGunReady = true;
+          return;
+        }
+        const _bioWaterTile = dg.map[m.y]?.[m.x] === T.WATER;
+        const _krakenRoom = findRoom(dg.rooms, m.x, m.y);
+        const _sameKrakenRoom = !!_krakenRoom && findRoom(dg.rooms, pl.x, pl.y) === _krakenRoom;
+        const _inkInRange = _kiDist >= 2 && _kiDist <= 19 && _kiInLine && _kiLOS;
+        if (_bioWaterTile && _sameKrakenRoom && !_inkInRange && !_bioWaterGunRange && Math.random() < 0.5) {
+          m._krakenBioTornadoReady = true;
+          return;
+        }
+      }
       /* 予約なし：通常BFS移動に委ねる */
     } else if (m._krakInkReady) {
       /* attackOnlyフェーズ：予約済み墨吐きを実行 */
       delete m._krakInkReady;
+      if (_krakenBio && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
       if (_plOnBlessedSanc) {
         m.turnAttacks++;
         ml.push(`祝福された聖域の加護が${m.name}の墨を防いだ！`);
@@ -7073,6 +7107,24 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (dg.monsters.find(mn => monsterOccupiesCell(mn, _ktx, _kty) && mn !== m)) break;
       }
       m.turnAttacks++;
+      return;
+    }
+    if (_krakenBio && !_moveOnly && m._krakenBioWaterGunReady) {
+      delete m._krakenBioWaterGunReady;
+      if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+      if (!_plOnBlessedSanc && !m.sealed) {
+        m.turnAttacks++;
+        monsterShootWaterGun(m, dg, pl, ml, _luFn);
+      }
+      return;
+    }
+    if (_krakenBio && !_moveOnly && m._krakenBioTornadoReady) {
+      delete m._krakenBioTornadoReady;
+      if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+      if (!m.sealed) {
+        m.turnAttacks++;
+        launchMonsterHomingProjectile(m, dg, pl, ml, { name: "竜巻" });
+      }
       return;
     }
   }

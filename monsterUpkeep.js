@@ -21,8 +21,10 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
         messages.push(`${monster.name}の肉体が再生した！(+${heal}HP)`);
       }
     }
-    if (monster.baseKind === "im_boss_kraken" && dungeon.map[monster.y]?.[monster.x] === T.WATER) {
-      const heal = Math.min(20, monster.maxHp - monster.hp);
+    if ((monster.baseKind === "im_boss_kraken" || monster.baseKind === "boss_krakenbio") &&
+        dungeon.map[monster.y]?.[monster.x] === T.WATER) {
+      const healRate = monster.baseKind === "boss_krakenbio" ? 30 : 20;
+      const heal = Math.min(healRate, monster.maxHp - monster.hp);
       if (heal > 0) {
         monster.hp += heal;
         messages.push(`${monster.name}は水中で体力を回復した！(+${heal}HP)`);

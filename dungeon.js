@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodyCells, monsterBodySize } from "./monsterGeometry.js";
 import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -2409,7 +2409,8 @@ function genBossFloor(depth, dungeonType = null) {
   /* ボス配置 */
   const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
-  const bt = dungeonType === "legend" && depth === 29 ? PYROBOLOS_BOSS
+  const bt = dungeonType === "legend" && depth === 34 ? KRAKEN_BIO_BOSS
+    : dungeonType === "legend" && depth === 29 ? PYROBOLOS_BOSS
     : dungeonType === "legend" && depth === 24 ? FLOCK_REVENGE_BOSS
     : dungeonType === "legend" && depth === 19 ? GWEN_VETERAN_BOSS
     : dungeonType === "legend" && depth === 9 ? FLOCK_BOSS
@@ -2434,8 +2435,19 @@ function genBossFloor(depth, dungeonType = null) {
   }
 
   /* クラーケン専用：迂回できる位置に水場を置く */
-  if (bt.baseKind === "im_boss_kraken") {
+  if (bt.baseKind === "im_boss_kraken" || bt.baseKind === "boss_krakenbio") {
     carveKrakenWater(map, main, { x: suX, y: suY }, { x: sdX, y: sdY });
+    if (bt.baseKind === "boss_krakenbio") {
+      const bioWaterSpawns = [];
+      for (let y = main.y; y < main.y + main.h - 1; y++) for (let x = main.x; x < main.x + main.w - 1; x++) {
+        if (map[y]?.[x] === T.WATER && map[y]?.[x + 1] === T.WATER &&
+            map[y + 1]?.[x] === T.WATER && map[y + 1]?.[x + 1] === T.WATER) {
+          bioWaterSpawns.push({ x, y, distance: Math.max(Math.abs(x - main.cx), Math.abs(y - main.cy)) });
+        }
+      }
+      bioWaterSpawns.sort((a, b) => a.distance - b.distance);
+      if (bioWaterSpawns[0]) { bossX = bioWaterSpawns[0].x; bossY = bioWaterSpawns[0].y; }
+    }
   }
 
   const boss = {
