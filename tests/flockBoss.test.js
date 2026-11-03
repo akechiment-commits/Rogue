@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import { genDungeon } from "../dungeon.js";
 import {
-  FLOCK_BOSS, FLOCK_DEATH_LINES, FLOCK_SPELL_LINES, FLOCK_TELEPORT_LINES,
+  FLOCK_BOSS, FLOCK_DEATH_LINES, FLOCK_SEALED_LINES, FLOCK_SEALED_HURT_LINES, FLOCK_SEALED_CRITICAL_LINES, FLOCK_SPELL_LINES, FLOCK_TELEPORT_LINES,
   makeMonsterFromBase, monsterAI, _resolveMonsterWandBolt,
 } from "../monsters.js";
 import { killMonster } from "../items.js";
@@ -239,7 +239,7 @@ describe("超上級B10Fボス：フロック", () => {
     }
   });
 
-  it("倒される時にランダムな言い残しを表示する", () => {
+  it("倒される時に悲惨な台詞を通常台詞形式で表示する", () => {
     const lastWords = (randomValue) => {
       const { dungeon, flock, player } = makeFlockScene();
       flock.hp = 0;
@@ -247,8 +247,9 @@ describe("超上級B10Fボス：フロック", () => {
       const random = vi.spyOn(Math, "random").mockReturnValue(randomValue);
       try {
         killMonster(flock, dungeon, player, messages, () => {}, true);
-        const line = messages.find(message => message.includes("と言い残した！"));
+        const line = messages.find(message => message.startsWith(`${flock.name}「`));
         expect(line).toBeDefined();
+        expect(messages.some(message => message.includes("と言い残した！"))).toBe(false);
         expect(FLOCK_DEATH_LINES.some(quote => line.includes(quote))).toBe(true);
         return line;
       } finally {
@@ -256,6 +257,38 @@ describe("超上級B10Fボス：フロック", () => {
       }
     };
     expect(lastWords(0.01)).not.toBe(lastWords(0.99));
+  });
+
+  it("封印状態の時に弱気なセリフを言う", () => {
+    const { dungeon, flock, player } = makeFlockScene({ flockX: 5, flockY: 5, playerX: 7, playerY: 5 });
+    flock.sealed = true;
+    flock.sealedTurns = 10;
+    const messages = [];
+    monsterAI(flock, dungeon, player, messages, {
+      monsterWandFn: () => {},
+    });
+    const sealedLine = messages.find(message => FLOCK_SEALED_LINES.some(quote => message.includes(quote)));
+    expect(sealedLine).toBeDefined();
+    expect(sealedLine).toContain(`${flock.name}「`);
+  });
+
+    it("封印中に被弾した時に弱気な被弾セリフを言う", () => {
+    const { dungeon, flock, player } = makeFlockScene({ flockX: 5, flockY: 5, playerX: 7, playerY: 5 });
+    flock.sealed = true;
+    flock.sealedTurns = 10;
+    flock._flockHpDialogueSnapshot = 300;
+    flock.hp = 200;
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.01);
+    try {
+      monsterAI(flock, dungeon, player, messages, {
+        monsterWandFn: () => {},
+      });
+      const hurtLine = messages.find(message => FLOCK_SEALED_HURT_LINES.some(quote => message.includes(quote)));
+      expect(hurtLine).toBeDefined();
+    } finally {
+      random.mockRestore();
+    }
   });
 });
 

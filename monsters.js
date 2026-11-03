@@ -110,44 +110,76 @@ export const FLOCK_SPELL_LINES = Object.freeze({
     "紅蓮よ、周囲ごと灰燼に帰せ！巻き込み？それは演出だ！",
     "燃え盛れ炎！敵だけを焼け！……細かい指定はできない！",
     "火焔よ、派手に爆ぜろ！避難訓練は各自で済ませておけ！",
+    "業火よ、すべてを焼き尽くせ！消火器の位置は把握していない！",
+    "灼熱の炎球！直撃すれば消し炭！外れたら壁が焦げる！",
+    "燃え上がれ！我が激情の赤き炎！火力調節ボタンは壊れている！",
   ]),
   ice_wand: Object.freeze([
     "絶対零度の氷獄よ！このあと衣替えする！",
     "氷獄の鎖よ、時を止めて跪かせよ！暖房は切っておいた！",
     "凍てつけ！手加減？氷の温度に聞いてくれ！",
+    "白銀の吹雪よ、永遠の静寂を与えよ！霜焼けには注意しろ！",
+    "凍れ！我が絶対零度の魔力！……ちょっと手が悴んできた！",
+    "氷結の刃よ！カキ氷のシロップは各自で用意せよ！",
   ]),
   poison_bolt: Object.freeze([
     "紫毒よ、魂まで蝕め！解毒薬は持っていない！",
     "猛毒よ、敵を侵せ！毒消しの指輪は反則だからな！",
     "毒をもって毒を制す！なお解毒剤の在庫はゼロ！",
+    "深淵の劇毒よ、五臓六腑を溶かせ！味見はしていない！",
+    "紫煙の毒霧！うがいと手洗いは効かないぞ！",
+    "毒胞子よ弾けろ！換気扇は回していない！",
   ]),
   curse_wand: Object.freeze([
     "禁忌の契約よ、その運命を呪縛せよ！まず持ち物からだ！",
     "呪われし運命よ！呪う品はちゃんと選んでね！",
     "深淵の呪詛！本当に呪われると困るのは私も同じ！",
+    "黒き呪縛よ！所持品をすべて重くせよ！おはらいはお断りだ！",
+    "運命の糸を呪い縛れ！お祓い棒はへし折っておいた！",
+    "呪縛の刻印！後悔してもクーリングオフは効かない！",
   ]),
   summon_monster: Object.freeze([
     "深淵の眷属よ集え！数は……来た者に任せる！",
     "我が魔力に応えよ！この階の誰か、至急集合！",
     "召喚陣よ開け！名簿は現地調達だ！",
+    "冥府の軍勢よ、喚び声に応えよ！交通費は出ない！",
+    "いでよ魔獣！……ちゃんと味方の認識はあるな！？",
+    "我がしもべ達よ、蹂躙せよ！定員オーバーは自己申告で！",
   ]),
 });
 export const FLOCK_TELEPORT_LINES = Object.freeze([
   "近い近い！……こほん、紫電転移！",
   "我に触れるな！あっ、もう目の前！？転移！",
   "空間よ、扉を開け！出口はそっちじゃない！",
+  "間合いが近すぎる！パーソナルスペースを確保！転移！",
+  "深淵の歪みへ跳躍！……着地点の床は抜けてないな！？",
+  "フフフ、捉えられるか？……あっ、壁にぶつかりそう！転移！",
 ]);
 export const FLOCK_DEATH_LINES = Object.freeze([
-  "こんなところで……第二形態の台詞を用意していない！",
-  "馬鹿な！眼帯を外せば真の力が……え、外れない！？",
-  "我が深淵、ここに潰える……ところで経験値は入った？",
+  "うそ……嫌だ、死にたくない……！誰か助けて……っ！",
+  "痛い、痛いよ……っ！血が止まらない……こんなの聞いてないよぉ……！",
+  "ごめんなさい……もう何もしないから……許して……お母さん……っ",
+  "あ、身体が動かない……冷たいよ……暗いよ……誰か……っ",
+  "嫌……消えたくない……！わたし、まだ死にたくないよぉ……っ！",
+  "ヒッ……息が、できない……っ、助けて……誰か……！",
+  "こんなところで……私、本当に死んじゃうの……？嘘でしょ……！？",
+  "やめて、痛い……痛いよぉ……っ！お願いだから助けて……！",
+  "深淵なんて……全部ごっこだったのに……なんでこんな……っ！",
+  "いやだ……死にたくない……っ！助けて……誰かぁ……！",
 ]);
 export const FLOCK_REVENGE_DEATH_LINES = Object.freeze([
-  "逆襲の計画が……第一段階で終わった！？",
-  "二人になっても勝てないとは……分身会議が必要だ！",
-  "まだ魔力は……あれ、空っぽだった！",
+  "また……また負けたの……？嫌だ、もう痛いのは嫌だよぉ……っ！",
+  "助けて……誰でもいいから助けて……！もう二度と逆らわないから……っ！",
+  "うぁああっ……！身体が千切れちゃう……痛い、熱い、助けて……っ！",
+  "嘘だと言ってよ……！今度こそ勝てるって……私、消えたくない……死にたくないよぉ……！",
+  "やめて……もう叩かないで……！ごめんなさい、ごめんなさいぃ……っ！",
+  "視界が真っ暗に……息が……誰か、私の手を握って……怖いよぉ……っ！",
+  "全部、全部嘘だったんだ……私の力なんて……っ、誰か助けてよぉ……！",
+  "嫌だあぁっ！死ぬのだけは嫌……！お母さん……助けて、お母さん……っ！",
+  "ごめんなさい……調子に乗ってごめんなさい……！命だけは……っ！",
+  "冷たい……手が動かない……っ、嫌だ、私を置いていかないで……！",
 ]);
-const FLOCK_IDLE_LINES = Object.freeze([
+export const FLOCK_IDLE_LINES = Object.freeze([
   "この眼帯は封印具！……ただのゴム紐ではない！",
   "我が右目の封印が疼く……あれ、眼帯は左だったか？",
   "世界の終焉を見届ける！まずは昼食の後だ！",
@@ -155,92 +187,193 @@ const FLOCK_IDLE_LINES = Object.freeze([
   "深淵が告げている……お腹が空いたと！",
   "ククク、この程度の傷……いや、普通に痛い！",
   "見よ、この完璧な作戦！細部はこれから考える！",
+  "深淵の闇より出でし我が魔力、恐れおののくがよい！",
+  "我が黒き翼が見えるか？……あ、マントが引っかかった！",
+  "フフフ……我が魔眼が貴様の運命を見通しているぞ！たぶん！",
+  "我が名はフロック！深淵を統べ……痛っ、舌噛んだ！",
+  "闇の眷属たちよ、我が声を聞け！……誰も返事しないな？",
+  "このダンジョンの支配者となるのは私だ！家賃は払わない！",
+  "深淵を覗く時、深淵もまた……何を見てるんだろうね？",
+  "我が魔導書に刻まれた禁断の秘儀……どこにメモしたっけ？",
+  "ククク……愚かな挑戦者よ、我が深淵の前に平伏せよ！",
+  "今日の衣装も決まっている！ゴスロリこそ至高の魔導衣！",
+]);
+export const FLOCK_SEALED_LINES = Object.freeze([
+  "うそ……魔力が出ない……！？ ど、どうしよう……！",
+  "封印って……私の深淵の魔力が……使えない……！？",
+  "ま、待って、近寄らないで……！ 魔法が出ないの……！",
+  "ひっ……そんな、嘘でしょ……！？ 眼帯の力も出ない……！",
+  "たた、戦えない……！ あっち行ってよぉ……！",
+  "封印なんてずるい……！ お願いだから棒で叩かないで……！",
+  "どうしよう、どうしよう……魔法が使えない私なんてただの女の子なのに……！",
+  "ひぃっ、こっち見ないで……！ な、何もしないから許して……！",
+  "術式が……全部消えちゃった……！？ う、動かないでぇ……！",
+  "深淵の扉が……開かない……っ！？ 嘘でしょ、助けて……！",
+]);
+export const FLOCK_REVENGE_SEALED_LINES = Object.freeze([
+  "いやっ……！ また封印……！？ 魔法が……魔法が出ないよぉ……！",
+  "嘘でしょ……！？ 逆襲のために準備した秘術が全部……っ！",
+  "こ、来ないで……！ 魔法が使えないの……お願いだから来ないでぇ……！",
+  "待って、タンマ！ 今はタンマだから……！ 武器を構えないで……っ！",
+  "ひぃっ……！ なんで……！？ 私の魔力、どこいっちゃったの……！？",
+  "分身も雷も出せない……っ！？ ど、どうやって戦えばいいのよぉ……！",
+  "お願い、許して……！ 封印が解けるまで待って……っ！",
+  "身体が重い……魔法が使えない……っ、いやぁ、近寄らないでぇ……！",
+  "うぅ……また痛い目にあうのは嫌だよぉ……っ！",
+  "反則だよ……魔法封じなんて反則……っ、助けてぇ……！",
+]);
+export const FLOCK_SEALED_HURT_LINES = Object.freeze([
+  "痛いっ……！ 魔法も使えないのに酷いよぉ……！",
+  "やめてぇ……っ！ 無抵抗な女の子を殴るなんてサイテー……！",
+  "ひぃっ……！ ごめんなさい、ごめんなさいぃ……っ！",
+  "うぅ……痛いよぉ……誰か助けて……っ！",
+  "いたたたっ！ 叩かないで、痛いのは嫌ぁ……っ！",
+]);
+export const FLOCK_SEALED_CRITICAL_LINES = Object.freeze([
+  "死んじゃう、死んじゃう……っ！ 魔法も出ないのに死んじゃうよぉ……！",
+  "もうやめて……っ！ お願いだから命だけは……っ！",
+  "ひっ、息が……っ！ 誰か助けて……お母さん……っ！",
+  "嘘でしょ……こんな無残にやられるなんて……いやぁ……っ！",
+]);
+export const FLOCK_REVENGE_SEALED_HURT_LINES = Object.freeze([
+  "痛い痛い痛いっ！ 魔法が出ないのに容赦ないよぉ……！",
+  "やめてぇっ！ リベンジに来ただけなのにぃ……っ！",
+  "うぁんっ！ 痛いよぉ……もう叩かないでぇ……！",
+  "ひぃっ……！ 暴力反対！ 魔法使いへの暴力は禁止ぃ……！",
+]);
+export const FLOCK_REVENGE_SEALED_CRITICAL_LINES = Object.freeze([
+  "嫌だ嫌だ……っ！ またあの時の痛みが……助けてぇ……！",
+  "もうダメ……っ！ 封印されたまま死ぬなんて嫌だよぉ……！",
+  "血が……っ！ 誰か止めて……死にたくないよぉ……っ！",
+  "ごめんなさいぃ……っ！ 調子に乗って復讐なんて来なきゃよかった……っ！",
 ]);
 export const FLOCK_REVENGE_SPELL_LINES = Object.freeze({
   summon_monster: Object.freeze([
     "逆襲の軍勢よ集え！今度こそ数で押す！",
     "B25Fの魔物よ、反撃の時だ！配置は現場に任せる！",
     "我が復讐に加われ！出欠確認は後だ！",
+    "集え我が精鋭たち！前回の雪辱をここで晴らす！",
+    "深淵の援軍よ！前線への突撃を命ずる！",
   ]),
   drain_hp: Object.freeze([
     "魂の残量をいただく！返済期限は……考えていない！",
     "生命力よ、こちらへ！えっ、吸いすぎ注意？",
     "汝のHPを我が糧に！領収書は出ない！",
+    "生命のエキスを抽出！お肌のハリもついでに回復！",
+    "いただきまーす！……吸い取りすぎても胸焼けはしない！",
   ]),
   sleep_bolt: Object.freeze([
     "眠りの帳よ落ちよ！寝坊したら自己責任だ！",
     "夢の底へ沈め！枕は各自で用意せよ！",
     "安らかな眠りを……戦闘中だけど！",
+    "羊が一匹、羊が二匹……早く寝てくれ！",
+    "子守唄の波動！二度寝の心地よさを思い知れ！",
   ]),
   lightning_magic: Object.freeze([
     "雷よ部屋ごと貫け！避雷針は……私も持ってない！",
     "天雷よ全員に平等を！敵味方の区別？今は後回し！",
     "この部屋に落雷を！天井の修理代は知らない！",
+    "紫電一閃、部屋ごと吹き飛べ！漏電ブレーカーは落ちている！",
+    "轟け神鳴り！感電の準備はいいか！",
   ]),
   reflect_magic: Object.freeze([
     "魔法反射の結界！跳ね返ったら自己責任！",
     "鏡界よ開け！姿見としては使えないぞ！",
     "あらゆる魔法を返す盾！返品対応は不可！",
+    "跳ね返せ鏡の盾！自分の魔法が跳ね返ってきたらどうしよう！",
+    "リフレクション！魔法はすべて倍返しだ！",
   ]),
   guard_magic: Object.freeze([
     "鉄壁の守護よ！気持ちの上では完全防御！",
     "防御力を上げる！数値はあとで確認する！",
     "守りの結界！請求は戦闘終了後に！",
+    "カチコチになれ我が魔導衣！洗濯板くらい硬くなれ！",
+    "絶対防壁！叩いても叩いても痛くない……はず！",
   ]),
   flame_mantle: Object.freeze([
     "我が身を炎で包め！熱くない、たぶん！",
     "紅蓮の衣よ燃え上がれ！洗濯はできない！",
     "炎のまとい！火加減は最大で！",
+    "燃えさかるマント！近づく者はバーベキューだ！",
+    "火焔のオーラ！マシュマロでも焼いてみるか！？",
   ]),
   purify_magic: Object.freeze([
     "不浄なる状態よ去れ！封印だけは対象外！",
     "浄化の光よ、デバフを洗い流せ！汚れ落ちは保証外！",
     "状態異常を解除！眼帯の向きはそのままで！",
+    "クレンジングマジック！薬用成分でスッキリ爽快！",
+    "穢れを祓え！ただし封印だけは勘弁して！",
   ]),
   clone_magic: Object.freeze([
     "我が影よ二人に増えよ！交代で宿題をしてくれ！",
     "分身の術！どちらが本物かは本人にも不明！",
     "増えよ、我！報酬は一人分で頼む！",
+    "ツインフロック結成！どちらがリーダーかで揉めないように！",
+    "幻影実体化！二人いれば勝率も二倍！……たぶん！",
   ]),
   self_destruct_magic: Object.freeze([
     "転移の詠唱は……あれ？自爆の方を唱えていた！",
     "空間よ逃がせ！違う、これは爆発の詠唱だ！",
     "紫電転移！……なぜ私のHPが1になった！？",
+    "ドカーン！……って、私が吹っ飛んでどうするの！？",
+    "転移呪文のページと自爆呪文のページがくっついてたぁ！？",
   ]),
 });
-const FLOCK_EMPTY_MP_LINES = Object.freeze([
+export const FLOCK_EMPTY_MP_LINES = Object.freeze([
   "ま、魔力切れ……これは戦略的静止！",
   "震えてなどいない！深淵が共鳴しているだけだ！",
   "魔力が空っぽ！？今のは聞かなかったことに！",
+  "MPが……ない！？ちょっとエーテルか何か持ってない！？",
+  "う、動けない……！これは瞑想！深淵との精神対話中だ！",
+  "ちょ、ちょっと休憩！チャージタイムだから攻撃しないで！",
 ]);
-const FLOCK_REVENGE_EMPTY_MP_LINES = Object.freeze([
+export const FLOCK_REVENGE_EMPTY_MP_LINES = Object.freeze([
   "逆襲の魔力が……MP欄に残っていない！？",
   "まだ呪文はある！……MPが戻ればの話だ！",
   "う、動けない！これは魔力切れであって恐怖ではない！",
+  "嘘でしょ……逆襲用に増やしたMPがもう底をついた！？",
+  "ま、待って！リベンジマッチなんだから待ったありでしょ！？",
+  "あわわ……MPが……！杖で殴るのはやめてぇ！",
 ]);
-const FLOCK_HURT_LINES = Object.freeze([
+export const FLOCK_HURT_LINES = Object.freeze([
   "いてっ！？今のは演出じゃない！",
   "ぐっ……ダメージ表示が本物だと！？",
   "この傷は計算外！計画書にもない！",
   "痛い！いや、深淵の痛覚が反応しただけ！",
+  "ひゃんっ！？ど、どこを狙っている！",
+  "うぐっ……！我が魔導障壁を貫通しただと！？",
+  "痛っ……！服が破れたら弁償しろ！",
+  "くっ……この程度の痛み、深淵の闇に比べれば……痛い！",
 ]);
-const FLOCK_CRITICAL_LINES = Object.freeze([
+export const FLOCK_CRITICAL_LINES = Object.freeze([
   "HPが赤い！画面の警告が容赦ない！",
   "我が深淵が……浅くなっている！？",
   "ま、まだ第二形態の前段階！予定は未定！",
   "倒れるわけには……台詞がまだ残っている！",
+  "ひ、ひぃ……！HPバーがもう見えない！？",
+  "ま、待て！命乞いの台詞はまだ推敲中だ！",
+  "クソッ……こんなところで……眼帯の封印が……！",
+  "あ、頭がクラクラする……これが死線のリアル……！？",
 ]);
-const FLOCK_REVENGE_HURT_LINES = Object.freeze([
+export const FLOCK_REVENGE_HURT_LINES = Object.freeze([
   "復讐計画に被弾の欄はなかった！",
   "やるな……分身しても痛みは半分じゃない！",
   "今度こそ本気のはずなのに！",
   "反撃の前にまずHPを確認させて！",
+  "いったぁ……！痛覚耐性の秘薬は効いてないのか！？",
+  "くっ……！せっかく仕立て直したゴスロリドレスが！",
+  "ちょ、ちょっとタイム！深呼吸させて！",
+  "ぐぎゃっ！？今クリティカル入ったでしょ！？",
 ]);
-const FLOCK_REVENGE_CRITICAL_LINES = Object.freeze([
+export const FLOCK_REVENGE_CRITICAL_LINES = Object.freeze([
   "復讐の炎よりHPバーが赤い！？",
   "ここで倒れたら二度目の再戦が……！",
   "まだ魔力はある！体力がないだけだ！",
   "分身しても本体のHPは増えないの！？",
+  "嘘でしょ……また負けるの！？悪夢再びなの！？",
+  "た、耐えろ私の身体……！台本通りにいかない！",
+  "ひぃっ……！視界が点滅してる……！？",
+  "ま、まだだ……！逆襲の逆襲の準備がある……はず！",
 ]);
 
 export function isStatusWandUser(m) {
@@ -5916,6 +6049,23 @@ function flockHasNoManaTurn(monster, dungeon, messages, attackOnly = false) {
   return true;
 }
 
+function flockSealedDialogue(monster, dungeon, messages, attackOnly = false) {
+  if (!monster.sealed) {
+    delete monster._flockSealedDialogueShown;
+    return false;
+  }
+  const visible = !!dungeon?.visible?.[monster.y]?.[monster.x];
+  if (!attackOnly && visible) {
+    const lines = monster.baseKind === "boss_flock_revenge" ? FLOCK_REVENGE_SEALED_LINES : FLOCK_SEALED_LINES;
+    const firstSealedTurn = !monster._flockSealedDialogueShown;
+    if (firstSealedTurn || Math.random() < 0.40) {
+      messages.push(`${monster.name}「${pick(lines)}」`);
+      monster._flockSealedDialogueShown = true;
+    }
+  }
+  return true;
+}
+
 function flockHpChangeDialogue(monster, dungeon, messages, attackOnly = false) {
   if (attackOnly || !dungeon?.visible?.[monster.y]?.[monster.x]) return;
   const previousHp = Number.isFinite(monster._flockHpDialogueSnapshot)
@@ -5924,9 +6074,17 @@ function flockHpChangeDialogue(monster, dungeon, messages, attackOnly = false) {
   monster._flockHpDialogueSnapshot = monster.hp;
   if (monster.hp >= previousHp) return;
   const critical = monster.hp <= (monster.maxHp || monster.hp) * 0.25;
-  const lines = monster.baseKind === "boss_flock_revenge"
-    ? (critical ? FLOCK_REVENGE_CRITICAL_LINES : FLOCK_REVENGE_HURT_LINES)
-    : (critical ? FLOCK_CRITICAL_LINES : FLOCK_HURT_LINES);
+  const isRevenge = monster.baseKind === "boss_flock_revenge";
+  let lines;
+  if (monster.sealed) {
+    lines = isRevenge
+      ? (critical ? FLOCK_REVENGE_SEALED_CRITICAL_LINES : FLOCK_REVENGE_SEALED_HURT_LINES)
+      : (critical ? FLOCK_SEALED_CRITICAL_LINES : FLOCK_SEALED_HURT_LINES);
+  } else {
+    lines = isRevenge
+      ? (critical ? FLOCK_REVENGE_CRITICAL_LINES : FLOCK_REVENGE_HURT_LINES)
+      : (critical ? FLOCK_CRITICAL_LINES : FLOCK_HURT_LINES);
+  }
   if (Math.random() < (critical ? 0.50 : 0.35)) messages.push(`${monster.name}「${pick(lines)}」`);
 }
 
@@ -6286,7 +6444,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if ((m.sealedTurns || 0) > 0) {
       m.sealedTurns = Math.max(0, m.sealedTurns - 1);
       /* 封印は解除されたターンから通常行動できる。睡眠・金縛りとは異なり、ここでreturnしない。 */
-      if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); }
+      if (m.sealedTurns <= 0) { m.sealed = false; delete m._flockSealedDialogueShown; ml.push(`${m.name}の封印が解けた！`); }
     }
   }
   /* ── 拘束解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
@@ -6940,7 +7098,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
     }
-    if (canSeePlayer && Math.random() < 0.30) ml.push(`${m.name}「${pick(FLOCK_IDLE_LINES)}」`);
+    if (canSeePlayer) {
+      if (m.sealed) {
+        flockSealedDialogue(m, dg, ml, _attackOnly);
+      } else if (Math.random() < 0.30) {
+        ml.push(`${m.name}「${pick(FLOCK_IDLE_LINES)}」`);
+      }
+    }
     return;
   }
 
