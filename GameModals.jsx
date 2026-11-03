@@ -4197,9 +4197,11 @@ export function InventoryModal({
                         {it.type === "ring" && ` — 指輪${!_isUnidentInv && ["power_ring","defense_ring","life_ring","niebelung_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
                       <div style={ITEM_DESC_TEXT_STYLE}>{_isUnidentInv ? "未識別のためわからない。" : formatFoodItemDesc(it)}</div>
-                      {it.ability && (() => {
-                        const _ab = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES].find((a) => a.id === it.ability);
-                        return _ab ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_ab.name}：{_ab.desc}</div> : null;
+                      {(it.ability || it.abilities?.length > 0) && (() => {
+                        const _defs = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES];
+                        const _ids = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])];
+                        const _labels = _ids.map((id) => _defs.find((a) => a.id === id)).filter(Boolean);
+                        return _labels.length > 0 ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_labels.map(({ name, desc }) => `${name}：${desc}`).join("／")}</div> : null;
                       })()}
                       {it.potionEffects?.length > 0 && (
                         <div style={{ color: "#fc6", marginTop: 3 }}>薬効果：{it.potionEffects.map(foodPotionEffectLabel).join("・")}</div>

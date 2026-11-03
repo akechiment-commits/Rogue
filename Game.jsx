@@ -2958,37 +2958,45 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const wabHas = (id) =>
             id === wab || p.weapon?.abilities?.includes(id) || false;
           const mon = monsterAt(dg, nx, ny);
-          let reachMon = null;
-          if (
-            !mon &&
-            wabHas("reach") &&
-            nx >= 0 &&
-            nx < MW &&
-            ny >= 0 &&
-            ny < MH &&
-            dg.map[ny]?.[nx] !== T.WALL && dg.map[ny]?.[nx] !== T.BWALL
-          ) {
-            const rx = nx + dx,
-              ry = ny + dy;
-            if (rx >= 0 && rx < MW && ry >= 0 && ry < MH)
-              reachMon =
-                monsterAt(dg, rx, ry) || null;
+          const _attackCells = [{ x: nx, y: ny, range: 1 }];
+          if (wabHas("frontal_sweep")) {
+            const _dirs8 = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+            const _dirIndex = _dirs8.findIndex(([x, y]) => x === dx && y === dy);
+            if (_dirIndex >= 0) {
+              for (const _sideDir of [_dirs8[(_dirIndex + 7) % 8], _dirs8[(_dirIndex + 1) % 8]]) {
+                _attackCells.push({ x: p.x + _sideDir[0], y: p.y + _sideDir[1], range: 1 });
+              }
+            }
           }
-          const candidateAttackMon = mon || reachMon;
-          const giantAttackBlocked = !!candidateAttackMon && candidateAttackMon.bodySize > 1 &&
-            !monsterCanInteractAtRange(
-              candidateAttackMon,
-              dg,
-              p.x,
-              p.y,
-              candidateAttackMon === reachMon ? 2 : 1,
-              (p.wallWalkTurns || 0) > 0,
-            );
-          const attackMon = giantAttackBlocked ? null : candidateAttackMon;
-          if (giantAttackBlocked) {
-            ml.push(`${candidateAttackMon.name}は壁の向こうにいるため攻撃できない！`);
+          const _attackSlots = [];
+          let _blockedAttackMon = null;
+          const _addAttackSlot = (x, y, range) => {
+            if (x < 0 || x >= MW || y < 0 || y >= MH) return;
+            const target = monsterAt(dg, x, y);
+            if (!target) return;
+            if (target.bodySize > 1 && !monsterCanInteractAtRange(
+              target, dg, p.x, p.y, range, (p.wallWalkTurns || 0) > 0,
+            )) {
+              _blockedAttackMon ||= target;
+              return;
+            }
+            _attackSlots.push({ monster: target, x, y, range });
+          };
+          for (const _cell of _attackCells) _addAttackSlot(_cell.x, _cell.y, _cell.range);
+          if (wabHas("reach") && dg.map[ny]?.[nx] !== T.WALL && dg.map[ny]?.[nx] !== T.BWALL) {
+            const _reachX = p.x + dx * 2, _reachY = p.y + dy * 2;
+            const _reachMon = monsterAt(dg, _reachX, _reachY);
+            /* 正面に別の敵がいる時は突き抜けない。同じ大型敵の体へ届く場合は別の一撃として数える。 */
+            if (_reachMon && (!mon || _reachMon === mon)) _addAttackSlot(_reachX, _reachY, 2);
+          }
+          if (!_attackSlots.length && _blockedAttackMon) {
+            ml.push(`${_blockedAttackMon.name}は壁の向こうにいるため攻撃できない！`);
             /* 壁に阻まれた入力では時間を進めない。 */
-          } else if (attackMon) {
+          } else if (_attackSlots.length) {
+            for (const _attackSlot of _attackSlots) {
+              const attackMon = _attackSlot.monster;
+              const _hitX = _attackSlot.x, _hitY = _attackSlot.y;
+              if (!dg.monsters.includes(attackMon)) continue;
             if (attackMon.isPlayerClone) {
               /* 分身へ歩き込むと、行商人と同じく互いの位置を入れ替える。 */
               if (mon === attackMon && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
@@ -3008,7 +3016,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             ) {
               if (isWanderingNpc(attackMon)) {
                 /* 敵を追っている間もプレイヤーに敵対していなければ、体当たりで場所を入れ替える。 */
-                if (Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
+                if (_hitX === nx && _hitY === ny && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
                   attackMon.x = p.x;
                   attackMon.y = p.y;
                   p.x = nx;
@@ -3019,7 +3027,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   ml.push(`${attackMon.name}には体当たりできない。前を調べて話しかけよう。`);
                 }
                 acted = true;
-              } else if (mon === attackMon && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
+              } else if (mon === attackMon && _hitX === nx && _hitY === ny && Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
                 const _bumpShop = attackMon.isAltarPriest
                   ? null
                   : getShops(dg).find((shop) => shop.shopkeeperId === attackMon.id);
@@ -3035,6 +3043,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   ml.push(`${attackMon.name || (attackMon.isAltarPriest ? "司祭" : "店主")}と場所を入れ替えた。`);
                   acted = true;
                 }
+              } else if (_attackSlot.range === 1 && (_hitX !== nx || _hitY !== ny)) {
+                ml.push(`${attackMon.name || (attackMon.isAltarPriest ? "司祭" : "店主")}には体当たりできない。前を調べて話しかけよう。`);
+                acted = true;
               }
             } else if (isAttackSealed(p)) {
               ml.push(`攻撃が封印されている！(残り${p.attackSealTurns}ターン)`);
@@ -3047,8 +3058,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
               if (checkMonsterEvasion(attackMon, { sureHit: _meleeSureHit, baseMissRate: 0.05 })) {
                 ml.push(attackMon.baseKind === "boss_mireu" ? `${attackMon.name}は攻撃をかわした！` : `${attackMon.name}への攻撃は外れた！`);
-                _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
-                _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
+                _ad.attacks.push({ type: "attack", x: _hitX, y: _hitY, dx, dy });
+                _ad.damages.push({ type: "miss", x: _hitX, y: _hitY });
                 acted = true;
               } else {
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => (r.effect === "power_ring" || r.effect === "niebelung_ring") ? s + (r.plus || 0) : s, 0);
@@ -3137,7 +3148,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   weakenOrClearParalysis(_guardMon, ml);
                   ml.push(`ガーディアンに${d}ダメージ！`);
                 }
-                _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+                _ad.attacks.push({ type: "attack", x: _hitX, y: _hitY, dx, dy });
                 _ad.damages.push({ type: "damage", x: _guardMon.x, y: _guardMon.y, value: d, color: "#ff4444" });
                 if (_guardMon.hp <= 0) {
                   _ad.damages.push({ type: "flash", x: _guardMon.x, y: _guardMon.y, color: "#ff2200", duration: 150 });
@@ -3149,7 +3160,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _tbDodge = !isEvasionDisabledByStatus(attackMon) && attackMon.subtype === "tattoobird" && Math.random() < 0.50;
               if (_tbDodge) {
                 ml.push(`${attackMon.name}はひらりとかわした！`);
-                _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+                _ad.attacks.push({ type: "attack", x: _hitX, y: _hitY, dx, dy });
                 acted = true;
               } else {
               /* フェザーガード: 50%ダメージ半減 */
@@ -3191,9 +3202,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 p.hp = Math.min(p.maxHp, p.hp + _ls);
                 ml.push(`吸血でHP+${_ls}！`);
               }
-              _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
-              _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: d, color: crit ? "#ffff00" : "#ff4444" });
-              if (attackMon.hp <= 0) _ad.damages.push({ type: "flash", x: attackMon.x, y: attackMon.y, color: "#ff2200", duration: 150 });
+              _ad.attacks.push({ type: "attack", x: _hitX, y: _hitY, dx, dy });
+              _ad.damages.push({ type: "damage", x: _hitX, y: _hitY, value: d, color: crit ? "#ffff00" : "#ff4444" });
+              if (attackMon.hp <= 0) _ad.damages.push({ type: "flash", x: _hitX, y: _hitY, color: "#ff2200", duration: 150 });
               if (wabHas("knockback") && attackMon.hp > 0) {
                 const kx = attackMon.x + dx,
                   ky = attackMon.y + dy;
@@ -3282,6 +3293,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               } /* end !_tbDodge */
               } /* end guardian else */
               } /* end else (hit) */
+            } /* end attack slot loop */
             /* 射撃の指輪：命中/外れに関わらず発動（矢種別の本来の効果を再現） */
             {
               const _srCount = (p.rings || []).filter(r => r.effect === "shoot_ring").length;

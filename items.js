@@ -492,6 +492,8 @@ export const ITEMS = [
   { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"B", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
   { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"B", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。", tile:20 },
   { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"B", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。",   tile:20 },
+  { name:"槍",               type:"weapon", atk:4,  ability:"reach",         rarity:"C", weight:4,  sellPrice:800,  desc:"正面の2マス先まで攻撃できる。", tile:20 },
+  { name:"海神の三叉槍",     type:"weapon", atk:5,  ability:"reach", abilities:["reach","frontal_sweep"], rarity:"A", weight:1, sellPrice:6000, desc:"正面の2マス先まで攻撃でき、正面・左前・右前の敵を攻撃する。大型敵の体に攻撃範囲が複数重なる場合、重なったマスの数だけ命中する。", tile:20 },
   { name:"アサメ",           type:"weapon", atk:2,  ability:"magic_power",  rarity:"A", weight:1,  sellPrice:1800, desc:"魔法・杖・巻物で与えるダメージが1.5倍になる武器。", tile:20 },
   { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical_war_god_axe", rarity:"A", weight:1,  sellPrice:2500, desc:"会心の一撃が出やすい武器。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:4, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
@@ -2084,6 +2086,7 @@ export function weaponCriticalDamageMultiplier(weapon) {
 
 export const WEAPON_ABILITIES = [
   { id:"reach",         name:"長柄",      desc:"2マス先の敵まで攻撃できる" },
+  { id:"frontal_sweep", name:"三方向攻撃", desc:"正面・左前・右前の隣接3マスを攻撃する。大型敵の体に攻撃範囲が複数重なる場合、重なったマスの数だけ攻撃する", specialOnly:true },
   { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・にじりヘビ)に1.5倍ダメージ" },
   { id:"bane_undead",   name:"聖属性",    desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に1.5倍ダメージ" },
   { id:"bane_undead_2", name:"上位聖属性",  desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に2倍ダメージ（上位特効）" },
