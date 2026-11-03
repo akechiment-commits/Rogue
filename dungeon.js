@@ -2483,6 +2483,11 @@ function genBossFloor(depth, dungeonType = null) {
       case "boss_flock_revenge": return [];
       case "boss_korgon":        return [];
       case "boss_pyrobolos":    return [];
+      case "boss_krakenbio":    return [
+        { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 },
+        { bk: "waterFlower", lv: 2 }, { bk: "waterFlower", lv: 2 },
+        { bk: "giantEel", lv: 2 }, { bk: "giantEel", lv: 2 },
+      ];
       case "im_boss_salamander": return [{ bk: "skeleton", lv: 1 }, { bk: "skeleton", lv: 1 }];
       case "im_boss_titan":      return [{ bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }];
       case "im_boss_kraken":     return [{ bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }];

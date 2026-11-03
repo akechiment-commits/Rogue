@@ -3693,7 +3693,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
         ml.push(`${hitMon.name}が潜って水鉄砲をかわした！`);
         continue;
       }
-      const _wgWater = hitMon.waterOnly || hitMon.baseKind === "im_boss_kraken" || hitMon.baseKind === "boss_krakenbio";
+      const _wgWater = hitMon.waterOnly || hitMon.waterWalker;
       if (_wgWater) {
         /* 水属性モンスターは回復 */
         const heal = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
