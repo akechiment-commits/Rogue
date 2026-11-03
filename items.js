@@ -2095,7 +2095,7 @@ export const WEAPON_ABILITIES = [
   { id:"bane_humanoid", name:"人特効",    desc:"人型の敵(ゴブリン・アーチャー・魔導士など)に1.5倍ダメージ" },
   { id:"bane_dragon",   name:"竜特効",    desc:"竜系の敵(ドラゴン)に1.5倍ダメージ" },
   { id:"bane_float",    name:"浮遊特効",  desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に1.5倍ダメージ" },
-  { id:"knockback",     name:"吹き飛ばし",desc:"攻撃した敵を1マス吹き飛ばす" },
+  { id:"knockback",     name:"吹き飛ばし",desc:"全攻撃後、命中した敵を1マス吹き飛ばす" },
   { id:"critical",      name:"会心",      desc:"25%の確率でダメージ2倍のクリティカルヒット" },
   { id:"critical_oni_club",    name:"会心",    desc:"会心の一撃が出やすくなる" },
   { id:"critical_war_god_axe", name:"会心",    desc:"会心の一撃が出やすくなる" },

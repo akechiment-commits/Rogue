@@ -2996,6 +2996,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             ml.push(`${_blockedAttackMon.name}は壁の向こうにいるため攻撃できない！`);
             /* 壁に阻まれた入力では時間を進めない。 */
           } else if (_attackSlots.length) {
+            const _meleeKnockbackTargets = new Set();
             for (const _attackSlot of _attackSlots) {
               const attackMon = _attackSlot.monster;
               const _hitX = _attackSlot.x, _hitY = _attackSlot.y;
@@ -3208,46 +3209,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               _ad.attacks.push({ type: "attack", x: _hitX, y: _hitY, dx, dy });
               _ad.damages.push({ type: "damage", x: _hitX, y: _hitY, value: d, color: crit ? "#ffff00" : "#ff4444" });
               if (attackMon.hp <= 0) _ad.damages.push({ type: "flash", x: _hitX, y: _hitY, color: "#ff2200", duration: 150 });
-              if (wabHas("knockback") && attackMon.hp > 0) {
-                const kx = attackMon.x + dx,
-                  ky = attackMon.y + dy;
-                if (
-                  kx >= 0 &&
-                  kx < MW &&
-                  ky >= 0 &&
-                  ky < MH &&
-                  dg.map[ky][kx] !== T.WALL && dg.map[ky][kx] !== T.BWALL &&
-                  canPlaceMonsterBody(dg, attackMon, kx, ky, p)
-                ) {
-                  attackMon.x = kx;
-                  attackMon.y = ky;
-                  ml.push(`${attackMon.name}は吹き飛んだ！`);
-                }
-              }
-              /* 吹き飛ばしの魔方陣：プレイヤーが近接攻撃したモンスターを吹き飛ばす */
-              if (attackMon.hp > 0 && !(attackMon.magicImmune && !attackMon.sealed) && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
-                const _kbRoom = findRoom(dg.rooms, p.x, p.y);
-                const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
-                  pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
-                if (_kbPcP && !hasGravityPentacle(dg, attackMon.x, attackMon.y)) {
-                  const _kbDist = _kbPcP.cursed ? 1 : _kbPcP.blessed ? 99 : 5;
-                  let _kbCx = attackMon.x, _kbCy = attackMon.y, _kbMoved = 0;
-                  for (let _kbi = 0; _kbi < _kbDist; _kbi++) {
-                    const _knx = _kbCx + dx, _kny = _kbCy + dy;
-                    if (_knx < 0 || _knx >= MW || _kny < 0 || _kny >= MH || dg.map[_kny][_knx] === T.WALL || dg.map[_kny][_knx] === T.BWALL) {
-                      attackMon.hp -= 5; ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
-                      break;
-                    }
-                    if (!canPlaceMonsterBody(dg, attackMon, _knx, _kny, p)) {
-                      attackMon.hp -= 5; ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
-                      break;
-                    }
-                    _kbCx = _knx; _kbCy = _kny; _kbMoved++;
-                  }
-                  if (_kbMoved > 0) { attackMon.x = _kbCx; attackMon.y = _kbCy; ml.push(`${_kbPcP.name}の力で${attackMon.name}が${_kbMoved}マス吹き飛んだ！`); }
-                  if (attackMon.hp <= 0) { killMonster(attackMon, dg, p, ml, lu); }
-                }
-              }
+              if (attackMon.hp > 0) _meleeKnockbackTargets.add(attackMon);
               /* 武器の状態異常付与（10%） */
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
@@ -3296,7 +3258,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               } /* end !_tbDodge */
               } /* end guardian else */
               } /* end else (hit) */
-            } /* end attack slot loop */
+            } /* end melee hit branches */
             /* 射撃の指輪：命中/外れに関わらず発動（矢種別の本来の効果を再現） */
             {
               const _srCount = (p.rings || []).filter(r => r.effect === "shoot_ring").length;
@@ -3581,6 +3543,50 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
               }
             }
+            }
+            /* 全攻撃セル・連撃の命中処理後、生存中の相手を1体につき1回だけ吹き飛ばす。 */
+            for (const attackMon of _meleeKnockbackTargets) {
+              if (attackMon.hp <= 0 || !dg.monsters.includes(attackMon)) continue;
+              if (wabHas("knockback") && attackMon.hp > 0) {
+                const kx = attackMon.x + dx,
+                  ky = attackMon.y + dy;
+                if (
+                  kx >= 0 &&
+                  kx < MW &&
+                  ky >= 0 &&
+                  ky < MH &&
+                  dg.map[ky][kx] !== T.WALL && dg.map[ky][kx] !== T.BWALL &&
+                  canPlaceMonsterBody(dg, attackMon, kx, ky, p)
+                ) {
+                  attackMon.x = kx;
+                  attackMon.y = ky;
+                  ml.push(`${attackMon.name}は吹き飛んだ！`);
+                }
+              }
+              /* 吹き飛ばしの魔方陣：プレイヤーが近接攻撃したモンスターを吹き飛ばす */
+              if (attackMon.hp > 0 && !(attackMon.magicImmune && !attackMon.sealed) && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
+                const _kbRoom = findRoom(dg.rooms, p.x, p.y);
+                const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
+                  pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
+                if (_kbPcP && !hasGravityPentacle(dg, attackMon.x, attackMon.y)) {
+                  const _kbDist = _kbPcP.cursed ? 1 : _kbPcP.blessed ? 99 : 5;
+                  let _kbCx = attackMon.x, _kbCy = attackMon.y, _kbMoved = 0;
+                  for (let _kbi = 0; _kbi < _kbDist; _kbi++) {
+                    const _knx = _kbCx + dx, _kny = _kbCy + dy;
+                    if (_knx < 0 || _knx >= MW || _kny < 0 || _kny >= MH || dg.map[_kny][_knx] === T.WALL || dg.map[_kny][_knx] === T.BWALL) {
+                      attackMon.hp -= 5; ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
+                      break;
+                    }
+                    if (!canPlaceMonsterBody(dg, attackMon, _knx, _kny, p)) {
+                      attackMon.hp -= 5; ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
+                      break;
+                    }
+                    _kbCx = _knx; _kbCy = _kny; _kbMoved++;
+                  }
+                  if (_kbMoved > 0) { attackMon.x = _kbCx; attackMon.y = _kbCy; ml.push(`${_kbPcP.name}の力で${attackMon.name}が${_kbMoved}マス吹き飛んだ！`); }
+                  if (attackMon.hp <= 0) { killMonster(attackMon, dg, p, ml, lu); }
+                }
+              }
             }
           } else if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) {
             ml.push("水に阻まれた。");
