@@ -37,6 +37,16 @@ import {
   mireuAbsoluteTerror,
 } from './mireu.js';
 import {
+  getHexachromaticBreathLine,
+  hexachromaticFireBreath,
+  hexachromaticWindBreath,
+  hexachromaticDarkBreath,
+  hexachromaticEarthquake,
+  hexachromaticLightning,
+  hexachromaticVicoloLiberatio,
+  setHexachromaticCombatDeps,
+} from './hexachromatic.js';
+import {
   rng, pick, uid, MW, MH, FARCAST_RANGE, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt,
   ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle,
   getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg,
@@ -75,6 +85,13 @@ import {
 /* ボスモジュールへ戦闘関数を登録する（循環依存の回避。関数宣言は巻き上げられるため、この時点で参照できる） */
 setChiranikuCombatDeps({ _resolveBolt, hasLOS, monsterAttackPlayer });
 setTaisaijinCombatDeps({ hasLOS });
+setHexachromaticCombatDeps({
+  monsterAttackPlayer,
+  monsterShootWaterGun,
+  scaleMonFireDmg,
+  weakenOrClearParalysis,
+  interruptPlayerSleep,
+});
 
 const MONSTER_SPECIAL_RATE = Object.freeze({
   ranged: 0.50,
@@ -443,11 +460,12 @@ export {
   monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
   monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility, monHasElementWeakness,
+  monElementDamageMultiplier,
 } from "./monTraits.js";
 import {
   monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks,
-  monCanUseExplosiveAbility, monHasElementWeakness,
+  monCanUseExplosiveAbility, monHasElementWeakness, monElementDamageMultiplier,
 } from "./monTraits.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -516,7 +534,7 @@ function canEnter(map, x, y, float = false, dg = null, waterWalker = false) {
 /** モンスターの炎耐性倍率（elemResist:"fire" → 半減）。火ダルマの吸収は別処理 */
 export function monFireDmgMult(m) {
   if (m?.fireImmune) return 0;
-  if (monHasFlameMantle(m) || m?.elemResist === "fire" || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
+  if (monHasFlameMantle(m) || monElementDamageMultiplier(m, "fire") < 1 || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
   return 1;
 }
 export function monFireDmgLabel(m) {
@@ -659,12 +677,14 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
     const _iIsWeak = monHasElementWeakness(_iBlock, "ice");
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
+    const _iResist = monElementDamageMultiplier(_iBlock, "ice");
+    _iDmg = Math.max(1, Math.floor(_iDmg * _iResist));
     _iBlock.hp -= _iDmg;
     const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
     if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
     _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
     if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow;
-    ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}鈍足${_iSlow}ターン！`);
+    ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}${_iResist < 1 ? "氷半減！" : ""}鈍足${_iSlow}ターン！`);
     if (_iBlock.hp <= 0) killMonster(_iBlock, dg, pl, ml, null, false, m);
   };
   const _hitIcePl = () => {
@@ -1990,6 +2010,17 @@ export const KRAKEN_BIO_BOSS = {
 };
 
 export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS];
+
+/* 超上級B40F専用。多色の属性ブレスと隣接6連撃を使う3×3竜。 */
+export const HEXACHROMATIC_BOSS = {
+  name: "ヘキサクロマティック", hp: 2000, atk: 145, def: 85, exp: 52000,
+  speed: 1, tile: 263, kind: "dragon", baseKind: "boss_hexachromatic",
+  isBoss: true, bossTier: 8, monLevel: 1, maxAttacks: 2, bodySize: 3, float: true,
+  elemResistAll: true,
+  desc: "超上級B40Fに現れる3×3マスの浮遊ドラゴン。炎・氷・雷の属性攻撃を半減する。体の端から直線上へ15%ずつで80ダメージ炎ブレス、水鉄砲、通常攻撃の半威力で吹き飛ばす風ブレス、通常攻撃の半威力と暗闇を与える闇ブレスを放つ。直線範囲外では同室の全員へ地震（浮遊中は無効）またはプレイヤーへの電撃を各20%で使う。プレイヤー隣接時25%でヴィコロール・リベラティオを予告し、次のターンに隣接マスへ6回連撃する。",
+};
+
+SPECIAL_BOSSES.push(HEXACHROMATIC_BOSS);
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -3649,12 +3680,13 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
-function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
-  const adx = pl.x - m.x, ady = pl.y - m.y;
+function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null) {
+  const origin = originOverride || { x: m.x, y: m.y };
+  const adx = pl.x - origin.x, ady = pl.y - origin.y;
   let dx = Math.sign(adx), dy = Math.sign(ady);
   const maxDist = 8;
   ml.push(`${m.name}が水鉄砲を撃った！`);
-  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff", { wind: true, range: maxDist });
+  pushMonsterBoltAnim(origin.x, origin.y, dx, dy, dg, pl, "#20c0ff", { wind: true, range: maxDist });
   const miss = Math.random() < 0.18;
   /* みかわしの魔方陣 */
   const _wDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
@@ -3662,7 +3694,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
     ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
     return;
   }
-  let _wgX = m.x, _wgY = m.y, _windMsg = false;
+  let _wgX = origin.x, _wgY = origin.y, _windMsg = false;
   for (let d = 1; d <= maxDist; d++) {
     const _st = stepProjectile(dg, _wgX, _wgY, dx, dy, { wind: true });
     if (_st.bent && !_windMsg) { ml.push("風穴の風が水鉄砲を曲げた！"); _windMsg = true; }
@@ -6242,6 +6274,34 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
   let _flockMovementLocked = false;
+  if (m.baseKind === "boss_hexachromatic") {
+    const playerHiddenFromHex = (pl.invisibleTurns || 0) > 0 || (pl.potConfinedTurns || 0) > 0;
+    const playerOnBlessedSanctuary = !inMagicSealRoom(pl.x, pl.y, dg) && !!dg.pentacles?.some(pentacle =>
+      pentacle.kind === "sanctuary" && pentacle.blessed && pentacle.x === pl.x && pentacle.y === pl.y);
+    const canContinueVicolo = canUseMireuSpecial(m) && !isAttackSealed(m) &&
+      !playerHiddenFromHex && !playerOnBlessedSanctuary;
+    if (_moveOnly && m._hexLiberatioCharging) {
+      const movedWhileCharging = m.x !== m._hexLiberatioChargeX || m.y !== m._hexLiberatioChargeY;
+      delete m._hexLiberatioCharging;
+      delete m._hexLiberatioChargeX;
+      delete m._hexLiberatioChargeY;
+      if (movedWhileCharging || !canContinueVicolo) {
+        delete m._hexLiberatioReady;
+        ml.push(`${m.name}のヴィコロール・リベラティオは中断された！`);
+      } else {
+        m._hexLiberatioReady = true;
+      }
+    }
+    if (_attackOnly && m._hexLiberatioCharging) return;
+    if (m._hexLiberatioReady && !canContinueVicolo) {
+      delete m._hexLiberatioReady;
+      ml.push(`${m.name}のヴィコロール・リベラティオは中断された！`);
+    }
+    if (_attackOnly && m._hexAttackReady && !canContinueVicolo) {
+      delete m._hexAttackReady;
+      delete m._hexAttackLine;
+    }
+  }
   if (_isFlockVariant) flockHpChangeDialogue(m, dg, ml, _attackOnly);
   if (_isFlockRevenge && _attackOnly && m._flockEarlySpellPending) {
     const effect = m._flockEarlySpellPending;
@@ -8157,6 +8217,81 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m._pullPlayerReady) {
       delete m._pullPlayerReady;
       ohplentyPullPlayer(m, dg, pl, ml);
+      return;
+    }
+  }
+
+  /* ===== 超上級B40Fボス ヘキサクロマティック 特技AI ===== */
+  if (m.baseKind === "boss_hexachromatic" && _moveOnly) {
+    delete m._hexAttackReady;
+    delete m._hexAttackLine;
+    if (m._hexLiberatioReady) return;
+  }
+  if (m.baseKind === "boss_hexachromatic" && canUseMireuSpecial(m) && !isAttackSealed(m) &&
+      !_plInvis && !_plPotHidden && !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      const adjacentToPlayer = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+      if (adjacentToPlayer && Math.random() < 0.25) {
+        m._hexLiberatioCharging = true;
+        m._hexLiberatioChargeX = m.x;
+        m._hexLiberatioChargeY = m.y;
+        pushSplashAnim(m.x, m.y, "#f5d5ff");
+        ml.push(`${m.name}がヴィコロール・リベラティオの構えを取った！次のターン、隣接マスへ6連撃を放つ！`);
+        return;
+      }
+      const line = getHexachromaticBreathLine(m, dg, pl);
+      if (line) {
+        const roll = Math.random();
+        const attack = roll < 0.15 ? "fire" : roll < 0.30 ? "water" :
+          roll < 0.45 ? "wind" : roll < 0.60 ? "dark" : null;
+        if (attack) {
+          m._hexAttackReady = attack;
+          m._hexAttackLine = line;
+          return;
+        }
+      } else {
+        const bossRoom = findRoom(dg.rooms, m.x, m.y);
+        const playerRoom = findRoom(dg.rooms, pl.x, pl.y);
+        if (bossRoom && playerRoom === bossRoom) {
+          const roll = Math.random();
+          if (roll < 0.20) {
+            m._hexAttackReady = "earthquake";
+            return;
+          }
+          if (roll < 0.40) {
+            m._hexAttackReady = "lightning";
+            return;
+          }
+        }
+      }
+    }
+    if (_attackOnly && m._hexLiberatioReady) {
+      delete m._hexLiberatioReady;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m) && canUseMireuSpecial(m) && !isAttackSealed(m)) {
+        m.turnAttacks = monEffectiveMaxAttacks(m);
+        hexachromaticVicoloLiberatio(m, dg, pl, ml, {
+          onPlayerHit: _onHit,
+          onPlayerMiss: _onMiss,
+          luFn: _luFn,
+          isPlayerAdjacent: () => monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1),
+        });
+        return;
+      }
+    }
+    if (_attackOnly && m._hexAttackReady) {
+      const attack = m._hexAttackReady;
+      const line = m._hexAttackLine;
+      delete m._hexAttackReady;
+      delete m._hexAttackLine;
+      if (!canUseMireuSpecial(m) || isAttackSealed(m) || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+      m.turnAttacks++;
+      if (attack === "fire") hexachromaticFireBreath(m, dg, pl, line, ml, { onPlayerHit: _onHit, luFn: _luFn });
+      else if (attack === "water") monsterShootWaterGun(m, dg, pl, ml, _luFn, line.origin);
+      else if (attack === "wind") hexachromaticWindBreath(m, dg, pl, line, ml, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      else if (attack === "dark") hexachromaticDarkBreath(m, dg, pl, line, ml, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      else if (attack === "earthquake") hexachromaticEarthquake(m, dg, pl, findRoom(dg.rooms, m.x, m.y), ml,
+        { findRoom, onPlayerHit: _onHit, luFn: _luFn });
+      else if (attack === "lightning") hexachromaticLightning(m, dg, pl, ml, { onPlayerHit: _onHit, luFn: _luFn });
       return;
     }
   }

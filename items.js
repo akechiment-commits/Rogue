@@ -36,7 +36,7 @@ import { isYogurtImmune } from './statusImmunity.js';
 import { rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
-  monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness,
+  monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness, monElementDamageMultiplier,
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
@@ -9974,12 +9974,14 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         if (!_iceStatusBlocked && monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "immobile");
         if (monHasElementWeakness(target, "ice")) dmg = Math.floor(dmg * 1.5);
         dmg = _enemyMagicDamage(dmg);
+        const iceResist = monElementDamageMultiplier(target, "ice");
+        dmg = Math.max(1, Math.floor(dmg * iceResist));
         target.hp -= dmg;
         if (_iceStatusBlocked) {
-          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！移動封じは効かなかった！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}`);
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！移動封じは効かなかった！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}${iceResist < 1 ? "氷半減！" : ""}`);
         } else {
           target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
-          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}`);
+          ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}${iceResist < 1 ? "氷半減！" : ""}`);
         }
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
@@ -10003,16 +10005,18 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
             continue;
           }
           const _lweak = monHasElementWeakness(_lm, "thunder") ? 1.5 : 1;
-          const _ld = _enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm);
+          const _lresist = monElementDamageMultiplier(_lm, "thunder");
+          const _ld = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm) * _lresist));
           _lm.hp -= _ld;
-          ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}`);
+          ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}${_lresist < 1 ? "雷半減！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
         }
       }
       if (kind === "monster") {
         /* 後方互換（他から直接呼ばれた場合） */
-        const dmg = _enemyMagicDamage(Math.round(rng(22, 32) * _lvF));
-        target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);
+        const resist = monElementDamageMultiplier(target, "thunder");
+        const dmg = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF)) * resist));
+        target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！${resist < 1 ? "雷半減！" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item") {

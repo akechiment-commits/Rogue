@@ -7,6 +7,8 @@ import { monsterPointDistance, monsterBodyCells, canPlaceMonsterBody, monsterOcc
 import { pushAnim, pushSplashAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
 import { statusTurns, resolveParalysisHit } from './statusDuration.js';
+import { scaleMonsterFireDamage, monsterFireDamageLabel } from './monsterRuntime.js';
+import { monHasElementWeakness } from './monTraits.js';
 import {
   reduceFireDamage, hasFireResist, fireResistDamageLabel, isFireExplosionNullified,
   applyLightningToInventory, killMonster, inMagicSealRoom, blockPlayerStatus,
@@ -168,9 +170,10 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
   const applyFireToMon = (victim) => {
     const baseDmg = 70;
     const oilyMult = (victim.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === victim.x && t.y === victim.y) ? 2 : 1;
-    const finalDmg = baseDmg * oilyMult;
+    const weaknessMult = monHasElementWeakness(victim, "fire") ? 1.5 : 1;
+    const finalDmg = scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult));
     victim.hp -= finalDmg;
-    ml.push(`${m.name}のハイパーサーミックブレスが${victim.name}に直撃！${finalDmg}ダメージ！${oilyMult > 1 ? "(油まみれ×2)" : ""}`);
+    ml.push(`${m.name}のハイパーサーミックブレスが${victim.name}に直撃！${finalDmg}ダメージ！${weaknessMult > 1 ? "炎弱点！" : ""}${monsterFireDamageLabel(victim)}${oilyMult > 1 ? "(油まみれ×2)" : ""}`);
     if (victim.hp <= 0) {
       killMonster(victim, dg, pl, ml, opts.luFn || null, false, m);
     }

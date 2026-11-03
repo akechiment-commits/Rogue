@@ -9,6 +9,7 @@ import {
 } from './items.js';
 import { scatterFloorGimmicks, makeAltar, placeAltarPriest, ensureAltarPriests } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
+import { HEXACHROMATIC_BOSS } from './monsters.js';
 import {
   legendMonsterKindsAtFloor,
   legendMonsterSpawnLevel,
@@ -2409,7 +2410,8 @@ function genBossFloor(depth, dungeonType = null) {
   /* ボス配置 */
   const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
-  const bt = dungeonType === "legend" && depth === 34 ? KRAKEN_BIO_BOSS
+  const bt = dungeonType === "legend" && depth === 39 ? HEXACHROMATIC_BOSS
+    : dungeonType === "legend" && depth === 34 ? KRAKEN_BIO_BOSS
     : dungeonType === "legend" && depth === 29 ? PYROBOLOS_BOSS
     : dungeonType === "legend" && depth === 24 ? FLOCK_REVENGE_BOSS
     : dungeonType === "legend" && depth === 19 ? GWEN_VETERAN_BOSS

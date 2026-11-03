@@ -23,7 +23,7 @@ import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectB
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
-import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness, monElementDamageMultiplier } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
@@ -774,9 +774,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       let dmg = Math.max(1, Math.round(rng(20, 30) * _lBlessMult));
       if (kind === "monster") {
         const _lWeakMult = monHasElementWeakness(target, "thunder") ? 1.5 : 1;
-        const _lFinalDmg = _magicDamage(Math.round(dmg * _lWeakMult));
+        const _lResist = monElementDamageMultiplier(target, "thunder");
+        const _lFinalDmg = Math.max(1, Math.floor(_magicDamage(Math.round(dmg * _lWeakMult)) * _lResist));
         target.hp -= _lFinalDmg;
-        ml.push(`雷撃が${target.name}に命中！${_lFinalDmg}ダメージ！${_lWeakMult > 1 ? "雷弱点！" : ""}`);
+        ml.push(`雷撃が${target.name}に命中！${_lFinalDmg}ダメージ！${_lWeakMult > 1 ? "雷弱点！" : ""}${_lResist < 1 ? "雷半減！" : ""}`);
         pushLightningAnim(target.x, target.y);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
         break;
@@ -1936,14 +1937,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         const _iwTurns = statusTurns("immobile", { kind: "monster", blessed: _iwBlessed, target });
         const _iwIceMult = monHasElementWeakness(target, "ice") ? 2 : 1;
+        const _iwResist = monElementDamageMultiplier(target, "ice");
         let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwIceMult));
-        _iwDmg = _magicDamage(_iwDmg);
+        _iwDmg = Math.max(1, Math.floor(_magicDamage(_iwDmg) * _iwResist));
         target.hp -= _iwDmg;
         if (_skipLargeStatus || isStatusImmune(target, ml, target.name)) {
-          ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じは効かなかった！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
+          ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じは効かなかった！${_iwIceMult>1 ? "氷弱点×2！" : ""}${_iwResist < 1 ? "氷半減！" : ""}`);
         } else {
           target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
-          ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
+          ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwIceMult>1 ? "氷弱点×2！" : ""}${_iwResist < 1 ? "氷半減！" : ""}`);
         }
         if (target.hp <= 0) _defeat(target);
         break;

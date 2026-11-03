@@ -38,7 +38,7 @@ import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
-import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
+import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness, monElementDamageMultiplier } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
@@ -1246,8 +1246,10 @@ export function useItemActions({
             let _dmg = rollElementScrollDamage(it);
             if (monHasElementWeakness(_m, "thunder")) _dmg = Math.round(_dmg * 1.5);
             _dmg = multiplyMagicDamage(_dmg, p.weapon, _m, dg);
+            const _thunderResist = monElementDamageMultiplier(_m, "thunder");
+            _dmg = Math.max(1, Math.floor(_dmg * _thunderResist));
             _m.hp -= _dmg;
-            ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${monHasElementWeakness(_m, "thunder") ? "雷弱点！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
+            ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${monHasElementWeakness(_m, "thunder") ? "雷弱点！" : ""}${_thunderResist < 1 ? "雷半減！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
             if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }
