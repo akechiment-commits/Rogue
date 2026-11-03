@@ -27,7 +27,7 @@ import {
 } from "./monsters.js";
 import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
-  CAT_CLAW_T, EXCALIBUR_T, NIEBELUNG_RING_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
@@ -5714,11 +5714,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ml.push(_isEquipped
           ? `${_oldItemName}は装備から外れ、泉に滑り落ちた！`
           : `${_oldItemName}は泉に滑り落ちた！`);
-        if (it.type === "ring" && it.cursed) {
-          const _oldPlus = it.plus || 0;
-          Object.assign(it, { ...NIEBELUNG_RING_T, id: it.id, plus: _oldPlus, cursed: false, bcKnown: true });
-          ml.push(`${_oldItemName}が水底の黄金と共鳴し...ニーベルングの指輪に変化した！呪いが浄化された！`);
-        }
         soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef, p);
         _springOverflowDried = !!_springWasPresent && !dg.springs?.includes(_targetSpring);
         if (_springOverflowDried && springTargetRef.current === _targetSpring) springTargetRef.current = null;
