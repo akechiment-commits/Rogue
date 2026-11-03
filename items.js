@@ -7243,7 +7243,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   trackMonster(mon);
   const fallbackDeathLines = mon.baseKind === "boss_gwen" ? ["どうして、そんなことするの？"]
     : mon.baseKind === "boss_gwen_veteran" ? ["守るって決めたのに……ごめんなさい……"]
-      : mon.baseKind === "boss_flock" ? ["うそ……嫌だ、死にたくない……！誰か助けて……っ！"]
+      : mon.baseKind === "boss_flock" ? ["深淵へ還る時が来たか……って、本当に消えちゃうの！？ 痛い、ひどいよぉ……っ！"]
         : [];
   const deathLines = Array.isArray(mon.deathLines) && mon.deathLines.length > 0 ? mon.deathLines : fallbackDeathLines;
   if (deathLines.length > 0 && !mon._deathQuoteShown) {
