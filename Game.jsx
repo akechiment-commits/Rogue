@@ -2910,21 +2910,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         return;
       }
       if (type === "move" && (dx || dy)) {
-        /* ===== 移動封じ状態：移動不可（攻撃は可） ===== */
-        if ((p.immobileTurns || 0) > 0) {
-          const nx0 = p.x + dx, ny0 = p.y + dy;
-          const _imMon = monsterAt(dg, nx0, ny0);
-          if (!_imMon) {
-            const _imRem = p.immobileTurns - 1;
-            endTurn(st, p, ml);
-            ml.push(_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！");
-            setMsgs((prev) => [...prev.slice(-80), ...ml]);
-            sr.current = { ...st };
-            setGs({ ...st });
-            return;
-          }
-          /* 攻撃はできる：そのまま攻撃処理へ進む */
-        }
         /* ===== 捕獲状態：からめ鬼を倒すまで移動不可（攻撃は可） ===== */
         releaseInvalidCapture(p, dg, ml);
         if (p.capturedBy) {
@@ -2971,7 +2956,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               }
             }
           }
-          const _attackSlots = [];
+          let _attackSlots = [];
           let _blockedAttackMon = null;
           const _addAttackSlot = (x, y, range) => {
             if (x < 0 || x >= MW || y < 0 || y >= MH) return;
@@ -2991,6 +2976,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             const _reachMon = monsterAt(dg, _reachX, _reachY);
             /* 正面に別の敵がいる時は突き抜けない。同じ大型敵の体へ届く場合は別の一撃として数える。 */
             if (_reachMon && (!mon || _reachMon === mon)) _addAttackSlot(_reachX, _reachY, 2);
+          }
+          /* 移動封じ中も実際の武器範囲で攻撃する。友好的な相手との入れ替えは移動なので行わない。 */
+          if ((p.immobileTurns || 0) > 0) {
+            _attackSlots = _attackSlots.filter(({ monster }) => !monster.isPlayerClone &&
+              !(monster.type === "shopkeeper" &&
+                (monster.state !== "hostile" || monster._npcRetaliationTargetId)));
+            if (!_attackSlots.length) {
+              const _imRem = p.immobileTurns - 1;
+              endTurn(st, p, ml);
+              ml.push(_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！");
+              setMsgs((prev) => [...prev.slice(-80), ...ml]);
+              sr.current = { ...st };
+              setGs({ ...st });
+              return;
+            }
           }
           if (!_attackSlots.length && _blockedAttackMon) {
             ml.push(`${_blockedAttackMon.name}は壁の向こうにいるため攻撃できない！`);
