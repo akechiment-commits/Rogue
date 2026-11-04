@@ -2718,6 +2718,9 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
  * 地雷・火薬壺を連鎖爆発させる。
  */
 export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, options = {}) {
+  const bombCause = options.killerMon?.name
+    ? `${options.killerMon.name}のマスタードボムの爆発`
+    : "時限爆弾の罠の爆発";
   if (isFireExplosionNullified(dg, p)) {
     announceFireExplosionNullified(dg, p, ml, "時限爆弾の爆発");
     return;
@@ -2749,7 +2752,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
       if (p && p.x === ax && p.y === ay) {
         const _hasFireProt = hasFireResist(p);
         const _oilyMult = oilyDamageMult(dg, p);
-        p.deathCause = "時限爆弾の罠の大爆発により";
+        p.deathCause = `${bombCause}により`;
         if (_hasFireProt) {
           const dmg = reduceFireDamage(Math.max(1, p.hp - 1) * _oilyMult, p);
           p.hp -= dmg;
@@ -2792,12 +2795,12 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
-          if (m.hp <= 0) { _killed.add(m); killMonsterByTrap(m, dg, p, ml, luFn, "時限爆弾の罠の爆発"); }
+          if (m.hp <= 0) { _killed.add(m); killMonsterByTrap(m, dg, p, ml, luFn, bombCause, options.killerMon || null); }
           continue;
         }
         m.hp = 0;
         _killed.add(m);
-        killMonsterByTrap(m, dg, p, ml, luFn, "時限爆弾の罠の爆発");
+        killMonsterByTrap(m, dg, p, ml, luFn, bombCause, options.killerMon || null);
       }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
@@ -7227,8 +7230,8 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
   }
 }
 
-function killMonsterByTrap(mon, dg, p, ml, luFn, cause) {
-  killMonster(mon, dg, p, ml, luFn, true, null, false, false, false, cause);
+function killMonsterByTrap(mon, dg, p, ml, luFn, cause, killerMon = null) {
+  killMonster(mon, dg, p, ml, luFn, true, killerMon, false, false, false, cause);
 }
 
 /** プレイヤーがモンスターを倒した時の共通処理。

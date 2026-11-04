@@ -65,6 +65,7 @@ export function monReflectsProjectiles(m) {
 /** 魔法・杖を跳ね返す */
 export function monReflectsMagic(m) {
   return !!(m && !m.sealed && (
+    m.magicReflect ||
     m.subtype === "magicreflect" ||
     (m.baseKind === "runner" && (m.monLevel || 1) >= 3) ||
     (m.flockReflectTurns || 0) > 0

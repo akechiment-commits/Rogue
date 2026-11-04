@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodyCells, monsterBodySize } from "./monsterGeometry.js";
 import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS, OMEGA_BOSS, SHINRYU_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -2410,7 +2410,9 @@ function genBossFloor(depth, dungeonType = null) {
   /* ボス配置 */
   const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
-  const bt = dungeonType === "legend" && depth === 39 ? HEXACHROMATIC_BOSS
+  const isOmegaShinryuFloor = dungeonType === "legend" && depth === 44;
+  const bt = isOmegaShinryuFloor ? OMEGA_BOSS
+    : dungeonType === "legend" && depth === 39 ? HEXACHROMATIC_BOSS
     : dungeonType === "legend" && depth === 34 ? KRAKEN_BIO_BOSS
     : dungeonType === "legend" && depth === 29 ? PYROBOLOS_BOSS
     : dungeonType === "legend" && depth === 24 ? FLOCK_REVENGE_BOSS
@@ -2433,6 +2435,28 @@ function genBossFloor(depth, dungeonType = null) {
         const bx = main.cx + dx, by = main.cy + dy;
         if (map[by]?.[bx] === T.FLOOR) { bossX = bx; bossY = by; break outerBoss; }
       }
+    }
+  }
+
+  let shinryuSpawn = null;
+  if (isOmegaShinryuFloor) {
+    const pairCandidates = [];
+    for (let y = main.y + 1; y < main.y + main.h - 1; y++) {
+      for (let x = main.x + 1; x < main.x + main.w - 3; x++) {
+        const omegaCells = monsterBodyCells({ ...OMEGA_BOSS, x, y });
+        const shinryuCells = monsterBodyCells({ ...SHINRYU_BOSS, x: x + 3, y });
+        if (![...omegaCells, ...shinryuCells].every(cell => map[cell.y]?.[cell.x] === T.FLOOR)) continue;
+        const centerX = x + 1.5;
+        const score = Math.abs(centerX - main.cx) + Math.abs(y - main.cy) * 2;
+        pairCandidates.push({ x, y, shinryuX: x + 3, score });
+      }
+    }
+    pairCandidates.sort((a, b) => a.score - b.score);
+    const pair = pairCandidates[0];
+    if (pair) {
+      bossX = pair.x;
+      bossY = pair.y;
+      shinryuSpawn = { x: pair.shinryuX, y: pair.y };
     }
   }
 
@@ -2469,6 +2493,22 @@ function genBossFloor(depth, dungeonType = null) {
     ...((bt.baseKind === "boss_flock" || bt.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: bt.hp } : {}),
     ...(bt.baseKind === "boss_gwen_veteran" ? { projectileAmmo: makePiercingArrow(12) } : {}),
   };
+  const pairedShinryu = shinryuSpawn ? {
+    ...SHINRYU_BOSS,
+    id: uid(),
+    maxHp: SHINRYU_BOSS.hp,
+    x: shinryuSpawn.x,
+    y: shinryuSpawn.y,
+    baseSpeed: SHINRYU_BOSS.speed || 1,
+    turnAccum: 0,
+    aware: false,
+    dormant: true,
+    dir: { x: 0, y: 0 },
+    lastPx: shinryuSpawn.x,
+    lastPy: shinryuSpawn.y,
+    patrolTarget: null,
+  } : null;
+  const bossEntities = pairedShinryu ? [boss, pairedShinryu] : [boss];
   const pyrobolosGroupId = bt.baseKind === "boss_pyrobolos" ? uid() : null;
   if (pyrobolosGroupId) {
     boss.pyrobolosGroupId = pyrobolosGroupId;
@@ -2490,6 +2530,7 @@ function genBossFloor(depth, dungeonType = null) {
         { bk: "waterFlower", lv: 2 }, { bk: "waterFlower", lv: 2 },
         { bk: "giantEel", lv: 2 }, { bk: "giantEel", lv: 2 },
       ];
+      case "boss_omega":          return [];
       case "im_boss_salamander": return [{ bk: "skeleton", lv: 1 }, { bk: "skeleton", lv: 1 }];
       case "im_boss_titan":      return [{ bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }];
       case "im_boss_kraken":     return [{ bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }];
@@ -2500,7 +2541,8 @@ function genBossFloor(depth, dungeonType = null) {
   const minionCount = _minionSpec ? _minionSpec.length : (bt.bossTier || 1) + 1;
   const minionMonsters = [];
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-  const _occ = (x, y) => monsterOccupiesCell(boss, x, y) || minionMonsters.some(mn => monsterOccupiesCell(mn, x, y));
+  const _occ = (x, y) => bossEntities.some(entity => monsterOccupiesCell(entity, x, y)) ||
+    minionMonsters.some(mn => monsterOccupiesCell(mn, x, y));
 
   if (_minionSpec) {
     /* 固定種取り巻き：spec1体ずつ配置 */
@@ -2561,7 +2603,7 @@ function genBossFloor(depth, dungeonType = null) {
   }
 
   /* ── フロアポピュレーション ── */
-  const allMons = [boss, ...minionMonsters];
+  const allMons = [...bossEntities, ...minionMonsters];
   const isOccMon = (x, y) => allMons.some(mn => monsterOccupiesCell(mn, x, y));
   const isStair = (x, y) => (x === suX && y === suY) || (x === sdX && y === sdY);
   const inBossRoom = (x, y) => rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
@@ -2659,7 +2701,7 @@ function genBossFloor(depth, dungeonType = null) {
 
   return {
     map, rooms,
-    monsters: [boss, ...minionMonsters],
+    monsters: [...bossEntities, ...minionMonsters],
     items, traps, springs, bigboxes,
     stairUp:   { x: suX, y: suY },
     stairDown: { x: sdX, y: sdY },

@@ -6,6 +6,7 @@ import { monsterDrawBounds, monsterVisible, drawLargeMonster } from './monsterRe
 import { drawMeteorWarnings } from './meteor.js';
 import { drawPetroBreathWarnings } from './petroBreath.js';
 import { drawCaswackWarnings } from './ohplenty.js';
+import { drawOmegaShinryuWarnings } from './omegaShinryu.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
 const VENT_TILE_BY_DIR = {
@@ -187,6 +188,7 @@ export function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.flameMantleTurns || 0) > 0)                             _sts.push("#ff4800"); // 炎まとい：朱炎
   if ((mon.refreshTurns || 0) > 0)                                 _sts.push("#20e060"); // 持続回復（リフレシュ）：緑
   if ((mon.caswackTurns || 0) > 0)                                 _sts.push("#9900cc"); // カスワック：不吉な濃紫
+  if ((mon.mightyGuardTurns || 0) > 0)                             _sts.push("#b9f4ff"); // マイティガード：水色
   /* ── モンスターレベルバッジ（左上） ── */
   const _ml = mon.monLevel ?? 1;
   if (_ml >= 2) {
@@ -1504,6 +1506,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     drawMeteorWarnings(ctx, dg, sx, sy, sz);
     drawPetroBreathWarnings(ctx, dg, sx, sy, sz);
     drawCaswackWarnings(ctx, dg, sx, sy, sz);
+    drawOmegaShinryuWarnings(ctx, dg, sx, sy, sz);
 
     /* ===== lookMode cursor ===== */
     if (lookMode) {

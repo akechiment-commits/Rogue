@@ -47,13 +47,21 @@ import {
   setHexachromaticCombatDeps,
 } from './hexachromatic.js';
 import {
+  getOmegaShinryuLine, chooseOmegaAttack, chooseShinryuAttack,
+  queueOmegaShinryuAttack, castOmegaMustardBomb, castOmegaStatusRay,
+  castOmegaAtomicRay, castShinryuAtomicRay,
+  castShinryuLightning, castShinryuMightyGuard,
+  attackOmegaShinryuAdjacentCells, setOmegaShinryuCombatDeps,
+} from './omegaShinryu.js';
+import { installShinryuMightyGuardHpHook } from './mightyGuardHp.js';
+import {
   rng, pick, uid, MW, MH, FARCAST_RANGE, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt,
   ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle,
   getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg,
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -61,7 +69,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyPlayerConfusion, applyMonsterDarkness, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyPlayerConfusion, applyMonsterDarkness, applyMonsterParalyze, isAttackSealed } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
@@ -91,6 +99,16 @@ setHexachromaticCombatDeps({
   scaleMonFireDmg,
   weakenOrClearParalysis,
   interruptPlayerSleep,
+});
+setOmegaShinryuCombatDeps({
+  monsterAttackPlayer,
+  monsterCanInteractAtRange,
+  castFireBreath: hexachromaticFireBreath,
+  resolveStatusRay: resolveOmegaShinryuStatusRay,
+  findRoom,
+  inMagicSealRoom,
+  interruptPlayerSleep,
+  weakenOrClearParalysis,
 });
 
 const MONSTER_SPECIAL_RATE = Object.freeze({
@@ -2022,6 +2040,24 @@ export const HEXACHROMATIC_BOSS = {
 
 SPECIAL_BOSSES.push(HEXACHROMATIC_BOSS);
 
+/* 超上級B45F専用の双頭級ボス。3×3の両者が隣接セルを個別に殴る。 */
+export const OMEGA_BOSS = {
+  name: "オメガ", hp: 2400, atk: 172, def: 95, exp: 42000,
+  speed: 1, tile: 264, kind: "material", baseKind: "boss_omega",
+  isBoss: true, bossTier: 9, monLevel: 1, maxAttacks: 1, bodySize: 3,
+  magicReflect: true, elemWeak: "thunder",
+  desc: "超上級B45Fに神竜と同時に現れる中心基準の3×3機械ボス。魔法を反射し、雷弱点。プレイヤーが遠距離直線上にいると波動砲（横3×縦10マスへ2ターン後固定100ダメージ）20%、アトミックレイ（80ダメージ火炎ブレス）20%、ブラスター（金縛り）10%、虹色の風（暗闇・封印・毒）10%。ブラスターと虹色の風は隣接時も各10%。視界内なら足元に時限爆弾を設置するマスタードボムも10%で使い、2ターン後に爆発する。発射後のボムはオメガの状態に関係なく残る。通常攻撃は3×3本体の全隣接マスを攻撃する。",
+};
+
+export const SHINRYU_BOSS = {
+  name: "神竜", hp: 2400, atk: 172, def: 95, exp: 42000,
+  speed: 1, tile: 265, kind: "dragon", baseKind: "boss_shinryu",
+  isBoss: true, bossTier: 9, monLevel: 1, maxAttacks: 1, bodySize: 3, float: true,
+  desc: "超上級B45Fにオメガと同時に現れる中心基準の3×3浮遊ドラゴン。遠距離直線上でタイダルウエイブ（横3×縦10マスへ2ターン後に通常攻撃の2倍の水属性ダメージと、発射方向の逆への吹き飛ばし）20%、アトミックレイ（80ダメージ火炎ブレス）20%。視界内では稲妻（同室の生物へ約50ダメージ。オメガにも命中）20%、マイティガード（10ターン全被ダメージ半減）10%。この2つは隣接時も同じ確率で使う。隣接時10%で悪魔の瞳を予告し、次ターンに本体の全隣接マスへ石化を与える。通常攻撃は3×3本体の全隣接マスを攻撃する。",
+};
+
+SPECIAL_BOSSES.push(OMEGA_BOSS, SHINRYU_BOSS);
+
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
   /* B5F (depth=4) 直線炎ブレス */
@@ -3847,6 +3883,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn, bbFn = null) {
 export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   let {
     dx, dy,
+    origin = null,
     baseRange = 19,
     animColor = "#aaaaaa",
     fireMsg = null,
@@ -4247,10 +4284,12 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
 
   if (fireMsg) ml.push(fireMsg);
   /* 杖の魔法弾：判定・アニメとも風で曲がらない */
-  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, boltColor, false);
+  const originX = origin?.x ?? m.x;
+  const originY = origin?.y ?? m.y;
+  pushMonsterBoltAnim(originX, originY, dx, dy, dg, pl, boltColor, false);
 
   let _hit = false;
-  let _cx = m.x, _cy = m.y;
+  let _cx = originX, _cy = originY;
   for (let _d = 1; _d <= range; _d++) {
     const _st = stepProjectile(dg, _cx, _cy, dx, dy, { wind: false });
     dx = _st.dx; dy = _st.dy;
@@ -4343,6 +4382,87 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     }
   }
   if (!_hit) ml.push(`${wandLabel}の魔法弾は虚空に消えた。`);
+}
+
+function applyOmegaShinryuStatusToMonster(source, target, effect, ml) {
+  if (!target || target.hp <= 0 || isStatusImmune(target, ml, target.name)) return;
+  if (effect === "blaster") {
+    applyMonsterParalyze(target, { ml, name: source.name });
+    return;
+  }
+  const darknessTurns = statusTurns("darkness", { kind: "monster", target });
+  if (applyMonsterDarkness(target, darknessTurns, ml) > 0) {
+    ml.push(`${target.name}は虹色の風で暗闇になった！(${darknessTurns}ターン)`);
+  }
+  if (!blockLargeMonsterStatus(target, "seal", ml)) {
+    startLargeMonsterStatusCooldown(target, "seal");
+    const sealTurns = statusTurns("seal", { kind: "monster", target });
+    target.sealed = true;
+    target.sealedTurns = Math.max(target.sealedTurns || 0, sealTurns);
+    ml.push(`${target.name}は虹色の風で封印された！(${sealTurns}ターン)`);
+  }
+  if (!blockLargeMonsterStatus(target, "poison", ml)) {
+    startLargeMonsterStatusCooldown(target, "poison");
+    const poisonTurns = statusTurns("poison", { kind: "monster", target });
+    target.poisoned = true;
+    target.poisonedTurns = (target.poisonedTurns || 0) + poisonTurns;
+    target.sporePoisonKillerId = source.id;
+    target.sporePoisonKillerName = source.name;
+    if (!target.poisonHalfAtk) {
+      target.poisonOrigAtk = target.atk;
+      target.poisonHalfAtk = true;
+      target.atk = Math.max(1, Math.floor((target.atk || 1) / 2));
+    }
+    ml.push(`${target.name}は虹色の風で毒になった！(${poisonTurns}ターン)`);
+  }
+}
+
+function resolveOmegaShinryuStatusRay(monster, dg, pl, line, effect, ml, opts = {}) {
+  const isBlaster = effect === "blaster";
+  const label = isBlaster ? "ブラスター" : "虹色の風";
+  const applyToPlayer = () => {
+    if (blockPlayerStatus(pl, ml)) return;
+    if (isBlaster) {
+      if (blockPlayerStatus(pl, ml, {
+        proofAbility: "paralyze_proof", proofMsg: "しかし防具が金縛りを防いだ！(耐金縛り)",
+      })) return;
+      const turns = statusTurns("paralyze", { kind: "player" });
+      applyPlayerParalyze(pl, turns, { mode: "add" });
+      ml.push(`ブラスターに当たった！金縛りになった！(${turns}ターン)`);
+      return;
+    }
+    if (!blockPlayerStatus(pl, ml, {
+      proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)",
+    })) {
+      const turns = statusTurns("darkness", { kind: "player" });
+      pl.darknessTurns = (pl.darknessTurns || 0) + turns;
+      ml.push(`虹色の風で暗闇になった！(${turns}ターン)`);
+    }
+    const sealTurns = applyPlayerSeal(pl, ml);
+    if (sealTurns > 0) ml.push(`虹色の風で魔法が封印された！(${sealTurns}ターン)`);
+    const poison = applyPlayerPoison(pl, { sourceName: monster.name });
+    if (!poison.blocked) {
+      ml.push(`虹色の風で毒を受けた！(${poison.turns}ターン)${poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+    }
+  };
+  const applyToMonster = target => applyOmegaShinryuStatusToMonster(monster, target, effect, ml);
+  _resolveMonsterWandBolt(monster, dg, pl, ml, {
+    dx: line.dx,
+    dy: line.dy,
+    origin: line.origin,
+    range: line.distance,
+    boltColor: isBlaster ? "paralyze_wand" : "curse_wand",
+    reflectColor: "#dd44ff",
+    wandLabel: label,
+    fireMsg: `${monster.name}が${label}を放った！`,
+    onPlayerHit: applyToPlayer,
+    onMonsterHit: target => applyToMonster(target),
+    onWallReflect: () => applyToMonster(monster),
+    onPlayerReflect: () => applyToMonster(monster),
+    onMagicReflect: () => applyToMonster(monster),
+    luFn: opts.luFn,
+  });
+  return true;
 }
 
 function isStationaryGrabber(m) {
@@ -6257,6 +6377,7 @@ function hasFreeFlockCloneCell(monster, dungeon, player) {
 }
 
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
+  installShinryuMightyGuardHpHook(m);
   const _isFlockBoss = m.baseKind === "boss_flock";
   const _isFlockRevenge = m.baseKind === "boss_flock_revenge";
   const _isFlockVariant = _isFlockBoss || _isFlockRevenge;
@@ -6416,6 +6537,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m.flockGuardDefBonus;
       ml.push(`${m.name}の守護結界が消えた！`);
     }
+  }
+  if ((m.mightyGuardTurns || 0) > 0 && !_attackOnly) {
+    m.mightyGuardTurns = Math.max(0, m.mightyGuardTurns - 1);
+    if (m.mightyGuardTurns <= 0) ml.push(`${m.name}のマイティガードが切れた！`);
   }
   /* 平和主義状態：攻撃できず、ランダムに1歩移動して終了 */
   if ((m.pacifistTurns || 0) > 0) {
@@ -8219,6 +8344,67 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       ohplentyPullPlayer(m, dg, pl, ml);
       return;
     }
+  }
+
+  /* ===== 超上級B45Fボス オメガ／神竜 特技AIと3×3近接範囲 ===== */
+  const isOmega = m.baseKind === "boss_omega";
+  const isShinryu = m.baseKind === "boss_shinryu";
+  if ((isOmega || isShinryu) && _moveOnly) {
+    delete m._omegaShinryuAttackReady;
+    delete m._omegaShinryuAttackLine;
+  }
+  if ((isOmega || isShinryu) && !m.sealed && !isAttackSealed(m) && !m.blind &&
+      !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
+      !_plOnBlessedSanc && !inMagicSealRoom(m.x, m.y, dg) &&
+      m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_moveOnly) {
+      const line = canSee ? getOmegaShinryuLine(m, dg, pl, 1) : null;
+      const adjacent = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+      const attack = isOmega
+        ? chooseOmegaAttack(line, adjacent, canSee)
+        : chooseShinryuAttack(line, adjacent, canSee);
+      if (attack) {
+        m._omegaShinryuAttackReady = attack;
+        if (line) m._omegaShinryuAttackLine = { origin: line.origin, dx: line.dx, dy: line.dy, distance: line.distance };
+        return;
+      }
+    } else if (_attackOnly && m._omegaShinryuAttackReady) {
+      const attack = m._omegaShinryuAttackReady;
+      const line = m._omegaShinryuAttackLine;
+      delete m._omegaShinryuAttackReady;
+      delete m._omegaShinryuAttackLine;
+      if (m.sealed || isAttackSealed(m) || inMagicSealRoom(m.x, m.y, dg) ||
+          m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
+      m.turnAttacks++;
+      if (attack === "waveCannon" || attack === "tidalWave" || attack === "evilEye") {
+        queueOmegaShinryuAttack(m, dg, attack, line, pl, ml);
+      } else if (attack === "atomicRay") {
+        if (line?.distance >= 2) {
+          if (isOmega) castOmegaAtomicRay(m, dg, pl, line, ml, { luFn: _luFn, onPlayerHit: _onHit });
+          else castShinryuAtomicRay(m, dg, pl, line, ml, { luFn: _luFn, onPlayerHit: _onHit });
+        }
+      } else if (attack === "blaster" || attack === "rainbowWind") {
+        if (line) castOmegaStatusRay(m, dg, pl, line, attack, ml, { luFn: _luFn });
+      } else if (attack === "mustardBomb") {
+        if (canSee) castOmegaMustardBomb(m, dg, pl, ml);
+      } else if (attack === "lightning") {
+        castShinryuLightning(m, dg, pl, findRoom(dg.rooms, pl.x, pl.y), ml, _luFn);
+      } else if (attack === "mightyGuard") {
+        castShinryuMightyGuard(m, dg, pl, ml, _luFn);
+      }
+      return;
+    }
+  }
+  if ((isOmega || isShinryu) && _attackOnly && _adjPl &&
+      m.turnAttacks < monEffectiveMaxAttacks(m) && !isAttackSealed(m) && !_plOnSanc) {
+    m.turnAttacks++;
+    attackOmegaShinryuAdjacentCells(m, dg, pl, ml, {
+      onPlayerHit: _onHit,
+      onPlayerMiss: _onMiss,
+      luFn: _luFn,
+      canHitPlayer: !_plOnSanc,
+    });
+    return;
   }
 
   /* ===== 超上級B40Fボス ヘキサクロマティック 特技AI ===== */

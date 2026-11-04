@@ -2,6 +2,7 @@ import { canActivateTrap } from "./trapActivationTurn.js";
 import { advanceMeteors } from './meteor.js';
 import { advancePetroBreaths } from './petroBreath.js';
 import { advanceCaswacks } from './ohplenty.js';
+import { advanceOmegaShinryuAttacks } from './omegaShinryu.js';
 
 /** 敵移動後・敵攻撃前に発火する罠、爆発、時限爆弾を解決する。 */
 export function resolveTurnHazards(state, player, messages, {
@@ -22,6 +23,7 @@ export function resolveTurnHazards(state, player, messages, {
   if (tickTimedEffects) advanceMeteors(dungeon, player, messages, lu, worldTicks);
   if (tickTimedEffects) advancePetroBreaths(dungeon, player, messages, lu, worldTicks);
   if (tickTimedEffects) advanceCaswacks(dungeon, player, messages, lu, worldTicks);
+  if (tickTimedEffects) advanceOmegaShinryuAttacks(dungeon, player, messages, lu, worldTicks);
   if (tickTimedEffects && player.hp > 0 && hasRingEffect(player, "explode_ring") && random() < 0.05) {
     messages.push("指輪が爆発した！");
     doExplosion(player.x, player.y, dungeon, player, messages, getItemName, "爆発の指輪", null, null, false, true);
@@ -51,7 +53,13 @@ export function resolveTurnHazards(state, player, messages, {
         // 爆発処理に入る前に消費し、誘爆先から逆に誘爆されるのを防ぐ。
         dungeon.pendingBombs = dungeon.pendingBombs.filter(pending => pending !== bomb);
         messages.push("時限爆弾の罠が大爆発した！");
-        doTimeBombExplosion(bomb.x, bomb.y, dungeon, player, messages, lu, getItemName, { sourcePending: bomb });
+        const killerMon = bomb.killerMonId
+          ? (dungeon.monsters?.find(monster => monster.id === bomb.killerMonId) || {
+              id: bomb.killerMonId, name: bomb.sourceName || "モンスター", hp: 0,
+            })
+          : null;
+        doTimeBombExplosion(bomb.x, bomb.y, dungeon, player, messages, lu, getItemName,
+          { sourcePending: bomb, killerMon });
       } else {
         messages.push(`時限爆弾の罠：あと${bomb.turnsLeft}ターンで爆発！`);
       }
