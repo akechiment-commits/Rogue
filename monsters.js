@@ -4262,6 +4262,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
 export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
   let {
     dx, dy,
+    origin = null,
     range = 20,
     boltColor,
     reflectColor,
