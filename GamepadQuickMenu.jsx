@@ -7,10 +7,16 @@ export const QUICK_MENU_COLS = 2;
  * Yボタン/モバイル「メニュー」のクイックメニュー（2列グリッド、方向で選択、B/タップで決定）
  */
 export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose, dungeonLabel = "", noCarry = false }) {
+  /* 開いた直後の閉じる/選択判定をブロックする。モバイルのボタンは pointerdown で即発火して
+   * メニューを開くため、同じタップの click が背景に届いて開いた瞬間に閉じてしまうことがある。 */
+  const openedAtRef = useRef(0);
+  useEffect(() => { if (open) openedAtRef.current = Date.now(); }, [open ]);
+  const justOpened = () => Date.now() - openedAtRef.current < 400;
   if (!open) return null;
   return (
     <div
       onClick={(e) => {
+        if (justOpened()) return;
         if (e.target === e.currentTarget) onClose?.();
       }}
       style={{
@@ -42,7 +48,7 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {onClose && (
               <button
-                onClick={onClose}
+                onClick={() => { if (!justOpened()) onClose?.(); }}
                 aria-label="メニューを閉じる"
                 style={{
                   background: "#222",
@@ -89,7 +95,7 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
             return (
               <div
                 key={it.id}
-                onClick={() => onSelect?.(it.id)}
+                onClick={() => { if (!justOpened()) onSelect?.(it.id); }}
                 style={{
                   padding: "10px 8px",
                   borderRadius: 4,
