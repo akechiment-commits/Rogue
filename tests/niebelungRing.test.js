@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { NIEBELUNG_RING_T, RINGS, soakItemIntoSpring } from "../items.js";
 import { calcPlayerDefense } from "../utils.js";
 import { ringHpBonus } from "../equipmentEffects.js";
@@ -19,6 +19,7 @@ describe("ニーベルングの指輪の実装", () => {
   });
 
   it("泉に呪われた指輪を落とすとニーベルングの指輪に変化し呪いが解ける", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0); /* 変化抽選（5%）に当たった場合 */
     const spr = { x: 5, y: 5, contents: [] };
     const ring = { name: "毒消しの指輪", type: "ring", effect: "antidote_ring", cursed: true, plus: 2, id: "r1" };
     const ml = [];
@@ -29,6 +30,20 @@ describe("ニーベルングの指輪の実装", () => {
     expect(ring.cursed).toBe(false);
     expect(ring.plus).toBe(2);
     expect(ml.some((m) => m.includes("ニーベルングの指輪に変化した"))).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it("変化抽選に外れた呪われた指輪は変化せず呪いも解けない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5); /* 変化抽選（5%）に外れた場合 */
+    const spr = { x: 5, y: 5, contents: [] };
+    const ring = { name: "毒消しの指輪", type: "ring", effect: "antidote_ring", cursed: true, plus: 2, id: "r3" };
+    const ml = [];
+
+    soakItemIntoSpring(spr, ring, ml);
+    expect(ring.name).toBe("毒消しの指輪");
+    expect(ring.effect).toBe("antidote_ring");
+    expect(ring.cursed).toBe(true);
+    vi.restoreAllMocks();
   });
 
   it("呪われていない指輪は変化しない", () => {
