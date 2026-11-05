@@ -11,7 +11,7 @@ import {
 import {
   blockPlayerStatus, hasPlayerMagicReflect, playerMagicReflectLabel, killMonster, pushEntity,
   reduceLightningDamage, hasLightningResist, lightningResistDamageLabel,
-  applyLightningToInventory,
+  applyLightningToInventory, wallBreakDrop,
 } from "./items.js";
 import { monElementDamageMultiplier, monHasElementWeakness } from "./monTraits.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
@@ -90,27 +90,27 @@ export function chooseShinryuAttack(line, adjacent, canSee, random = Math.random
   return null;
 }
 
-function areaCellsFromLine(line) {
+function areaCellsFromLine(line, breakWalls = false) {
   const cells = new Map();
   const sideX = -line.dy, sideY = line.dx;
   for (let width = -1; width <= 1; width++) {
     const startX = line.origin.x + sideX * width;
     const startY = line.origin.y + sideY * width;
     if (startX < 0 || startX >= MW || startY < 0 || startY >= MH ||
-        [T.WALL, T.BWALL].includes(line.map?.[startY]?.[startX])) continue;
+        (!breakWalls && [T.WALL, T.BWALL].includes(line.map?.[startY]?.[startX]))) continue;
     for (let step = 1; step <= 10; step++) {
       const x = startX + line.dx * step;
       const y = startY + line.dy * step;
-      if (x < 0 || x >= MW || y < 0 || y >= MH ||
-          [T.WALL, T.BWALL].includes(line.map?.[y]?.[x])) break;
+      if (x < 0 || x >= MW || y < 0 || y >= MH) break;
+      if (!breakWalls && [T.WALL, T.BWALL].includes(line.map?.[y]?.[x])) break;
       cells.set(`${x},${y}`, { x, y });
     }
   }
   return [...cells.values()];
 }
 
-function lineAttackCells(dungeon, line) {
-  return areaCellsFromLine({ ...line, map: dungeon.map });
+function lineAttackCells(dungeon, line, breakWalls = false) {
+  return areaCellsFromLine({ ...line, map: dungeon.map }, breakWalls);
 }
 
 function adjacentRingCells(monster, dungeon) {
@@ -131,7 +131,7 @@ export function queueOmegaShinryuAttack(monster, dungeon, attack, line, player, 
   const turnsLeft = attack === "evilEye" ? 1 : 2;
   const cells = attack === "evilEye"
     ? adjacentRingCells(monster, dungeon)
-    : lineAttackCells(dungeon, line);
+    : lineAttackCells(dungeon, line, attack === "waveCannon");
   if (!cells.length) return false;
   (dungeon.pendingOmegaShinryuAttacks ||= []).push({
     id: uid(), sourceId: monster.id, sourceName: monster.name, sourceAtk: monster.atk,
@@ -171,8 +171,39 @@ function applyFixedWaveDamage(source, target, amount, dungeon, player, messages,
   if (target.hp <= 0) killMonster(target, dungeon, player, messages, combatDeps.luFn || null, false, source);
 }
 
+function destroyBossAreaCircles(dungeon, attack, messages) {
+  const affectedCells = new Set((attack.cells || []).map(cell => `${cell.x},${cell.y}`));
+  const circles = (dungeon.pentacles || []).filter(circle => affectedCells.has(`${circle.x},${circle.y}`));
+  if (circles.length > 0) {
+    dungeon.pentacles = dungeon.pentacles.filter(circle => !circles.includes(circle));
+    for (const circle of circles) messages.push(`${attack.sourceName}の${attack.kind === "waveCannon" ? "波動砲" : "タイダルウエイブ"}で${circle.name || "魔法陣"}が壊れた！`);
+  }
+}
+
+function destroyWaveWalls(dungeon, attack, messages) {
+  let brokenWalls = 0;
+  for (const cell of attack.cells || []) {
+    const tile = dungeon.map?.[cell.y]?.[cell.x];
+    if (![T.WALL, T.BWALL].includes(tile) || cell.x <= 0 || cell.x >= MW - 1 ||
+        cell.y <= 0 || cell.y >= MH - 1) continue;
+    const embeddedItem = dungeon.items?.find(item => item.x === cell.x && item.y === cell.y && item.wallEmbedded);
+    if (embeddedItem) {
+      delete embeddedItem.wallEmbedded;
+      embeddedItem.discovered = true;
+    }
+    dungeon.map[cell.y][cell.x] = T.FLOOR;
+    if (dungeon.explored?.[cell.y]?.[cell.x] !== undefined) dungeon.explored[cell.y][cell.x] = true;
+    if (dungeon.visible?.[cell.y]?.[cell.x] !== undefined) dungeon.visible[cell.y][cell.x] = true;
+    wallBreakDrop(dungeon, cell.x, cell.y);
+    brokenWalls++;
+  }
+  if (brokenWalls > 0) messages.push(`${attack.sourceName}の波動砲が壁を${brokenWalls}マス破壊した！`);
+}
+
 function applyOmegaWave(attack, dungeon, player, messages, source) {
   messages.push(`${attack.sourceName}の波動砲が着弾した！`);
+  destroyWaveWalls(dungeon, attack, messages);
+  destroyBossAreaCircles(dungeon, attack, messages);
   pushSplashAnim(attack.cells?.[0]?.x ?? 0, attack.cells?.[0]?.y ?? 0, "#ff7044");
   const cells = new Set((attack.cells || []).map(cell => `${cell.x},${cell.y}`));
   if (player.hp > 0 && cells.has(`${player.x},${player.y}`)) {
@@ -207,6 +238,7 @@ function tidalWavePlayerDamage(attack, dungeon, player, messages, source) {
 
 function applyTidalWave(attack, dungeon, player, messages, source) {
   messages.push(`${attack.sourceName}のタイダルウエイブが押し寄せた！`);
+  destroyBossAreaCircles(dungeon, attack, messages);
   for (const cell of attack.cells || []) pushAnim({ type: "petroBreath", x: cell.x, y: cell.y, color: "#54d9ff" });
   const cells = new Set((attack.cells || []).map(cell => `${cell.x},${cell.y}`));
   if (player.hp > 0 && cells.has(`${player.x},${player.y}`)) tidalWavePlayerDamage(attack, dungeon, player, messages, source);

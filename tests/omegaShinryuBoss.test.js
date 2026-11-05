@@ -17,7 +17,7 @@ import { resolveTurnHazards } from "../turnHazards.js";
 import { saveGameState, loadGameState } from "../GameSave.js";
 import { TILE_NAMES, TILE_RENDER } from "../render.js";
 import { MONSTER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "../tilesetMap.js";
-import { MW, MH } from "../utils.js";
+import { T, MW, MH } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => {
@@ -128,6 +128,39 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(player.hp).toBe(400);
     expect(player.deathCause).toContain("オメガ");
     expect(dungeon.pendingOmegaShinryuAttacks).toEqual([]);
+  });
+
+  it("波動砲は範囲の壁と魔法陣を壊し、タイダルウエイブは魔法陣を壊す", () => {
+    const omega = { ...OMEGA_BOSS, id: "omega", x: 10, y: 10, maxHp: OMEGA_BOSS.hp };
+    const player = makePlayer({ x: 15, y: 10, hp: 500, maxHp: 500 });
+    const dungeon = makeEmptyDg({ monsters: [omega], ...visibleRoom() });
+    const messages = [];
+    const line = getOmegaShinryuLine(omega, dungeon, player, 2);
+    queueOmegaShinryuAttack(omega, dungeon, "waveCannon", line, player, messages);
+    dungeon.map[9][13] = T.WALL;
+    dungeon.map[11][17] = T.BWALL;
+    const embeddedItem = { id: "embedded", name: "壁内の道具", x: 13, y: 9, wallEmbedded: true };
+    dungeon.items.push(embeddedItem);
+    dungeon.pentacles = [
+      { x: 14, y: 9, name: "回復の魔方陣" },
+      { x: 17, y: 11, name: "魔封じの魔方陣" },
+    ];
+
+    advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 2);
+    expect(dungeon.map[9][13]).toBe(T.FLOOR);
+    expect(dungeon.map[11][17]).toBe(T.FLOOR);
+    expect(embeddedItem).toMatchObject({ discovered: true });
+    expect(embeddedItem.wallEmbedded).toBeUndefined();
+    expect(dungeon.pentacles).toEqual([]);
+
+    const shinryu = { ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10, maxHp: SHINRYU_BOSS.hp };
+    const tidalPlayer = makePlayer({ x: 15, y: 10, hp: 500, maxHp: 500 });
+    const tidalDungeon = makeEmptyDg({ monsters: [shinryu], ...visibleRoom() });
+    const tidalLine = getOmegaShinryuLine(shinryu, tidalDungeon, tidalPlayer, 2);
+    queueOmegaShinryuAttack(shinryu, tidalDungeon, "tidalWave", tidalLine, tidalPlayer, []);
+    tidalDungeon.pentacles = [{ x: 14, y: 9, name: "回復の魔方陣" }];
+    advanceOmegaShinryuAttacks(tidalDungeon, tidalPlayer, [], () => {}, 2);
+    expect(tidalDungeon.pentacles).toEqual([]);
   });
 
   it("タイダルウエイブは発射方向の逆へ押し戻す", () => {
