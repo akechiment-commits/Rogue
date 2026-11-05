@@ -65,6 +65,8 @@ describe("genTutorialFloor", () => {
 });
 
 describe("genDungeon", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("通常フロアはマップと階段を持つ", () => {
     const dg = genDungeon(0, "beginner");
     expect(dg.map.length).toBe(MH);
@@ -98,17 +100,33 @@ describe("genDungeon", () => {
     expect(dg.monsters.length).toBeGreaterThan(0);
   });
 
-  it("ボスフロアは複数地形から選ばれ、1マス廊下がない", () => {
-    const walkable = new Set([T.FLOOR, T.WATER, T.SU, T.SD]);
+  it("ボスフロアは複数地形から選ばれ、全パターンに幅6マス以上の退避通路がある", () => {
+    const walkable = new Set([T.FLOOR, T.SU, T.SD]);
     const isWall = (tile) => tile === T.WALL || tile === T.BWALL;
     const layouts = new Set();
     for (let i = 0; i < 36; i++) {
       const dg = genDungeon(4, "beginner");
       expect(dg.floorType).toBe("bossFloor");
       expect(dg.isBossFloor).toBe(true);
-      expect(["arena_ns", "arena_ew", "big_open", "L_shape", "two_stage", "T_wide"]).toContain(dg.bossLayout);
+      expect(["arena_ns", "arena_ew", "four_gate", "L_shape", "two_stage", "T_wide"]).toContain(dg.bossLayout);
       layouts.add(dg.bossLayout);
       const map = dg.map;
+      expect(dg.bossEscapeCorridors?.length).toBeGreaterThan(0);
+      for (const corridor of dg.bossEscapeCorridors) {
+        expect(corridor.width).toBeGreaterThanOrEqual(6);
+        expect(corridor.axis === "vertical" ? corridor.w : corridor.h).toBe(corridor.width);
+        for (let y = corridor.y; y < corridor.y + corridor.h; y++) {
+          for (let x = corridor.x; x < corridor.x + corridor.w; x++) {
+            expect(walkable.has(map[y]?.[x])).toBe(true);
+          }
+        }
+        const inside = (obj) => obj.x >= corridor.x && obj.x < corridor.x + corridor.w &&
+          obj.y >= corridor.y && obj.y < corridor.y + corridor.h;
+        expect(dg.items.some(inside)).toBe(false);
+        expect(dg.traps.some(inside)).toBe(false);
+        expect(dg.springs.some(inside)).toBe(false);
+        expect(dg.bigboxes.some(inside)).toBe(false);
+      }
       for (let y = 1; y < MH - 1; y++) {
         for (let x = 1; x < MW - 1; x++) {
           if (!walkable.has(map[y][x])) continue;
@@ -119,6 +137,25 @@ describe("genDungeon", () => {
       }
     }
     expect(layouts.size).toBeGreaterThan(1);
+  });
+
+  it.each([
+    [0.01, "arena_ns"], [0.18, "arena_ew"], [0.35, "four_gate"],
+    [0.52, "L_shape"], [0.69, "two_stage"], [0.86, "T_wide"],
+  ])("ボス地形%sには幅6マス以上の退避通路を確保する", (roll, layout) => {
+    vi.spyOn(Math, "random").mockReturnValue(roll);
+    const dg = genDungeon(4, "beginner");
+    expect(dg.bossLayout).toBe(layout);
+    expect(dg.bossEscapeCorridors.length).toBeGreaterThan(0);
+    for (const corridor of dg.bossEscapeCorridors) {
+      expect(corridor.width).toBeGreaterThanOrEqual(6);
+      expect(corridor.axis === "vertical" ? corridor.w : corridor.h).toBe(corridor.width);
+      for (let y = corridor.y; y < corridor.y + corridor.h; y++) {
+        for (let x = corridor.x; x < corridor.x + corridor.w; x++) {
+          expect([T.FLOOR, T.SU, T.SD]).toContain(dg.map[y]?.[x]);
+        }
+      }
+    }
   });
 
   it("ボスフロアの道具・大箱・罠・泉は部屋の中だけに出る", () => {
@@ -139,11 +176,25 @@ describe("genDungeon", () => {
 
   it("クラーケンの水場は上りから下りへ床で迂回できる", () => {
     const dry = (tile) => tile === T.FLOOR || tile === T.SU || tile === T.SD;
-    for (let i = 0; i < 18; i++) {
+    const random = vi.spyOn(Math, "random");
+    const layouts = [
+      [0.01, "arena_ns"], [0.18, "arena_ew"], [0.35, "four_gate"],
+      [0.52, "L_shape"], [0.69, "two_stage"], [0.86, "T_wide"],
+    ];
+    for (const [roll, layout] of layouts) {
+      random.mockReturnValue(roll);
       const dg = genDungeon(14, "intermediate");
       expect(dg.floorType).toBe("bossFloor");
+      expect(dg.bossLayout).toBe(layout);
       expect(dg.monsters.some((m) => m.baseKind === "im_boss_kraken")).toBe(true);
       expect(dg.map.some((row) => row.includes(T.WATER))).toBe(true);
+      for (const corridor of dg.bossEscapeCorridors) {
+        for (let y = corridor.y; y < corridor.y + corridor.h; y++) {
+          for (let x = corridor.x; x < corridor.x + corridor.w; x++) {
+            expect(dry(dg.map[y]?.[x])).toBe(true);
+          }
+        }
+      }
       const su = dg.stairUp, sd = dg.stairDown;
       const seen = new Set([`${su.x},${su.y}`]);
       const q = [{ x: su.x, y: su.y }];

@@ -2232,7 +2232,7 @@ function bossRoom(x, y, w, h) {
   return { x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) };
 }
 
-/** 1マス廊下なし・ループ通路なしの広い部屋構成。 */
+/** ボスの大部屋と、幅6マス以上の退避通路を組み合わせた複数レイアウト。 */
 function carveBossLayout(map, layout) {
   if (layout === "arena_ew") {
     carveBossRect(map, 14, 6, 32, 16);
@@ -2249,29 +2249,38 @@ function carveBossLayout(map, layout) {
       main: bossRoom(14, 6, 32, 16),
       su: { x: 2, y: 14 },
       sd: { x: 57, y: 14 },
+      escapeCorridors: [{ x: 1, y: 12, w: 14, h: 6, width: 6, axis: "horizontal" }, { x: 45, y: 12, w: 14, h: 6, width: 6, axis: "horizontal" }],
     };
   }
-  if (layout === "big_open") {
-    carveBossRect(map, 4, 3, 52, 24);
+  if (layout === "four_gate") {
+    carveBossRect(map, 12, 7, 36, 16);
+    carveBossRect(map, 26, 1, 8, 7);
+    carveBossRect(map, 26, 22, 8, 7);
+    carveBossRect(map, 1, 12, 12, 6);
+    carveBossRect(map, 47, 12, 12, 6);
     placeBossPillars(map, [
-      [12, 8], [13, 8], [12, 9], [13, 9],
-      [46, 8], [47, 8], [46, 9], [47, 9],
-      [12, 20], [13, 20], [12, 21], [13, 21],
-      [46, 20], [47, 20], [46, 21], [47, 21],
-      [28, 14], [29, 14], [28, 15], [29, 15],
+      [16, 10], [17, 10], [16, 11], [17, 11],
+      [42, 10], [43, 10], [42, 11], [43, 11],
+      [16, 18], [17, 18], [16, 19], [17, 19],
+      [42, 18], [43, 18], [42, 19], [43, 19],
+      [28, 13], [29, 13], [30, 13], [31, 13],
+      [28, 17], [29, 17], [30, 17], [31, 17],
     ]);
     return {
-      rooms: [bossRoom(4, 3, 52, 24)],
-      main: bossRoom(4, 3, 52, 24),
-      su: { x: 8, y: 4 },
-      sd: { x: 51, y: 25 },
+      rooms: [bossRoom(12, 7, 36, 16)],
+      main: bossRoom(12, 7, 36, 16),
+      su: { x: 29, y: 2 },
+      sd: { x: 30, y: 27 },
+      escapeCorridors: [
+        { x: 26, y: 1, w: 8, h: 7, width: 8, axis: "vertical" }, { x: 26, y: 22, w: 8, h: 7, width: 8, axis: "vertical" },
+        { x: 1, y: 12, w: 12, h: 6, width: 6, axis: "horizontal" }, { x: 47, y: 12, w: 12, h: 6, width: 6, axis: "horizontal" },
+      ],
     };
   }
   if (layout === "L_shape") {
     carveBossRect(map, 4, 16, 40, 11);
     carveBossRect(map, 36, 3, 20, 24);
     placeBossPillars(map, [
-      [8, 19], [9, 19], [8, 20], [9, 20],
       [48, 8], [49, 8], [48, 9], [49, 9],
       [48, 20], [49, 20], [48, 21], [49, 21],
     ]);
@@ -2280,6 +2289,7 @@ function carveBossLayout(map, layout) {
       main: bossRoom(36, 3, 20, 24),
       su: { x: 6, y: 21 },
       sd: { x: 50, y: 5 },
+      escapeCorridors: [{ x: 4, y: 16, w: 40, h: 11, width: 11, axis: "horizontal" }],
     };
   }
   if (layout === "two_stage") {
@@ -2295,6 +2305,7 @@ function carveBossLayout(map, layout) {
       main: bossRoom(12, 14, 36, 13),
       su: { x: 29, y: 3 },
       sd: { x: 29, y: 25 },
+      escapeCorridors: [{ x: 26, y: 10, w: 8, h: 4, width: 8, axis: "vertical" }],
     };
   }
   if (layout === "T_wide") {
@@ -2311,6 +2322,7 @@ function carveBossLayout(map, layout) {
       main: bossRoom(8, 9, 44, 17),
       su: { x: 29, y: 2 },
       sd: { x: 29, y: 24 },
+      escapeCorridors: [{ x: 24, y: 1, w: 12, h: 9, width: 12, axis: "vertical" }],
     };
   }
   /* arena_ns：従来の中央アリーナ＋南北の広い通路 */
@@ -2330,10 +2342,11 @@ function carveBossLayout(map, layout) {
     main: bossRoom(10, 8, 40, 14),
     su: { x: 29, y: 1 },
     sd: { x: 29, y: MH - 2 },
+    escapeCorridors: [{ x: 27, y: 1, w: 6, h: 7, width: 6, axis: "vertical" }, { x: 27, y: 22, w: 6, h: MH - 2 - 22, width: 6, axis: "vertical" }],
   };
 }
 
-const BOSS_LAYOUTS = ["arena_ns", "arena_ew", "big_open", "L_shape", "two_stage", "T_wide"];
+const BOSS_LAYOUTS = ["arena_ns", "arena_ew", "four_gate", "L_shape", "two_stage", "T_wide"];
 
 function isBossDryWalk(tile) {
   return tile === T.FLOOR || tile === T.SU || tile === T.SD;
@@ -2374,7 +2387,7 @@ function paintBossWaterRect(map, x, y, w, h, su, sd) {
 }
 
 /** クラーケン用の水場。部屋の外周は床のまま残し、上りから下りへ水を踏まずに迂回できる位置に置く。 */
-function carveKrakenWater(map, main, su, sd) {
+function carveKrakenWater(map, main, su, sd, reservedRects = []) {
   const margin = 2;
   const innerX = main.x + margin;
   const innerY = main.y + margin;
@@ -2390,6 +2403,11 @@ function carveKrakenWater(map, main, su, sd) {
       let wY = main.cy - Math.floor(wH / 2) + sy;
       wX = clamp(wX, innerX, innerX + innerW - wW);
       wY = clamp(wY, innerY, innerY + innerH - wH);
+      const overlapsReserved = reservedRects.some((rect) =>
+        wX < rect.x + rect.w && wX + wW > rect.x &&
+        wY < rect.y + rect.h && wY + wH > rect.y,
+      );
+      if (overlapsReserved) continue;
       if (paintBossWaterRect(map, wX, wY, wW, wH, su, sd)) return;
     }
   }
@@ -2462,7 +2480,7 @@ function genBossFloor(depth, dungeonType = null) {
 
   /* クラーケン専用：迂回できる位置に水場を置く */
   if (bt.baseKind === "im_boss_kraken" || bt.baseKind === "boss_krakenbio") {
-    carveKrakenWater(map, main, { x: suX, y: suY }, { x: sdX, y: sdY });
+    carveKrakenWater(map, main, { x: suX, y: suY }, { x: sdX, y: sdY }, carved.escapeCorridors);
     if (bt.baseKind === "boss_krakenbio") {
       const bioWaterSpawns = [];
       for (let y = main.y; y < main.y + main.h - 1; y++) for (let x = main.x; x < main.x + main.w - 1; x++) {
@@ -2607,10 +2625,13 @@ function genBossFloor(depth, dungeonType = null) {
   const isOccMon = (x, y) => allMons.some(mn => monsterOccupiesCell(mn, x, y));
   const isStair = (x, y) => (x === suX && y === suY) || (x === sdX && y === sdY);
   const inBossRoom = (x, y) => rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  const inBossEscapeCorridor = (x, y) => (carved.escapeCorridors || []).some((corridor) =>
+    x >= corridor.x && x < corridor.x + corridor.w && y >= corridor.y && y < corridor.y + corridor.h,
+  );
   const rndBossFloor = (occ, roomOnly = false) => {
     for (let a = 0; a < 160; a++) {
       const x = rng(1, MW - 2), y = rng(1, MH - 2);
-      if (map[y][x] !== T.FLOOR || occ(x, y)) continue;
+      if (map[y][x] !== T.FLOOR || occ(x, y) || inBossEscapeCorridor(x, y)) continue;
       if (roomOnly && !inBossRoom(x, y)) continue;
       return [x, y];
     }
@@ -2626,7 +2647,7 @@ function genBossFloor(depth, dungeonType = null) {
     for (let y = main.y; y < main.y + main.h; y++) {
       for (let x = main.x; x < main.x + main.w; x++) {
         const distance = Math.max(Math.abs(x - bossX), Math.abs(y - bossY));
-        if (distance < 2 || distance > 5 || map[y]?.[x] !== T.FLOOR || occ(x, y)) continue;
+        if (distance < 2 || distance > 5 || map[y]?.[x] !== T.FLOOR || occ(x, y) || inBossEscapeCorridor(x, y)) continue;
         candidates.push([x, y]);
       }
     }
@@ -2636,7 +2657,7 @@ function genBossFloor(depth, dungeonType = null) {
     const candidates = [];
     for (let y = main.y; y < main.y + main.h; y++) {
       for (let x = main.x; x < main.x + main.w; x++) {
-        if (map[y]?.[x] === T.FLOOR && !occ(x, y)) candidates.push([x, y]);
+        if (map[y]?.[x] === T.FLOOR && !occ(x, y) && !inBossEscapeCorridor(x, y)) candidates.push([x, y]);
       }
     }
     return candidates.length > 0 ? pick(candidates) : null;
@@ -2711,6 +2732,7 @@ function genBossFloor(depth, dungeonType = null) {
     floorType: "bossFloor",
     isBossFloor: true,
     bossLayout,
+    bossEscapeCorridors: carved.escapeCorridors,
     ...(pyrobolosGroupId ? {
       pyrobolosBossGroup: {
         id: pyrobolosGroupId, name: bt.name, baseKind: bt.baseKind, bossTier: bt.bossTier,
