@@ -3894,10 +3894,11 @@ export function InventoryModal({
   const _selectedPot = !_isFloorPg && selIdx !== null
     ? p.inventory[invPage * 10 + selIdx]
     : null;
-  const _selectedPotContents = _selectedPot?.type === "pot" ? [
-    ...(_selectedPot.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
-    ...(_selectedPot.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
-  ] : [];
+  const _potContentsOf = (potItem) => [
+    ...(potItem.contents ?? []).map((c, ci) => ({ key: `item-${ci}`, name: itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames) })),
+    ...(potItem.confinedMonsters ?? []).map((c, ci) => ({ key: `monster-${ci}`, name: c.name || "モンスター" })),
+  ];
+  const _selectedPotContents = _selectedPot?.type === "pot" ? _potContentsOf(_selectedPot) : [];
   const _getFloorActs = (entry) => {
     const _role = floorEntryRole(entry, _flItems, _flTraps);
     const _descAct = { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) };
@@ -4206,6 +4207,35 @@ export function InventoryModal({
                       )}
                     </div>
                   )}
+                  {mobile && it.type === "pot" && (
+                    <div role="region" aria-label="壺の中身" style={{
+                      marginTop: 6, maxHeight: "38dvh", display: "flex", flexDirection: "column",
+                      background: "#0e0e1a", border: "1px solid #8a6a20", borderRadius: 7,
+                      boxSizing: "border-box",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                        padding: "8px 10px", borderBottom: "1px solid #4a3a10", flexShrink: 0 }}>
+                        <span style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", overflowWrap: "anywhere" }}>
+                          {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(it)}/{it.capacity}]
+                        </span>
+                        <button onClick={() => { setSelIdx(null); setInvMenuSel(null); }}
+                          aria-label="壺の中身を閉じる"
+                          style={{ background: "#25202a", color: "#ddd", border: "1px solid #59451b", borderRadius: 4,
+                            padding: "2px 8px", cursor: "pointer", flexShrink: 0 }}>✕</button>
+                      </div>
+                      <div style={{ padding: "6px 10px 8px", overflowY: "auto", minHeight: 0, overflowWrap: "anywhere" }}>
+                        {_potContentsOf(it).length === 0 ? (
+                          <div style={{ color: "#777", fontSize: 13 }}>（空）</div>
+                        ) : (
+                          _potContentsOf(it).map((entry) => (
+                            <div key={entry.key} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em", overflowWrap: "anywhere" }}>
+                              · {entry.name}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -4213,7 +4243,7 @@ export function InventoryModal({
         })
       )}
     </div>
-    {_selectedPot?.type === "pot" && (
+    {!mobile && _selectedPot?.type === "pot" && (
       <div role="region" aria-label="壺の中身" style={{
         position: "absolute", left: mobile ? 8 : "50%", right: mobile ? 8 : undefined,
         bottom: mobile ? 8 : 16, transform: mobile ? undefined : "translateX(-50%)",
