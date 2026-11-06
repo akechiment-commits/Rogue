@@ -326,6 +326,38 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(restored.hp).toBe(140);
   });
 
+  it("神竜の稲妻は魔法ではないため魔法反射で跳ね返されず、魔封じの魔方陣でも防げない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.10);
+    const shinryu = {
+      ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10,
+      hp: SHINRYU_BOSS.hp, maxHp: SHINRYU_BOSS.hp, aware: true, dormant: false,
+    };
+    const omega = {
+      ...OMEGA_BOSS, id: "omega", x: 16, y: 16,
+      hp: OMEGA_BOSS.hp, maxHp: OMEGA_BOSS.hp, aware: true, dormant: false,
+    };
+    const player = makePlayer({
+      x: 15, y: 12, hp: 500, maxHp: 500,
+      armor: { name: "反射の鎧", def: 0, ability: "wand_reflect" },
+      magicReflectTurns: 10,
+    });
+    const dungeon = makeEmptyDg({
+      monsters: [shinryu, omega],
+      pentacles: [{ kind: "magic_seal", name: "魔封じの魔方陣", x: 10, y: 10 }],
+      ...visibleRoom(),
+    });
+    const messages = [];
+
+    monsterAI(shinryu, dungeon, player, messages, { moveOnly: true });
+    expect(shinryu._omegaShinryuAttackReady).toBe("lightning");
+    monsterAI(shinryu, dungeon, player, messages, { attackOnly: true });
+
+    expect(shinryu.hp).toBe(SHINRYU_BOSS.hp);
+    expect(player.hp).toBe(450);
+    expect(omega.hp).toBe(OMEGA_BOSS.hp - 75);
+    expect(messages.some(message => message.includes("跳ね返した"))).toBe(false);
+  });
+
   it("マスタードボムはオメガ死亡後も既存の2ターン爆弾処理で爆発する", () => {
     const omega = { ...OMEGA_BOSS, id: "omega", x: 10, y: 10 };
     const player = makePlayer({ x: 12, y: 10 });

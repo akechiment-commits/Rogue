@@ -8417,9 +8417,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     delete m._omegaShinryuAttackReady;
     delete m._omegaShinryuAttackLine;
   }
+  const _omegaShinryuMagicSealed = inMagicSealRoom(m.x, m.y, dg);
   if ((isOmega || isShinryu) && !m.sealed && !isAttackSealed(m) && !m.blind &&
       !(m.confusedTurns > 0) && !m.bewitched && !_plInvis && !_plPotHidden &&
-      !_plOnBlessedSanc && !inMagicSealRoom(m.x, m.y, dg) &&
+      !_plOnBlessedSanc && (!_omegaShinryuMagicSealed || isShinryu) &&
       m.turnAttacks < monEffectiveMaxAttacks(m)) {
     if (_moveOnly) {
       const line = canSee ? getOmegaShinryuLine(m, dg, pl, 1) : null;
@@ -8427,7 +8428,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const attack = isOmega
         ? chooseOmegaAttack(line, adjacent, canSee)
         : chooseShinryuAttack(line, adjacent, canSee);
-      if (attack) {
+      if (attack && (!_omegaShinryuMagicSealed || attack === "lightning")) {
         m._omegaShinryuAttackReady = attack;
         if (line) m._omegaShinryuAttackLine = { origin: line.origin, dx: line.dx, dy: line.dy, distance: line.distance };
         return;
@@ -8437,7 +8438,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const line = m._omegaShinryuAttackLine;
       delete m._omegaShinryuAttackReady;
       delete m._omegaShinryuAttackLine;
-      if (m.sealed || isAttackSealed(m) || inMagicSealRoom(m.x, m.y, dg) ||
+      if (m.sealed || isAttackSealed(m) || (_omegaShinryuMagicSealed && attack !== "lightning") ||
           m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
       m.turnAttacks++;
       if (attack === "waveCannon" || attack === "tidalWave" || attack === "evilEye") {

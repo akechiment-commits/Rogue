@@ -9,7 +9,7 @@ import {
   isAttackSealed, isStatusImmune, resolveParalysisHit,
 } from "./statusDuration.js";
 import {
-  blockPlayerStatus, hasPlayerMagicReflect, playerMagicReflectLabel, killMonster, pushEntity,
+  killMonster, pushEntity,
   blankScrollOrSpellbook, reduceWaterDamage, waterResistDamageLabel,
   reduceLightningDamage, hasLightningResist, lightningResistDamageLabel,
   applyLightningToInventory, wallBreakDrop,
@@ -409,13 +409,8 @@ export function castShinryuMightyGuard(monster, dungeon, player, messages, luFn 
 export function castShinryuLightning(monster, dungeon, player, room, messages, luFn = null) {
   messages.push(`${monster.name}が稲妻を呼び寄せた！`);
   const inRoom = (x, y) => !!room && combatDeps.findRoom?.(dungeon.rooms, x, y) === room;
-  if (player.hp > 0) {
-    if (hasPlayerMagicReflect(player)) {
-      const damage = 50;
-      monster.hp -= damage;
-      messages.push(`${playerMagicReflectLabel(player)}が稲妻を神竜へ跳ね返した！${damage}ダメージ！`);
-      if (monster.hp <= 0) killMonster(monster, dungeon, player, messages, luFn, false, player);
-    } else if (!consumeBarrier(player, messages)) {
+  if (player.hp > 0 && (!room || !combatDeps.findRoom || inRoom(player.x, player.y))) {
+    if (!consumeBarrier(player, messages)) {
       const damage = reduceLightningDamage(50, player);
       player.deathCause = `${monster.name}の稲妻で`;
       player.hp -= damage;
