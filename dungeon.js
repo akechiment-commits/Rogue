@@ -2509,7 +2509,7 @@ function genBossFloor(depth, dungeonType = null) {
     lastPx: bossX,
     lastPy: bossY,
     patrolTarget: null,
-    ...((bt.baseKind === "boss_flock" || bt.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: bt.hp } : {}),
+    ...((bt.baseKind === "boss_flock" || bt.baseKind === "boss_flock_revenge" || bt.baseKind === "boss_flock_stalker") ? { _flockHpDialogueSnapshot: bt.hp } : {}),
     ...(bt.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: bt.hp } : {}),
     ...(bt.baseKind === "boss_gwen_veteran" ? { projectileAmmo: makePiercingArrow(12) } : {}),
   };
@@ -2543,6 +2543,7 @@ function genBossFloor(depth, dungeonType = null) {
       case "boss_gwen_veteran":  return [];
       case "boss_flock":         return [];
       case "boss_flock_revenge": return [];
+      case "boss_flock_stalker": return [];
       case "boss_korgon":        return [];
       case "boss_pyrobolos":    return [];
       case "boss_krakenbio":    return [
@@ -4508,4 +4509,14 @@ export function genTutorialFloor(floorNum, opts = {}) {
         : "訓練の証を手に入れ、B1Fの上り階段から生還しよう",
     isLastFloor: isReturnFloor,
   };
+}
+
+export function purgeFlockBosses(state) {
+  if (!state) return;
+  state._abyssTomeAcquired = true;
+  for (const f of [state.floors?.[10], state.floors?.[25], state.dungeon]) {
+    if (f?.monsters) {
+      f.monsters = f.monsters.filter(m => m.baseKind !== "boss_flock" && m.baseKind !== "boss_flock_revenge");
+    }
+  }
 }

@@ -415,6 +415,58 @@ export const FLOCK_REVENGE_CRITICAL_LINES = Object.freeze([
   "ひぃっ……！視界が点滅してる……！？",
   "ま、まだだ……！逆襲の逆襲の準備がある……はず！",
 ]);
+export const FLOCK_STALKER_SPAWN_LINES = Object.freeze([
+  "ふっふっふ……深淵の主たる私が、直々にその禁書を回収してあげるわ！",
+  "待ちなさい！ 深淵の禁書を持ち出すなんて、絶対に絶対に許さないんだから！",
+  "よくも私の禁書を奪ってくれたわね……！ 40階相当の魔力で捻り潰してあげるわ！",
+  "地上へお持ち帰り？ 冗談じゃないわ！ その禁書は私のものよ！",
+]);
+export const FLOCK_STALKER_PURSUIT_LINES = Object.freeze([
+  "逃げても無駄よ！ 私の探知魔法からは逃れられないんだから！",
+  "はぁ、はぁ……階段上るの疲れるのよ！ でも禁書のためなら……！",
+  "追いついたわ！ ここでその禁書を置いていきなさい！",
+  "どこまで逃げる気！？ 執念のフロックを舐めないでよね！",
+]);
+export const FLOCK_STALKER_CHASE_LINES = Object.freeze([
+  "返しなさい！ それは私の禁書よ！",
+  "ちょっと足が速すぎない！？ 待ちなさいって言ってるでしょ！",
+  "禁書さえ手に入れば、私の魔力は無限……返せぇぇ！",
+  "大人しく渡せば痛い目には遭わせないであげるわよ！",
+  "ふふふ……私の倍速の俊足からは誰も逃れられないわ！",
+]);
+export const FLOCK_STALKER_ANTI_STEAL_LINES = Object.freeze([
+  "な、なによその鎧！？ 私の手が弾かれたんだけど！？",
+  "嘘でしょ！？ 護盗なんて聞いてないわよ！ 卑怯よ！",
+  "くっ……ガードが堅いわね！ でも諦めないんだから！",
+  "ちょっと！ 防御力高すぎ！ 禁書だけ素直に渡しなさいよ！",
+]);
+export const FLOCK_STALKER_STEAL_SUCCESS_LINES = Object.freeze([
+  "あーっはっは！ 禁書はいただいたわ！ 追ってきても無駄よ、じゃあね！",
+  "やった！ ついに深淵の禁書を取り戻したわ！ さっさとズラかるわよ！",
+  "ふふん、油断したわね！ この禁書は私のコレクションに戻させてもらうわ！",
+]);
+export const FLOCK_STALKER_PICKUP_FLOOR_LINES = Object.freeze([
+  "あんなところに禁書が落ちてる！？ ……ラッキー、回収完了よ！",
+  "地面に放置するなんてバチが当たるわよ！ 私が保護してあげるわ！",
+  "ふふん、床に落ちてるものは拾った人のものよ！ いただきっ！",
+]);
+export const FLOCK_STALKER_HURT_LINES = Object.freeze([
+  "痛っ！ 乱暴なことしないでよ！",
+  "きゃっ！？ 禁書に傷がついたらどうするの！",
+  "ぐぬぬ……相変わらず手加減を知らないやつね！",
+  "ちょ、ちょっと！ ドレスが焦げたら弁償してもらうわよ！",
+]);
+export const FLOCK_STALKER_CRITICAL_LINES = Object.freeze([
+  "ひ、ひぃぃ……！ 40階級の魔力をもってしてもこれなの！？",
+  "ま、まずいわ……禁書を取り返すどころか消滅しちゃう……！",
+  "う、嘘でしょ……逆襲の逆襲のさらにその次なのに……！？",
+  "痛い、痛いってばぁ……！ もうやめてぇ……！",
+]);
+export const FLOCK_STALKER_DEATH_LINES = Object.freeze([
+  "そんなぁぁ……！ 私の禁書がぁぁぁ……！（バタッ）",
+  "また負けたぁぁぁ！ 次こそは……次こそは覚えてなさいよぉぉ……！",
+  "ひどい……ひどすぎるわ……こんなのってないじゃない……ぐすっ",
+]);
 export const SION_IDLE_LINES = Object.freeze([
   "フフフ……光と闇の境界を見て来たのだ！",
   "我は黒き魔弾の射手……我が射線に入ったことを後悔するがいい！",
@@ -2090,6 +2142,15 @@ export const FLOCK_REVENGE_BOSS = {
   desc: "超上級B25Fの浮遊ボス。最大MP1300（同室交戦で魔法約70回分）。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。雷は同室のプレイヤーだけを対象にし、他の敵には当たらない。プレイヤーの反射の鎧／魔法反射状態で術者へ跳ね返る。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
+export const FLOCK_STALKER_BOSS = {
+  name: "執念のフロック", hp: 2000, atk: 145, def: 85, exp: 52000,
+  speed: 2, tile: 258, kind: "humanoid", baseKind: "boss_flock_stalker", subtype: "flockStalkerBoss",
+  isBoss: true, bossTier: 8, monLevel: 1, maxAttacks: 1, float: true,
+  mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 2,
+  deathLines: FLOCK_STALKER_DEATH_LINES,
+  desc: "深淵の禁書を持ち帰ろうとする冒険者を執拗に追うフロック。超上級B10F以降の帰り道に出現する。40階ボス相当の能力値と2倍速1回行動を持ち、禁書を取り返すためプレイヤーへ接近して隣接時に盗みを試みる。盗みは護盗で防げる。禁書を奪うか床の禁書を拾うとテレポートで逃走し、本来の3マス維持・隣接時テレポートの遠距離魔法AIに戻る。倒さない限り上の階層へ移動しても追跡してくる。",
+};
+
 /* 超上級B35F専用。中級クラーケンの水域戦術を進化させた2×2マスの水棲ボス。 */
 export const KRAKEN_BIO_BOSS = {
   name: "クラーケンバイオ", hp: 1800, atk: 110, def: 75, exp: 30000,
@@ -2099,7 +2160,7 @@ export const KRAKEN_BIO_BOSS = {
   desc: "超上級B35Fに現れる2×2マスの水棲ボス。雷弱点。水中では毎ターン30HP回復し、HP50%以下で水場へ逃走、80%以上まで回復すると再び攻めてくる。直線上に墨を吐いて暗闇にし、水鉄砲はわてりと同じ弾道で攻撃する。水中にいて通常攻撃の射程外なら、50%で水中花と同じ追尾弾（竜巻）を放つ。",
 };
 
-export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS];
+export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, FLOCK_STALKER_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS];
 
 /* 超上級B40F専用。多色の属性ブレスと隣接6連撃を使う3×3竜。 */
 export const HEXACHROMATIC_BOSS = {
@@ -2876,7 +2937,7 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
-    ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
+    ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge" || st.baseKind === "boss_flock_stalker") ? { _flockHpDialogueSnapshot: st.hp } : {}),
     ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(st.subtype === "sleepingLion" || dormant ? { dormant: true, _dormantHp: st.hp } : {}),
@@ -6375,16 +6436,19 @@ function flockHpChangeDialogue(monster, dungeon, messages, attackOnly = false) {
   monster._flockHpDialogueSnapshot = monster.hp;
   if (monster.hp >= previousHp) return;
   const critical = monster.hp <= (monster.maxHp || monster.hp) * 0.25;
+  const isStalker = monster.baseKind === "boss_flock_stalker";
   const isRevenge = monster.baseKind === "boss_flock_revenge";
   let lines;
   if (monster.sealed) {
-    lines = isRevenge
+    lines = isStalker || isRevenge
       ? (critical ? FLOCK_REVENGE_SEALED_CRITICAL_LINES : FLOCK_REVENGE_SEALED_HURT_LINES)
       : (critical ? FLOCK_SEALED_CRITICAL_LINES : FLOCK_SEALED_HURT_LINES);
+  } else if (isStalker) {
+    lines = critical ? FLOCK_STALKER_CRITICAL_LINES : FLOCK_STALKER_HURT_LINES;
+  } else if (isRevenge) {
+    lines = critical ? FLOCK_REVENGE_CRITICAL_LINES : FLOCK_REVENGE_HURT_LINES;
   } else {
-    lines = isRevenge
-      ? (critical ? FLOCK_REVENGE_CRITICAL_LINES : FLOCK_REVENGE_HURT_LINES)
-      : (critical ? FLOCK_CRITICAL_LINES : FLOCK_HURT_LINES);
+    lines = critical ? FLOCK_CRITICAL_LINES : FLOCK_HURT_LINES;
   }
   if (Math.random() < (critical ? 0.50 : 0.35)) messages.push(`${monster.name}「${pick(lines)}」`);
 }
@@ -6553,7 +6617,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   installShinryuMightyGuardHpHook(m);
   const _isFlockBoss = m.baseKind === "boss_flock";
   const _isFlockRevenge = m.baseKind === "boss_flock_revenge";
-  const _isFlockVariant = _isFlockBoss || _isFlockRevenge;
+  const _isFlockStalker = m.baseKind === "boss_flock_stalker";
+  const _isFlockVariant = _isFlockBoss || _isFlockRevenge || _isFlockStalker;
   const _isGwen = m.baseKind === "boss_gwen";
   const _isGwenVeteran = m.baseKind === "boss_gwen_veteran";
   const _isGwenVariant = _isGwen || _isGwenVeteran;
@@ -6786,7 +6851,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   /* 逆襲のフロックは、毒の継続ダメージを受けてから行動可能な異常を浄化する。 */
-  if (_isFlockRevenge && hasFlockPurgeableStatus(m) &&
+  if ((_isFlockRevenge || _isFlockStalker) && hasFlockPurgeableStatus(m) &&
       !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
       !!opts.monsterWandFn && !m.sealed &&
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
@@ -7705,9 +7770,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
     const room = findRoom(dg.rooms, m.x, m.y);
     const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
-    const availableAttacks = (_isFlockRevenge ? FLOCK_REVENGE_ATTACK_EFFECTS : FLOCK_MAGIC_EFFECTS)
+    const availableAttacks = (_isFlockRevenge || _isFlockStalker ? FLOCK_REVENGE_ATTACK_EFFECTS : FLOCK_MAGIC_EFFECTS)
       .filter(effect => m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10));
-    const canCast = canSeePlayer && canUseMagic && inLine && distance >= (_isFlockRevenge ? 2 : 3) && distance <= 10 &&
+    const canCast = canSeePlayer && canUseMagic && inLine && distance >= (_isFlockRevenge || _isFlockStalker ? 2 : 3) && distance <= 10 &&
       availableAttacks.length > 0;
     const reserveOrCastSpell = (spell, cornered = false) => {
       if (_moveOnly) {
@@ -7767,6 +7832,69 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
+    /* ── 執念のフロック：床の禁書拾得 ── */
+    const _floorGoalItem = dg.items?.find(i => i.name === "深淵の禁書" || i.type === "goal");
+    if (_isFlockStalker && !m._hasStolenBook && _floorGoalItem) {
+      const _fgDist = Math.max(Math.abs(m.x - _floorGoalItem.x), Math.abs(m.y - _floorGoalItem.y));
+      if (_fgDist <= 1) {
+        if (_moveOnly) return;
+        removeFloorItem(dg, _floorGoalItem);
+        m.stolenGoalItem = _floorGoalItem;
+        m._hasStolenBook = true;
+        ml.push(`${m.name}は床の【${_floorGoalItem.name}】を素早く拾い上げた！`);
+        ml.push(`${m.name}「${pick(FLOCK_STALKER_PICKUP_FLOOR_LINES)}」`);
+        teleportFlockAway(m, dg, pl, ml);
+        return;
+      }
+      const _ffFloat = monEffectiveFloat(m) && (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
+      const _nextToGoal = bfsNext(dg.map, dg.monsters || [], m.x, m.y, _floorGoalItem.x, _floorGoalItem.y, m,
+        60, dg.pentacles, _ffFloat, (x, y) => canEnter(dg.map, x, y, _ffFloat, dg, m.waterWalker),
+        false, dg.rooms, dg);
+      if (_nextToGoal && canEnter(dg.map, _nextToGoal.x, _nextToGoal.y, _ffFloat, dg, m.waterWalker) &&
+          !dg.monsters?.some(o => o !== m && monsterOccupiesCell(o, _nextToGoal.x, _nextToGoal.y))) {
+        m.dir = { x: _nextToGoal.x - m.x, y: _nextToGoal.y - m.y };
+        m.x = _nextToGoal.x;
+        m.y = _nextToGoal.y;
+        m._movedThisTurn = true;
+        if (Math.max(Math.abs(m.x - _floorGoalItem.x), Math.abs(m.y - _floorGoalItem.y)) <= 1 && !_moveOnly) {
+          removeFloorItem(dg, _floorGoalItem);
+          m.stolenGoalItem = _floorGoalItem;
+          m._hasStolenBook = true;
+          ml.push(`${m.name}は床の【${_floorGoalItem.name}】を素早く拾い上げた！`);
+          ml.push(`${m.name}「${pick(FLOCK_STALKER_PICKUP_FLOOR_LINES)}」`);
+          teleportFlockAway(m, dg, pl, ml);
+        }
+      }
+      return;
+    }
+
+    /* ── 執念のフロック：隣接時に深淵の禁書を盗む（護盗で防げる） ── */
+    if (_isFlockStalker && !m._hasStolenBook && distance <= 1) {
+      if (_moveOnly) return;
+      if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        m.turnAttacks++;
+        const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
+        if (_hasAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+          ml.push(`${m.name}「${pick(FLOCK_STALKER_ANTI_STEAL_LINES)}」`);
+          return;
+        }
+        const _goalIdx = pl.inventory?.findIndex(i => i.name === "深淵の禁書" || i.type === "goal");
+        if (_goalIdx >= 0) {
+          const _stolen = pl.inventory[_goalIdx];
+          detachPlayerEquipment(pl, _stolen);
+          pl.inventory.splice(_goalIdx, 1);
+          m.stolenGoalItem = _stolen;
+          m._hasStolenBook = true;
+          ml.push(`${m.name}が素早い手つきで【${_stolen.name}】を奪い去った！`);
+          ml.push(`${m.name}「${pick(FLOCK_STALKER_STEAL_SUCCESS_LINES)}」`);
+          teleportFlockAway(m, dg, pl, ml);
+          return;
+        }
+      }
+      return;
+    }
+
     if (distance <= 1 && canSeePlayer && canUseMagic) {
       if (_isFlockRevenge && m.mp >= FLOCK_MAGIC_MP_COSTS.self_destruct_magic && Math.random() < 0.10) {
         reserveOrCastSpell("self_destruct_magic");
@@ -7787,7 +7915,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    if (_isFlockRevenge && sameRoom && canSeePlayer && canUseMagic) {
+    if ((_isFlockRevenge || _isFlockStalker) && sameRoom && canSeePlayer && canUseMagic) {
       const canUseRoomLightning = m.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic;
       const canUseSummon = m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster;
       if (canUseRoomLightning && canUseSummon) {
@@ -7814,6 +7942,28 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       reserveOrCastSpell(pick(availableAttacks));
       return;
     }
+    /* 執念のフロック（禁書未所持）は距離をとるのではなくプレイヤーへ接近する */
+    if (_isFlockStalker && !m._hasStolenBook) {
+      if (!_flockMovementLocked && !m._movedThisTurn) {
+        const _ffFloat = monEffectiveFloat(m) && (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
+        const _nextToPl = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,
+          60, dg.pentacles, _ffFloat, (x, y) => canEnter(dg.map, x, y, _ffFloat, dg, m.waterWalker),
+          false, dg.rooms, dg);
+        if (_nextToPl && canEnter(dg.map, _nextToPl.x, _nextToPl.y, _ffFloat, dg, m.waterWalker) &&
+            !dg.monsters?.some(o => o !== m && monsterOccupiesCell(o, _nextToPl.x, _nextToPl.y)) &&
+            !(_nextToPl.x === pl.x && _nextToPl.y === pl.y)) {
+          m.dir = { x: _nextToPl.x - m.x, y: _nextToPl.y - m.y };
+          m.x = _nextToPl.x;
+          m.y = _nextToPl.y;
+          m._movedThisTurn = true;
+        }
+      }
+      if (canSeePlayer && Math.random() < 0.25) {
+        ml.push(`${m.name}「${pick(FLOCK_STALKER_CHASE_LINES)}」`);
+      }
+      return;
+    }
+
     if (canSeePlayer && !(inLine && distance > 10)) {
       const repositioned = _flockMovementLocked ? false : moveFlockToFiringLine(m, dg, pl);
       const canCastWhileCornered = !repositioned && inLine && distance >= 1 && distance <= 3 &&

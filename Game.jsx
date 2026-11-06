@@ -14,6 +14,9 @@ import {
   monsterAI,
   makeMonster,
   makeMonsterFromBase,
+  FLOCK_STALKER_BOSS,
+  FLOCK_STALKER_SPAWN_LINES,
+  FLOCK_STALKER_PURSUIT_LINES,
   makeGuard,
   wakeIfDormant,
   revealItemMimicAt,
@@ -48,7 +51,7 @@ import { fireTrapPlayer } from "./traps.js";
 import { finishTrapActivationTurn } from "./trapActivationTurn.js";
 import { statueAt, hitStatueWithAction, ensureAltarPriests } from "./fixtures.js";
 import { altarPriestServicePrice, altarPriestServiceTargets } from "./priestServiceRules.js";
-import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS, purgeFlockBosses } from "./dungeon.js";
 import { lootPoolForDungeon, trapPoolForDungeon } from "./dungeonContent.js";
 import { trackItem, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
@@ -1307,6 +1310,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         delete it.wallEmbedded;
         p.inventory.push(it);
         showFirstEncounterTip("goal_item");
+        purgeFlockBosses(sr.current);
         ml.push(`★${it.name}を手に入れた！地上に持ち帰ろう！★`);
         removeFloorItem(dg, it);
         go = true;
@@ -2087,6 +2091,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     /* 店の商品を持ったまま階層を離脱した場合は即座に泥棒状態にする */
     declareFloorExitTheft(pl, sr.current.dungeon);
     sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
+    const _oldStalker = sr.current.dungeon?.monsters?.find(m => m.baseKind === "boss_flock_stalker");
+    if (_oldStalker) {
+      sr.current._flockStalkerSnapshot = {
+        hp: _oldStalker.hp,
+        mp: _oldStalker.mp,
+        _hasStolenBook: _oldStalker._hasStolenBook,
+        stolenGoalItem: _oldStalker.stolenGoalItem,
+      };
+      sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter(m => m !== _oldStalker);
+    }
     suspendFloor(sr.current.dungeon, pl, { stairs });
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
@@ -2100,6 +2114,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       delete sr.current.floors[nd];
     } else {
       d = generateSessionFloor(sr.current, nd, { pitfall });
+    }
+    if (sr.current?._abyssTomeAcquired || pl.inventory?.some(i => i.name === "深淵の禁書" || i.type === "goal")) {
+      d.monsters = (d.monsters || []).filter(m => m.baseKind !== "boss_flock" && m.baseKind !== "boss_flock_revenge");
     }
     setDungeonAllBcKnown(d, !!sr.current.allBcKnown);
     if (!sr.current.allBcKnown) {
@@ -2168,6 +2185,72 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (!sr.current.floors) sr.current.floors = {};
     processPitfallBag(_pfBag, sr.current.floors, sourceDepth, sr.current);
   }, []);
+  /* プレイヤーが深淵の禁書を取得した時に10F/25Fの既存フロックを消滅させる */
+
+  const spawnFlockStalker = useCallback((st, p, dg, ml, dir) => {
+    if (!st || !p || !dg || st.dungeonType !== "legend") return false;
+    const hasAbyssTome = p.inventory?.some(i => i.name === "深淵の禁書" || i.type === "goal");
+    if (!hasAbyssTome) return false;
+    if (p.flockStalkerKilled || st.flockStalkerKilled) return false;
+
+    const isReturning = dir === -1 || (st._flockStalkerActive && dir != null);
+    if (!isReturning && !st._flockStalkerActive) return false;
+    if (p.depth > 10 && !st._flockStalkerActive) return false;
+
+    if (dg.monsters?.some(m => m.baseKind === "boss_flock_stalker")) return false;
+
+    let candidates = [];
+    for (let y = 0; y < MH; y++) {
+      for (let x = 0; x < MW; x++) {
+        if (dg.map[y]?.[x] !== T.FLOOR) continue;
+        if (x === p.x && y === p.y) continue;
+        if (dg.monsters?.some(m => monsterOccupiesCell(m, x, y))) continue;
+        if (Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) >= 4) {
+          candidates.push([x, y]);
+        }
+      }
+    }
+    if (candidates.length === 0) {
+      for (let y = 0; y < MH; y++) {
+        for (let x = 0; x < MW; x++) {
+          if (dg.map[y]?.[x] !== T.FLOOR) continue;
+          if (x === p.x && y === p.y) continue;
+          if (dg.monsters?.some(m => monsterOccupiesCell(m, x, y))) continue;
+          candidates.push([x, y]);
+        }
+      }
+    }
+    if (candidates.length === 0) return false;
+    const [x, y] = pick(candidates);
+
+    const isFirstEncounter = !st._flockStalkerActive;
+    st._flockStalkerActive = true;
+
+    const stalker = makeMonsterFromBase(FLOCK_STALKER_BOSS, 1, x, y, {
+      aware: true,
+      dormant: false,
+      lastPx: p.x,
+      lastPy: p.y,
+    });
+    if (st._flockStalkerSnapshot) {
+      stalker.hp = Math.min(stalker.maxHp, st._flockStalkerSnapshot.hp);
+      stalker.mp = Math.min(stalker.maxMp, st._flockStalkerSnapshot.mp);
+      stalker._flockHpDialogueSnapshot = stalker.hp;
+      if (st._flockStalkerSnapshot._hasStolenBook) stalker._hasStolenBook = true;
+      if (st._flockStalkerSnapshot.stolenGoalItem) stalker.stolenGoalItem = st._flockStalkerSnapshot.stolenGoalItem;
+    }
+
+    dg.monsters.push(stalker);
+    if (isFirstEncounter) {
+      ml.push("背後から凄まじい魔力を感じる……！ 執念のフロックが追いかけてきた！");
+      ml.push(`執念のフロック「${pick(FLOCK_STALKER_SPAWN_LINES)}」`);
+    } else {
+      ml.push("執念のフロックが追いかけてきた！");
+      ml.push(`執念のフロック「${pick(FLOCK_STALKER_PURSUIT_LINES)}」`);
+    }
+    return true;
+  }, []);
+
   const spawnRelicGuardian = useCallback((st, p, dg, ml) => {
     if (!st || !p || !dg || st.dungeonType === "tutorial" || !p.inventory?.some((item) => item.type === "goal")) return false;
     const candidates = [];
@@ -2848,6 +2931,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
           /* ── キーアイテム所持中に上昇 → 遺物の番人が出現 ── */
           if (dir === -1) spawnRelicGuardian(st, p, nd, ml);
+          spawnFlockStalker(st, p, nd, ml, dir);
           acted = true;
         }
       };
@@ -3886,7 +3970,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               trackItem(_grIt);
               delete _grIt.wallEmbedded;
               p.inventory.push(_grIt);
-              if (_grIt.type === "goal") showFirstEncounterTip("goal_item");
+              if (_grIt.type === "goal") {
+                showFirstEncounterTip("goal_item");
+                purgeFlockBosses(sr.current);
+              }
               else if (!_grIt.shopPrice) maybeTipForItem(_grIt);
               if (_grIt.shopPrice) {
                 const _allS2 = getShops(dg);
@@ -6355,7 +6442,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     showFirstEncounterTip("trap");
     trackTrap(trap);
     const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
-    if (_tr2 === "pitfall") { const nd2 = chgFloor(_p, 1, true); if (nd2) { s.dungeon = nd2; ml.push(`地下${_p.depth}階に落ちた！`); } }
+    if (_tr2 === "pitfall") {
+      const nd2 = chgFloor(_p, 1, true);
+      if (nd2) {
+        s.dungeon = nd2;
+        ml.push(`地下${_p.depth}階に落ちた！`);
+        spawnFlockStalker(s, _p, nd2, ml, 1);
+      }
+    }
 
     endTurn(s, _p, ml);
     setMsgs(prev => [...prev.slice(-80), ...ml]);

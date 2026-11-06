@@ -7297,7 +7297,8 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     : mon.baseKind === "boss_gwen_veteran" ? ["守るって決めたのに……ごめんなさい……"]
       : mon.baseKind === "boss_flock" ? ["深淵へ還る時が来たか……って、本当に消えちゃうの！？ 痛い、ひどいよぉ……っ！"]
         : mon.baseKind === "boss_darkbullet" ? ["光と闇の境界が……我を呼んでいるのだ……あ、シフトの連絡しなきゃ……"]
-          : [];
+          : mon.baseKind === "boss_flock_stalker" ? ["そんなぁぁ……！ 私の禁書がぁぁぁ……！（バタッ）"]
+            : [];
   const deathLines = Array.isArray(mon.deathLines) && mon.deathLines.length > 0 ? mon.deathLines : fallbackDeathLines;
   if (deathLines.length > 0 && !mon._deathQuoteShown) {
     mon._deathQuoteShown = true;
@@ -7336,6 +7337,17 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       ml.push(`${clone.name}は本体の消滅とともに倒れた！`);
       killMonster(clone, dg, p, ml, luFn, noExp, killerMon, false, false, false, noExpCause);
     }
+  }
+  /* 執念のフロック：奪った深淵の禁書をドロップし、追跡撃破フラグを記録 */
+  if (mon.baseKind === "boss_flock_stalker") {
+    if (mon.stolenGoalItem) {
+      const _ft = new Set();
+      placeItemAt(dg, mon.x, mon.y, mon.stolenGoalItem, ml, _ft);
+      ml.push(`${mon.name}は奪った【${mon.stolenGoalItem.name}】を取り落とした！`);
+      delete mon.stolenGoalItem;
+    }
+    if (p) p.flockStalkerKilled = true;
+    if (dg) dg.flockStalkerKilled = true;
   }
   /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
   if (mon.carriedItem) {
