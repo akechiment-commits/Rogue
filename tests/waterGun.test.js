@@ -4,6 +4,8 @@ import {
   ARMOR_ABILITIES,
   ITEMS,
   hasWaterProof,
+  reduceWaterDamage,
+  waterResistDamageLabel,
   applyWaterGunToInventory,
   throwItemAlongLine,
   makeStone,
@@ -18,10 +20,11 @@ import {
   applyFrozenPhysicalMult,
   freezeWaterTile,
 } from "../items.js";
+import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { fireTrapPlayer } from "../traps.js";
 import { msgToActionKey } from "../portraits.js";
 import { PORTRAIT_CATEGORIES } from "../portraitCatalog.js";
-import { T } from "../utils.js";
+import { T, MW, MH } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("水鉄砲・耐水", () => {
@@ -39,6 +42,46 @@ describe("水鉄砲・耐水", () => {
     expect(a.ability).toBe("water_proof");
     expect(ARMOR_ABILITIES.some((ab) => ab.id === "water_proof")).toBe(true);
     expect(hasWaterProof({ armor: a })).toBe(true);
+  });
+
+  it("耐水・万能耐性は水属性ダメージを耐火などと同じ倍率で軽減する", () => {
+    expect(reduceWaterDamage(30, { armor: { ability: "water_proof" } })).toBe(20);
+    expect(reduceWaterDamage(30, { armor: { ability: "all_resist" } })).toBe(20);
+    expect(reduceWaterDamage(30, { armor: { ability: "water_proof", abilities: ["all_resist"] } })).toBe(15);
+    expect(reduceWaterDamage(30, { mayonnaiseWaterProofTurns: 5 })).toBe(15);
+    expect(reduceWaterDamage(30, { armor: null })).toBe(30);
+    expect(waterResistDamageLabel({ armor: { ability: "water_proof" } })).toContain("耐水");
+  });
+
+  it("敵の水鉄砲は耐水で水属性ダメージが軽減される", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const watergunBase = MONS.find(monster => monster.subtype === "watergunner");
+    const shooter = makeMonsterFromBase(watergunBase, 1, 5, 5, { aware: true });
+    shooter.alwaysUseSpecial = true;
+    shooter.dormant = false;
+    shooter.turnAttacks = 0;
+    const player = makePlayer({
+      x: 8, y: 5, hp: 200, maxHp: 200,
+      armor: { name: "耐水の鎧", def: 0, ability: "water_proof" },
+    });
+    const visible = Array.from({ length: MH }, () => Array(MW).fill(true));
+    const dungeon = makeEmptyDg({
+      monsters: [shooter], rooms: [{ x: 1, y: 1, w: 20, h: 14 }],
+      visible, explored: visible.map(row => [...row]),
+    });
+    dungeon.map[5][5] = T.WATER;
+    const messages = [];
+
+    try {
+      monsterAI(shooter, dungeon, player, messages, { moveOnly: true });
+      monsterAI(shooter, dungeon, player, messages, { attackOnly: true });
+
+      expect(player.hp, messages.join(" | ")).toBe(194);
+      expect(messages.some(message => message.includes("耐水"))).toBe(true);
+      expect(player.soakedTurns || 0).toBe(0);
+    } finally {
+      random.mockRestore();
+    }
   });
 
   it("blankScrollOrSpellbook が白紙化する", () => {

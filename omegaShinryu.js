@@ -10,6 +10,7 @@ import {
 } from "./statusDuration.js";
 import {
   blockPlayerStatus, hasPlayerMagicReflect, playerMagicReflectLabel, killMonster, pushEntity,
+  blankScrollOrSpellbook, reduceWaterDamage, waterResistDamageLabel,
   reduceLightningDamage, hasLightningResist, lightningResistDamageLabel,
   applyLightningToInventory, wallBreakDrop,
 } from "./items.js";
@@ -270,10 +271,10 @@ function applyOmegaWave(attack, dungeon, player, messages, source) {
 function tidalWavePlayerDamage(attack, dungeon, player, messages, source) {
   if (player.hp <= 0 || consumeBarrier(player, messages)) return;
   const base = calcAtkDefDmg(attack.sourceAtk, calcPlayerDefense(player), { defWeight: 1.5 });
-  const damage = Math.max(1, base * 2);
+  const damage = reduceWaterDamage(Math.max(1, base * 2), player);
   player.deathCause = `${attack.sourceName}のタイダルウエイブで`;
   player.hp -= damage;
-  messages.push(`タイダルウエイブが直撃！水属性の${damage}ダメージ！`);
+  messages.push(`タイダルウエイブが直撃！水属性の${damage}ダメージ！${waterResistDamageLabel(player)}`);
   combatDeps.interruptPlayerSleep?.(player, messages);
   combatDeps.weakenOrClearParalysis?.(player, messages);
   pushEntity(dungeon, player.x, player.y, -attack.dx, -attack.dy, 3,
@@ -285,6 +286,10 @@ function applyTidalWave(attack, dungeon, player, messages, source) {
   destroyBossAreaCircles(dungeon, attack, messages);
   for (const cell of attack.cells || []) pushAnim({ type: "petroBreath", x: cell.x, y: cell.y, color: "#54d9ff" });
   const cells = new Set((attack.cells || []).map(cell => `${cell.x},${cell.y}`));
+  for (const item of [...(dungeon.items || [])]) {
+    if (item.wallEmbedded || !cells.has(`${item.x},${item.y}`)) continue;
+    blankScrollOrSpellbook(item, messages);
+  }
   if (player.hp > 0 && cells.has(`${player.x},${player.y}`)) tidalWavePlayerDamage(attack, dungeon, player, messages, source);
 
   const targets = targetHitCounts(dungeon, attack.cells, source);

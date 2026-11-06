@@ -267,6 +267,28 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(player.x).toBeLessThan(15);
   });
 
+  it("タイダルウエイブの範囲に落ちている巻物・魔法書を白紙化する", () => {
+    const shinryu = { ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10, maxHp: SHINRYU_BOSS.hp };
+    const player = makePlayer({
+      x: 15, y: 10, hp: 500, maxHp: 500,
+      armor: { name: "耐水の鎧", def: 0, ability: "water_proof" },
+    });
+    const scroll = { id: "wet-scroll", type: "scroll", effect: "teleport", name: "テレポートの巻物", x: 14, y: 9 };
+    const spellbook = { id: "wet-book", type: "spellbook", spell: "fire", name: "炎の魔法書", x: 16, y: 11 };
+    const outside = { id: "dry-scroll", type: "scroll", effect: "teleport", name: "テレポートの巻物", x: 28, y: 10 };
+    const dungeon = makeEmptyDg({ monsters: [shinryu], items: [scroll, spellbook, outside], ...visibleRoom() });
+    const messages = [];
+    const line = getOmegaShinryuLine(shinryu, dungeon, player, 2);
+    queueOmegaShinryuAttack(shinryu, dungeon, "tidalWave", line, player, messages);
+
+    advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 2);
+
+    expect(scroll).toMatchObject({ name: "白紙の巻物", effect: "blank" });
+    expect(spellbook).toMatchObject({ name: "白紙の魔法書", spell: null });
+    expect(outside).toMatchObject({ name: "テレポートの巻物", effect: "teleport" });
+    expect(messages.some(message => message.includes("水属性") && message.includes("耐水"))).toBe(true);
+  });
+
   it("悪魔の瞳は隣接外周を1ターン後に石化させる", () => {
     const shinryu = { ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10, maxHp: SHINRYU_BOSS.hp };
     const player = makePlayer({ x: 8, y: 10 });

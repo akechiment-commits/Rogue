@@ -65,7 +65,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, reduceWaterDamage, fireResistDamageLabel, iceResistDamageLabel, waterResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -2057,7 +2057,7 @@ export const SHINRYU_BOSS = {
   name: "神竜", hp: 2400, atk: 172, def: 95, exp: 42000,
   speed: 1, tile: 265, kind: "dragon", baseKind: "boss_shinryu",
   isBoss: true, bossTier: 9, monLevel: 1, maxAttacks: 1, bodySize: 3, float: true,
-  desc: "超上級B45Fにオメガと同時に現れる中心基準の3×3浮遊ドラゴン。遠距離直線上でタイダルウエイブ（射線に沿う幅3・長さ10マスの帯へ2ターン後に通常攻撃の2倍の水属性ダメージと、発射方向の逆への吹き飛ばし。範囲内の魔方陣を破壊）20%、アトミックレイ（80ダメージ火炎ブレス）20%。構え中は移動せず、移動・死亡・行動不能・魔法封じで予兆が中断される。視界内では稲妻（同室の生物へ約50ダメージ。オメガにも命中）20%、マイティガード（10ターン全被ダメージ半減）10%。この2つは隣接時も同じ確率で使う。隣接時10%で悪魔の瞳を予告し、次ターンに本体の全隣接マスへ石化を与える。通常攻撃は3×3本体の全隣接マスを攻撃する。",
+  desc: "超上級B45Fにオメガと同時に現れる中心基準の3×3浮遊ドラゴン。遠距離直線上でタイダルウエイブ（射線に沿う幅3・長さ10マスの帯へ2ターン後に通常攻撃の2倍の水属性ダメージと、発射方向の逆への吹き飛ばし。範囲内の魔方陣を破壊し、落ちている巻物・魔法書を白紙化）20%、アトミックレイ（80ダメージ火炎ブレス）20%。構え中は移動せず、移動・死亡・行動不能・魔法封じで予兆が中断される。視界内では稲妻（同室の生物へ約50ダメージ。オメガにも命中）20%、マイティガード（10ターン全被ダメージ半減）10%。この2つは隣接時も同じ確率で使う。隣接時10%で悪魔の瞳を予告し、次ターンに本体の全隣接マスへ石化を与える。通常攻撃は3×3本体の全隣接マスを攻撃する。",
 };
 
 /* 超上級B50F専用の最終ボス。現行B50Fボスの能力値を維持し、特技・行動回数のみ置換する。 */
@@ -3796,9 +3796,10 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
       const _wVulnPc = findVulnPentacle(dg, pl.x, pl.y);
       let dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
       if (_wVulnPc) dmg = _wVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_wVulnPc.blessed ? 4 : 2);
+      dmg = reduceWaterDamage(dmg, pl);
       pl.deathCause = `${m.name}の水鉄砲で`;
       pl.hp -= dmg;
-      ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！`);
+      ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！${waterResistDamageLabel(pl)}`);
       interruptPlayerSleep(pl, ml);
       weakenOrClearParalysis(pl, ml);
       /* ずぶ濡れ＋所持品への水影響（耐水で無効） */

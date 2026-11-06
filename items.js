@@ -515,7 +515,7 @@ export const ITEMS = [
   { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:4,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠と装備外しの罠も無効化する。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
-  { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
+  { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水属性ダメージを軽減し、水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
   { name:"スリヴァーザ", type:"armor", def:35, ability:"damage_nullify_10", rarity:"S", weight:0.05, minFloor:31, sellPrice:50000, desc:"伝説の鎧。受けるダメージを10%の確率で完全に無効化する。", tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵が特技を常用する。\n呪い：魔法封印。投げると敵も封印。",                 tile:16 },
   { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むと50ターン魔法が封印される。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
@@ -938,7 +938,7 @@ export const POTS = [
   { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(100ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。", tile:32 },
   { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(100ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。",         tile:32 },
   { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。\n食べると満腹度減少速度半減(100ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。",         tile:32 },
-  { name:"マヨネーズの壺",     type:"pot", potEffect:"mayonnaise", capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとマヨネーズ風味になる。\n食べると耐水状態になる(100ターン)。\n容量が残って割れると周囲に油が飛散する。", tile:32 },
+  { name:"マヨネーズの壺",     type:"pot", potEffect:"mayonnaise", capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとマヨネーズ風味になる。\n食べると100ターン、水属性ダメージを半減する耐水状態になる。\n容量が残って割れると周囲に油が飛散する。", tile:32 },
   { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。食べると毒・混乱免疫(100ターン)。",   tile:32 },
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。食べるとMP+10回復。",   tile:32 },
   { name:"強欲な壺",           type:"pot", potEffect:"greed",    capacity:4, rarity:"C", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
@@ -2150,7 +2150,7 @@ export const ARMOR_ABILITIES = [
   { id:"bewitch_proof",    name:"耐惑わし", desc:"幻惑効果を無効化する" },
   { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
   { id:"ice_resist",       name:"耐氷",     desc:"氷ダメージ2/3（万能耐性併用で半減）。移動封じ・鈍足を防ぐ" },
-  { id:"water_proof",      name:"耐水",     desc:"水鉄砲の所持品被害とずぶ濡れを無効化する" },
+  { id:"water_proof",      name:"耐水",     desc:"水属性ダメージ2/3（万能耐性併用で半減）。水鉄砲の所持品被害とずぶ濡れを無効化する" },
   /* 特殊合成専用（錬成では出ない） */
   { id:"dmg_reduce",       name:"被ダメ軽減", desc:"最終的な被ダメージが1割減少する", specialOnly:true },
   { id:"damage_nullify_10", name:"完全無効化", desc:"あらゆる被ダメージを10%の確率で無効化する", specialOnly:true },
@@ -2158,7 +2158,7 @@ export const ARMOR_ABILITIES = [
   { id:"frail",            name:"脆弱",     desc:"近接攻撃を受けた時、ダメージが+3増加する",         curseOnly:true },
   { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
   /* 祝福専用強力能力 */
-  { id:"all_resist",       name:"万能耐性", desc:"炎・氷・雷ダメージ2/3。個別耐性と併用で半減",             blessedOnly:true },
+  { id:"all_resist",       name:"万能耐性", desc:"炎・氷・雷・水ダメージ2/3。個別耐性と併用で半減",       blessedOnly:true },
   { id:"aura",             name:"闘気",     desc:"毎ターン、隣接する敵の体1マスにつき2ダメージを与える",       blessedOnly:true },
 ];
 
@@ -9474,6 +9474,19 @@ export function reduceIceDamage(dmg, p) {
 }
 export function iceResistDamageLabel(p) {
   return _elemResistLabel("耐氷", p, "ice_resist") + _soakedIceLabel(p);
+}
+
+/** 水属性ダメージ軽減：耐水 or 万能耐性のみ→2/3、両方→半減。マヨネーズ耐水状態は追加で半減。 */
+export function reduceWaterDamage(dmg, p) {
+  const mult = _elemResistMult(p, "water_proof");
+  let d = mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  if ((p?.mayonnaiseWaterProofTurns || 0) > 0) d = Math.max(1, Math.floor(d * 0.5));
+  return d;
+}
+export function waterResistDamageLabel(p) {
+  const base = _elemResistLabel("耐水", p, "water_proof");
+  const temporary = (p?.mayonnaiseWaterProofTurns || 0) > 0;
+  return `${base}${temporary ? "（マヨネーズ耐水半減）" : ""}`;
 }
 
 /** プレイヤーが水タイルまたは泉の上にいるか */
