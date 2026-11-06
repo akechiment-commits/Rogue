@@ -3,9 +3,9 @@ import fs from "fs";
 import { genDungeon } from "../dungeon.js";
 import {
   FLOCK_BOSS, FLOCK_DEATH_LINES, FLOCK_SEALED_LINES, FLOCK_SEALED_HURT_LINES, FLOCK_SEALED_CRITICAL_LINES, FLOCK_SPELL_LINES, FLOCK_TELEPORT_LINES,
-  makeMonsterFromBase, monsterAI, _resolveMonsterWandBolt,
+  makeMonsterFromBase, monsterAI, _resolveMonsterWandBolt, resolveFlockFireBolt,
 } from "../monsters.js";
-import { killMonster } from "../items.js";
+import { killMonster, setWandBreakEffectHandler } from "../items.js";
 import { BOSS_UNIQUE_DROP_RULES } from "../bossDropRules.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, drawTile } from "../render.js";
 import { DAWNLIKE_FALLBACKS, MONSTER_SHEET_MAP } from "../tilesetMap.js";
@@ -203,6 +203,28 @@ describe("超上級B10Fボス：フロック", () => {
     } finally {
       drainAnims();
     }
+  });
+
+  it("反射された炎の魔法でフロックが倒れるとプレイヤーに経験値が入る", () => {
+    const { dungeon, flock, player } = makeFlockScene();
+    player.armor = { name: "反射の鎧", ability: "wand_reflect" };
+    player.exp = 0;
+    flock.hp = 10;
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    setWandBreakEffectHandler(() => {});
+    try {
+      resolveFlockFireBolt(flock, dungeon, player, messages, 1, 0);
+    } finally {
+      setWandBreakEffectHandler(null);
+      random.mockRestore();
+    }
+
+    expect(dungeon.monsters).not.toContain(flock);
+    expect(player.exp).toBe(FLOCK_BOSS.exp);
+    expect(messages.some(message => message.includes("反射の鎧が炎の魔法の魔法弾を反射した！"))).toBe(true);
+    expect(messages.some(message => message.includes("倒した！(+") && message.includes("exp"))).toBe(true);
+    expect(messages.some(message => message.includes("フロックは自滅した！"))).toBe(false);
   });
 
   it("眼帯スプライトと3スタイル、杖カテゴリの報酬を登録する", () => {

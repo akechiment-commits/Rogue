@@ -22,6 +22,7 @@ import {
   _resolveMonsterWandBolt,
   monReflectsProjectiles,
   resolveMonsterWandEffect,
+  resolveFlockFireBolt,
   monsterCanInteractAtRange,
   triggerMushroomCounterSpore,
 } from "./monsters.js";
@@ -1527,21 +1528,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
             _wbItemNameFn, m, _wandBlessed, opts.fireTrapFn);
         } else if (_we === "fire_bolt") {
-          const _flockFireImpact = (x, y, mlx) => {
-            doExplosion(x, y, dg, pl, mlx, _wbItemNameFn, "炎の魔法", null, lu,
-              false, false, false, false, {
-                radius: 1, killerMon: m,
-                damageMultiplier: Math.max(1, Number(m.flockMagicPowerMultiplier) || 1),
-              });
-          };
-          _resolveMonsterWandBolt(m, dg, pl, ml, {
-            dx, dy, range: 10, boltColor: "fire_wand", reflectColor: "#ff6622", wandLabel: "炎の魔法",
-            fireMsg: m.baseKind === "boss_flock" ? null : `${m.name}が炎の魔法を唱えた！`,
-            ignoreStatusProtection: true,
-            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
-            onImpact: (_kind, _target, x, y, mlx) => _flockFireImpact(x, y, mlx),
-            onPlayerReflect: (mlx) => _flockFireImpact(m.x, m.y, mlx),
-            onMagicReflect: (_reflector, mlx) => _flockFireImpact(m.x, m.y, mlx),
+          resolveFlockFireBolt(m, dg, pl, ml, dx, dy, {
+            luFn: lu, itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
           });
         } else if (_we === "fire_wand" || _we === "ice_wand") {
           const _wandLabel = _we === "fire_wand" ? "炎" : "氷";

@@ -4398,6 +4398,31 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
   if (!_hit) ml.push(`${wandLabel}の魔法弾は虚空に消えた。`);
 }
 
+/** フロックの炎魔法弾。プレイヤーに反射された場合は反射者に経験値を帰属する。 */
+export function resolveFlockFireBolt(monster, dungeon, player, messages, dx, dy, opts = {}) {
+  const { luFn = null, itemNameFn = null, bbNameFn = bb => bb.name } = opts;
+  const impact = (x, y, log, killerMon = monster) => doExplosion(
+    x, y, dungeon, player, log, itemNameFn, "炎の魔法", null, luFn,
+    false, false, false, false,
+    {
+      radius: 1,
+      killerMon,
+      damageMultiplier: Math.max(1, Number(monster.flockMagicPowerMultiplier) || 1),
+    },
+  );
+
+  _resolveMonsterWandBolt(monster, dungeon, player, messages, {
+    dx, dy, range: 10, boltColor: "fire_wand", reflectColor: "#ff6622", wandLabel: "炎の魔法",
+    fireMsg: monster.baseKind === "boss_flock" ? null : `${monster.name}が炎の魔法を唱えた！`,
+    ignoreStatusProtection: true,
+    itemNameFn,
+    bbNameFn,
+    onImpact: (_kind, _target, x, y, log) => impact(x, y, log),
+    onPlayerReflect: log => impact(monster.x, monster.y, log, null),
+    onMagicReflect: (reflector, log) => impact(monster.x, monster.y, log, reflector),
+  });
+}
+
 function applyOmegaShinryuStatusToMonster(source, target, effect, ml) {
   if (!target || target.hp <= 0 || isStatusImmune(target, ml, target.name)) return;
   if (effect === "blaster") {
