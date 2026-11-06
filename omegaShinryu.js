@@ -157,10 +157,10 @@ export function queueOmegaShinryuAttack(monster, dungeon, attack, line, player, 
     kind: attack, turnsLeft, cells, dx: line?.dx || 0, dy: line?.dy || 0,
   });
   const text = attack === "waveCannon"
-    ? `${monster.name}は波動砲の構えをとった！予兆範囲に2ターン後、100ダメージ！`
+    ? `${monster.name}は波動砲の構えをとった！`
     : attack === "tidalWave"
-      ? `${monster.name}はタイダルウエイブの構えをとった！予兆範囲に2ターン後、水属性の2倍ダメージと吹き飛ばし！`
-      : `${monster.name}が悪魔の瞳を放つ構えを見せた！隣接マスに石化の予兆！1ターン後に発動！`;
+      ? `${monster.name}はタイダルウエイブの構えをとった！`
+      : `${monster.name}は悪魔の瞳の構えをとった！`;
   messages.push(text);
   pushSplashAnim(monster.x, monster.y, attack === "tidalWave" ? "#4ccfff" : attack === "evilEye" ? "#b8a0ff" : "#ff8b52");
   return true;
@@ -439,9 +439,9 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
 export function castOmegaMustardBomb(monster, dungeon, player, messages) {
   (dungeon.pendingBombs ||= []).push({
     x: player.x, y: player.y, turnsLeft: 2,
-    sourceName: monster.name, killerMonId: monster.id,
+    sourceName: monster.name, killerMonId: monster.id, suppressCountdownMessage: true,
   });
-  messages.push(`${monster.name}がマスタードボムを発射した！足元に時限爆弾の予兆が現れた！2ターン後に大爆発する！`);
+  messages.push(`${monster.name}はマスタードボムの構えをとった！`);
   return true;
 }
 

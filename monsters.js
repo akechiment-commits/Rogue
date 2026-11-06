@@ -8535,7 +8535,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._hexLiberatioChargeX = m.x;
         m._hexLiberatioChargeY = m.y;
         pushSplashAnim(m.x, m.y, "#f5d5ff");
-        ml.push(`${m.name}がヴィコロール・リベラティオの構えを取った！次のターン、隣接マスへ6連撃を放つ！`);
+        ml.push(`${m.name}はヴィコロール・リベラティオの構えをとった！`);
         return;
       }
       const line = getHexachromaticBreathLine(m, dg, pl);

@@ -463,7 +463,7 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
 
       monsterAI(s.boss, s.dungeon, s.player, s.messages, { attackOnly: true });
       expect(s.boss._meteorReady).toBeUndefined();
-      expect(s.messages.some(m => m.includes('メテオを詠唱した'))).toBe(true);
+      expect(s.messages.some(m => m.includes('メテオの構えをとった'))).toBe(true);
       expect(s.dungeon.pendingMeteors?.length).toBe(1);
       expect(s.dungeon.pendingMeteors[0].damage).toBe(210);
     });

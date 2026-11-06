@@ -247,7 +247,7 @@ export function castCaswack(monster, dungeon, player, messages) {
     cells,
   });
 
-  messages?.push(`${monster.name}はカスワックを唱え始めた！周囲に不吉な魔力の予兆が現れた！`);
+  messages?.push(`${monster.name}はカスワックの構えをとった！`);
   return true;
 }
 

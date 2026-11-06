@@ -121,8 +121,7 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(line.distance).toBeGreaterThanOrEqual(2);
     expect(queueOmegaShinryuAttack(omega, dungeon, "waveCannon", line, player, messages)).toBe(true);
     expect(dungeon.pendingOmegaShinryuAttacks[0].cells).toHaveLength(30);
-    expect(messages.at(-1)).toContain("波動砲の構え");
-    expect(messages.at(-1)).not.toContain("発射した");
+    expect(messages.at(-1)).toBe("オメガは波動砲の構えをとった！");
 
     dungeon.monsters = [];
     advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
@@ -208,6 +207,16 @@ describe("超上級B45F オメガ・神竜", () => {
     };
     drawTimeBombWarnings(ctx, { pendingBombs: [bomb], visible }, 0, 0, 16);
     expect(fillText).toHaveBeenCalledTimes(25);
+
+    const omega = { ...OMEGA_BOSS, id: "omega", x: 10, y: 10 };
+    const messages = [];
+    const bombDungeon = makeEmptyDg({ monsters: [omega] });
+    const player = makePlayer();
+    castOmegaMustardBomb(omega, bombDungeon, player, messages);
+    expect(messages).toEqual(["オメガはマスタードボムの構えをとった！"]);
+    const countdownMessages = [];
+    resolveTurnHazards({ dungeon: bombDungeon }, player, countdownMessages, bombHazardDeps(() => {}));
+    expect(countdownMessages).toEqual([]);
   });
 
   it("波動砲は範囲の壁と魔法陣を壊し、タイダルウエイブは魔法陣を壊す", () => {
@@ -250,6 +259,7 @@ describe("超上級B45F オメガ・神竜", () => {
     const messages = [];
     const line = getOmegaShinryuLine(shinryu, dungeon, player, 2);
     queueOmegaShinryuAttack(shinryu, dungeon, "tidalWave", line, player, messages);
+    expect(messages[0]).toBe("神竜はタイダルウエイブの構えをとった！");
 
     advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 2);
 
@@ -263,6 +273,7 @@ describe("超上級B45F オメガ・神竜", () => {
     const dungeon = makeEmptyDg({ monsters: [shinryu], ...visibleRoom() });
     const messages = [];
     queueOmegaShinryuAttack(shinryu, dungeon, "evilEye", null, player, messages);
+    expect(messages[0]).toBe("神竜は悪魔の瞳の構えをとった！");
     expect(dungeon.pendingOmegaShinryuAttacks[0].turnsLeft).toBe(1);
 
     advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);

@@ -111,7 +111,7 @@ export function castPetroBreath(monster, dungeon, player, messages) {
     cells,
   });
 
-  messages?.push(`${monster.name}は息を大きく吸い込んだ！前方広範囲に石化ブレスの予兆！`);
+  messages?.push(`${monster.name}は石化ブレスの構えをとった！`);
   return true;
 }
 

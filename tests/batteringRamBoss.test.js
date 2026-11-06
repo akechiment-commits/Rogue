@@ -208,7 +208,7 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     monsterAI(boss, dg, player, messages, { attackOnly: true });
     expect(dg.pendingPetroBreaths).toHaveLength(1);
     expect(boss._isPetroBreathing).toBe(true);
-    expect(messages.some(m => m.includes("前方広範囲に石化ブレスの予兆！"))).toBe(true);
+    expect(messages.some(m => m === "バタリングラムは石化ブレスの構えをとった！")).toBe(true);
   });
 
   it("ブレス予兆後にプレイヤーが斜めに動いてもラムは動かず次ターン確実にブレスを発射する", () => {

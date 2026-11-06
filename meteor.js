@@ -23,7 +23,7 @@ export function castMeteor(monster, dungeon, player, messages, { turnsLeft: turn
     x: player.x, y: player.y, turnsLeft, damage: meteorDamage,
   });
   monster.meteorCooldown = monster.meteorInterval ?? 4;
-  messages.push(`${monster.name}がメテオを詠唱した！赤い3×3マスに${turnsLeft}ターン後、隕石が落ちる！`);
+  messages.push(`${monster.name}はメテオの構えをとった！`);
   return true;
 }
 

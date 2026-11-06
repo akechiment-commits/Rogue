@@ -61,7 +61,9 @@ export function resolveTurnHazards(state, player, messages, {
         doTimeBombExplosion(bomb.x, bomb.y, dungeon, player, messages, lu, getItemName,
           { sourcePending: bomb, killerMon });
       } else {
-        messages.push(`時限爆弾の罠：あと${bomb.turnsLeft}ターンで爆発！`);
+        if (!bomb.suppressCountdownMessage) {
+          messages.push(`時限爆弾の罠：あと${bomb.turnsLeft}ターンで爆発！`);
+        }
       }
     }
   }

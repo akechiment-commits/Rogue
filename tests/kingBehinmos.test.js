@@ -66,7 +66,7 @@ describe('上級20階のキングベヒんもス',()=>{
     const wounded=setup({hp:474});
     attack(wounded);
     expect(wounded.dungeon.pendingMeteors[0].turnsLeft).toBe(1);
-    expect(wounded.messages.at(-1)).toContain('1ターン後');
+    expect(wounded.messages.at(-1)).toBe('キングベヒんもスはメテオの構えをとった！');
     hazards(wounded);
     expect(wounded.dungeon.pendingMeteors).toEqual([]);
     expect(wounded.player.hp).toBe(52);
@@ -74,7 +74,7 @@ describe('上級20階のキングベヒんもス',()=>{
     const half=setup({hp:475});
     attack(half);
     expect(half.dungeon.pendingMeteors[0].turnsLeft).toBe(2);
-    expect(half.messages.at(-1)).toContain('2ターン後');
+    expect(half.messages.at(-1)).toBe('キングベヒんもスはメテオの構えをとった！');
   });
   it('プレイヤーが移動しても予兆は追わず、2歩で範囲の外へ逃げられる',()=>{
     const s=setup(); attack(s);
@@ -93,7 +93,7 @@ describe('上級20階のキングベヒんもス',()=>{
     for(let i=0;i<3;i++) { s.player.x=3; hazards(s); attack(s); }
     expect(s.dungeon.pendingMeteors).toEqual([]);
     hazards(s); attack(s); expect(s.dungeon.pendingMeteors).toHaveLength(1);
-    expect(s.messages.filter(m=>m.includes('詠唱した'))).toHaveLength(2);
+    expect(s.messages.filter(m=>m.includes('メテオの構えをとった'))).toHaveLength(2);
   });
   it.each([{sealed:true},{attackSealTurns:5},{sleepTurns:5},{paralyzed:true},{knockdownTurns:3},{confusedTurns:5},{blind:true,blindTurns:5},{bewitched:true,bewitchedTurns:5}])('行動不能・封印中に詠唱しない: %j',status=>{
     const s=setup(status); attack(s); expect(s.dungeon.pendingMeteors||[]).toEqual([]);
