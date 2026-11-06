@@ -688,4 +688,24 @@ describe("万能の杖", () => {
     expect(bottle.effect).toBe("panacea");
     expect(ml.some(m => m.includes("万能薬に変化した"))).toBe(true);
   });
+
+  it.each(["fire_wand", "lightning", "godsparkwand"])("%sが床の食料に当たったときアイス消滅・腐敗焦げ・ヤバイ維持を処理する", (eff) => {
+    const ice = { id: "ice", type: "food", name: "ソフトクリーム", iceCream: true, value: 30, x: 6, y: 5 };
+    const rotten = { id: "rot", type: "food", name: "腐ったパン", rotten: true, _preDamageFood: { name: "パン", value: 30, tile: 14 }, value: 30, x: 7, y: 5 };
+    const yabai = { id: "yab", type: "food", name: "ヤバイ食料", yabai: true, value: 10, x: 8, y: 5 };
+    const dg = makeEmptyDg({ items: [ice, rotten, yabai] });
+    const p = makePlayer();
+    const ml = [];
+
+    applyWandEffect(eff, "item", ice, 1, 0, dg, p, ml, noop);
+    expect(dg.items).not.toContain(ice);
+
+    applyWandEffect(eff, "item", rotten, 1, 0, dg, p, ml, noop);
+    expect(rotten.rotten).toBeFalsy();
+    expect(rotten.name).toBe("パン");
+
+    applyWandEffect(eff, "item", yabai, 1, 0, dg, p, ml, noop);
+    expect(yabai.cooked).toBeFalsy();
+    expect(yabai.name).toBe("ヤバイ食料");
+  });
 });

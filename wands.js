@@ -795,19 +795,27 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
-          chargeShopItem(target, dg, ml);
+          chargeShopItem(target, dg, ml, p);
           ml.push(`${target.name}は雷で焼けた！`);
         } else if (target.type === "pot") {
           removeFloorItem(dg, target);
-          chargeShopItem(target, dg, ml);
+          chargeShopItem(target, dg, ml, p);
           ml.push(`雷撃で${_dname_item(target)}が割れた！`);
           scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn, { killerMon, sourceIsPlayer, fireTrapFn });
         } else if (target.type === "bottle") {
           removeFloorItem(dg, target);
-          chargeShopItem(target, dg, ml);
+          chargeShopItem(target, dg, ml, p);
           ml.push(`${target.name}が雷撃で砕けた！`);
         } else if (target.type === "food") {
-          if (!target.cooked) {
+          if (target.iceCream) {
+            removeFloorItem(dg, target);
+            chargeShopItem(target, dg, ml, p);
+            ml.push(`${_dname_item(target)}が雷の熱で溶けて消滅した！`);
+          } else if (target.yabai) {
+            /* ヤバイ食料は雷でも変化しない */
+          } else if (target.rotten) {
+            burnFoodItem(target, ml);
+          } else if (!target.cooked) {
             target.value *= 2;
             cookFoodMeta(target);
             target.name = "焼いた" + target.name;
@@ -911,7 +919,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         });
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
-        chargeShopItem(target, dg, ml);
+        chargeShopItem(target, dg, ml, p);
         const ni = { ...nt, id: uid(), x: ox, y: oy };
         dg.items.push(ni);
         ml.push(`${_dname_item(target)}は${resolveItemName(ni, nameFn)}に変化した！`);
@@ -952,7 +960,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         removeFloorItem(dg, target);
-        chargeShopItem(target, dg, ml);
+        chargeShopItem(target, dg, ml, p);
         if (target.type === "pot" && target.potEffect === "imprison") {
           ml.push(`軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`);
           releaseConfinedMonstersFromPot(target, dg, target.x, target.y, p, ml);
@@ -1140,7 +1148,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         removeFloorItem(dg, target);
-        chargeShopItem(target, dg, ml);
+        chargeShopItem(target, dg, ml, p);
         if (target.type === "pot") {
           if (target.potEffect === "imprison") {
             ml.push(`${resolveItemName(target, nameFn)}が壊れた！`);
@@ -1862,13 +1870,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !!target.blessed, !!target.cursed, nameFn, killerMon);
         } else if (target.type === "spellbook" || target.type === "scroll" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
-          chargeShopItem(target, dg, ml);
+          chargeShopItem(target, dg, ml, p);
           ml.push(`炎で${_dname_item(target)}が燃えた！`);
         } else if (target.type === "food") {
           if (target.iceCream) {
             removeFloorItem(dg, target);
             chargeShopItem(target, dg, ml, p);
             ml.push(`${_dname_item(target)}が炎で溶けて消滅した！`);
+          } else if (target.yabai) {
+            /* ヤバイ食料は炎でも変化しない */
+          } else if (target.rotten) {
+            burnFoodItem(target, ml);
           } else if (!target.cooked) {
             target.value *= 2;
             cookFoodMeta(target);
@@ -2009,19 +2021,27 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
-          chargeShopItem(target, dg, ml);
+          chargeShopItem(target, dg, ml, p);
           ml.push(`${target.name}は雷で焼けた！`);
         } else if (target.type === "pot") {
           removeFloorItem(dg, target);
-          chargeShopItem(target, dg, ml);
+          chargeShopItem(target, dg, ml, p);
           ml.push(`雷撃で${resolveItemName(target, nameFn)}が割れた！`);
           scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn, { killerMon, sourceIsPlayer, fireTrapFn });
         } else if (target.type === "bottle") {
           removeFloorItem(dg, target);
-          chargeShopItem(target, dg, ml);
+          chargeShopItem(target, dg, ml, p);
           ml.push(`${target.name}が雷撃で砕けた！`);
         } else if (target.type === "food") {
-          if (!target.cooked) {
+          if (target.iceCream) {
+            removeFloorItem(dg, target);
+            chargeShopItem(target, dg, ml, p);
+            ml.push(`${_dname_item(target)}が雷の熱で溶けて消滅した！`);
+          } else if (target.yabai) {
+            /* ヤバイ食料は雷でも変化しない */
+          } else if (target.rotten) {
+            burnFoodItem(target, ml);
+          } else if (!target.cooked) {
             target.value *= 2;
             cookFoodMeta(target);
             target.name = "焼いた" + target.name;
