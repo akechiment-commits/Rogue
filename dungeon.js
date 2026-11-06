@@ -2510,6 +2510,7 @@ function genBossFloor(depth, dungeonType = null) {
     lastPy: bossY,
     patrolTarget: null,
     ...((bt.baseKind === "boss_flock" || bt.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: bt.hp } : {}),
+    ...(bt.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: bt.hp } : {}),
     ...(bt.baseKind === "boss_gwen_veteran" ? { projectileAmmo: makePiercingArrow(12) } : {}),
   };
   const pairedShinryu = shinryuSpawn ? {

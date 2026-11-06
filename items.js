@@ -7288,7 +7288,8 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   const fallbackDeathLines = mon.baseKind === "boss_gwen" ? ["どうして、そんなことするの？"]
     : mon.baseKind === "boss_gwen_veteran" ? ["守るって決めたのに……ごめんなさい……"]
       : mon.baseKind === "boss_flock" ? ["深淵へ還る時が来たか……って、本当に消えちゃうの！？ 痛い、ひどいよぉ……っ！"]
-        : [];
+        : mon.baseKind === "boss_darkbullet" ? ["光と闇の境界が……我を呼んでいるのだ……あ、シフトの連絡しなきゃ……"]
+          : [];
   const deathLines = Array.isArray(mon.deathLines) && mon.deathLines.length > 0 ? mon.deathLines : fallbackDeathLines;
   if (deathLines.length > 0 && !mon._deathQuoteShown) {
     mon._deathQuoteShown = true;
