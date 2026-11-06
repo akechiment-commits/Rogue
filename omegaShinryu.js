@@ -6,7 +6,7 @@ import {
   monsterBodyCells, monsterBounds, monsterOccupiesCell,
 } from "./monsterGeometry.js";
 import {
-  isStatusImmune, resolveParalysisHit,
+  isAttackSealed, isStatusImmune, resolveParalysisHit,
 } from "./statusDuration.js";
 import {
   blockPlayerStatus, hasPlayerMagicReflect, playerMagicReflectLabel, killMonster, pushEntity,
@@ -91,22 +91,40 @@ export function chooseShinryuAttack(line, adjacent, canSee, random = Math.random
 }
 
 function areaCellsFromLine(line, breakWalls = false) {
-  const cells = new Map();
-  const sideX = -line.dy, sideY = line.dx;
-  for (let width = -1; width <= 1; width++) {
-    const startX = line.origin.x + sideX * width;
-    const startY = line.origin.y + sideY * width;
-    if (startX < 0 || startX >= MW || startY < 0 || startY >= MH ||
-        (!breakWalls && [T.WALL, T.BWALL].includes(line.map?.[startY]?.[startX]))) continue;
-    for (let step = 1; step <= 10; step++) {
-      const x = startX + line.dx * step;
-      const y = startY + line.dy * step;
-      if (x < 0 || x >= MW || y < 0 || y >= MH) break;
-      if (!breakWalls && [T.WALL, T.BWALL].includes(line.map?.[y]?.[x])) break;
-      cells.set(`${x},${y}`, { x, y });
+  if (!line?.origin) return [];
+  const directionLength = Math.hypot(line.dx || 0, line.dy || 0);
+  if (directionLength === 0) return [];
+  const ux = line.dx / directionLength, uy = line.dy / directionLength;
+  const vx = -uy, vy = ux;
+  const maxAlong = 10 * directionLength;
+  const extentX = Math.ceil(Math.abs(ux) * (maxAlong + 0.5) + Math.abs(vx) * 1.5);
+  const extentY = Math.ceil(Math.abs(uy) * (maxAlong + 0.5) + Math.abs(vy) * 1.5);
+  const lanes = new Map();
+
+  /* Rasterize a true 3-wide, 10-step rectangle around the ray. For a diagonal
+     ray, include the in-between tile centers so the warning is a solid band. */
+  for (let y = line.origin.y - extentY; y <= line.origin.y + extentY; y++) {
+    for (let x = line.origin.x - extentX; x <= line.origin.x + extentX; x++) {
+      if (x < 0 || x >= MW || y < 0 || y >= MH) continue;
+      const rx = x - line.origin.x, ry = y - line.origin.y;
+      const along = rx * ux + ry * uy;
+      const across = rx * vx + ry * vy;
+      if (along < 0.5 || along > maxAlong + 0.5 || Math.abs(across) > 1.5) continue;
+      const lane = rx * line.dy - ry * line.dx;
+      if (!lanes.has(lane)) lanes.set(lane, []);
+      lanes.get(lane).push({ x, y, along });
     }
   }
-  return [...cells.values()];
+
+  const cells = [];
+  for (const lane of lanes.values()) {
+    lane.sort((a, b) => a.along - b.along);
+    for (const cell of lane) {
+      if (!breakWalls && [T.WALL, T.BWALL].includes(line.map?.[cell.y]?.[cell.x])) break;
+      cells.push({ x: cell.x, y: cell.y });
+    }
+  }
+  return cells;
 }
 
 function lineAttackCells(dungeon, line, breakWalls = false) {
@@ -135,16 +153,42 @@ export function queueOmegaShinryuAttack(monster, dungeon, attack, line, player, 
   if (!cells.length) return false;
   (dungeon.pendingOmegaShinryuAttacks ||= []).push({
     id: uid(), sourceId: monster.id, sourceName: monster.name, sourceAtk: monster.atk,
+    sourceX: monster.x, sourceY: monster.y,
     kind: attack, turnsLeft, cells, dx: line?.dx || 0, dy: line?.dy || 0,
   });
   const text = attack === "waveCannon"
-    ? `${monster.name}が波動砲を発射した！横3マス×縦10マスに予兆！2ターン後に100ダメージ！`
+    ? `${monster.name}は波動砲の構えをとった！予兆範囲に2ターン後、100ダメージ！`
     : attack === "tidalWave"
-      ? `${monster.name}がタイダルウエイブを放った！横3マス×縦10マスに予兆！2ターン後に水属性の2倍ダメージと吹き飛ばし！`
+      ? `${monster.name}はタイダルウエイブの構えをとった！予兆範囲に2ターン後、水属性の2倍ダメージと吹き飛ばし！`
       : `${monster.name}が悪魔の瞳を放つ構えを見せた！隣接マスに石化の予兆！1ターン後に発動！`;
   messages.push(text);
   pushSplashAnim(monster.x, monster.y, attack === "tidalWave" ? "#4ccfff" : attack === "evilEye" ? "#b8a0ff" : "#ff8b52");
   return true;
+}
+
+const CHARGED_WAVE_KINDS = new Set(["waveCannon", "tidalWave"]);
+
+export function hasPendingOmegaShinryuCharge(monster, dungeon) {
+  return !!monster && !!dungeon?.pendingOmegaShinryuAttacks?.some(attack =>
+    attack.sourceId === monster.id && CHARGED_WAVE_KINDS.has(attack.kind));
+}
+
+function chargeInterruptionMessage(attack, dungeon, source) {
+  const label = attack.kind === "waveCannon" ? "波動砲" : "タイダルウエイブ";
+  if (!source || source.hp <= 0 || !dungeon.monsters?.includes(source)) {
+    return `${attack.sourceName}の${label}の構えは、発生源が倒れて中断された！`;
+  }
+  if (source.x !== attack.sourceX || source.y !== attack.sourceY) {
+    return `${attack.sourceName}の${label}の構えは、位置を動かされて崩れた！`;
+  }
+  const cannotAct = source.sealed || isAttackSealed(source) || source.blind || source.bewitched ||
+    (source.confusedTurns || 0) > 0 || (source.sleepTurns || 0) > 0 || !!source.paralyzed ||
+    (source.paralyzeTurns || 0) > 0 || (source.frozenTurns || 0) > 0 ||
+    (source.petrifiedTurns || 0) > 0 || (source.knockdownTurns || 0) > 0 ||
+    (source.pacifistTurns || 0) > 0 || (source.potConfinedTurns || 0) > 0 ||
+    combatDeps.inMagicSealRoom?.(source.x, source.y, dungeon);
+  if (cannotAct) return `${attack.sourceName}の${label}の構えは妨害され、中断された！`;
+  return null;
 }
 
 function sourceForAttack(dungeon, attack) {
@@ -201,7 +245,7 @@ function destroyWaveWalls(dungeon, attack, messages) {
 }
 
 function applyOmegaWave(attack, dungeon, player, messages, source) {
-  messages.push(`${attack.sourceName}の波動砲が着弾した！`);
+  messages.push(`${attack.sourceName}の波動砲が発射された！`);
   destroyWaveWalls(dungeon, attack, messages);
   destroyBossAreaCircles(dungeon, attack, messages);
   pushSplashAnim(attack.cells?.[0]?.x ?? 0, attack.cells?.[0]?.y ?? 0, "#ff7044");
@@ -296,6 +340,15 @@ export function advanceOmegaShinryuAttacks(dungeon, player, messages, luFn = nul
   combatDeps.luFn = luFn;
   for (const attack of [...(dungeon.pendingOmegaShinryuAttacks || [])]) {
     if (player.hp <= 0) break;
+    if (CHARGED_WAVE_KINDS.has(attack.kind)) {
+      const source = dungeon.monsters?.find(monster => monster.id === attack.sourceId);
+      const canceled = chargeInterruptionMessage(attack, dungeon, source);
+      if (canceled) {
+        dungeon.pendingOmegaShinryuAttacks = dungeon.pendingOmegaShinryuAttacks.filter(pending => pending !== attack);
+        messages.push(canceled);
+        continue;
+      }
+    }
     attack.turnsLeft -= worldTicks;
     if (attack.turnsLeft > 0) continue;
     dungeon.pendingOmegaShinryuAttacks = dungeon.pendingOmegaShinryuAttacks.filter(pending => pending !== attack);

@@ -7,6 +7,7 @@ import { drawMeteorWarnings } from './meteor.js';
 import { drawPetroBreathWarnings } from './petroBreath.js';
 import { drawCaswackWarnings } from './ohplenty.js';
 import { drawOmegaShinryuWarnings } from './omegaShinryu.js';
+import { drawTimeBombWarnings } from './timeBombWarnings.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
 const VENT_TILE_BY_DIR = {
@@ -1232,13 +1233,6 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         if (_pbAt && t !== T.WALL && t !== T.BWALL) {
           if (vis) {
             drawTile(ctx, ts, 73, px2, py2, sz);
-            const _pbClr = _pbAt.turnsLeft <= 1 ? "#ff2020" : _pbAt.turnsLeft <= 2 ? "#ff8800" : "#ffff00";
-            ctx.font = `bold ${Math.floor(sz * 0.55)}px monospace`;
-            ctx.fillStyle = _pbClr;
-            ctx.textAlign = "right";
-            ctx.textBaseline = "top";
-            ctx.fillText(_pbAt.turnsLeft, px2 + sz - 1, py2 + 1);
-            ctx.textAlign = "start";
           } else if (exp2) {
             ctx.globalAlpha = 0.4;
             drawTile(ctx, ts, 73, px2, py2, sz);
@@ -1510,6 +1504,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     drawPetroBreathWarnings(ctx, dg, sx, sy, sz);
     drawCaswackWarnings(ctx, dg, sx, sy, sz);
     drawOmegaShinryuWarnings(ctx, dg, sx, sy, sz);
+    drawTimeBombWarnings(ctx, dg, sx, sy, sz);
 
     /* ===== lookMode cursor ===== */
     if (lookMode) {

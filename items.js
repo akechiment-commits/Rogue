@@ -41,6 +41,7 @@ import {
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 import { isWanderingNpc } from './wanderingAdventurer.js';
+import { TIME_BOMB_BLAST_RADIUS } from './timeBombWarnings.js';
 import { beginNpcRetaliation, clearNpcRetaliation } from "./npcRetaliation.js";
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
@@ -2726,7 +2727,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
     return;
   }
   ensureItemMimicFloorItems(dg);
-  const R = 2;
+  const R = TIME_BOMB_BLAST_RADIUS;
   pushExplosionAnim(cx, cy);
   ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
   const blasted = new Set();

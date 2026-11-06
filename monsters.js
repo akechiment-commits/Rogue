@@ -51,7 +51,7 @@ import {
   queueOmegaShinryuAttack, castOmegaMustardBomb, castOmegaStatusRay,
   castOmegaAtomicRay, castShinryuAtomicRay,
   castShinryuLightning, castShinryuMightyGuard,
-  attackOmegaShinryuAdjacentCells, setOmegaShinryuCombatDeps,
+  attackOmegaShinryuAdjacentCells, hasPendingOmegaShinryuCharge, setOmegaShinryuCombatDeps,
 } from './omegaShinryu.js';
 import {
   getAbsoluteVirtueLine, castAbsoluteVirtueAeroga, castAbsoluteVirtuePull,
@@ -2050,14 +2050,14 @@ export const OMEGA_BOSS = {
   speed: 1, tile: 264, kind: "material", baseKind: "boss_omega",
   isBoss: true, bossTier: 9, monLevel: 1, maxAttacks: 1, bodySize: 3,
   magicReflect: true, elemWeak: "thunder",
-  desc: "超上級B45Fに神竜と同時に現れる中心基準の3×3機械ボス。魔法を反射し、雷弱点。プレイヤーが遠距離直線上にいると波動砲（横3×縦10マスへ2ターン後固定100ダメージ。範囲内の壁と魔方陣を破壊）20%、アトミックレイ（80ダメージ火炎ブレス）20%、ブラスター（金縛り）10%、虹色の風（暗闇・封印・毒）10%。ブラスターと虹色の風は隣接時も各10%。視界内なら足元に時限爆弾を設置するマスタードボムも10%で使い、2ターン後に爆発する。発射後のボムはオメガの状態に関係なく残る。通常攻撃は3×3本体の全隣接マスを攻撃する。",
+  desc: "超上級B45Fに神竜と同時に現れる中心基準の3×3機械ボス。魔法を反射し、雷弱点。遠距離直線上で波動砲（射線に沿う幅3・長さ10マスの帯に2ターン後固定100ダメージ。範囲内の壁と魔方陣を破壊）20%、アトミックレイ（80ダメージ火炎ブレス）20%、ブラスター（金縛り）10%、虹色の風（暗闇・封印・毒）10%。波動砲の構え中は移動せず、移動・死亡・行動不能・魔法封じで予兆が中断される。ブラスターと虹色の風は隣接時も各10%。視界内なら足元に時限爆弾を設置するマスタードボムも10%で使い、2ターン後に爆発する。予兆数字は爆発範囲5×5全マスに表示し、設置後のボムはオメガの状態に関係なく残る。通常攻撃は3×3本体の全隣接マスを攻撃する。",
 };
 
 export const SHINRYU_BOSS = {
   name: "神竜", hp: 2400, atk: 172, def: 95, exp: 42000,
   speed: 1, tile: 265, kind: "dragon", baseKind: "boss_shinryu",
   isBoss: true, bossTier: 9, monLevel: 1, maxAttacks: 1, bodySize: 3, float: true,
-  desc: "超上級B45Fにオメガと同時に現れる中心基準の3×3浮遊ドラゴン。遠距離直線上でタイダルウエイブ（横3×縦10マスへ2ターン後に通常攻撃の2倍の水属性ダメージと、発射方向の逆への吹き飛ばし。範囲内の魔方陣を破壊）20%、アトミックレイ（80ダメージ火炎ブレス）20%。視界内では稲妻（同室の生物へ約50ダメージ。オメガにも命中）20%、マイティガード（10ターン全被ダメージ半減）10%。この2つは隣接時も同じ確率で使う。隣接時10%で悪魔の瞳を予告し、次ターンに本体の全隣接マスへ石化を与える。通常攻撃は3×3本体の全隣接マスを攻撃する。",
+  desc: "超上級B45Fにオメガと同時に現れる中心基準の3×3浮遊ドラゴン。遠距離直線上でタイダルウエイブ（射線に沿う幅3・長さ10マスの帯へ2ターン後に通常攻撃の2倍の水属性ダメージと、発射方向の逆への吹き飛ばし。範囲内の魔方陣を破壊）20%、アトミックレイ（80ダメージ火炎ブレス）20%。構え中は移動せず、移動・死亡・行動不能・魔法封じで予兆が中断される。視界内では稲妻（同室の生物へ約50ダメージ。オメガにも命中）20%、マイティガード（10ターン全被ダメージ半減）10%。この2つは隣接時も同じ確率で使う。隣接時10%で悪魔の瞳を予告し、次ターンに本体の全隣接マスへ石化を与える。通常攻撃は3×3本体の全隣接マスを攻撃する。",
 };
 
 /* 超上級B50F専用の最終ボス。現行B50Fボスの能力値を維持し、特技・行動回数のみ置換する。 */
@@ -8386,6 +8386,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 超上級B45Fボス オメガ／神竜 特技AIと3×3近接範囲 ===== */
   const isOmega = m.baseKind === "boss_omega";
   const isShinryu = m.baseKind === "boss_shinryu";
+  if ((isOmega || isShinryu) && hasPendingOmegaShinryuCharge(m, dg)) return;
   if ((isOmega || isShinryu) && _moveOnly) {
     delete m._omegaShinryuAttackReady;
     delete m._omegaShinryuAttackLine;

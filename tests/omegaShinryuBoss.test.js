@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { genDungeon } from "../dungeon.js";
-import { OMEGA_BOSS, SHINRYU_BOSS } from "../monsters.js";
+import { OMEGA_BOSS, SHINRYU_BOSS, monsterAI } from "../monsters.js";
 import { monsterDistance, monsterBodiesOverlap } from "../monsterGeometry.js";
 import {
   attackOmegaShinryuAdjacentCells,
@@ -11,6 +11,7 @@ import {
   getOmegaShinryuLine,
   queueOmegaShinryuAttack,
 } from "../omegaShinryu.js";
+import { drawTimeBombWarnings, timeBombBlastCells } from "../timeBombWarnings.js";
 import { monHasElementWeakness, monReflectsMagic } from "../monTraits.js";
 import { installShinryuMightyGuardHpHook } from "../mightyGuardHp.js";
 import { resolveTurnHazards } from "../turnHazards.js";
@@ -111,7 +112,7 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(shinryu.hp).toBeLessThan(SHINRYU_BOSS.hp);
   });
 
-  it("波動砲は3×10マスを予告し、オメガ死亡後も2ターン後に100ダメージ", () => {
+  it("波動砲の予兆は構えを示し、オメガが倒れると中断する", () => {
     const omega = { ...OMEGA_BOSS, id: "omega", x: 10, y: 10, maxHp: OMEGA_BOSS.hp };
     const player = makePlayer({ x: 15, y: 10, hp: 500, maxHp: 500 });
     const dungeon = makeEmptyDg({ monsters: [omega], ...visibleRoom() });
@@ -120,14 +121,93 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(line.distance).toBeGreaterThanOrEqual(2);
     expect(queueOmegaShinryuAttack(omega, dungeon, "waveCannon", line, player, messages)).toBe(true);
     expect(dungeon.pendingOmegaShinryuAttacks[0].cells).toHaveLength(30);
+    expect(messages.at(-1)).toContain("波動砲の構え");
+    expect(messages.at(-1)).not.toContain("発射した");
 
     dungeon.monsters = [];
+    advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
+    expect(dungeon.pendingOmegaShinryuAttacks).toEqual([]);
+    expect(player.hp).toBe(500);
+    expect(messages.at(-1)).toContain("発生源が倒れて中断");
+  });
+
+  it("波動砲は構え中オメガが動けず、妨害されなければ2ターン後に発射される", () => {
+    const omega = { ...OMEGA_BOSS, id: "omega", x: 10, y: 10, hp: OMEGA_BOSS.hp, maxHp: OMEGA_BOSS.hp, aware: true, dormant: false };
+    const player = makePlayer({ x: 15, y: 10, hp: 500, maxHp: 500 });
+    const dungeon = makeEmptyDg({ monsters: [omega], ...visibleRoom() });
+    const messages = [];
+    const line = getOmegaShinryuLine(omega, dungeon, player, 2);
+    queueOmegaShinryuAttack(omega, dungeon, "waveCannon", line, player, messages);
+    monsterAI(omega, dungeon, player, messages, { moveOnly: true });
+    expect(omega).toMatchObject({ x: 10, y: 10 });
+
     advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
     expect(dungeon.pendingOmegaShinryuAttacks[0].turnsLeft).toBe(1);
     advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
     expect(player.hp).toBe(400);
     expect(player.deathCause).toContain("オメガ");
     expect(dungeon.pendingOmegaShinryuAttacks).toEqual([]);
+    expect(messages.some(message => message.includes("波動砲が発射された"))).toBe(true);
+  });
+
+  it("波動砲・タイダルウエイブは行動封じで予兆後でも中断される", () => {
+    for (const [kind, sourceBase, sourceName] of [
+      ["waveCannon", OMEGA_BOSS, "オメガ"],
+      ["tidalWave", SHINRYU_BOSS, "神竜"],
+    ]) {
+      const source = { ...sourceBase, id: kind, x: 10, y: 10, hp: sourceBase.hp, maxHp: sourceBase.hp };
+      const player = makePlayer({ x: 15, y: 10, hp: 500, maxHp: 500 });
+      const dungeon = makeEmptyDg({ monsters: [source], ...visibleRoom() });
+      const messages = [];
+      const line = getOmegaShinryuLine(source, dungeon, player, 2);
+      queueOmegaShinryuAttack(source, dungeon, kind, line, player, messages);
+      source.attackSealTurns = 2;
+
+      advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
+
+      expect(dungeon.pendingOmegaShinryuAttacks).toEqual([]);
+      expect(player.hp).toBe(500);
+      expect(messages.at(-1)).toBe(`${sourceName}の${kind === "waveCannon" ? "波動砲" : "タイダルウエイブ"}の構えは妨害され、中断された！`);
+    }
+  });
+
+  it("斜め波動砲は間が抜けない連続した帯状範囲になる", () => {
+    const omega = { ...OMEGA_BOSS, id: "omega", x: 10, y: 10, maxHp: OMEGA_BOSS.hp };
+    const player = makePlayer({ x: 15, y: 15, hp: 500, maxHp: 500 });
+    const dungeon = makeEmptyDg({ monsters: [omega], ...visibleRoom() });
+    const line = getOmegaShinryuLine(omega, dungeon, player, 2);
+    const messages = [];
+    queueOmegaShinryuAttack(omega, dungeon, "waveCannon", line, player, messages);
+    const cells = dungeon.pendingOmegaShinryuAttacks[0].cells;
+    const remaining = new Set(cells.map(cell => `${cell.x},${cell.y}`));
+    const queue = [cells[0]];
+    remaining.delete(`${cells[0].x},${cells[0].y}`);
+    for (let i = 0; i < queue.length; i++) {
+      const cell = queue[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const key = `${cell.x + dx},${cell.y + dy}`;
+        if (!remaining.delete(key)) continue;
+        queue.push({ x: cell.x + dx, y: cell.y + dy });
+      }
+    }
+    expect(cells).toHaveLength(50);
+    expect(remaining.size).toBe(0);
+  });
+
+  it("マスタードボムの5×5全範囲に残りターンを描画する", () => {
+    const bomb = { x: 12, y: 8, turnsLeft: 2 };
+    const cells = timeBombBlastCells(bomb);
+    expect(cells).toHaveLength(25);
+    expect(cells).toContainEqual({ x: 10, y: 6 });
+    expect(cells).toContainEqual({ x: 14, y: 10 });
+
+    const visible = Array.from({ length: MH }, () => Array(MW).fill(true));
+    const fillText = vi.fn();
+    const ctx = {
+      save() {}, restore() {}, fillRect() {}, strokeRect() {}, strokeText() {}, fillText,
+    };
+    drawTimeBombWarnings(ctx, { pendingBombs: [bomb], visible }, 0, 0, 16);
+    expect(fillText).toHaveBeenCalledTimes(25);
   });
 
   it("波動砲は範囲の壁と魔法陣を壊し、タイダルウエイブは魔法陣を壊す", () => {
