@@ -354,6 +354,38 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       expect(otherMon.hp).toBe(300);
       expect(s.messages.some(m => m.includes('スライムへの攻撃は外れた'))).toBe(true);
     });
+
+    it('呪われたテレポートの魔方陣や強制移動無効でスパイクフレイルのテレポートを防ぐ', () => {
+      const s = setup();
+      s.player.x = 10;
+      s.player.y = 8;
+      s.player.hp = 500;
+      s.dungeon.pentacles = [{ kind: 'teleport_trap', cursed: true, x: 5, y: 5 }];
+      const otherMon = {
+        id: 'mon_heavy',
+        name: '不動の魔神',
+        x: 8,
+        y: 10,
+        hp: 1000,
+        maxHp: 1000,
+        forcedMoveImmune: true,
+      };
+      s.dungeon.monsters.push(otherMon);
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      mireuSpikeFlail(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.player.x).toBe(10);
+      expect(s.player.y).toBe(8);
+      expect(otherMon.x).toBe(8);
+      expect(otherMon.y).toBe(10);
+      expect(s.messages.some(m => m.includes('呪われたテレポートの魔方陣'))).toBe(true);
+
+      s.dungeon.pentacles = [];
+      s.messages = [];
+      mireuSpikeFlail(s.boss, s.dungeon, s.player, s.messages);
+      expect(otherMon.x).toBe(8);
+      expect(otherMon.y).toBe(10);
+      expect(s.messages.some(m => m.includes('微動だにしなかった'))).toBe(true);
+    });
   });
 
   describe('特技3: アブソルートテラー', () => {

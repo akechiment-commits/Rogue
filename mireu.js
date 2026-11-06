@@ -12,7 +12,7 @@ import { monHasElementWeakness } from './monTraits.js';
 import {
   reduceFireDamage, hasFireResist, fireResistDamageLabel, isFireExplosionNullified,
   applyLightningToInventory, killMonster, inMagicSealRoom, blockPlayerStatus,
-  hasRingEffect
+  hasRingEffect, hasCursedTeleportPentacle
 } from './items.js';
 
 /**
@@ -260,11 +260,15 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
 
       // テレポート効果（ランダムテレポート）
       if (pl.hp > 0) {
-        const tpDst = randomTeleportDest(dg, pl.x, pl.y, (x, y) => !dg.monsters?.some(other => monsterOccupiesCell(other, x, y)));
-        if (tpDst) {
-          pl.x = tpDst.x;
-          pl.y = tpDst.y;
-          ml.push(`衝撃で空間が歪み、${plName(pl)}はどこかへ吹き飛んだ！`);
+        if (hasCursedTeleportPentacle(dg)) {
+          ml.push("しかし呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！");
+        } else {
+          const tpDst = randomTeleportDest(dg, pl.x, pl.y, (x, y) => !dg.monsters?.some(other => monsterOccupiesCell(other, x, y)));
+          if (tpDst) {
+            pl.x = tpDst.x;
+            pl.y = tpDst.y;
+            ml.push(`衝撃で空間が歪み、${plName(pl)}はどこかへ吹き飛んだ！`);
+          }
         }
       }
     }
@@ -286,11 +290,17 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
     ml.push(`スパイクフレイルが${victim.name}を強打！${vDmg}ダメージ！`);
 
     if (victim.hp > 0) {
-      const tpDst = randomTeleportDest(dg, victim.x, victim.y, (x, y) => canPlaceMonsterBody(dg, victim, x, y, pl));
-      if (tpDst) {
-        victim.x = tpDst.x;
-        victim.y = tpDst.y;
-        ml.push(`${victim.name}は吹き飛ばされてテレポートした！`);
+      if (hasCursedTeleportPentacle(dg)) {
+        ml.push(`しかし呪われたテレポートの魔方陣に阻まれ、${victim.name}は吹き飛ばなかった！`);
+      } else if (victim.forcedMoveImmune || victim.stationary) {
+        ml.push(`しかし${victim.name}は微動だにしなかった！`);
+      } else {
+        const tpDst = randomTeleportDest(dg, victim.x, victim.y, (x, y) => canPlaceMonsterBody(dg, victim, x, y, pl));
+        if (tpDst) {
+          victim.x = tpDst.x;
+          victim.y = tpDst.y;
+          ml.push(`${victim.name}は吹き飛ばされてテレポートした！`);
+        }
       }
     } else {
       killMonster(victim, dg, pl, ml, lu, false, m);
