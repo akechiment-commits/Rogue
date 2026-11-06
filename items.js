@@ -2282,8 +2282,16 @@ export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = 
     if (_chainPending.length > 0) {
       dg.pendingBombs = dg.pendingBombs.filter(pb => !_chainPending.includes(pb));
       for (const _cpb of _chainPending) {
-        ml.push(`時限爆弾の罠が誘爆した！`);
-        doTimeBombExplosion(_cpb.x, _cpb.y, dg, p, ml, luFn, nameFn, { sourcePending: _cpb });
+        const _cpbKiller = _cpb.killerMonId
+          ? (dg.monsters?.find(monster => monster.id === _cpb.killerMonId) || {
+              id: _cpb.killerMonId, name: _cpb.sourceName || "モンスター", hp: 0,
+            })
+          : null;
+        const _cpbLabel = (_cpbKiller || _cpb.sourceName)
+          ? `${_cpbKiller?.name || _cpb.sourceName}のマスタードボム`
+          : "時限爆弾の罠";
+        ml.push(`${_cpbLabel}が誘爆した！`);
+        doTimeBombExplosion(_cpb.x, _cpb.y, dg, p, ml, luFn, nameFn, { sourcePending: _cpb, killerMon: _cpbKiller });
       }
     }
   } finally {
@@ -2719,17 +2727,18 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
  * 地雷・火薬壺を連鎖爆発させる。
  */
 export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, options = {}) {
-  const bombCause = options.killerMon?.name
-    ? `${options.killerMon.name}のマスタードボムの爆発`
-    : "時限爆弾の罠の爆発";
+  const bombLabel = (options.killerMon?.name || options.sourcePending?.sourceName)
+    ? `${options.killerMon?.name || options.sourcePending.sourceName}のマスタードボム`
+    : "時限爆弾の罠";
+  const bombCause = `${bombLabel}の爆発`;
   if (isFireExplosionNullified(dg, p)) {
-    announceFireExplosionNullified(dg, p, ml, "時限爆弾の爆発");
+    announceFireExplosionNullified(dg, p, ml, (options.killerMon?.name || options.sourcePending?.sourceName) ? bombCause : "時限爆弾の爆発");
     return;
   }
   ensureItemMimicFloorItems(dg);
   const R = TIME_BOMB_BLAST_RADIUS;
   pushExplosionAnim(cx, cy);
-  ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
+  ml.push(`${bombLabel}が大爆発した！5×5マスに爆風が吹き荒れる！`);
   const blasted = new Set();
   const _killed = new Set();
   const _largeMonstersHit = new Set();

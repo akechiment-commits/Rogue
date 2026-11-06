@@ -76,4 +76,21 @@ describe("resolveTurnHazards", () => {
     expect(calls).toEqual([["mine", mine]]);
     expect(state.dungeon.pendingBombs).toEqual([{ x: 2, y: 3, turnsLeft: 2 }]);
   });
+
+  it("鈍足で2拍経過したときは時限爆弾もworldTicks分進み、マスタードボムは専用名で爆発する", () => {
+    const bomb = {
+      x: 4, y: 4, turnsLeft: 2,
+      sourceName: "オメガ", killerMonId: "omega", suppressCountdownMessage: true,
+    };
+    const dungeon = makeEmptyDg({ pendingBombs: [bomb] });
+    const messages = [];
+    resolveTurnHazards({ dungeon }, makePlayer({ x: 20, y: 20 }), messages, dependencies({
+      doTimeBombExplosion,
+      worldTicks: 2,
+    }));
+    expect(dungeon.pendingBombs).toEqual([]);
+    expect(messages).toContain("オメガのマスタードボムが大爆発した！");
+    expect(messages).toContain("オメガのマスタードボムが大爆発した！5×5マスに爆風が吹き荒れる！");
+    expect(messages.some(message => message.includes("時限爆弾の罠"))).toBe(false);
+  });
 });

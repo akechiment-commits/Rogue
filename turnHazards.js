@@ -44,20 +44,23 @@ export function resolveTurnHazards(state, player, messages, {
     }
   }
 
-  if (tickTimedEffects && dungeon.pendingBombs?.length > 0 && player.hp > 0) {
+  if (tickTimedEffects && worldTicks > 0 && dungeon.pendingBombs?.length > 0 && player.hp > 0) {
     for (const bomb of [...dungeon.pendingBombs]) {
       // 先行する爆発に誘爆・消火されたものは、再び起爆しない。
       if (!dungeon.pendingBombs.includes(bomb)) continue;
-      bomb.turnsLeft--;
+      bomb.turnsLeft -= worldTicks;
       if (bomb.turnsLeft <= 0) {
         // 爆発処理に入る前に消費し、誘爆先から逆に誘爆されるのを防ぐ。
         dungeon.pendingBombs = dungeon.pendingBombs.filter(pending => pending !== bomb);
-        messages.push("時限爆弾の罠が大爆発した！");
         const killerMon = bomb.killerMonId
           ? (dungeon.monsters?.find(monster => monster.id === bomb.killerMonId) || {
               id: bomb.killerMonId, name: bomb.sourceName || "モンスター", hp: 0,
             })
           : null;
+        const bombLabel = (killerMon || bomb.sourceName)
+          ? `${killerMon?.name || bomb.sourceName}のマスタードボム`
+          : "時限爆弾の罠";
+        messages.push(`${bombLabel}が大爆発した！`);
         doTimeBombExplosion(bomb.x, bomb.y, dungeon, player, messages, lu, getItemName,
           { sourcePending: bomb, killerMon });
       } else {
