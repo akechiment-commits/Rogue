@@ -3414,13 +3414,13 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           if (p && p.x === rx && p.y === ry) {
             rHit = true;
             const d = dmgPlayer();
-            p.deathCause = `${trap?.name || label}により`;
+            p.deathCause = `${m.name}に跳ね返された${trap?.name || label}の${label}で`;
             p.hp -= d;
             if (poison) {
               if (hasRingEffect(p, "antidote_ring")) {
                 ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！しかし指輪が毒を消した！`);
               } else {
-                const _poison = applyPlayerPoison(p);
+                const _poison = applyPlayerPoison(p, { sourceName: m.name });
                 ml.push(statusResultMessage(_poison, `跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
               }
             } else {
@@ -7152,13 +7152,19 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
-        /* アイテム破壊（巻物・薬・壺） */
+        /* アイテム破壊（巻物・薬・食料・壺） */
         for (const it of [...dg.items.filter(i => i.x === ax && i.y === ay)]) {
           if (!dg.items.includes(it)) continue;
           if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が燃えてなくなった！`); }
           else if (it.type === "potion") fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, null, null);
           else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${resolveItemName(it)}」が燃えてなくなった！`); }
-          else if (it.type === "pot") {
+          else if (it.type === "food") {
+            if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it)}が炎で溶けて消滅した！`); }
+            else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+            else if (it.rotten) { burnFoodItem(it, ml); }
+            else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+            else { burnFoodItem(it, ml); }
+          } else if (it.type === "pot") {
             if (it.potEffect === "gunpowder") {
               blasted.add(it);
             } else {
@@ -7171,8 +7177,8 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
             ml.push(`「${resolveItemName(it)}」が爆発で消えた！`);
           }
         }
-        /* 罠の破壊（永続回転板は爆発でも壊れない） */
-        const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay && !t.permanent);
+        /* 罠の破壊（永続回転板は爆発でも壊れない。地雷・時限爆弾は後で誘爆させる） */
+        const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay && !t.permanent && t.effect !== "explode" && t.effect !== "time_bomb");
         if (ti >= 0) removeTrap(dg, dg.traps[ti], ml, { message: "罠が爆発で壊れた！", p });
         /* 大箱の破壊 */
         if (dg.bigboxes) {
@@ -7201,6 +7207,8 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
       doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
     }
+    /* 他の爆発と同じく、範囲内の地雷・時限爆弾を誘爆する */
+    chainExplosionHazards(mx, my, 1, dg, p, ml, luFn);
   } finally {
     _explosionDepth--;
   }
@@ -8791,9 +8799,10 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         }
         if (_rHit) {
           const _refDmg = calcProjectileDmg(p, _arAtk, 0);
+          p.deathCause = `${m.name}に跳ね返された${_arName}で`;
           p.hp -= _refDmg;
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
-            const _poison = applyPlayerPoison(p);
+            const _poison = applyPlayerPoison(p, { sourceName: m.name });
             ml.push(statusResultMessage(_poison, `跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
           } else if (_isPoison) {
             ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);

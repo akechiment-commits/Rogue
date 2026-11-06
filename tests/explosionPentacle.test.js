@@ -47,4 +47,27 @@ describe("爆発の魔方陣", () => {
       "爆発で回復の魔方陣が消えた！",
     ]));
   });
+
+  it("爆発の魔方陣の爆発で床の食料を焼き、範囲内の地雷・時限爆弾を誘爆させる", () => {
+    const base = MONS.find((m) => m.baseKind === "slime") || MONS[0];
+    const monster = makeMonsterFromBase(base, 1, 5, 5);
+    monster.hp = 0;
+    const rawFood = { id: "food1", type: "food", name: "大きなパン", value: 50, x: 6, y: 5 };
+    const mine = { id: "mine1", name: "地雷", effect: "explode", x: 4, y: 5 };
+    const dg = makeEmptyDg({
+      monsters: [monster],
+      items: [rawFood],
+      traps: [mine],
+      pentacles: [{ name: "爆発の魔方陣", kind: "explosion", x: 5, y: 5, cursed: false }],
+      rooms: [],
+    });
+    const messages = [];
+
+    killMonster(monster, dg, makePlayer({ x: 20, y: 20 }), messages, null, true);
+
+    expect(rawFood.cooked).toBe(true);
+    expect(rawFood.name).toBe("焼いた大きなパン");
+    expect(rawFood.value).toBe(100);
+    expect(messages).toContain("地雷が誘爆した！");
+  });
 });
