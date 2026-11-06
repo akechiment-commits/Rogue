@@ -1432,11 +1432,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
             if (pl.hp <= 0) pl.deathCause = `${m.name}の雷の魔法により`;
           }
-          for (const target of [...dg.monsters]) {
-            if (target === m || target.baseKind === "boss_flock_revenge" || target.hp <= 0 ||
-                findRoom(dg.rooms, target.x, target.y) !== room) continue;
-            _applyMonsterWandEffect("lightning", "monster", target, 0, 0, ml);
-          }
         } else if (_we === "sleep_bolt" && m.baseKind === "boss_flock_revenge") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, range: 10, boltColor: "sleep_wand", reflectColor: "#bc86ff", wandLabel: "眠りの魔法",
@@ -1686,7 +1681,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
             },
             onMagicReflect: (refl, mlx) => {
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, refl, null, false, refl);
             },
             onPlayerReflect: (mlx) => {
               applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, pl.atk || 3, null, null, false);

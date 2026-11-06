@@ -3414,7 +3414,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           if (p && p.x === rx && p.y === ry) {
             rHit = true;
             const d = dmgPlayer();
-            p.deathCause = `${m.name}に跳ね返された${trap?.name || label}の${label}で`;
+            p.deathCause = `${m.name}に跳ね返された${label}で`;
             p.hp -= d;
             if (poison) {
               if (hasRingEffect(p, "antidote_ring")) {
@@ -5503,7 +5503,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (hasRingEffect(p, "antidote_ring")) {
             ml.push(`牛乳でお腹を壊したが、防具が毒を防いだ！満腹度${_delta}`);
           } else {
-            const _poison = applyPlayerPoison(p, { atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale });
+            const _poison = applyPlayerPoison(p, { atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale, sourceName: kind === "player" ? killerMon?.name || null : null });
             ml.push(statusResultMessage(_poison, `牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`));
           }
         } else {
@@ -5634,7 +5634,7 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
           if (hasRingEffect(p, "antidote_ring")) {
             ml.push("毒が混じっていたが指輪が毒を消した！");
           } else {
-            const poison = applyPlayerPoison(p, { atkLoss: weak ? 0.1 : undefined, durationMultiplier: effectMultiplier });
+            const poison = applyPlayerPoison(p, { atkLoss: weak ? 0.1 : undefined, durationMultiplier: effectMultiplier, sourceName: kind === "player" ? killerMon?.name || null : null });
             ml.push(statusResultMessage(poison, `毒が混じっていた！毒状態(${poison.turns}ターン)になった！${poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
           }
         } else if (!blockLargeMonsterStatus(target, "poison", ml) && !isStatusImmune(target, ml, target.name)) {
@@ -7624,7 +7624,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
-          const _poison = applyYabaiPoison(p, "player");
+          const _poison = applyYabaiPoison(p, "player", { sourceName: reflectedBy?.name || killerMon?.name || null });
           mlx.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
         }
         if (!isStatusImmune(p, mlx)) {
@@ -7638,7 +7638,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
-          const _poison = applyPlayerPoison(p);
+          const _poison = applyPlayerPoison(p, { sourceName: reflectedBy?.name || killerMon?.name || null });
           mlx.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
         }
       }
@@ -9951,15 +9951,15 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
             ml.push(`魔法は${_monster.name}に効かない！`);
             continue;
           }
-          if (consumeBarrier(_monster, ml)) continue;
           const _baseDamage = Math.round(rng(15, 25) * _lvF);
           if (monReflectsMagic(_monster)) {
             const _reflectedDamage = multiplyCursedMagicDamage(_baseDamage, p, dg);
-            p.deathCause = "反射された地震の魔法で";
+            p.deathCause = `${_monster.name}に地震の魔法を反射されて`;
             p.hp -= _reflectedDamage;
             ml.push(`${_monster.name}が地震の魔法を反射した！${_reflectedDamage}ダメージ！`);
             continue;
           }
+          if (consumeBarrier(_monster, ml)) continue;
           const _damage = _enemyMagicDamage(_baseDamage, _monster);
           _monster.hp -= _damage;
           ml.push(`地震の魔法が${_monster.name}に命中！${_damage}ダメージ！`);
@@ -10031,15 +10031,16 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         for (const _lm of _ltTargets) {
           if (_lm.hp <= 0) continue;
           if (monEffectiveMagicImmune(_lm)) { ml.push(`魔法は${_lm.name}に効かない！`); continue; }
-          if (consumeBarrier(_lm, ml)) continue;
           if (monReflectsMagic(_lm)) {
-            const _reflectedDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _lvF), p, dg);
+            const _reflectedBaseDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _lvF), p, dg);
+            const _reflectedDamage = reduceLightningDamage(_reflectedBaseDamage, p);
             p.hp -= _reflectedDamage;
-            p.deathCause = `${_lm.name}に雷の魔法を跳ね返されて`;
-            ml.push(`${_lm.name}が雷の魔法を反射した！${_reflectedDamage}ダメージ！`);
+            p.deathCause = `${_lm.name}に雷の魔法を反射されて`;
+            ml.push(`${_lm.name}が雷の魔法を反射した！${_reflectedDamage}ダメージ！${lightningResistDamageLabel(p)}`);
             pushLightningAnim(p.x, p.y);
             continue;
           }
+          if (consumeBarrier(_lm, ml)) continue;
           const _lweak = monHasElementWeakness(_lm, "thunder") ? 1.5 : 1;
           const _lresist = monElementDamageMultiplier(_lm, "thunder");
           const _ld = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm) * _lresist));
@@ -10266,9 +10267,42 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
         const _rfLvF = getSpellPowerMultiplier(lv);
         switch (spell.effect) {
-          case "fire_bolt": { const _rd = multiplyCursedMagicDamage(Math.round(rng(20, 30) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された炎の魔法で"; ml.push(`炎の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
-          case "ice_bolt": { const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 22) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された氷の魔法で"; ml.push(`氷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
-          case "lightning_magic": { const _rd = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された雷の魔法で"; ml.push(`雷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
+          case "fire_bolt": {
+            let _rd = multiplyCursedMagicDamage(Math.round(rng(20, 30) * _rfLvF), p, dg);
+            _rd = reduceFireDamage(_rd, p, { includeRingFire: true });
+            p.hp -= _rd;
+            p.deathCause = `${mon.name}に炎の魔法を反射されて`;
+            ml.push(`炎の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
+            break;
+          }
+          case "ice_bolt": {
+            let _rd = multiplyCursedMagicDamage(Math.round(rng(15, 22) * _rfLvF), p, dg);
+            _rd = reduceIceDamage(_rd, p);
+            p.hp -= _rd;
+            p.deathCause = `${mon.name}に氷の魔法を反射されて`;
+            const _iceTurns = statusTurns("immobile", { kind: "player" });
+            if (hasIceResist(p)) {
+              ml.push(`氷の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！${iceResistDamageLabel(p)}・移動封じ無効`);
+            } else if (isStatusImmune(p, ml)) {
+              ml.push(`氷の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！`);
+            } else if (isPlayerOnWater(p, dg)) {
+              ml.push(`氷の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！`);
+              applyWaterIceFreeze(p, dg, ml, _iceTurns);
+            } else {
+              p.immobileTurns = (p.immobileTurns || 0) + _iceTurns;
+              ml.push(`氷の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！移動封じ${_iceTurns}ターン！`);
+            }
+            break;
+          }
+          case "lightning_magic": {
+            const _baseDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _rfLvF), p, dg);
+            const _rd = reduceLightningDamage(_baseDamage, p);
+            p.hp -= _rd;
+            p.deathCause = `${mon.name}に雷の魔法を反射されて`;
+            ml.push(`雷の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！${lightningResistDamageLabel(p)}`);
+            pushLightningAnim(p.x, p.y);
+            break;
+          }
           case "sleep_bolt": {
             const _rt = statusTurns("sleep", { kind: "player" });
             if ((p.statusImmune || 0) > 0) { ml.push("眠りの魔法が跳ね返ってきた！しかし状態防止中のため効かなかった！"); }
@@ -10279,7 +10313,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "poison_bolt": {
             if (hasRingEffect(p, "antidote_ring")) { ml.push("毒の魔法が跳ね返ってきたが指輪が毒を消した！"); }
             else {
-              const _poison = applyPlayerPoison(p);
+              const _poison = applyPlayerPoison(p, { sourceName: mon.name });
               ml.push(statusResultMessage(_poison, `毒の魔法が跳ね返ってきた！毒に侵された！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
             }
             break;
@@ -10308,8 +10342,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             }
             break;
           }
-          case "drain_hp": { const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 25) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射されたHP吸収の魔法で"; ml.push(`HP吸収の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
-          case "transform_magic": { const _th = rng(-10, 10); p.hp += _th; if (_th < 0) p.deathCause = "反射された変化の魔法で"; ml.push(`変化の魔法が跳ね返ってきた！${_th >= 0 ? `体に変化が...HP+${_th}` : `体に異変が...HP${_th}`}`); break; }
+          case "drain_hp": { const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 25) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = `${mon.name}にHP吸収の魔法を反射されて`; ml.push(`HP吸収の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！`); break; }
+          case "transform_magic": { const _th = rng(-10, 10); p.hp += _th; if (_th < 0) p.deathCause = `${mon.name}に変化の魔法を反射されて`; ml.push(`変化の魔法が${mon.name}に反射された！${_th >= 0 ? `体に変化が...HP+${_th}` : `体に異変が...HP${_th}`}`); break; }
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
       } else {

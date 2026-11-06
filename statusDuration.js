@@ -210,7 +210,7 @@ export function applyMonsterFlameMantle(monster, messages = null, turns = null) 
 /** ヤバイ食料の毒。攻撃力-2、持続は通常毒の2倍。 */
 export function applyYabaiPoison(entity, kind, opts = {}) {
   if (kind === "player") {
-    return applyPlayerPoison(entity, { blessed: true, atkLoss: 2 });
+    return applyPlayerPoison(entity, { blessed: true, atkLoss: 2, sourceName: opts.sourceName || null });
   }
   if (isStatusImmune(entity)) return { blocked: true, newlyApplied: false, atkLoss: 0, turns: 0, remaining: entity?.poisonedTurns || 0 };
   const target = opts.target || entity;

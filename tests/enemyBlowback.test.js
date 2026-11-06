@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { monsterAI, MONS, makeMonsterFromBase, findRoom, resolveMonsterWandEffect, _resolveMonsterWandBolt } from "../monsters.js";
+import { FLOCK_REVENGE_BOSS, monsterAI, MONS, makeMonsterFromBase, findRoom, resolveMonsterWandEffect, _resolveMonsterWandBolt } from "../monsters.js";
 import { fireTrapPlayer } from "../traps.js";
 import { takeDueActions } from "../actionClock.js";
-import { inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag, doGunpowderExplosion, doExplosion, doTimeBombExplosion, applyPotionEffect } from "../items.js";
+import { hasPlayerMagicReflect, playerMagicReflectLabel, inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag, doGunpowderExplosion, doExplosion, doTimeBombExplosion, applyPotionEffect } from "../items.js";
 import { itemDisplayName } from "../render.js";
-import { hasGravityPentacle, T } from "../utils.js";
+import { hasGravityPentacle, MH, MW, T } from "../utils.js";
 import { interruptPlayerSleep } from "../turnUpkeep.js";
 import { trackTrap } from "../DiscoveryTracker.js";
 import { applyWandEffect, fireWandBolt, monsterFireLightning } from "../wands.js";
@@ -25,7 +25,7 @@ function moveEnemiesFor(state) {
   const deps = { sr: { current: state }, useCallback: fn => fn, monsterAI, fireTrapPlayer,
     runMineExplosion, takeDueActions, findRoom, inMagicSealRoom, applyWandEffect, monsterFireLightning,
     resolveMonsterWandEffect, _resolveMonsterWandBolt, hasGravityPentacle,
-    interruptPlayerSleep, itemDisplayName, killMonster, chgFloor, trackTrap,
+    interruptPlayerSleep, itemDisplayName, killMonster, chgFloor, trackTrap, hasPlayerMagicReflect, playerMagicReflectLabel,
     bbDisplayName: box => box.name, bigboxAddItem: createGameBigboxHandlers(state).bigboxAddItem, lu: () => {} };
   const moveMons = new Function(...Object.keys(deps), `${source.slice(start, end)}; return moveMons;`)(...Object.values(deps));
   return { moveMons, chgFloor, destination };
@@ -82,7 +82,7 @@ describe("敵の吹き飛ばしの杖の撃破処理", () => {
     expect(player.exp).toBe(0);
   });
 
-  it.each(["wall", "player", "monster"])("%sの反射で射手が死んでも撃破処理を重ねない", reflection => {
+  it.each(["wall", "player", "monster"])("%sの反射で射手が死んでも撃破を正しい側へ一度だけ帰属する", reflection => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
     Object.assign(mage, { hp: 5, aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
@@ -91,13 +91,55 @@ describe("敵の吹き飛ばしの杖の撃破処理", () => {
     const dungeon = makeEmptyDg({ monsters: [mage], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
     dungeon.map[5][2] = T.WALL;
     if (reflection === "wall") dungeon.map[5][6] = T.WALL;
-    if (reflection === "monster") dungeon.monsters.push({ id: "reflector", name: "反射役", hp: 100,
-      maxHp: 100, x: 7, y: 5, subtype: "magicreflect", _phaseActionCount: 0 });
+    const reflector = reflection === "monster" ? { id: "reflector", name: "反射役", hp: 100,
+      maxHp: 100, x: 7, y: 5, subtype: "magicreflect", _phaseActionCount: 0 } : null;
+    if (reflector) dungeon.monsters.push(reflector);
     const messages = [];
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
     expect(dungeon.monsters).not.toContain(mage);
-    expect(player.exp).toBe(45);
-    expect(messages.filter(message => message.includes("ウィンドメイジを倒した"))).toHaveLength(1);
+    expect(player.exp).toBe(reflection === "monster" ? 0 : 45);
+    if (reflector) expect(messages.some(message => message.includes("反射役に倒された"))).toBe(true);
+    expect(messages.filter(message => message.includes("ウィンドメイジ") &&
+      (message.includes("倒した") || message.includes("倒された")))).toHaveLength(1);
+  });
+
+  it("25階フロックの部屋雷はプレイヤーだけに当たり、他の敵を巻き込まない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const flock = makeMonsterFromBase(FLOCK_REVENGE_BOSS, 1, 5, 5);
+    Object.assign(flock, { aware: true, _phaseActionCount: 1, _movesMadeThisPhase: 0,
+      _flockPendingSpell: "lightning_magic", turnAttacks: 0 });
+    const player = makePlayer({ x: 8, y: 5, depth: 25, exp: 0, actionTime: 12 });
+    const bystander = { id: "bystander", name: "同室の反射敵", x: 7, y: 6, hp: 100, maxHp: 100, def: 0, subtype: "magicreflect" };
+    const dungeon = makeEmptyDg({ monsters: [flock, bystander],
+      rooms: [{ x: 1, y: 1, w: 20, h: 12 }],
+      visible: Array.from({ length: MH }, () => Array(MW).fill(true)) });
+    const messages = [];
+
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+
+    expect(player.hp).toBeLessThan(100);
+    expect(bystander.hp).toBe(100);
+    expect(messages.some(message => message.includes("同じ部屋に雷の魔法を放った"))).toBe(true);
+  });
+
+  it("25階フロックの部屋雷を反射すると術者へ返り、他の敵には当たらない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const flock = makeMonsterFromBase(FLOCK_REVENGE_BOSS, 1, 5, 5);
+    Object.assign(flock, { aware: true, hp: 10, _phaseActionCount: 1, _movesMadeThisPhase: 0,
+      _flockPendingSpell: "lightning_magic", turnAttacks: 0 });
+    const player = makePlayer({ x: 8, y: 5, depth: 25, exp: 0, actionTime: 12, magicReflectTurns: 10 });
+    const bystander = { id: "bystander", name: "同室の反射敵", x: 7, y: 6, hp: 100, maxHp: 100, def: 0, subtype: "magicreflect" };
+    const dungeon = makeEmptyDg({ monsters: [flock, bystander],
+      rooms: [{ x: 1, y: 1, w: 20, h: 12 }],
+      visible: Array.from({ length: MH }, () => Array(MW).fill(true)) });
+    const messages = [];
+
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+
+    expect(player.hp).toBe(100);
+    expect(dungeon.monsters).not.toContain(flock);
+    expect(bystander.hp).toBe(100);
+    expect(messages.some(message => message.includes("魔法反射状態が逆襲のフロックの雷の魔法を跳ね返した"))).toBe(true);
   });
 });
 
