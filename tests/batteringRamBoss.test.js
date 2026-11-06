@@ -377,4 +377,33 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
     expect(mon.petrifiedTurns).toBe(0);
     expect(monMessages.some(m => m.includes("テスト敵の石化が解けた！"))).toBe(true);
   });
+
+  it("ペトロブレスが大型モンスターの複数マスに重なっても1回だけ判定し、同ブレス内で耐性ログを出さない", () => {
+    const map = Array.from({ length: 20 }, () => Array(30).fill(T.FLOOR));
+    const boss = { ...BATTERING_RAM, id: "ram-source", x: 10, y: 10, hp: 300, maxHp: 300 };
+    const giantTarget = {
+      ...BATTERING_RAM, id: "ram-target", name: "大型標的",
+      x: 12, y: 10, hp: 300, maxHp: 300, bodySize: 2,
+    };
+    const player = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg({
+      map,
+      monsters: [boss, giantTarget],
+      pendingPetroBreaths: [{
+        sourceId: "ram-source",
+        sourceName: "バタリングラム",
+        originX: 10,
+        originY: 10,
+        turnsLeft: 1,
+        cells: [{ x: 12, y: 10 }, { x: 12, y: 11 }, { x: 13, y: 10 }, { x: 13, y: 11 }],
+      }],
+    });
+    const messages = [];
+
+    advancePetroBreaths(dg, player, messages, () => {}, 1);
+
+    expect(giantTarget.petrifiedTurns).toBe(4);
+    expect(messages.filter(m => m.includes("大型標的は石化してしまった"))).toHaveLength(1);
+    expect(messages.some(m => m.includes("状態異常への耐性で無効化"))).toBe(false);
+  });
 });

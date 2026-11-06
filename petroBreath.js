@@ -161,37 +161,35 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
       pushAnim({ type: "petroBreath", x: cell.x, y: cell.y, color: "#c8b888" });
     }
 
-    for (const cell of breath.cells || []) {
-      // 1. プレイヤーへの命中判定
-      if (player.x === cell.x && player.y === cell.y) {
-        const onBlessedSanc = !inMagicSealRoom(player.x, player.y, dungeon) &&
-          dungeon.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === player.x && pc.y === player.y);
+    const affected = new Set((breath.cells || []).map(cell => `${cell.x},${cell.y}`));
 
-        if (onBlessedSanc) {
-          messages?.push(`祝福された聖域の加護が${breath.sourceName}の石化ブレスを防いだ！`);
-        } else if (isStatusImmune(player, messages, "自分")) {
-          // isStatusImmune 内でメッセージ出力済み
-        } else {
-          resolveParalysisHit(player, messages);
-          player.petrifiedTurns = 4;
-          messages?.push("石化ブレスを浴びてしまった！体が石のように固まり動けない！(4ターン)");
-        }
+    // 1. プレイヤーへの命中判定
+    if (affected.has(`${player.x},${player.y}`)) {
+      const onBlessedSanc = !inMagicSealRoom(player.x, player.y, dungeon) &&
+        dungeon.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === player.x && pc.y === player.y);
+
+      if (onBlessedSanc) {
+        messages?.push(`祝福された聖域の加護が${breath.sourceName}の石化ブレスを防いだ！`);
+      } else if (isStatusImmune(player, messages, "自分")) {
+        // isStatusImmune 内でメッセージ出力済み
+      } else {
+        resolveParalysisHit(player, messages);
+        player.petrifiedTurns = 4;
+        messages?.push("石化ブレスを浴びてしまった！体が石のように固まり動けない！(4ターン)");
       }
+    }
 
-      // 2. モンスターへの命中判定（敵味方無差別）
-      for (const monster of [...(dungeon.monsters || [])]) {
-        if (monster.hp <= 0 || !dungeon.monsters.includes(monster) || monster.disguisedAsItem) continue;
-        if (!monsterOccupiesCell(monster, cell.x, cell.y)) continue;
+    // 2. モンスターへの命中判定（敵味方無差別・大型敵も1回ずつ判定）
+    for (const monster of [...(dungeon.monsters || [])]) {
+      if (monster.hp <= 0 || !dungeon.monsters.includes(monster) || monster.disguisedAsItem) continue;
+      if (!(breath.cells || []).some(cell => monsterOccupiesCell(monster, cell.x, cell.y))) continue;
+      if (isStatusImmune(monster, messages, monster.name)) continue;
+      if (blockLargeMonsterStatus(monster, "petrify", messages)) continue;
 
-        if (blockLargeMonsterStatus(monster, "petrify", messages)) {
-          continue;
-        }
-
-        resolveParalysisHit(monster, messages);
-        monster.petrifiedTurns = 4;
-        startLargeMonsterStatusCooldown(monster, "petrify");
-        messages?.push(`${monster.name}は石化してしまった！(4ターン)`);
-      }
+      resolveParalysisHit(monster, messages);
+      monster.petrifiedTurns = 4;
+      startLargeMonsterStatusCooldown(monster, "petrify");
+      messages?.push(`${monster.name}は石化してしまった！(4ターン)`);
     }
   }
 }
