@@ -4506,7 +4506,7 @@ export function resolveFlockFireBolt(monster, dungeon, player, messages, dx, dy,
 function applyOmegaShinryuStatusToMonster(source, target, effect, ml) {
   if (!target || target.hp <= 0 || isStatusImmune(target, ml, target.name)) return;
   if (effect === "blaster") {
-    applyMonsterParalyze(target, { ml, name: source.name });
+    applyMonsterParalyze(target, { ml, name: target.name });
     return;
   }
   const darknessTurns = statusTurns("darkness", { kind: "monster", target });
@@ -4525,8 +4525,13 @@ function applyOmegaShinryuStatusToMonster(source, target, effect, ml) {
     const poisonTurns = statusTurns("poison", { kind: "monster", target });
     target.poisoned = true;
     target.poisonedTurns = (target.poisonedTurns || 0) + poisonTurns;
-    target.sporePoisonKillerId = source.id;
-    target.sporePoisonKillerName = source.name;
+    if (source) {
+      target.sporePoisonKillerId = source.id;
+      target.sporePoisonKillerName = source.name;
+    } else {
+      delete target.sporePoisonKillerId;
+      delete target.sporePoisonKillerName;
+    }
     if (!target.poisonHalfAtk) {
       target.poisonOrigAtk = target.atk;
       target.poisonHalfAtk = true;
@@ -4569,7 +4574,7 @@ function resolveOmegaShinryuStatusRay(monster, dg, pl, line, effect, ml, opts = 
     dx: line.dx,
     dy: line.dy,
     origin: line.origin,
-    range: line.distance,
+    range: 10,
     boltColor: isBlaster ? "paralyze_wand" : "curse_wand",
     reflectColor: "#dd44ff",
     wandLabel: label,
@@ -4577,8 +4582,8 @@ function resolveOmegaShinryuStatusRay(monster, dg, pl, line, effect, ml, opts = 
     onPlayerHit: applyToPlayer,
     onMonsterHit: target => applyToMonster(target),
     onWallReflect: () => applyToMonster(monster),
-    onPlayerReflect: () => applyToMonster(monster),
-    onMagicReflect: () => applyToMonster(monster),
+    onPlayerReflect: () => applyOmegaShinryuStatusToMonster(null, monster, effect, ml),
+    onMagicReflect: reflector => applyOmegaShinryuStatusToMonster(reflector, monster, effect, ml),
     luFn: opts.luFn,
   });
   return true;

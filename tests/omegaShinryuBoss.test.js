@@ -6,6 +6,7 @@ import {
   attackOmegaShinryuAdjacentCells,
   advanceOmegaShinryuAttacks,
   castOmegaMustardBomb,
+  castOmegaStatusRay,
   chooseOmegaAttack,
   chooseShinryuAttack,
   getOmegaShinryuLine,
@@ -374,5 +375,33 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(dungeon.pendingBombs).toEqual([]);
     expect(explosions).toHaveLength(1);
     expect(explosions[0][7].killerMon.name).toBe("オメガ");
+  });
+
+  it("虹色の風が反射されたときの毒の倒し元を反射者に帰属する", () => {
+    const omega1 = { ...OMEGA_BOSS, id: "omega1", x: 10, y: 10, hp: 200, maxHp: 200 };
+    const player = makePlayer({ x: 14, y: 10, magicReflectTurns: 5 });
+    const dungeon1 = makeEmptyDg({ monsters: [omega1], ...visibleRoom() });
+    const line1 = getOmegaShinryuLine(omega1, dungeon1, player, 1);
+    const messages1 = [];
+
+    castOmegaStatusRay(omega1, dungeon1, player, line1, "rainbowWind", messages1);
+    expect(omega1.poisoned).toBe(true);
+    expect(omega1.sporePoisonKillerId).toBeUndefined();
+    expect(omega1.sporePoisonKillerName).toBeUndefined();
+
+    const omega2 = { ...OMEGA_BOSS, id: "omega2", x: 10, y: 10, hp: 200, maxHp: 200 };
+    const reflector = {
+      id: "mirror_mon", name: "ミラーマン", x: 13, y: 10, hp: 50, maxHp: 50,
+      magicReflect: true, dormant: false,
+    };
+    const player2 = makePlayer({ x: 16, y: 10 });
+    const dungeon2 = makeEmptyDg({ monsters: [omega2, reflector], ...visibleRoom() });
+    const line2 = getOmegaShinryuLine(omega2, dungeon2, player2, 1);
+    const messages2 = [];
+
+    castOmegaStatusRay(omega2, dungeon2, player2, line2, "rainbowWind", messages2);
+    expect(omega2.poisoned).toBe(true);
+    expect(omega2.sporePoisonKillerId).toBe("mirror_mon");
+    expect(omega2.sporePoisonKillerName).toBe("ミラーマン");
   });
 });
