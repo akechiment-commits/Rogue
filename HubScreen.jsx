@@ -1318,6 +1318,7 @@ function RankingPanel({ saveData, onClose }) {
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
   /* focusArea: 0=scope 1=board 2=dungeon 3=carry 4=list */
   const [focusArea, setFocusArea] = useState(0);
   const [listFocus, setListFocus] = useState(0);
@@ -1354,7 +1355,7 @@ function RankingPanel({ saveData, onClose }) {
       setListFocus(0);
     })();
     return () => { cancelled = true; };
-  }, [scope, board, dungeon, carryMode, playerId]);
+  }, [scope, board, dungeon, carryMode, playerId, refreshToken]);
 
   useEffect(() => {
     if (focusArea !== 4) return;
@@ -1551,6 +1552,18 @@ function RankingPanel({ saveData, onClose }) {
         {offline && <span style={{ color:"#f80" }}>
           {scope === "mine" ? "オフライン（自分のローカル記録を表示）" : "オフライン（サーバー未接続）"}
         </span>}
+        <button
+          type="button"
+          onClick={() => setRefreshToken((value) => value + 1)}
+          disabled={loading}
+          aria-label="ランキングを再読み込み"
+          style={{
+            ...BTN, padding:"4px 8px", fontSize:11, color:"#9cf",
+            opacity: loading ? 0.55 : 1,
+          }}
+        >
+          {loading ? "取得中…" : "再読み込み"}
+        </button>
       </div>
       {loading ? (
         <div style={{ color:"#666", padding:20, textAlign:"center" }}>読み込み中…</div>

@@ -358,9 +358,25 @@ export default defineConfig(({ mode }) => {
   for (const key of ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]) {
     if (!process.env[key] && fileEnv[key]) process.env[key] = fileEnv[key];
   }
+  const hasLocalRankingRedis = !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+  const rankingApiTarget = process.env.RANKING_API_TARGET || fileEnv.RANKING_API_TARGET || "https://rogue-olive.vercel.app";
 
   return {
-    plugins: [react(), rankingApiPlugin(), portraitApiPlugin(), serveRootTilesPlugin()],
+    plugins: [
+      react(),
+      ...(hasLocalRankingRedis ? [rankingApiPlugin()] : []),
+      portraitApiPlugin(),
+      serveRootTilesPlugin(),
+    ],
+    server: {
+      proxy: hasLocalRankingRedis ? {} : {
+        "/api/ranking": {
+          target: rankingApiTarget,
+          changeOrigin: true,
+          secure: true,
+        },
+      },
+    },
     build: {
       rollupOptions: {
         input: {
