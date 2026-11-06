@@ -1,5 +1,6 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import rankingApiHandler from "./api/ranking.js";
 import path from "path";
 import fs from "fs";
 import { transparentizeDataUrl, transparentizeImageBuffer } from "./tools/portraitTransparencyNode.mjs";
@@ -39,6 +40,24 @@ function readJsonBody(req) {
     });
     req.on("error", reject);
   });
+}
+
+function rankingApiPlugin() {
+  return {
+    name: "ranking-api",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if ((req.url || "").split("?")[0] !== "/api/ranking") return next();
+        rankingApiHandler(req, res).catch((error) => {
+          console.error("ranking dev API", error);
+          if (res.headersSent) return;
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ ok: false, offline: true, error: "ranking server error" }));
+        });
+      });
+    },
+  };
 }
 
 function portraitApiPlugin() {
@@ -334,14 +353,21 @@ function serveRootTilesPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), portraitApiPlugin(), serveRootTilesPlugin()],
-  build: {
-    rollupOptions: {
-      input: {
-        main: path.resolve(process.cwd(), "index.html"),
-        portraitEditor: path.resolve(process.cwd(), "portrait-editor.html"),
+export default defineConfig(({ mode }) => {
+  const fileEnv = loadEnv(mode, process.cwd(), "");
+  for (const key of ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]) {
+    if (!process.env[key] && fileEnv[key]) process.env[key] = fileEnv[key];
+  }
+
+  return {
+    plugins: [react(), rankingApiPlugin(), portraitApiPlugin(), serveRootTilesPlugin()],
+    build: {
+      rollupOptions: {
+        input: {
+          main: path.resolve(process.cwd(), "index.html"),
+          portraitEditor: path.resolve(process.cwd(), "portrait-editor.html"),
+        },
       },
     },
-  },
+  };
 });
