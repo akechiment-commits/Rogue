@@ -415,6 +415,74 @@ export const FLOCK_REVENGE_CRITICAL_LINES = Object.freeze([
   "ひぃっ……！視界が点滅してる……！？",
   "ま、まだだ……！逆襲の逆襲の準備がある……はず！",
 ]);
+export const SION_IDLE_LINES = Object.freeze([
+  "フフフ……光と闇の境界を見て来たのだ！",
+  "我は黒き魔弾の射手……我が射線に入ったことを後悔するがいい！",
+  "ひれ伏せ、下等生物ども！ 我が闇の帝王シオン・ザ・ダークブレットである！",
+  "我の小説のプロットでは、貴様はここで倒れる運命なのだ。",
+  "フッ……我が弾丸は運命すら撃ち抜く。逃げられると思うなよ？",
+  "漆黒の魔弾よ、ターゲットをロックオンなのだ！ ……あ、スコープが曇ってる。",
+  "我は孤独な影……夜の帳を纏いしスナイパーなのだ。",
+  "貴様、我の放つ暗黒波動（ダークオーラ）に耐えられるかな？",
+  "フッ……これも世界の選択、パラレルワールドの片鱗にすぎんのだ。",
+  "早く決着をつけるのだ……この後、夜勤のシフトが入っているからな。",
+  "我を怒らせるなよ？ 封印されし我の真の力が覚醒してしまうのだ！",
+  "光と闇の狭間で、我は悟りを開いたのだ！……あ、痛っ！ ほっぺを引っ張るな！",
+  "我が魔弾（ダークブレット）の前に跪け！ 弾薬代は後で経費で落ちる……はずなのだ！",
+  "我が漆黒の領域へようこそ……いらっしゃいませー、温めますか？ ……違う！",
+]);
+export const SION_FIRE_LINES = Object.freeze([
+  "光と闇の境界線を見せてやるのだ！",
+  "我が漆黒の魔弾（ダークブレット）、受けてみるがいい！",
+  "ターゲット、完全捕捉……撃ち抜くのだ！",
+  "この一撃は運命の収束点……消え去るがいい！",
+  "黒き弾丸よ、貫け！ ……よし、命中コースなのだ！",
+  "逃走は不可能なのだ！ 我の弾道計算は完璧である！",
+]);
+export const SION_GOAL_THEFT_LINES = Object.freeze([
+  "おい貴様！ 我というボスを無視して宝だけ持っていく気か！？",
+  "待て！ 万引きか！？ その宝玉はまだレジを通していないのだぞ！",
+  "ちょっと待つのだ！ 我との宿命の一騎打ちをスルーして逃げるなど許さん！",
+  "おい！ 人の話を最後まで聞かずに宝をパクるな！ 礼儀がなってないのだ！",
+  "ダンジョン小説の作法を知らんのか！？ ボスを倒してから宝箱を開けるのが常識なのだ！",
+  "光と闇の境界を見る前に宝玉だけ持ち去るな！ こっちを見ろ、こっちを！",
+  "万引き犯め！ 防犯カメラ……じゃなくて、我が魔眼がすべて見ているのだぞ！",
+  "スナイパーの射線に入りながら堂々と宝を拾うな！ 我を舐めているのか！？",
+  "待つのだ！ 我を倒さずにクリアなど、我のプロットに存在しないのだ！",
+  "おい泥棒！ その宝玉を床に戻せ！ さもないと我がダークブレットで蜂の巣なのだ！",
+  "無視するなと言っているのだ！ 我はただの背景モブではないのだぞ！",
+  "貴様……戦いから逃げて宝だけ掻っ攫うなど、光と闇の境界にすら立てん卑怯者なのだ！",
+]);
+export const SION_GOAL_THEFT_FIRE_LINES = Object.freeze([
+  "万引き犯に逃走用の出口などない！ 喰らうがいい！",
+  "宝玉を置いていけ！ 我のダークブレットは泥棒を決して逃さん！",
+  "背中を向けて宝を持ち逃げするとはいい度胸なのだ！ 撃ち抜く！",
+  "万引き対策センサー発動！ ……ではなく、必殺の魔弾射撃なのだ！",
+  "ボスを無視した罰なのだ！ そのお宝を置いて立ち去れ！",
+  "逃がさん！ 盗んだ宝玉を抱えたまま光と闇の境界を見るがいい！",
+]);
+export const SION_HURT_LINES = Object.freeze([
+  "ぐっ……！ か、かすり傷なのだ！ 我の漆黒の結界が受け止めた！",
+  "痛っ！ 貴様、大魔弾の射手たる我に攻撃を当てるとは……！",
+  "あ、痛っ！ 我のほっぺが崩壊する───！！",
+  "チッ……制服が汚れたらクリーニング代がかかるのだぞ！",
+  "ぬぅ……！ 我のダークオーラを貫通しただと！？",
+]);
+export const SION_CRITICAL_LINES = Object.freeze([
+  "ば、馬鹿な……我のHPバーが……！？ こんなのプロットにないのだ！",
+  "ぐぬぬ……この我が追い詰められるとは……光と闇の境界が近すぎる！",
+  "ま、待つのだ！ 我が倒れたら、誰が明日の早朝シフトに入るのだ……！？",
+  "痛い痛い！ 乱暴なのはダメなのだ！ 話せばわかるのだ！",
+  "ひぃっ……！ スナイパーに近接連打はマナー違反なのだぁ……！",
+]);
+export const SION_DEATH_LINES = Object.freeze([
+  "光と闇の境界が……我を呼んでいるのだ……あ、シフトの連絡しなきゃ……",
+  "我の小説の第一部、ここで完……！？ 打ち切りなんて聞いてないのだぁ……！",
+  "我が漆黒の魔弾が……敗れるだと……！？ うぅ、痛いのだぁ……！",
+  "ぐふっ……我は闇へ還るのだ……次は……定時退社できる世界で……",
+  "ば、バカな……この我が……。貴様、レビューで星1をつけるなよ……っ！",
+]);
+
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
@@ -1850,7 +1918,7 @@ export const BOSSES = [
   /* 第2ボス B10F (depth=9) */
   { name: "シオン・ザ・ダークブレット", hp: 300,   atk: 35,  def: 23,  exp: 1200,
     speed: 1,   tile: 138, kind: "humanoid", baseKind: "boss_darkbullet",
-    isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1 },
+    isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1, deathLines: SION_DEATH_LINES },
   /* 第3ボス B15F (depth=14) */
   { name: "深淵の番人", hp: 600,   atk: 56,  def: 32,  exp: 2500,
     speed: 1,   tile: 139, kind: "beast",    baseKind: "boss_guardian",
@@ -2809,6 +2877,7 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
     ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
+    ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(st.subtype === "sleepingLion" || dormant ? { dormant: true, _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
@@ -2824,6 +2893,7 @@ export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, las
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({ windDx, windDy }) : null;
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant: isSleepingLion || dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
     ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
+    ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
@@ -3736,12 +3806,8 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
   ml.push(`${m.name}が水鉄砲を撃った！`);
   pushMonsterBoltAnim(origin.x, origin.y, dx, dy, dg, pl, "#20c0ff", { wind: true, range: maxDist });
   const miss = Math.random() < 0.18;
-  /* みかわしの魔方陣 */
+  /* みかわしの魔方陣（プレイヤーマス到達時に判定） */
   const _wDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-  if (_wDodgePcMode === "dodge") {
-    ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
-    return;
-  }
   let _wgX = origin.x, _wgY = origin.y, _windMsg = false;
   for (let d = 1; d <= maxDist; d++) {
     const _st = stepProjectile(dg, _wgX, _wgY, dx, dy, { wind: true });
@@ -3780,6 +3846,8 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
         hitMon.hp = Math.min(hitMon.maxHp, hitMon.hp + heal);
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${heal}HP回復した！`);
       } else {
+        wakeIfDormant(hitMon, ml);
+        if (consumeBarrier(hitMon, ml)) return;
         const dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
         hitMon.hp -= dmg;
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
@@ -3789,6 +3857,18 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
       return;
     }
     if (tx === pl.x && ty === pl.y) {
+      if (_wDodgePcMode === "dodge") {
+        ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
+        return;
+      }
+      if (_wDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
+        ml.push("水鉄砲をひらりとかわした！");
+        return;
+      }
+      if (_wDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+        ml.push("オリーブオイルの力で水鉄砲をするりとかわした！");
+        return;
+      }
       if (_wDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && miss) {
         ml.push(`${m.name}の水鉄砲は外れた！`);
         return;
@@ -6304,6 +6384,55 @@ function flockHpChangeDialogue(monster, dungeon, messages, attackOnly = false) {
   if (Math.random() < (critical ? 0.50 : 0.35)) messages.push(`${monster.name}「${pick(lines)}」`);
 }
 
+
+export function isIgnoringBossForGoalItem(dg, pl) {
+  if (!pl || !dg) return false;
+  const hasGoal = pl.inventory?.some(i => i.type === "goal");
+  if (hasGoal) return true;
+  const goalOnFloor = dg.items?.find(i => i.type === "goal");
+  if (goalOnFloor && Math.max(Math.abs(goalOnFloor.x - pl.x), Math.abs(goalOnFloor.y - pl.y)) <= 1) {
+    return true;
+  }
+  return false;
+}
+
+function sionDialogue(m, dg, pl, ml, { isFiring = false, attackOnly = false } = {}) {
+  if (attackOnly) return false;
+  if (!dg?.visible?.[m.y]?.[m.x]) return false;
+  const isTheft = isIgnoringBossForGoalItem(dg, pl);
+  if (isTheft) {
+    const firstTheft = !m._goalTheftWarned;
+    m._goalTheftWarned = true;
+    if (firstTheft || Math.random() < 0.60) {
+      const pool = isFiring ? SION_GOAL_THEFT_FIRE_LINES : SION_GOAL_THEFT_LINES;
+      ml.push(`${m.name}「${pick(pool)}」`);
+      return true;
+    }
+  } else {
+    delete m._goalTheftWarned;
+    const chance = isFiring ? 0.35 : 0.25;
+    if (Math.random() < chance) {
+      const pool = isFiring ? SION_FIRE_LINES : SION_IDLE_LINES;
+      ml.push(`${m.name}「${pick(pool)}」`);
+      return true;
+    }
+  }
+  return false;
+}
+
+function sionHpChangeDialogue(monster, dungeon, messages, attackOnly = false) {
+  if (attackOnly || !dungeon?.visible?.[monster.y]?.[monster.x]) return;
+  const previousHp = Number.isFinite(monster._sionHpDialogueSnapshot)
+    ? monster._sionHpDialogueSnapshot
+    : (monster.maxHp || monster.hp);
+  monster._sionHpDialogueSnapshot = monster.hp;
+  if (monster.hp >= previousHp) return;
+  const critical = monster.hp <= (monster.maxHp || monster.hp) * 0.25;
+  const lines = critical ? SION_CRITICAL_LINES : SION_HURT_LINES;
+  if (Math.random() < (critical ? 0.50 : 0.35)) {
+    messages.push(`${monster.name}「${pick(lines)}」`);
+  }
+}
 function castFlockSpell(monster, opts, dx, dy, effect, messages, { invoke = true } = {}) {
   const cost = FLOCK_MAGIC_MP_COSTS[effect] ?? 10;
   if (ensureFlockMp(monster) < cost || (invoke && !opts.monsterWandFn)) return false;
@@ -6487,6 +6616,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   if (_isFlockVariant) flockHpChangeDialogue(m, dg, ml, _attackOnly);
+  if (m.baseKind === "boss_darkbullet") sionHpChangeDialogue(m, dg, ml, _attackOnly);
   if (_isFlockRevenge && _attackOnly && m._flockEarlySpellPending) {
     const effect = m._flockEarlySpellPending;
     delete m._flockEarlySpellPending;
@@ -7102,6 +7232,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _dbInLine = _dbAdx === 0 || _dbAdy === 0 || Math.abs(_dbAdx) === Math.abs(_dbAdy);
     const _dbLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      sionDialogue(m, dg, pl, ml, { isFiring: true, attackOnly: _attackOnly });
       _resolveBolt(m, dg, pl, ml, _luFn, {
         dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
         baseRange: 10, animColor: "#111111",
@@ -10532,6 +10663,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _fc = _farCands[0];
           m.dir = { x: _fc.x - m.x, y: _fc.y - m.y };
           m.x = _fc.x; m.y = _fc.y;
+          sionDialogue(m, dg, pl, ml, { isFiring: false, attackOnly: _attackOnly });
           return;
         }
         /* 逃げ場なし：近接攻撃 */
@@ -10540,6 +10672,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           m.turnAttacks++;
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         }
+        sionDialogue(m, dg, pl, ml, { isFiring: false, attackOnly: _attackOnly });
         return;
       }
 
@@ -10565,6 +10698,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             m.x = _ab.x; m.y = _ab.y;
           }
         }
+        sionDialogue(m, dg, pl, ml, { isFiring: false, attackOnly: _attackOnly });
         return;
       }
 
@@ -10577,6 +10711,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           m.x = _dbNext.x; m.y = _dbNext.y;
         }
       }
+      sionDialogue(m, dg, pl, ml, { isFiring: false, attackOnly: _attackOnly });
       return;
     }
 

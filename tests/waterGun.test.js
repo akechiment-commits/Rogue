@@ -84,6 +84,46 @@ describe("水鉄砲・耐水", () => {
     }
   });
 
+  it("プレイヤーがみかわしの魔方陣上にいても、途中の魔方陣消去や中間モンスターへの命中・バリア消費は発射後に処理する", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const watergunBase = MONS.find(monster => monster.subtype === "watergunner");
+    const shooter = makeMonsterFromBase(watergunBase, 1, 5, 5, { aware: true });
+    shooter.alwaysUseSpecial = true;
+    shooter.dormant = false;
+    shooter.turnAttacks = 0;
+    const blocker = {
+      id: "blocker", name: "ゴブリン", baseKind: "goblin",
+      x: 7, y: 5, hp: 30, maxHp: 30, atk: 5, def: 2, exp: 5,
+      dormant: true, _dormantHp: 30, barrier: 1,
+    };
+    const player = makePlayer({ x: 9, y: 5, hp: 200, maxHp: 200 });
+    const visible = Array.from({ length: MH }, () => Array(MW).fill(true));
+    const dungeon = makeEmptyDg({
+      monsters: [shooter, blocker],
+      pentacles: [
+        { kind: "heal", name: "回復の魔方陣", x: 6, y: 5 },
+        { kind: "dodge", name: "みかわしの魔方陣", x: 9, y: 5 },
+      ],
+      rooms: [{ x: 1, y: 1, w: 20, h: 14 }],
+      visible, explored: visible.map(row => [...row]),
+    });
+    dungeon.map[5][5] = T.WATER;
+    const messages = [];
+
+    try {
+      monsterAI(shooter, dungeon, player, messages, { moveOnly: true });
+      monsterAI(shooter, dungeon, player, messages, { attackOnly: true });
+
+      expect(dungeon.pentacles.some(pc => pc.x === 6 && pc.y === 5)).toBe(false);
+      expect(blocker.dormant).toBe(false);
+      expect(blocker.barrier).toBe(0);
+      expect(blocker.hp).toBe(30);
+      expect(messages.some(message => message.includes("みかわしの魔方陣"))).toBe(false);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it("blankScrollOrSpellbook が白紙化する", () => {
     const scroll = { type: "scroll", effect: "teleport", name: "テレポートの巻物" };
     const ml = [];
