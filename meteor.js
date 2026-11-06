@@ -1,7 +1,7 @@
 import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext, calcAtkDefDmg, calcPlayerDefense, T } from './utils.js';
 import { monsterAreaTargets, monsterOccupiesCell } from './monsterGeometry.js';
 import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, withParalysisHit, wallBreakDrop } from './items.js';
-import { monEffectiveMagicImmune } from './monTraits.js';
+import { monEffectiveAttack, monEffectiveMagicImmune } from './monTraits.js';
 import { beginNpcRetaliation } from './npcRetaliation.js';
 import { resolveParalysisHit } from './statusDuration.js';
 import { pushExplosionAnim } from './animEvents.js';
@@ -10,13 +10,13 @@ export function canCastMeteor(monster, dungeon) {
   return !(monster.meteorCooldown > 0) && !dungeon.pendingMeteors?.some(meteor => meteor.sourceId === monster.id);
 }
 
-export function castMeteor(monster, dungeon, player, messages) {
+export function castMeteor(monster, dungeon, player, messages, { turnsLeft: turnsLeftOverride } = {}) {
   if (!canCastMeteor(monster, dungeon)) return false;
   const maxHp = Number(monster.maxHp) || 0;
-  const turnsLeft = monster.baseKind === 'boss_kingbehinmos' && maxHp > 0 && monster.hp < maxHp / 2 ? 1 : 2;
-  const effAtk = (monster.sharpStrikeTurns || 0) > 0 && !monster.sealed
-    ? Math.floor((monster.atk || 0) * 1.5)
-    : monster.atk;
+  const turnsLeft = Number.isFinite(turnsLeftOverride)
+    ? Math.max(1, Math.floor(turnsLeftOverride))
+    : monster.baseKind === 'boss_kingbehinmos' && maxHp > 0 && monster.hp < maxHp / 2 ? 1 : 2;
+  const effAtk = monster.atk != null ? monEffectiveAttack(monster) : null;
   const meteorDamage = effAtk != null ? effAtk * 2 : (monster.meteorDamage ?? 60);
   (dungeon.pendingMeteors ||= []).push({
     id: uid(), sourceId: monster.id, sourceName: monster.name,

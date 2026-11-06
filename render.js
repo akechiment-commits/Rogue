@@ -159,6 +159,7 @@ export const TILE_NAMES = {
   263: "hexachromatic",
   264: "omega",
   265: "shinryu",
+  266: "absolute_virtue",
   [TI.STONE_PROJECTILE]: "stone_projectile",
   [TI.ICE_CHUNK]: "ice_chunk",
   230: "loxonin",
@@ -192,7 +193,7 @@ export const customTileImages = {};
 /* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
 const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 const GWEN_SPRITE_TILE_IDS = new Set([255, 256]);
-const CRISP_MONSTER_TILE_IDS = new Set([257, 258, 259, 261, 262, 263, 264, 265]);
+const CRISP_MONSTER_TILE_IDS = new Set([257, 258, 259, 261, 262, 263, 264, 265, 266]);
 export function clearCustomTileImages() {
   for (const k of Object.keys(customTileImages)) delete customTileImages[k];
 }
@@ -434,6 +435,7 @@ export const TILE_RENDER = {
   263: { bg: null, fg: "#d893ff", ch: "H" }, /* ヘキサクロマティック */
   264: { bg: null, fg: "#ff6048", ch: "O" }, /* オメガ */
   265: { bg: null, fg: "#8edcff", ch: "S" }, /* 神竜 */
+  266: { bg: null, fg: "#ffe8a6", ch: "A" }, /* Absolute Virtue */
   [TI.STONE_PROJECTILE]: { bg: null, fg: "#aeb7c4", ch: "◆" }, /* 石系飛び道具 */
   [TI.ICE_CHUNK]: { bg: null, fg: "#a8eaff", ch: "❄" }, /* 氷塊 */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */

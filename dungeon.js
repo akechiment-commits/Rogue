@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodyCells, monsterBodySize } from "./monsterGeometry.js";
 import { settleLargeMonsterSpawns, canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS, OMEGA_BOSS, SHINRYU_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, TAISAIJIN, OHPLENTY, MIREU, KORGON_BOSS, GWEN_BOSS, GWEN_VETERAN_BOSS, FLOCK_BOSS, FLOCK_REVENGE_BOSS, PYROBOLOS_BOSS, KRAKEN_BIO_BOSS, OMEGA_BOSS, SHINRYU_BOSS, ABSOLUTE_VIRTUE_BOSS, makeMonster, makeMonsterFromBase, pickMonsterDef, pickFloodedWaterMonsterDef, pickWaterOnlyMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -2430,6 +2430,7 @@ function genBossFloor(depth, dungeonType = null) {
   const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
   const isOmegaShinryuFloor = dungeonType === "legend" && depth === 44;
   const bt = isOmegaShinryuFloor ? OMEGA_BOSS
+    : dungeonType === "legend" && depth === 49 ? ABSOLUTE_VIRTUE_BOSS
     : dungeonType === "legend" && depth === 39 ? HEXACHROMATIC_BOSS
     : dungeonType === "legend" && depth === 34 ? KRAKEN_BIO_BOSS
     : dungeonType === "legend" && depth === 29 ? PYROBOLOS_BOSS

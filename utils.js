@@ -653,6 +653,7 @@ export function isEvasionDisabledByStatus(target) {
 
 /**
  * 敵の回避判定。必中フラグが真、または対象が回避不能な状態異常（眠り・金縛り・凍結・移動封じ・鈍足）のときは回避不可。
+ * Absolute Virtue は絶対回避中、必中でない攻撃をすべて回避する。
  * ミレウ（boss_mireu）は必中でない攻撃を50%で回避する。
  * それ以外の通常モンスターは baseMissRate（近接5%、飛び道具10%など）で判定。
  */
@@ -660,6 +661,7 @@ export function checkMonsterEvasion(target, { sureHit = false, baseMissRate = 0.
   if (!target) return false;
   if (sureHit) return false;
   if (isEvasionDisabledByStatus(target)) return false;
+  if ((target.absoluteEvasionTurns || 0) > 0) return true;
   const missChance = target.baseKind === "boss_mireu" ? 0.50 : baseMissRate;
   return random() < missChance;
 }

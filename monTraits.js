@@ -87,6 +87,14 @@ export function monEffectiveMaxAttacks(m) {
   return m.maxAttacks ?? 1;
 }
 
+/** Attack value after active boss-specific attack buffs. */
+export function monEffectiveAttack(m) {
+  let attack = Number(m?.atk) || 0;
+  if (!m?.sealed && (m?.sharpStrikeTurns || 0) > 0) attack = Math.floor(attack * 1.5);
+  if (!m?.sealed && (m?.mightyStrikeTurns || 0) > 0) attack = Math.floor(attack * 2);
+  return attack;
+}
+
 /** 封印中は速度1（倍速・鈍足無視）。呼び出し側 turnAccum でも同様に扱う */
 export function monEffectiveSpeed(m) {
   if (!m) return 1;

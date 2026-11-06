@@ -189,6 +189,9 @@ export function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.refreshTurns || 0) > 0)                                 _sts.push("#20e060"); // 持続回復（リフレシュ）：緑
   if ((mon.caswackTurns || 0) > 0)                                 _sts.push("#9900cc"); // カスワック：不吉な濃紫
   if ((mon.mightyGuardTurns || 0) > 0)                             _sts.push("#b9f4ff"); // マイティガード：水色
+  if ((mon.absoluteEvasionTurns || 0) > 0)                          _sts.push("#d6ffff"); // 絶対回避：白水色
+  if ((mon.mightyStrikeTurns || 0) > 0)                            _sts.push("#ffb94e"); // マイティストライク：金橙
+  if ((mon.chainspellTurns || 0) > 0)                              _sts.push("#dc8cff"); // 連続魔：紫
   /* ── モンスターレベルバッジ（左上） ── */
   const _ml = mon.monLevel ?? 1;
   if (_ml >= 2) {

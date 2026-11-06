@@ -29,6 +29,8 @@ export const BOSS_UNIQUE_DROP_RULES = Object.freeze({
   boss_hexachromatic: categoryDrop("spellbook", "ランダムな魔法書"),
   boss_omega: categoryDrop("weapon", "ランダムな武器"),
   boss_shinryu: categoryDrop("armor", "ランダムな防具"),
+  /* 超上級B50Fで深淵神と入れ替わるため、既存B50F固有報酬の杖を引き継ぐ。 */
+  boss_absolute_virtue: categoryDrop("wand", "ランダムな杖"),
 
   im_boss_salamander: categoryDrop("weapon", "ランダムな武器"),
   im_boss_titan: categoryDrop("wand", "ランダムな杖"),

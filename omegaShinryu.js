@@ -1,6 +1,6 @@
 import {
   T, MW, MH, uid, rng, calcAtkDefDmg, calcPlayerDefense, playerHpEffectLabel,
-  consumeBarrier,
+  checkMonsterEvasion, consumeBarrier,
 } from "./utils.js";
 import {
   monsterBodyCells, monsterBounds, monsterOccupiesCell,
@@ -423,7 +423,7 @@ export function attackOmegaShinryuAdjacentCells(monster, dungeon, player, messag
     const target = dungeon.monsters?.find(other => other !== monster && other.hp > 0 &&
       !other.disguisedAsItem && monsterOccupiesCell(other, cell.x, cell.y));
     if (!target) continue;
-    if (Math.random() >= 0.90) {
+    if (checkMonsterEvasion(target, { baseMissRate: 0.10 })) {
       messages.push(`${monster.name}の${target.name}への攻撃は外れた！`);
       continue;
     }

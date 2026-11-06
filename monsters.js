@@ -53,6 +53,10 @@ import {
   castShinryuLightning, castShinryuMightyGuard,
   attackOmegaShinryuAdjacentCells, setOmegaShinryuCombatDeps,
 } from './omegaShinryu.js';
+import {
+  getAbsoluteVirtueLine, castAbsoluteVirtueAeroga, castAbsoluteVirtuePull,
+  castAbsoluteVirtueGoddessBlessing,
+} from './absoluteVirtue.js';
 import { installShinryuMightyGuardHpHook } from './mightyGuardHp.js';
 import {
   rng, pick, uid, MW, MH, FARCAST_RANGE, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt,
@@ -477,12 +481,12 @@ export { wakeIfDormant } from "./monsterRuntime.js";
 export {
   monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
-  monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility, monHasElementWeakness,
+  monEffectiveMaxAttacks, monEffectiveSpeed, monEffectiveAttack, monCanUseExplosiveAbility, monHasElementWeakness,
   monElementDamageMultiplier,
 } from "./monTraits.js";
 import {
   monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
-  monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks,
+  monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks, monEffectiveAttack,
   monCanUseExplosiveAbility, monHasElementWeakness, monElementDamageMultiplier,
 } from "./monTraits.js";
 
@@ -883,7 +887,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     return;
   }
   const pdef = ignoreDefense ? 0 : calcPlayerDef(pl);
-  const _effAtk = (m.sharpStrikeTurns || 0) > 0 && !m.sealed ? Math.floor(m.atk * 1.5) : m.atk;
+  const _effAtk = monEffectiveAttack(m);
   let dmg = calcAtkDefDmg(_effAtk, pdef, { defWeight: 1.5 });
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -2056,7 +2060,15 @@ export const SHINRYU_BOSS = {
   desc: "超上級B45Fにオメガと同時に現れる中心基準の3×3浮遊ドラゴン。遠距離直線上でタイダルウエイブ（横3×縦10マスへ2ターン後に通常攻撃の2倍の水属性ダメージと、発射方向の逆への吹き飛ばし。範囲内の魔方陣を破壊）20%、アトミックレイ（80ダメージ火炎ブレス）20%。視界内では稲妻（同室の生物へ約50ダメージ。オメガにも命中）20%、マイティガード（10ターン全被ダメージ半減）10%。この2つは隣接時も同じ確率で使う。隣接時10%で悪魔の瞳を予告し、次ターンに本体の全隣接マスへ石化を与える。通常攻撃は3×3本体の全隣接マスを攻撃する。",
 };
 
-SPECIAL_BOSSES.push(OMEGA_BOSS, SHINRYU_BOSS);
+/* 超上級B50F専用の最終ボス。現行B50Fボスの能力値を維持し、特技・行動回数のみ置換する。 */
+export const ABSOLUTE_VIRTUE_BOSS = {
+  name: "Absolute Virtue", hp: 2400, atk: 183, def: 97, exp: 100000,
+  speed: 2, tile: 266, kind: "humanoid", baseKind: "boss_absolute_virtue",
+  isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 1, bodySize: 3,
+  desc: "超上級B50Fに現れる3×3マスの最終ボス。2倍速・1回行動で、毎行動終了時にHP20回復する。視界内では絶対回避（必中以外を10ターン回避）、マイティストライク（10ターン攻撃力2倍）、女神の祝福（同室の全員を250回復）、連続魔（10ターン、メテオ着弾1ターン・エアロガ2ヒット）を各5%、メテオを20%で使う。距離2〜10の直線上ではエアロガ（80ダメージ・吹き飛ばし）と引き寄せの魔法を各20%で使う。HP25%未満になると2回行動に変化する。",
+};
+
+SPECIAL_BOSSES.push(OMEGA_BOSS, SHINRYU_BOSS, ABSOLUTE_VIRTUE_BOSS);
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
@@ -5624,7 +5636,7 @@ function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
           messages.push(`${monster.name}は攻撃が封印されていて殴れない！`);
         } else {
           monster.turnAttacks++;
-          if (Math.random() >= 0.90) {
+          if (checkMonsterEvasion(target, { baseMissRate: 0.10 })) {
             messages.push(`${monster.name}の${target.name}への攻撃は外れた！`);
           } else if (consumeBarrier(target, messages)) {
             messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
@@ -5777,7 +5789,7 @@ function performStrifeRingAttack(monster, target, dungeon, player, messages, opt
       });
     return true;
   }
-  if (Math.random() >= 0.90) {
+  if (checkMonsterEvasion(target, { baseMissRate: 0.10 })) {
     messages.push(`${monster.name}は争いの指輪にあおられて${target.name}に襲いかかったが、外れた！`);
     return true;
   }
@@ -6385,6 +6397,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _isGwen = m.baseKind === "boss_gwen";
   const _isGwenVeteran = m.baseKind === "boss_gwen_veteran";
   const _isGwenVariant = _isGwen || _isGwenVeteran;
+  const _isAbsoluteVirtue = m.baseKind === "boss_absolute_virtue";
   if (_isFlockVariant && m.hp <= 0) return;
   if (_isGwenVariant && m.hp <= 0) return;
   if (_isGwen && opts.attackOnly) return;
@@ -6396,6 +6409,29 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
   let _flockMovementLocked = false;
+  if (_isAbsoluteVirtue && m.hp > 0 && !m._absoluteVirtuePhaseTwo &&
+      Number.isFinite(m.maxHp) && m.hp < m.maxHp * 0.25) {
+    m._absoluteVirtuePhaseTwo = true;
+    m.maxAttacks = 2;
+    ml.push(`${m.name}が真の力を解放した！2回行動になった！`);
+    pushSplashAnim(m.x, m.y, "#fff1a6");
+  }
+  if (_isAbsoluteVirtue && m.hp > 0 && !_attackOnly) {
+    for (const [key, label] of [
+      ["absoluteEvasionTurns", "絶対回避"],
+      ["mightyStrikeTurns", "マイティストライク"],
+      ["chainspellTurns", "連続魔"],
+    ]) {
+      if ((m[key] || 0) <= 0) continue;
+      m[key] = Math.max(0, m[key] - 1);
+      if (m[key] <= 0) ml.push(`${m.name}の${label}が切れた！`);
+    }
+    const heal = Math.min(20, Math.max(0, (m.maxHp || m.hp) - m.hp));
+    if (heal > 0) {
+      m.hp += heal;
+      ml.push(`${m.name}は自然回復した！(+${heal}HP)`);
+    }
+  }
   if (m.baseKind === "boss_hexachromatic") {
     const playerHiddenFromHex = (pl.invisibleTurns || 0) > 0 || (pl.potConfinedTurns || 0) > 0;
     const playerOnBlessedSanctuary = !inMagicSealRoom(pl.x, pl.y, dg) && !!dg.pentacles?.some(pentacle =>
@@ -8406,6 +8442,81 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       canHitPlayer: !_plOnSanc,
     });
     return;
+  }
+
+  /* ===== 超上級B50Fボス Absolute Virtue ===== */
+  if (_isAbsoluteVirtue && _moveOnly && m._absoluteVirtueReady) return;
+  const _avCanUseSpecial = _isAbsoluteVirtue && !m.sealed && !isAttackSealed(m) && !m.blind &&
+    !(m.confusedTurns > 0) && !m.bewitched && (m.sleepTurns || 0) <= 0 && !m.paralyzed &&
+    (m.petrifiedTurns || 0) <= 0 && (m.frozenTurns || 0) <= 0 && (m.knockdownTurns || 0) <= 0 &&
+    !inMagicSealRoom(m.x, m.y, dg) && m.turnAttacks < monEffectiveMaxAttacks(m);
+  const _avVisible = canSee && !_plInvis && !_plPotHidden;
+  const _avSpellBlocked = inMagicSealRoom(pl.x, pl.y, dg) || !!_plOnBlessedSanc;
+  const _avLine = _avVisible ? getAbsoluteVirtueLine(m, dg, pl) : null;
+  const _chooseAbsoluteVirtueAttack = () => {
+    const roll = Math.random();
+    if (_avVisible) {
+      if (roll < 0.05) return (m.absoluteEvasionTurns || 0) > 0 ? null : "absoluteEvasion";
+      if (roll < 0.10) return (m.mightyStrikeTurns || 0) > 0 ? null : "mightyStrike";
+      if (roll < 0.15) return "goddessBlessing";
+      if (roll < 0.20) return (m.chainspellTurns || 0) > 0 ? null : "chainspell";
+      if (roll < 0.40) return !_avSpellBlocked && canCastMeteor(m, dg) ? "meteor" : null;
+      if (roll < 0.60) return _avLine && !_avSpellBlocked ? "aeroga" : null;
+      if (roll < 0.80) return _avLine && !_avSpellBlocked ? "pull" : null;
+    } else if (_avLine && !_avSpellBlocked) {
+      if (roll < 0.20) return "aeroga";
+      if (roll < 0.40) return "pull";
+    }
+    return null;
+  };
+  const _performAbsoluteVirtueAttack = (attack, line) => {
+    if (attack === "absoluteEvasion") {
+      m.absoluteEvasionTurns = 10;
+      pushSplashAnim(m.x, m.y, "#b9f6ff");
+      ml.push(`${m.name}が絶対回避を発動した！10ターンの間、必中でない攻撃をすべて回避する！`);
+    } else if (attack === "mightyStrike") {
+      m.mightyStrikeTurns = 10;
+      pushSplashAnim(m.x, m.y, "#ffb94e");
+      ml.push(`${m.name}がマイティストライクを発動した！10ターンの間、攻撃力が2倍になった！`);
+    } else if (attack === "goddessBlessing") {
+      castAbsoluteVirtueGoddessBlessing(m, dg, pl, ml);
+    } else if (attack === "chainspell") {
+      m.chainspellTurns = 10;
+      pushSplashAnim(m.x, m.y, "#dc8cff");
+      ml.push(`${m.name}が連続魔を発動した！10ターンの間、メテオが1ターンで着弾し、エアロガが2ヒットする！`);
+    } else if (attack === "meteor") {
+      castMeteor(m, dg, pl, ml, { turnsLeft: (m.chainspellTurns || 0) > 0 ? 1 : undefined });
+    } else if (attack === "aeroga") {
+      castAbsoluteVirtueAeroga(m, dg, pl, line, ml, {
+        luFn: _luFn, onPlayerHit: _onHit, beginNpcRetaliation,
+      });
+    } else if (attack === "pull") {
+      castAbsoluteVirtuePull(m, dg, pl, line, ml);
+    }
+  };
+  if (_isAbsoluteVirtue && _attackOnly && m._absoluteVirtueReady) {
+    const attack = m._absoluteVirtueReady;
+    const line = m._absoluteVirtueReadyLine;
+    delete m._absoluteVirtueReady;
+    delete m._absoluteVirtueReadyLine;
+    if (_avCanUseSpecial) {
+      m.turnAttacks++;
+      _performAbsoluteVirtueAttack(attack, line);
+      return;
+    }
+  }
+  if (_avCanUseSpecial) {
+    const attack = _chooseAbsoluteVirtueAttack();
+    if (attack) {
+      if (_moveOnly) {
+        m._absoluteVirtueReady = attack;
+        if (_avLine) m._absoluteVirtueReadyLine = _avLine;
+        return;
+      }
+      m.turnAttacks++;
+      _performAbsoluteVirtueAttack(attack, _avLine);
+      return;
+    }
   }
 
   /* ===== 超上級B40Fボス ヘキサクロマティック 特技AI ===== */

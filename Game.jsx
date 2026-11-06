@@ -3449,7 +3449,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
                       _srPeel();
-                    } else if (_srForceMiss || (!isEvasionDisabledByStatus(_msTarget) && Math.random() >= 0.90)) {
+                    } else if (_srForceMiss || checkMonsterEvasion(_msTarget, {
+                      sureHit: (p.sureHitTurns || 0) > 0,
+                      baseMissRate: 0.10,
+                    })) {
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
                       const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, _srDrop(), ml, _msft);
                     } else {

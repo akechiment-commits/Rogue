@@ -3323,7 +3323,7 @@ export function useItemActions({
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
               const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
-              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (!_msSureHit && !isEvasionDisabledByStatus(_msTarget) && !(_msDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (_msDodgePcMode !== "sure" && checkMonsterEvasion(_msTarget, { sureHit: _msSureHit, baseMissRate: 0.10 })));
               const _msDmg = _msMiss ? 0 : calcProjectileDmg(p, _arItem.atk || 5, _msTarget.def);
               if (_msMiss) {
                 if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
@@ -4013,7 +4013,7 @@ export function useItemActions({
               _invStPeel();
             } else {
               const _msDodgePcMode2 = getDodgePentacleMode(dg, _msTarget2.x, _msTarget2.y);
-              const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_msTarget2) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
+              const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (_msDodgePcMode2 !== "sure" && checkMonsterEvasion(_msTarget2, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 })));
               if (_msMiss2) {
                 if (_msDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
@@ -4087,7 +4087,7 @@ export function useItemActions({
               _invStPeel();
             } else if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
-              const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_stM2) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
+              const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (_stDodgePcMode2 !== "sure" && checkMonsterEvasion(_stM2, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 })));
               if (_stMiss2) {
                 if (_stDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
