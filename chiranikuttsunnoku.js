@@ -2,11 +2,11 @@ import {
   calcAtkDefDmg, calcPlayerDefense, rng, consumeBarrier,
   checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from './utils.js';
-import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster, applyPlayerTrip } from './items.js';
+import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster, applyPlayerTrip, blockPlayerStatus } from './items.js';
 import { monEffectiveFloat } from './monTraits.js';
 import { monsterPointDistance, monsterBodyCells } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
-import { applyPlayerPoison, resolveParalysisHit } from './statusDuration.js';
+import { applyPlayerPoison, resolveParalysisHit, statusResultMessage } from './statusDuration.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { pushSplashAnim, pushAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
@@ -42,7 +42,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
   const luFn = opts.luFn || (() => {});
   const onHit = opts.onPlayerHit;
   const onMiss = opts.onPlayerMiss;
-  const effAtk = (m.sharpStrikeTurns || 0) > 0 ? Math.floor(m.atk * 1.5) : m.atk;
+  const effAtk = m.atk;
 
   ml.push(`${m.name}の大地を揺るがすアースブレイカー！`);
   pushSplashAnim(m.x, m.y, "#906040");
@@ -156,7 +156,7 @@ export function getVenomStingOriginAndDir(monster, dungeon, player) {
  * 遠距離直線上にいるとき、ダメージ＋毒を付与する物理飛び道具（命中82%）
  */
 export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
-  const effAtk = (m.sharpStrikeTurns || 0) > 0 ? Math.floor(m.atk * 1.5) : m.atk;
+  const effAtk = m.atk;
 
   /* 発射起点だけを尾の体セルへずらし、射手の同一性は実体 m のままにする
      （コピーを射手にすると自分の体を別個体と誤認し、風で戻った弾が実体でなくコピーを撃破処理してしまう） */
@@ -174,14 +174,25 @@ export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
     calcPlDmg: () => Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2)),
     calcMonDmg: (mon) => Math.max(1, calcAtkDefDmg(effAtk, mon.def || 0, { defWeight: 1, variance: false }) + rng(-2, 2)),
     onPlHit: (mlx) => {
-      if (!isStatusImmune(pl, mlx, "自分")) {
-        applyPlayerPoison(pl, { atkLoss: 1 });
-        mlx.push("猛毒針が突き刺さった！毒を受けた！");
-      }
+      if (blockPlayerStatus(pl, mlx, {
+        proofAbility: "poison_proof", proofMsg: "しかし防具が毒を防いだ！(耐毒)",
+      })) return;
+      const poison = applyPlayerPoison(pl, { atkLoss: 1, sourceName: m.name });
+      mlx.push(statusResultMessage(poison, "猛毒針が突き刺さった！毒を受けた！"));
     },
     onMonHit: (mon, mlx) => {
+      if (isStatusImmune(mon, mlx, mon.name)) return;
       if (!blockLargeMonsterStatus(mon, "poison", mlx)) {
-        mon.poisonedTurns = (mon.poisonedTurns || 0) + 15;
+        const turns = mon.isBoss ? Math.ceil(15 / 2) : 15;
+        mon.poisoned = true;
+        mon.poisonedTurns = (mon.poisonedTurns || 0) + turns;
+        mon.sporePoisonKillerId = m.id;
+        mon.sporePoisonKillerName = m.name;
+        if (!mon.poisonHalfAtk) {
+          mon.poisonOrigAtk = mon.atk;
+          mon.poisonHalfAtk = true;
+          mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+        }
         startLargeMonsterStatusCooldown(mon, "poison");
         mlx.push(`${mon.name}は猛毒針で毒に侵された！`);
       }

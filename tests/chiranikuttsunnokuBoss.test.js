@@ -306,6 +306,38 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
       expect(pl.poisonedTurns).toBeUndefined();
       expect(ml.some(m => m.includes("外れた！"))).toBe(true);
     });
+
+    it("耐毒の防具やヨーグルト免疫を防ぎ、他モンスター命中時は攻撃力半減と撃破元を記録する", () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.1);
+      const dg = makeEmptyDg();
+      const boss = { ...CHIRANIKUTSUNNOKU, id: "chira-1", x: 5, y: 5 };
+      const plProof = makePlayer({
+        x: 12, y: 5, hp: 100, maxHp: 100,
+        armor: { name: "解毒の盾", def: 5, ability: "poison_proof" },
+      });
+      dg.monsters = [boss];
+      const aim = getVenomStingOriginAndDir(boss, dg, plProof);
+      const ml1 = [];
+      chiranikuttsunnokuVenomSting(boss, dg, plProof, ml1, null, aim);
+      expect(plProof.poisoned).toBeFalsy();
+      expect(ml1.some(m => m.includes("耐毒"))).toBe(true);
+
+      const plYogurt = makePlayer({ x: 12, y: 5, hp: 100, maxHp: 100, yogurtImmuneTurns: 5 });
+      const ml2 = [];
+      chiranikuttsunnokuVenomSting(boss, dg, plYogurt, ml2, null, aim);
+      expect(plYogurt.poisoned).toBeFalsy();
+      expect(ml2.some(m => m.includes("乳酸菌が毒を防いだ！"))).toBe(true);
+
+      const blocker = { id: "mon-1", name: "ゴブリン", x: 9, y: 5, hp: 200, maxHp: 200, atk: 20, def: 0 };
+      dg.monsters = [boss, blocker];
+      const ml3 = [];
+      chiranikuttsunnokuVenomSting(boss, dg, plYogurt, ml3, null, aim);
+      expect(blocker.poisoned).toBe(true);
+      expect(blocker.poisonedTurns).toBe(15);
+      expect(blocker.atk).toBe(10);
+      expect(blocker.sporePoisonKillerId).toBe("chira-1");
+      expect(blocker.sporePoisonKillerName).toBe(boss.name);
+    });
   });
 
   describe("特技3: シャープストライク", () => {
@@ -322,7 +354,7 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
       expect(ml.some(m => m.includes("10ターンの間、攻撃力が1.5倍になった！"))).toBe(true);
     });
 
-    it("シャープストライク中はアースブレイカーの攻撃力計算が1.5倍（58 -> 87）になる", () => {
+    it("シャープストライクの攻撃アップはアースブレイカーやベノムスティングには乗らない", () => {
       const dg = makeEmptyDg();
       const bossNormal = {
         ...CHIRANIKUTSUNNOKU,
@@ -354,8 +386,17 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
       chiranikuttsunnokuEarthbreaker(bossBuffed, dg, pl2, ml2);
       const dmgBuffed = 500 - pl2.hp;
 
-      // バフ時は1.5倍（60 -> 90）前後のダメージとなるため明らかに大きい
-      expect(dmgBuffed).toBeGreaterThan(dmgNormal);
+      expect(dmgBuffed).toBe(dmgNormal);
+
+      const pl3 = makePlayer({ x: 16, y: 10, hp: 500, maxHp: 500, def: 0 });
+      const pl4 = makePlayer({ x: 16, y: 10, hp: 500, maxHp: 500, def: 0 });
+      dg.monsters = [bossNormal];
+      const aim1 = getVenomStingOriginAndDir(bossNormal, dg, pl3);
+      chiranikuttsunnokuVenomSting(bossNormal, dg, pl3, [], null, aim1);
+      dg.monsters = [bossBuffed];
+      const aim2 = getVenomStingOriginAndDir(bossBuffed, dg, pl4);
+      chiranikuttsunnokuVenomSting(bossBuffed, dg, pl4, [], null, aim2);
+      expect(500 - pl4.hp).toBe(500 - pl3.hp);
     });
   });
 
