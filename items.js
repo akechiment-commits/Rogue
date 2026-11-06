@@ -2420,7 +2420,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           continue;
         }
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
-        if (m.baseKind === "firedemon" && !m.sealed) {
+        if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
           const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
           for (const [_sx, _sy] of _sd8) {

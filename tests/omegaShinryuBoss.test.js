@@ -15,6 +15,7 @@ import {
 import { drawTimeBombWarnings, timeBombBlastCells } from "../timeBombWarnings.js";
 import { monHasElementWeakness, monReflectsMagic } from "../monTraits.js";
 import { installShinryuMightyGuardHpHook } from "../mightyGuardHp.js";
+import { multiplyRoomMonsters } from "../items.js";
 import { resolveTurnHazards } from "../turnHazards.js";
 import { saveGameState, loadGameState } from "../GameSave.js";
 import { TILE_NAMES, TILE_RENDER } from "../render.js";
@@ -325,6 +326,23 @@ describe("超上級B45F オメガ・神竜", () => {
     restored.mightyGuardTurns = 0;
     restored.hp -= 40;
     expect(restored.hp).toBe(140);
+  });
+
+  it("マイティガード中でも最大HP低下に伴う上限クランプは半減せず、ボスは増殖罠で増殖しない", () => {
+    const shinryu = {
+      ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10,
+      hp: 300, maxHp: 300, mightyGuardTurns: 10,
+    };
+    installShinryuMightyGuardHpHook(shinryu);
+    shinryu.maxHp = 240;
+    shinryu.hp = Math.min(shinryu.hp, shinryu.maxHp);
+    expect(shinryu.hp).toBe(240);
+
+    const player = makePlayer({ x: 12, y: 10 });
+    const dungeon = makeEmptyDg({ monsters: [shinryu], ...visibleRoom() });
+    const messages = [];
+    expect(multiplyRoomMonsters(dungeon, 10, 10, messages, player)).toBe(0);
+    expect(dungeon.monsters).toHaveLength(1);
   });
 
   it("神竜の稲妻は魔法ではないため魔法反射で跳ね返されず、魔封じの魔方陣でも防げない", () => {

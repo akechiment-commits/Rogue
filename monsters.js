@@ -7970,7 +7970,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== 分裂スライム：ダメージを受けたターンに25%で分裂（体力全快の個体を生成） ===== */
-  if (m.subtype === "splitter" && m.hp > 0) {
+  if (m.subtype === "splitter" && !m.isBoss && m.hp > 0) {
     const _prevHp = m._lastHp;
     m._lastHp = m.hp;
     if (_prevHp !== undefined && m.hp < _prevHp && Math.random() < 0.25) {
