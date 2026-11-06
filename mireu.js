@@ -324,7 +324,7 @@ export function mireuAbsoluteTerror(m, dg, pl, ml, opts = {}) {
   }
 
   // 2. 移動封じ付与（耐影縫い または 体幹の指輪で防御可能）
-  if (hasRingEffect(pl, "trunk_ring")) {
+  if (hasRingEffect(pl, "core_ring")) {
     ml.push(`体幹の指輪の力で恐怖の重圧に耐え切った！(移動封じ無効)`);
   } else if (!blockPlayerStatus(pl, ml, { proofAbility: "shadow_stitch_proof", proofMsg: "しかし防具が影縫いを防いだ！(耐影縫い)" })) {
     const immT = statusTurns("immobile", { kind: "player" });

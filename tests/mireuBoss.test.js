@@ -372,7 +372,7 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
 
     it('体幹の指輪を装備していれば移動封じを防げる', () => {
       const s = setup();
-      s.player.rings = [{ effect: 'trunk_ring' }];
+      s.player.rings = [{ effect: 'core_ring', name: '体幹の指輪' }];
 
       mireuAbsoluteTerror(s.boss, s.dungeon, s.player, s.messages);
 
