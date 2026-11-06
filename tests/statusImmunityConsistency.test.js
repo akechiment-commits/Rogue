@@ -214,4 +214,14 @@ describe("状態防止の有無による実際の敵特技の違い", () => {
     applyPotionEffect(effect, 5, "monster", victim, dungeon, player, messages, () => {});
     expect(ailments.some(key => !!victim[key]) || victim.speed < 1 || victim.atk < 30).toBe(true);
   });
+  it("大型モンスターにバリアや魔法無効があるとき、状態異常の杖でクールダウンを先取りせず起床・バリア消費を優先する", () => {
+    const { player, victim, dungeon, messages } = context("monster", 2, false);
+    victim.barrier = 1;
+    victim.dormant = true;
+    applyWandEffect("sleep", "monster", victim, 1, 0, dungeon, player, messages, () => {});
+    expect(victim.dormant).toBe(false);
+    expect(victim.barrier).toBe(0);
+    expect(victim.sleepTurns || 0).toBe(0);
+    expect(victim.largeStatusCooldowns).toBeUndefined();
+  });
 });

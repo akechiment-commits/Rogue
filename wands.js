@@ -79,28 +79,6 @@ function statueTeleportDest(dg, ox, oy, p) {
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null) {
-  if (kind === "monster" && target?.forcedMoveImmune && ["swap", "leap", "warp", "teleport_wand"].includes(eff)) {
-    ml.push(`${target.name}は強制移動を受けない！`);
-    return;
-  }
-  const _statusVictim = kind === "player" ? p : kind === "monster" ? target : null;
-  if (_statusVictim && blMult >= 1 && ["slow", "sleep", "paralyze", "seal", "confuse", "darkness", "bewitch", "soften"].includes(eff) &&
-      isStatusImmune(_statusVictim, ml, kind === "monster" ? target.name : null)) return;
-  const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && blMult >= 1
-    ? ({ slow: "slow", sleep: "sleep", confuse: "confuse", sleep_bolt: "sleep", poison_bolt: "poison", ice_wand: "immobile" })[eff]
-    : null;
-  let _skipLargeStatus = false;
-  if (_largeStatusKey && blockLargeMonsterStatus(target, _largeStatusKey, ml)) {
-    if (eff !== "ice_wand") return;
-    _skipLargeStatus = true;
-  }
-  if (_largeStatusKey && !_skipLargeStatus && isStatusImmune(target, ml, target.name)) {
-    if (eff !== "ice_wand") return;
-    _skipLargeStatus = true;
-  }
-  if (_largeStatusKey && !_skipLargeStatus) {
-    startLargeMonsterStatusCooldown(target, _largeStatusKey);
-  }
   // 敵行動中は Game の罠処理へ渡し、階移動と予約された地雷の即時解決まで行う。
   const _activatePlayerTrap = trap => fireTrapFn
     ? fireTrapFn(trap, p, dg, ml)
@@ -260,6 +238,28 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
     /* バリア術師：近接以外の全効果（杖・状態異常・爆発等）を1回分無効化 */
     if (consumeBarrier(target, ml)) return;
+    if (target?.forcedMoveImmune && ["swap", "leap", "warp", "teleport_wand"].includes(eff)) {
+      ml.push(`${target.name}は強制移動を受けない！`);
+      return;
+    }
+  }
+  const _statusVictim = kind === "player" ? p : kind === "monster" ? target : null;
+  if (_statusVictim && blMult >= 1 && ["slow", "sleep", "paralyze", "seal", "confuse", "darkness", "bewitch", "soften"].includes(eff) &&
+      isStatusImmune(_statusVictim, ml, kind === "monster" ? target.name : null)) return;
+  const _largeStatusKey = kind === "monster" && monsterBodySize(target) > 1 && blMult >= 1
+    ? ({ slow: "slow", sleep: "sleep", confuse: "confuse", sleep_bolt: "sleep", poison_bolt: "poison", ice_wand: "immobile" })[eff]
+    : null;
+  let _skipLargeStatus = false;
+  if (_largeStatusKey && blockLargeMonsterStatus(target, _largeStatusKey, ml)) {
+    if (eff !== "ice_wand") return;
+    _skipLargeStatus = true;
+  }
+  if (_largeStatusKey && !_skipLargeStatus && isStatusImmune(target, ml, target.name)) {
+    if (eff !== "ice_wand") return;
+    _skipLargeStatus = true;
+  }
+  if (_largeStatusKey && !_skipLargeStatus) {
+    startLargeMonsterStatusCooldown(target, _largeStatusKey);
   }
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
   const _dname_item = (t) => (kind === "item") ? resolveItemName(t, nameFn) : t.name;
