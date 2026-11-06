@@ -149,4 +149,31 @@ describe("超上級帰り道の追跡ボス：執念のフロック", () => {
     expect(floor25.monsters.some(m => m.baseKind === "boss_flock_revenge")).toBe(false);
     expect(floor25.monsters.some(m => m.baseKind === "skeleton")).toBe(true);
   });
+
+  it("セリフに直接的な階層数（40階など）が含まれず、死亡時は精魂尽き果てたセリフになる", () => {
+    const allStalkerLines = [
+      ...FLOCK_STALKER_SPAWN_LINES,
+      ...FLOCK_STALKER_PURSUIT_LINES,
+      ...FLOCK_STALKER_CHASE_LINES,
+      ...FLOCK_STALKER_ANTI_STEAL_LINES,
+      ...FLOCK_STALKER_STEAL_SUCCESS_LINES,
+      ...FLOCK_STALKER_PICKUP_FLOOR_LINES,
+      ...FLOCK_STALKER_HURT_LINES,
+      ...FLOCK_STALKER_CRITICAL_LINES,
+      ...FLOCK_STALKER_DEATH_LINES,
+    ];
+    for (const line of allStalkerLines) {
+      expect(line).not.toContain("40階");
+    }
+    // 死亡時は精魂尽き果てたセリフであること
+    for (const line of FLOCK_STALKER_DEATH_LINES) {
+      expect(
+        line.includes("燃え尽き") ||
+        line.includes("指一本") ||
+        line.includes("もう無理") ||
+        line.includes("精魂尽き果て") ||
+        line.includes("おしまい")
+      ).toBe(true);
+    }
+  });
 });
