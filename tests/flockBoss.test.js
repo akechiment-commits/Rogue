@@ -227,6 +227,27 @@ describe("超上級B10Fボス：フロック", () => {
     expect(messages.some(message => message.includes("フロックは自滅した！"))).toBe(false);
   });
 
+  it("敵に反射された炎の魔法でフロックが倒れると反射した敵に帰属する", () => {
+    const { dungeon, flock, player } = makeFlockScene();
+    const reflector = { id: "reflector", name: "鏡の敵", x: 10, y: 8, hp: 100, maxHp: 100, def: 0, magicReflect: true };
+    dungeon.monsters.push(reflector);
+    flock.hp = 10;
+    player.exp = 0;
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    setWandBreakEffectHandler(() => {});
+    try {
+      resolveFlockFireBolt(flock, dungeon, player, messages, 1, 0);
+    } finally {
+      setWandBreakEffectHandler(null);
+      random.mockRestore();
+    }
+
+    expect(dungeon.monsters).not.toContain(flock);
+    expect(player.exp).toBe(0);
+    expect(messages.some(message => message.includes("鏡の敵に倒された！")), messages.join(" | ")).toBe(true);
+  });
+
   it("眼帯スプライトと3スタイル、杖カテゴリの報酬を登録する", () => {
     expect(TILE_NAMES[257]).toBe("flock");
     expect(TILE_RENDER[257]).toMatchObject({ ch: "F" });

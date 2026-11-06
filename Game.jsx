@@ -1417,16 +1417,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _wandBlMult = _wandBlessed ? 2 : 1;
         const _wbItemNameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
-        const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx) =>
+        const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx,
+          killerMon = m, sourceIsPlayer = false, breaker = killerMon || m) =>
           applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
-            _wandBlMult, _wbItemNameFn, m.atk, m, _wbBbNameFn, false, m, opts.fireTrapFn);
+            _wandBlMult, _wbItemNameFn, m.atk, killerMon, _wbBbNameFn, sourceIsPlayer, breaker, opts.fireTrapFn);
         if (_we === "lightning_magic" && m.baseKind === "boss_flock_revenge") {
           const room = findRoom(dg.rooms, m.x, m.y);
           if (!room || findRoom(dg.rooms, pl.x, pl.y) !== room) return;
           ml.push(`${m.name}が同じ部屋に雷の魔法を放った！`);
           if (hasPlayerMagicReflect(pl)) {
             ml.push(`${playerMagicReflectLabel(pl)}が${m.name}の雷の魔法を跳ね返した！`);
-            _applyMonsterWandEffect("lightning", "monster", m, 0, 0, ml);
+            _applyMonsterWandEffect("lightning", "monster", m, 0, 0, ml, null, false, pl);
           } else {
             _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
             if (pl.hp <= 0) pl.deathCause = `${m.name}の雷の魔法により`;
@@ -1446,7 +1447,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onPlayerReflect: (mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
           });
         } else if (_we === "drain_hp" && m.baseKind === "boss_flock_revenge") {
-          const drain = (target, recipient) => {
+          const drain = (target, recipient, killerMon = m) => {
             if (!target || target.hp <= 0 || consumeBarrier(target, ml)) return;
             const power = Math.max(1, Number(m.flockMagicPowerMultiplier) || 1);
             const damage = Math.max(1, multiplyCursedMagicDamage(Math.round(rng(18, 28) * power), target, dg));
@@ -1455,15 +1456,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             const healed = Math.min(damage, Math.max(0, (recipient.maxHp || recipient.hp) - recipient.hp));
             recipient.hp += healed;
             ml.push(`HP吸収の魔法が${target.name || "プレイヤー"}に命中！${damage}ダメージ、${healed}HP吸収！`);
-            if (target.hp <= 0 && target !== pl) killMonster(target, dg, pl, ml, lu, false, m);
+            if (target.hp <= 0 && target !== pl) killMonster(target, dg, pl, ml, lu, false, killerMon);
           };
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, range: 10, boltColor: "#d452ff", reflectColor: "#d452ff", wandLabel: "HP吸収の魔法",
             onPlayerHit: () => drain(pl, m),
             onMonsterHit: (target) => drain(target, m),
             onWallReflect: () => drain(m, m),
-            onMagicReflect: (reflector) => drain(m, reflector),
-            onPlayerReflect: () => drain(m, pl),
+            onMagicReflect: (reflector) => drain(m, reflector, reflector),
+            onPlayerReflect: () => drain(m, pl, null),
           });
         } else if (_we === "reflect_magic" && m.baseKind === "boss_flock_revenge") {
           m.flockReflectTurns = Math.max(m.flockReflectTurns || 0, 10);
@@ -1543,8 +1544,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onPlayerHit: (mlx) => _applyMonsterWandEffect(_we, "player", pl, dx, dy, mlx),
             onMonsterHit: (mon, mlx) => _applyMonsterWandEffect(_we, "monster", mon, dx, dy, mlx),
             onWallReflect: (mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx),
-            onMagicReflect: (refl, mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx),
-            onPlayerReflect: (mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx),
+            onMagicReflect: (refl, mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx, refl, false, refl),
+            onPlayerReflect: (mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx, null, false, pl),
             onBigbox: (bb, mlx) => _applyMonsterWandEffect(_we, "bigbox", bb, dx, dy, mlx),
             onItem: (it, mlx) => _applyMonsterWandEffect(_we, "item", it, dx, dy, mlx),
             onTrap: (trap, mlx) => _applyMonsterWandEffect(_we, "trap", trap, dx, dy, mlx),
@@ -1562,7 +1563,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onPlayerReflect: (mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
           });
         } else if (_we === "poison_bolt") {
-          const _applyPoisonBolt = (target, kind, mlx) => {
+          const _applyPoisonBolt = (target, kind, mlx, sourceMonster = m) => {
             if (kind === "player") {
               if (hasRingEffect(pl, "antidote_ring")) {
                 mlx.push("毒の魔法が命中したが、毒消しの指輪が毒を消した！");
@@ -1580,6 +1581,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             const turns = statusTurns("poison", { kind: "monster", target });
             target.poisonedTurns = (target.poisonedTurns || 0) + turns;
             mlx.push(`毒の魔法が${target.name}に命中！毒に侵された！(${turns}ターン)`);
+            if (sourceMonster) {
+              target.sporePoisonKillerId = sourceMonster.id;
+              target.sporePoisonKillerName = sourceMonster.name;
+            } else {
+              delete target.sporePoisonKillerId;
+              delete target.sporePoisonKillerName;
+            }
           };
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, range: 10, boltColor: "poison_wand", reflectColor: "#70d050", wandLabel: "毒の魔法",
@@ -1588,8 +1596,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onPlayerHit: (mlx) => _applyPoisonBolt(pl, "player", mlx),
             onMonsterHit: (mon, mlx) => _applyPoisonBolt(mon, "monster", mlx),
             onWallReflect: (mlx) => _applyPoisonBolt(m, "monster", mlx),
-            onMagicReflect: (_reflector, mlx) => _applyPoisonBolt(m, "monster", mlx),
-            onPlayerReflect: (mlx) => _applyPoisonBolt(m, "monster", mlx),
+            onMagicReflect: (reflector, mlx) => _applyPoisonBolt(m, "monster", mlx, reflector),
+            onPlayerReflect: (mlx) => _applyPoisonBolt(m, "monster", mlx, null),
           });
         } else if (_we === "curse_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
