@@ -156,6 +156,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const carryInConsumedRef = useRef(false);
   const newMiniTipMessagesRef = useRef([]);
   const messageSoundObserverRef = useRef(null);
+  const skipNextMessageSoundObservationRef = useRef(false);
   if (!messageSoundObserverRef.current) messageSoundObserverRef.current = createMessageSoundObserver(msgs);
   /* フロアターン付きメッセージ追加ラッパー */
   const setMsgs = useCallback((updater) => {
@@ -929,7 +930,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       sr.current = rs;
       setGs(rs);
       const restoredMessages = applyMessageUpdate([], resumeState.msgs || [{ text: "冒険を再開した。", turn: 0 }], rs.floorTurns);
-      messageSoundObserverRef.current(restoredMessages, { reset: true });
+      messageSoundObserverRef.current(restoredMessages, { reset: true, state: rs });
+      skipNextMessageSoundObservationRef.current = true;
       setMsgs(restoredMessages);
       ref.current?.focus();
     } else {
@@ -6805,7 +6807,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   };
   useInterfaceSounds(isModalActive);
   // 道具使用のアニメーション収集後に、ログ・実際の変化・アニメーションをまとめて鳴らす。
-  useEffect(() => { messageSoundObserverRef.current(msgs, { state: gs }); }, [msgs, gs]);
+  useEffect(() => {
+    if (skipNextMessageSoundObservationRef.current) {
+      skipNextMessageSoundObservationRef.current = false;
+      return;
+    }
+    messageSoundObserverRef.current(msgs, { state: gs });
+  }, [msgs, gs]);
   if (!gs) return null;
   const { player: p } = gs;
   const _tutorialHasProof = gs.dungeonType === "tutorial"
