@@ -10745,8 +10745,12 @@ export function applyGeneratedRingPlus(item, randomFn = Math.random) {
 
 /** 新規生成された武器・防具は低確率でマイナス強化値を持つ。 */
 export function maybeApplyInitialNegativeEquipmentPlus(item, randomFn = Math.random) {
-  if ((item?.type === "weapon" || item?.type === "armor") && randomFn() < 0.02) {
-    item.plus = rng(-2, -1, randomFn);
+  if (item?.type === "weapon" || item?.type === "armor") {
+    if (randomFn() < 0.02) item.plus = rng(-2, -1, randomFn);
+    if ((item.plus || 0) < 0) {
+      item.cursed = true;
+      item.blessed = false;
+    }
   }
   return item;
 }
