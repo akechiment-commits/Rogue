@@ -2363,6 +2363,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${_projectileDmg != null ? "" : oilyDamageLabel(dg, p)}`);
     }
     resolveParalysisHit(p, ml);
+    interruptPlayerSleep(p, ml);
     /* 炎の爆発：耐火なしなら所持品を1つ焼く。爆弾矢・魚雷などの飛び道具爆発は対象外。 */
     const _inventoryFire = (ringExplosion || mineExplosion || _playerHpOne) && options.projectileAtk == null && options.nonElemental !== true;
     if (_inventoryFire && !hasFireResist(p)) applyLightningToInventory(p, dg, ml, luFn, null, true, { ...options, killerMon });
@@ -2428,6 +2429,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           continue;
         }
         if (consumeBarrier(m, ml)) continue;
+        resolveParalysisHit(m, ml);
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
         if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -7148,6 +7150,8 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
         /* 壁の破壊 */
         if ((dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) && ax > 0 && ax < MW-1 && ay > 0 && ay < MH-1) {
+          const _wi = dg.items.find(i => i.x === ax && i.y === ay && i.wallEmbedded);
+          if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
           dg.map[ay][ax] = T.FLOOR;
           if (dg.explored?.[ay]?.[ax] !== undefined) dg.explored[ay][ax] = true;
           if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
@@ -7163,7 +7167,13 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
               largeMonstersHit.add(m);
             }
             wakeIfDormant(m, ml);
-            if (m.baseKind === "firedemon") {
+            if (m.explosionImmune) {
+              ml.push(`${m.name}は爆発を受け付けない！`);
+              continue;
+            }
+            if (consumeBarrier(m, ml)) continue;
+            resolveParalysisHit(m, ml);
+            if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
               ml.push(`${m.name}が爆発を受けて分裂した！`);
               const _ep8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
               for (const [_sx, _sy] of _ep8) {
@@ -7177,7 +7187,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
               }
             } else if (m.isBoss) {
               if (blockLargeMonsterDamage(m, p, ml)) continue;
-              const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
+              const _bd = scaleMonFireDmg(m, bossInstantDeathDamage(m) * oilyDamageMult(dg, m));
               m.hp -= _bd;
               ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
@@ -7189,18 +7199,21 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           }
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
-        if (p && p.x === ax && p.y === ay) {
+        if (p && p.x === ax && p.y === ay && !consumeBarrier(p, ml)) {
           const _hasFireProt = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4)) * oilyDamageMult(dg, p);
           const dmg = reduceFireDamage(rawDmg, p);
           p.deathCause = `${exPc.name}の爆発により`;
           p.hp -= dmg;
           ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
+          interruptPlayerSleep(p, ml);
+          resolveParalysisHit(p, ml);
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* アイテム破壊（巻物・薬・食料・壺） */
         for (const it of [...dg.items.filter(i => i.x === ax && i.y === ay)]) {
           if (!dg.items.includes(it)) continue;
+          if (it.shopPrice) chargeShopItem(it, dg, ml, p);
           if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が燃えてなくなった！`); }
           else if (it.type === "potion") fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, null, null);
           else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${resolveItemName(it)}」が燃えてなくなった！`); }
@@ -7235,6 +7248,17 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
             ml.push("大箱が爆発で壊れた！");
           }
         }
+      }
+    }
+    for (let ddx = -1; ddx <= 1; ddx++) {
+      for (let ddy = -1; ddy <= 1; ddy++) {
+        hitStatueWithAction(dg, mx + ddx, my + ddy, p, ml, luFn, p?.depth, {
+          breaks: true,
+          spawnItem: false,
+          spawnMonster: false,
+          breakMessage: "石像が爆発で粉々になって消えた！",
+          itemDeps: getFixtureItemDeps(),
+        });
       }
     }
     /* 爆発範囲内の魔方陣を消滅 */
