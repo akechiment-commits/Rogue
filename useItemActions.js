@@ -8,7 +8,7 @@ import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueL
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
-  gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage,
+  gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage, applyPoisonArrowDamageReduction,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, applyInnateFoodEffectOnHit, foodEffectMultiplier, foodHungerAmount, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster, foodEffectTier, applyYogurtFoodEffect,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
@@ -3604,8 +3604,8 @@ export function useItemActions({
             const _dmg = calcProjectileDmg(p, _arBaseAtk, mon.def);
             mon.hp -= _dmg;
             markWanderingNpcHostile(mon, dg, p, mlx);
-            if (_arIsPoison) mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
-            mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
+            const _poisonStacks = _arIsPoison ? applyPoisonArrowDamageReduction(mon, mlx) : 0;
+            mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? (_poisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _poisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
             if (mon.hp <= 0) { killMonster(mon, dg, p, mlx, lu); }
             if (!_arIsPierce) _arPeelIfNeeded();
           },

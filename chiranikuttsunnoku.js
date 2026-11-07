@@ -3,7 +3,7 @@ import {
   checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from './utils.js';
 import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster, applyPlayerTrip, blockPlayerStatus } from './items.js';
-import { monEffectiveFloat } from './monTraits.js';
+import { monEffectiveFloat, monScaleOutgoingDamage } from './monTraits.js';
 import { monsterPointDistance, monsterBodyCells } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { applyPlayerPoison, resolveParalysisHit, statusResultMessage } from './statusDuration.js';
@@ -63,7 +63,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
     } else if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "アースブレイカー", onMiss })) {
       // 回避成功：ダメージ・転倒なし
     } else {
-      const dmg = Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2));
+      const dmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2)));
       pl.hp -= dmg;
       pl.deathCause = `${m.name}のアースブレイカーで`;
       interruptPlayerSleep(pl, ml);
@@ -102,7 +102,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
     }
 
     const vDef = victim.def || 0;
-    const vDmg = Math.max(1, calcAtkDefDmg(effAtk, vDef, { defWeight: 1, variance: false }) + rng(-2, 2));
+    const vDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, vDef, { defWeight: 1, variance: false }) + rng(-2, 2)));
     victim.hp -= vDmg;
     resolveParalysisHit(victim, ml);
     ml.push(`激しい地響きが${victim.name}に命中！${vDmg}ダメージ！`);
@@ -184,7 +184,7 @@ export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
       mlx.push(statusResultMessage(poison, "猛毒針が突き刺さった！毒を受けた！"));
     },
     onMonHit: (mon, mlx) => {
-      const damage = Math.max(1, calcAtkDefDmg(effAtk, mon.def || 0, { defWeight: 1, variance: false }) + rng(-2, 2));
+      const damage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, mon.def || 0, { defWeight: 1, variance: false }) + rng(-2, 2)));
       mon.hp -= damage;
       mlx.push(`${m.name}の猛毒針が${mon.name}に命中！${damage}ダメージ！`);
       resolveParalysisHit(mon, mlx);

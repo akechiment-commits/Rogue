@@ -10,7 +10,7 @@ import { statusTurns, resolveParalysisHit } from './statusDuration.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { releaseInvalidCapture } from './captureRules.js';
 import { scaleMonsterFireDamage, monsterFireDamageLabel } from './monsterRuntime.js';
-import { monHasElementWeakness, monSubmergesProjectiles } from './monTraits.js';
+import { monHasElementWeakness, monSubmergesProjectiles, monScaleOutgoingDamage } from './monTraits.js';
 import {
   reduceFireDamage, hasFireResist, fireResistDamageLabel, isFireExplosionNullified,
   applyLightningToInventory, killMonster, inMagicSealRoom, blockPlayerStatus,
@@ -153,6 +153,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     // 油まみれ判定（炎2倍）
     const oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (oilyMult > 1) dmg *= 2;
+    dmg = monScaleOutgoingDamage(m, dmg);
 
     pl.deathCause = `${m.name}のハイパーサーミックブレスで`;
     pl.hp -= dmg;
@@ -175,7 +176,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     const baseDmg = 70;
     const oilyMult = (victim.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === victim.x && t.y === victim.y) ? 2 : 1;
     const weaknessMult = monHasElementWeakness(victim, "fire") ? 1.5 : 1;
-    const finalDmg = scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult));
+    const finalDmg = monScaleOutgoingDamage(m, scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult)));
     victim.hp -= finalDmg;
     ml.push(`${m.name}のハイパーサーミックブレスが${victim.name}に直撃！${finalDmg}ダメージ！${weaknessMult > 1 ? "炎弱点！" : ""}${monsterFireDamageLabel(victim)}${oilyMult > 1 ? "(油まみれ×2)" : ""}`);
     resolveParalysisHit(victim, ml);
@@ -262,7 +263,7 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
     } else {
       // 3倍ダメージ
       const baseDmg = calcAtkDefDmg(m.atk * 3, calcPlayerDefense(pl), { defWeight: 1.5 });
-      const dmg = Math.max(1, baseDmg + rng(-3, 3));
+      const dmg = monScaleOutgoingDamage(m, Math.max(1, baseDmg + rng(-3, 3)));
       pl.deathCause = `${m.name}のスパイクフレイルで`;
       pl.hp -= dmg;
       onHit?.(dmg, m);
@@ -304,7 +305,7 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
       continue;
     }
 
-    const vDmg = Math.max(1, calcAtkDefDmg(m.atk * 3, victim.def || 0, { defWeight: 1 }) + rng(-2, 2));
+    const vDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk * 3, victim.def || 0, { defWeight: 1 }) + rng(-2, 2)));
     victim.hp -= vDmg;
     resolveParalysisHit(victim, ml);
     ml.push(`スパイクフレイルが${victim.name}を強打！${vDmg}ダメージ！`);

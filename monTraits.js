@@ -100,6 +100,15 @@ export function monEffectiveAttack(m) {
   return attack;
 }
 
+/** Apply cumulative poison-arrow weakness to damage output without changing the ATK stat. */
+export function monScaleOutgoingDamage(m, damage) {
+  const value = Number(damage);
+  if (!Number.isFinite(value) || value <= 0 || !m) return value;
+  const stacks = Math.max(0, Math.min(10, Math.floor(Number(m.poisonArrowDamageHalves) || 0)));
+  if (stacks <= 0 || (m.isBoss && (m.poisonArrowDamageTurns || 0) <= 0)) return value;
+  return Math.max(1, Math.floor(value / (2 ** stacks)));
+}
+
 /** 封印中は速度1（倍速・鈍足無視）。呼び出し側 turnAccum でも同様に扱う */
 export function monEffectiveSpeed(m) {
   if (!m) return 1;

@@ -15,7 +15,7 @@ import {
 import { pushPlayerKnockbackAnim, pushAnim } from './animEvents.js';
 import { statusTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit } from './statusDuration.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
-import { monEffectiveMagicImmune, monReflectsMagic } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monScaleOutgoingDamage } from './monTraits.js';
 import { wakeIfDormant } from './monsterRuntime.js';
 
 const inBounds = (x, y) => x >= 0 && x < MW && y >= 0 && y < MH;
@@ -463,7 +463,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
       // 回避成功：ダメージ・金縛りなし
     } else {
       const pdef = calcPlayerDefense(pl);
-      const dmg = Math.max(1, calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 }));
+      const dmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 })));
       pl.deathCause = `${m.name}のデストラップで`;
       pl.hp -= dmg;
       onHit?.(dmg, m);
@@ -493,7 +493,7 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
         ml.push(other.baseKind === "boss_mireu" ? `${other.name}は攻撃をかわした！` : `${other.name}への攻撃は外れた！`);
         continue;
       }
-      const dmg = Math.max(1, calcAtkDefDmg(m.atk, other.def || 0, { defWeight: 1.0 }));
+      const dmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, other.def || 0, { defWeight: 1.0 })));
       other.hp -= dmg;
       resolveParalysisHit(other, ml);
       ml.push(`${m.name}のトラップが${other.name}に直撃！${dmg}ダメージ！`);

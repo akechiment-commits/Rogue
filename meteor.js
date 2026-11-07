@@ -1,7 +1,7 @@
 import { uid, consumeBarrier, playerHpEffectLabel, withEnemyDamageContext, calcAtkDefDmg, calcPlayerDefense, T } from './utils.js';
 import { monsterAreaTargets, monsterOccupiesCell } from './monsterGeometry.js';
 import { killMonster, multiplyCursedMagicDamage, inMagicSealRoom, withParalysisHit, wallBreakDrop } from './items.js';
-import { monEffectiveAttack, monEffectiveMagicImmune } from './monTraits.js';
+import { monEffectiveAttack, monEffectiveMagicImmune, monScaleOutgoingDamage } from './monTraits.js';
 import { beginNpcRetaliation } from './npcRetaliation.js';
 import { resolveParalysisHit } from './statusDuration.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
@@ -78,7 +78,7 @@ export function advanceMeteors(dungeon, player, messages, lu, worldTicks = 1) {
       !inMagicSealRoom(x, y, dungeon);
     if (inArea(player.x, player.y) && !consumeBarrier(player, messages)) {
       const mitigatedDamage = calcAtkDefDmg(meteor.damage, calcPlayerDefense(player), { defWeight: 1.5, variance: false });
-      const damage = multiplyCursedMagicDamage(mitigatedDamage, player, dungeon);
+      const damage = monScaleOutgoingDamage(source, multiplyCursedMagicDamage(mitigatedDamage, player, dungeon));
       player.deathCause = `${meteor.sourceName}のメテオにより`;
       withEnemyDamageContext(player, () => { player.hp -= damage; });
       interruptPlayerSleep(player, messages);
@@ -100,7 +100,7 @@ export function advanceMeteors(dungeon, player, messages, lu, worldTicks = 1) {
       if (consumeBarrier(monster, messages)) continue;
       withParalysisHit(monster, messages, () => {
       const mitigatedDamage = calcAtkDefDmg(meteor.damage, monster.def || 0, { defWeight: 1, variance: false });
-      const damage = multiplyCursedMagicDamage(mitigatedDamage, monster, dungeon);
+      const damage = monScaleOutgoingDamage(source, multiplyCursedMagicDamage(mitigatedDamage, monster, dungeon));
       monster.hp -= damage;
       if (damage > 0 && monster.type === 'shopkeeper' && monster.hp > 0) beginNpcRetaliation(monster, source, messages);
       messages.push(`メテオが${monster.name}に命中！${damage}ダメージ！`);

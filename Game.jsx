@@ -1892,6 +1892,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               else mlx.push("テレポートに失敗した。");
             },
             onTrap: (trap, mlx) => {
+              if (trap.effect === "spin" && trap.permanent) {
+                mlx.push(`${trap.name}は地面に固定されていて動かせない！`);
+                return;
+              }
               const _rp = _tpRand(trap.x, trap.y);
               if (_rp) { trap.x = _rp.x; trap.y = _rp.y; trap.revealed = false; mlx.push(`テレポートの魔法弾が${trap.name}に命中！罠がどこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");

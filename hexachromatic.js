@@ -16,7 +16,7 @@ import {
   blockPlayerStatus, hasRingEffect, pushEntity,
 } from "./items.js";
 import {
-  monEffectiveFloat, monEffectiveMagicImmune,
+  monEffectiveFloat, monEffectiveMagicImmune, monScaleOutgoingDamage,
   monHasElementWeakness,
 } from "./monTraits.js";
 import { pushAnim, pushLightningAnim, pushSplashAnim } from "./animEvents.js";
@@ -96,6 +96,7 @@ function traceBreath(monster, dungeon, player, line, color) {
 
 function applyBreathMonsterDamage(monster, victim, damage, dungeon, player, messages, opts, label) {
   if (consumeBarrier(victim, messages)) return;
+  damage = monScaleOutgoingDamage(monster, damage);
   victim.hp -= damage;
   messages.push(`${monster.name}の${label}が${victim.name}に命中！${damage}ダメージ！`);
   resolveParalysisHit(victim, messages);
@@ -118,6 +119,7 @@ export function hexachromaticFireBreath(monster, dungeon, player, line, messages
     const oily = (player.oilyTurns || 0) > 0 || dungeon.oilyTiles?.some(tile => tile.x === player.x && tile.y === player.y);
     let damage = reduceFireDamage(80, player);
     if (oily) damage *= 2;
+    damage = monScaleOutgoingDamage(monster, damage);
     player.deathCause = `${monster.name}の火炎ブレスで`;
     player.hp -= damage;
     opts.onPlayerHit?.(damage, monster);
@@ -172,7 +174,7 @@ export function hexachromaticWindBreath(monster, dungeon, player, line, messages
     return;
   }
   const normalDamage = calcAtkDefDmg(monster.atk, victim.def || 0, { defWeight: 1, variance: false });
-  const damage = Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1));
+  const damage = monScaleOutgoingDamage(monster, Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1)));
   victim.hp -= damage;
   messages.push(`${monster.name}の風のブレスが${victim.name}に命中！${damage}ダメージ！`);
   resolveParalysisHit(victim, messages);
@@ -224,7 +226,7 @@ export function hexachromaticDarkBreath(monster, dungeon, player, line, messages
     return;
   }
   const normalDamage = calcAtkDefDmg(monster.atk, victim.def || 0, { defWeight: 1, variance: false });
-  const damage = Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1));
+  const damage = monScaleOutgoingDamage(monster, Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1)));
   victim.hp -= damage;
   messages.push(`${monster.name}の闇のブレスが${victim.name}に命中！${damage}ダメージ！`);
   resolveParalysisHit(victim, messages);
@@ -250,7 +252,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
     }
     revealDisguisedItemMimic(dungeon, victim, messages);
     if (consumeBarrier(victim, messages)) continue;
-    const damage = rng(15, 25);
+    const damage = monScaleOutgoingDamage(monster, rng(15, 25));
     victim.hp -= damage;
     messages.push(`地震が${victim.name}を襲った！${damage}ダメージ！`);
     resolveParalysisHit(victim, messages);
@@ -264,7 +266,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
     return;
   }
   if (consumeBarrier(player, messages)) return;
-  const damage = rng(15, 25);
+  const damage = monScaleOutgoingDamage(monster, rng(15, 25));
   player.deathCause = `${monster.name}の地震で`;
   player.hp -= damage;
   opts.onPlayerHit?.(damage, monster);
@@ -276,7 +278,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
 export function hexachromaticLightning(monster, dungeon, player, messages, opts = {}) {
   if (consumeBarrier(player, messages)) return;
   const baseDamage = rng(22, 32);
-  const damage = reduceLightningDamage(baseDamage, player);
+  const damage = monScaleOutgoingDamage(monster, reduceLightningDamage(baseDamage, player));
   player.deathCause = `${monster.name}の電撃で`;
   player.hp -= damage;
   opts.onPlayerHit?.(damage, monster);

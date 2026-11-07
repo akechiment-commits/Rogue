@@ -602,13 +602,13 @@ function dragonBreathSpecialRate(m) {
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
   monIsSealed, monEffectiveFloat, monEffectiveWaterWalker, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
-  monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
+  monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monScaleOutgoingDamage,
   monEffectiveMaxAttacks, monEffectiveSpeed, monEffectiveAttack, monCanUseExplosiveAbility, monHasElementWeakness,
   monElementDamageMultiplier,
 } from "./monTraits.js";
 import {
   monEffectiveFloat, monEffectiveWaterWalker, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
-  monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks, monEffectiveAttack,
+  monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monScaleOutgoingDamage, monEffectiveMaxAttacks, monEffectiveAttack,
   monCanUseExplosiveAbility, monHasElementWeakness, monElementDamageMultiplier,
 } from "./monTraits.js";
 
@@ -738,7 +738,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
-    const _fDmg = scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult);
+    const _fDmg = monScaleOutgoingDamage(m, scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult));
     _fBlock.hp -= _fDmg;
     ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(_fBlock)}`);
     if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); }
@@ -752,6 +752,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     dmg = reduceFireDamage(dmg, pl);
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) dmg *= 2;
+    dmg = monScaleOutgoingDamage(m, dmg);
     pl.deathCause = `${m.name}の炎ブレスで`;
     pl.hp -= dmg;
     onPlayerHit?.(dmg, m);
@@ -823,6 +824,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
     const _iResist = monElementDamageMultiplier(_iBlock, "ice");
     _iDmg = Math.max(1, Math.floor(_iDmg * _iResist));
+    _iDmg = monScaleOutgoingDamage(m, _iDmg);
     _iBlock.hp -= _iDmg;
     const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
     if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
@@ -838,6 +840,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
     const _hasIceR = hasIceResist(pl);
     _iDmg = reduceIceDamage(_iDmg, pl);
+    _iDmg = monScaleOutgoingDamage(m, _iDmg);
     pl.deathCause = `${m.name}の氷ブレスで`;
     pl.hp -= _iDmg;
     onPlayerHit?.(_iDmg, m);
@@ -1033,6 +1036,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
   dmg = applyFrozenPhysicalMult(dmg, pl);
   /* 火ダルマの通常攻撃は炎属性。アイスやカレーの一時耐火も先に適用する。 */
   if (_fireMantleAttack) dmg = reduceFireDamage(dmg, pl);
+  dmg = monScaleOutgoingDamage(m, dmg);
   pl.deathCause = attackName === "攻撃" ? `${m.name}の攻撃で` : `${m.name}の${attackName}で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
@@ -1075,14 +1079,16 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
           if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH ||
               dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
             pl.deathCause = "吹き飛ばされての壁への激突により";
-            pl.hp -= 5;
-            ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
+            const _impact = monScaleOutgoingDamage(m, 5);
+            pl.hp -= _impact;
+            ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
             break;
           }
           if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _nx, _ny))) {
             pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
-            pl.hp -= 5;
-            ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
+            const _impact = monScaleOutgoingDamage(m, 5);
+            pl.hp -= _impact;
+            ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
             break;
           }
           _knx = _nx; _kny = _ny; _knMoved++;
@@ -1128,12 +1134,12 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     }
     if (m.baseKind === "boss_skullking" && Math.random() < 0.35) {
       const _drain = Math.min(20, pl.hp - 1);
-      if (_drain > 0) { pl.hp -= _drain; m.hp = Math.min(m.maxHp, m.hp + _drain); ml.push(`骸骨王が命を吸い取った！${playerHpEffectLabel(pl, _drain)}！`); }
+    if (_drain > 0) { const _actualDrain = monScaleOutgoingDamage(m, _drain); pl.hp -= _actualDrain; m.hp = Math.min(m.maxHp, m.hp + _actualDrain); ml.push(`骸骨王が命を吸い取った！${playerHpEffectLabel(pl, _actualDrain)}！`); }
     }
     if (m.baseKind === "boss_flamedragon") {
       const _oily = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y);
       if (_oily) {
-        const _xdmg = Math.max(1, Math.floor(dmg * 0.5));
+        const _xdmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(dmg * 0.5)));
         pl.deathCause = `${m.name}の炎攻撃により`;
         pl.hp -= _xdmg;
         ml.push(`油が引火して追加炎ダメージ！${playerHpEffectLabel(pl, _xdmg)}！`);
@@ -1208,11 +1214,11 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
           for (let _ki = 0; _ki < _dist; _ki++) {
             const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-              pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
+              const _impact = monScaleOutgoingDamage(m, 5); pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= _impact; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
               break;
             }
             if (dg.monsters.some(mon2 => mon2 !== m && monsterOccupiesCell(mon2, _nx, _ny))) {
-              pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
+              const _impact = monScaleOutgoingDamage(m, 5); pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= _impact; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
               break;
             }
             _cx2 = _nx; _cy2 = _ny; _moved++;
@@ -1285,7 +1291,7 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
     if (victim.hp <= 0 || !dg.monsters.includes(victim) || victim.disguisedAsItem) continue;
     if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
     if (consumeBarrier(victim, ml)) continue;
-    const normalDamage = calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1);
+    const normalDamage = monScaleOutgoingDamage(m, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
     const damage = Math.max(1, Math.floor(normalDamage * 0.5));
     victim.hp -= damage;
     ml.push(`ダストストームが${victim.name}に命中！${damage}ダメージ！`);
@@ -2759,13 +2765,13 @@ function enterBigboxWithPotRaider(mon, spawned, bb, dg, pl, ml, luFn) {
       ml.push(`${spawned.name}が部屋中に拡散した！`);
       for (const target of [...targets]) {
         if (!dg.monsters.includes(target) || target.hp <= 0) continue;
-        const dmg = Math.max(1, spawned.atk - Math.floor((target.def || 0) / 2) + rng(-2, 2));
+        const dmg = monScaleOutgoingDamage(spawned, Math.max(1, spawned.atk - Math.floor((target.def || 0) / 2) + rng(-2, 2)));
         target.hp -= dmg;
         ml.push(`${spawned.name}が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, pl, ml, luFn, false, spawned);
       }
       if (pInRoom) {
-        const dmg = calcAtkDefDmg(spawned.atk, calcPlayerDef(pl), { defWeight: 1.5 });
+        const dmg = monScaleOutgoingDamage(spawned, calcAtkDefDmg(spawned.atk, calcPlayerDef(pl), { defWeight: 1.5 }));
         pl.deathCause = `拡散した${spawned.name}に当たって`;
         pl.hp -= dmg;
         ml.push(`${spawned.name}が${plName(pl)}に命中！${playerHpEffectLabel(pl, dmg)}！`);
@@ -3225,7 +3231,7 @@ function recognizedDecoyForMonster(m, dg, pl) {
 }
 
 function attackPlayerClone(m, clone, dg, pl, ml, luFn) {
-  const damage = Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 }));
+  const damage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 })));
   clone.hp -= damage;
   ml.push(`${m.name}が分身を攻撃！${damage}ダメージ！`);
   if (clone.hp <= 0) killMonster(clone, dg, pl, ml, luFn, true, m);
@@ -3619,7 +3625,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         return "consumed";
       }
       wakeIfDormant(mon, mlx);
-      const _dmg = Math.max(1, m.atk + rng(-2, 2));
+      const _dmg = monScaleOutgoingDamage(m, Math.max(1, m.atk + rng(-2, 2)));
       mon.hp -= _dmg;
       mlx.push(`${m.name}の${_arName}が${mon.name}に命中！${_dmg}ダメージ！`);
       if (mon.hp <= 0) killMonster(mon, dg, pl, mlx, null, false, m);
@@ -3759,6 +3765,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
     const _stPdef = calcPlayerDef(pl);
     let dmg = calcAtkDefDmg(_stAp, _stPdef, { defWeight: 1.5 });
     if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
+    dmg = monScaleOutgoingDamage(m, dmg);
     pl.deathCause = `${m.name}の石投げで`;
     pl.hp -= dmg;
     ml.push(`${m.name}の${stoneName}が命中！${playerHpEffectLabel(pl, dmg)}！`);
@@ -3818,7 +3825,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
     /* 自分に戻った */
     if (tx === m.x && ty === m.y) {
       const _stBonus = isMagic ? 5 : 3;
-      const dmg = calcAtkDefDmg(m.atk + _stBonus, m.def || 0, { defWeight: 1 });
+      const dmg = monScaleOutgoingDamage(m, calcAtkDefDmg(m.atk + _stBonus, m.def || 0, { defWeight: 1 }));
       m.hp -= dmg;
       ml.push(`風に煽られた${stoneName}が${m.name}自身に当たった！${dmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, m);
@@ -3925,7 +3932,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
       } else {
         wakeIfDormant(hitMon, ml);
         if (consumeBarrier(hitMon, ml)) return;
-        const dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
+        const dmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1)));
         hitMon.hp -= dmg;
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
         if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, luFn, false, m);
@@ -3955,6 +3962,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
       let dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
       if (_wVulnPc) dmg = _wVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_wVulnPc.blessed ? 4 : 2);
       dmg = reduceWaterDamage(dmg, pl);
+      dmg = monScaleOutgoingDamage(m, dmg);
       pl.deathCause = `${m.name}の水鉄砲で`;
       pl.hp -= dmg;
       ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！${waterResistDamageLabel(pl)}`);
@@ -4133,7 +4141,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y, _homingMon.x, _homingMon.y);
     } else {
       wakeIfDormant(_homingMon, ml);
-      const _homingDmg = calcMonDmg(_homingMon);
+      const _homingDmg = monScaleOutgoingDamage(m, calcMonDmg(_homingMon));
       _homingMon.hp -= _homingDmg;
       ml.push(`${_shooterPrefix}${boltName}が${_homingMon.name}に命中！${_homingDmg}ダメージ！`);
       if (_homingMon.hp <= 0) killMonster(_homingMon, dg, pl, ml, luFn, false, _killerMon);
@@ -4203,7 +4211,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
 
     /* 風で曲がって射手（敵）自身に戻った */
     if (!isPlayerShooter && m.hp != null && _tx === m.x && _ty === m.y) {
-      const _selfDmg = calcMonDmg(m);
+      const _selfDmg = monScaleOutgoingDamage(m, calcMonDmg(m));
       m.hp -= _selfDmg;
       ml.push(`風に煽られた${boltName}が${m.name}自身に当たった！${_selfDmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, m);
@@ -4276,6 +4284,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           const _vp = findVulnPentacle(dg, pl.x, pl.y);
           if (_vp) _dmg = _vp.cursed ? Math.max(1, Math.floor(_dmg / 2)) : _dmg * (_vp.blessed ? 4 : 2);
         }
+        _dmg = monScaleOutgoingDamage(m, _dmg);
         pl.hp -= _dmg;
         pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
         ml.push(`${_shooterPrefix}${boltName}が命中！${playerHpEffectLabel(pl, _dmg)}！`);
@@ -4322,6 +4331,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
                 const _vp = findVulnPentacle(dg, pl.x, pl.y);
                 if (_vp) _rrdmg = _vp.cursed ? Math.max(1, Math.floor(_rrdmg / 2)) : _rrdmg * (_vp.blessed ? 4 : 2);
               }
+              _rrdmg = monScaleOutgoingDamage(_mon, _rrdmg);
               pl.hp -= _rrdmg;
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
               ml.push(`跳ね返された${boltName}が${plName(pl)}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
@@ -4340,7 +4350,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               onReflectedMonHit(m, ml, _rnx, _rny, _mon, -dx, -dy);
               return;
             }
-            const _rrdmg = calcMonDmg(m);
+            const _rrdmg = monScaleOutgoingDamage(_mon, calcMonDmg(m));
             m.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
             if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
@@ -4358,7 +4368,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               return;
             }
             wakeIfDormant(_rrMon, ml);
-            const _rrdmg = calcMonDmg(_rrMon);
+            const _rrdmg = monScaleOutgoingDamage(_mon, calcMonDmg(_rrMon));
             _rrMon.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
             if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, luFn, false, _mon);
@@ -4377,7 +4387,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         return;
       }
       wakeIfDormant(_mon, ml);
-      const _mdmg = calcMonDmg(_mon);
+      const _mdmg = monScaleOutgoingDamage(m, calcMonDmg(_mon));
       _mon.hp -= _mdmg; ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
       if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, _killerMon);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
@@ -5626,7 +5636,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
         if (_chOther) {
           _chHitMonster = _chOther;
-          _chHitMonsterDmg = Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2));
+        _chHitMonsterDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2)));
           break;
         }
         m.x = _cnx; m.y = _cny; _chMoved++;
@@ -5854,7 +5864,7 @@ function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
           } else if (consumeBarrier(target, messages)) {
             messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
           } else {
-            const damage = Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1));
+            const damage = monScaleOutgoingDamage(monster, Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
             target.hp -= damage;
             messages.push(`${monster.name}が${target.name}を攻撃！${damage}ダメージ！`);
             if (target.hp <= 0 && dungeon.monsters.includes(target)) {
@@ -6010,8 +6020,8 @@ function performStrifeRingAttack(monster, target, dungeon, player, messages, opt
     messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
     return true;
   }
-  const damage = Math.max(1,
-    calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1));
+  const damage = monScaleOutgoingDamage(monster, Math.max(1,
+    calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
   target.hp -= damage;
   messages.push(`${monster.name}は争いの指輪にあおられて${target.name}を攻撃！${damage}ダメージ！`);
   if (target.hp <= 0 && dungeon.monsters.includes(target)) {
@@ -6212,7 +6222,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
     if (_attackOnly && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     m.turnAttacks++;
-    const _damage = Math.max(1, calcAtkDefDmg(m.atk, _target.def || 0, { defWeight: 1 }));
+    const _damage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _target.def || 0, { defWeight: 1 })));
     _target.hp -= _damage;
     ml.push(`分身が${_target.name}を攻撃！${_damage}ダメージ！`);
     /* 分身はプレイヤーの代わりに戦うため、撃破報酬はプレイヤーへ入り、分身は強化されない。 */
@@ -6566,7 +6576,7 @@ function castFlockSpell(monster, opts, dx, dy, effect, messages, { invoke = true
 
 function hasFlockPurgeableStatus(monster) {
   return !!(
-    (monster.poisonedTurns || 0) > 0 || monster.poisonHalfAtk ||
+    (monster.poisonedTurns || 0) > 0 || monster.poisonHalfAtk || (monster.poisonArrowDamageHalves || 0) > 0 ||
     (monster.slowTurns || 0) > 0 || (monster.bossSlowTurns || 0) > 0 || monster._preSlowSpeed !== undefined ||
     (monster.confusedTurns || 0) > 0 || (monster.drunkenTurns || 0) > 0 ||
     (monster.darknessTurns || 0) > 0 || (monster.fleeingTurns || 0) > 0 ||
@@ -6581,10 +6591,12 @@ function purifyFlockStatus(monster, messages) {
   const cures = [
     {
       label: "毒",
-      active: () => (monster.poisonedTurns || 0) > 0 || monster.poisoned || monster.poisonHalfAtk,
+      active: () => (monster.poisonedTurns || 0) > 0 || monster.poisoned || monster.poisonHalfAtk || (monster.poisonArrowDamageHalves || 0) > 0,
       clear: () => {
         if (monster.poisonHalfAtk) monster.atk = monster.poisonOrigAtk ?? monster.atk;
         for (const key of ["poisoned", "poisonedTurns", "poisonHalfAtk", "poisonOrigAtk", "sporePoisonKillerId", "sporePoisonKillerName"]) delete monster[key];
+        delete monster.poisonArrowDamageHalves;
+        delete monster.poisonArrowDamageTurns;
       },
     },
     {
@@ -7628,7 +7640,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             m.turnAttacks++;
             return;
           }
-          const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
+          const _kiDmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3)));
           pl.hp -= _kiDmg;
           pl.deathCause = `${m.name}の墨で`;
           weakenOrClearParalysis(pl, ml);
@@ -7690,6 +7702,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}の攻撃力が戻った！`);
     }
   }
+  if (m.isBoss && (m.poisonArrowDamageTurns || 0) > 0 && !_attackOnly) {
+    m.poisonArrowDamageTurns = Math.max(0, m.poisonArrowDamageTurns - 1);
+    if (m.poisonArrowDamageTurns <= 0) {
+      delete m.poisonArrowDamageHalves;
+      delete m.poisonArrowDamageTurns;
+      ml.push(`${m.name}の毒矢による与ダメージ低下が解けた！`);
+    }
+  }
   /* 一時的なATK/DEF半減：祝福強化解除の巻物、ボスへの軟化の杖 */
   if ((m.debuffAtkHalfTurns || 0) > 0 && !_attackOnly) {
     m.debuffAtkHalfTurns = Math.max(0, m.debuffAtkHalfTurns - 1);
@@ -7741,7 +7761,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_other) {
           if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
             m.turnAttacks++;
-            const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+            const _odmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
             _other.hp -= _odmg;
             ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
             if (_other.hp <= 0) killMonster(_other, dg, pl, ml, _luFn, false, m);
@@ -7781,7 +7801,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     } else if (_dother) {
       if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
-        const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+        const _dodmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
         _dother.hp -= _dodmg;
         ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
         if (_dother.hp <= 0) killMonster(_dother, dg, pl, ml, _luFn, false, m);
@@ -9405,7 +9425,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               );
               if (_nearMon && m.turnAttacks < monEffectiveMaxAttacks(m)) {
                 m.turnAttacks++;
-                const _ddmg = Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2));
+                const _ddmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2)));
                 _nearMon.hp -= _ddmg;
                 ml.push(`${m.name}が${_nearMon.name}を攻撃！${_ddmg}ダメージ！`);
                 if (_nearMon.hp <= 0) {
@@ -9427,7 +9447,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 );
                 if (_adjOccup) {
                   m.turnAttacks++;
-                  const _ddmg = Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2));
+                  const _ddmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2)));
                   _adjOccup.hp -= _ddmg;
                   ml.push(`${m.name}が${_adjOccup.name}を攻撃！${_ddmg}ダメージ！`);
                   if (_adjOccup.hp <= 0) {
@@ -9463,7 +9483,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _occup = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _dn.x, _dn.y));
             if (_occup && !_moveOnly) {
               /* 次マスに別の敵: 囮の争奪戦 */
-              const _ddmg = Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2));
+              const _ddmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2)));
               _occup.hp -= _ddmg;
               ml.push(`${m.name}が${_occup.name}を攻撃！${_ddmg}ダメージ！`);
               if (_occup.hp <= 0) {
@@ -9695,7 +9715,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         for (const victim of [...dg.monsters]) {
           if (victim === m || victim.hp <= 0 || victim.disguisedAsItem || !dg.monsters.includes(victim) || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;
           if (consumeBarrier(victim, ml)) continue;
-          const damage = Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+          const damage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
           victim.hp -= damage;
           ml.push(`烈風が${victim.name}を襲う！${damage}ダメージ！`);
           resolveParalysisHit(victim, ml);
@@ -9791,7 +9811,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
             if (_chOther) {
               _chHitMonster = _chOther;
-              _chHitMonsterDmg = Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
+              _chHitMonsterDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
               break;
             }
             m.x = _cnx; m.y = _cny; _chMoved++;
@@ -9846,7 +9866,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _ttRange = _ttLvl >= 3 ? 10 : _ttLvl >= 2 ? 5 : 3;
         /* 範囲内の発見済み罠を収集し、プレイヤーから遠い順に並べる（近すぎる罠は除外） */
         const _ttCands = (dg.traps || []).filter(t =>
-          t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange &&
+          t.revealed && !(t.effect === "spin" && t.permanent) &&
+          Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange &&
           Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) >= 2
         ).sort((a, b) =>
           Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y)) -
@@ -10722,7 +10743,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         } else {
           const _bTarget = pick(_bcAdj);
-          const _bDmg = Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2));
+          const _bDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)));
           ml.push(`${m.name}が${_bTarget.name}に攻撃！${_bDmg}ダメージ！`);
           _bTarget.hp -= _bDmg;
           if (_bTarget.hp <= 0) killMonster(_bTarget, dg, pl, ml, _luFn, false, m);

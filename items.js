@@ -35,7 +35,7 @@ import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, P
 import { isYogurtImmune } from './statusImmunity.js';
 import { rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
 import {
-  monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monEffectiveWaterWalker, monHasFlameMantle,
+  monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monEffectiveWaterWalker, monScaleOutgoingDamage, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness, monElementDamageMultiplier,
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -2337,17 +2337,18 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
         : proportional ? Math.max(1, Math.floor(p.hp / 2))
         : rng(10, 20)) * _oilyMult * _damageMultiplier);
-    const dmg = _oilyMineSurvival || _playerHpOne ? rawDmg : _projectileDmg != null
+    let dmg = _oilyMineSurvival || _playerHpOne ? rawDmg : _projectileDmg != null
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
       : _applySoakedFireReduction(rawDmg, p);
+    if (!_oilyMineSurvival && !_playerHpOne) dmg = monScaleOutgoingDamage(killerMon, dmg);
     p.deathCause = killerMon?.name ? `${killerMon.name}の${srcLabel}により` : `${srcLabel}により`;
     if (_oilyMineSurvival) {
       setPlayerHpForFixedEffect(p, 1);
       ml.push(`${srcLabel}！油まみれのためHPが1残った！`);
     } else if (_playerHpOne) {
       if (hasFireResist(p)) {
-        const dmg = reduceFireDamage(Math.max(1, _playerHpBefore - 1) * _oilyMult, p);
+        const dmg = monScaleOutgoingDamage(killerMon, reduceFireDamage(Math.max(1, _playerHpBefore - 1) * _oilyMult, p));
         p.hp -= dmg;
         ml.push(`${srcLabel}！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
       } else {
@@ -2446,6 +2447,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             if (blockLargeMonsterDamage(m, p, ml)) continue;
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
             _bd = scaleMonFireDmg(m, _bd);
+            _bd = monScaleOutgoingDamage(killerMon, _bd);
             m.hp -= _bd;
             retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
@@ -2458,7 +2460,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           /* 特殊弾の爆発：通常命中と同じ攻撃力計算を、爆心地を含む各敵へ一度だけ適用する。 */
           if (consumeBarrier(m, ml)) continue;
           if (blockLargeMonsterDamage(m, p, ml)) continue;
-          const md = clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true);
+          const md = monScaleOutgoingDamage(killerMon, clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true));
           m.hp -= md;
           retaliateAgainstExplosionSource(m);
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
@@ -2468,6 +2470,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
           md = scaleMonFireDmg(m, md);
+          md = monScaleOutgoingDamage(killerMon, md);
           m.hp -= md;
           retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
@@ -3455,8 +3458,8 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           const d = clampDmgFixed(m, dmgMon());
           m.hp -= d;
           if (poison) {
-            m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
+            const stacks = applyPoisonArrowDamageReduction(m, ml);
+            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！${stacks ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** stacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！"}`);
           } else {
             ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
           }
@@ -3479,6 +3482,16 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
   }
   if (!hit) placeItemAt(dg, lastX, lastY, arrow, ml, _ft);
   return hit;
+}
+
+/** 毒矢を受けた敵はATK値を変えず、攻撃で与えるダメージが命中ごとに半減する。 */
+export function applyPoisonArrowDamageReduction(monster, messages = null) {
+  if (!monster || monster.hp <= 0 || isStatusImmune(monster, messages, monster.name)) return 0;
+  if (blockLargeMonsterStatus(monster, "poison", messages)) return 0;
+  startLargeMonsterStatusCooldown(monster, "poison");
+  monster.poisonArrowDamageHalves = Math.min(10, (monster.poisonArrowDamageHalves || 0) + 1);
+  if (monster.isBoss && !(monster.poisonArrowDamageTurns > 0)) monster.poisonArrowDamageTurns = monsterStatusTurns(10, monster);
+  return monster.poisonArrowDamageHalves;
 }
 
 let _fireTrapDepth = 0;
@@ -3602,6 +3615,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       return "destroyed";
     }
     case "spin": {
+      const _spinTpBlock = hasCursedTeleportPentacle(dg) && !trap.permanent;
+      if (_spinTpBlock) {
+        ml.push(`${trap.name}が発動したが、呪われたテレポートの魔方陣に阻まれて動けなかった！`);
+        return item?._ephemeralTrapTrigger ? "spin_blocked" : "restart";
+      }
       if (item?._ephemeralTrapTrigger) {
         ml.push(`${trap.name}が発動！${resolveItemName(item)}はどこかへ吹き飛んだ！`);
         return "restart";
@@ -3612,35 +3630,28 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const nx = rng(rm.x, rm.x + rm.w - 1);
         const ny = rng(rm.y, rm.y + rm.h - 1);
         placeItemAt(dg, nx, ny, item, ml, ft);
-        const _spinTpBlock = hasCursedTeleportPentacle(dg);
         const _spm = monsterAt(dg, tx, ty);
         if (_spm && !_spm.forcedMoveImmune) {
-          if (_spinTpBlock) { ml.push(`呪われたテレポートの魔方陣に阻まれて${_spm.name}は吹き飛ばなかった！`); }
-          else {
-            /* 行き先は床マスだけから選ぶ（部屋の矩形そのままだと壁・水の中や他個体と重なる） */
-            const _spDst = randomTeleportDest(dg, _spm.x, _spm.y,
-              (x, y) => !(p && x === p.x && y === p.y) && !dg.monsters.some(o => o !== _spm && monsterOccupiesCell(o, x, y)));
-            if (_spDst) {
-              _spm.x = _spDst.x;
-              _spm.y = _spDst.y;
-              ml.push(`${_spm.name}も吹き飛ばされた！`);
-            }
+          /* 行き先は床マスだけから選ぶ（部屋の矩形そのままだと壁・水の中や他個体と重なる） */
+          const _spDst = randomTeleportDest(dg, _spm.x, _spm.y,
+            (x, y) => !(p && x === p.x && y === p.y) && !dg.monsters.some(o => o !== _spm && monsterOccupiesCell(o, x, y)));
+          if (_spDst) {
+            _spm.x = _spDst.x;
+            _spm.y = _spDst.y;
+            ml.push(`${_spm.name}も吹き飛ばされた！`);
           }
         } else if (_spm) ml.push(`${_spm.name}は強制移動を受けない！`);
         if (p && p.x === tx && p.y === ty) {
-          if (_spinTpBlock) { ml.push("呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！"); }
-          else {
-            const _spinFromX = p.x, _spinFromY = p.y;
-            const _spinDstP = randomTeleportDest(dg, p.x, p.y,
-              (x, y) => !dg.monsters.some(m => monsterOccupiesCell(m, x, y)));
-            if (_spinDstP) {
-              p.x = _spinDstP.x;
-              p.y = _spinDstP.y;
-              pushPlayerTeleportAnim(_spinFromX, _spinFromY, p.x, p.y);
-            }
-            ml.push(`吹き飛ばされた！`);
-            if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
+          const _spinFromX = p.x, _spinFromY = p.y;
+          const _spinDstP = randomTeleportDest(dg, p.x, p.y,
+            (x, y) => !dg.monsters.some(m => monsterOccupiesCell(m, x, y)));
+          if (_spinDstP) {
+            p.x = _spinDstP.x;
+            p.y = _spinDstP.y;
+            pushPlayerTeleportAnim(_spinFromX, _spinFromY, p.x, p.y);
           }
+          ml.push(`吹き飛ばされた！`);
+          if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
         }
       }
       return "destroyed";
@@ -4434,24 +4445,15 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   return withParalysisHit(mon, ml, () => {
   if (consumeBarrier(mon, ml)) return { blocked: true, killed: false };
 
-  const dmg = clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true);
+  const dmg = monScaleOutgoingDamage(killerMon, clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true));
   mon.hp -= dmg;
   ml.push(hitMessage(mon, dmg));
   triggerMushroomCounterSpore(mon, dg, p, ml);
 
-  /* 毒矢：命中時の毒付与と攻撃力半減も通常投擲と同じにする。 */
-  if (item.type === "arrow" && item.poison && !isStatusImmune(mon, ml, mon.name)) {
-    if (mon.isBoss) {
-      if (!mon.bossPoisonHalfAtk) {
-        mon.bossPoisonOrigAtk = mon.atk;
-        mon.bossPoisonHalfAtk = true;
-        mon.bossPoisonHalfAtkTurns = monsterStatusTurns(10, mon);
-      }
-      mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
-    } else {
-      mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
-    }
-    ml[ml.length - 1] += "攻撃力が半減した！";
+  /* 毒矢：命中ごとに敵の与ダメージを半減する。ATK値自体は変更しない。 */
+  if (item.type === "arrow" && item.poison) {
+    const stacks = applyPoisonArrowDamageReduction(mon, ml);
+    if (stacks > 0) ml[ml.length - 1] += `毒矢で与ダメージが${Math.max(1, Math.floor(100 / (2 ** stacks)))}%に低下した！（最低1ダメージ）`;
   }
 
   /* ヤバイ食料：追加ダメージ＋毒・混乱・幻惑・鈍足。 */
@@ -4693,7 +4695,7 @@ export function cureBlessedHealAilments(entity, kind = "player") {
       clearPlayerPoison(entity);
       cured.push("毒による攻撃力低下");
     }
-  } else if (entity.poisoned || (entity.poisonedTurns || 0) > 0) {
+  } else if (entity.poisoned || (entity.poisonedTurns || 0) > 0 || (entity.poisonArrowDamageHalves || 0) > 0) {
     entity.poisoned = false;
     entity.poisonedTurns = 0;
     delete entity.sporePoisonKillerId;
@@ -4703,6 +4705,8 @@ export function cureBlessedHealAilments(entity, kind = "player") {
       delete entity.poisonHalfAtk;
       delete entity.poisonOrigAtk;
     }
+    delete entity.poisonArrowDamageHalves;
+    delete entity.poisonArrowDamageTurns;
     cured.push("毒");
   }
   return cured;
@@ -5471,6 +5475,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (weakEffect) {
             const weakCures = [
               ["poisoned", () => { target.poisoned = false; target.poisonedTurns = 0; if (target.poisonHalfAtk) { target.atk = target.poisonOrigAtk ?? target.atk; delete target.poisonHalfAtk; delete target.poisonOrigAtk; } }],
+              ["poisonArrowDamageHalves", () => { delete target.poisonArrowDamageHalves; delete target.poisonArrowDamageTurns; }],
               ["sleepTurns", () => { target.sleepTurns = 0; }],
               ["confusedTurns", () => { target.confusedTurns = 0; }],
               ["slowTurns", () => { target.slowTurns = 0; target.bossSlowTurns = 0; }],
@@ -5664,7 +5669,8 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
             clearPlayerPoison(p);
             ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
           } else ml.push("解毒成分が入っていたが毒ではなかった。");
-        } else if (kind === "monster" && (!weak || weakDiscrete()) && (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk)) {
+        } else if (kind === "monster" && (!weak || weakDiscrete()) &&
+            (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk || (target.poisonArrowDamageHalves || 0) > 0)) {
           target.poisoned = false;
           target.poisonedTurns = 0;
           delete target.sporePoisonKillerId;
@@ -5674,6 +5680,8 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
             delete target.poisonHalfAtk;
             delete target.poisonOrigAtk;
           }
+          delete target.poisonArrowDamageHalves;
+          delete target.poisonArrowDamageTurns;
           ml.push(`${target.name}の毒が消え、攻撃力が戻った！`);
         } else ml.push(weak
           ? `${kind === "player" ? "弱い解毒成分" : `${target.name}に弱い解毒成分`}は届かなかった。`
@@ -5945,7 +5953,7 @@ export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, 
         : (target.paralyzed || (target.paralyzeTurns || 0) > 0);
       const hasPoison = kind === "player"
         ? (p.poisoned || (p.poisonAtkLoss || 0) > 0)
-        : (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk);
+        : (target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk || (target.poisonArrowDamageHalves || 0) > 0);
       const cureOne = weak ? [hasSleep, hasParalysis, hasPoison].filter(Boolean).slice(0, 1) : null;
       if (hasSleep && (!weak || cureOne[0] === hasSleep)) { entity.sleepTurns = 0; cured.push("睡眠"); }
       if (hasParalysis && (!weak || (!hasSleep && cureOne[0] === hasParalysis))) {
@@ -5971,6 +5979,8 @@ export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, 
             delete target.poisonHalfAtk;
             delete target.poisonOrigAtk;
           }
+          delete target.poisonArrowDamageHalves;
+          delete target.poisonArrowDamageTurns;
         }
         cured.push("毒");
       }
@@ -7627,6 +7637,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       }
       let dmg = _isPot ? _potDmg(0) : _projDmg(0);
       dmg = applyFrozenPhysicalMult(dmg, p);
+      if (!sourceIsPlayer()) dmg = monScaleOutgoingDamage(killerMon, dmg);
       p.deathCause = reflectedBy?.name
         ? `${reflectedBy.name}に跳ね返された${resolveItemName(item, nameFn)}に当たって`
         : killerMon?.name
@@ -7638,7 +7649,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       interruptPlayerSleep(p, mlx);
       /* ヤバイ食料：追加ダメ+状態異常複合 */
       if (item.type === "food" && item.yabai) {
-        const _yDmg = rng(15, 25);
+        const _yDmg = !sourceIsPlayer() ? monScaleOutgoingDamage(killerMon, rng(15, 25)) : rng(15, 25);
         p.hp -= _yDmg;
         if (reflectedBy?.name) p.deathCause = "跳ね返されたヤバイ食料に当たって";
         else if (killerMon?.name) p.deathCause = `${killerMon.name}が投げたヤバイ食料に当たって`;
@@ -7796,6 +7807,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 }
 
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0, killerMon = null) {
+  const _collisionAtk = monScaleOutgoingDamage(killerMon, collisionAtk);
   if (kind === "monster" && entity?.forcedMoveImmune) {
     if (ml) ml.push(`${entity.name}は強制移動を受けない！`);
     return { x, y, consumed: false, blocked: true };
@@ -7810,13 +7822,14 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
-      if (kind === "monster") { entity.hp -= 5; ml.push(`${entity.name}は壁に叩きつけられた！5ダメージ！`); }
+      if (kind === "monster") { const _impact = monScaleOutgoingDamage(killerMon, 5); entity.hp -= _impact; ml.push(`${entity.name}は壁に叩きつけられた！${_impact}ダメージ！`); }
       if (kind === "player")  {
+        const _impact = monScaleOutgoingDamage(killerMon, 5);
         p.deathCause = killerMon?.name
           ? `${killerMon.name}に吹き飛ばされての壁への激突により`
           : "吹き飛ばされての壁への激突により";
-        p.hp -= 5;
-        ml.push("壁に叩きつけられた！5ダメージ！");
+        p.hp -= _impact;
+        ml.push(`壁に叩きつけられた！${_impact}ダメージ！`);
       }
       break;
     }
@@ -7850,22 +7863,22 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     if (kind === "monster") {
       /* プレイヤーとの衝突 */
       if (p && monsterOccupiesCell({ ...entity, x: nx, y: ny }, p.x, p.y)) {
-        if (collisionAtk > 0) {
-          entity.hp -= collisionAtk;
+        if (_collisionAtk > 0) {
+          entity.hp -= _collisionAtk;
           p.deathCause = `${entity.name}との衝突により`;
-          p.hp -= collisionAtk;
-          ml.push(`${entity.name}が${pl()}に激突！お互いに${collisionAtk}ダメージ！`);
+          p.hp -= _collisionAtk;
+          ml.push(`${entity.name}が${pl()}に激突！お互いに${_collisionAtk}ダメージ！`);
         }
         break;
       }
       /* 別モンスターとの衝突 */
       const _colM = dg.monsters.find(m => m !== entity && monsterBodiesOverlap(entity, m, nx, ny));
       if (_colM) {
-        if (collisionAtk > 0) {
-          entity.hp -= collisionAtk;
-          _colM.hp -= collisionAtk;
+        if (_collisionAtk > 0) {
+          entity.hp -= _collisionAtk;
+          _colM.hp -= _collisionAtk;
           collisionVictim = _colM;
-          ml.push(`${entity.name}が${_colM.name}に激突！お互いに${collisionAtk}ダメージ！`);
+          ml.push(`${entity.name}が${_colM.name}に激突！お互いに${_collisionAtk}ダメージ！`);
         }
         break;
       }
@@ -7874,12 +7887,12 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
       /* モンスターとの衝突 */
       const _pColM = monsterAt(dg, nx, ny);
       if (_pColM) {
-        if (collisionAtk > 0) {
-          p.hp -= collisionAtk;
+        if (_collisionAtk > 0) {
+          p.hp -= _collisionAtk;
           p.deathCause = `${_pColM.name}との衝突により`;
-          _pColM.hp -= collisionAtk;
+          _pColM.hp -= _collisionAtk;
           collisionVictim = _pColM;
-          ml.push(`${_pColM.name}に激突！お互いに${collisionAtk}ダメージ！`);
+          ml.push(`${_pColM.name}に激突！お互いに${_collisionAtk}ダメージ！`);
         }
         break;
       }
@@ -8021,7 +8034,7 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
 /** reflector に当たった魔法の石をプレイヤーへホーミング反射する。 */
 export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml) {
   if (!p || !monReflectsProjectiles(reflector)) return null;
-  const dmg = calcProjectileDmg(p, stoneAtk || 5, 0);
+  const dmg = monScaleOutgoingDamage(reflector, calcProjectileDmg(p, stoneAtk || 5, 0));
   p.hp -= dmg;
   p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
@@ -8219,6 +8232,7 @@ function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn, bbFn = null) {
     return { action: "destroyed" };
   }
   if (_effect === "spin") {
+    if (_result === "spin_blocked") return { action: "continue" };
     const _dest = chooseSpecialProjectileFloor(dg, p, sp);
     sp.x = _dest.x;
     sp.y = _dest.y;
@@ -8707,22 +8721,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const _wakkaDmg = clampDmgFixed(_wakkaTarget, calcProjectileDmg(p, _arAtk, _wakkaTarget.def), true);
     _wakkaTarget.hp -= _wakkaDmg;
-    let _wakkaPoisonT = 0;
-    const _wakkaPoisonApplied = _isPoison && !isStatusImmune(_wakkaTarget, ml, _wakkaTarget.name);
-    if (_wakkaPoisonApplied) {
-      if (_wakkaTarget.isBoss) {
-        _wakkaPoisonT = _wakkaTarget.bossPoisonHalfAtk ? (_wakkaTarget.bossPoisonHalfAtkTurns || monsterStatusTurns(10, _wakkaTarget)) : monsterStatusTurns(10, _wakkaTarget);
-        if (!_wakkaTarget.bossPoisonHalfAtk) {
-          _wakkaTarget.bossPoisonOrigAtk = _wakkaTarget.atk;
-          _wakkaTarget.bossPoisonHalfAtk = true;
-          _wakkaTarget.bossPoisonHalfAtkTurns = _wakkaPoisonT;
-        }
-        _wakkaTarget.atk = Math.max(1, Math.floor(_wakkaTarget.atk / 2));
-      } else {
-        _wakkaTarget.atk = Math.max(1, Math.floor((_wakkaTarget.atk || 1) / 2));
-      }
-    }
-    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_wakkaPoisonApplied ? `攻撃力が半減した！${_wakkaTarget.isBoss ? `(${_wakkaPoisonT}ターン)` : "(永続)"}` : ""}`);
+    const _wakkaPoisonStacks = _isPoison ? applyPoisonArrowDamageReduction(_wakkaTarget, ml) : 0;
+    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? (_wakkaPoisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _wakkaPoisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
     triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
     if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
     if (st.bombArrow) {
@@ -8840,18 +8840,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       if (consumeBarrier(m, ml)) { hit = true; break; }
       const _arDmg = clampDmgFixed(m, calcProjectileDmg(p, _arAtk, m.def), true);
       m.hp -= _arDmg;
-      let _poisonT = 0;
-      const _poisonApplied = _isPoison && !isStatusImmune(m, ml, m.name);
-      if (_poisonApplied) {
-        if (m.isBoss) {
-          _poisonT = m.bossPoisonHalfAtk ? (m.bossPoisonHalfAtkTurns || monsterStatusTurns(10, m)) : monsterStatusTurns(10, m);
-          if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = _poisonT; }
-          m.atk = Math.max(1, Math.floor(m.atk / 2));
-        } else {
-          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-        }
-      }
-      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_poisonApplied ? `攻撃力が半減した！${m.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
+      const _poisonStacks = _isPoison ? applyPoisonArrowDamageReduction(m, ml) : 0;
+      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? (_poisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _poisonStacks)))}%に低下した！（最低1ダメージ）${m.isBoss ? `(${m.poisonArrowDamageTurns}ターン)` : "(永続)"}` : "毒矢の追加効果は効かなかった！") : ""}`);
       triggerMushroomCounterSpore(m, dg, p, ml);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }

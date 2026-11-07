@@ -23,7 +23,7 @@ import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectB
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
-import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness, monElementDamageMultiplier } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness, monElementDamageMultiplier, monScaleOutgoingDamage } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
@@ -83,10 +83,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   const _activatePlayerTrap = trap => fireTrapFn
     ? fireTrapFn(trap, p, dg, ml)
     : fireTrapPlayer(trap, p, dg, ml, nameFn, luFn);
-  const _magicDamage = (amount, victim = target) =>
+  const _outgoingDamage = amount => sourceIsPlayer ? amount : monScaleOutgoingDamage(killerMon, amount);
+  const _magicDamage = (amount, victim = target) => _outgoingDamage(
     kind === "monster" && sourceIsPlayer
       ? multiplyMagicDamage(amount, p?.weapon, victim, dg)
-      : multiplyCursedMagicDamage(amount, victim, dg);
+      : multiplyCursedMagicDamage(amount, victim, dg),
+  );
   const _teleportPlayer = (toX, toY) => {
     const _fromX = p.x, _fromY = p.y;
     p.x = toX; p.y = toY;
@@ -408,13 +410,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
            箱を再度壊さないよう、床から外してからダメージを適用する。 */
         dg.bigboxes = (dg.bigboxes || []).filter(box => box !== target);
         if (_bbHitPlayer) {
-          const _bbDmg = rng(20, 40);
+          const _bbDmg = _outgoingDamage(rng(20, 40));
           p.deathCause = `${target.name}との衝突により`;
           p.hp -= _bbDmg;
           ml.push(`${target.name}が${pl()}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
           interruptPlayerSleep(p, ml);
         } else if (_bbHitMon) {
-          const _bbDmg = rng(20, 40);
+          const _bbDmg = _outgoingDamage(rng(20, 40));
           _bbHitMon.hp -= _bbDmg;
           ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
           if (_bbHitMon.hp <= 0) _defeat(_bbHitMon);
@@ -662,7 +664,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.isBoss) {
             target._sanctuaryEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
             if (blockLargeMonsterDamage(target, p, ml)) break;
-            const _bd = bossInstantDeathDamage(target);
+            const _bd = _outgoingDamage(bossInstantDeathDamage(target));
             target.hp -= _bd;
             ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
@@ -785,8 +787,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        dmg = _magicDamage(dmg, p);
-        dmg = reduceLightningDamage(dmg, p);
+        dmg = reduceLightningDamage(_magicDamage(dmg, p), p);
         p.deathCause = _wandDeath("雷の杖");
         p.hp -= dmg;
         ml.push(`${_hitYou("雷撃")}${dmg}ダメージ！${lightningResistDamageLabel(p)}`);
@@ -1034,7 +1035,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.isBoss) {
             target._wallEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
             if (blockLargeMonsterDamage(target, p, ml)) break;
-            const damage = bossInstantDeathDamage(target);
+            const damage = _outgoingDamage(bossInstantDeathDamage(target));
             target.hp -= damage;
             ml.push(`${target.name}は壁の中に埋められたが${damage}ダメージを受けた！`);
             if (target.hp <= 0) _defeat(target);
@@ -1050,7 +1051,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.isBoss) {
             target._sanctuaryEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
             if (blockLargeMonsterDamage(target, p, ml)) break;
-            const _bd = bossInstantDeathDamage(target);
+            const _bd = _outgoingDamage(bossInstantDeathDamage(target));
             target.hp -= _bd;
             ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
             if (target.hp <= 0) _defeat(target);
@@ -1853,8 +1854,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "player") {
         const _fwOily = _fwOilyCheck(p);
         let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
-        _fwDmg = multiplyCursedMagicDamage(_fwDmg, p, dg);
-        _fwDmg = reduceFireDamage(_fwDmg, p, { includeRingFire: true });
+        _fwDmg = _outgoingDamage(reduceFireDamage(multiplyCursedMagicDamage(_fwDmg, p, dg), p, { includeRingFire: true }));
         p.deathCause = _wandDeath("炎の杖");
         p.hp -= _fwDmg;
         ml.push(`${_hitYou("炎の弾")}${_fwDmg}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
@@ -1966,8 +1966,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         const _iwTurns = statusTurns("immobile", { kind: "player", blessed: _iwBlessed });
-        let _iwDmg = multiplyCursedMagicDamage(Math.max(1, Math.round(rng(15,25) * _iwBlessMult)), p, dg);
-        _iwDmg = reduceIceDamage(_iwDmg, p);
+        let _iwDmg = _outgoingDamage(reduceIceDamage(multiplyCursedMagicDamage(Math.max(1, Math.round(rng(15,25) * _iwBlessMult)), p, dg), p));
         p.deathCause = _wandDeath("氷の杖");
         p.hp -= _iwDmg;
         if (hasIceResist(p)) {
@@ -2486,7 +2485,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       if (killerMon && !consumeBarrier(killerMon, ml)) {
-        const _wdmg = multiplyCursedMagicDamage(Math.round(rng(15, 25) * (blessed ? 2 : 1)), killerMon, dg);
+        const _wdmg = monScaleOutgoingDamage(killerMon, multiplyCursedMagicDamage(Math.round(rng(15, 25) * (blessed ? 2 : 1)), killerMon, dg));
         killerMon.hp -= _wdmg;
         ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
         pushLightningAnim(killerMon.x, killerMon.y);
@@ -2507,7 +2506,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         const _srcMon = monsterAt(dg, cx, cy);
         if (_srcMon) {
           if (!consumeBarrier(_srcMon, ml)) {
-            const _rdmg = multiplyCursedMagicDamage(rng(15, 25), _srcMon, dg);
+            const _rdmg = monScaleOutgoingDamage(killerMon, multiplyCursedMagicDamage(rng(15, 25), _srcMon, dg));
             _srcMon.hp -= _rdmg;
             ml.push(`跳ね返った雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
             pushLightningAnim(_srcMon.x, _srcMon.y);
@@ -2520,7 +2519,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       const _hasLightRes = hasLightningResist(pl);
       let dmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
       dmg = multiplyCursedMagicDamage(dmg, pl, dg);
-      dmg = reduceLightningDamage(dmg, pl);
+      dmg = monScaleOutgoingDamage(killerMon, reduceLightningDamage(dmg, pl));
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
       ml.push(`雷撃が命中！${dmg}ダメージ！${lightningResistDamageLabel(pl)}`);
@@ -2539,7 +2538,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       if (monReflectsMagic(mon) && killerMon) {
         ml.push(`${mon.name}が雷撃を跳ね返した！`);
         if (!consumeBarrier(killerMon, ml)) {
-          const _rdmg = multiplyCursedMagicDamage(rng(15, 25), killerMon, dg);
+          const _rdmg = monScaleOutgoingDamage(mon, multiplyCursedMagicDamage(rng(15, 25), killerMon, dg));
           killerMon.hp -= _rdmg;
           ml.push(`跳ね返った雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);

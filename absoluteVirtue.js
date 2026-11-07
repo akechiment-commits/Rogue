@@ -10,7 +10,7 @@ import {
   hasRingEffect, inMagicSealRoom, killMonster, multiplyCursedMagicDamage,
   pushEntity, weakenOrClearParalysis, hasPlayerMagicReflect, drownMonsterIfNeeded,
 } from "./items.js";
-import { monEffectiveMagicImmune, monReflectsMagic } from "./monTraits.js";
+import { monEffectiveMagicImmune, monReflectsMagic, monScaleOutgoingDamage } from "./monTraits.js";
 import { wakeIfDormant } from "./monsterRuntime.js";
 import { resolveParalysisHit } from "./statusDuration.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
@@ -64,7 +64,7 @@ function firstAerogaTarget(monster, dungeon, player, line) {
 function hitAerogaTarget(monster, target, dungeon, player, messages, opts) {
   if (target === player) {
     if (consumeBarrier(player, messages)) return false;
-    const damage = multiplyCursedMagicDamage(80, player, dungeon);
+    const damage = monScaleOutgoingDamage(monster, multiplyCursedMagicDamage(80, player, dungeon));
     player.deathCause = `${monster.name}のエアロガで`;
     withEnemyDamageContext(player, () => { player.hp -= damage; });
     opts.onPlayerHit?.(damage, monster);
@@ -84,7 +84,7 @@ function hitAerogaTarget(monster, target, dungeon, player, messages, opts) {
     messages.push(`${target.name}はエアロガをかわした！`);
     return false;
   }
-  const damage = multiplyCursedMagicDamage(80, target, dungeon);
+  const damage = monScaleOutgoingDamage(monster, multiplyCursedMagicDamage(80, target, dungeon));
   target.hp -= damage;
   resolveParalysisHit(target, messages);
   messages.push(`${monster.name}のエアロガが${target.name}に命中！${damage}ダメージ！`);

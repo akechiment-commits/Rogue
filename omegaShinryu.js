@@ -14,7 +14,7 @@ import {
   reduceLightningDamage, hasLightningResist, lightningResistDamageLabel,
   applyLightningToInventory, wallBreakDrop,
 } from "./items.js";
-import { monElementDamageMultiplier, monHasElementWeakness } from "./monTraits.js";
+import { monElementDamageMultiplier, monHasElementWeakness, monScaleOutgoingDamage } from "./monTraits.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { pushAnim, pushLightningAnim, pushSplashAnim } from "./animEvents.js";
 
@@ -211,6 +211,7 @@ function targetHitCounts(dungeon, cells, source) {
 function applyFixedWaveDamage(source, target, amount, dungeon, player, messages, label) {
   if (target.hp <= 0 || !dungeon.monsters?.includes(target)) return;
   if (consumeBarrier(target, messages)) return;
+  amount = monScaleOutgoingDamage(source, amount);
   target.hp -= amount;
   messages.push(`${label}が${target.name}に命中！${amount}ダメージ！`);
   if (target.hp <= 0) killMonster(target, dungeon, player, messages, combatDeps.luFn || null, false, source);
@@ -254,8 +255,9 @@ function applyOmegaWave(attack, dungeon, player, messages, source) {
   if (player.hp > 0 && cells.has(`${player.x},${player.y}`)) {
     if (!consumeBarrier(player, messages)) {
       player.deathCause = `${attack.sourceName}の波動砲で`;
-      player.hp -= 100;
-      messages.push(`波動砲が直撃！${playerHpEffectLabel(player, 100)}！`);
+      const damage = monScaleOutgoingDamage(source, 100);
+      player.hp -= damage;
+      messages.push(`波動砲が直撃！${playerHpEffectLabel(player, damage)}！`);
       combatDeps.interruptPlayerSleep?.(player, messages);
       combatDeps.weakenOrClearParalysis?.(player, messages);
     }
@@ -271,7 +273,7 @@ function applyOmegaWave(attack, dungeon, player, messages, source) {
 function tidalWavePlayerDamage(attack, dungeon, player, messages, source) {
   if (player.hp <= 0 || consumeBarrier(player, messages)) return;
   const base = calcAtkDefDmg(attack.sourceAtk, calcPlayerDefense(player), { defWeight: 1.5 });
-  const damage = reduceWaterDamage(Math.max(1, base * 2), player);
+  const damage = monScaleOutgoingDamage(source, reduceWaterDamage(Math.max(1, base * 2), player));
   player.deathCause = `${attack.sourceName}のタイダルウエイブで`;
   player.hp -= damage;
   messages.push(`タイダルウエイブが直撃！水属性の${damage}ダメージ！${waterResistDamageLabel(player)}`);
@@ -299,7 +301,7 @@ function applyTidalWave(attack, dungeon, player, messages, source) {
       if (consumeBarrier(target, messages)) continue;
       resolveParalysisHit(target, messages);
       const base = calcAtkDefDmg(attack.sourceAtk, target.def || 0, { defWeight: 1 });
-      const damage = Math.max(1, base * 2);
+      const damage = monScaleOutgoingDamage(source, Math.max(1, base * 2));
       target.hp -= damage;
       hit = true;
       messages.push(`タイダルウエイブが${target.name}に命中！水属性の${damage}ダメージ！`);
@@ -415,7 +417,7 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
   const inRoom = (x, y) => !!room && combatDeps.findRoom?.(dungeon.rooms, x, y) === room;
   if (player.hp > 0 && (!room || !combatDeps.findRoom || inRoom(player.x, player.y))) {
     if (!consumeBarrier(player, messages)) {
-      const damage = reduceLightningDamage(50, player);
+      const damage = monScaleOutgoingDamage(monster, reduceLightningDamage(50, player));
       player.deathCause = `${monster.name}の稲妻で`;
       player.hp -= damage;
       messages.push(`稲妻が落ちた！${playerHpEffectLabel(player, damage)}！${lightningResistDamageLabel(player)}`);
@@ -431,7 +433,7 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
     if (consumeBarrier(target, messages)) continue;
     const weakness = monHasElementWeakness(target, "thunder") ? 1.5 : 1;
     const resistance = monElementDamageMultiplier(target, "thunder");
-    const damage = Math.max(1, Math.floor(50 * weakness * resistance));
+    const damage = monScaleOutgoingDamage(monster, Math.max(1, Math.floor(50 * weakness * resistance)));
     target.hp -= damage;
     messages.push(`稲妻が${target.name}にも落ちた！${damage}ダメージ！${weakness > 1 ? "雷弱点！" : ""}${resistance < 1 ? "雷半減！" : ""}`);
     pushLightningAnim(target.x, target.y);
@@ -486,7 +488,7 @@ export function attackOmegaShinryuAdjacentCells(monster, dungeon, player, messag
     }
     if (consumeBarrier(target, messages)) continue;
     resolveParalysisHit(target, messages);
-    const damage = Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1));
+    const damage = monScaleOutgoingDamage(monster, Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
     target.hp -= damage;
     messages.push(`${monster.name}が${target.name}を攻撃！${damage}ダメージ！`);
     if (target.hp <= 0 && dungeon.monsters.includes(target)) {

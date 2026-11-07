@@ -31,10 +31,10 @@ export const TRAPS = [
   { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, rarity:"C", weight:4,  desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
   { name:"混乱の罠",       effect:"confuse_trap",   tile:127, rarity:"E", weight:12, desc:"踏むと10ターン混乱する。\n敵が踏むと20ターン混乱する。耐混乱の防具で防げる。" },
   /* D: やや多い */
-  { name:"毒矢の罠",       effect:"poison_arrow",  tile:45,  rarity:"D", weight:8,  desc:"踏むと、そのときの正面方向から毒矢が飛んでくる。\nダメージ+毒状態。\n踏む以外で壊れると毒矢が数本散らばる。" },
+  { name:"毒矢の罠",       effect:"poison_arrow",  tile:45,  rarity:"D", weight:8,  desc:"踏むと、そのときの正面方向から毒矢が飛んでくる。\nプレイヤーにはダメージと毒状態、敵にはダメージと与ダメージ半減を与える。敵の半減は命中ごとに累積し、通常敵は永続、ボスは基準10ターンをボス半減した時間で解除される。\n踏む以外で壊れると毒矢が数本散らばる。" },
   { name:"強矢の罠",       effect:"strong_arrow",  tile:121, rarity:"D", weight:8,  desc:"踏むと、そのときの正面方向から強矢が飛んでくる。\n通常の矢よりダメージが大きい。\n踏む以外で壊れると強矢が数本散らばる。" },
   { name:"錆の罠",         effect:"rust",          tile:28,  rarity:"D", weight:8,  desc:"踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。" },
-  { name:"回転板",         effect:"spin",          tile:29,  rarity:"D", weight:8,  desc:"踏むとランダムな場所に吹き飛ばされる。\n飛んだ先の罠も発動する。" },
+  { name:"回転板",         effect:"spin",          tile:29,  rarity:"D", weight:8,  desc:"踏むとランダムな場所に吹き飛ばされる。通常の回転板は呪われたテレポートの魔方陣で阻まれる。無敵回転板は呪いを無視して作動するが、破壊・テレポート・罠投げで位置を変えられない。\n飛んだ先の罠も発動する。" },
   { name:"落石の罠",       effect:"rockfall",      tile:72,  rarity:"D", weight:8,  desc:"踏むと岩が降ってきて15～25ダメージ。\n対象がいなければ石が落ちる（罠マスには重ならず近くに転がる）。\n踏む以外で壊れると石が数個散らばる。" },
   { name:"吹き飛ばしの罠", effect:"blowback_trap", tile:51,  rarity:"D", weight:8,  desc:"踏むと向いていた方向と逆に最大10マス吹き飛ぶ。\n壁に激突すると10ダメージ。敵に当たると双方に10ダメージ。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85,  rarity:"D", weight:8,  desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。" },

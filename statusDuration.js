@@ -293,6 +293,7 @@ export function hasClearableStatusAilments(entity) {
     entity.oilyTurns, entity.soakedTurns, entity.flameMantleTurns,
     entity.defSoftenedTurns, entity.atkDebuffTurns, entity.defDebuffTurns,
     entity.pacifistTurns, entity.hypnosisPending, entity.caswackTurns,
+    entity.poisonArrowDamageHalves,
   ].some((value) => typeof value === "boolean" ? value : (value || 0) > 0);
 }
 
@@ -314,6 +315,8 @@ export function clearStatusEffectsOnHpZero(entity) {
     delete entity.poisonHalfAtk;
     delete entity.poisonOrigAtk;
   }
+  delete entity.poisonArrowDamageHalves;
+  delete entity.poisonArrowDamageTurns;
 
   entity.sleepTurns = 0;
   entity.sleepInterruptedTurns = 0;
