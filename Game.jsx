@@ -2465,8 +2465,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               }),
               onMonsterDefeated: (monster, { killerMon = null, noBone = false, noExp = false } = {}) => {
                 /* ラクガキ魔の魔方陣による撃破は、所有者のキル扱いにする。 */
-                if (killerMon && (!_dg2.monsters.includes(killerMon) || (killerMon.hp ?? 0) <= 0)) return;
-                killMonster(monster, _dg2, p, ml, lu, noExp, killerMon, false, noBone);
+                const killerAlive = !!killerMon &&
+                  _dg2.monsters.includes(killerMon) &&
+                  (killerMon.hp ?? 0) > 0;
+                /* 描き手自身が同じ魔方陣で倒れた後も対象の撃破処理は完了させる。 */
+                const suppressExperience = noExp || (!!killerMon && !killerAlive);
+                killMonster(monster, _dg2, p, ml, lu, suppressExperience, killerAlive ? killerMon : null, false, noBone);
               },
             });
           }

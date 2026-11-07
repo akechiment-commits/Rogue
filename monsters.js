@@ -1805,7 +1805,7 @@ export const MONS = [
     ],
   },
   /* ===== ラクガキ魔：同部屋で自分の足元に魔方陣を描く ===== */
-  { name: "ラクガキ魔",   hp: 24,  atk: 11,  def: 2,  exp: 28,  speed: 1,   tile: 111, kind: "undead",   baseKind: "rakugakima",    monLevel: 1, minFloor: 6,  maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 7, max: 10 }, advanced: { min: 8, max: 15 } },
+  { name: "ラクガキ魔",   hp: 24,  atk: 11,  def: 2,  exp: 28,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 6,  maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 7, max: 10 }, advanced: { min: 8, max: 15 } },
     desc: "同じ部屋にいると自分の足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
     levels: [
       { name: "ラクガキ妖精",       hp: 44,  atk: 17, def: 4,  exp: 70,  dungeonFloors: { intermediate: { min: 11, max: 12 }, advanced: { min: 15, max: 22 } } },
