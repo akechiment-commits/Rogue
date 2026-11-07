@@ -9165,18 +9165,41 @@ export function applyFireSpellBlast(dg, p, landing, ml, luFn, level = 1) {
   pushExplosionAnim(landing.x, landing.y);
   if (landing.hitType !== "void") ml.push("爆発！");
   if (Math.max(Math.abs(p.x - landing.x), Math.abs(p.y - landing.y)) <= 1) {
-    const damage = multiplyCursedMagicDamage(Math.round(rng(10, 15) * multiplier), p, dg);
-    p.deathCause = "炎の魔法の爆風で";
-    p.hp -= damage;
-    ml.push(`爆風を受けた！${damage}ダメージ！`);
+    if (!consumeBarrier(p, ml)) {
+      const rawDamage = multiplyCursedMagicDamage(Math.round(rng(10, 15) * multiplier), p, dg);
+      const damage = reduceFireDamage(rawDamage, p, { includeRingFire: true });
+      p.deathCause = "炎の魔法の爆風で";
+      p.hp -= damage;
+      ml.push(`爆風を受けた！${damage}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
+      interruptPlayerSleep(p, ml);
+      resolveParalysisHit(p, ml);
+    }
   }
   for (const monster of monsterAreaTargets(dg.monsters,
     (x, y) => Math.max(Math.abs(x - landing.x), Math.abs(y - landing.y)) <= 1)) {
     if (monster.hp <= 0) continue;
+    wakeIfDormant(monster, ml);
+    if (monEffectiveMagicImmune(monster)) {
+      ml.push(`魔法は${monster.name}に効かない！`);
+      continue;
+    }
     if (consumeBarrier(monster, ml)) continue;
-    const damage = multiplyMagicDamage(Math.round(rng(8, 14) * multiplier), p.weapon, monster, dg);
+    resolveParalysisHit(monster, ml);
+    const rawDamage = Math.round(rng(8, 14) * multiplier) * oilyDamageMult(dg, monster);
+    const magicDamage = multiplyMagicDamage(rawDamage, p.weapon, monster, dg);
+    if (monHasFlameMantle(monster)) {
+      const healed = Math.min(magicDamage, monster.maxHp - monster.hp);
+      if (healed > 0) {
+        monster.hp += healed;
+        ml.push(`爆風を受けた${monster.name}は炎を吸収して回復した！(+${healed}HP)`);
+      } else {
+        ml.push(`${monster.name}は爆風の炎を吸収した！`);
+      }
+      continue;
+    }
+    const damage = scaleMonFireDmg(monster, magicDamage);
     monster.hp -= damage;
-    ml.push(`爆風で${monster.name}に${damage}ダメージ！`);
+    ml.push(`爆風で${monster.name}に${damage}ダメージ！${oilyDamageLabel(dg, monster)}${monFireDmgLabel(monster)}`);
     if (monster.hp <= 0) killMonster(monster, dg, p, ml, luFn);
   }
 }
@@ -10081,6 +10104,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           }
           const _baseDamage = Math.round(rng(15, 25) * _lvF);
           if (monReflectsMagic(_monster)) {
+            if (consumeBarrier(p, ml)) continue;
             const _reflectedDamage = multiplyCursedMagicDamage(_baseDamage, p, dg);
             p.deathCause = `${_monster.name}に地震の魔法を反射されて`;
             p.hp -= _reflectedDamage;
@@ -10124,7 +10148,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           break;
         }
         const _fbDmg = scaleMonFireDmg(target, _enemyMagicDamage(dmg));
-        target.hp -= _fbDmg; ml.push(`炎の魔法が${target.name}に命中！${_fbDmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
+        target.hp -= _fbDmg;
+        resolveParalysisHit(target, ml);
+        ml.push(`炎の魔法が${target.name}に命中！${_fbDmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item" && target.type === "pot" && target.potEffect === "gunpowder") {
@@ -10144,6 +10170,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         const iceResist = monElementDamageMultiplier(target, "ice");
         dmg = Math.max(1, Math.floor(dmg * iceResist));
         target.hp -= dmg;
+        resolveParalysisHit(target, ml);
         if (_iceStatusBlocked) {
           ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！移動封じは効かなかった！${monHasElementWeakness(target, "ice") ? "氷弱点特効！" : ""}${iceResist < 1 ? "氷半減！" : ""}`);
         } else {
@@ -10163,11 +10190,14 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           if (_lm.hp <= 0) continue;
           if (monEffectiveMagicImmune(_lm)) { ml.push(`魔法は${_lm.name}に効かない！`); continue; }
           if (monReflectsMagic(_lm)) {
+            if (consumeBarrier(p, ml)) continue;
             const _reflectedBaseDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _lvF), p, dg);
             const _reflectedDamage = reduceLightningDamage(_reflectedBaseDamage, p);
             p.hp -= _reflectedDamage;
             p.deathCause = `${_lm.name}に雷の魔法を反射されて`;
             ml.push(`${_lm.name}が雷の魔法を反射した！${_reflectedDamage}ダメージ！${lightningResistDamageLabel(p)}`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
             pushLightningAnim(p.x, p.y);
             continue;
           }
@@ -10176,6 +10206,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           const _lresist = monElementDamageMultiplier(_lm, "thunder");
           const _ld = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm) * _lresist));
           _lm.hp -= _ld;
+          resolveParalysisHit(_lm, ml);
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}${_lresist < 1 ? "雷半減！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
         }
@@ -10184,7 +10215,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         /* 後方互換（他から直接呼ばれた場合） */
         const resist = monElementDamageMultiplier(target, "thunder");
         const dmg = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF)) * resist));
-        target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！${resist < 1 ? "雷半減！" : ""}`);
+        target.hp -= dmg;
+        resolveParalysisHit(target, ml);
+        ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！${resist < 1 ? "雷半減！" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item") {
@@ -10286,6 +10319,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         const _drainAmt = Math.min(target.hp, _enemyMagicDamage(Math.round(rng(15, 25) * _lvF)));
         target.hp -= _drainAmt;
+        resolveParalysisHit(target, ml);
         const _healAmt = Math.min(_drainAmt, p.maxHp - p.hp);
         p.hp += _healAmt;
         ml.push(`HP吸収の魔法が${target.name}に命中！${_drainAmt}ダメージ吸収、${_healAmt}HP回復！`);
@@ -10399,14 +10433,18 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
         const _rfLvF = getSpellPowerMultiplier(lv);
         switch (spell.effect) {
           case "fire_bolt": {
+            if (consumeBarrier(p, ml)) break;
             let _rd = multiplyCursedMagicDamage(Math.round(rng(20, 30) * _rfLvF), p, dg);
             _rd = reduceFireDamage(_rd, p, { includeRingFire: true });
             p.hp -= _rd;
             p.deathCause = `${mon.name}に炎の魔法を反射されて`;
             ml.push(`炎の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
             break;
           }
           case "ice_bolt": {
+            if (consumeBarrier(p, ml)) break;
             let _rd = multiplyCursedMagicDamage(Math.round(rng(15, 22) * _rfLvF), p, dg);
             _rd = reduceIceDamage(_rd, p);
             p.hp -= _rd;
@@ -10423,14 +10461,19 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
               p.immobileTurns = (p.immobileTurns || 0) + _iceTurns;
               ml.push(`氷の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！移動封じ${_iceTurns}ターン！`);
             }
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
             break;
           }
           case "lightning_magic": {
+            if (consumeBarrier(p, ml)) break;
             const _baseDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _rfLvF), p, dg);
             const _rd = reduceLightningDamage(_baseDamage, p);
             p.hp -= _rd;
             p.deathCause = `${mon.name}に雷の魔法を反射されて`;
             ml.push(`雷の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！${lightningResistDamageLabel(p)}`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
             pushLightningAnim(p.x, p.y);
             break;
           }
@@ -10473,7 +10516,16 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             }
             break;
           }
-          case "drain_hp": { const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 25) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = `${mon.name}にHP吸収の魔法を反射されて`; ml.push(`HP吸収の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！`); break; }
+          case "drain_hp": {
+            if (consumeBarrier(p, ml)) break;
+            const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 25) * _rfLvF), p, dg);
+            p.hp -= _rd;
+            p.deathCause = `${mon.name}にHP吸収の魔法を反射されて`;
+            ml.push(`HP吸収の魔法が${mon.name}に反射されて自分に命中！${_rd}ダメージ！`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
+            break;
+          }
           case "transform_magic": { const _th = rng(-10, 10); p.hp += _th; if (_th < 0) p.deathCause = `${mon.name}に変化の魔法を反射されて`; ml.push(`変化の魔法が${mon.name}に反射された！${_th >= 0 ? `体に変化が...HP+${_th}` : `体に異変が...HP${_th}`}`); break; }
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
