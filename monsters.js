@@ -7456,10 +7456,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`祝福された聖域の加護が${m.name}の呪いを防いだ！`);
         return;
       }
-      weakenOrClearParalysis(pl, ml);
+      if (isStatusImmune(pl, ml)) return;
       const _r = Math.random();
       if (_r < 0.33) {
         if (!blockPlayerStatus(pl, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
+          weakenOrClearParalysis(pl, ml);
           const _st = statusTurns("slow", { kind: "player" });
           pl.slowTurns = (pl.slowTurns || 0) + _st;
           ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`);
@@ -7467,13 +7468,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       } else if (_r < 0.66) {
         if (blockPlayerStatus(pl, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) {
           // 防具または状態防止で防いだ。
-        } else if ((pl.yogurtImmuneTurns || 0) > 0) {
-          ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`);
         } else {
-          const _ct = statusTurns("confuse", { kind: "player" });
-          if (applyPlayerConfusion(pl, _ct, ml)) ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`);
+          weakenOrClearParalysis(pl, ml);
+          if ((pl.yogurtImmuneTurns || 0) > 0) {
+            ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`);
+          } else {
+            const _ct = statusTurns("confuse", { kind: "player" });
+            if (applyPlayerConfusion(pl, _ct, ml)) ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`);
+          }
         }
       } else if (!blockPlayerStatus(pl, ml, { proofAbility: "seal_proof", proofMsg: "しかし防具が魔法封印を防いだ！(耐封印)" })) {
+        weakenOrClearParalysis(pl, ml);
         const _st = statusTurns("seal", { kind: "player" });
         pl.sealedTurns = (pl.sealedTurns || 0) + _st;
         ml.push(`${m.name}の空間歪曲で魔法が封印された！(${_st}ターン)`);
