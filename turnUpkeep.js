@@ -8,6 +8,7 @@ import { statusTurns, resolveParalysisHit } from "./statusDuration.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { maintainPlayerHaste } from "./actionClock.js";
 import { DRUNK_VOMIT_HUNGER_LOSS, shouldVomit } from "./intoxication.js";
+import { consumeBarrier } from "./utils.js";
 
 export function advancePlayerUpkeep(player, messages, {
   hasAbility,
@@ -76,6 +77,7 @@ export function applyArmorAura(player, dungeon, messages, { hasAbility, killMons
         (monster.type === "shopkeeper" && monster.state !== "hostile")) continue;
     const adjacentCells = monsterAreaHitCount(monster, player.x - 1, player.y - 1, 3);
     if (!adjacentCells) continue;
+    if (consumeBarrier(monster, messages)) continue;
     const damage = adjacentCells * 2;
     monster.hp -= damage;
     resolveParalysisHit(monster, messages);

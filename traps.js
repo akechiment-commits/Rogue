@@ -1,5 +1,5 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
-import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
+import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode, consumeBarrier } from "./utils.js";
 import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
@@ -328,15 +328,25 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
           p.x = _pnx; p.y = _pny;
         }
         if (_bbHitWall) {
-          p.deathCause = `${trap.name}による壁への衝突により`;
-          p.hp -= 10;
-          resolveParalysisHit(p, ml);
-          ml.push("壁に激突！10ダメージ！");
+          if (!consumeBarrier(p, ml)) {
+            p.deathCause = `${trap.name}による壁への衝突により`;
+            p.hp -= 10;
+            resolveParalysisHit(p, ml);
+            ml.push("壁に激突！10ダメージ！");
+          }
         } else if (_bbHitMon) {
-          p.hp -= 10;
-          resolveParalysisHit(p, ml);
-          _bbHitMon.hp -= 10;
-          ml.push(`${_bbHitMon.name}に激突！お互いに10ダメージ！`);
+          const _playerBlocked = consumeBarrier(p, ml);
+          const _monsterBlocked = consumeBarrier(_bbHitMon, ml);
+          if (!_playerBlocked) {
+            p.hp -= 10;
+            resolveParalysisHit(p, ml);
+          }
+          if (!_monsterBlocked) _bbHitMon.hp -= 10;
+          const _collisionDamage = [
+            !_playerBlocked ? "自分に10ダメージ！" : "自分へのダメージはバリアが防いだ！",
+            !_monsterBlocked ? `${_bbHitMon.name}に10ダメージ！` : `${_bbHitMon.name}へのダメージはバリアが防いだ！`,
+          ].join("");
+          ml.push(`${_bbHitMon.name}に激突！${_collisionDamage}`);
           if (_bbHitMon.hp <= 0) {
             ml.push(`${_bbHitMon.name}は${trap.name}の衝突で倒れた！（経験値なし）`);
             trackMonster(_bbHitMon);

@@ -2321,7 +2321,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む爆発範囲内） */
   const _playerSafeInWater = options.playerSafeInWater && dg.map?.[cy]?.[cx] === T.WATER;
-  if (p && !_playerSafeInWater && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= _blastRadius) {
+  if (p && !_playerSafeInWater && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= _blastRadius && !consumeBarrier(p, ml)) {
     const _playerHpBefore = p.hp;
     const _playerHpOne = options.playerHpOne === true;
     const _projectileDmg = options.projectileAtk != null
@@ -2425,6 +2425,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           ml.push(`${m.name}は爆発を受け付けない！`);
           continue;
         }
+        if (consumeBarrier(m, ml)) continue;
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
         if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -2442,7 +2443,6 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         }
         if (_hasExPentacle || ringExplosion || mineExplosion || _instantMonsterKill) {
           /* 即死系爆発：炎無効でない通常敵は消滅（ボスは現在HPの4分の1ダメージ） */
-          if (consumeBarrier(m, ml)) continue;
           if (m.isBoss) {
             if (blockLargeMonsterDamage(m, p, ml)) continue;
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
@@ -2458,7 +2458,6 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion);
         } else if (options.projectileAtk != null) {
           /* 特殊弾の爆発：通常命中と同じ攻撃力計算を、爆心地を含む各敵へ一度だけ適用する。 */
-          if (consumeBarrier(m, ml)) continue;
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           const md = monScaleOutgoingDamage(killerMon, clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true));
           m.hp -= md;
@@ -2466,7 +2465,6 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
           if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
         } else {
-          if (consumeBarrier(m, ml)) continue;
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
           md = scaleMonFireDmg(m, md);
@@ -2600,7 +2598,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
         }
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
-        if (p && p.x === ax && p.y === ay) {
+        if (p && p.x === ax && p.y === ay && !consumeBarrier(p, ml)) {
           const _hasFireProt = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4)) * oilyDamageMult(dg, p);
           const dmg = reduceFireDamage(rawDmg, p);
@@ -2619,6 +2617,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               if (_largeMonstersHit.has(m)) continue;
               _largeMonstersHit.add(m);
             }
+            if (consumeBarrier(m, ml)) continue;
             if (m.baseKind === "firedemon") {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
               const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -2767,7 +2766,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
         if (monsterBodySize(monsterAt(dg, ax, ay)) === 1) continue;
       }
       /* プレイヤー：HPが1になる＋炎アイテム損傷（耐火時は半減ダメージのみ） */
-      if (p && p.x === ax && p.y === ay) {
+      if (p && p.x === ax && p.y === ay && !consumeBarrier(p, ml)) {
         const _hasFireProt = hasFireResist(p);
         const _oilyMult = oilyDamageMult(dg, p);
         p.deathCause = `${bombCause}により`;
@@ -2794,6 +2793,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           _largeMonstersHit.add(m);
         }
         wakeIfDormant(m, ml);
+        if (consumeBarrier(m, ml)) continue;
         if (m.baseKind === "firedemon") {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
           const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -3022,12 +3022,14 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null, bbFn = n
     }
   }
   if (p && p.x === tx && p.y === ty) {
-    const _rfd3 = rng(15, 25);
-    p.deathCause = `${trap.name}により`;
-    p.hp -= _rfd3;
     hit = true;
-    /* 「Nダメージ！」単体だと立ち絵の被ダメ判定に乗らないので岩命中を明示 */
-    ml.push(`岩が命中！${_rfd3}ダメージ！`);
+    if (!consumeBarrier(p, ml)) {
+      const _rfd3 = rng(15, 25);
+      p.deathCause = `${trap.name}により`;
+      p.hp -= _rfd3;
+      /* 「Nダメージ！」単体だと立ち絵の被ダメ判定に乗らないので岩命中を明示 */
+      ml.push(`岩が命中！${_rfd3}ダメージ！`);
+    }
   }
   if (!hit) {
     const _rfFt = ft ? new Set(ft) : new Set();
@@ -3387,6 +3389,10 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
         hit = true;
         break;
       }
+      if (consumeBarrier(p, ml)) {
+        hit = true;
+        break;
+      }
       const d = dmgPlayer();
       p.deathCause = `${trap?.name || label}により`;
       p.hp -= d;
@@ -3421,6 +3427,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           appendFlightPoint(rx, ry);
           if (p && p.x === rx && p.y === ry) {
             rHit = true;
+            if (consumeBarrier(p, ml)) break;
             const d = dmgPlayer();
             p.deathCause = `${m.name}に跳ね返された${label}で`;
             p.hp -= d;
@@ -3876,8 +3883,21 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             _bbm.x = _bnx; _bbm.y = _bny;
           }
           ml.push(`${_bbm.name}が吹き飛ばされた！`);
-          if (_bbHitWall) { _bbm.hp -= 10; ml.push(`${_bbm.name}が壁に激突！10ダメージ！`); }
-          if (_bbHitOther) { _bbm.hp -= 10; _bbHitOther.hp -= 10; ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！お互いに10ダメージ！`); }
+          if (_bbHitWall && !consumeBarrier(_bbm, ml)) {
+            _bbm.hp -= 10;
+            ml.push(`${_bbm.name}が壁に激突！10ダメージ！`);
+          }
+          if (_bbHitOther) {
+            const _bbmBlocked = consumeBarrier(_bbm, ml);
+            const _otherBlocked = consumeBarrier(_bbHitOther, ml);
+            if (!_bbmBlocked) _bbm.hp -= 10;
+            if (!_otherBlocked) _bbHitOther.hp -= 10;
+            const _collisionDamage = [
+              !_bbmBlocked ? `${_bbm.name}に10ダメージ！` : `${_bbm.name}へのダメージはバリアが防いだ！`,
+              !_otherBlocked ? `${_bbHitOther.name}に10ダメージ！` : `${_bbHitOther.name}へのダメージはバリアが防いだ！`,
+            ].join("");
+            ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！${_collisionDamage}`);
+          }
           if (_bbm.hp <= 0) killMonsterByTrap(_bbm, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           if (_bbHitOther?.hp <= 0) killMonsterByTrap(_bbHitOther, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
         }
@@ -3895,11 +3915,22 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           p.x = _pnx; p.y = _pny;
         }
         ml.push(`向いていた方向と逆に吹き飛ばされた！`);
-        if (_pHitWall) { p.deathCause = `${trap.name}による壁への衝突により`; p.hp -= 10; ml.push("壁に激突！10ダメージ！"); }
-        else if (_pHitMon) {
-          p.hp -= 10;
-          _pHitMon.hp -= 10;
-          ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`);
+        if (_pHitWall) {
+          if (!consumeBarrier(p, ml)) {
+            p.deathCause = `${trap.name}による壁への衝突により`;
+            p.hp -= 10;
+            ml.push("壁に激突！10ダメージ！");
+          }
+        } else if (_pHitMon) {
+          const _playerBlocked = consumeBarrier(p, ml);
+          const _monsterBlocked = consumeBarrier(_pHitMon, ml);
+          if (!_playerBlocked) p.hp -= 10;
+          if (!_monsterBlocked) _pHitMon.hp -= 10;
+          const _collisionDamage = [
+            !_playerBlocked ? "自分に10ダメージ！" : "自分へのダメージはバリアが防いだ！",
+            !_monsterBlocked ? `${_pHitMon.name}に10ダメージ！` : `${_pHitMon.name}へのダメージはバリアが防いだ！`,
+          ].join("");
+          ml.push(`${_pHitMon.name}に激突！${_collisionDamage}`);
           if (_pHitMon.hp <= 0) {
             killMonsterByTrap(_pHitMon, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           }
@@ -4069,7 +4100,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         else ml.push(`${_itOrigName}が腐ってしまった！`);
       }
       const _rtm = monsterAt(dg, tx, ty);
-      if (_rtm) {
+      if (_rtm && !consumeBarrier(_rtm, ml)) {
         if (_rtm.isBoss) {
           if (!blockLargeMonsterDamage(_rtm, p, ml)) {
             const _bd = bossInstantDeathDamage(_rtm);

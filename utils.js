@@ -882,10 +882,11 @@ export function consumeBarrier(m, ml) {
   /* 封印中はバリア特性も無効 */
   if (!m.barrier || m.sealed) return false;
   m.barrier -= 1;
+  const barrierLabel = m.name ? `${m.name}のバリア` : "バリア";
   if (m.barrier > 0) {
-    ml.push(`${m.name}のバリアが攻撃を弾いた！残り${m.barrier}回！`);
+    ml.push(`${barrierLabel}が攻撃を弾いた！残り${m.barrier}回！`);
   } else {
-    ml.push(`${m.name}のバリアが攻撃を弾いた！バリアが砕けた！`);
+    ml.push(`${barrierLabel}が攻撃を弾いた！バリアが砕けた！`);
   }
   return true;
 }
