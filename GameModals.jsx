@@ -1758,7 +1758,20 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
     setMsgs(prev => [...prev.slice(-80), `${label}の代金${price}Gを支払った。`]);
     sr.current = { ...s };
     setGs({ ...sr.current });
-    setMode("buy");
+    const hasRemainingBuyChoice = (shop.unpaidTotal || 0) > 0 || p.inventory.some(entry =>
+      entry.shopPrice && (!entry._shopId || entry._shopId === shop.id),
+    );
+    setMode(hasRemainingBuyChoice ? "buy" : null);
+    setMenuSel(0);
+  };
+  const _hasInventoryBuyChoice = () => {
+    const shop = _curShopH || getShops(gs.dungeon)[0];
+    return (shop?.unpaidTotal || 0) > 0 || gs.player.inventory.some(item =>
+      item.shopPrice && (!item._shopId || item._shopId === shop?.id),
+    );
+  };
+  const _returnFromSell = () => {
+    setMode(_hasInventoryBuyChoice() ? "buy" : null);
     setMenuSel(0);
   };
   let confirmShopOption = () => {};
@@ -1767,7 +1780,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
     if (completed) return;
     completed = true;
     if (shopActionsRef) shopActionsRef.current = null;
-    if (mode === "sell") { setMode("buy"); setMenuSel(0); }
+    if (mode === "sell") _returnFromSell();
     else if (mode === "browseConfirm") { setMode("sell"); setMenuSel(0); }
     else setMode(null);
   };
@@ -2058,7 +2071,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
                     sr.current = { ...sr.current };
                     setGs({ ...sr.current });
-                    setMode("buy"); setMenuSel(0);
+                    _returnFromSell();
                   },
                 },
               ]).map((item, mi) => (
@@ -2152,17 +2165,17 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   ) : [];
                   sr.current = { ...sr.current };
                   setGs({ ...sr.current });
-                  if (rem.length === 0) setMode("buy");
+                  if (rem.length === 0) _returnFromSell();
                   else setMenuSel((s) => Math.min(s, rem.length - 1));
                 }
               },
             })),
-            {
+            ...(fis.length === 0 ? [{
               label: `所持品を全て売る（${_inventorySellTotal.toLocaleString()}G）`,
               disabled: _inventorySellItems.length === 0 || !_inSellShop,
               fn: () => { setMode("browseConfirm"); setMenuSel(0); },
-            },
-            { label: "やめる（買い物へ）", fn: () => { setMode("buy"); setMenuSel(0); } },
+            }] : []),
+            { label: "やめる", fn: _returnFromSell },
             ...(_identifyTargets.length > 0 ? [_identifyServiceOption("identifyFromSell")] : []),
           ];
           return (
@@ -2172,7 +2185,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
               <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
                 店主：「買い取りましょうか？」
               </div>
-              {fis.length === 0 && <div style={{ color: "#888", fontSize: 13 }}>売却できる品物はありません。</div>}
+              {fis.length === 0 && <div style={{ color: "#888", fontSize: 13 }}>店内に置かれた売却品はありません。</div>}
               <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
                 {shopOptions(allOpts).map((item, mi) => (
                   <button

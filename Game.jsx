@@ -277,6 +277,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     v ? dispatchModal({ type: 'SET_MODAL', modal: 'shop', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   };
   const setShopMenuSel   = (v) => dispatchModal({ type: 'UPDATE', payload: { shopMenuSel: typeof v === 'function' ? v(modal.shopMenuSel) : v } });
+  const openShopTrade = (shop, player, dungeon) => {
+    if (!shop) return null;
+    const inShop = !!shop.room && player.x >= shop.room.x && player.x < shop.room.x + shop.room.w &&
+      player.y >= shop.room.y && player.y < shop.room.y + shop.room.h;
+    const hasFloorSellItems = !!shop.room && (dungeon.items || []).some(item =>
+      !item.shopPrice && item.x >= shop.room.x && item.x < shop.room.x + shop.room.w &&
+      item.y >= shop.room.y && item.y < shop.room.y + shop.room.h,
+    );
+    const inventory = player.inventory || [];
+    const hasInventorySellItems = inShop && inventory.some(item => item.type !== "gold" && !item.shopPrice);
+    const hasInventoryUnpaidItems = inventory.some(item => item.shopPrice && (!item._shopId || item._shopId === shop.id));
+    const hasIdentifyTargets = inventory.some((item, index) =>
+      isScrollTargetCandidate({ mode: "identify" }, item, index, gs.ident),
+    );
+    const mode = hasFloorSellItems || hasInventorySellItems
+      ? "sell"
+      : hasInventoryUnpaidItems || (shop.unpaidTotal || 0) > 0 ? "buy"
+      : hasIdentifyTargets ? "browse" : null;
+    setShopMode(mode);
+    if (!mode) return null;
+    setShopMenuSel(0);
+    return mode;
+  };
   const setPutMode       = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'put', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setPutMenuSel    = (v) => dispatchModal({ type: 'UPDATE', payload: { putMenuSel: typeof v === 'function' ? v(modal.putMenuSel) : v } });
   const setPutPage       = (v) => dispatchModal({ type: 'UPDATE', payload: { putPage: typeof v === 'function' ? v(modal.putPage) : v } });
@@ -3158,8 +3181,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   ? null
                   : getShops(dg).find((shop) => shop.shopkeeperId === attackMon.id);
                 if (_bumpShop && _bumpShop.unpaidTotal > 0) {
-                  setShopMode("sell"); setShopMenuSel(0);
-                  ml.push("店主：「品物を売りますか？取り消すと所持品の未払い商品を選べます。」");
+                  openShopTrade(_bumpShop, p, dg);
                 } else {
                   attackMon.x = _oldPx;
                   attackMon.y = _oldPy;
@@ -3167,11 +3189,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   p.y = ny;
                   _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
                   ml.push(`${attackMon.name || (attackMon.isAltarPriest ? "司祭" : "店主")}と場所を入れ替えた。`);
-                  if (_bumpShop) {
-                    setShopMode("sell");
-                    setShopMenuSel(0);
-                    ml.push("店主：「品物を売りますか？取り消すと店の商品を選べます。」");
-                  }
+                  if (_bumpShop) openShopTrade(_bumpShop, p, dg);
                   acted = true;
                 }
               } else if (_attackSlot.range === 1 && (_hitX !== nx || _hitY !== ny)) {
@@ -4178,8 +4196,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const dg6 = sr.current.dungeon;
         const _talkShop = getShops(dg6).find(s => s.shopkeeperId === mon.id);
         if (_talkShop) {
-          setShopMode("sell"); setShopMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), "店主：「品物を売りますか？取り消すと所持品の未払い商品を選べます。」"]);
+          openShopTrade(_talkShop, p, dg6);
+          setMsgs((prev) => [...prev.slice(-80), "店主：「いらっしゃいませ！」"]);
         }
       } else act("move", fd.dx, fd.dy);
     } else {
