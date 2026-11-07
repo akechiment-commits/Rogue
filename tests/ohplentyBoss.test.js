@@ -321,5 +321,27 @@ describe('上級25階ボス オープレンティ', () => {
       expect(otherMonster.hp).toBe(500);
       expect(s.messages.some(m => m.includes('スライムへの攻撃は外れた'))).toBe(true);
     });
+
+    it('特技予約後に状態異常や透明化で特技が使えなくなっても次ターン以降フリーズせず行動できる', () => {
+      const s = setup({ x: 10, y: 10 });
+      s.player.x = 10;
+      s.player.y = 11;
+      s.boss._deathTrapReady = true;
+
+      // 攻撃フェーズ前に封印された場合、予約フラグが残り続けない
+      s.boss.sealed = true;
+      monsterAI(s.boss, s.dungeon, s.player, s.messages, { attackOnly: true });
+      expect(s.boss._deathTrapReady).toBeUndefined();
+
+      // 封印が解けた後の移動フェーズで離れたプレイヤーへ通常移動できる
+      s.boss.sealed = false;
+      s.player.x = 10;
+      s.player.y = 14;
+      s.boss.lastPx = 10;
+      s.boss.lastPy = 14;
+      vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      monsterAI(s.boss, s.dungeon, s.player, s.messages, { moveOnly: true });
+      expect(s.boss.y).toBe(11);
+    });
   });
 });

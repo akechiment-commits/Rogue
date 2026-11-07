@@ -6688,6 +6688,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._hexAttackLine;
     }
   }
+  if (m.baseKind === "boss_ohplenty") {
+    const playerHiddenFromOhplenty = (pl.invisibleTurns || 0) > 0 || (pl.potConfinedTurns || 0) > 0;
+    if (!canUseOhplentySpecial(m) || playerHiddenFromOhplenty) {
+      delete m._pullPlayerReady;
+      delete m._caswackReady;
+      delete m._deathTrapReady;
+    }
+  }
   if (_isFlockVariant) flockHpChangeDialogue(m, dg, ml, _attackOnly);
   if (m.baseKind === "boss_darkbullet") sionHpChangeDialogue(m, dg, ml, _attackOnly);
   if (_isFlockRevenge && _attackOnly && m._flockEarlySpellPending) {
@@ -8654,16 +8662,22 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
 
+  const _ohplentyCanSpecial = m.baseKind === "boss_ohplenty" && canUseOhplentySpecial(m) &&
+    !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m);
   if (m.baseKind === "boss_ohplenty" && _moveOnly) {
-    if (m._caswackReady || m._deathTrapReady || m._pullPlayerReady) {
+    if (_ohplentyCanSpecial && (m._caswackReady || m._deathTrapReady || m._pullPlayerReady)) {
       return;
     }
     delete m._pullPlayerReady;
     delete m._caswackReady;
     delete m._deathTrapReady;
   }
-  if (m.baseKind === "boss_ohplenty" && canUseOhplentySpecial(m) &&
-      !_plInvis && !_plPotHidden && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+  if (m.baseKind === "boss_ohplenty" && !_moveOnly && !_ohplentyCanSpecial) {
+    delete m._pullPlayerReady;
+    delete m._caswackReady;
+    delete m._deathTrapReady;
+  }
+  if (_ohplentyCanSpecial) {
     if (_moveOnly) {
       if (_adjPl) {
         const roll = Math.random();
