@@ -8118,10 +8118,11 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
 /** reflector に当たった魔法の石をプレイヤーへホーミング反射する。 */
 export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml) {
   if (!p || !monReflectsProjectiles(reflector)) return null;
+  ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
+  if (consumeBarrier(p, ml)) return 0;
   const dmg = monScaleOutgoingDamage(reflector, calcProjectileDmg(p, stoneAtk || 5, 0));
   p.hp -= dmg;
   p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
-  ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
   ml.push(`跳ね返された${stoneName}が${pl()}にホーミング命中！${dmg}ダメージ！消滅した。`);
   interruptPlayerSleep(p, ml);
   resolveParalysisHit(p, ml);
@@ -8378,6 +8379,8 @@ function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
     ? Math.max(1, calcAtkDefDmg(sp.atk || 1, monster.def || 0, { defWeight: 1.5 }))
     : clampDmgFixed(monster, calcProjectileDmg(p, sp.atk || 1, monster.def), true);
   monster.hp -= _dmg;
+  wakeIfDormant(monster, ml);
+  resolveParalysisHit(monster, ml);
   if (_enemyOwned) {
     if (_source && monster.type === "shopkeeper") beginNpcRetaliation(monster, _source, ml);
   } else if (monster.type === "shopkeeper") {
@@ -8391,10 +8394,13 @@ function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
 
 function specialProjectilePlayerHit(sp, p, ml) {
   if (!p) return;
+  if (consumeBarrier(p, ml)) return;
   const _dmg = calcProjectileDmg(p, sp.atk || 1, 0);
   p.hp -= _dmg;
   p.deathCause = `${sp.name}に当たって`;
   ml.push(`${sp.name}が自分に当たった！${_dmg}ダメージ！`);
+  interruptPlayerSleep(p, ml);
+  resolveParalysisHit(p, ml);
 }
 
 function enemyHomingProjectileHitPlayer(sp, dg, p, ml) {
@@ -8404,11 +8410,23 @@ function enemyHomingProjectileHitPlayer(sp, dg, p, ml) {
     ml.push(`みかわしの魔方陣の加護で${sp.name || "誘導弾"}をかわした！`);
     return;
   }
+  if (!isEvasionDisabledByStatus(p)) {
+    if (hasAbility(p.armor, "dodge") && Math.random() < 0.25) {
+      ml.push(`${sp.sourceName || "敵"}の${sp.name || "誘導弾"}をひらりとかわした！`);
+      return;
+    }
+    if ((p.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+      ml.push(`オリーブオイルの力で${sp.sourceName || "敵"}の${sp.name || "誘導弾"}をするりとかわした！`);
+      return;
+    }
+  }
+  if (consumeBarrier(p, ml)) return;
   const damage = calcAtkDefDmg(sp.atk || 1, calcPlayerDefForProjectile(p), { defWeight: 1.5 });
   p.hp -= damage;
   p.deathCause = `${sp.sourceName || "敵"}の${sp.name || "誘導弾"}に当たって`;
   ml.push(`${sp.sourceName || "敵"}の${sp.name || "誘導弾"}が命中！${playerHpEffectLabel(p, damage)}！`);
   interruptPlayerSleep(p, ml);
+  resolveParalysisHit(p, ml);
 }
 
 function chooseHomingStep(sp, target, dg, blockedCells = null) {
@@ -8804,11 +8822,15 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       return;
     }
     const _wakkaDmg = clampDmgFixed(_wakkaTarget, calcProjectileDmg(p, _arAtk, _wakkaTarget.def), true);
-    _wakkaTarget.hp -= _wakkaDmg;
-    const _wakkaPoisonStacks = _isPoison ? applyPoisonArrowDamageReduction(_wakkaTarget, ml) : 0;
-    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? (_wakkaPoisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _wakkaPoisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
-    triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
-    if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
+    if (!consumeBarrier(_wakkaTarget, ml)) {
+      wakeIfDormant(_wakkaTarget, ml);
+      _wakkaTarget.hp -= _wakkaDmg;
+      resolveParalysisHit(_wakkaTarget, ml);
+      const _wakkaPoisonStacks = _isPoison ? applyPoisonArrowDamageReduction(_wakkaTarget, ml) : 0;
+      ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? (_wakkaPoisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _wakkaPoisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
+      triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
+      if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
+    }
     if (st.bombArrow) {
       if (isFireExplosionNullified(dg, p)) {
         announceFireExplosionNullified(dg, p, ml, "爆弾矢の爆発");
@@ -8838,9 +8860,12 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     /* 風で曲がって自分に当たった */
     if (tx === p.x && ty === p.y) {
+      if (consumeBarrier(p, ml)) { hit = true; break; }
       const _selfD = calcProjectileDmg(p, _arAtk, 0);
       p.hp -= _selfD;
       p.deathCause = "風に煽られた矢に当たって";
+      interruptPlayerSleep(p, ml);
+      resolveParalysisHit(p, ml);
       if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
         const _poison = applyPlayerPoison(p);
         ml.push(statusResultMessage(_poison, `風に煽られた${_arName}が自分に当たった！${_selfD}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
@@ -8904,9 +8929,12 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           animFn({ type: "projectileReturn", fromX: _retFromX, fromY: _retFromY, toX: _retToX, toY: _retToY, color: _retColor });
         }
         if (_rHit) {
+          if (consumeBarrier(p, ml)) { hit = true; break; }
           const _refDmg = calcProjectileDmg(p, _arAtk, 0);
           p.deathCause = `${m.name}に跳ね返された${_arName}で`;
           p.hp -= _refDmg;
+          interruptPlayerSleep(p, ml);
+          resolveParalysisHit(p, ml);
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
             const _poison = applyPlayerPoison(p, { sourceName: m.name });
             ml.push(statusResultMessage(_poison, `跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
@@ -8922,8 +8950,10 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         hit = true; break;
       }
       if (consumeBarrier(m, ml)) { hit = true; break; }
+      wakeIfDormant(m, ml);
       const _arDmg = clampDmgFixed(m, calcProjectileDmg(p, _arAtk, m.def), true);
       m.hp -= _arDmg;
+      resolveParalysisHit(m, ml);
       const _poisonStacks = _isPoison ? applyPoisonArrowDamageReduction(m, ml) : 0;
       ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? (_poisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _poisonStacks)))}%に低下した！（最低1ダメージ）${m.isBoss ? `(${m.poisonArrowDamageTurns}ターン)` : "(永続)"}` : "毒矢の追加効果は効かなかった！") : ""}`);
       triggerMushroomCounterSpore(m, dg, p, ml);
