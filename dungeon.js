@@ -855,6 +855,7 @@ function genWallItems(map, depth, items, suspicious = new Set(), chance = 0.70, 
       const t = pickLootFromPool(lootPoolForDungeon(ITEMS, dungeonType, depth + 1));
       it = applyInitialItemCharges({ ...t, id: uid(), x: wx, y: wy, wallEmbedded: true });
       if (it.type === 'gold') it.value = rng(100, 300 + depth * 50);
+      maybeApplyInitialNegativeEquipmentPlus(it);
     }
     items.push(it);
     placed++;

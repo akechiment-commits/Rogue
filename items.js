@@ -588,6 +588,7 @@ export function makeWanderingAdventurerGift(dungeonType = null, floor = 1) {
   if (!template) return null;
   const item = { ...template, id: uid() };
   applyGeneratedRingPlus(item);
+  maybeApplyInitialNegativeEquipmentPlus(item);
   if (item.type === "pen") item.charges = penInitialCharges(item);
   else if (item.type === "wand") item.charges = rollGeneratedWandCharges(item);
   return item;
@@ -1199,7 +1200,7 @@ export function makeScrollTransformedItem(source, mode, random = Math.random, op
   const item = { ...template, id: uid() };
   if (template.type === "wand") item.charges = template.maxCharges ?? template.charges ?? 5;
   if (template.type === "arrow") item.count = template.count ?? 1;
-  return item;
+  return maybeApplyInitialNegativeEquipmentPlus(item, random);
 }
 
 /** 願いの杖など、回数を増やせない杖か */
@@ -1609,7 +1610,7 @@ export function makeChangeBoxItem(context = "change", options = {}) {
     const range = ordinaryFloorGoldRange(options.floor);
     return { ...tmpl, id: uid(), value: rng(range.min, range.max) };
   }
-  return { ...tmpl, id: uid() };
+  return maybeApplyInitialNegativeEquipmentPlus({ ...tmpl, id: uid() });
 }
 
 /** ガチャマシーンの景品を生成する。指定レア度はそのレア度、未指定はD/Eから抽選する。 */
@@ -1625,7 +1626,7 @@ export function makeGachaPrize(rarity = null, floor = 1) {
   if (tmpl.type === "ring") return applyGeneratedRingPlus({ ...tmpl, id: uid() });
   if (tmpl.type === "arrow") return { ...tmpl, id: uid(), count: rng(3, 15) };
   if (tmpl.type === "pen" || tmpl.type === "marker") return { ...tmpl, id: uid(), charges: penInitialCharges(tmpl) };
-  return { ...tmpl, id: uid() };
+  return maybeApplyInitialNegativeEquipmentPlus({ ...tmpl, id: uid() });
 }
 
 /** ガチャマシーンを破壊し、景品を1個だけ通常の床配置ルールで落とす。 */
@@ -1874,7 +1875,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null, 
         /* 変化の大箱と同系統（weight＋一定確率で均等） */
         const _riTemplate = pickLootFromPool(_greedPool, "change") || pick(_greedPool);
         if (!_riTemplate) continue;
-        const _ri = { ..._riTemplate, id: uid() };
+        const _ri = maybeApplyInitialNegativeEquipmentPlus({ ..._riTemplate, id: uid() });
         if (_ri.type === 'gold') _ri.value = rng(20, 80);
         placeItemAt(dg, px, py, _ri, ml, ft, 0, p);
       }
@@ -3766,7 +3767,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           Number.isFinite(p?.depth) ? p.depth : 1,
         );
         const _stTmpl = pickLootFromPool(_stPool, "drop") || pick(_stPool);
-        const _stNewItem = { ..._stTmpl, id: uid() };
+        const _stNewItem = maybeApplyInitialNegativeEquipmentPlus({ ..._stTmpl, id: uid() });
         const _stFtm = new Set([...(ft || [])]);
         if (trap.id != null) _stFtm.add(trap.id);
         const _stPosM = pickRandomFloorInRooms(dg) || { x: tx, y: ty };
