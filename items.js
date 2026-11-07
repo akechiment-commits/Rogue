@@ -5763,7 +5763,7 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
         applyPotion("paralyze");
         break;
       case "c_sleep":
-        applyPotion("slow", 0, true);
+        applyPotion("sleep", 0, true);
         break;
       case "c_power":
         applyPotion("power", 2, true);
