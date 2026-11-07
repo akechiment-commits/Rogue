@@ -7530,7 +7530,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         const _it = _invList[_absIdx];
                         if (invMenuSel !== null && _it) {
                           /* サブメニュー選択中: 選択中のアクションを実行 */
-                          const _CUT = ["potion","food","scroll","weapon","armor","arrow","ring","pot","pen"];
+                          const _CUT = ["potion","food","scroll","weapon","armor","arrow","ring","pot","pen","gold"];
                           const _fns = [];
                           if (_CUT.includes(_it.type)) _fns.push(() => invActRef.current?.use?.(_absIdx));
                           if (_it.type === "spellbook") _fns.push(() => invActRef.current?.readSpellbook?.(_absIdx));
@@ -7538,8 +7538,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           if (_it.type === "wand") { _fns.push(() => invActRef.current?.wave?.(_absIdx)); _fns.push(() => invActRef.current?.breakWand?.(_absIdx)); }
                           if (_it.type === "marker") _fns.push(() => invActRef.current?.useMarker?.(_absIdx));
                           if (_it.type === "pot") _fns.push(() => invActRef.current?.breakPot?.(_absIdx));
-                          _fns.push(() => invActRef.current?.drop?.(_absIdx));
-                          _fns.push(() => invActRef.current?.throw?.(_absIdx));
+                          if (!_it.noDrop) _fns.push(() => invActRef.current?.drop?.(_absIdx));
+                          const _isCursedEquipped = _it.cursed && (
+                            sr.current?.player?.weapon === _it || sr.current?.player?.armor === _it || (sr.current?.player?.rings || []).includes(_it)
+                          );
+                          if (_flItems3.length > 0 && !_isCursedEquipped && !_it.noDrop) {
+                            _fns.push(() => invActRef.current?.swap?.(_absIdx));
+                          }
+                          if (!_isCursedEquipped && !_it.noThrow) _fns.push(() => invActRef.current?.throw?.(_absIdx));
                           _fns.push(() => setShowDesc((p) => (p === _absIdx ? null : _absIdx)));
                           const _nik = getIdentKey(_it);
                           if (_nik && gs?.ident && !gs.ident.has(_nik)) _fns.push(() => { setNicknameMode({ identKey: _nik }); setNicknameInput(gs?.nicknames?.[_nik] || ''); setShowInv(false); setSelIdx(null); setShowDesc(null); setInvMenuSel(null); });

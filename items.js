@@ -526,7 +526,7 @@ export const ITEMS = [
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：飲むと敵感知100T。投げると敵の暗闇解除。", tile:16 },
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：飲むと罠看破。投げると敵の幻惑解除。", tile:16 },
   { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：天井を突き破って1階上へ（1～5ダメージ）。投げると敵がレベルダウン。", tile:17 },
-  { name:"金貨",             type:"gold",   value:1,                     desc:"金貨。",                           tile:22 },
+  { name:"金貨",             type:"gold",   value:1,                     desc:"財布に入れる通貨。所持品に拾って使うと所持金に加算される。交換で足元から拾うこともできる。投げると金額の1/10（最低1）ダメージ。", tile:22 },
   { ...GOLD_NUGGET_T },
   { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"D", weight:8,  sellPrice:250,
     desc:"持ち物から1つ選んで識別する。\n呪い：識別を解除。", tile:18 },

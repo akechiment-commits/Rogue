@@ -200,7 +200,7 @@ export function useKeyHandler({
   const tFacedEnemyRef = useRef(false);
 
   const canUse = (it) =>
-    ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(it.type);
+    ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen", "gold"].includes(it.type);
   const useLabel = (it) => {
     const _p = gs?.player;
     if (it.type === "weapon") return _p?.weapon === it ? "外す" : "装備";
@@ -1536,6 +1536,8 @@ export function useKeyHandler({
           const _isCursedEquipped = it.cursed && (
             gs?.player?.weapon === it || gs?.player?.armor === it || (gs?.player?.rings || []).includes(it)
           );
+          if (_flItems2.length > 0 && !_isCursedEquipped && !it.noDrop)
+            a.push({ label: "交換", fn: () => invActRef.current?.swap?.(ai) });
           if (!_isCursedEquipped && !it.noThrow)
             a.push({
               label: it.type === "arrow" ? "投げる(束)" : "投げる",
