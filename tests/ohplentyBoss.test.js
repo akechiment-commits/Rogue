@@ -227,6 +227,29 @@ describe('上級25階ボス オープレンティ', () => {
       expect(s.player.caswackTurns).toBe(0);
       s.player.hp = s.player.maxHp;
       expect(s.player.caswackTurns).toBe(0);
+
+      // 他モンスターがカスワック重複即死で復活の魔方陣により蘇生した場合も他の状態異常が消える
+      const victim = {
+        id: 'victim1',
+        name: 'ゴブリン',
+        x: 11,
+        y: 10,
+        hp: 80,
+        maxHp: 80,
+        caswackTurns: 20,
+        sleepTurns: 5,
+        poisoned: true,
+        poisonedTurns: 5,
+      };
+      s.dungeon.monsters.push(victim);
+      s.dungeon.pentacles = [{ kind: 'revival', x: 11, y: 10 }];
+      s.player.x = 2;
+      s.player.y = 2;
+      castCaswack(s.boss, s.dungeon, s.player, s.messages);
+      advanceCaswacks(s.dungeon, s.player, s.messages);
+      expect(victim.hp).toBe(80);
+      expect(victim.sleepTurns).toBe(0);
+      expect(victim.poisoned).toBe(false);
     });
   });
 

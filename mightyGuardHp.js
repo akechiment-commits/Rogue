@@ -21,7 +21,7 @@ export function installShinryuMightyGuardHpHook(monster) {
     get: getHp,
     set(value) {
       const nextHp = Number(value);
-      if (Number.isFinite(nextHp) && nextHp < currentHp && (this.mightyGuardTurns || 0) > 0) {
+      if (Number.isFinite(nextHp) && nextHp < currentHp && (this.mightyGuardTurns || 0) > 0 && !this._bypassMightyGuard) {
         if (Number.isFinite(this.maxHp) && nextHp === this.maxHp && currentHp > this.maxHp) {
           currentHp = nextHp;
           return;

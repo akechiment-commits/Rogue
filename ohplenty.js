@@ -338,6 +338,9 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
       const turns = statusTurns("caswack", { kind: "monster", target: mon });
       if ((mon.caswackTurns || 0) > 0) {
         mon.caswackTurns = 0;
+        mon._bypassMightyGuard = true;
+        mon.hp = 0;
+        delete mon._bypassMightyGuard;
         messages?.push(`${mon.name}はカスワックの呪いが重なり、即死した！`);
         killMonster(mon, dungeon, player, messages, lu, false, source);
       } else {

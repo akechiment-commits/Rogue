@@ -1326,6 +1326,7 @@ export function drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon = null) {
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
     return true;
   }
+  mon.hp = 0;
   ml.push(`${mon.name}は水没した！`);
   killMonster(mon, dg, p, ml, luFn, false, killerMon);
   return true;
@@ -1369,6 +1370,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
     }
     return "damaged";
   }
+  m.hp = 0;
   ml.push(`封印で浮遊が解け、${m.name}は逃げ場がなく即死した！`);
   killMonster(m, dg, p, ml, luFn);
   return "killed";
@@ -7264,7 +7266,12 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     return;
   }
   /* HP0になったモンスターの状態異常を、復活判定や撃破演出より先に消す。 */
-  if (mon.hp <= 0) clearStatusEffectsOnHpZero(mon);
+  if (mon.hp > 0) {
+    mon._bypassMightyGuard = true;
+    mon.hp = 0;
+    delete mon._bypassMightyGuard;
+  }
+  clearStatusEffectsOnHpZero(mon);
   if (mon.isWanderingMerchant && p && !killerMon && !noExp) {
     const _alreadyThief = !!(dg.shopTheft || p.isThief);
     dg.shopTheft = true;
