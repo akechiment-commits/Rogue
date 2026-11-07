@@ -7716,11 +7716,28 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           mlx.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
         }
         if (!isStatusImmune(p, mlx)) {
-          const confused = applyPlayerConfusion(p, statusTurns("confuse", { kind: "player" }), mlx);
-          p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
           const _yConfuseT = statusTurns("confuse", { kind: "player" });
+          const _yBewitchT = statusTurns("bewitch", { kind: "player" });
           const _ySlowT = statusTurns("slow", { kind: "player" });
-          mlx.push(confused ? `混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！` : `鈍足(${_ySlowT}ターン)状態になった！`);
+          const _yAilments = [];
+          if (hasAbility(p.armor, "confuse_proof")) {
+            mlx.push("防具が混乱を防いだ！(耐混乱)");
+          } else if (applyPlayerConfusion(p, _yConfuseT, mlx)) {
+            _yAilments.push(`混乱(${_yConfuseT}ターン)`);
+          }
+          if (hasAbility(p.armor, "bewitch_proof")) {
+            mlx.push("防具が幻惑を防いだ！(耐惑わし)");
+          } else {
+            p.bewitchedTurns = (p.bewitchedTurns || 0) + _yBewitchT;
+            _yAilments.push(`幻惑(${_yBewitchT}ターン)`);
+          }
+          if (hasAbility(p.armor, "slow_proof")) {
+            mlx.push("防具が鈍足を防いだ！(耐鈍足)");
+          } else {
+            p.slowTurns = (p.slowTurns || 0) + _ySlowT;
+            _yAilments.push(`鈍足(${_ySlowT}ターン)`);
+          }
+          if (_yAilments.length > 0) mlx.push(`${_yAilments.join("・")}状態になった！`);
         }
       } else if (item.type === "food" && item.rotten && !item.yabai) {
         if (hasRingEffect(p, "antidote_ring")) {
