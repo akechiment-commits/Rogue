@@ -3,14 +3,15 @@ import {
   consumeBarrier, playerHpEffectLabel, withEnemyDamageContext,
 } from "./utils.js";
 import {
-  canPlaceMonsterBody, monsterBodyCells, monsterBounds, monsterDistance,
+  canPlaceMonsterBody, monsterBodyCells, monsterBodySize, monsterBounds, monsterDistance,
   monsterOccupiesCell,
 } from "./monsterGeometry.js";
 import {
   hasRingEffect, inMagicSealRoom, killMonster, multiplyCursedMagicDamage,
-  pushEntity, weakenOrClearParalysis,
+  pushEntity, weakenOrClearParalysis, hasPlayerMagicReflect, drownMonsterIfNeeded,
 } from "./items.js";
-import { monEffectiveMagicImmune } from "./monTraits.js";
+import { monEffectiveMagicImmune, monReflectsMagic } from "./monTraits.js";
+import { wakeIfDormant } from "./monsterRuntime.js";
 import { resolveParalysisHit } from "./statusDuration.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
@@ -134,23 +135,30 @@ function isWalkablePullCell(dungeon, x, y) {
     !dungeon.statues?.some(statue => statue.x === x && statue.y === y);
 }
 
-function absoluteVirtuePullLanding(monster, target, dungeon, player, line) {
-  const bounds = monsterBounds(monster);
+function absoluteVirtuePullLanding(anchor, mover, dungeon, player, originX, originY, dx, dy) {
+  const anchorBounds = anchor === player ? { x: player.x, y: player.y, width: 1, height: 1 } : monsterBounds(anchor);
+  const moverOffset = mover === player ? 0 : Math.floor((monsterBodySize(mover) - 1) / 2);
+  const pad = 1 + moverOffset;
   const candidates = [];
-  for (let y = bounds.y - 1; y <= bounds.y + bounds.height; y++) {
-    for (let x = bounds.x - 1; x <= bounds.x + bounds.width; x++) {
-      if (monsterDistance(monster, { x, y }) !== 1 || !isWalkablePullCell(dungeon, x, y)) continue;
-      if (target === player) {
-        if ((dungeon.monsters || []).some(other => other !== monster && other.hp > 0 && monsterOccupiesCell(other, x, y))) continue;
-      } else if (!canPlaceMonsterBody(dungeon, target, x, y, player)) {
+  for (let y = anchorBounds.y - pad; y <= anchorBounds.y + anchorBounds.height - 1 + pad; y++) {
+    for (let x = anchorBounds.x - pad; x <= anchorBounds.x + anchorBounds.width - 1 + pad; x++) {
+      const dist = mover === player
+        ? monsterDistance(anchor, { x, y })
+        : anchor === player
+          ? monsterDistance({ ...mover, x, y }, player)
+          : monsterDistance(anchor, { ...mover, x, y });
+      if (dist !== 1 || !isWalkablePullCell(dungeon, x, y)) continue;
+      if (mover === player) {
+        if ((dungeon.monsters || []).some(other => other !== anchor && other.hp > 0 && !other.disguisedAsItem && monsterOccupiesCell(other, x, y))) continue;
+      } else if (!canPlaceMonsterBody(dungeon, mover, x, y, player)) {
         continue;
       }
-      const ox = x - line.origin.x, oy = y - line.origin.y;
+      const ox = x - originX, oy = y - originY;
       candidates.push({
         x, y,
-        projection: ox * line.dx + oy * line.dy,
-        crossTrack: Math.abs(ox * line.dy - oy * line.dx),
-        distance: Math.max(Math.abs(target.x - x), Math.abs(target.y - y)),
+        projection: ox * dx + oy * dy,
+        crossTrack: Math.abs(ox * dy - oy * dx),
+        distance: Math.max(Math.abs(mover.x - x), Math.abs(mover.y - y)),
       });
     }
   }
@@ -160,7 +168,7 @@ function absoluteVirtuePullLanding(monster, target, dungeon, player, line) {
   return candidates[0] || null;
 }
 
-export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages) {
+export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages, luFn = null) {
   if (inMagicSealRoom(monster.x, monster.y, dungeon)) {
     messages.push(`${monster.name}は引き寄せの魔法を唱えようとしたが、魔封じの魔方陣で封じられた！`);
     return false;
@@ -192,6 +200,41 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages)
       messages.push(`祝福された聖域の加護が${monster.name}の引き寄せの魔法を防いだ！`);
       return false;
     }
+  } else if (monEffectiveMagicImmune(target)) {
+    messages.push(`魔法は${target.name}に効かない！`);
+    return false;
+  }
+
+  const reflected = target === player ? hasPlayerMagicReflect(player) : monReflectsMagic(target);
+  if (reflected) {
+    if (monster.forcedMoveImmune || monster.stationary) {
+      messages.push(`${target === player ? "魔法反射" : target.name}が引き寄せの魔法を跳ね返したが、${monster.name}は耐えた！`);
+      return false;
+    }
+    const casterLanding = absoluteVirtuePullLanding(target, monster, dungeon, player, target.x, target.y, -line.dx, -line.dy);
+    if (!casterLanding) {
+      messages.push(`${target === player ? "魔法反射" : target.name}が${monster.name}の引き寄せの魔法を跳ね返したが、飛びつく場所がなかった！`);
+      return false;
+    }
+    const fromX = monster.x, fromY = monster.y;
+    monster.x = casterLanding.x;
+    monster.y = casterLanding.y;
+    monster.dir = { x: Math.sign(casterLanding.x - fromX), y: Math.sign(casterLanding.y - fromY) };
+    if ((monster.immobileTurns || 0) > 0) monster.immobileTurns = 0;
+    monster.posHistory = [];
+    monster._idleStuck = 0;
+    monster._movedThisTurn = true;
+    messages.push(`${monster.name}は引き寄せの魔法を唱えた！`);
+    if (target === player) {
+      messages.push(`魔法反射が引き寄せの魔法を跳ね返し、${monster.name}が${plName(player)}の目の前に飛びついた！`);
+    } else {
+      messages.push(`${target.name}が引き寄せの魔法を反射し、${monster.name}が${target.name}の目の前に飛びついた！`);
+    }
+    drownMonsterIfNeeded(monster, dungeon, player, messages, luFn);
+    return true;
+  }
+
+  if (target === player) {
     if (hasRingEffect(player, "core_ring")) {
       messages.push(`${monster.name}の引き寄せの魔法を受けそうになったが、体幹の指輪で踏ん張った！`);
       return false;
@@ -201,7 +244,7 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages)
     return false;
   }
 
-  const landing = absoluteVirtuePullLanding(monster, target, dungeon, player, line);
+  const landing = absoluteVirtuePullLanding(monster, target, dungeon, player, line.origin.x, line.origin.y, line.dx, line.dy);
   if (!landing) {
     messages.push(`${monster.name}は引き寄せの魔法を唱えたが、引き寄せる場所がなかった！`);
     return false;
@@ -213,10 +256,11 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages)
     pushPlayerKnockbackAnim(fromX, fromY, player.x, player.y, -line.dx, -line.dy);
     messages.push(`${monster.name}は引き寄せの魔法を唱えた！`);
     messages.push(`${plName(player)}は${monster.name}の目の前に引き寄せられた！`);
-    if ((player.sleepTurns || 0) > 0) {
-      player.sleepTurns = 0;
-      messages.push("引き寄せられて目が覚めた！");
+    if ((player.immobileTurns || 0) > 0) {
+      player.immobileTurns = 0;
+      messages.push("移動封じが解けた！");
     }
+    interruptPlayerSleep(player, messages, "引き寄せられて目が覚めた！");
     resolveParalysisHit(player, messages);
     return true;
   }
@@ -225,6 +269,7 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages)
   target.x = landing.x;
   target.y = landing.y;
   target.dir = { x: Math.sign(landing.x - fromX), y: Math.sign(landing.y - fromY) };
+  if ((target.immobileTurns || 0) > 0) target.immobileTurns = 0;
   target.aware = true;
   target.lastPx = player.x;
   target.lastPy = player.y;
@@ -233,6 +278,9 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages)
   target.patrolTarget = null;
   messages.push(`${monster.name}の引き寄せの魔法が${target.name}に命中した！`);
   messages.push(`${target.name}は${monster.name}の目の前に引き寄せられた！`);
+  wakeIfDormant(target, messages);
+  resolveParalysisHit(target, messages);
+  drownMonsterIfNeeded(target, dungeon, player, messages, luFn, monster);
   return true;
 }
 

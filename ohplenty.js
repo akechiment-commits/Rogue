@@ -1,4 +1,4 @@
-import { inMagicSealRoom, hasRingEffect, killMonster } from './items.js';
+import { inMagicSealRoom, hasRingEffect, killMonster, hasPlayerMagicReflect, drownMonsterIfNeeded } from './items.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { plName } from './playerLabel.js';
 import {
@@ -14,6 +14,9 @@ import {
 } from './monsterGeometry.js';
 import { pushPlayerKnockbackAnim, pushAnim } from './animEvents.js';
 import { statusTurns, applyMonsterParalyze, applyPlayerParalyze, resolveParalysisHit } from './statusDuration.js';
+import { interruptPlayerSleep } from './turnUpkeep.js';
+import { monEffectiveMagicImmune, monReflectsMagic } from './monTraits.js';
+import { wakeIfDormant } from './monsterRuntime.js';
 
 const inBounds = (x, y) => x >= 0 && x < MW && y >= 0 && y < MH;
 function isWalkable(map, x, y, dg = null) {
@@ -51,34 +54,36 @@ export function isFarLineToPlayer(monster, dungeon, player) {
   return isLine && dist >= 2 && dist <= 10;
 }
 
-function getPullLandingPosition(monster, target, dg, player, dx, dy) {
-  const isPlayer = target === player;
-  const targetSize = isPlayer ? 1 : monsterBodySize(target);
-  const range = isPlayer ? 1 : targetSize + 1;
+function getPullLandingPosition(anchor, mover, dg, player, dx, dy) {
+  const isMoverPlayer = mover === player;
+  const anchorSize = anchor === player ? 1 : monsterBodySize(anchor);
+  const moverSize = isMoverPlayer ? 1 : monsterBodySize(mover);
+  const range = Math.ceil((anchorSize + moverSize) / 2) + 2;
   const candidates = [];
 
   for (let oy = -range; oy <= range; oy++) {
     for (let ox = -range; ox <= range; ox++) {
       if (ox === 0 && oy === 0) continue;
-      const x = monster.x + ox;
-      const y = monster.y + oy;
-      if (isPlayer) {
-        if (Math.max(Math.abs(ox), Math.abs(oy)) !== 1) continue;
-      } else if (monsterDistance(monster, { ...target, x, y }) !== 1) {
-        continue;
-      }
+      const x = anchor.x + ox;
+      const y = anchor.y + oy;
+      const dist = isMoverPlayer
+        ? monsterDistance(anchor, { x, y })
+        : anchor === player
+          ? monsterDistance({ ...mover, x, y }, player)
+          : monsterDistance(anchor, { ...mover, x, y });
+      if (dist !== 1) continue;
 
-      const body = isPlayer ? [{ x, y }] : monsterBodyCells(target, x, y);
+      const body = isMoverPlayer ? [{ x, y }] : monsterBodyCells(mover, x, y);
       if (body.some(cell => !isWalkable(dg.map, cell.x, cell.y, dg))) continue;
-      if (isPlayer) {
-        if ((dg.monsters || []).some(other => other !== monster && other.hp > 0 && monsterOccupiesCell(other, x, y))) continue;
-      } else if (!canPlaceMonsterBody(dg, target, x, y, player)) {
+      if (isMoverPlayer) {
+        if ((dg.monsters || []).some(other => other !== anchor && other.hp > 0 && !other.disguisedAsItem && monsterOccupiesCell(other, x, y))) continue;
+      } else if (!canPlaceMonsterBody(dg, mover, x, y, player)) {
         continue;
       }
 
       const projection = ox * dx + oy * dy;
       const crossTrack = Math.abs(ox * dy - oy * dx);
-      candidates.push({ x, y, projection, crossTrack, distance: Math.max(Math.abs(ox), Math.abs(oy)) });
+      candidates.push({ x, y, projection, crossTrack, distance: Math.max(Math.abs(mover.x - x), Math.abs(mover.y - y)) });
     }
   }
 
@@ -97,7 +102,7 @@ function getPullLandingPosition(monster, target, dg, player, dx, dy) {
  * 遠距離直線上の最初の生物を隣接マスへ引き寄せる。壁に当たった場合は
  * オープレンティ自身が壁の手前まで飛びつく。
  */
-export function ohplentyPullPlayer(m, dg, pl, ml) {
+export function ohplentyPullPlayer(m, dg, pl, ml, luFn = null) {
   m.turnAttacks = m.maxAttacks || 1;
   if (inMagicSealRoom(m.x, m.y, dg)) {
     ml.push(`${m.name}は引き寄せの魔法を唱えようとしたが、魔封じの魔方陣で封じられた！`);
@@ -121,14 +126,16 @@ export function ohplentyPullPlayer(m, dg, pl, ml) {
       m.dir = { x: sgnX, y: sgnY };
       m.x = lastX;
       m.y = lastY;
+      if ((m.immobileTurns || 0) > 0) m.immobileTurns = 0;
       m.posHistory = [];
       m._idleStuck = 0;
       m._movedThisTurn = true;
       ml.push(`${m.name}は壁の手前まで飛びついた！`);
+      drownMonsterIfNeeded(m, dg, pl, ml, luFn);
       return;
     }
     const blocker = (dg.monsters || []).find(other =>
-      other !== m && other.hp > 0 && monsterOccupiesCell(other, x, y),
+      other !== m && other.hp > 0 && !other.disguisedAsItem && monsterOccupiesCell(other, x, y),
     );
     if (blocker) {
       target = blocker;
@@ -157,6 +164,42 @@ export function ohplentyPullPlayer(m, dg, pl, ml) {
       ml.push(`祝福された聖域の加護が${m.name}の引き寄せの魔法を防いだ！`);
       return;
     }
+  } else if (monEffectiveMagicImmune(target)) {
+    ml.push(`魔法は${target.name}に効かない！`);
+    return;
+  }
+
+  const reflected = target === pl ? hasPlayerMagicReflect(pl) : monReflectsMagic(target);
+  if (reflected) {
+    if (m.forcedMoveImmune || m.stationary) {
+      ml.push(`${target === pl ? "魔法反射" : target.name}が引き寄せの魔法を跳ね返したが、${m.name}は耐えた！`);
+      return;
+    }
+    const casterLanding = getPullLandingPosition(target, m, dg, pl, -sgnX, -sgnY);
+    if (!casterLanding) {
+      ml.push(`${target === pl ? "魔法反射" : target.name}が${m.name}の引き寄せの魔法を跳ね返したが、飛びつく場所がなかった！`);
+      return;
+    }
+    const fromX = m.x;
+    const fromY = m.y;
+    m.x = casterLanding.x;
+    m.y = casterLanding.y;
+    m.dir = { x: Math.sign(casterLanding.x - fromX), y: Math.sign(casterLanding.y - fromY) };
+    if ((m.immobileTurns || 0) > 0) m.immobileTurns = 0;
+    m.posHistory = [];
+    m._idleStuck = 0;
+    m._movedThisTurn = true;
+    ml.push(`${m.name}は引き寄せの魔法を唱えた！`);
+    if (target === pl) {
+      ml.push(`魔法反射が引き寄せの魔法を跳ね返し、${m.name}が${plName(pl)}の目の前に飛びついた！`);
+    } else {
+      ml.push(`${target.name}が引き寄せの魔法を反射し、${m.name}が${target.name}の目の前に飛びついた！`);
+    }
+    drownMonsterIfNeeded(m, dg, pl, ml, luFn);
+    return;
+  }
+
+  if (target === pl) {
     if (hasRingEffect(pl, "core_ring")) {
       ml.push(`${m.name}の引き寄せの魔法を受けそうになったが、体幹の指輪で踏ん張った！`);
       return;
@@ -180,11 +223,11 @@ export function ohplentyPullPlayer(m, dg, pl, ml) {
     pushPlayerKnockbackAnim(fromX, fromY, pl.x, pl.y, -sgnX, -sgnY);
     ml.push(`${m.name}は引き寄せの魔法を唱えた！`);
     ml.push(`${plName(pl)}は${m.name}の目の前に引き寄せられた！`);
-
-    if ((pl.sleepTurns || 0) > 0) {
-      pl.sleepTurns = 0;
-      ml.push("引き寄せられて目が覚めた！");
+    if ((pl.immobileTurns || 0) > 0) {
+      pl.immobileTurns = 0;
+      ml.push("移動封じが解けた！");
     }
+    interruptPlayerSleep(pl, ml, "引き寄せられて目が覚めた！");
     resolveParalysisHit(pl, ml);
     return;
   }
@@ -194,6 +237,7 @@ export function ohplentyPullPlayer(m, dg, pl, ml) {
   target.x = landing.x;
   target.y = landing.y;
   target.dir = { x: Math.sign(landing.x - fromX), y: Math.sign(landing.y - fromY) };
+  if ((target.immobileTurns || 0) > 0) target.immobileTurns = 0;
   target.aware = true;
   target.lastPx = pl.x;
   target.lastPy = pl.y;
@@ -202,6 +246,9 @@ export function ohplentyPullPlayer(m, dg, pl, ml) {
   target.patrolTarget = null;
   ml.push(`${m.name}の引き寄せの魔法が${target.name}に命中した！`);
   ml.push(`${target.name}は${m.name}の目の前に引き寄せられた！`);
+  wakeIfDormant(target, ml);
+  resolveParalysisHit(target, ml);
+  drownMonsterIfNeeded(target, dg, pl, ml, luFn, m);
 }
 
 /**

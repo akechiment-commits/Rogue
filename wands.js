@@ -623,7 +623,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               dg.map[_pullY][_pullX] !== T.WALL && dg.map[_pullY][_pullX] !== T.BWALL &&
               canPlaceMonsterBody(dg, target, _pullX, _pullY, p)) {
             target.x = _pullX; target.y = _pullY;
+            if ((target.immobileTurns || 0) > 0) target.immobileTurns = 0;
             ml.push(`${target.name}を引き寄せた！【呪】`);
+            drownMonsterIfNeeded(target, dg, p, ml, luFn);
           } else {
             ml.push(`${target.name}を引き寄せようとしたが失敗した。【呪】`);
           }

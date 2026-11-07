@@ -106,6 +106,37 @@ describe('上級25階ボス オープレンティ', () => {
       expect(s.player.x).toBe(5);
       expect(s.player.y).toBe(10);
     });
+
+    it('魔封じの魔方陣で封じられ、魔法反射で跳ね返されると唱えた側が対象の目の前へ飛びつく', () => {
+      // 1. 魔封じの魔方陣（術者側・対象側）
+      const s1 = setup();
+      s1.dungeon.pentacles = [{ kind: 'magic_seal', x: 10, y: 10 }];
+      ohplentyPullPlayer(s1.boss, s1.dungeon, s1.player, s1.messages);
+      expect(s1.player.x).toBe(5);
+      expect(s1.boss.x).toBe(10);
+      expect(s1.messages.some(m => m.includes('魔封じの魔方陣'))).toBe(true);
+
+      // 2. プレイヤーの魔法反射 -> オープレンティがプレイヤー (5, 10) の目の前 (6, 10) に飛びつく
+      const s2 = setup();
+      s2.player.magicReflectTurns = 5;
+      ohplentyPullPlayer(s2.boss, s2.dungeon, s2.player, s2.messages);
+      expect(s2.player.x).toBe(5);
+      expect(s2.player.y).toBe(10);
+      expect(s2.boss.x).toBe(6);
+      expect(s2.boss.y).toBe(10);
+      expect(s2.messages.some(m => m.includes('跳ね返し') && m.includes('飛びついた'))).toBe(true);
+
+      // 3. 擬態中のアイテムモドキは無視して貫通し、引き寄せ時に移動封じ解除・水没判定を行う
+      const s3 = setup();
+      const mimic = { id: 'mimic', name: 'アイテムモドキ', subtype: 'itemMimic', disguisedAsItem: true, x: 8, y: 10, hp: 30, maxHp: 30 };
+      const blocker = { id: 'goblin', name: 'ゴブリン', x: 7, y: 10, hp: 30, maxHp: 30, immobileTurns: 4 };
+      s3.dungeon.monsters.push(mimic, blocker);
+      s3.dungeon.map[10][9] = T.WATER;
+      ohplentyPullPlayer(s3.boss, s3.dungeon, s3.player, s3.messages);
+      expect(blocker.immobileTurns).toBe(0);
+      expect(blocker.hp).toBe(0);
+      expect(s3.dungeon.monsters).not.toContain(blocker);
+    });
   });
 
   describe('特技2: カスワック', () => {

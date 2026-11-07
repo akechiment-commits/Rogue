@@ -8707,7 +8707,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
     if (m._pullPlayerReady) {
       delete m._pullPlayerReady;
-      ohplentyPullPlayer(m, dg, pl, ml);
+      ohplentyPullPlayer(m, dg, pl, ml, _luFn);
       return;
     }
   }
@@ -8826,7 +8826,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         luFn: _luFn, onPlayerHit: _onHit, beginNpcRetaliation,
       });
     } else if (attack === "pull") {
-      castAbsoluteVirtuePull(m, dg, pl, line, ml);
+      castAbsoluteVirtuePull(m, dg, pl, line, ml, _luFn);
     }
   };
   if (_isAbsoluteVirtue && _attackOnly && m._absoluteVirtueReady) {
@@ -10581,11 +10581,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         } else {
           const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
           const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
-          if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => monsterOccupiesCell(o, _pnx, _pny))) {
+          if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => !o.disguisedAsItem && monsterOccupiesCell(o, _pnx, _pny))) {
             const _pullFromX = pl.x, _pullFromY = pl.y;
             pl.x = _pnx; pl.y = _pny;
             pushPlayerKnockbackAnim(_pullFromX, _pullFromY, pl.x, pl.y, _puldx, _puldy);
             ml.push(`${m.name}に引き寄せられた！`);
+            if ((pl.immobileTurns || 0) > 0) {
+              pl.immobileTurns = 0;
+              ml.push("移動封じが解けた！");
+            }
             interruptPlayerSleep(pl, ml, "引っ張られて目が覚めた！");
             weakenOrClearParalysis(pl, ml);
           }

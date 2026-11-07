@@ -144,9 +144,9 @@ describe("超上級B50F Absolute Virtue", () => {
     expect(messages.some(message => message.includes("2/2"))).toBe(true);
   });
 
-  it("引き寄せの魔法はプレイヤーを本体外周へ移す", () => {
+  it("引き寄せの魔法はプレイヤーを本体外周へ移し、魔法反射された場合は術者が対象の目の前へ飛びつく", () => {
     const boss = makeAbsoluteVirtue();
-    const player = makePlayer({ x: 21, y: 15 });
+    const player = makePlayer({ x: 21, y: 15, immobileTurns: 3, sleepTurns: 2 });
     const dungeon = makeEmptyDg({ monsters: [boss] });
     const line = getAbsoluteVirtueLine(boss, dungeon, player);
     const messages = [];
@@ -154,5 +154,20 @@ describe("超上級B50F Absolute Virtue", () => {
 
     expect(castAbsoluteVirtuePull(boss, dungeon, player, line, messages)).toBe(true);
     expect(monsterDistance(boss, player)).toBe(1);
+    expect(player.immobileTurns).toBe(0);
+    expect(player.sleepTurns).toBe(0);
+    expect(player.sleepInterruptedTurns).toBe(1);
+
+    // 魔法反射時は Absolute Virtue (3x3) がプレイヤーの目の前へ飛びつく
+    const boss2 = makeAbsoluteVirtue(); // center at (15, 15)
+    const reflectPlayer = makePlayer({ x: 21, y: 15, magicReflectTurns: 5 });
+    const dungeon2 = makeEmptyDg({ monsters: [boss2] });
+    const line2 = getAbsoluteVirtueLine(boss2, dungeon2, reflectPlayer);
+    const messages2 = [];
+    expect(castAbsoluteVirtuePull(boss2, dungeon2, reflectPlayer, line2, messages2)).toBe(true);
+    expect(reflectPlayer.x).toBe(21);
+    expect(reflectPlayer.y).toBe(15);
+    expect(monsterDistance(boss2, reflectPlayer)).toBe(1);
+    expect(messages2.some(m => m.includes("跳ね返し") && m.includes("飛びついた"))).toBe(true);
   });
 });
