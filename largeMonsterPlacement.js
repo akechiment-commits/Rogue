@@ -1,11 +1,12 @@
 import { T } from './utils.js';
 import { monsterBodySize, monsterBodyCells, monsterBodiesOverlap } from './monsterGeometry.js';
+import { monEffectiveFloat, monEffectiveWaterWalker } from './monTraits.js';
 
 /** 初期生成は移動と同じ基準マス地形・全身キャラ判定を使い、入場する階段も覆わない。 */
 export function canSpawnLargeMonsterAt(dungeon, monster, x, y) {
   const tile = dungeon.map[y]?.[x];
   if (!tile || tile === T.WALL || tile === T.BWALL) return false;
-  if (tile === T.WATER && !monster.float && !monster.waterWalker && !monster.waterOnly) return false;
+  if (tile === T.WATER && !monEffectiveFloat(monster) && !monEffectiveWaterWalker(monster) && !monster.waterOnly) return false;
   if ((dungeon.monsters || []).some(other => other !== monster &&
       monsterBodiesOverlap(monster, other, x, y))) return false;
   return monsterBodyCells(monster, x, y).every(cell => {

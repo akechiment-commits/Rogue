@@ -1,7 +1,7 @@
 /**
  * 敵の封印中に無効化される固有特性の判定。
  * 封印中: 特技不可・通常速(1)・maxAttacks=1 に加え、
- * 浮遊・魔法無効・壁抜け・物理/魔法反射・固定ダメ等を無効化する。
+ * 浮遊・水上歩行・魔法無効・壁抜け・物理/魔法反射・固定ダメ等を無効化する。
  * 一時 floatTurns は状態異常なので封印でも有効。
  */
 
@@ -40,6 +40,11 @@ export function monEffectiveFloat(m) {
   if ((m.floatTurns || 0) > 0) return true;
   if (m.sealed) return false;
   return !!m.float;
+}
+
+/** 実効水上歩行（固有 waterWalker は封印で無効） */
+export function monEffectiveWaterWalker(m) {
+  return !!(m && m.waterWalker && !m.sealed);
 }
 
 export function monEffectiveMagicImmune(m) {

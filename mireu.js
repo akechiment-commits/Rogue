@@ -4,12 +4,13 @@ import {
   checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from './utils.js';
 import { monsterPointDistance, monsterBodyCells, canPlaceMonsterBody, monsterOccupiesCell } from './monsterGeometry.js';
-import { pushAnim, pushSplashAnim } from './animEvents.js';
+import { pushAnim, pushPlayerTeleportAnim, pushSplashAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
 import { statusTurns, resolveParalysisHit } from './statusDuration.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
+import { releaseInvalidCapture } from './captureRules.js';
 import { scaleMonsterFireDamage, monsterFireDamageLabel } from './monsterRuntime.js';
-import { monHasElementWeakness } from './monTraits.js';
+import { monHasElementWeakness, monSubmergesProjectiles } from './monTraits.js';
 import {
   reduceFireDamage, hasFireResist, fireResistDamageLabel, isFireExplosionNullified,
   applyLightningToInventory, killMonster, inMagicSealRoom, blockPlayerStatus,
@@ -143,6 +144,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
   };
 
   const applyFireToPlayer = () => {
+    if (consumeBarrier(pl, ml)) return;
     // 防御力無視の固定70ダメージ（耐性でのみ軽減）
     const baseDmg = 70;
     const hasProt = hasFireResist(pl);
@@ -169,6 +171,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
   };
 
   const applyFireToMon = (victim) => {
+    if (consumeBarrier(victim, ml)) return;
     const baseDmg = 70;
     const oilyMult = (victim.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === victim.x && t.y === victim.y) ? 2 : 1;
     const weaknessMult = monHasElementWeakness(victim, "fire") ? 1.5 : 1;
@@ -214,7 +217,11 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     }
 
     // 他モンスター命中判定
-    const hitMon = dg.monsters?.find(other => other !== m && other.hp > 0 && monsterOccupiesCell(other, fx, fy));
+    const hitMon = dg.monsters?.find(other => other !== m && other.hp > 0 && !other.disguisedAsItem && monsterOccupiesCell(other, fx, fy));
+    if (hitMon && monSubmergesProjectiles(hitMon)) {
+      ml.push(`${hitMon.name}が潜ってハイパーサーミックブレスをかわした！`);
+      continue;
+    }
     if (hitMon) {
       emitBreathAnim();
       applyFireToMon(hitMon);
@@ -248,6 +255,8 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
   if (plInFlail && pl.hp > 0) {
     if (plOnSanc) {
       ml.push(`聖域の加護が${m.name}のスパイクフレイルを防いだ！`);
+    } else if (consumeBarrier(pl, ml)) {
+      // バリアが攻撃と吹き飛ばしを防いだ。
     } else if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "スパイクフレイル", onMiss })) {
       // 回避成功：ダメージおよびテレポートなし
     } else {
@@ -268,8 +277,15 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
         } else {
           const tpDst = randomTeleportDest(dg, pl.x, pl.y, (x, y) => !dg.monsters?.some(other => monsterOccupiesCell(other, x, y)));
           if (tpDst) {
+            const fromX = pl.x, fromY = pl.y;
             pl.x = tpDst.x;
             pl.y = tpDst.y;
+            if ((pl.immobileTurns || 0) > 0) {
+              pl.immobileTurns = 0;
+              ml.push("テレポートして移動封じが解けた！");
+            }
+            releaseInvalidCapture(pl, dg, ml);
+            pushPlayerTeleportAnim(fromX, fromY, pl.x, pl.y);
             ml.push(`衝撃で空間が歪み、${plName(pl)}はどこかへ吹き飛んだ！`);
           }
         }

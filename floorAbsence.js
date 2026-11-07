@@ -1,6 +1,6 @@
 import { ACTION_TIME_BASE, syncActorsToClock } from "./actionClock.js";
 import { T, hasGravityPentacle } from "./utils.js";
-import { monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker, monEffectiveSpeed } from "./monTraits.js";
+import { monEffectiveFloat, monEffectiveWaterWalker, monEffectiveMagicImmune, monEffectiveWallWalker, monEffectiveSpeed } from "./monTraits.js";
 import { monsterBodyCells, monsterPointDistance, monsterOccupiesCell } from './monsterGeometry.js';
 import { isWanderingNpc } from './wanderingAdventurer.js';
 
@@ -51,7 +51,7 @@ function patrolDestination(monster, dungeon, occupied, blocked, player, distance
     if (blocked.has(key(x, y))) return false;
     if (monsterOccupiesCell({ ...monster, x, y }, player.x, player.y)) return false;
     if (monsterBodyCells(monster, x, y).some(cell => occupied.has(key(cell.x, cell.y)))) return false;
-    return tile !== T.WATER || monster.waterWalker ||
+    return tile !== T.WATER || monEffectiveWaterWalker(monster) ||
       (canFloat && (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, x, y)));
   };
   // 到達可能な範囲だけを一度探索する。長期不在でもマップサイズ以上に仕事を増やさない。

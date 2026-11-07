@@ -184,6 +184,14 @@ export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
       mlx.push(statusResultMessage(poison, "猛毒針が突き刺さった！毒を受けた！"));
     },
     onMonHit: (mon, mlx) => {
+      const damage = Math.max(1, calcAtkDefDmg(effAtk, mon.def || 0, { defWeight: 1, variance: false }) + rng(-2, 2));
+      mon.hp -= damage;
+      mlx.push(`${m.name}の猛毒針が${mon.name}に命中！${damage}ダメージ！`);
+      resolveParalysisHit(mon, mlx);
+      if (mon.hp <= 0) {
+        killMonster(mon, dg, pl, mlx, luFn, false, m);
+        return "consumed";
+      }
       if (isStatusImmune(mon, mlx, mon.name)) return;
       if (!blockLargeMonsterStatus(mon, "poison", mlx)) {
         const turns = mon.isBoss ? Math.ceil(15 / 2) : 15;
@@ -199,6 +207,7 @@ export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
         startLargeMonsterStatusCooldown(mon, "poison");
         mlx.push(`${mon.name}は猛毒針で毒に侵された！`);
       }
+      return "consumed";
     },
   });
 }

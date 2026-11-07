@@ -4,7 +4,7 @@ import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.j
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
-import { monEffectiveFloat, monEffectiveWallWalker, monHasElementWeakness } from "./monTraits.js";
+import { monEffectiveFloat, monEffectiveWaterWalker, monEffectiveWallWalker, monHasElementWeakness } from "./monTraits.js";
 
 /** 攻撃後のモンスター回復・状態タイマー・地形と魔方陣の継続効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
@@ -15,14 +15,14 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
 }) {
   for (const monster of dungeon.monsters) {
     if (monster.hp <= 0) continue;
-    if (monster.baseKind === "im_boss_titan") {
+    if (monster.baseKind === "im_boss_titan" && !monster.sealed) {
       const heal = Math.min(5, monster.maxHp - monster.hp);
       if (heal > 0) {
         monster.hp += heal;
         messages.push(`${monster.name}の肉体が再生した！(+${heal}HP)`);
       }
     }
-    if ((monster.baseKind === "im_boss_kraken" || monster.baseKind === "boss_krakenbio") &&
+    if (!monster.sealed && (monster.baseKind === "im_boss_kraken" || monster.baseKind === "boss_krakenbio") &&
         dungeon.map[monster.y]?.[monster.x] === T.WATER) {
       const healRate = monster.baseKind === "boss_krakenbio" ? 30 : 20;
       const heal = Math.min(healRate, monster.maxHp - monster.hp);
@@ -129,7 +129,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     if (monster.hp <= 0 || !monster.isBoss) continue;
     const onWater = dungeon.map[monster.y]?.[monster.x] === T.WATER ||
       dungeon.springs?.some((spring) => spring.x === monster.x && spring.y === monster.y);
-    if (!onWater || monster.waterOnly || monster.waterWalker || monEffectiveFloat(monster)) {
+    if (!onWater || monster.waterOnly || monEffectiveWaterWalker(monster) || monEffectiveFloat(monster)) {
       delete monster._waterEntryDamageTurn;
       continue;
     }

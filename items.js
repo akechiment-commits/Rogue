@@ -35,7 +35,7 @@ import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, P
 import { isYogurtImmune } from './statusImmunity.js';
 import { rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
 import {
-  monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monHasFlameMantle,
+  monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monEffectiveWaterWalker, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness, monElementDamageMultiplier,
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -1313,7 +1313,7 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
   const onWater = tile === T.WATER || onSpring;
   if (!onWater) return true;
   /* 実効浮遊（封印で固有floatは無効）・水生・水中歩行のみ生存 */
-  return !!(mon.waterOnly || mon.waterWalker || monEffectiveFloat(mon));
+  return !!(mon.waterOnly || monEffectiveWaterWalker(mon) || monEffectiveFloat(mon));
 }
 
 /** 強制移動の着地点が水上なら、水に適応できない敵を撃破する。 */
@@ -1345,7 +1345,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
   if (!m.sealed) return null;
   /* まだ浮遊できている（一時floatTurns等）なら何もしない */
   if (monEffectiveFloat(m)) return "ok";
-  if (m.waterOnly || m.waterWalker) return "ok";
+  if (m.waterOnly || monEffectiveWaterWalker(m)) return "ok";
   if (dg.map[m.y]?.[m.x] !== T.WATER) return "ok";
 
   const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
@@ -3057,7 +3057,7 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
       if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
       const tile = dg.map[ny]?.[nx];
       if (!tile || tile === T.WALL || tile === T.BWALL) continue;
-      if (tile === T.WATER && !monEffectiveFloat(m) && !m.waterOnly && !m.waterWalker) continue;
+      if (tile === T.WATER && !monEffectiveFloat(m) && !m.waterOnly && !monEffectiveWaterWalker(m)) continue;
       if (p && nx === p.x && ny === p.y) continue;
       if (dg.monsters.some((o) => monsterOccupiesCell(o, nx, ny))) continue;
       const child = {

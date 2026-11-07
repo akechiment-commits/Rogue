@@ -1,4 +1,6 @@
-import { monsterOccupiesCell } from "./monsterGeometry.js";
+import { canPlaceMonsterBody, monsterOccupiesCell } from "./monsterGeometry.js";
+import { monEffectiveMagicImmune, monReflectsProjectiles, monSubmergesProjectiles } from "./monTraits.js";
+import { consumeBarrier, getDodgePentacleMode, isEvasionDisabledByStatus } from "./utils.js";
 /*
  * 毎ターン解決する、移動・罠に関する魔方陣効果。
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
@@ -23,15 +25,22 @@ export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messag
     if (!floorBlocked) {
       if (inRange && random() < 0.1) {
         const destination = randomTeleportDest(dungeon, player.x, player.y);
-        if (destination) { player.x = destination.x; player.y = destination.y; }
-        messages.push(`${pc.name}の力でテレポートした！`);
+        if (destination) {
+          player.x = destination.x;
+          player.y = destination.y;
+          messages.push(`${pc.name}の力でテレポートした！`);
+        }
       }
       for (const monster of dungeon.monsters) {
-        if (monster.magicImmune) continue;
+        if (monster.hp <= 0 || monster.disguisedAsItem || monster.forcedMoveImmune || monster.stationary ||
+            monEffectiveMagicImmune(monster)) continue;
         const monsterRoom = findRoom(dungeon.rooms, monster.x, monster.y);
         if ((pc.blessed || monsterRoom === pcRoom) && random() < 0.1) {
-          const destination = randomTeleportDest(dungeon, monster.x, monster.y);
-          if (destination) { monster.x = destination.x; monster.y = destination.y; }
+          const destination = randomTeleportDest(dungeon, monster.x, monster.y, (x, y) =>
+            canPlaceMonsterBody(dungeon, monster, x, y, player));
+          if (!destination) continue;
+          monster.x = destination.x;
+          monster.y = destination.y;
           messages.push(`${pc.name}の力で${monster.name}がテレポートした！`);
         }
       }
@@ -136,7 +145,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
     }
 
     for (const monster of dungeon.monsters) {
-      if (monster.hp <= 0 || monster.magicImmune) continue;
+      if (monster.hp <= 0 || monster.disguisedAsItem || monEffectiveMagicImmune(monster)) continue;
       if (findRoom(dungeon.rooms, monster.x, monster.y) !== room) continue;
 
       if (pc.cursed) {
@@ -162,7 +171,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   const targets = [];
   if (playerRoom === room) targets.push({ kind: "player" });
   for (const monster of dungeon.monsters) {
-    if (monster.magicImmune) continue;
+    if (monster.hp <= 0 || monster.disguisedAsItem || monEffectiveMagicImmune(monster)) continue;
     if (findRoom(dungeon.rooms, monster.x, monster.y) === room) {
       targets.push({ kind: "monster", monster });
     }
@@ -181,22 +190,16 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   };
 
   let dodged = false;
-  if (!pc.cursed) {
-    const targetRoom = findRoom(dungeon.rooms, targetX, targetY);
-    const dodgePentacle = dungeon.pentacles?.some((other) => {
-      if (other.kind !== "dodge" || other.cursed) return false;
-      if (other.blessed) return true;
-      return findRoom(dungeon.rooms, other.x, other.y) === targetRoom;
-    });
-    if (dodgePentacle) {
-      const targetName = target.kind === "player" ? pl() : targetMonster.name;
-      messages.push(`みかわしの魔方陣の加護で${targetName}が${pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
-      dropStoneAt();
-      dodged = true;
-    }
+  const dodgeMode = getDodgePentacleMode(dungeon, targetX, targetY);
+  if (dodgeMode === "dodge") {
+    const targetName = target.kind === "player" ? pl() : targetMonster.name;
+    messages.push(`みかわしの魔方陣の加護で${targetName}が${pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
+    dropStoneAt();
+    dodged = true;
   }
 
-  if (!dodged && target.kind === "player") {
+  const playerCanEvade = target.kind === "player" && dodgeMode !== "sure" && !isEvasionDisabledByStatus(player);
+  if (!dodged && playerCanEvade) {
     if (hasAbility(player.armor, "dodge") && random() < 0.25) {
       messages.push(`${pc.name}の魔法の石をひらりとかわした！魔法の石が足元に落ちた。`);
       dropStoneAt();
@@ -209,9 +212,19 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   }
   if (dodged) return;
 
-  if (target.kind === "monster" &&
-      (targetMonster.baseKind === "synthmonster" || targetMonster.baseKind === "gelcube") &&
-      absorbProjectileItem?.(targetMonster, makeMagicStone(1), pc, messages)) return;
+  if (target.kind === "monster") {
+    if (monSubmergesProjectiles(targetMonster)) {
+      messages.push(`${targetMonster.name}が潜って${pc.name}の魔法の石をかわした！`);
+      dropStoneAt();
+      return;
+    }
+    if (!pc.cursed && consumeBarrier(targetMonster, messages)) {
+      dropStoneAt();
+      return;
+    }
+    if ((targetMonster.baseKind === "synthmonster" || targetMonster.baseKind === "gelcube") &&
+        absorbProjectileItem?.(targetMonster, makeMagicStone(1), pc, messages)) return;
+  }
 
   if (pc.cursed) {
     if (target.kind === "player") {
@@ -221,6 +234,10 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
         messages.push(`${pc.name}の魔法の石が${pl()}に当たった！${heal}回復！`);
       }
     } else if (targetMonster.kind === "undead") {
+      if (consumeBarrier(targetMonster, messages)) {
+        dropStoneAt();
+        return;
+      }
       targetMonster.hp -= baseAmount;
       messages.push(`${pc.name}の魔法の石が${targetMonster.name}に当たった！${baseAmount}ダメージ！(アンデッド)`);
       if (targetMonster.hp <= 0) notifyMonsterDefeated(targetMonster, { noBone: true });
@@ -237,6 +254,10 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   const cursedSealMultiplier = inCursedMagicSealRoom(targetX, targetY, dungeon) ? 2 : 1;
   const damage = (pc.blessed ? baseAmount * 2 : baseAmount) * cursedSealMultiplier;
   if (target.kind === "player") {
+    if (consumeBarrier(player, messages)) {
+      dropStoneAt();
+      return;
+    }
     player.deathCause = `${pc.name}の魔法の石により`;
     player.hp -= damage;
     messages.push(`${pc.name}の魔法の石が${pl()}に当たった！${damage}ダメージ！`);
@@ -244,7 +265,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
     return;
   }
 
-  if (targetMonster.subtype === "reflector") {
+  if (monReflectsProjectiles(targetMonster)) {
     messages.push(`${pc.name}の魔法の石が${targetMonster.name}に弾き返された！`);
     const candidates = [];
     const mapHeight = dungeon.map.length;

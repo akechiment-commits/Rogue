@@ -4,7 +4,7 @@ import { monsterOccupiesCell, monsterBounds } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { pushAnim } from './animEvents.js';
-import { resolveParalysisHit } from './statusDuration.js';
+import { monsterStatusTurns, resolveParalysisHit } from './statusDuration.js';
 
 export function canCastPetroBreath(monster, dungeon) {
   return !monster.sealed &&
@@ -173,6 +173,9 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
       } else if (isStatusImmune(player, messages, "自分")) {
         // isStatusImmune 内でメッセージ出力済み
       } else {
+        player.sleepTurns = 0;
+        player.sleepInterruptedTurns = 0;
+        delete player._pendingSleepWake;
         resolveParalysisHit(player, messages);
         player.petrifiedTurns = 4;
         messages?.push("石化ブレスを浴びてしまった！体が石のように固まり動けない！(4ターン)");
@@ -186,10 +189,11 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
       if (isStatusImmune(monster, messages, monster.name)) continue;
       if (blockLargeMonsterStatus(monster, "petrify", messages)) continue;
 
+      monster.sleepTurns = 0;
       resolveParalysisHit(monster, messages);
-      monster.petrifiedTurns = 4;
+      monster.petrifiedTurns = monsterStatusTurns(4, monster);
       startLargeMonsterStatusCooldown(monster, "petrify");
-      messages?.push(`${monster.name}は石化してしまった！(4ターン)`);
+      messages?.push(`${monster.name}は石化してしまった！(${monster.petrifiedTurns}ターン)`);
     }
   }
 }
