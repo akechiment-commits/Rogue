@@ -16,6 +16,12 @@ import { advanceMonsterUpkeep } from "../monsterUpkeep.js";
 import { monsterAI } from "../monsters.js";
 import { monsterFireLightning } from "../wands.js";
 import { fireTrapPlayer } from "../traps.js";
+import {
+  hexachromaticFireBreath,
+  hexachromaticEarthquake,
+  hexachromaticLightning,
+} from "../hexachromatic.js";
+import { ensureItemMimicFloorItems } from "../utils.js";
 
 const noop = () => {};
 
@@ -337,7 +343,7 @@ describe("追加魔法", () => {
     expect(messages).toEqual(expect.arrayContaining(["移動封じが解けた！", "敵の前に飛びついた！"]));
   });
 
-  it("地震の魔法は分身を除くフロア内の敵全体に届く", () => {
+  it("地震の魔法は分身を除くフロア内の敵全体に届き、擬態中のアイテムモドキの擬態も解除する", () => {
     const near = { name: "近い敵", hp: 100, maxHp: 100, def: 0, x: 8, y: 5 };
     const far = { name: "遠い敵", hp: 100, maxHp: 100, def: 0, x: 40, y: 25 };
     const immune = { name: "魔法無効の敵", hp: 50, maxHp: 50, def: 0, magicImmune: true, x: 10, y: 5 };
@@ -345,10 +351,11 @@ describe("追加魔法", () => {
     const floating = { name: "浮遊する敵", hp: 50, maxHp: 50, def: 0, float: true, x: 3, y: 8 };
     const sealedFloating = { name: "封印された浮遊敵", hp: 50, maxHp: 50, def: 0, float: true, sealed: true, x: 14, y: 5 };
     const gravityFloating = { name: "重力下の浮遊敵", hp: 50, maxHp: 50, def: 0, float: true, x: 24, y: 5 };
+    const mimic = { id: "mimic-1", name: "アイテムモドキ", subtype: "itemMimic", disguisedAsItem: true, hp: 50, maxHp: 50, def: 0, x: 16, y: 5 };
     const player = makePlayer();
     const clone = makePlayerClone(player, 6, 5, 30);
     const dungeon = makeEmptyDg({
-      monsters: [near, far, immune, barrier, floating, sealedFloating, gravityFloating, clone],
+      monsters: [near, far, immune, barrier, floating, sealedFloating, gravityFloating, mimic, clone],
       rooms: [
         { x: 1, y: 1, w: 10, h: 10 },
         { x: 12, y: 1, w: 6, h: 10 },
@@ -356,6 +363,8 @@ describe("追加魔法", () => {
       ],
       pentacles: [{ kind: "gravity", x: 24, y: 5 }],
     });
+    ensureItemMimicFloorItems(dungeon);
+    expect(dungeon.items.some((item) => item.itemMimicId === mimic.id)).toBe(true);
     const messages = [];
 
     applySpellEffect("earthquake_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
@@ -367,9 +376,55 @@ describe("追加魔法", () => {
     expect(floating.hp).toBe(50);
     expect(sealedFloating.hp).toBeLessThan(50);
     expect(gravityFloating.hp).toBeLessThan(50);
+    expect(mimic.hp).toBeLessThan(50);
+    expect(mimic.disguisedAsItem).toBe(false);
+    expect(dungeon.items.some((item) => item.itemMimicId === mimic.id)).toBe(false);
     expect(clone.hp).toBe(clone.maxHp);
     expect(messages.some((message) => message.startsWith("地震の魔法が近い敵に命中！"))).toBe(true);
     expect(messages).toContain("浮遊する敵は浮遊していて地震が効かなかった！");
+    expect(messages).toContain("アイテムモドキが正体を現した！");
+  });
+
+  it("ヘキサクロマティックの火炎ブレス・地震・電撃はバリアを消費して無効化され、地震は擬態中の敵の擬態を解除する", () => {
+    const room = { x: 1, y: 1, w: 20, h: 20 };
+    const boss = { id: "hexa", name: "ヘキサクロマティック", x: 5, y: 5, hp: 500, maxHp: 500, bodySize: 3 };
+    const mimic = { id: "mimic-eq", name: "アイテムモドキ", subtype: "itemMimic", disguisedAsItem: true, x: 9, y: 5, hp: 50, maxHp: 50 };
+    const shieldedMon = { id: "shield-mon", name: "ゴブリン", x: 8, y: 5, hp: 50, maxHp: 50, barrier: 2 };
+    const player = makePlayer({ x: 12, y: 5, hp: 100, maxHp: 100, barrier: 3 });
+    const dungeon = makeEmptyDg({
+      rooms: [room],
+      monsters: [boss, mimic, shieldedMon],
+    });
+    ensureItemMimicFloorItems(dungeon);
+    const messages = [];
+
+    // 1. 火炎ブレス（手前のゴブリンのバリアを消費）
+    hexachromaticFireBreath(boss, dungeon, player, { origin: { x: 6, y: 5 }, dx: 1, dy: 0 }, messages);
+    expect(shieldedMon.barrier).toBe(1);
+    expect(shieldedMon.hp).toBe(50);
+
+    // 2. 火炎ブレス（プレイヤーのバリアを消費）
+    shieldedMon.y = 10;
+    hexachromaticFireBreath(boss, dungeon, player, { origin: { x: 6, y: 5 }, dx: 1, dy: 0 }, messages);
+    expect(player.barrier).toBe(2);
+    expect(player.hp).toBe(100);
+
+    // 3. 地震（擬態中のアイテムモドキの擬態を解除してダメージ、ゴブリンとプレイヤーはバリア消費）
+    hexachromaticEarthquake(boss, dungeon, player, room, messages, {
+      findRoom: () => room,
+    });
+    expect(mimic.disguisedAsItem).toBe(false);
+    expect(mimic.hp).toBeLessThan(50);
+    expect(dungeon.items.some((item) => item.itemMimicId === mimic.id)).toBe(false);
+    expect(shieldedMon.barrier).toBe(0);
+    expect(shieldedMon.hp).toBe(50);
+    expect(player.barrier).toBe(1);
+    expect(player.hp).toBe(100);
+
+    // 4. 電撃（プレイヤーのバリアを消費）
+    hexachromaticLightning(boss, dungeon, player, messages);
+    expect(player.barrier).toBe(0);
+    expect(player.hp).toBe(100);
   });
 
   it("道具寄せの魔法は店の商品以外をプレイヤーの周囲へ集める", () => {

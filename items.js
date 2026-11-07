@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
-import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense } from './utils.js';
 import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } from './synthMonster.js';
 import { adjustMonsterPermanentStat } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
@@ -9956,6 +9956,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "earthquake_magic": {
       if (kind === "self") {
+        ensureItemMimicFloorItems(dg);
         const _targets = (dg.monsters || []).filter((_monster) => _monster.hp > 0 && !_monster.isPlayerClone);
         if (_targets.length === 0) {
           ml.push("地震の魔法が大地を揺らしたが、敵はいない。");
@@ -9966,6 +9967,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
             ml.push(`${_monster.name}は浮遊していて地震が効かなかった！`);
             continue;
           }
+          revealDisguisedItemMimic(dg, _monster, ml);
           if (monEffectiveMagicImmune(_monster)) {
             ml.push(`魔法は${_monster.name}に効かない！`);
             continue;

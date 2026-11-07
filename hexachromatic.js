@@ -1,6 +1,7 @@
 import {
   T, MW, MH, rng, stepProjectile, playerHpEffectLabel, calcAtkDefDmg,
   consumeBarrier, checkMonsterEvasion, hasGravityPentacle,
+  ensureItemMimicFloorItems, revealDisguisedItemMimic,
 } from "./utils.js";
 import {
   monsterBodyCells, monsterPointDistance, monsterOccupiesCell,
@@ -94,6 +95,7 @@ function traceBreath(monster, dungeon, player, line, color) {
 }
 
 function applyBreathMonsterDamage(monster, victim, damage, dungeon, player, messages, opts, label) {
+  if (consumeBarrier(victim, messages)) return;
   victim.hp -= damage;
   messages.push(`${monster.name}の${label}が${victim.name}に命中！${damage}ダメージ！`);
   if (victim.hp <= 0) killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
@@ -110,6 +112,7 @@ export function hexachromaticFireBreath(monster, dungeon, player, line, messages
   const hit = traceBreath(monster, dungeon, player, line, "#ff653d");
   if (!hit) return;
   if (hit.kind === "player") {
+    if (consumeBarrier(player, messages)) return;
     const fireProtected = hasFireResist(player);
     const oily = (player.oilyTurns || 0) > 0 || dungeon.oilyTiles?.some(tile => tile.x === player.x && tile.y === player.y);
     let damage = reduceFireDamage(80, player);
@@ -232,6 +235,7 @@ export function hexachromaticDarkBreath(monster, dungeon, player, line, messages
 export function hexachromaticEarthquake(monster, dungeon, player, room, messages, opts = {}) {
   messages.push(`${monster.name}が地震を起こした！`);
   pushSplashAnim(monster.x, monster.y, "#c79a55");
+  ensureItemMimicFloorItems(dungeon);
   const inRoom = (x, y) => !!room && opts.findRoom?.(dungeon.rooms, x, y) === room;
   for (const victim of [...(dungeon.monsters || [])]) {
     if (victim === monster || victim.hp <= 0 || !inRoom(victim.x, victim.y)) continue;
@@ -241,6 +245,8 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
       messages.push(`${victim.name}は浮遊していて地震をかわした！`);
       continue;
     }
+    revealDisguisedItemMimic(dungeon, victim, messages);
+    if (consumeBarrier(victim, messages)) continue;
     const damage = rng(15, 25);
     victim.hp -= damage;
     messages.push(`地震が${victim.name}を襲った！${damage}ダメージ！`);
@@ -253,6 +259,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
     messages.push("浮遊していて地震を受けなかった！");
     return;
   }
+  if (consumeBarrier(player, messages)) return;
   const damage = rng(15, 25);
   player.deathCause = `${monster.name}の地震で`;
   player.hp -= damage;
@@ -263,6 +270,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
 }
 
 export function hexachromaticLightning(monster, dungeon, player, messages, opts = {}) {
+  if (consumeBarrier(player, messages)) return;
   const baseDamage = rng(22, 32);
   const damage = reduceLightningDamage(baseDamage, player);
   player.deathCause = `${monster.name}の電撃で`;

@@ -431,6 +431,17 @@ export function ensureItemMimicFloorItems(dg) {
   dg.items = dg.items.filter(i => !i.itemMimicId || activeIds.has(i.id));
 }
 
+export function revealDisguisedItemMimic(dg, mon, ml = null) {
+  if (dg) ensureItemMimicFloorItems(dg);
+  if (!mon || (!mon.disguisedAsItem && !(mon.subtype === "itemMimic" && mon.disguisedAsItem !== false))) return false;
+  mon.disguisedAsItem = false;
+  delete mon.disguiseItemId;
+  mon.aware = true;
+  if (dg) ensureItemMimicFloorItems(dg);
+  if (ml) ml.push(`${mon.name}が正体を現した！`);
+  return true;
+}
+
 export const removeFloorItem = (dg, item, { preserveItemMimic = false } = {}) => {
   dg.items = dg.items.filter(i => i !== item);
   if (item?.itemMimicId && !preserveItemMimic) destroyItemMimicFloorItem(dg, item);
@@ -450,7 +461,10 @@ export const itemAt = (dg, x, y) => {
   ensureItemMimicFloorItems(dg);
   return dg.items.find(i => i.x === x && i.y === y);
 };
-export const removeMonster = (dg, mon) => { dg.monsters = dg.monsters.filter(m => m !== mon); };
+export const removeMonster = (dg, mon) => {
+  dg.monsters = dg.monsters.filter(m => m !== mon);
+  ensureItemMimicFloorItems(dg);
+};
 
 /**
  * ランダムテレポート先を返す。
