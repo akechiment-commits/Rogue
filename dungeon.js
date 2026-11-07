@@ -6,6 +6,7 @@ import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, makePiercingArrow, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, rollGeneratedWandCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
+  maybeApplyInitialNegativeEquipmentPlus,
 } from './items.js';
 import { scatterFloorGimmicks, makeAltar, placeAltarPriest, ensureAltarPriests } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
@@ -576,6 +577,7 @@ function applyRareMods(it, depth) {
     if (pr < 0.15 + depth * 0.02) it.plus = rng(2, 4);
     else if (pr < 0.40 + depth * 0.03) it.plus = 1;
     else it.plus = 0;
+    maybeApplyInitialNegativeEquipmentPlus(it);
     if (!it.ability && Math.random() < 0.20) {
       const abilities = (it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES)
         .filter((ability) => !ability.specialOnly);
@@ -644,6 +646,7 @@ function applyStdMods(it, depth) {
     if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
     else if (pr < 0.20 + depth * 0.02) it.plus = 1;
     else it.plus = 0;
+    maybeApplyInitialNegativeEquipmentPlus(it);
     if (!it.ability && Math.random() < 0.10) {
       const abilities = (it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES)
         .filter((ability) => !ability.specialOnly);
@@ -1099,6 +1102,7 @@ function setupShopRoom(room, map, depth, items, mons, dungeonType = null) {
   const makeShopItem = (base, x, y) => {
     const sit = { ...base, id: uid(), x, y };
     applyGeneratedRingPlus(sit);
+    maybeApplyInitialNegativeEquipmentPlus(sit);
     if (sit.type === 'arrow') sit.count = rng(5, 20);
     if (sit.type === 'pot') sit.capacity = randPotCapacity(sit.potEffect);
     if (sit.type === 'pen') sit.charges = penInitialCharges(sit);
@@ -3863,6 +3867,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
         else if (pr < 0.2 + depth * 0.02) it.plus = 1;
         else it.plus = 0;
+        maybeApplyInitialNegativeEquipmentPlus(it);
         if (!it.ability && Math.random() < 0.10) {
           const abilities = (it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES)
             .filter((ability) => !ability.specialOnly);

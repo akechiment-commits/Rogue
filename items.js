@@ -6840,7 +6840,7 @@ function makeBossRewardItem(template) {
     item.confinedMonsters = [];
   }
   if (item.type === "ring") return applyGeneratedRingPlus(item);
-  return item;
+  return maybeApplyInitialNegativeEquipmentPlus(item);
 }
 
 /** 群体ボスは最後の個体と専用骨がすべてなくなった時だけ、通常のボス報酬を一度出す。 */
@@ -6889,6 +6889,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     if (_t) {
       const _di = { ..._t, id: uid() };
       applyGeneratedRingPlus(_di);
+      maybeApplyInitialNegativeEquipmentPlus(_di);
       if (_di.type === "pen") _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = rollGeneratedWandCharges(_di);
       placeItemAt(dg, m.x, m.y, _di, ml, _ft, 0, p);
@@ -6978,6 +6979,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     if (_t) {
       const _di = { ..._t, id: uid() };
       applyGeneratedRingPlus(_di);
+      maybeApplyInitialNegativeEquipmentPlus(_di);
       if (_di.type === "pen") _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = rollGeneratedWandCharges(_di);
       placeItemAt(dg, m.x, m.y, _di, ml, new Set(), 0, p);
@@ -7088,6 +7090,7 @@ export function monsterDrop(m, dg, ml, p = null) {
   if (drops.length === 0) return;
   const _ft = new Set();
   for (const _drop of drops) {
+    maybeApplyInitialNegativeEquipmentPlus(_drop);
     const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
     if (_spr) {
       soakItemIntoSpring(_spr, _drop, ml, dg, null, p);
@@ -10583,6 +10586,14 @@ export function multiplyMagicDamage(amount, weapon, target = null, dg = null) {
 export function applyGeneratedRingPlus(item, randomFn = Math.random) {
   if (item?.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect) && (item.plus || 0) < 1) {
     item.plus = rng(1, 3, randomFn);
+  }
+  return item;
+}
+
+/** 新規生成された武器・防具は低確率でマイナス強化値を持つ。 */
+export function maybeApplyInitialNegativeEquipmentPlus(item, randomFn = Math.random) {
+  if ((item?.type === "weapon" || item?.type === "armor") && randomFn() < 0.02) {
+    item.plus = rng(-2, -1, randomFn);
   }
   return item;
 }
