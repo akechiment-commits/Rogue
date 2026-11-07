@@ -305,6 +305,40 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(player.petrifiedTurns).toBe(4);
   });
 
+  it("悪魔の瞳の構え中は移動せず、状態異常等で中断され、発射ターンに追撃の通常攻撃を行わない", () => {
+    const shinryu = {
+      ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10,
+      hp: SHINRYU_BOSS.hp, maxHp: SHINRYU_BOSS.hp, aware: true, dormant: false,
+      posHistory: Array.from({ length: 8 }, () => ({ x: 10, y: 10 })),
+      _idleStuck: 10,
+    };
+    const player = makePlayer({ x: 8, y: 10, hp: 500, maxHp: 500 });
+    const dungeon = makeEmptyDg({ monsters: [shinryu], ...visibleRoom() });
+    const messages = [];
+    queueOmegaShinryuAttack(shinryu, dungeon, "evilEye", null, player, messages);
+
+    player.x = 7;
+    monsterAI(shinryu, dungeon, player, messages, { moveOnly: true });
+    expect(shinryu.x).toBe(10);
+    expect(shinryu.y).toBe(10);
+    expect(shinryu._movedThisTurn).toBe(true);
+
+    player.x = 8;
+    advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
+    expect(player.petrifiedTurns).toBe(4);
+
+    const hpBeforeAttackPhase = player.hp;
+    monsterAI(shinryu, dungeon, player, messages, { attackOnly: true });
+    expect(player.hp).toBe(hpBeforeAttackPhase);
+
+    queueOmegaShinryuAttack(shinryu, dungeon, "evilEye", null, player, messages);
+    shinryu.sleepTurns = 3;
+    player.petrifiedTurns = 0;
+    advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
+    expect(player.petrifiedTurns).toBe(0);
+    expect(messages.some(m => m.includes("悪魔の瞳の構えは妨害され"))).toBe(true);
+  });
+
   it("マイティガードの全ダメージ半減はセーブ再開後も続く", () => {
     const data = {};
     vi.stubGlobal("localStorage", {

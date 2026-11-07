@@ -167,7 +167,7 @@ export function queueOmegaShinryuAttack(monster, dungeon, attack, line, player, 
   return true;
 }
 
-const CHARGED_WAVE_KINDS = new Set(["waveCannon", "tidalWave"]);
+const CHARGED_WAVE_KINDS = new Set(["waveCannon", "tidalWave", "evilEye"]);
 
 export function hasPendingOmegaShinryuCharge(monster, dungeon) {
   return !!monster && !!dungeon?.pendingOmegaShinryuAttacks?.some(attack =>
@@ -175,7 +175,7 @@ export function hasPendingOmegaShinryuCharge(monster, dungeon) {
 }
 
 function chargeInterruptionMessage(attack, dungeon, source) {
-  const label = attack.kind === "waveCannon" ? "波動砲" : "タイダルウエイブ";
+  const label = attack.kind === "waveCannon" ? "波動砲" : attack.kind === "tidalWave" ? "タイダルウエイブ" : "悪魔の瞳";
   if (!source || source.hp <= 0 || !dungeon.monsters?.includes(source)) {
     return `${attack.sourceName}の${label}の構えは、発生源が倒れて中断された！`;
   }
@@ -358,6 +358,10 @@ export function advanceOmegaShinryuAttacks(dungeon, player, messages, luFn = nul
     if (attack.turnsLeft > 0) continue;
     dungeon.pendingOmegaShinryuAttacks = dungeon.pendingOmegaShinryuAttacks.filter(pending => pending !== attack);
     const source = sourceForAttack(dungeon, attack);
+    if (dungeon.monsters?.includes(source)) {
+      source._movedThisTurn = true;
+      source.turnAttacks = Math.max(source.turnAttacks || 0, source.maxAttacks || 1);
+    }
     if (attack.kind === "waveCannon") applyOmegaWave(attack, dungeon, player, messages, source);
     else if (attack.kind === "tidalWave") applyTidalWave(attack, dungeon, player, messages, source);
     else if (attack.kind === "evilEye") applyEvilEye(attack, dungeon, player, messages, source);

@@ -4827,6 +4827,7 @@ function tryUnstickMove(m, dg, pl, float = false) {
   if (isStationaryGrabber(m) || isStationaryMonster(m) || m.type === "shopkeeper" || m.dormant || m.dormantHouse) return false;
   if (m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id)) return false;
   if (m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id)) return false;
+  if (hasPendingOmegaShinryuCharge(m, dg) || m._hexLiberatioCharging || m._hexLiberatioReady) return false;
   const map = dg.map;
   const recent = new Set((m.posHistory || []).map(p => p.x + p.y * MW));
   recent.add(m.x + m.y * MW);
@@ -6068,7 +6069,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     /* ブレス準備中またはカスワック詠唱中：外因の強制移動でない自発的移動が発生していたら元位置へ戻す */
     if ((m._isCaswackCasting || dg.pendingCaswacks?.some(c => c.sourceId === m.id) ||
-         m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id)) &&
+         m._isPetroBreathing || dg.pendingPetroBreaths?.some(b => b.sourceId === m.id) || hasPendingOmegaShinryuCharge(m, dg) || m._hexLiberatioCharging || m._hexLiberatioReady) &&
         !m._blownBack && (m.x !== _sx || m.y !== _sy)) {
       m.x = _sx; m.y = _sy;
       m.dir = { x: 0, y: 0 };
@@ -6088,7 +6089,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m._isPetroBreathing ||
       dg.pendingPetroBreaths?.some(b => b.sourceId === m.id) ||
       m._isCaswackCasting ||
-      dg.pendingCaswacks?.some(c => c.sourceId === m.id);
+      dg.pendingCaswacks?.some(c => c.sourceId === m.id) || hasPendingOmegaShinryuCharge(m, dg) || m._hexLiberatioCharging || m._hexLiberatioReady;
     if (movementDisabled) {
       m._idleStuck = 0;
       m.posHistory = [];
@@ -8700,7 +8701,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 超上級B45Fボス オメガ／神竜 特技AIと3×3近接範囲 ===== */
   const isOmega = m.baseKind === "boss_omega";
   const isShinryu = m.baseKind === "boss_shinryu";
-  if ((isOmega || isShinryu) && hasPendingOmegaShinryuCharge(m, dg)) return;
+  if ((isOmega || isShinryu) && hasPendingOmegaShinryuCharge(m, dg)) {
+    m._movedThisTurn = true;
+    m.turnAttacks = monEffectiveMaxAttacks(m);
+    return;
+  }
   if ((isOmega || isShinryu) && _moveOnly) {
     delete m._omegaShinryuAttackReady;
     delete m._omegaShinryuAttackLine;
