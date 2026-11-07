@@ -105,7 +105,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
-import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
+import { formatInventoryItem, formatRefillMessage, isEquipmentPlusKnown, formatEquipmentPlusChange } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
@@ -1328,10 +1328,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             _a = it.type === "armor";
           let _lbl = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
           if (_w || _a) {
-            if (it.plus) _lbl += (it.plus > 0 ? "+" : "") + it.plus;
-            _lbl += _w
-              ? " (攻+" + (it.atk + (it.plus || 0)) + ")"
-              : " (防+" + (it.def + (it.plus || 0)) + ")";
+            if (isEquipmentPlusKnown(it)) {
+              if (it.plus) _lbl += (it.plus > 0 ? "+" : "") + it.plus;
+              _lbl += _w
+                ? " (攻+" + (it.atk + (it.plus || 0)) + ")"
+                : " (防+" + (it.def + (it.plus || 0)) + ")";
+            }
             const _AB = _w ? WEAPON_ABILITIES : ARMOR_ABILITIES;
             const _ids = [
               ...new Set([
@@ -1353,8 +1355,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const _w = it.type === "weapon", _a = it.type === "armor";
           let _fl = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
           if (_w || _a) {
-            if (it.plus) _fl += (it.plus > 0 ? "+" : "") + it.plus;
-            _fl += _w ? ` (攻+${it.atk + (it.plus || 0)})` : ` (防+${it.def + (it.plus || 0)})`;
+            if (isEquipmentPlusKnown(it)) {
+              if (it.plus) _fl += (it.plus > 0 ? "+" : "") + it.plus;
+              _fl += _w ? ` (攻+${it.atk + (it.plus || 0)})` : ` (防+${it.def + (it.plus || 0)})`;
+            }
           }
           ml.push(`${_fl}${_itemPickupSuffix(it, sr.current?.ident)}がある。持ち物がいっぱいだ！`);
         }
@@ -3998,8 +4002,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 const _w2 = _grIt.type === "weapon", _a2 = _grIt.type === "armor";
                 let _lbl2 = itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                 if (_w2 || _a2) {
-                  if (_grIt.plus) _lbl2 += (_grIt.plus > 0 ? "+" : "") + _grIt.plus;
-                  _lbl2 += _w2 ? " (攻+" + (_grIt.atk + (_grIt.plus || 0)) + ")" : " (防+" + (_grIt.def + (_grIt.plus || 0)) + ")";
+                  if (isEquipmentPlusKnown(_grIt)) {
+                    if (_grIt.plus) _lbl2 += (_grIt.plus > 0 ? "+" : "") + _grIt.plus;
+                    _lbl2 += _w2 ? " (攻+" + (_grIt.atk + (_grIt.plus || 0)) + ")" : " (防+" + (_grIt.def + (_grIt.plus || 0)) + ")";
+                  }
                   const _AB2 = _w2 ? WEAPON_ABILITIES : ARMOR_ABILITIES;
                   const _ids2 = [...new Set([...(_grIt.abilities || []), ...(_grIt.ability ? [_grIt.ability] : [])])];
                   const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
@@ -4466,10 +4472,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             const _w = _dashIt.type === "weapon", _a = _dashIt.type === "armor";
             let _lbl = itemDisplayName(_dashIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
             if (_w || _a) {
-              if (_dashIt.plus) _lbl += (_dashIt.plus > 0 ? "+" : "") + _dashIt.plus;
-              _lbl += _w
-                ? " (攻+" + (_dashIt.atk + (_dashIt.plus || 0)) + ")"
-                : " (防+" + (_dashIt.def + (_dashIt.plus || 0)) + ")";
+              if (isEquipmentPlusKnown(_dashIt)) {
+                if (_dashIt.plus) _lbl += (_dashIt.plus > 0 ? "+" : "") + _dashIt.plus;
+                _lbl += _w
+                  ? " (攻+" + (_dashIt.atk + (_dashIt.plus || 0)) + ")"
+                  : " (防+" + (_dashIt.def + (_dashIt.plus || 0)) + ")";
+              }
               const _AB2 = _w ? WEAPON_ABILITIES : ARMOR_ABILITIES;
               const _ids2 = [...new Set([...(_dashIt.abilities || []), ...(_dashIt.ability ? [_dashIt.ability] : [])])];
               const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
@@ -4670,7 +4678,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (_plusRings.length >= 2) {
         const [ra, rb] = _plusRings;
         ra.plus = (ra.plus || 0) + (rb.plus || 0);
-        ml.push(`合成完了！${_dn(ra)}の＋値が増えた！(+${ra.plus})`);
+        ml.push(`合成完了！${_dn(ra)}の＋値が増えた！${isEquipmentPlusKnown(ra) ? `(+${ra.plus})` : ""}`);
         bb.contents = bb.contents.filter(i => i !== rb);
         bb.capacity = bb.contents.length;
         return;
@@ -5101,8 +5109,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring", "niebelung_ring"].includes(item.effect))) {
           const before = item.plus || 0;
           item.plus = before + 1;
-          const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          ml.push(`${_idn}が強化された！(${fp(before)}→${fp(item.plus)})`);
+          ml.push(`${_idn}が強化された！${formatEquipmentPlusChange(item, before, item.plus)}`);
         } else if (item.type === "pot") {
           item.capacity = (item.capacity ?? 1) + 1;
           ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
@@ -6315,7 +6322,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
       const before = item.plus || 0;
       setPlayerItemProperties(p, item, { plus: before + 1 });
-      result = `${name}が強化された！(${before >= 0 ? `+${before}` : before}→+${item.plus})`;
+      result = `${name}が強化された！${formatEquipmentPlusChange(item, before, item.plus)}`;
     }
     priest.priestServiceCount = requestCount + 1;
     setMsgs((prev) => [...prev.slice(-80), `司祭に${price}Gを渡した。${result}`]);
@@ -6947,12 +6954,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         </span>{" "}
         {p.weapon && (
           <span style={{ color: "#ff9966", fontSize: "0.85em" }}>
-            ⚔{p.weapon.name}{(p.weapon.plus || 0) !== 0 ? `${p.weapon.plus > 0 ? "+" : ""}${p.weapon.plus}` : ""}
+            ⚔{p.weapon.name}{isEquipmentPlusKnown(p.weapon) && (p.weapon.plus || 0) !== 0 ? `${p.weapon.plus > 0 ? "+" : ""}${p.weapon.plus}` : ""}
           </span>
         )}{" "}
         {p.armor && (
           <span style={{ color: "#66ccff", fontSize: "0.85em" }}>
-            🛡{p.armor.name}{(p.armor.plus || 0) !== 0 ? `${p.armor.plus > 0 ? "+" : ""}${p.armor.plus}` : ""}
+            🛡{p.armor.name}{isEquipmentPlusKnown(p.armor) && (p.armor.plus || 0) !== 0 ? `${p.armor.plus > 0 ? "+" : ""}${p.armor.plus}` : ""}
           </span>
         )}{" "}
         {p.arrow && (

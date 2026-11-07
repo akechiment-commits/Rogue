@@ -18,6 +18,7 @@ import {
 } from "./favoriteFood.js";
 import { fetchRanking, fetchRankingStats, RANKING_DUNGEONS } from "./rankingClient.js";
 import { formatElapsed } from "./runScore.js";
+import { isEquipmentPlusKnown } from "./inventoryLabel.js";
 import { scoresForDungeon, scoreHeadline } from "./adventureScores.js";
 import { FIRST_ENCOUNTER_TIPS, getSeenFirstEncounterTips } from "./firstEncounterTips.js";
 import {
@@ -87,19 +88,24 @@ function Panel({ title, onClose, children, wide, sticky }) {
 /* ===== 地上アイテムのラベル（地上では常に正体判明） ===== */
 function hubItemLabel(it) {
   if (!it) return "";
-  const bc = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
+  const _showBc = !["weapon", "armor"].includes(it.type) || isEquipmentPlusKnown(it);
+  const bc = _showBc ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
   let s = it.effect === "slow_ring" ? "鈍亀の指輪" : it.name;
   if (it.type === "arrow") {
     s += ` (${it.count}${(it.stone || it.magicStone || it.iceChunk) ? "個" : "本"})`;
   } else if (it.type === "weapon") {
-    if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
-    s += ` (攻+${it.atk + (it.plus || 0)})`;
+    if (isEquipmentPlusKnown(it)) {
+      if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
+      s += ` (攻+${it.atk + (it.plus || 0)})`;
+    }
     const ids = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])];
     const names = ids.map(id => WEAPON_ABILITIES.find(a => a.id === id)?.name).filter(Boolean);
     if (names.length) s += ` [${names.join("・")}]`;
   } else if (it.type === "armor") {
-    if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
-    s += ` (防+${it.def + (it.plus || 0)})`;
+    if (isEquipmentPlusKnown(it)) {
+      if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
+      s += ` (防+${it.def + (it.plus || 0)})`;
+    }
     const ids = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])];
     const names = ids.map(id => ARMOR_ABILITIES.find(a => a.id === id)?.name).filter(Boolean);
     if (names.length) s += ` [${names.join("・")}]`;
@@ -1054,7 +1060,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
               }}
             >
               <span style={{ color: canBuy ? TXT : "#444", flex:1 }}>
-                {item.name}{item.plus ? `+${item.plus}` : ""}
+                {item.name}{isEquipmentPlusKnown(item) && item.plus ? `${item.plus > 0 ? "+" : ""}${item.plus}` : ""}
                 <span style={{ color:"#b7c1d2", fontSize:11, marginLeft:6 }}>{item.desc}</span>
               </span>
               <span style={{ color: canBuy ? GOLD : "#444", minWidth:50, textAlign:"right" }}>

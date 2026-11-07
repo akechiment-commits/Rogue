@@ -1,5 +1,6 @@
 import { CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
 import { setPlayerItemProperties } from "./equipmentEffects.js";
+import { formatEquipmentPlusChange } from "./inventoryLabel.js";
 
 /* 対象選択の入力経路によらず、同じ確率・同じ効果で装備を強化する。 */
 export function applyEquipmentUpgradeScroll(player, item, mode, displayName = item.name, random = Math.random) {
@@ -28,8 +29,7 @@ export function applyEquipmentUpgradeScroll(player, item, mode, displayName = it
     return `${displayName}が${effect}${suffix}`;
   }
   setPlayerItemProperties(player, item, { plus: before + gain });
-  const plusLabel = value => value > 0 ? `+${value}` : value === 0 ? "無印" : String(value);
-  let message = `${displayName}が${gain > 0 ? "輝いた" : "くすんだ"}！(${plusLabel(before)}→${plusLabel(item.plus)})${suffix}`;
+  let message = `${displayName}が${gain > 0 ? "輝いた" : "くすんだ"}！${formatEquipmentPlusChange(item, before, item.plus)}${suffix}`;
   if (gain > 0 && item.cursed) { item.cursed = false; message += " 呪いが解けた！"; }
   return message;
 }

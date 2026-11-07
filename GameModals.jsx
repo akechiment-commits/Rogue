@@ -24,7 +24,7 @@ import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { scoresForDungeon, dungeonScoreLabel, scoreHeadline, formatDeathCause, loadAdventureScores } from "./adventureScores.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
-import { formatPlusSuffix } from "./inventoryLabel.js";
+import { formatPlusSuffix, isEquipmentPlusKnown } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
@@ -3194,7 +3194,9 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
             };
           }
           const detail = mode === "remove_curse" ? "呪いを解く" : mode === "upgrade"
-            ? `現在 ${item.plus > 0 ? `+${item.plus}` : item.plus || 0} → +${(item.plus || 0) + 1}`
+            ? isEquipmentPlusKnown(item)
+              ? `現在 ${item.plus > 0 ? `+${item.plus}` : item.plus || 0} → +${(item.plus || 0) + 1}`
+              : "＋1強化"
             : `現在 ${item.charges || 0}回 → ${(item.charges || 0) + 1}回`;
           return {
             id: item.id,
@@ -3989,7 +3991,7 @@ export function InventoryModal({
       )}
       {p.weapon && (
         <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
-          武器: <span style={{ color: "#fa0" }}>{p.weapon.name}{formatPlusSuffix(p.weapon.plus)}</span> (攻+{p.weapon.atk + (p.weapon.plus || 0)})
+          武器: <span style={{ color: "#fa0" }}>{p.weapon.name}{isEquipmentPlusKnown(p.weapon) ? formatPlusSuffix(p.weapon.plus) : ""}</span>{isEquipmentPlusKnown(p.weapon) ? ` (攻+${p.weapon.atk + (p.weapon.plus || 0)})` : ""}
           {(p.weapon.ability || p.weapon.abilities?.length > 0) && (
             <span style={{ color: "#fc6", fontSize: 9 }}> [{[...new Set([...(p.weapon.abilities || []), ...(p.weapon.ability ? [p.weapon.ability] : [])])].map((id) => WEAPON_ABILITIES.find((a) => a.id === id)?.name).filter(Boolean).join("・")}]</span>
           )}
@@ -3997,7 +3999,7 @@ export function InventoryModal({
       )}
       {p.armor && (
         <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
-          防具: <span style={{ color: "#08f" }}>{p.armor.name}{formatPlusSuffix(p.armor.plus)}</span> (防+{p.armor.def + (p.armor.plus || 0)})
+          防具: <span style={{ color: "#08f" }}>{p.armor.name}{isEquipmentPlusKnown(p.armor) ? formatPlusSuffix(p.armor.plus) : ""}</span>{isEquipmentPlusKnown(p.armor) ? ` (防+${p.armor.def + (p.armor.plus || 0)})` : ""}
           {(p.armor.ability || p.armor.abilities?.length > 0) && (
             <span style={{ color: "#6cf", fontSize: 9 }}> [{[...new Set([...(p.armor.abilities || []), ...(p.armor.ability ? [p.armor.ability] : [])])].map((id) => ARMOR_ABILITIES.find((a) => a.id === id)?.name).filter(Boolean).join("・")}]</span>
           )}

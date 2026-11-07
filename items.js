@@ -54,6 +54,7 @@ import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
 import { applySakeEffect } from './intoxication.js';
+import { formatEquipmentPlusChange } from './inventoryLabel.js';
 
 export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 export { clearNpcRetaliation };
@@ -1047,8 +1048,9 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   if (pe === "enhance") {
     if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring", "niebelung_ring"].includes(item.effect))) {
       const _g = rng(1, 2);
+      const _before = item.plus || 0;
       item.plus = (item.plus || 0) + _g;
-      ml.push(`${resolveItemName(item, nameFn)}が強化された！(+${item.plus})`);
+      ml.push(`${resolveItemName(item, nameFn)}が強化された！${formatEquipmentPlusChange(item, _before, item.plus)}`);
       return;
     }
     ml.push(`${_in}を${_pn}に入れた。効果はなかった。`);
@@ -1057,9 +1059,9 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   if (pe === "weaken") {
     if (item.type === "weapon" || item.type === "armor") {
       const _d = rng(1, 2);
+      const _before = item.plus || 0;
       item.plus = (item.plus || 0) - _d;
-      const _ps = item.plus;
-      ml.push(`${resolveItemName(item, nameFn)}が劣化した！(${_ps >= 0 ? "+" : ""}${_ps})`);
+      ml.push(`${resolveItemName(item, nameFn)}が劣化した！${formatEquipmentPlusChange(item, _before, item.plus)}`);
       return;
     }
     ml.push(`${_in}を${_pn}に入れた。`);
@@ -3579,8 +3581,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         } else {
           const _op2 = item.plus || 0;
           item.plus = _op2 - 1;
-          const _fp2 = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
-          ml.push(`${trap.name}が発動！${resolveItemName(item)}が錆びた！(${_fp2(_op2)}→${_fp2(item.plus)})`);
+          ml.push(`${trap.name}が発動！${resolveItemName(item)}が錆びた！${formatEquipmentPlusChange(item, _op2, item.plus)}`);
         }
       } else {
         ml.push(`${trap.name}が発動！`);
@@ -3603,8 +3604,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           } else {
             const _pop = _peq.plus || 0;
             _peq.plus = _pop - 1;
-            const _pfp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
-            ml.push(`${_peq.name}も錆びた！(${_pfp(_pop)}→${_pfp(_peq.plus)})`);
+            ml.push(`${_peq.name}も錆びた！${formatEquipmentPlusChange(_peq, _pop, _peq.plus)}`);
           }
         }
       }
@@ -6513,8 +6513,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
         } else {
           const _op = item.plus || 0;
           item.plus = _op - 1;
-          const _fp = (v) => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
-          ml.push(`${item.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(item.plus)})${_wNote}`);
+          ml.push(`${item.name}が水に浸かり...錆びてしまった！${formatEquipmentPlusChange(item, _op, item.plus)}${_wNote}`);
         }
       }
     } else {
@@ -6525,10 +6524,9 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
           : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
         ml.push(_dn(item) + "が泉に落ちたが" + _guardMsg + _wNote);
       } else {
-        const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
         const _op = item.plus || 0;
         item.plus = _op - 1;
-        ml.push(_dn(item) + "が泉に落ちた...錆びた！(" + _fp(_op) + "→" + _fp(item.plus) + ")" + _wNote);
+        ml.push(_dn(item) + "が泉に落ちた...錆びた！" + formatEquipmentPlusChange(item, _op, item.plus) + _wNote);
       }
     }
     spr.contents.push(item);
@@ -6541,10 +6539,9 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
         : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
       ml.push(_dn(item) + "が泉に落ちたが" + _guardMsg + _aNote);
     } else {
-      const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
       const _op = item.plus || 0;
       item.plus = _op - 1;
-      ml.push(_dn(item) + "が泉に落ちた...錆びた！(" + _fp(_op) + "→" + _fp(item.plus) + ")" + _aNote);
+      ml.push(_dn(item) + "が泉に落ちた...錆びた！" + formatEquipmentPlusChange(item, _op, item.plus) + _aNote);
     }
     spr.contents.push(item);
   } else if (item.type === "scroll") {

@@ -88,6 +88,7 @@ import {
 } from "./legendMonsterRules.js";
 import { trapPoolForDungeon } from "./dungeonContent.js";
 import { isWanderingNpc } from "./wanderingAdventurer.js";
+import { formatEquipmentPlusChange } from "./inventoryLabel.js";
 import { beginNpcRetaliation } from "./npcRetaliation.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
@@ -3989,8 +3990,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
         } else if (_canDegrade) {
           const _op = pl.weapon.plus || 0;
           pl.weapon.plus = _op - 1;
-          const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
-          ml.push(`水びたしになって${pl.weapon.name}が錆びた！(${_fpp(_op)}→${_fpp(_op - 1)})`);
+          ml.push(`水びたしになって${pl.weapon.name}が錆びた！${formatEquipmentPlusChange(pl.weapon, _op, pl.weapon.plus)}`);
         }
       }
       return;
@@ -5686,7 +5686,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       if (_eq && !hasAbility(_eq, "no_degrade")) {
         const _op = _eq.plus || 0;
         _eq.plus = _op - 1;
-        ml.push(`${m.name}が${_eq.name}を錆びさせた！`);
+        ml.push(`${m.name}が${_eq.name}を錆びさせた！${formatEquipmentPlusChange(_eq, _op, _eq.plus)}`);
       } else {
         ml.push(`${m.name}が錆を飛ばしたが効果がなかった！`);
       }
@@ -10680,8 +10680,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               const _rt = pick(_rstCands);
               const _op = _rt.plus || 0;
               _rt.plus = _op - 1;
-              const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
-              ml.push(`${m.name}の体液で${_rt.name}が錆びた！(${_fpp(_op)}→${_fpp(_rt.plus)})`);
+              ml.push(`${m.name}の体液で${_rt.name}が錆びた！${formatEquipmentPlusChange(_rt, _op, _rt.plus)}`);
             }
           },
           onPlayerMiss: _onMiss,

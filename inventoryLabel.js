@@ -9,6 +9,18 @@ export function formatPlusSuffix(plus) {
   return value === 0 ? "" : `${value > 0 ? "+" : ""}${value}`;
 }
 
+/** 装備の＋値は祝呪または全体識別が判明するまで見せない。 */
+export function isEquipmentPlusKnown(item) {
+  return !!(item && (item.fullIdent || item.bcKnown));
+}
+
+/** ＋値の変化も、未判明の装備では数値を表示しない。 */
+export function formatEquipmentPlusChange(item, before, after) {
+  if (!isEquipmentPlusKnown(item)) return "";
+  const valueLabel = (value) => value > 0 ? `+${value}` : value === 0 ? "無印" : String(value);
+  return `(${valueLabel(before)}→${valueLabel(after)})`;
+}
+
 /** 充填時の回数表示。残り回数未判明の杖・ペンは追加量と残り回数を隠す。 */
 export function formatRefillMessage(displayName, type, add, charges, identified) {
   if (type === "pen") {
@@ -51,13 +63,17 @@ export function formatInventoryItem(item, {
   if (item.type === "arrow") {
     label += ` (${item.count}${(item.stone || item.magicStone || item.iceChunk) ? "個" : "本"})`;
   } else if (item.type === "weapon") {
-    label += formatPlusSuffix(item.plus);
-    label += ` (攻+${item.atk + (item.plus || 0)})`;
+    if (isEquipmentPlusKnown(item)) {
+      label += formatPlusSuffix(item.plus);
+      label += ` (攻+${item.atk + (item.plus || 0)})`;
+    }
     const names = abilityNames(item, weaponAbilities);
     if (names.length) label += ` [${names.join("・")}]`;
   } else if (item.type === "armor") {
-    label += formatPlusSuffix(item.plus);
-    label += ` (防+${item.def + (item.plus || 0)})`;
+    if (isEquipmentPlusKnown(item)) {
+      label += formatPlusSuffix(item.plus);
+      label += ` (防+${item.def + (item.plus || 0)})`;
+    }
     const names = abilityNames(item, armorAbilities);
     if (names.length) label += ` [${names.join("・")}]`;
   } else if (item.type === "potion" && (item.effect === "heal" || item.effect === "heal_big") && isIdentified) {

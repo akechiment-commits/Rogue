@@ -28,7 +28,7 @@ import {
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
-import { formatWandUseSuffix } from "./inventoryLabel.js";
+import { formatWandUseSuffix, isEquipmentPlusKnown } from "./inventoryLabel.js";
 import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
@@ -2332,11 +2332,15 @@ export function useItemActions({
     if (ml.length === 0) {
       let _dropLbl = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (it.type === "weapon") {
-        if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
-        _dropLbl += ` (攻+${it.atk + (it.plus || 0)})`;
+        if (isEquipmentPlusKnown(it)) {
+          if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
+          _dropLbl += ` (攻+${it.atk + (it.plus || 0)})`;
+        }
       } else if (it.type === "armor") {
-        if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
-        _dropLbl += ` (防+${it.def + (it.plus || 0)})`;
+        if (isEquipmentPlusKnown(it)) {
+          if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
+          _dropLbl += ` (防+${it.def + (it.plus || 0)})`;
+        }
       } else if (it.type === "arrow") {
         _dropLbl += `(${it.count}${it.stone || it.magicStone || it.iceChunk || it.specialProjectile ? "個" : "本"})`;
       } else if (it.type === "gold") {
@@ -4475,12 +4479,12 @@ export function useItemActions({
             if (it.type === "gold") return `${it.value}枚の金貨`;
             const _tnm = dnameRef(it);
             if (it.type === "weapon") {
-              const _tp = it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";
-              return `${_tnm}${_tp} (攻+${it.atk + (it.plus || 0)})`;
+              const _tp = isEquipmentPlusKnown(it) && it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";
+              return `${_tnm}${_tp}${isEquipmentPlusKnown(it) ? ` (攻+${it.atk + (it.plus || 0)})` : ""}`;
             }
             if (it.type === "armor") {
-              const _tp = it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";
-              return `${_tnm}${_tp} (防+${it.def + (it.plus || 0)})`;
+              const _tp = isEquipmentPlusKnown(it) && it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";
+              return `${_tnm}${_tp}${isEquipmentPlusKnown(it) ? ` (防+${it.def + (it.plus || 0)})` : ""}`;
             }
             return `${_tnm}${_itemPickupSuffix(it, sr.current?.ident)}`;
           };

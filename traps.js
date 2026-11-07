@@ -7,6 +7,7 @@ import { statusTurns, resolveParalysisHit, applyPlayerConfusion } from "./status
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
 import { claimTrapActivation } from "./trapActivationTurn.js";
+import { formatEquipmentPlusChange } from "./inventoryLabel.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   if ((dg?.timeStopTurns || 0) > 0) return null;
@@ -65,8 +66,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
         } else {
           const _op = _eq.plus || 0;
           _eq.plus = _op - 1;
-          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? `無印` : `${v}`);
-          ml.push(`${trap.name}が発動！${_eq.name}が錆びた！(${_fp(_op)}→${_fp(_eq.plus)})`);
+          ml.push(`${trap.name}が発動！${_eq.name}が錆びた！${formatEquipmentPlusChange(_eq, _op, _eq.plus)}`);
         }
       } else {
         const _ndName = p.weapon?.name || p.armor?.name;
