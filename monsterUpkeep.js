@@ -1,4 +1,5 @@
 import { isStatusImmune } from "./statusImmunity.js";
+import { resolveParalysisHit } from "./statusDuration.js";
 import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.js";
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
@@ -86,6 +87,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
         const damage = drunkenVomitDamage(monster.hp);
         monster.hp -= damage;
         messages.push(`${monster.name}は酩酊して嘔吐した！自分に${damage}ダメージ！`);
+        resolveParalysisHit(monster, messages);
         if (monster.hp <= 0) {
           onMonsterDefeated(monster, { killerMon: monster });
           continue;
@@ -118,6 +120,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     const damage = Math.max(1, Math.floor(monster.hp / 4));
     monster.hp -= damage;
     messages.push(`${sanctuary.name || "聖域の魔方陣"}の力で${monster.name}が${damage}ダメージを受けた！`);
+    resolveParalysisHit(monster, messages);
     if (monster.hp <= 0) onMonsterDefeated(monster);
   }
 
@@ -139,6 +142,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     const damage = Math.max(1, Math.floor(monster.hp / 4));
     monster.hp -= damage;
     messages.push(`${monster.name}は水中から逃れられず${damage}ダメージを受けた！`);
+    resolveParalysisHit(monster, messages);
     if (monster.hp <= 0) onMonsterDefeated(monster);
   }
 
@@ -159,6 +163,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     const damage = Math.max(1, Math.floor(monster.hp / 4));
     monster.hp -= damage;
     messages.push(`${monster.name}は壁から出られず${damage}ダメージを受けた！`);
+    resolveParalysisHit(monster, messages);
     if (monster.hp <= 0) onMonsterDefeated(monster);
   }
 
@@ -174,6 +179,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
       if (monster.kind === "undead") {
         monster.hp -= 25;
         messages.push(`${pentacle.name}の力が${monster.name}を傷つけた！25ダメージ！(アンデッド)`);
+        resolveParalysisHit(monster, messages);
         if (monster.hp <= 0) onMonsterDefeated(monster);
       } else {
         const heal = Math.min(25, monster.maxHp - monster.hp);
@@ -190,6 +196,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     const damage = Math.round((pentacle.blessed ? 50 : 25) * weaknessMultiplier * cursedSealMultiplier);
     monster.hp -= damage;
     messages.push(`${pentacle.name}が${monster.name}を打った！${damage}ダメージ！${weaknessMultiplier > 1 ? "雷弱点！" : ""}`);
+    resolveParalysisHit(monster, messages);
     if (monster.hp <= 0) onMonsterDefeated(monster);
   }
 }

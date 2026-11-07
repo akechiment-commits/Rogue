@@ -7,7 +7,7 @@ import {
   monsterBodyCells, monsterPointDistance, monsterOccupiesCell,
 } from "./monsterGeometry.js";
 import {
-  statusTurns, isStatusImmune, applyMonsterDarkness,
+  statusTurns, isStatusImmune, applyMonsterDarkness, resolveParalysisHit,
 } from "./statusDuration.js";
 import {
   hasFireResist, reduceFireDamage, fireResistDamageLabel,
@@ -98,6 +98,7 @@ function applyBreathMonsterDamage(monster, victim, damage, dungeon, player, mess
   if (consumeBarrier(victim, messages)) return;
   victim.hp -= damage;
   messages.push(`${monster.name}の${label}が${victim.name}に命中！${damage}ダメージ！`);
+  resolveParalysisHit(victim, messages);
   if (victim.hp <= 0) killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
 }
 
@@ -174,6 +175,7 @@ export function hexachromaticWindBreath(monster, dungeon, player, line, messages
   const damage = Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1));
   victim.hp -= damage;
   messages.push(`${monster.name}の風のブレスが${victim.name}に命中！${damage}ダメージ！`);
+  resolveParalysisHit(victim, messages);
   if (victim.hp <= 0) {
     killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
   } else {
@@ -225,6 +227,7 @@ export function hexachromaticDarkBreath(monster, dungeon, player, line, messages
   const damage = Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1));
   victim.hp -= damage;
   messages.push(`${monster.name}の闇のブレスが${victim.name}に命中！${damage}ダメージ！`);
+  resolveParalysisHit(victim, messages);
   if (victim.hp <= 0) {
     killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
   } else {
@@ -250,6 +253,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
     const damage = rng(15, 25);
     victim.hp -= damage;
     messages.push(`地震が${victim.name}を襲った！${damage}ダメージ！`);
+    resolveParalysisHit(victim, messages);
     if (victim.hp <= 0) killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
   }
   if (player.hp <= 0 || !inRoom(player.x, player.y)) return;

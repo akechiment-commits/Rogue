@@ -4,7 +4,7 @@ import { isStatusImmune } from "./statusImmunity.js";
  * 依存する装備判定は注入し、ゲーム UI や敵行動には依存しない。
  */
 import { monsterAreaHitCount, monsterOccupiesCell } from "./monsterGeometry.js";
-import { statusTurns } from "./statusDuration.js";
+import { statusTurns, resolveParalysisHit } from "./statusDuration.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { maintainPlayerHaste } from "./actionClock.js";
 import { DRUNK_VOMIT_HUNGER_LOSS, shouldVomit } from "./intoxication.js";
@@ -57,6 +57,8 @@ export function advancePlayerUpkeep(player, messages, {
       messages.push("空腹でHPが減っている...");
     }
     player.hp--;
+    interruptPlayerSleep(player, messages, "空腹の苦しみで目が覚めた！");
+    resolveParalysisHit(player, messages);
   } else if (!player.poisoned && player.hp > 0 && player.hp < player.maxHp) {
     const baseRegen = Math.max(1, Math.floor(player.maxHp / 100))
       + (hasAbility(player.armor, "regen") ? 1 : 0)
@@ -76,6 +78,7 @@ export function applyArmorAura(player, dungeon, messages, { hasAbility, killMons
     if (!adjacentCells) continue;
     const damage = adjacentCells * 2;
     monster.hp -= damage;
+    resolveParalysisHit(monster, messages);
     messages.push(`闘気が${monster.name}に${damage}ダメージ！`);
     if (monster.hp <= 0 && dungeon.monsters.includes(monster)) {
       killMonster(monster);
@@ -125,7 +128,17 @@ export function hasForcedTurn(player) {
  * 自然に目覚めた場合と区別し、次のプレイヤーターンを行動不能にする。
  */
 export function interruptPlayerSleep(player, messages, wakeMessage = "衝撃で目が覚めた！") {
-  if (!player || (player.sleepTurns || 0) <= 0) return false;
+  if (!player) return false;
+  if (player._pendingSleepWake) {
+    delete player._pendingSleepWake;
+    if ((player.sleepTurns || 0) > 0) {
+      player.sleepTurns = 0;
+      player.sleepInterruptedTurns = Math.max(player.sleepInterruptedTurns || 0, 1);
+    }
+    messages?.push(wakeMessage);
+    return true;
+  }
+  if ((player.sleepTurns || 0) <= 0) return false;
   player.sleepTurns = 0;
   player.sleepInterruptedTurns = Math.max(player.sleepInterruptedTurns || 0, 1);
   messages?.push(wakeMessage);
@@ -220,6 +233,8 @@ export function advanceEarlyStatusTimers(player, messages) {
       const poisonDamage = Math.max(1, Math.floor(player.hp * 0.03));
       player.hp -= poisonDamage;
       messages.push(`毒に冒されている！${poisonDamage}ダメージ！`);
+      interruptPlayerSleep(player, messages, "毒の苦しみで目が覚めた！");
+      resolveParalysisHit(player, messages);
     }
     if (player.poisonedTurns <= 0) {
       player.poisoned = false;

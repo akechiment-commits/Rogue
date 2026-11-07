@@ -7,6 +7,7 @@ import { monsterPointDistance, monsterBodyCells, canPlaceMonsterBody, monsterOcc
 import { pushAnim, pushSplashAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
 import { statusTurns, resolveParalysisHit } from './statusDuration.js';
+import { interruptPlayerSleep } from './turnUpkeep.js';
 import { scaleMonsterFireDamage, monsterFireDamageLabel } from './monsterRuntime.js';
 import { monHasElementWeakness } from './monTraits.js';
 import {
@@ -158,7 +159,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     ml.push(`${m.name}のハイパーサーミックブレスが直撃！${playerHpEffectLabel(pl, dmg)}！${fireResistDamageLabel(pl)}${oilyMult > 1 ? "(油まみれ×2)" : ""}`);
 
     // 睡眠・金縛り解除
-    if ((pl.sleepTurns || 0) > 0) { pl.sleepTurns = 0; ml.push("超高熱で目が覚めた！"); }
+    interruptPlayerSleep(pl, ml, "超高熱で目が覚めた！");
     resolveParalysisHit(pl, ml);
 
     // 炎耐性なしの場合は所持品ロースト
@@ -174,6 +175,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     const finalDmg = scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult));
     victim.hp -= finalDmg;
     ml.push(`${m.name}のハイパーサーミックブレスが${victim.name}に直撃！${finalDmg}ダメージ！${weaknessMult > 1 ? "炎弱点！" : ""}${monsterFireDamageLabel(victim)}${oilyMult > 1 ? "(油まみれ×2)" : ""}`);
+    resolveParalysisHit(victim, ml);
     if (victim.hp <= 0) {
       killMonster(victim, dg, pl, ml, opts.luFn || null, false, m);
     }
@@ -255,6 +257,7 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
       pl.deathCause = `${m.name}のスパイクフレイルで`;
       pl.hp -= dmg;
       onHit?.(dmg, m);
+      interruptPlayerSleep(pl, ml);
       resolveParalysisHit(pl, ml);
       ml.push(`強烈な鉄球の一撃が${plName(pl)}を粉砕！${dmg}ダメージ！`);
 
@@ -287,6 +290,7 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
 
     const vDmg = Math.max(1, calcAtkDefDmg(m.atk * 3, victim.def || 0, { defWeight: 1 }) + rng(-2, 2));
     victim.hp -= vDmg;
+    resolveParalysisHit(victim, ml);
     ml.push(`スパイクフレイルが${victim.name}を強打！${vDmg}ダメージ！`);
 
     if (victim.hp > 0) {

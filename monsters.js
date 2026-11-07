@@ -73,7 +73,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyPlayerConfusion, applyMonsterDarkness, applyMonsterParalyze, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyPlayerConfusion, applyMonsterDarkness, applyMonsterParalyze, isAttackSealed, installMonsterHpHook, resolveParalysisHit } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
@@ -2938,13 +2938,15 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   const id = uid();
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({}) : null;
-  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+  const mon = { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
     ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge" || st.baseKind === "boss_flock_stalker") ? { _flockHpDialogueSnapshot: st.hp } : {}),
     ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(st.subtype === "sleepingLion" || dormant ? { dormant: true, _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
+  installMonsterHpHook(mon);
+  return mon;
 }
 
 /** 指定のベース定義・レベルでモンスターを生成する（固定取り巻き用） */
@@ -2954,13 +2956,15 @@ export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, las
   const projectileAmmo = createMonsterProjectileAmmo(st);
   const isSleepingLion = st.subtype === "sleepingLion";
   const wind = (st.subtype === "windAura" || st.baseKind === "sylph") ? ensureMonsterWindDir({ windDx, windDy }) : null;
-  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant: isSleepingLion || dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+  const mon = { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant: isSleepingLion || dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
     ...((st.baseKind === "boss_flock" || st.baseKind === "boss_flock_revenge") ? { _flockHpDialogueSnapshot: st.hp } : {}),
     ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
+  installMonsterHpHook(mon);
+  return mon;
 }
 
 /* 石像の報酬敵は monsters 側から供給し、fixtures との循環 import を避ける。 */
@@ -6843,6 +6847,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _pdmg = Math.floor(m.hp * 0.06) + 6;
       m.hp -= _pdmg;
       ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
+      resolveParalysisHit(m, ml);
       if (m.hp <= 0) {
         const _sporeKiller = m.sporePoisonKillerId
           ? (dg.monsters.find(other => other.id === m.sporePoisonKillerId) || {
@@ -6963,6 +6968,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
   /* 金縛り: 被ダメで解除。通常敵は時間制限なし。ボスのみ付与時に半分の paralyzeTurns で時間解除 */
+  if (m._pendingParalysisOutcome) {
+    const outcome = m._pendingParalysisOutcome.type;
+    delete m._pendingParalysisOutcome;
+    if (outcome === "weakened") {
+      ml.push(`${m.name ? `${m.name}の` : ""}強い金縛りが弱まった！(あと1回で解除)`);
+    } else if (!m.paralyzed) {
+      ml.push(`${m.name}はダメージで金縛りが解けた！`);
+      m.turnAccum = 0; m._movedThisTurn = true; return;
+    }
+  }
   if (m.paralyzed) {
     if (m._paralyzeHp != null && m.hp < m._paralyzeHp) {
       weakenOrClearParalysis(m, ml);
@@ -9592,6 +9607,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const damage = Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
           victim.hp -= damage;
           ml.push(`烈風が${victim.name}を襲う！${damage}ダメージ！`);
+          resolveParalysisHit(victim, ml);
           if (victim.hp <= 0) killMonster(victim, dg, pl, ml, _luFn, false, m);
         }
         return;

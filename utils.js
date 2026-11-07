@@ -1,4 +1,4 @@
-import { clearStatusEffectsOnHpZero } from "./statusDuration.js";
+import { clearStatusEffectsOnHpZero, applyDamageParalysisStep } from "./statusDuration.js";
 
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 
@@ -1063,6 +1063,7 @@ export function installPlayerHpReverseHook(p) {
     set(v) {
       const n = Number(v);
       if (!Number.isFinite(n)) { raw = v; return; }
+      const prevRaw = raw;
       if ((this.reverseTurns || 0) > 0) {
         const delta = n - raw;
         if (delta !== 0) {
@@ -1079,7 +1080,16 @@ export function installPlayerHpReverseHook(p) {
             this.deathCause = "逆転状態での回復により";
           }
           raw = next;
-          if (raw <= 0) clearStatusEffectsOnHpZero(this);
+          if (raw <= 0) {
+            clearStatusEffectsOnHpZero(this);
+          } else if (raw < prevRaw) {
+            if ((this.sleepTurns || 0) > 0) {
+              this.sleepTurns = 0;
+              this.sleepInterruptedTurns = Math.max(this.sleepInterruptedTurns || 0, 1);
+              this._pendingSleepWake = true;
+            }
+            applyDamageParalysisStep(this);
+          }
           return;
         }
       }
@@ -1101,12 +1111,27 @@ export function installPlayerHpReverseHook(p) {
       if (!fixedEffect && next < raw && raw >= (Number(this.maxHp) || raw) && next <= 0 && !isEnemyDamageContext(this)) {
         raw = 1;
         this._lastHpGutsTriggered = true;
+        if ((this.sleepTurns || 0) > 0) {
+          this.sleepTurns = 0;
+          this.sleepInterruptedTurns = Math.max(this.sleepInterruptedTurns || 0, 1);
+          this._pendingSleepWake = true;
+        }
+        applyDamageParalysisStep(this);
         return;
       }
       raw = next;
       /* HP0になった瞬間に状態異常を解除する。祭壇の罰など、ダメージ後に
          後続処理が走る場合も、自動ターンの残り物が状態を延長しないようにする。 */
-      if (raw <= 0) clearStatusEffectsOnHpZero(this);
+      if (raw <= 0) {
+        clearStatusEffectsOnHpZero(this);
+      } else if (raw < prevRaw) {
+        if ((this.sleepTurns || 0) > 0) {
+          this.sleepTurns = 0;
+          this.sleepInterruptedTurns = Math.max(this.sleepInterruptedTurns || 0, 1);
+          this._pendingSleepWake = true;
+        }
+        applyDamageParalysisStep(this);
+      }
     },
   });
   playerCapacityHpSetters.set(p, hp => {

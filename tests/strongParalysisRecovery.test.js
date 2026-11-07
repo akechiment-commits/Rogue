@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyMonsterParalyze } from "../statusDuration.js";
+import { applyMonsterParalyze, applyPlayerParalyze } from "../statusDuration.js";
 import { applyThrownItemToMonster, makePlayerClone, splashPotion, weakenOrClearParalysis } from "../items.js";
 import { castMeteor, advanceMeteors } from "../meteor.js";
 import { applyWandEffect } from "../wands.js";
 import { monsterAI } from "../monsters.js";
+import { advanceEarlyStatusTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 function setup(clone = false) {
@@ -76,4 +77,50 @@ it("HP確定後の近接命中も2回で解除し、被弾記録を残さない"
     expect(s.monster.paralyzed).toBe(hit < 2);
   }
   expect(s.monster).toMatchObject({ paralyzeHits: 0, paralyzeTurns: 0, _paralyzeHp: null });
+});
+
+it("プレイヤーの睡眠・金縛りと敵の金縛りは理由を問わずダメージを受けた瞬間に解除（強金縛りは通常金縛りへ弱体化）される", () => {
+  // 1. プレイヤーの直接ダメージ・毒・空腹による睡眠＆強金縛り解除
+  const player = makePlayer({ hp: 100, maxHp: 100, sleepTurns: 5 });
+  applyPlayerParalyze(player, 20, { blessed: true });
+  expect(player.paralyzeHits).toBe(2);
+
+  // 1回目のダメージ（任意の理由）: 睡眠解除＋強金縛りが通常金縛りに戻る
+  player.hp -= 5;
+  expect(player.sleepTurns).toBe(0);
+  expect(player.sleepInterruptedTurns).toBe(1);
+  expect(player.paralyzeTurns).toBe(20);
+  expect(player.paralyzeHits).toBe(1);
+
+  // 2回目のダメージ（毒ダメージ）: 金縛りが完全解除
+  player.poisoned = true;
+  player.poisonedTurns = 3;
+  const messages = [];
+  advanceEarlyStatusTimers(player, messages);
+  expect(player.paralyzeTurns).toBe(0);
+  expect(player.paralyzeHits).toBe(0);
+
+  // 空腹ダメージでも睡眠・金縛りが解除される
+  player.sleepTurns = 4;
+  applyPlayerParalyze(player, 10);
+  player.hunger = 0;
+  advancePlayerUpkeep(player, messages, {
+    hasAbility: () => false,
+    hasRingEffect: () => false,
+    calcHungerDrainRate: () => 0,
+  });
+  expect(player.sleepTurns).toBe(0);
+  expect(player.sleepInterruptedTurns).toBe(1);
+  expect(player.paralyzeTurns).toBe(0);
+
+  // 2. 敵の強金縛りもAIターンを待たずダメージを受けた瞬間に通常金縛りへ戻り、2回目で解除される
+  const s = setup();
+  expect(s.monster.paralyzed).toBe(true);
+  expect(s.monster.paralyzeHits).toBe(2);
+  s.monster.hp -= 10;
+  expect(s.monster.paralyzed).toBe(true);
+  expect(s.monster.paralyzeHits).toBe(1);
+  s.monster.hp -= 10;
+  expect(s.monster.paralyzed).toBe(false);
+  expect(s.monster.paralyzeHits).toBe(0);
 });

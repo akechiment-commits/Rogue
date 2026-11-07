@@ -28,6 +28,7 @@ export const BOSS_PARALYZE_TURNS = 50;
 /** プレイヤーへの金縛りを付与する。祝福時の強金縛りは2回分の被弾を要する。 */
 export function applyPlayerParalyze(target, turns, { blessed = false, mode = "set" } = {}) {
   if (!target || !(turns > 0)) return 0;
+  delete target._pendingParalysisOutcome;
   const wasParalyzed = !!target.paralyzed || (target.paralyzeTurns || 0) > 0;
   const current = target.paralyzeTurns || 0;
   target.paralyzeTurns = mode === "add"
@@ -40,11 +41,40 @@ export function applyPlayerParalyze(target, turns, { blessed = false, mode = "se
   return target.paralyzeTurns;
 }
 
+/** HP減少（被ダメージ）時に金縛りを1段階解除する内部ステップ。 */
+export function applyDamageParalysisStep(entity) {
+  if (!entity || entity._inParalysisHit > 0) return false;
+  if (!entity.paralyzed && (entity.paralyzeTurns || 0) <= 0) return false;
+  if ((entity.paralyzeHits || 0) > 1) {
+    entity.paralyzeHits--;
+    entity._paralyzeHp = entity.hp;
+    entity._pendingParalysisOutcome = { type: "weakened", hp: entity.hp };
+    return true;
+  }
+  entity.paralyzed = false;
+  entity.paralyzeHits = 0;
+  entity.paralyzeTurns = 0;
+  entity._paralyzeHp = null;
+  entity._pendingParalysisOutcome = { type: "cleared", hp: entity.hp };
+  return true;
+}
+
 /** 有効な攻撃や効果を受けた時の金縛り解除。強金縛りは2回分を数える。 */
 export function resolveParalysisHit(entity, messages = null, name = null) {
-  if (!entity || (!entity.paralyzed && (entity.paralyzeTurns || 0) <= 0)) return false;
-  const label = name ?? entity.name ?? "";
+  const label = name ?? entity?.name ?? "";
   const prefix = label ? `${label}の` : "";
+  if (entity?._pendingParalysisOutcome && entity._pendingParalysisOutcome.hp === entity.hp) {
+    const outcome = entity._pendingParalysisOutcome.type;
+    delete entity._pendingParalysisOutcome;
+    if (outcome === "weakened") {
+      messages?.push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
+    } else {
+      messages?.push(`${prefix}金縛りが解けた！`);
+    }
+    return true;
+  }
+  delete entity?._pendingParalysisOutcome;
+  if (!entity || (!entity.paralyzed && (entity.paralyzeTurns || 0) <= 0)) return false;
   if ((entity.paralyzeHits || 0) > 1) {
     entity.paralyzeHits--;
     entity._paralyzeHp = entity.hp;
@@ -333,8 +363,54 @@ export function clearStatusEffectsOnHpZero(entity) {
   delete entity._eqSpeedAutoAdv;
   delete entity._eqSpeedSlowPending;
   delete entity._dashInterrupt;
+  delete entity._pendingParalysisOutcome;
+  delete entity._pendingSleepWake;
 
   return hadStatus;
+}
+
+const monsterHpGetters = new WeakSet();
+
+export function installMonsterHpHook(monster) {
+  if (!monster || typeof monster !== "object") return false;
+  const descriptor = Object.getOwnPropertyDescriptor(monster, "hp");
+  if (descriptor?.get && monsterHpGetters.has(descriptor.get)) return false;
+
+  let currentHp = Number(monster.hp) || 0;
+  const getHp = function getMonsterHp() { return currentHp; };
+  monsterHpGetters.add(getHp);
+  Object.defineProperty(monster, "hp", {
+    configurable: true,
+    enumerable: true,
+    get: getHp,
+    set(value) {
+      const prevHp = currentHp;
+      const nextHp = Number(value);
+      if (!Number.isFinite(nextHp)) {
+        currentHp = value;
+        return;
+      }
+      if (nextHp < currentHp && this.baseKind === "boss_shinryu" && (this.mightyGuardTurns || 0) > 0 && !this._bypassMightyGuard) {
+        if (Number.isFinite(this.maxHp) && nextHp === this.maxHp && currentHp > this.maxHp) {
+          currentHp = nextHp;
+          return;
+        }
+        const incomingDamage = currentHp - nextHp;
+        currentHp = Math.max(0, currentHp - Math.max(1, Math.floor(incomingDamage / 2)));
+      } else {
+        currentHp = nextHp;
+      }
+      if (currentHp <= 0) {
+        clearStatusEffectsOnHpZero(this);
+        return;
+      }
+      const capacityClamp = Number.isFinite(this.maxHp) && currentHp === this.maxHp && prevHp > this.maxHp;
+      if (currentHp < prevHp && !capacityClamp) {
+        applyDamageParalysisStep(this);
+      }
+    },
+  });
+  return true;
 }
 
 export function isAttackSealed(entity) {
@@ -362,6 +438,8 @@ export function applyMonsterParalyze(target, { blessed = false, ml = null, name 
   if (!target || isStatusImmune(target, ml, name || target?.name)) return 0;
   if (blockLargeMonsterStatus(target, "paralyze", ml)) return 0;
   startLargeMonsterStatusCooldown(target, "paralyze");
+  installMonsterHpHook(target);
+  delete target._pendingParalysisOutcome;
   const nm = name || target.name || "敵";
   target.paralyzed = true;
   target._paralyzeHp = target.hp;
@@ -369,7 +447,7 @@ export function applyMonsterParalyze(target, { blessed = false, ml = null, name 
   if (target.isBoss) {
     const turns = statusTurns("paralyze", { kind: "monster", blessed, target });
     target.paralyzeTurns = Math.max(target.paralyzeTurns || 0, turns);
-    target.paralyzeHits = 0;
+    target.paralyzeHits = blessed ? 2 : 0;
     if (ml) ml.push(`${nm}は金縛りになった！(${turns}ターン)${blessed ? "【祝】" : ""}`);
     return turns;
   }

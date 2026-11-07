@@ -354,7 +354,26 @@ describe('上級25階ボス オープレンティ', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0.10);
       ohplentyDeathTrap(s.boss, s.dungeon, s.player, s.messages);
       expect(s.player.hp).toBeLessThan(200);
+      expect(s.player.sleepTurns).toBe(0);
+      expect(s.player.sleepInterruptedTurns).toBe(1);
       expect(s.messages.some(m => m.includes('デストラップ'))).toBe(true);
+    });
+
+    it('デストラップはプレイヤーのバリアで防がれ、耐金縛り防具で金縛り付与を防げる', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.50);
+      const s = setup({ x: 6, y: 10 });
+      s.player.barrier = 1;
+      ohplentyDeathTrap(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.player.barrier).toBe(0);
+      expect(s.player.hp).toBe(200);
+      expect(s.player.paralyzeTurns || 0).toBe(0);
+
+      // バリア消費後、耐金縛り防具ならダメージは受けるが金縛りは防ぐ
+      s.player.armor = { name: '耐金縛りの盾', ability: 'paralyze_proof', abilities: ['paralyze_proof'] };
+      ohplentyDeathTrap(s.boss, s.dungeon, s.player, s.messages);
+      expect(s.player.hp).toBeLessThan(200);
+      expect(s.player.paralyzeTurns || 0).toBe(0);
+      expect(s.messages.some(m => m.includes('耐金縛り'))).toBe(true);
     });
 
     it('他モンスターもデストラップを回避できる', () => {

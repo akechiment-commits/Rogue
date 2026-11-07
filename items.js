@@ -217,9 +217,12 @@ export function withParalysisHit(mon, ml, hit) {
   if (!mon) return hit();
   const wasParalyzed = !!mon.paralyzed;
   weakenOrClearParalysis(mon, ml);
+  mon._inParalysisHit = (mon._inParalysisHit || 0) + 1;
   try {
     return hit();
   } finally {
+    if (mon._inParalysisHit > 1) mon._inParalysisHit--;
+    else delete mon._inParalysisHit;
     if (wasParalyzed && mon.paralyzed) mon._paralyzeHp = mon.hp;
   }
 }
@@ -9978,12 +9981,15 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
             p.deathCause = `${_monster.name}に地震の魔法を反射されて`;
             p.hp -= _reflectedDamage;
             ml.push(`${_monster.name}が地震の魔法を反射した！${_reflectedDamage}ダメージ！`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
             continue;
           }
           if (consumeBarrier(_monster, ml)) continue;
           const _damage = _enemyMagicDamage(_baseDamage, _monster);
           _monster.hp -= _damage;
           ml.push(`地震の魔法が${_monster.name}に命中！${_damage}ダメージ！`);
+          resolveParalysisHit(_monster, ml);
           if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, luFn);
         }
       }

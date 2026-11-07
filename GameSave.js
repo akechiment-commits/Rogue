@@ -5,7 +5,7 @@
 import { installPlayerHpReverseHook, MW, MH, TI } from "./utils.js";
 import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
-import { installShinryuMightyGuardHpHook } from "./mightyGuardHp.js";
+import { installMonsterHpHook } from "./statusDuration.js";
 
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 const GAME_SAVE_VERSION = 2;
@@ -178,7 +178,7 @@ export function loadGameState() {
     const data = normalizeSaveData(JSON.parse(raw));
     if (!data) return null;
     for (const dungeon of [data.dungeon, ...Object.values(data.floors || {})]) {
-      for (const monster of dungeon.monsters || []) installShinryuMightyGuardHpHook(monster);
+      for (const monster of dungeon.monsters || []) installMonsterHpHook(monster);
     }
     const identifiedBigboxes = new Set(data.identifiedBigboxes || []);
     /* 変更前のセーブには共有識別状態がないため、既に revealed だった種類を引き継ぐ。 */

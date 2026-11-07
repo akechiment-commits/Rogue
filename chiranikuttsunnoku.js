@@ -7,6 +7,7 @@ import { monEffectiveFloat } from './monTraits.js';
 import { monsterPointDistance, monsterBodyCells } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { applyPlayerPoison, resolveParalysisHit, statusResultMessage } from './statusDuration.js';
+import { interruptPlayerSleep } from './turnUpkeep.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { pushSplashAnim, pushAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
@@ -65,6 +66,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
       const dmg = Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2));
       pl.hp -= dmg;
       pl.deathCause = `${m.name}のアースブレイカーで`;
+      interruptPlayerSleep(pl, ml);
       resolveParalysisHit(pl, ml);
       ml.push(`激しい地響きが${plName(pl)}を襲う！${dmg}ダメージ！`);
       onHit?.(dmg, m);
@@ -102,6 +104,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
     const vDef = victim.def || 0;
     const vDmg = Math.max(1, calcAtkDefDmg(effAtk, vDef, { defWeight: 1, variance: false }) + rng(-2, 2));
     victim.hp -= vDmg;
+    resolveParalysisHit(victim, ml);
     ml.push(`激しい地響きが${victim.name}に命中！${vDmg}ダメージ！`);
 
     if (victim.hp > 0) {

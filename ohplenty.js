@@ -1,4 +1,4 @@
-import { inMagicSealRoom, hasRingEffect, killMonster, hasPlayerMagicReflect, drownMonsterIfNeeded } from './items.js';
+import { inMagicSealRoom, hasRingEffect, killMonster, hasPlayerMagicReflect, drownMonsterIfNeeded, blockPlayerStatus } from './items.js';
 import { isStatusImmune } from './statusImmunity.js';
 import { plName } from './playerLabel.js';
 import {
@@ -457,6 +457,8 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
       !!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
     if (plOnSanc) {
       ml.push(`聖域の加護が${m.name}のデストラップを防いだ！`);
+    } else if (consumeBarrier(pl, ml)) {
+      // バリア消費で無効化
     } else if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "デストラップ", onMiss })) {
       // 回避成功：ダメージ・金縛りなし
     } else {
@@ -465,13 +467,14 @@ export function ohplentyDeathTrap(m, dg, pl, ml, opts = {}, onPlayerHit = null, 
       pl.deathCause = `${m.name}のデストラップで`;
       pl.hp -= dmg;
       onHit?.(dmg, m);
+      interruptPlayerSleep(pl, ml);
       resolveParalysisHit(pl, ml);
       ml.push(`${m.name}のトラップが${plName(pl)}を襲う！${dmg}ダメージ！`);
 
       if (pl.hp > 0) {
         if (inMagicSealRoom(pl.x, pl.y, dg) || inMagicSealRoom(m.x, m.y, dg)) {
           ml.push("魔封じの魔方陣が金縛りを防いだ！");
-        } else if (!isStatusImmune(pl, ml, "自分")) {
+        } else if (!blockPlayerStatus(pl, ml, { proofAbility: "paralyze_proof", proofMsg: "しかし防具が金縛りを防いだ！(耐金縛り)" })) {
           const pTurns = statusTurns("paralyze", { kind: "player" });
           applyPlayerParalyze(pl, pTurns, { mode: "max" });
           ml.push(`${plName(pl)}は金縛りで動けなくなった！(${pTurns}ターン)`);
