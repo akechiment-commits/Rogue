@@ -7863,6 +7863,21 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0, killerMon = null) {
   const _collisionAtk = monScaleOutgoingDamage(killerMon, collisionAtk);
+  const _damageMonsterOnCollision = (monster, damage) => {
+    if (!monster || !(damage > 0) || consumeBarrier(monster, ml)) return 0;
+    monster.hp -= damage;
+    wakeIfDormant(monster, ml);
+    resolveParalysisHit(monster, ml);
+    return damage;
+  };
+  const _damagePlayerOnCollision = (damage, deathCause) => {
+    if (!p || !(damage > 0) || consumeBarrier(p, ml)) return 0;
+    p.deathCause = deathCause;
+    p.hp -= damage;
+    interruptPlayerSleep(p, ml);
+    resolveParalysisHit(p, ml);
+    return damage;
+  };
   if (kind === "monster" && entity?.forcedMoveImmune) {
     if (ml) ml.push(`${entity.name}は強制移動を受けない！`);
     return { x, y, consumed: false, blocked: true };
@@ -7877,14 +7892,18 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
-      if (kind === "monster") { const _impact = monScaleOutgoingDamage(killerMon, 5); entity.hp -= _impact; ml.push(`${entity.name}は壁に叩きつけられた！${_impact}ダメージ！`); }
+      if (kind === "monster") {
+        const _impact = monScaleOutgoingDamage(killerMon, 5);
+        const _dealt = _damageMonsterOnCollision(entity, _impact);
+        ml.push(`${entity.name}は壁に叩きつけられた！${_dealt > 0 ? `${_dealt}ダメージ！` : ""}`);
+      }
       if (kind === "player")  {
         const _impact = monScaleOutgoingDamage(killerMon, 5);
-        p.deathCause = killerMon?.name
+        const _cause = killerMon?.name
           ? `${killerMon.name}に吹き飛ばされての壁への激突により`
           : "吹き飛ばされての壁への激突により";
-        p.hp -= _impact;
-        ml.push(`壁に叩きつけられた！${_impact}ダメージ！`);
+        const _dealt = _damagePlayerOnCollision(_impact, _cause);
+        ml.push(`壁に叩きつけられた！${_dealt > 0 ? `${_dealt}ダメージ！` : ""}`);
       }
       break;
     }
@@ -7919,10 +7938,12 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
       /* プレイヤーとの衝突 */
       if (p && monsterOccupiesCell({ ...entity, x: nx, y: ny }, p.x, p.y)) {
         if (_collisionAtk > 0) {
-          entity.hp -= _collisionAtk;
-          p.deathCause = `${entity.name}との衝突により`;
-          p.hp -= _collisionAtk;
-          ml.push(`${entity.name}が${pl()}に激突！お互いに${_collisionAtk}ダメージ！`);
+          const _entityDamage = _damageMonsterOnCollision(entity, _collisionAtk);
+          const _playerDamage = _damagePlayerOnCollision(_collisionAtk, `${entity.name}との衝突により`);
+          const _damageParts = [];
+          if (_entityDamage > 0) _damageParts.push(`${entity.name}に${_entityDamage}ダメージ`);
+          if (_playerDamage > 0) _damageParts.push(`${_playerDamage}ダメージ`);
+          ml.push(`${entity.name}が${pl()}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
         }
         break;
       }
@@ -7930,10 +7951,13 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
       const _colM = dg.monsters.find(m => m !== entity && monsterBodiesOverlap(entity, m, nx, ny));
       if (_colM) {
         if (_collisionAtk > 0) {
-          entity.hp -= _collisionAtk;
-          _colM.hp -= _collisionAtk;
+          const _entityDamage = _damageMonsterOnCollision(entity, _collisionAtk);
+          const _victimDamage = _damageMonsterOnCollision(_colM, _collisionAtk);
           collisionVictim = _colM;
-          ml.push(`${entity.name}が${_colM.name}に激突！お互いに${_collisionAtk}ダメージ！`);
+          const _damageParts = [];
+          if (_entityDamage > 0) _damageParts.push(`${entity.name}に${_entityDamage}ダメージ`);
+          if (_victimDamage > 0) _damageParts.push(`${_colM.name}に${_victimDamage}ダメージ`);
+          ml.push(`${entity.name}が${_colM.name}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
         }
         break;
       }
@@ -7943,11 +7967,13 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
       const _pColM = monsterAt(dg, nx, ny);
       if (_pColM) {
         if (_collisionAtk > 0) {
-          p.hp -= _collisionAtk;
-          p.deathCause = `${_pColM.name}との衝突により`;
-          _pColM.hp -= _collisionAtk;
+          const _playerDamage = _damagePlayerOnCollision(_collisionAtk, `${_pColM.name}との衝突により`);
+          const _monsterDamage = _damageMonsterOnCollision(_pColM, _collisionAtk);
           collisionVictim = _pColM;
-          ml.push(`${_pColM.name}に激突！お互いに${_collisionAtk}ダメージ！`);
+          const _damageParts = [];
+          if (_playerDamage > 0) _damageParts.push(`${_playerDamage}ダメージ`);
+          if (_monsterDamage > 0) _damageParts.push(`${_pColM.name}に${_monsterDamage}ダメージ`);
+          ml.push(`${_pColM.name}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
         }
         break;
       }
@@ -7959,8 +7985,11 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
   if (kind === "monster" || kind === "player") {
     entity.x = cx; entity.y = cy;
   }
-  if (collisionVictim?.hp <= 0 && dg.monsters.includes(collisionVictim)) {
-    killMonster(collisionVictim, dg, p, ml, luFn, false, killerMon);
+  const _collisionDeaths = [...new Set([kind === "monster" ? entity : null, collisionVictim])];
+  for (const _deadMonster of _collisionDeaths) {
+    if (_deadMonster?.hp <= 0 && dg.monsters.includes(_deadMonster)) {
+      killMonster(_deadMonster, dg, p, ml, luFn, false, killerMon);
+    }
   }
   if (kind === "monster") {
     if (!dg.monsters.includes(entity)) return { x: cx, y: cy, consumed: false, killed: true };
