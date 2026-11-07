@@ -8,7 +8,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
-import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, KATANA_T, MURAMASA_T, SILVER_AXE_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
+import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, KATANA_T, MURAMASA_T, SILVER_AXE_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, clearShopItemTags, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
 import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T, releaseConfinedMonstersFromPot } from "./items.js";
 import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
@@ -1717,7 +1717,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 }
 
 /* ===== Shop Modal ===== */
-export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile, shopActionsRef, doFloorPickup }) {
+export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile, shopActionsRef }) {
   if (shopActionsRef) shopActionsRef.current = null;
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
@@ -1730,6 +1730,37 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
     label: `所持品を識別してもらう（${_identifyTargets.length}件）`,
     fn: () => { setMode(returnMode); setMenuSel(0); },
   });
+  const _buyInventoryShopItem = (item) => {
+    const s = sr.current;
+    if (!s || !item) return;
+    const p = s.player;
+    const owned = p.inventory.find(entry => entry.id === item.id);
+    if (!owned?.shopPrice) return;
+    const shop = getShops(s.dungeon).find(entry => entry.id === owned._shopId) || _curShopH || getShops(s.dungeon)[0];
+    if (!shop) return;
+    const price = getShopItemCharge(owned);
+    if ((p.gold || 0) < price) {
+      setMsgs(prev => [...prev.slice(-80), `お金が足りない！（必要:${price}G）`]);
+      return;
+    }
+    const label = itemDisplayName(owned, s.fakeNames, s.ident, s.nicknames);
+    p.gold -= price;
+    shop.unpaidTotal = Math.max(0, (shop.unpaidTotal || 0) - price);
+    clearShopItemTags(owned);
+    if (shop.unpaidTotal === 0) {
+      const keeper = s.dungeon.monsters?.find(monster => monster.id === shop.shopkeeperId);
+      if (keeper) moveShopkeeperHome(keeper, shop, s.dungeon);
+    }
+    if (getShops(s.dungeon).every(entry => (entry.unpaidTotal || 0) === 0)) {
+      s.dungeon.shopTheft = false;
+      p.isThief = false;
+    }
+    setMsgs(prev => [...prev.slice(-80), `${label}の代金${price}Gを支払った。`]);
+    sr.current = { ...s };
+    setGs({ ...sr.current });
+    setMode("buy");
+    setMenuSel(0);
+  };
   let confirmShopOption = () => {};
   let completed = false;
   const cancelShop = () => {
@@ -1916,32 +1947,39 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
       })()}
       {mode === "buy" && (() => {
         const _buyShop = _curShopH;
-        const _stock = _buyShop?.room ? gs.dungeon.items.filter(item =>
-          item.shopPrice && (!item._shopId || item._shopId === _buyShop.id) &&
-          item.x >= _buyShop.room.x && item.x < _buyShop.room.x + _buyShop.room.w &&
-          item.y >= _buyShop.room.y && item.y < _buyShop.room.y + _buyShop.room.h,
-        ) : [];
+        const _unpaidItems = gs.player.inventory.filter(item =>
+          item.shopPrice && (!item._shopId || item._shopId === _buyShop?.id),
+        );
+        const _listedUnpaid = _unpaidItems.reduce((sum, item) => sum + getShopItemCharge(item), 0);
+        const _otherUnpaid = Math.max(0, (_buyShop?.unpaidTotal || 0) - _listedUnpaid);
         const options = [
-          ..._stock.map(item => ({
+          ..._unpaidItems.map(item => ({
             label: `${itemDisplayName(item, gs.fakeNames, gs.ident, gs.nicknames)}　${getShopItemCharge(item).toLocaleString()}G`,
-            fn: () => { doFloorPickup?.(item); setMenuSel(0); },
+            disabled: (gs.player.gold || 0) < getShopItemCharge(item),
+            fn: () => _buyInventoryShopItem(item),
           })),
+          ...(_otherUnpaid > 0 ? [{
+            label: `残りの未払いを全額精算する（${(_buyShop?.unpaidTotal || 0).toLocaleString()}G）`,
+            disabled: (gs.player.gold || 0) < (_buyShop?.unpaidTotal || 0),
+            fn: () => { setMode("pay"); setMenuSel(0); },
+          }] : []),
           { label: "やめる", fn: () => setMode(null) },
         ];
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
-              店主：「お買い上げの品をお選びください。」（所持金: {(gs.player.gold || 0).toLocaleString()}G）
+              店主：「所持品の未払い商品をお選びください。」（所持金: {(gs.player.gold || 0).toLocaleString()}G）
             </div>
-            {_stock.length === 0 && <div style={{ color: "#888", fontSize: 13 }}>店に商品がありません。</div>}
+            {_unpaidItems.length === 0 && _otherUnpaid <= 0 && <div style={{ color: "#888", fontSize: 13 }}>所持品に未払いの商品はありません。</div>}
             <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
-              {shopOptions(options).map((item, mi) => (
-                <button key={`${item.label}-${mi}`} onClick={() => confirmShopOption(mi)} style={{
+              {shopOptions(options).map((option, mi) => (
+                <button key={`${option.label}-${mi}`} onClick={() => confirmShopOption(mi)} disabled={option.disabled} style={{
                   display: "block", width: "100%", padding: "6px 10px", marginBottom: 2,
-                  background: menuSel === mi ? "#4a2a00" : "#2a1a00",
+                  background: option.disabled ? "#1b160f" : menuSel === mi ? "#4a2a00" : "#2a1a00",
                   border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
-                  color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 14, cursor: "pointer", textAlign: "left",
-                }}>{item.label}</button>
+                  color: option.disabled ? "#664422" : menuSel === mi ? "#ffa" : "#fa8", fontSize: 14,
+                  cursor: option.disabled ? "default" : "pointer", textAlign: "left",
+                }}>{option.label}</button>
               ))}
             </div>
             <div style={{ color: "#665533", fontSize: 11, marginTop: 4 }}>
