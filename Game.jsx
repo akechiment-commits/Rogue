@@ -3167,6 +3167,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   p.y = ny;
                   _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
                   ml.push(`${attackMon.name || (attackMon.isAltarPriest ? "司祭" : "店主")}と場所を入れ替えた。`);
+                  if (_bumpShop) {
+                    setShopMode("sell");
+                    setShopMenuSel(0);
+                    ml.push("店主：「品物を売りますか？取り消すと店の商品を選べます。」");
+                  }
                   acted = true;
                 }
               } else if (_attackSlot.range === 1 && (_hitX !== nx || _hitY !== ny)) {
@@ -4173,19 +4178,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const dg6 = sr.current.dungeon;
         const _talkShop = getShops(dg6).find(s => s.shopkeeperId === mon.id);
         if (_talkShop) {
-          const fis2 = dg6.items.filter(
-            (i) => !i.shopPrice && i.x >= _talkShop.room.x && i.x < _talkShop.room.x + _talkShop.room.w &&
-              i.y >= _talkShop.room.y && i.y < _talkShop.room.y + _talkShop.room.h,
-          );
-          if (fis2.length > 0) {
-            setShopMode("sell"); setShopMenuSel(0);
-            setMsgs((prev) => [...prev.slice(-80), "店主：「買い取りましょうか？」"]);
-          } else if (_talkShop.unpaidTotal > 0) {
+          if (_talkShop.unpaidTotal > 0) {
             setShopMode("pay"); setShopMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), `店主：「お代は${_talkShop.unpaidTotal}Gです。」`]);
           } else {
-            setShopMode("browse"); setShopMenuSel(0);
-            setMsgs((prev) => [...prev.slice(-80), "店主：「いらっしゃいませ！」"]);
+            setShopMode("sell"); setShopMenuSel(0);
+            setMsgs((prev) => [...prev.slice(-80), "店主：「品物を売りますか？取り消すと店の商品を選べます。」"]);
           }
         }
       } else act("move", fd.dx, fd.dy);
@@ -7737,7 +7735,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <SignModal sign={showSign} onClose={() => setShowSign(null)} mobile={mobile} />
       <MiniTipModal tip={miniTip} onClose={closeMiniTip} mobile={mobile} />
       <MsgLogModal show={msgLogMode || (dead && gameOverView === "log") || (showEnding && endingView === "log")} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => { if (dead && gameOverView === "log") setGameOverView(null); else if (showEnding && endingView === "log") setEndingView(null); else setMsgLogMode(false); }} mobile={mobile} />
-      <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} shopActionsRef={shopActionsRef} />
+      <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} shopActionsRef={shopActionsRef} doFloorPickup={_doFloorPickup} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
       <GachaModal mode={gachaMode} setMode={setGachaMode} gs={gs} gachaRef={gachaRef} menuSel={gachaMenuSel} setMenuSel={setGachaMenuSel} onDraw={doGachaDraw} mobile={mobile} />
       <AltarModal mode={altarMode} setMode={setAltarMode} p={p} menuSel={altarMenuSel} setMenuSel={setAltarMenuSel} onOffer={doOfferFood} mobile={mobile} dname={dnameRef} />
