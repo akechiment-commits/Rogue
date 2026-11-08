@@ -2111,42 +2111,71 @@ function addWaterPools(map, rooms, su, sd, monsters = []) {
   for (const r of rooms) {
     if (r.hasFloatingIsland) continue; /* 浮島部屋には水溜まりを重複配置しない */
     if (r.w < 6 || r.h < 5) continue; /* 小さい部屋はスキップ */
-    if (Math.random() >= 0.40) continue; /* 40%の確率で水溜まり */
-    /* 部屋の四隅（コーナー）または端に寄せて配置し、中央の通路導通部(cx, cy)を避ける */
-    const pw = rng(2, Math.min(5, Math.max(2, Math.floor(r.w * 0.45))));
-    const ph = rng(2, Math.min(4, Math.max(2, Math.floor(r.h * 0.45))));
-    const corner = rng(0, 3);
-    let px, py;
-    if (corner === 0) { // 左上
-      px = r.x + 1;
-      py = r.y + 1;
-    } else if (corner === 1) { // 右上
-      px = r.x + r.w - 1 - pw;
-      py = r.y + 1;
-    } else if (corner === 2) { // 左下
-      px = r.x + 1;
-      py = r.y + r.h - 1 - ph;
-    } else { // 右下
-      px = r.x + r.w - 1 - pw;
-      py = r.y + r.h - 1 - ph;
-    }
-    for (let wy = py; wy < py + ph; wy++) {
-      for (let wx = px; wx < px + pw; wx++) {
-        /* 部屋センター周辺(cx±1, cy±1)は通路導通のため水にしない */
-        if (Math.abs(wx - r.cx) <= 1 && Math.abs(wy - r.cy) <= 1) continue;
-        if (map[wy]?.[wx] === T.FLOOR &&
-            !(wx === su.x && wy === su.y) &&
-            !(wx === sd.x && wy === sd.y) &&
-            !monsters.some(monster => monsterOccupiesCell(monster, wx, wy))) {
-          map[wy][wx] = T.WATER;
+    if (Math.random() >= 0.45) continue; /* 45%の確率で水溜まり（池）を配置 */
+
+    const inRoom = (pt) => pt && pt.x >= r.x && pt.x < r.x + r.w && pt.y >= r.y && pt.y < r.y + r.h;
+    const hasStair = inRoom(su) || inRoom(sd);
+
+    /* 部屋の広さに応じた池の大きさ（最大6×5） */
+    const maxPw = Math.min(6, Math.max(2, r.w - 3));
+    const maxPh = Math.min(5, Math.max(2, r.h - 3));
+    const pw = rng(2, maxPw);
+    const ph = rng(2, maxPh);
+
+    for (let attempt = 0; attempt < 6; attempt++) {
+      let px, py;
+      const roll = Math.random();
+      if (!hasStair && roll < 0.60) {
+        /* 階段のない部屋なら、積極的に部屋の真ん中あたりに池を配置 */
+        px = r.x + Math.floor((r.w - pw) / 2) + rng(-1, 1);
+        py = r.y + Math.floor((r.h - ph) / 2) + rng(-1, 1);
+      } else if (roll < 0.70) {
+        /* 部屋の内側ランダム（端から1マス以上空ける） */
+        px = rng(r.x + 1, r.x + r.w - 1 - pw);
+        py = rng(r.y + 1, r.y + r.h - 1 - ph);
+      } else {
+        /* 端・四隅寄り */
+        const corner = rng(0, 3);
+        px = (corner % 2 === 0) ? r.x + 1 : r.x + r.w - 1 - pw;
+        py = (corner < 2) ? r.y + 1 : r.y + r.h - 1 - ph;
+      }
+
+      px = clamp(px, r.x + 1, r.x + r.w - 1 - pw);
+      py = clamp(py, r.y + 1, r.y + r.h - 1 - ph);
+
+      const waterCells = [];
+      for (let wy = py; wy < py + ph; wy++) {
+        for (let wx = px; wx < px + pw; wx++) {
+          /* 階段の直上および階段の隣接マス（周囲1マス）は水にしない */
+          if (su && Math.abs(wx - su.x) <= 1 && Math.abs(wy - su.y) <= 1) continue;
+          if (sd && Math.abs(wx - sd.x) <= 1 && Math.abs(wy - sd.y) <= 1) continue;
+          /* 3×3以上の池は四隅を少し削って自然な楕円・丸み形状にする */
+          if (pw >= 3 && ph >= 3) {
+            const isCorner = (wx === px || wx === px + pw - 1) && (wy === py || wy === py + ph - 1);
+            if (isCorner && Math.random() < 0.30) continue;
+          }
+          if (map[wy]?.[wx] === T.FLOOR && !monsters.some(monster => monsterOccupiesCell(monster, wx, wy))) {
+            waterCells.push({ x: wx, y: wy });
+          }
         }
       }
+
+      if (waterCells.length < 2) continue;
+
+      /* 部屋内の全通路口および階段との導通をBFSで検証 */
+      if (!canCirculateRoom(map, r, waterCells, su, sd)) continue;
+
+      /* 水マスを配置 */
+      for (const wc of waterCells) {
+        map[wc.y][wc.x] = T.WATER;
+      }
+      break;
     }
   }
 }
 
-/* 浮島水リングの周囲を通って部屋内の全通路口が相互到達可能かを検証するBFSチェック */
-function canCirculateRoom(map, r, islandWaterCells) {
+/* 水タイルの周囲を通って部屋内の全通路口および階段が相互到達可能かを検証するBFSチェック */
+function canCirculateRoom(map, r, candidateWaterCells, su = null, sd = null) {
   const entries = [];
   for (let x = r.x; x < r.x + r.w; x++) {
     if (map[r.y - 1]?.[x] === T.FLOOR) entries.push({ x, y: r.y });
@@ -2156,12 +2185,25 @@ function canCirculateRoom(map, r, islandWaterCells) {
     if (map[y]?.[r.x - 1] === T.FLOOR) entries.push({ x: r.x, y });
     if (map[y]?.[r.x + r.w] === T.FLOOR) entries.push({ x: r.x + r.w - 1, y });
   }
-  if (entries.length <= 1) return true;
 
-  const waterSet = new Set(islandWaterCells.map(c => `${c.x},${c.y}`));
+  /* 部屋内に階段がある場合は、その階段からも通路口へ歩いて出られることを保証 */
+  const inRoom = (pt) => pt && pt.x >= r.x && pt.x < r.x + r.w && pt.y >= r.y && pt.y < r.y + r.h;
+  const roomSu = inRoom(su) ? su : null;
+  const roomSd = inRoom(sd) ? sd : null;
+
+  const targets = [...entries];
+  if (roomSu) targets.push(roomSu);
+  if (roomSd) targets.push(roomSd);
+
+  if (targets.length <= 1) return true;
+
+  const waterSet = new Set(candidateWaterCells.map(c => `${c.x},${c.y}`));
+  const start = targets[0];
+  if (waterSet.has(`${start.x},${start.y}`)) return false;
+
   const visited = new Set();
-  const q = [entries[0]];
-  visited.add(`${entries[0].x},${entries[0].y}`);
+  const q = [start];
+  visited.add(`${start.x},${start.y}`);
   while (q.length > 0) {
     const cur = q.shift();
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -2170,12 +2212,14 @@ function canCirculateRoom(map, r, islandWaterCells) {
       const k = `${nx},${ny}`;
       if (visited.has(k)) continue;
       if (waterSet.has(k)) continue;
-      if (map[ny]?.[nx] !== T.FLOOR) continue;
+      const tile = map[ny]?.[nx];
+      /* 床・階段・ドアを通行可能と判定 */
+      if (tile !== T.FLOOR && tile !== T.SU && tile !== T.SD && tile !== T.DOOR) continue;
       visited.add(k);
       q.push({ x: nx, y: ny });
     }
   }
-  return entries.every(e => visited.has(`${e.x},${e.y}`));
+  return targets.every(t => visited.has(`${t.x},${t.y}`));
 }
 
 /* ===== FLOATING ISLANDS ===== */
@@ -2221,7 +2265,7 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, monsters,
     }
 
     /* 通路導通チェック：水リングを置いても部屋外周を通ってすべての通路口間を移動できること */
-    if (!canCirculateRoom(map, r, waterCells)) continue;
+    if (!canCirculateRoom(map, r, waterCells, su, sd)) continue;
 
     /* 外周の空いている床マス（退避用）を取得するヘルパー */
     const getSafeFloorCell = () => {
@@ -4104,17 +4148,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   for (let bi = bigboxes.length - 1; bi >= 0; bi--) {
     if (map[bigboxes[bi].y]?.[bigboxes[bi].x] === T.WATER) bigboxes.splice(bi, 1);
   }
-  /* 部屋センター周辺の水タイルを床に戻す（通路の連結を保証） */
-  /* ※浮島部屋は外周の陸地で導通保証されているため、中央の水リングを壊さないようスキップ */
-  for (const r of nonShopRooms) {
-    if (r.hasFloatingIsland) continue;
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const nx = r.cx + dx, ny = r.cy + dy;
-        if (map[ny]?.[nx] === T.WATER) map[ny][nx] = T.FLOOR;
-      }
-    }
-  }
+  /* 浮島・水溜まりともに canCirculateRoom（BFS）により部屋外周・通路口間の導通が保証されているため、中央水タイルの強制床戻しは不要 */
   /* waterOnlyモンスター（わてり等）を水タイルに配置 — 全水面操作の後に行う */
   {
     const _waterTiles = [];
