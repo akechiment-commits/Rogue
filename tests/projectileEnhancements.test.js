@@ -115,4 +115,26 @@ describe('飛び道具・投擲のバリア・状態解除・反射防具検証'
     actions.execDirection(0, 1);
     expect(msgs.some(m => m.includes("胞子"))).toBe(true);
   });
+  it("壺投擲命中時、敵の初期仮眠と金縛りが解除され、友好的NPCは敵対化する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const pot = { id: "p1", name: "保存の壺", type: "pot", potEffect: "preserve", capacity: 4, contents: [] };
+    const player = makePlayer({ x: 2, y: 2, depth: 1, hp: 100, maxHp: 100, inventory: [pot] });
+    const npc = { id: "m1", name: "店主", type: "shopkeeper", x: 2, y: 4, hp: 100, maxHp: 100, def: 0, dormant: true, paralyzeTurns: 5 };
+    const visible = Array.from({ length: MH }, () => Array(MW).fill(true));
+    const dungeon = makeEmptyDg({ depth: 1, monsters: [npc], visible, explored: visible, rooms: [] });
+    const sr = { current: { player, dungeon, ident: new Set() } };
+    const msgs = [];
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs: (fn) => msgs.push(...fn([])), setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setThrowMode: vi.fn(), throwMode: { idx: 0, mode: "throw" },
+      pushAnim: () => {}, withPitfallBag: (fn) => fn()
+    });
+
+    actions.execDirection(0, 1);
+    expect(npc.dormant).toBe(false);
+    expect(npc.paralyzeTurns).toBe(0);
+    expect(npc.state).toBe("hostile");
+    expect(msgs.some(m => m.includes("金縛りが解けた"))).toBe(true);
+  });
 });

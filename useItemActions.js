@@ -4604,12 +4604,18 @@ export function useItemActions({
                 }
                 const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
+                wakeIfDormant(m, ml);
+                resolveParalysisHit(m, ml);
+                markWanderingNpcHostile(m, dg, p, ml);
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
                 triggerMushroomCounterSpore(m, dg, p, ml);
                 if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
               } else {
                 const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
+                wakeIfDormant(m, ml);
+                resolveParalysisHit(m, ml);
+                markWanderingNpcHostile(m, dg, p, ml);
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
                 triggerMushroomCounterSpore(m, dg, p, ml);
                 if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
