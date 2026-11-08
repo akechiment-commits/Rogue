@@ -674,6 +674,40 @@ describe("populateHiddenRoom", () => {
     expect(hr.isTreasureVault).toBeUndefined();
     expect(traps.filter(t => t.effect === "spin").length).toBe(1);
   });
+
+  it("隠し部屋に収納上手の巻物は追加配置されず、大箱・泉以外のオブジェクト（ガチャ・石像・祭壇・宝石）も配置される", () => {
+    let hasGem = false;
+    let hasGacha = false;
+    let hasStatue = false;
+    let hasAltar = false;
+    let expandCount = 0;
+
+    for (let trial = 0; trial < 150; trial++) {
+      const hr = { x: 10, y: 10, w: 5, h: 4 };
+      const map = makeHiddenRoomMap(hr);
+      const items = [], bigboxes = [], springs = [], traps = [];
+      const gachaMachines = [], statues = [], altars = [];
+
+      populateHiddenRoom(hr, map, 5, items, bigboxes, springs, traps, "standard", {
+        gachaMachines, statues, altars
+      });
+
+      const expandScrolls = items.filter(i => i.effect === "expand_inv");
+      expandCount += expandScrolls.length;
+
+      if (items.some(i => i.type === "gem")) hasGem = true;
+      if (gachaMachines.length > 0) hasGacha = true;
+      if (statues.length > 0) hasStatue = true;
+      if (altars.length > 0) hasAltar = true;
+    }
+
+    // 以前は30%の固定枠で45回以上追加されていたが、通常Bレア枠のみになり激減すること
+    expect(expandCount).toBeLessThan(15);
+    expect(hasGem).toBe(true);
+    expect(hasGacha).toBe(true);
+    expect(hasStatue).toBe(true);
+    expect(hasAltar).toBe(true);
+  });
 });
 
 describe("prepareLastFloor", () => {

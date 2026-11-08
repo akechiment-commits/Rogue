@@ -8,7 +8,7 @@ import {
   GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, rollGeneratedWandCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
   maybeApplyInitialNegativeEquipmentPlus,
 } from './items.js';
-import { scatterFloorGimmicks, makeAltar, placeAltarPriest, ensureAltarPriests } from './fixtures.js';
+import { scatterFloorGimmicks, makeAltar, makeStatue, placeAltarPriest, ensureAltarPriests } from './fixtures.js';
 import { trapPoolForDungeon, bbPoolForDungeon, lootPoolForDungeon, lootAllowedInDungeon } from "./dungeonContent.js";
 import { HEXACHROMATIC_BOSS } from './monsters.js';
 import {
@@ -657,12 +657,15 @@ function applyStdMods(it, depth) {
   return it;
 }
 
-export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType = null, { luxury = false } = {}) {
+export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType = null, { luxury = false, gachaMachines = null, statues = null, altars = null } = {}) {
   const allOcc = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y) ||
     springs.some(s => s.x === x && s.y === y) ||
-    traps.some(t => t.x === x && t.y === y);
+    traps.some(t => t.x === x && t.y === y) ||
+    (gachaMachines && gachaMachines.some(g => g.x === x && g.y === y)) ||
+    (statues && statues.some(st => st.x === x && st.y === y)) ||
+    (altars && altars.some(al => al.x === x && al.y === y));
   const floorTiles = [];
   for (let dy = 0; dy < hr.h; dy++)
     for (let dx = 0; dx < hr.w; dx++) {
@@ -670,6 +673,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       if (map[fy][fx] === T.FLOOR) floorTiles.push([fx, fy]);
     }
   if (floorTiles.length === 0) return;
+
   /* 20% の確率で宝物庫（金貨びっしり）になる。豪華版は金貨と大箱が少し増える。 */
   if (Math.random() < 0.20) {
     hr.isTreasureVault = true;
@@ -691,52 +695,106 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
         break;
       }
     }
-  } else {
-  /* 通常はアイテム2〜4個、豪華版は5〜7個（B/A/Sレアリティ限定、祝福30%呪い10%） */
-  const itemCount = rng(luxury ? 5 : 2, Math.min(luxury ? 7 : 4, floorTiles.length));
-  let placed = 0;
-  for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
-    const [ix, iy] = pick(floorTiles);
-    if (allOcc(ix, iy)) continue;
-    const it = applyRareMods(pickRareItem(depth, dungeonType), depth);
-    it.x = ix; it.y = iy;
-    items.push(it);
-    placed++;
-  }
-  /* 収納上手の巻物（通常30%、豪華版35%で追加配置） */
-  if (Math.random() < (luxury ? 0.35 : 0.30)) {
-    const _expSc = ITEMS.find(i => i.effect === "expand_inv");
-    const _expFloor = dungeonType === "beginner" ? Math.max(6, depth + 1) : depth + 1;
-    if (_expSc && lootAllowedInDungeon(_expSc, dungeonType, _expFloor)) {
+    /* 宝物庫でも低確率（25%）でガチャマシンが出現 */
+    if (gachaMachines && Math.random() < 0.25) {
       for (let a = 0; a < 40; a++) {
-        const [ix, iy] = pick(floorTiles);
-        if (allOcc(ix, iy)) continue;
-        items.push({ ..._expSc, id: uid(), x: ix, y: iy });
+        const [gx, gy] = pick(floorTiles);
+        if (allOcc(gx, gy)) continue;
+        gachaMachines.push({ id: uid(), x: gx, y: gy, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン" });
+        break;
+      }
+    }
+  } else {
+    /* 通常はアイテム2〜4個、豪華版は5〜7個（B/A/Sレアリティ限定、祝福30%呪い10%） */
+    const itemCount = rng(luxury ? 5 : 2, Math.min(luxury ? 7 : 4, floorTiles.length));
+    let placed = 0;
+    for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
+      const [ix, iy] = pick(floorTiles);
+      if (allOcc(ix, iy)) continue;
+      const it = applyRareMods(pickRareItem(depth, dungeonType), depth);
+      it.x = ix; it.y = iy;
+      items.push(it);
+      placed++;
+    }
+
+    /* 宝石（35%の確率で1〜2個の宝石が落ちている） */
+    if (Math.random() < 0.35) {
+      const gemCount = rng(1, 2);
+      for (let gi = 0; gi < gemCount; gi++) {
+        for (let a = 0; a < 40; a++) {
+          const [gx, gy] = pick(floorTiles);
+          if (allOcc(gx, gy)) continue;
+          const gemTmpl = pick(GEM_TYPES);
+          items.push({ ...gemTmpl, id: uid(), originDepth: depth, x: gx, y: gy });
+          break;
+        }
+      }
+    }
+
+    /* 設置物（箱・泉・ガチャ・石像・祭壇）の配置：部屋が埋まりすぎないよう最大2〜3個 */
+    let fixturesPlaced = 0;
+    const maxFixtures = luxury ? 3 : 2;
+
+    /* 大箱（通常70%、豪華版は確定+35%でもう1個） */
+    const wantBox = luxury || Math.random() < 0.70;
+    if (wantBox && fixturesPlaced < maxFixtures) {
+      for (let a = 0; a < 40; a++) {
+        const [bx, by] = pick(floorTiles);
+        if (allOcc(bx, by)) continue;
+        const bbt = pickBB([], dungeonType, depth);
+        bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+        fixturesPlaced++;
+        break;
+      }
+    }
+
+    /* 泉（通常50%、豪華版60%） */
+    if (Math.random() < (luxury ? 0.60 : 0.50) && fixturesPlaced < maxFixtures) {
+      for (let a = 0; a < 40; a++) {
+        const [sx, sy] = pick(floorTiles);
+        if (allOcc(sx, sy)) continue;
+        springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+        fixturesPlaced++;
+        break;
+      }
+    }
+
+    /* ガチャマシン（通常25%、豪華版40%） */
+    if (gachaMachines && Math.random() < (luxury ? 0.40 : 0.25) && fixturesPlaced < maxFixtures) {
+      for (let a = 0; a < 40; a++) {
+        const [gx, gy] = pick(floorTiles);
+        if (allOcc(gx, gy)) continue;
+        gachaMachines.push({ id: uid(), x: gx, y: gy, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン" });
+        fixturesPlaced++;
+        break;
+      }
+    }
+
+    const allowSpecialFixtures = dungeonType !== "beginner" && dungeonType !== "tutorial";
+
+    /* 石像（通常30%、初心者ダンジョン除外） */
+    if (statues && allowSpecialFixtures && Math.random() < (luxury ? 0.40 : 0.30) && fixturesPlaced < maxFixtures) {
+      for (let a = 0; a < 40; a++) {
+        const [stx, sty] = pick(floorTiles);
+        if (allOcc(stx, sty)) continue;
+        statues.push(makeStatue(stx, sty));
+        fixturesPlaced++;
+        break;
+      }
+    }
+
+    /* 祭壇（通常15%、神への奉納、初心者ダンジョン除外） */
+    if (altars && allowSpecialFixtures && Math.random() < 0.15 && fixturesPlaced < maxFixtures) {
+      for (let a = 0; a < 40; a++) {
+        const [ax, ay] = pick(floorTiles);
+        if (allOcc(ax, ay)) continue;
+        altars.push(makeAltar(ax, ay));
+        fixturesPlaced++;
         break;
       }
     }
   }
-  /* 通常は75%で大箱1個、豪華版は必ず1個+35%でもう1個 */
-  const boxCount = luxury ? 1 + (Math.random() < 0.35 ? 1 : 0) : (Math.random() < 0.75 ? 1 : 0);
-  for (let boxIndex = 0; boxIndex < boxCount; boxIndex++) {
-    for (let a = 0; a < 40; a++) {
-      const [bx, by] = pick(floorTiles);
-      if (allOcc(bx, by)) continue;
-      const bbt = pickBB([], dungeonType, depth);
-      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
-      break;
-    }
-  }
-  /* 泉（通常55%、豪華版65%） */
-  if (Math.random() < (luxury ? 0.65 : 0.55)) {
-    for (let a = 0; a < 40; a++) {
-      const [sx, sy] = pick(floorTiles);
-      if (allOcc(sx, sy)) continue;
-      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
-      break;
-    }
-  }
-  }
+
   /* 回転板を必ず1枚配置（宝物庫を含む全隠し部屋） */
   const spinTrap = { name: "回転板", effect: "spin", tile: 29, permanent: true };
   for (const [tx, ty] of shuffle([...floorTiles])) {
@@ -2877,9 +2935,13 @@ function genBossFloor(depth, dungeonType = null) {
     }
   }
 
+  /* 隠し部屋用の追加オブジェクト */
+  const statues = [];
+  const gachaMachines = [];
+  const altars = [];
   /* 隠し部屋（50%の確率で1部屋） */
   const hiddenRooms = Math.random() < 0.5 ? genHiddenRooms(map, depth) : [];
-  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType);
+  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType, { statues, gachaMachines, altars });
 
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
@@ -2896,6 +2958,9 @@ function genBossFloor(depth, dungeonType = null) {
     floorType: "bossFloor",
     isBossFloor: true,
     bossLayout,
+    statues,
+    gachaMachines,
+    altars,
     bossEscapeCorridors: carved.escapeCorridors,
     ...(pyrobolosGroupId ? {
       pyrobolosBossGroup: {
@@ -4117,9 +4182,13 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     shopData = setupShopRoom(sr2, map, depth, items, mons, dungeonType);
     shopData.roomIdx = shopRoomIdx;
   }
+  /* 隠し部屋・フロア用の追加オブジェクト */
+  const statues = [];
+  const gachaMachines = [];
+  const altars = [];
   /* 隠し部屋を生成してアイテム等を配置 */
   const hiddenRooms = genHiddenRooms(map, depth);
-  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType);
+  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps, dungeonType, { statues, gachaMachines, altars });
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
   genWallItems(map, depth, items, suspiciousWalls, 0.70, dungeonType);
   /* 水地形を生成 — 店の部屋は除外 */
@@ -4197,7 +4266,9 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     hiddenRooms,
     dungeonType,
     vents: [],
-    statues: [],
+    statues,
+    gachaMachines,
+    altars,
     layoutVariant: normalLayout,
   };
   attachFloorGimmicks(_floor, depth);
