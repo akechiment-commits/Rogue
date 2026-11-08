@@ -36,6 +36,7 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   band(25, 27, 2, { rustbug: 1, itemMimic: 2, charger: 2, tattoobird: 2, waterFlower: 1 }),
   band(25, 27, 1, { hypnotist: 1, dodgemole: 2, machodragon: 2 }),
   band(26, 28, 1, { hauntedWillow: 1 }),
+  band(26, 28, 2, { synthmonster: 2 }),
   band(28, 30, 1, { sleepingLion: 1 }),
   band(28, 30, 2, { dreamEater: 3, lizardman: 2 }),
   band(28, 30, 1, { troll: 2, killplaster: 2, dragon: 2 }),
@@ -66,6 +67,7 @@ export const LEGEND_MONSTER_BANDS = Object.freeze([
   band(43, 45, 3, { itemThrower: 2 }),
   band(43, 45, 3, { lizardman: 1, dangerousPetal: 1 }),
   band(44, 46, 3, { sylph: 1, vampire: 1 }),
+  band(44, 46, 3, { synthmonster: 2 }),
   band(46, 48, 3, { sleepingLion: 1, hauntedWillow: 1, golem: 1, darkness: 1, magicreflector: 1, troll: 1, walldigger: 1 }),
 
   band(48, 50, 3, { dragon: 1 }),

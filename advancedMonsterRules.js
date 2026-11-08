@@ -17,7 +17,7 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   5: ["grabber", "tripper"],
   6: ["potionthrower", "potionhealer"],
   7: ["slime", "rakugakima"],
-  8: ["wokka", "itemMimic", "charger"],
+  8: ["wokka", "itemMimic", "charger", "synthmonster"],
   9: ["tattoobird", "thief", "manaEater", "stealthrower"],
   10: ["wolf", "rustbug", "wizard"],
   11: ["leprechaun", "itemblaster", "sylph"],
@@ -67,9 +67,9 @@ const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   24: ["potionhealer", "sylph", "archer"],
   25: ["dangerousPetal", "dreamEater", "hypnotist", "potRaider", "fireCook"],
   26: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook", "machodragon"],
-  27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook", "machodragon"],
-  28: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil", "machodragon"],
-  29: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
+  27: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "potRaider", "fireCook", "machodragon", "synthmonster"],
+  28: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil", "machodragon", "synthmonster"],
+  29: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil", "synthmonster"],
   30: ["dangerousPetal", "dreamEater", "hypnotist", "giantEel", "seaDevil"],
 });
 
@@ -97,7 +97,7 @@ export const ADVANCED_MONSTER_FLOOR_POOLS = Object.freeze(
   _ADVANCED_MONSTER_FLOOR_POOLS.map((kinds) => Object.freeze([...new Set(kinds)])),
 );
 
-/* 再登場した能力敵は後半でLv2までにする。Lv3は超上級で解禁する。 */
+/* 再登場した能力敵は後半でLv2（合成獣など一部はLv3）にする。 */
 const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   rat: { min: 10, max: 12 },
   bat: { min: 10, max: 12 },
@@ -122,6 +122,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   fireCook: { min: 25, max: 27 },
   machodragon: { min: 26, max: 28 },
   manaEater: { min: 18, max: 20 },
+  synthmonster: { min: 21, max: 23 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {
@@ -132,8 +133,14 @@ export function advancedMonsterAllowed(baseKind, floor) {
   return advancedMonsterKindsAtFloor(floor).includes(baseKind);
 }
 
+const ADVANCED_MONSTER_LEVEL3_RANGES = Object.freeze({
+  synthmonster: { min: 27, max: 29 },
+});
+
 export function advancedMonsterSpawnLevel(base, floor) {
   if (!base?.levels?.length) return 1;
+  const lv3Range = ADVANCED_MONSTER_LEVEL3_RANGES[base.baseKind];
+  if (lv3Range && floor >= lv3Range.min && floor <= lv3Range.max) return 3;
   const range = ADVANCED_MONSTER_LEVEL2_RANGES[base.baseKind]
     ?? base.levels[0]?.dungeonFloors?.advanced;
   if (range && floor >= range.min && floor <= range.max) return 2;

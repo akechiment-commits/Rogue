@@ -105,6 +105,19 @@ describe("超上級ダンジョンの敵分布", () => {
     expect(legendMonsterSpawnLevel(lion, 46)).toBe(3);
   });
 
+  it("合成獣は序盤Lv1・中盤Lv2・後半Lv3で出現する", () => {
+    const synth = MONS.find(monster => monster.baseKind === "synthmonster");
+    expect(legendMonsterAllowed("synthmonster", 8)).toBe(true);
+    expect(legendMonsterAllowed("synthmonster", 10)).toBe(true);
+    expect(legendMonsterSpawnLevel(synth, 8)).toBe(1);
+    expect(legendMonsterAllowed("synthmonster", 26)).toBe(true);
+    expect(legendMonsterAllowed("synthmonster", 28)).toBe(true);
+    expect(legendMonsterSpawnLevel(synth, 26)).toBe(2);
+    expect(legendMonsterAllowed("synthmonster", 44)).toBe(true);
+    expect(legendMonsterAllowed("synthmonster", 46)).toBe(true);
+    expect(legendMonsterSpawnLevel(synth, 44)).toBe(3);
+  });
+
   it("睡眠コンボと催眠、火竜と氷竜、水中の脅威は同じ階に重ねない", () => {
     for (let floor = 1; floor <= 50; floor++) {
       const kinds = LEGEND_MONSTER_FLOOR_POOLS[floor];
