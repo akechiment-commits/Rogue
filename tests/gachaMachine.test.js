@@ -55,6 +55,18 @@ describe("ガチャマシーン", () => {
     expect(ml.join("\n")).toContain("ガチャマシーンが壊れた");
   });
 
+  it("在庫ゼロ（売り切れ）のマシーンを壊したときも奥底から最後の景品（Aレア）が落ちる", () => {
+    const dg = emptyDungeon();
+    const machine = { type: "gacha", kind: "gacha_machine", name: "ガチャマシーン", x: 5, y: 5, box: [] };
+    dg.gachaMachines.push(machine);
+    const ml = [];
+    expect(breakGachaMachine(machine, dg, ml)).toBe(true);
+    expect(dg.gachaMachines).toHaveLength(0);
+    expect(dg.items).toHaveLength(1);
+    expect(dg.items[0].rarity).toBe("A");
+    expect(ml.join("\n")).toContain("奥底から最後の景品");
+  });
+
   it("指定レア度の景品だけを選ぶ", () => {
     for (const rarity of ["A", "B", "C", "D", "E"]) {
       expect(makeGachaPrize(rarity).rarity).toBe(rarity);
