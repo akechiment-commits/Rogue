@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { hasForcedTurn, interruptPlayerSleep } from "./turnUpkeep.js";
 import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem, clearDimensionalVaultItemCounter } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
-import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel, revealItemMimicAt, wakeIfDormant } from "./monsters.js";
+import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel, revealItemMimicAt, wakeIfDormant, triggerMushroomCounterSpore } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage, applyPoisonArrowDamageReduction,
@@ -3475,6 +3475,7 @@ export function useItemActions({
                   resolveParalysisHit(_msTarget, ml);
                   markWanderingNpcHostile(_msTarget, dg, p, ml);
                   ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_actualDmg}ダメージ！`);
+                  triggerMushroomCounterSpore(_msTarget, dg, p, ml);
                   if (_msTarget.hp <= 0) { killMonster(_msTarget, dg, p, ml, lu); }
                   _stPeelIfNeeded();
                 }
@@ -3574,6 +3575,7 @@ export function useItemActions({
                   resolveParalysisHit(_stM, ml);
                   markWanderingNpcHostile(_stM, dg, p, ml);
                   ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
+                  triggerMushroomCounterSpore(_stM, dg, p, ml);
                   if (_stM.hp <= 0) { killMonster(_stM, dg, p, ml, lu); }
                   _stPeelIfNeeded();
                 }
@@ -3654,6 +3656,7 @@ export function useItemActions({
                   resolveParalysisHit(_baM, ml);
                   markWanderingNpcHostile(_baM, dg, p, ml);
                   ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
+                  triggerMushroomCounterSpore(_baM, dg, p, ml);
                   if (_baM.hp <= 0) { killMonster(_baM, dg, p, ml, lu); }
                 }
                 _baLx = tx; _baLy = ty;
@@ -3761,6 +3764,7 @@ export function useItemActions({
             markWanderingNpcHostile(mon, dg, p, mlx);
             const _poisonStacks = _arIsPoison ? applyPoisonArrowDamageReduction(mon, mlx) : 0;
             mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? (_poisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _poisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
+            triggerMushroomCounterSpore(mon, dg, p, mlx);
             if (mon.hp <= 0) { killMonster(mon, dg, p, mlx, lu); }
             if (!_arIsPierce) _arPeelIfNeeded();
           },
@@ -4184,6 +4188,7 @@ export function useItemActions({
                   resolveParalysisHit(_msTarget2, ml);
                   markWanderingNpcHostile(_msTarget2, dg, p, ml);
                   ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
+                  triggerMushroomCounterSpore(_msTarget2, dg, p, ml);
                   if (_msTarget2.hp <= 0) { killMonster(_msTarget2, dg, p, ml, lu); }
                   _invStPeel();
                 }
@@ -4270,6 +4275,7 @@ export function useItemActions({
                   resolveParalysisHit(_stM2, ml);
                   markWanderingNpcHostile(_stM2, dg, p, ml);
                   ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
+                  triggerMushroomCounterSpore(_stM2, dg, p, ml);
                   if (_stM2.hp <= 0) { killMonster(_stM2, dg, p, ml, lu); }
                   _invStPeel();
                 }
@@ -4357,6 +4363,7 @@ export function useItemActions({
                   resolveParalysisHit(_baM2, ml);
                   markWanderingNpcHostile(_baM2, dg, p, ml);
                   ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
+                  triggerMushroomCounterSpore(_baM2, dg, p, ml);
                   if (_baM2.hp <= 0) { killMonster(_baM2, dg, p, ml, lu); }
                 }
                 _baLx2 = tx; _baLy2 = ty;
@@ -4598,11 +4605,13 @@ export function useItemActions({
                 const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
+                triggerMushroomCounterSpore(m, dg, p, ml);
                 if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
               } else {
                 const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
+                triggerMushroomCounterSpore(m, dg, p, ml);
                 if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
               }
               if (!_isFarcast) { lx = tx; ly = ty; break; }
@@ -4882,6 +4891,7 @@ export function useItemActions({
                   resolveParalysisHit(m, ml);
                   markWanderingNpcHostile(m, dg, p, ml);
                   ml.push(`${lb}が${m.name}に命中！${_itd}ダメージ！`);
+                  triggerMushroomCounterSpore(m, dg, p, ml);
                   if (it.type === "food" && it.yabai && m.hp > 0) {
                     const _yThrowDmg = rng(15, 25);
                     m.hp -= _yThrowDmg;

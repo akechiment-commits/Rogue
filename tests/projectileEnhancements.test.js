@@ -96,4 +96,23 @@ describe('飛び道具・投擲のバリア・状態解除・反射防具検証'
     expect(player.confusedTurns || 0).toBe(0);
     expect(player.slowTurns || 0).toBe(0);
   });
+  it("アイテム投擲がキノコ敵に命中した際、反撃胞子が発動する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const rock = { id: "r1", name: "石ころ", type: "misc" };
+    const player = makePlayer({ x: 2, y: 2, depth: 1, hp: 100, maxHp: 100, inventory: [rock] });
+    const shroom = { id: "m1", name: "ドクツルタケ", baseKind: "mushroom", x: 2, y: 3, hp: 50, maxHp: 50, def: 0 };
+    const visible = Array.from({ length: MH }, () => Array(MW).fill(true));
+    const dungeon = makeEmptyDg({ depth: 1, monsters: [shroom], visible, explored: visible, rooms: [] });
+    const sr = { current: { player, dungeon, ident: new Set() } };
+    const msgs = [];
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs: (fn) => msgs.push(...fn([])), setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setThrowMode: vi.fn(), throwMode: { idx: 0, mode: "throw" },
+      pushAnim: () => {}, withPitfallBag: (fn) => fn()
+    });
+
+    actions.execDirection(0, 1);
+    expect(msgs.some(m => m.includes("胞子"))).toBe(true);
+  });
 });
