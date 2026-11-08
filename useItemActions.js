@@ -39,7 +39,7 @@ import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
-import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness, monElementDamageMultiplier, monEffectiveMagicImmune } from "./monTraits.js";
+import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness, monElementDamageMultiplier, monEffectiveMagicImmune, monEffectiveFloat, monEffectiveWaterWalker } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
@@ -49,6 +49,7 @@ import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
 import { isFloorOccupancyBlocked } from "./floorObjectPlacement.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
+import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -2088,24 +2089,36 @@ export function useItemActions({
             /* 呪い：部屋内の者全員が浮遊状態になる（魔方陣が存在する間は常時適用） */
             ml.push(`${_pName}の呪いが炸裂！部屋内の者が浮遊状態になった！【呪】`);
           } else {
-            /* 通常/祝福：水上にいる浮遊系の敵を弾き出す or 即死 */
+            /* 通常/祝福：水上にいる浮遊系の敵を弾き出す or 即死（水生・水中歩行敵は対象外） */
             const _gravRoom = !_isBlessed ? dg.rooms?.find(r => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) : null;
+            const _isMonsterOnWater = (m) => monsterBodyCells(m).some(c => dg.map[c.y]?.[c.x] === T.WATER || dg.springs?.some(s => s.x === c.x && s.y === c.y));
             const _gravMons = dg.monsters.filter(m => {
-              if (!m.float) return false;
-              if (dg.map[m.y]?.[m.x] !== T.WATER) return false;
+              if (m.hp <= 0) return false;
+              if (!monEffectiveFloat(m)) return false;
+              if (m.waterOnly || monEffectiveWaterWalker(m)) return false;
+              if (!_isMonsterOnWater(m)) return false;
               if (_isBlessed) return true;
-              return _gravRoom && m.x >= _gravRoom.x && m.x < _gravRoom.x + _gravRoom.w && m.y >= _gravRoom.y && m.y < _gravRoom.y + _gravRoom.h;
+              return _gravRoom && monsterBodyCells(m).some(c => c.x >= _gravRoom.x && c.x < _gravRoom.x + _gravRoom.w && c.y >= _gravRoom.y && c.y < _gravRoom.y + _gravRoom.h);
             });
+            const _canLandSafely = (monster, targetX, targetY) => {
+              const cells = monsterBodyCells(monster, targetX, targetY);
+              for (const c of cells) {
+                if (c.x < 0 || c.x >= MW || c.y < 0 || c.y >= MH) return false;
+                const tile = dg.map[c.y]?.[c.x];
+                if (tile === T.WALL || tile === T.BWALL || tile === T.WATER) return false;
+                if (dg.springs?.some(s => s.x === c.x && s.y === c.y)) return false;
+                if (p && c.x === p.x && c.y === p.y) return false;
+                if (dg.monsters.some(o => o !== monster && monsterOccupiesCell(o, c.x, c.y))) return false;
+              }
+              return true;
+            };
             for (const _gm of [..._gravMons]) {
+              if (_gm.floatTurns) _gm.floatTurns = 0;
               const _gdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
               let _gpushed = false;
               for (const [_gdx, _gdy] of _gdirs) {
                 const _gx = _gm.x + _gdx, _gy = _gm.y + _gdy;
-                if (_gx >= 0 && _gx < MW && _gy >= 0 && _gy < MH &&
-                    dg.map[_gy][_gx] !== T.WALL && dg.map[_gy][_gx] !== T.BWALL &&
-                    dg.map[_gy][_gx] !== T.WATER &&
-                    !dg.monsters.some(o => o !== _gm && monsterOccupiesCell(o, _gx, _gy)) &&
-                    !(_gx === p.x && _gy === p.y)) {
+                if (_canLandSafely(_gm, _gx, _gy)) {
                   _gm.x = _gx; _gm.y = _gy;
                   ml.push(`重力の力で${_gm.name}が水上から弾き出された！`);
                   _gpushed = true;
@@ -2114,12 +2127,16 @@ export function useItemActions({
               }
               if (!_gpushed) {
                 if (_gm.isBoss) {
+                  if (blockLargeMonsterDamage(_gm, p, ml)) continue;
                   const _bd = bossInstantDeathDamage(_gm);
                   _gm.hp -= _bd;
+                  wakeIfDormant(_gm, ml);
+                  resolveParalysisHit(_gm, ml);
                   ml.push(`重力の力で${_gm.name}は水没に耐えたが${_bd}ダメージを受けた！`);
                   if (_gm.hp <= 0) killMonster(_gm, dg, p, ml, lu);
                 } else {
                   ml.push(`重力の力で${_gm.name}は逃げ場がなく即死した！`);
+                  _gm.hp = 0;
                   killMonster(_gm, dg, p, ml, lu);
                 }
               }
