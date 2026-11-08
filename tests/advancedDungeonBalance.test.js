@@ -118,8 +118,10 @@ describe("上級ダンジョンの敵分布", () => {
     const synthmonster = MONS.find(monster => monster.baseKind === "synthmonster");
     expect(advancedMonsterAllowed("synthmonster", 8)).toBe(true);
     expect(advancedMonsterSpawnLevel(synthmonster, 8)).toBe(1);
-    expect(advancedMonsterAllowed("synthmonster", 21)).toBe(true);
-    expect(advancedMonsterSpawnLevel(synthmonster, 21)).toBe(2);
+    expect(advancedMonsterAllowed("synthmonster", 18)).toBe(true);
+    expect(advancedMonsterAllowed("synthmonster", 20)).toBe(true);
+    expect(advancedMonsterSpawnLevel(synthmonster, 18)).toBe(2);
+    expect(advancedMonsterAllowed("synthmonster", 21)).toBe(false);
     expect(advancedMonsterAllowed("synthmonster", 27)).toBe(true);
     expect(advancedMonsterSpawnLevel(synthmonster, 27)).toBe(3);
     const sleepingLion = MONS.find(monster => monster.baseKind === "sleepingLion");

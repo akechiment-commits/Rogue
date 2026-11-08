@@ -1597,9 +1597,9 @@ export const MONS = [
       { name: "大シャーマン",       hp: 80, atk: 28, def: 8, exp: 270 },
     ],
   },
-  { name: "合成獣",       hp: 48,  atk: 18, def: 5,  exp: 65,  speed: 0.5, tile: 176, kind: "beast",    baseKind: "synthmonster",  monLevel: 1, minFloor: 8, maxFloor: 50, dungeonFloors: { intermediate: null, advanced: { min: 8, max: 29 } },
+  { name: "合成獣",       hp: 48,  atk: 18, def: 5,  exp: 65,  speed: 0.5, tile: 176, kind: "beast",    baseKind: "synthmonster",  monLevel: 1, minFloor: 8, maxFloor: 50, dungeonFloors: { intermediate: { min: 8, max: 10 }, advanced: { min: 8, max: 29 } },
     levels: [
-      { name: "強合成獣",           hp: 92,  atk: 30, def: 8,  exp: 160, dungeonFloors: { advanced: { min: 21, max: 23 } } },
+      { name: "強合成獣",           hp: 92,  atk: 30, def: 8,  exp: 160, dungeonFloors: { advanced: { min: 18, max: 20 } } },
       { name: "覇合成獣",           hp: 155, atk: 42, def: 12, exp: 450, dungeonFloors: { advanced: { min: 27, max: 29 } } },
     ],
   },

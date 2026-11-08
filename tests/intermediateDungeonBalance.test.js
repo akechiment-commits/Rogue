@@ -11,6 +11,7 @@ import { MONS, pickMonsterDef } from "../monsters.js";
 import {
   INTERMEDIATE_MONSTER_FLOOR_POOLS,
   intermediateMonsterAllowed,
+  intermediateMonsterSpawnLevel,
   intermediateMonsterPackMultiplier,
   INTERMEDIATE_PACK_KINDS,
 } from "../intermediateMonsterRules.js";
@@ -23,7 +24,7 @@ const INTERMEDIATE_TRAP_BAN = [
 const INTERMEDIATE_BB_BAN = ["trash", "nitro", "curse"];
 const INTERMEDIATE_MONSTER_BAN = [
   "berserker", "killplaster", "icedragon", "starlight", "darkness",
-  "dodgemole", "synthmonster", "gargoyle", "vampire", "dragon", "golem", "daemon",
+  "dodgemole", "gargoyle", "vampire", "dragon", "golem", "daemon",
   "troll", "firedemon", "bombgoblin", "walldigger", "serpent", "witchdoc",
   "disarmer", "monsterthrow", "barriermage", "windmage", "puller", "waterFlower", "sleepingLion",
 ];
@@ -201,6 +202,15 @@ describe("中級ダンジョンの敵", () => {
       for (const kind of kinds) counts.set(kind, (counts.get(kind) || 0) + 1);
     }
     for (const [kind, count] of counts) expect(count).toBeGreaterThanOrEqual(3);
+  });
+
+  it("合成獣は中級8〜10階にLv1で出現する", () => {
+    const synth = MONS.find((m) => m.baseKind === "synthmonster");
+    expect(intermediateMonsterAllowed("synthmonster", 8)).toBe(true);
+    expect(intermediateMonsterAllowed("synthmonster", 10)).toBe(true);
+    expect(intermediateMonsterAllowed("synthmonster", 11)).toBe(false);
+    expect(intermediateMonsterSpawnLevel(synth, 8)).toBe(1);
+    expect(intermediateMonsterSpawnLevel(synth, 10)).toBe(1);
   });
 
   it("プールの種はデータ側の中級出現種と一致する", () => {

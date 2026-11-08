@@ -13,7 +13,7 @@ const INTERMEDIATE_MONSTER_STARTS = Object.freeze({
   5: ["tripper", "slime"],
   6: ["imp", "grabber", "potionthrower"],
   7: ["zombie", "rakugakima", "manaEater"],
-  8: ["itemMimic", "wokka", "potionhealer"],
+  8: ["itemMimic", "wokka", "potionhealer", "synthmonster"],
   9: ["thief", "charger", "tattoobird", "wolf"],
   10: ["rustbug"],
   11: ["wizard", "sylph", "bombslime"],

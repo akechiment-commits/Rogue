@@ -27,10 +27,10 @@ const ADVANCED_MONSTER_STARTS = Object.freeze({
   15: ["dangerousPetal", "dreamEater", "wateri"],
   16: ["lizardman", "dragonknight", "gelcube"],
   17: ["trapmaster", "bombgoblin", "knocker", "machodragon"],
-  18: ["magicreflector", "mimic", "walldigger"],
+  18: ["magicreflector", "mimic", "walldigger", "synthmonster"],
   19: ["waterFlower", "serpent", "trapthrower"],
   20: ["witchdoc", "shaman", "disarmer"],
-  21: ["monsterthrow", "synthmonster", "barriermage"],
+  21: ["monsterthrow", "barriermage"],
   22: ["windmage", "puller", "hypnotist"],
   23: ["troll", "firedemon", "giantEel"],
   24: ["starlight", "dodgemole", "berserker"],
@@ -122,7 +122,7 @@ const ADVANCED_MONSTER_LEVEL2_RANGES = Object.freeze({
   fireCook: { min: 25, max: 27 },
   machodragon: { min: 26, max: 28 },
   manaEater: { min: 18, max: 20 },
-  synthmonster: { min: 21, max: 23 },
+  synthmonster: { min: 18, max: 20 },
 });
 
 export function advancedMonsterKindsAtFloor(floor) {
