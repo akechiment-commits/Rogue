@@ -31,7 +31,7 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
     expect(boss.tile).toBe(251);
     expect(boss.hp).toBe(720);
     expect(boss.atk).toBe(58);
-    expect(boss.def).toBe(30);
+    expect(boss.def).toBe(24);
     expect(boss.kind).toBe("insect");
     expect(boss.elemWeak).toBe("thunder");
     expect(CHIRANIKUTSUNNOKU.elemWeak).toBe("thunder");

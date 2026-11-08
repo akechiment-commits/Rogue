@@ -52,7 +52,7 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       expect(MIREU.name).toBe('ミレウ');
       expect(MIREU.hp).toBe(1400);
       expect(MIREU.atk).toBe(105);
-      expect(MIREU.def).toBe(30);
+      expect(MIREU.def).toBe(27);
       expect(MIREU.exp).toBe(14000);
       expect(MIREU.speed).toBe(1);
       expect(MIREU.bodySize).toBe(3);
