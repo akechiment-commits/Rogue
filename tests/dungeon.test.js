@@ -675,14 +675,14 @@ describe("populateHiddenRoom", () => {
     expect(traps.filter(t => t.effect === "spin").length).toBe(1);
   });
 
-  it("隠し部屋に収納上手の巻物は追加配置されず、大箱・泉以外のオブジェクト（ガチャ・石像・祭壇・宝石）も配置される", () => {
-    let hasGem = false;
+  it("隠し部屋に収納上手の巻物は追加配置されず、宝石は配置されず、稀に大箱・泉以外のオブジェクト（ガチャ・石像・祭壇）も配置される", () => {
     let hasGacha = false;
     let hasStatue = false;
     let hasAltar = false;
+    let gemCount = 0;
     let expandCount = 0;
 
-    for (let trial = 0; trial < 150; trial++) {
+    for (let trial = 0; trial < 300; trial++) {
       const hr = { x: 10, y: 10, w: 5, h: 4 };
       const map = makeHiddenRoomMap(hr);
       const items = [], bigboxes = [], springs = [], traps = [];
@@ -695,7 +695,9 @@ describe("populateHiddenRoom", () => {
       const expandScrolls = items.filter(i => i.effect === "expand_inv");
       expandCount += expandScrolls.length;
 
-      if (items.some(i => i.type === "gem")) hasGem = true;
+      const gems = items.filter(i => i.type === "gem");
+      gemCount += gems.length;
+
       if (gachaMachines.length > 0) hasGacha = true;
       if (statues.length > 0) hasStatue = true;
       if (altars.length > 0) hasAltar = true;
@@ -703,7 +705,9 @@ describe("populateHiddenRoom", () => {
 
     // 以前は30%の固定枠で45回以上追加されていたが、通常Bレア枠のみになり激減すること
     expect(expandCount).toBeLessThan(15);
-    expect(hasGem).toBe(true);
+    // 宝石は店以外で生成されないこと
+    expect(gemCount).toBe(0);
+    // 低確率サプライズとしてガチャ・石像・祭壇が生成されること
     expect(hasGacha).toBe(true);
     expect(hasStatue).toBe(true);
     expect(hasAltar).toBe(true);

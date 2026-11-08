@@ -695,8 +695,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
         break;
       }
     }
-    /* 宝物庫でも低確率（25%）でガチャマシンが出現 */
-    if (gachaMachines && Math.random() < 0.25) {
+    /* 宝物庫でも極稀（3%）にガチャマシンが出現 */
+    if (gachaMachines && Math.random() < 0.03) {
       for (let a = 0; a < 40; a++) {
         const [gx, gy] = pick(floorTiles);
         if (allOcc(gx, gy)) continue;
@@ -715,20 +715,6 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       it.x = ix; it.y = iy;
       items.push(it);
       placed++;
-    }
-
-    /* 宝石（35%の確率で1〜2個の宝石が落ちている） */
-    if (Math.random() < 0.35) {
-      const gemCount = rng(1, 2);
-      for (let gi = 0; gi < gemCount; gi++) {
-        for (let a = 0; a < 40; a++) {
-          const [gx, gy] = pick(floorTiles);
-          if (allOcc(gx, gy)) continue;
-          const gemTmpl = pick(GEM_TYPES);
-          items.push({ ...gemTmpl, id: uid(), originDepth: depth, x: gx, y: gy });
-          break;
-        }
-      }
     }
 
     /* 設置物（箱・泉・ガチャ・石像・祭壇）の配置：部屋が埋まりすぎないよう最大2〜3個 */
@@ -759,8 +745,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
 
-    /* ガチャマシン（通常25%、豪華版40%） */
-    if (gachaMachines && Math.random() < (luxury ? 0.40 : 0.25) && fixturesPlaced < maxFixtures) {
+    /* ガチャマシン（通常3%、豪華版5%の低確率サプライズ） */
+    if (gachaMachines && Math.random() < (luxury ? 0.05 : 0.03) && fixturesPlaced < maxFixtures) {
       for (let a = 0; a < 40; a++) {
         const [gx, gy] = pick(floorTiles);
         if (allOcc(gx, gy)) continue;
@@ -772,8 +758,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
 
     const allowSpecialFixtures = dungeonType !== "beginner" && dungeonType !== "tutorial";
 
-    /* 石像（通常30%、初心者ダンジョン除外） */
-    if (statues && allowSpecialFixtures && Math.random() < (luxury ? 0.40 : 0.30) && fixturesPlaced < maxFixtures) {
+    /* 石像（通常5%、豪華版8%の低確率サプライズ、初心者ダンジョン除外） */
+    if (statues && allowSpecialFixtures && Math.random() < (luxury ? 0.08 : 0.05) && fixturesPlaced < maxFixtures) {
       for (let a = 0; a < 40; a++) {
         const [stx, sty] = pick(floorTiles);
         if (allOcc(stx, sty)) continue;
@@ -783,8 +769,8 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       }
     }
 
-    /* 祭壇（通常15%、神への奉納、初心者ダンジョン除外） */
-    if (altars && allowSpecialFixtures && Math.random() < 0.15 && fixturesPlaced < maxFixtures) {
+    /* 祭壇（通常2%、豪華版3%の低確率サプライズ、神への奉納、初心者ダンジョン除外） */
+    if (altars && allowSpecialFixtures && Math.random() < (luxury ? 0.03 : 0.02) && fixturesPlaced < maxFixtures) {
       for (let a = 0; a < 40; a++) {
         const [ax, ay] = pick(floorTiles);
         if (allOcc(ax, ay)) continue;
