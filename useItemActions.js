@@ -3449,11 +3449,18 @@ export function useItemActions({
               })) {
                 _stPeelIfNeeded();
               } else {
-                _msTarget.hp -= _msDmg;
-                markWanderingNpcHostile(_msTarget, dg, p, ml);
-                ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
-                if (_msTarget.hp <= 0) { killMonster(_msTarget, dg, p, ml, lu); }
-                _stPeelIfNeeded();
+                if (consumeBarrier(_msTarget, ml)) {
+                  _stPeelIfNeeded();
+                } else {
+                  const _actualDmg = clampDmgFixed(_msTarget, _msDmg, true);
+                  _msTarget.hp -= _actualDmg;
+                  wakeIfDormant(_msTarget, ml);
+                  resolveParalysisHit(_msTarget, ml);
+                  markWanderingNpcHostile(_msTarget, dg, p, ml);
+                  ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_actualDmg}ダメージ！`);
+                  if (_msTarget.hp <= 0) { killMonster(_msTarget, dg, p, ml, lu); }
+                  _stPeelIfNeeded();
+                }
               }
             }
           } else {
@@ -3508,11 +3515,17 @@ export function useItemActions({
                   pushAnim({ type: "projectileReturn", fromX: _stLx, fromY: _stLy, toX: _stRToX, toY: _stRToY, color: "#aaaaaa" });
                 }
                 if (_stRHit) {
-                  const _stRefDmg = calcProjectileDmg(p, _stAtk, 0);
-                  p.hp -= _stRefDmg;
-                  p.deathCause = `${_stM.name}に跳ね返された${_stName}で`;
-                  ml.push(`跳ね返された${_stName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
-                  _stPeelIfNeeded();
+                  if (consumeBarrier(p, ml)) {
+                    _stPeelIfNeeded();
+                  } else {
+                    const _stRefDmg = calcProjectileDmg(p, _stAtk, 0);
+                    p.hp -= _stRefDmg;
+                    p.deathCause = `${_stM.name}に跳ね返された${_stName}で`;
+                    ml.push(`跳ね返された${_stName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
+                    interruptPlayerSleep(p, ml);
+                    resolveParalysisHit(p, ml);
+                    _stPeelIfNeeded();
+                  }
                 } else if (_stRx !== _stLx || _stRy !== _stLy) {
                   const _stRft = new Set();
                   withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, _stDrop(), ml, _stRft, 0, p));
@@ -3535,12 +3548,18 @@ export function useItemActions({
                 const _stft = new Set();
                 withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft, 0, p));
               } else {
-                const _stDmg = calcProjectileDmg(p, _stAtk, _stM.def);
-                _stM.hp -= _stDmg;
-                markWanderingNpcHostile(_stM, dg, p, ml);
-                ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                if (_stM.hp <= 0) { killMonster(_stM, dg, p, ml, lu); }
-                _stPeelIfNeeded();
+                if (consumeBarrier(_stM, ml)) {
+                  _stPeelIfNeeded();
+                } else {
+                  const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _stAtk, _stM.def), true);
+                  _stM.hp -= _stDmg;
+                  wakeIfDormant(_stM, ml);
+                  resolveParalysisHit(_stM, ml);
+                  markWanderingNpcHostile(_stM, dg, p, ml);
+                  ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
+                  if (_stM.hp <= 0) { killMonster(_stM, dg, p, ml, lu); }
+                  _stPeelIfNeeded();
+                }
               }
               }
             } else if (_stSpr) {
@@ -3609,11 +3628,17 @@ export function useItemActions({
                   _baLx = _baRx; _baLy = _baRy;
                   break;
                 }
-                const _baDmg = calcProjectileDmg(p, _arItem.atk || 6, _baM.def);
-                _baM.hp -= _baDmg;
-                markWanderingNpcHostile(_baM, dg, p, ml);
-                ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                if (_baM.hp <= 0) { killMonster(_baM, dg, p, ml, lu); }
+                if (consumeBarrier(_baM, ml)) {
+                  // 直撃ダメージをバリアで防ぐ（爆発は続く）
+                } else {
+                  const _baDmg = clampDmgFixed(_baM, calcProjectileDmg(p, _arItem.atk || 6, _baM.def), true);
+                  _baM.hp -= _baDmg;
+                  wakeIfDormant(_baM, ml);
+                  resolveParalysisHit(_baM, ml);
+                  markWanderingNpcHostile(_baM, dg, p, ml);
+                  ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
+                  if (_baM.hp <= 0) { killMonster(_baM, dg, p, ml, lu); }
+                }
                 _baLx = tx; _baLy = ty;
                 break;
               }
@@ -3712,8 +3737,10 @@ export function useItemActions({
               return;
             }
             /* 命中 */
-            const _dmg = calcProjectileDmg(p, _arBaseAtk, mon.def);
+            const _dmg = clampDmgFixed(mon, calcProjectileDmg(p, _arBaseAtk, mon.def), true);
             mon.hp -= _dmg;
+            wakeIfDormant(mon, mlx);
+            resolveParalysisHit(mon, mlx);
             markWanderingNpcHostile(mon, dg, p, mlx);
             const _poisonStacks = _arIsPoison ? applyPoisonArrowDamageReduction(mon, mlx) : 0;
             mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? (_poisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _poisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
@@ -4131,12 +4158,18 @@ export function useItemActions({
                 const _msft2 = new Set();
                 withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, _invStDrop(), ml, _msft2, 0, p));
               } else {
-                const _msDmg2 = calcProjectileDmg(p, _invStAtk, _msTarget2.def);
-                _msTarget2.hp -= _msDmg2;
-                markWanderingNpcHostile(_msTarget2, dg, p, ml);
-                ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
-                if (_msTarget2.hp <= 0) { killMonster(_msTarget2, dg, p, ml, lu); }
-                _invStPeel();
+                if (consumeBarrier(_msTarget2, ml)) {
+                  _invStPeel();
+                } else {
+                  const _msDmg2 = clampDmgFixed(_msTarget2, calcProjectileDmg(p, _invStAtk, _msTarget2.def), true);
+                  _msTarget2.hp -= _msDmg2;
+                  wakeIfDormant(_msTarget2, ml);
+                  resolveParalysisHit(_msTarget2, ml);
+                  markWanderingNpcHostile(_msTarget2, dg, p, ml);
+                  ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
+                  if (_msTarget2.hp <= 0) { killMonster(_msTarget2, dg, p, ml, lu); }
+                  _invStPeel();
+                }
               }
             }
           } else {
@@ -4187,10 +4220,16 @@ export function useItemActions({
                 pushAnim({ type: "projectileReturn", fromX: _stLx2, fromY: _stLy2, toX: _stRToX2, toY: _stRToY2, color: "#aaaaaa" });
               }
               if (_stRHit2) {
-                const _stRefDmg2 = calcProjectileDmg(p, _invStAtk, 0);
-                p.hp -= _stRefDmg2;
-                p.deathCause = `${_stM2.name}に跳ね返された${_invStName}で`;
-                ml.push(`跳ね返された${_invStName}が${pl()}に命中！${_stRefDmg2}ダメージ！消滅した。`);
+                if (consumeBarrier(p, ml)) {
+                  // バリアで防いだ
+                } else {
+                  const _stRefDmg2 = calcProjectileDmg(p, _invStAtk, 0);
+                  p.hp -= _stRefDmg2;
+                  p.deathCause = `${_stM2.name}に跳ね返された${_invStName}で`;
+                  ml.push(`跳ね返された${_invStName}が${pl()}に命中！${_stRefDmg2}ダメージ！消滅した。`);
+                  interruptPlayerSleep(p, ml);
+                  resolveParalysisHit(p, ml);
+                }
               } else if (_stRx2 !== _stLx2 || _stRy2 !== _stLy2) {
                 const _stRft2 = new Set();
                 withPitfallBag(() => placeItemAt(dg, _stRx2, _stRy2, _invStDrop(), ml, _stRft2, 0, p));
@@ -4205,12 +4244,18 @@ export function useItemActions({
                 const _stft2 = new Set();
                 withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, _invStDrop(), ml, _stft2, 0, p));
               } else {
-                const _stDmg2 = calcProjectileDmg(p, _invStAtk, _stM2.def);
-                _stM2.hp -= _stDmg2;
-                markWanderingNpcHostile(_stM2, dg, p, ml);
-                ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
-                if (_stM2.hp <= 0) { killMonster(_stM2, dg, p, ml, lu); }
-                _invStPeel();
+                if (consumeBarrier(_stM2, ml)) {
+                  _invStPeel();
+                } else {
+                  const _stDmg2 = clampDmgFixed(_stM2, calcProjectileDmg(p, _invStAtk, _stM2.def), true);
+                  _stM2.hp -= _stDmg2;
+                  wakeIfDormant(_stM2, ml);
+                  resolveParalysisHit(_stM2, ml);
+                  markWanderingNpcHostile(_stM2, dg, p, ml);
+                  ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
+                  if (_stM2.hp <= 0) { killMonster(_stM2, dg, p, ml, lu); }
+                  _invStPeel();
+                }
               }
             } else if (_stSpr2) {
               const _soakRes3 = soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null, p);
@@ -4286,11 +4331,17 @@ export function useItemActions({
                   _baLx2 = _baRx2; _baLy2 = _baRy2;
                   break;
                 }
-                const _baDmg2 = calcProjectileDmg(p, _baAtk2, _baM2.def);
-                _baM2.hp -= _baDmg2;
-                markWanderingNpcHostile(_baM2, dg, p, ml);
-                ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
-                if (_baM2.hp <= 0) { killMonster(_baM2, dg, p, ml, lu); }
+                if (consumeBarrier(_baM2, ml)) {
+                  // 直撃ダメージをバリアで防ぐ
+                } else {
+                  const _baDmg2 = clampDmgFixed(_baM2, calcProjectileDmg(p, _baAtk2, _baM2.def), true);
+                  _baM2.hp -= _baDmg2;
+                  wakeIfDormant(_baM2, ml);
+                  resolveParalysisHit(_baM2, ml);
+                  markWanderingNpcHostile(_baM2, dg, p, ml);
+                  ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
+                  if (_baM2.hp <= 0) { killMonster(_baM2, dg, p, ml, lu); }
+                }
                 _baLx2 = tx; _baLy2 = ty;
                 break;
               }
@@ -4703,34 +4754,49 @@ export function useItemActions({
                 const _rfToY = _rfHitPlayer ? p.y : _rfy;
                 pushItemReturnAnim(tx, ty, _rfToX, _rfToY, it.tile);
                 if (_rfHitPlayer) {
-                  p.deathCause = `跳ね返された${resolveItemName(it, dnameRef)}に`;
-                  const _rfTdDmg = it.type === "gold" ? Math.max(1, Math.floor((it.value || 0) / 10)) : calcProjectileDmg(p, _tdBaseAtk, 0);
-                  p.hp -= _rfTdDmg;
-                  ml.push(`跳ね返された${lb}が${pl()}に命中！${_rfTdDmg}ダメージ！消滅した。`);
-                  if (it.type === "food" && it.yabai) {
-                    const _rfyDmg = rng(15, 25);
-                    p.hp -= _rfyDmg;
-                    p.deathCause = "跳ね返されたヤバイ食料に当たって";
-                    ml.push(`ヤバイ食料がぶつかって食べさせられた！さらに${_rfyDmg}ダメージ！`);
-                    if (hasRingEffect(p, "antidote_ring")) {
-                      ml.push("毒消しの指輪が毒を防いだ！");
-                    } else {
-                      const _poison = applyYabaiPoison(p, "player");
-                      ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
-                    }
-                    const _rfConfuseT = statusTurns("confuse", { kind: "player" });
-                    const _rfSlowT = statusTurns("slow", { kind: "player" });
-                    if (!isStatusImmune(p, ml)) {
-                      const confused = applyPlayerConfusion(p, _rfConfuseT, ml);
-                      p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
-                      ml.push(confused ? `混乱(${_rfConfuseT}ターン)・鈍足(${_rfSlowT}ターン)状態になった！` : `鈍足(${_rfSlowT}ターン)状態になった！`);
-                    }
-                  } else if (it.type === "food" && it.rotten && !it.yabai) {
-                    if (hasRingEffect(p, "antidote_ring")) {
-                      ml.push("毒消しの指輪が毒を防いだ！");
-                    } else {
-                      const _poison = applyPlayerPoison(p);
-                      ml.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
+                  if (consumeBarrier(p, ml)) {
+                    // バリアで跳ね返り投擲物を防ぐ
+                  } else {
+                    p.deathCause = `跳ね返された${resolveItemName(it, dnameRef)}に`;
+                    const _rfTdDmg = it.type === "gold" ? Math.max(1, Math.floor((it.value || 0) / 10)) : calcProjectileDmg(p, _tdBaseAtk, 0);
+                    p.hp -= _rfTdDmg;
+                    ml.push(`跳ね返された${lb}が${pl()}に命中！${_rfTdDmg}ダメージ！消滅した。`);
+                    interruptPlayerSleep(p, ml);
+                    resolveParalysisHit(p, ml);
+                    if (it.type === "food" && it.yabai) {
+                      if (hasAbility(p.armor, "yabai_proof")) {
+                        ml.push("防具がヤバイ食料の効果を防いだ！(耐ヤバイ食料)");
+                      } else {
+                        const _rfyDmg = rng(15, 25);
+                        p.hp -= _rfyDmg;
+                        p.deathCause = "跳ね返されたヤバイ食料に当たって";
+                        ml.push(`ヤバイ食料がぶつかって食べさせられた！さらに${_rfyDmg}ダメージ！`);
+                        if (hasRingEffect(p, "antidote_ring")) {
+                          ml.push("毒消しの指輪が毒を防いだ！");
+                        } else {
+                          const _poison = applyYabaiPoison(p, "player");
+                          ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
+                        }
+                        const _rfConfuseT = statusTurns("confuse", { kind: "player" });
+                        const _rfSlowT = statusTurns("slow", { kind: "player" });
+                        if (!isStatusImmune(p, ml)) {
+                          let confused = false;
+                          if (hasAbility(p.armor, "confuse_proof")) {
+                            ml.push("防具が混乱を防いだ！(耐混乱)");
+                          } else {
+                            confused = applyPlayerConfusion(p, _rfConfuseT, ml);
+                          }
+                          p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
+                          ml.push(confused ? `混乱(${_rfConfuseT}ターン)・鈍足(${_rfSlowT}ターン)状態になった！` : `鈍足(${_rfSlowT}ターン)状態になった！`);
+                        }
+                      }
+                    } else if (it.type === "food" && it.rotten && !it.yabai) {
+                      if (hasRingEffect(p, "antidote_ring")) {
+                        ml.push("毒消しの指輪が毒を防いだ！");
+                      } else {
+                        const _poison = applyPlayerPoison(p);
+                        ml.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
+                      }
                     }
                   }
                   if (it.type === "wand") {
@@ -4795,6 +4861,8 @@ export function useItemActions({
                   const _goldThrowDmg = it.type === "gold" ? Math.max(1, Math.floor((it.value || 0) / 10)) : null;
                   const _itd = _goldThrowDmg !== null ? clampDmgFixed(m, _goldThrowDmg, true) : clampDmgFixed(m, calcProjectileDmg(p, _tdBaseAtk, m.def), true);
                   m.hp -= _itd;
+                  wakeIfDormant(m, ml);
+                  resolveParalysisHit(m, ml);
                   markWanderingNpcHostile(m, dg, p, ml);
                   ml.push(`${lb}が${m.name}に命中！${_itd}ダメージ！`);
                   if (it.type === "food" && it.yabai && m.hp > 0) {
