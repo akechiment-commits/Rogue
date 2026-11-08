@@ -102,7 +102,7 @@ export function placeAltarPriest(dg, altar, randomFn = Math.random, player = nul
         hp: 200,
         maxHp: 200,
         atk: 100,
-        def: 100,
+        def: 50,
         exp: 0,
         speed: 1,
         baseSpeed: 1,

@@ -1189,7 +1189,7 @@ function setupShopRoom(room, map, depth, items, mons, dungeonType = null) {
     items.push(makeShopItem(pickLootFromPool(cands, _lootContext) || pick(cands) || genFood(), slot.x, slot.y));
   }
   const sk = {
-    id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 100, exp: 0,
+    id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 50, exp: 0,
     speed: 1, tile: TI.SHOPKEEPER, type: 'shopkeeper', state: 'friendly',
     blockPos: { ...entrance }, homePos: { ...insidePos },
     x: insidePos.x, y: insidePos.y, turnAccum: 0, aware: false,
@@ -3492,7 +3492,7 @@ export function placeWanderingMerchant(dg, depth, randomFn = Math.random) {
     hp: 200,
     maxHp: 200,
     atk: 100,
-    def: 100,
+    def: 50,
     exp: 0,
     speed: 0.5,
     baseSpeed: 0.5,
