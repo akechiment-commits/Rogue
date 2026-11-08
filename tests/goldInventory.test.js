@@ -17,6 +17,7 @@ import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { canUseInventoryItem, getInventoryUseLabel } from "../inventoryRules.js";
 import { itemDisplayName } from "../render.js";
 import { thrownItemAttack } from "../items.js";
+import { makeMonsterFromBase, MONS } from "../monsters.js";
 
 afterEach(() => {
   effects.length = 0;
@@ -102,6 +103,95 @@ describe("金貨のインベントリ機能と所持品化", () => {
     // 床には薬草が置かれる
     expect(f.dungeon.items.some((i) => i.id === "p1" && i.x === 5 && i.y === 5)).toBe(true);
     expect(f.dungeon.items.some((i) => i.id === "g1")).toBe(false);
+  });
+
+  it("doSwapItem: 足元の店の商品を手持ちと交換すると未払い代金が計上され店主が入り口を塞ぐ", () => {
+    const shopkeeper = { id: "sk1", name: "店主", type: "shopkeeper", state: "friendly", x: 2, y: 2, hp: 100 };
+    const shop = {
+      id: "shop_1",
+      shopkeeperId: "sk1",
+      room: { x: 1, y: 1, w: 10, h: 10 },
+      unpaidTotal: 0,
+    };
+    const myPotion = { id: "p1", name: "薬草", type: "potion", effect: "heal", value: 25 };
+    const shopSword = { id: "w1", name: "銅の剣", type: "weapon", atk: 4, value: 200, shopPrice: 200, _shopId: "shop_1", x: 5, y: 5 };
+
+    const f = fixture([myPotion]);
+    f.dungeon.shops = [shop];
+    f.dungeon.monsters = [shopkeeper];
+    f.dungeon.items.push(shopSword);
+
+    f.actions.doSwapItem(0);
+
+    // インベントリに入った店の商品に対して未払い代金が加算される
+    expect(f.player.inventory[0].id).toBe("w1");
+    expect(shop.unpaidTotal).toBe(200);
+    expect(shopkeeper.state).toBe("blocking");
+
+    // 床にはプレイヤーのアイテムが置かれる
+    expect(f.dungeon.items.some((i) => i.id === "p1" && i.x === 5 && i.y === 5)).toBe(true);
+    expect(f.props.endTurn).toHaveBeenCalled();
+  });
+
+  it("doSwapItem: 手持ちの未払い商品を店内の床アイテムと交換して置くと未払い請求が精算される", () => {
+    const shopkeeper = { id: "sk1", name: "店主", type: "shopkeeper", state: "blocking", x: 2, y: 2, homePos: { x: 2, y: 2 }, hp: 100 };
+    const shop = {
+      id: "shop_1",
+      shopkeeperId: "sk1",
+      room: { x: 1, y: 1, w: 10, h: 10 },
+      unpaidTotal: 200,
+    };
+    const unpaidSword = { id: "w1", name: "銅の剣", type: "weapon", atk: 4, value: 200, shopPrice: 200, _shopId: "shop_1", _shopCharge: 200 };
+    const floorHerb = { id: "h1", name: "薬草", type: "potion", effect: "heal", value: 25, x: 5, y: 5 };
+
+    const f = fixture([unpaidSword]);
+    f.dungeon.shops = [shop];
+    f.dungeon.monsters = [shopkeeper];
+    f.dungeon.items.push(floorHerb);
+
+    f.actions.doSwapItem(0);
+
+    // インベントリには床の薬草が入る
+    expect(f.player.inventory[0].id).toBe("h1");
+    // 床に置かれた銅の剣の未払い額が返却精算され、残高が0になり店主が開ける
+    expect(shop.unpaidTotal).toBe(0);
+    expect(f.dungeon.items.some((i) => i.id === "w1" && i.x === 5 && i.y === 5)).toBe(true);
+  });
+
+  it("doSwapItem: 足元のアイテムが擬態モンスターの場合は交換が不成立で正体を現す", () => {
+    const myPotion = { id: "p1", name: "薬草", type: "potion", effect: "heal", value: 25 };
+    const f = fixture([myPotion]);
+
+    const mimicDef = MONS.find(m => m.subtype === "itemMimic") || {
+      name: "アイテムモドキ",
+      hp: 20,
+      atk: 5,
+      def: 2,
+      exp: 10,
+      subtype: "itemMimic",
+      symbol: "m",
+      color: "#f00",
+    };
+    const mimic = makeMonsterFromBase(mimicDef, 1, 5, 5, { aware: false });
+    mimic.disguisedAsItem = true;
+    const fakeItem = {
+      id: "fake_1",
+      itemMimicId: mimic.id,
+      name: "鉄の剣",
+      type: "weapon",
+      x: 5,
+      y: 5,
+    };
+    f.dungeon.monsters.push(mimic);
+    f.dungeon.items.push(fakeItem);
+
+    f.actions.doSwapItem(0);
+
+    // 手持ちアイテムは交換されずそのまま
+    expect(f.player.inventory[0].id).toBe("p1");
+    // 擬態モンスターが正体を現す
+    expect(mimic.disguisedAsItem).toBe(false);
+    expect(f.props.endTurn).toHaveBeenCalled();
   });
 
   it("doUseItem: インベントリ内の金貨を使うと財布（p.gold）に入りインベントリから消える", () => {

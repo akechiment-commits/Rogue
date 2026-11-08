@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { hasForcedTurn } from "./turnUpkeep.js";
 import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem, clearDimensionalVaultItemCounter } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
-import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
+import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel, revealItemMimicAt } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage, applyPoisonArrowDamageReduction,
@@ -25,6 +25,7 @@ import {
   resolveItemName, applyBubbleGoldScroll, pickBigboxType, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, breakAltar,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
+  applyShopUnpaidCharge, shopPriceNote,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -2379,8 +2380,24 @@ export function useItemActions({
       return;
     }
     const floorIt = floorItems[0];
+
+    const ml = installPlayerHpMessageHook([], p);
+
+    /* 擬態モンスター判定：足元のアイテムが偽物なら正体を現して反撃しターン終了 */
+    if (revealItemMimicAt(dg, p.x, p.y, p, ml, lu)) {
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      setSelIdx(null);
+      setShowDesc(null);
+      setShowInv(false);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+      return;
+    }
+
     _forceUnequip(p, it);
 
+    /* 床アイテム floorIt を拾ってインベントリへ */
     dg.items = dg.items.filter(item => item !== floorIt);
     clearDimensionalVaultItemCounter(floorIt);
     trackItem(floorIt);
@@ -2388,23 +2405,60 @@ export function useItemActions({
     if (floorIt.type === "gold" && !floorIt.name?.includes("枚")) {
       floorIt.name = `${floorIt.value}枚の金貨`;
     }
-
     p.inventory[idx] = floorIt;
 
-    const ml = installPlayerHpMessageHook([], p);
+    /* 手持ちアイテム it を床へ置く（返却精算、泉・罠・大箱・水没判定） */
+    const _allShopsDrop = getShops(dg);
+    const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
+    const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
+    const _chargeCost = getShopUsedCost(it);
+
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
       const _swapSoakRes = soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
       if (_swapSoakRes?.wish) setWishMode({ source: "spring", endTurnOnCancel: true });
     } else {
-      it.x = p.x;
-      it.y = p.y;
-      dg.items.push(it);
+      let _dr;
+      const ft = new Set();
+      withPitfallBag(() => { _dr = placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p); });
+      if (_dr === "pitfall_player") {
+        const _nd = chgFloor(p, 1, true);
+        if (_nd) {
+          sr.current.dungeon = _nd;
+          ml.push(`地下${p.depth}階に落ちた！`);
+        }
+      }
+    }
+    if (it.shopPrice != null && _itemShopDrop && _itemShopDrop.unpaidTotal < prevDebt && _itemShopDrop.unpaidTotal > 0) {
+      const _nm = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+      if (_chargeCost > 0) {
+        ml.push(`${_nm}を戻した。使用分${_chargeCost}Gが請求された！（未払い残高：${_itemShopDrop.unpaidTotal}G）`);
+      } else {
+        ml.push(`${_nm}を戻した。（残り${_itemShopDrop.unpaidTotal}G）`);
+      }
     }
 
+    /* 拾った floorIt が店の商品なら代金計上 */
     const itNm = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     const flNm = itemDisplayName(floorIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-    ml.push(`${itNm}を置き、足元の${flNm}を拾った。`);
+    if (floorIt.shopPrice) {
+      const _allS = getShops(dg);
+      const _ps = _allS.find(sh => sh.id === floorIt._shopId) || _allS[0];
+      if (_ps) {
+        const _ap = applyShopUnpaidCharge(floorIt, _ps, p);
+        const _sk = dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
+        if (_sk) _sk.state = "blocking";
+        if (_ap > 0) {
+          ml.push(`${itNm}を置き、足元の${flNm}を取った！(${_ap}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
+        } else {
+          ml.push(`${itNm}を置き、足元の${flNm}を取った！`);
+        }
+      } else {
+        ml.push(`${itNm}を置き、足元の${flNm}を取った！(${floorIt.shopPrice}G) 店主が入り口をふさいだ。`);
+      }
+    } else {
+      ml.push(`${itNm}を置き、足元の${flNm}を拾った。`);
+    }
 
     endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -2413,7 +2467,7 @@ export function useItemActions({
     setShowInv(false);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
-  }, [endTurn]);
+  }, [endTurn, chgFloor, dnameRef, lu, setGs, setMsgs, setSelIdx, setShowDesc, setShowInv, setWishMode, withPitfallBag]);
   const doThrow = useCallback((idx) => {
     if (cannotActWithItems(sr.current?.player)) return;
     const _it = sr.current?.player?.inventory[idx];
