@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MH, MW, T } from "../utils.js";
-import { GACHA_RARITY_RATES, isInsideGachaShop, pickGachaTemplate, rollGachaRarity } from "../gachaRules.js";
+import { GACHA_BOX_SLOTS, GACHA_BOX_TOTAL, GACHA_RARITY_RATES, createGachaBox, drawFromGachaBox, getGachaBoxRemaining, isInsideGachaShop, pickGachaTemplate, rollGachaRarity } from "../gachaRules.js";
 import { placeGachaMachine } from "../dungeon.js";
 import { breakGachaMachine, makeGachaPrize } from "../items.js";
 
@@ -59,5 +59,42 @@ describe("ガチャマシーン", () => {
     for (const rarity of ["A", "B", "C", "D", "E"]) {
       expect(makeGachaPrize(rarity).rarity).toBe(rarity);
     }
+  });
+  it("各マシーンに100個のBox（A:2, B:5, C:15, D:30, E:48）が設定され、1回引くごとに減る", () => {
+    expect(GACHA_BOX_TOTAL).toBe(100);
+    expect(GACHA_BOX_SLOTS).toEqual({ A: 2, B: 5, C: 15, D: 30, E: 48 });
+
+    const box = createGachaBox();
+    expect(box).toHaveLength(100);
+    const counts = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    for (const r of box) counts[r]++;
+    expect(counts).toEqual({ A: 2, B: 5, C: 15, D: 30, E: 48 });
+
+    const machine = { type: "gacha", box };
+    expect(getGachaBoxRemaining(machine)).toBe(100);
+
+    const first = drawFromGachaBox(machine);
+    expect(["A", "B", "C", "D", "E"]).toContain(first);
+    expect(getGachaBoxRemaining(machine)).toBe(99);
+
+    // 残り99回引いて全て取り出せること
+    const drawn = [first];
+    for (let i = 0; i < 99; i++) {
+      drawn.push(drawFromGachaBox(machine));
+    }
+    expect(getGachaBoxRemaining(machine)).toBe(0);
+    expect(drawFromGachaBox(machine)).toBeNull();
+
+    const drawnCounts = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    for (const r of drawn) drawnCounts[r]++;
+    expect(drawnCounts).toEqual({ A: 2, B: 5, C: 15, D: 30, E: 48 });
+  });
+
+  it("フロア生成時に配置されたガチャマシーンは100個のBoxを所持している", () => {
+    const dg = emptyDungeon();
+    const machine = placeGachaMachine(dg, () => 0);
+    expect(machine.box).toBeDefined();
+    expect(machine.box).toHaveLength(100);
+    expect(getGachaBoxRemaining(machine)).toBe(100);
   });
 });

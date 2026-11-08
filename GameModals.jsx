@@ -29,7 +29,7 @@ import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
-import { GACHA_COST } from "./gachaRules.js";
+import { GACHA_COST, GACHA_BOX_TOTAL, getGachaBoxRemaining, createGachaBox } from "./gachaRules.js";
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 import { foodPotionEffectLabel } from "./foodData.js";
 import { deleteImage } from "./imageStorage.js";
@@ -3226,9 +3226,11 @@ export function GachaModal({ mode, setMode, gs, gachaRef, menuSel, setMenuSel, o
   if (!mode) return null;
   const machine = gachaRef.current;
   const gold = gs?.player?.gold || 0;
+  const remaining = getGachaBoxRemaining(machine);
+  const isSoldOut = remaining <= 0;
   const close = () => { setMode(null); gachaRef.current = null; };
   const options = [
-    { label: "ガチャを回す", desc: `${GACHA_COST}G（所持金: ${gold}G）`, disabled: gold < GACHA_COST, fn: onDraw },
+    { label: "ガチャを回す", desc: isSoldOut ? "売り切れ" : `${GACHA_COST}G（所持金: ${gold}G）`, disabled: isSoldOut || gold < GACHA_COST, fn: onDraw },
     { label: "やめる", desc: "", disabled: false, fn: close },
   ];
   return (
@@ -3239,8 +3241,9 @@ export function GachaModal({ mode, setMode, gs, gachaRef, menuSel, setMenuSel, o
         <span style={{ color: "#ffd34d", fontSize: 13, fontWeight: "bold" }}>🎰 {machine?.name || "ガチャマシーン"}</span>
         <button onClick={close} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
-      <div style={{ color: "#d8c080", fontSize: 13, marginBottom: 8 }}>
-        当たりは滅多に出なさそうだ。
+      <div style={{ color: "#d8c080", fontSize: 13, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>残り: <strong style={{ color: remaining > 0 ? "#ffd34d" : "#ff5555" }}>{remaining} / {GACHA_BOX_TOTAL}個</strong></span>
+        {isSoldOut && <span style={{ color: "#ff5555", fontSize: 12 }}>（売り切れ）</span>}
       </div>
       {mode === "menu" && options.map((option, index) => (
         <button key={option.label} onClick={option.disabled ? undefined : option.fn}
@@ -5001,7 +5004,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
         if (occupied(nx, ny)) continue;
         if (objectKind === "gacha") {
-          const gacha = { id: uid(), x: nx, y: ny, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン" };
+          const gacha = { id: uid(), x: nx, y: ny, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン", box: createGachaBox() };
           (dg.gachaMachines || (dg.gachaMachines = [])).push(gacha);
           ml.push("ガチャマシーンを設置した！");
         } else if (objectKind === "spring") {

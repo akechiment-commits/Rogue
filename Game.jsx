@@ -144,7 +144,7 @@ import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFir
 import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
 import { isMonsterSpawnCellAllowed, keepMonsterSpawnSightCells } from "./monsterSpawnRules.js";
 import { FloorMapOverlay } from "./FloorMapOverlay.jsx";
-import { GACHA_COST, rollGachaRarity } from "./gachaRules.js";
+import { GACHA_COST, drawFromGachaBox, getGachaBoxRemaining, rollGachaRarity } from "./gachaRules.js";
 import { activateDimensionalVaults, advanceDimensionalVaults, pickAltarRewardTemplate } from "./specialFixtures.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
@@ -6509,13 +6509,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const machine = gachaRef.current;
     if (!s || !machine || !s.dungeon?.gachaMachines?.includes(machine)) return;
     const p2 = s.player, dg2 = s.dungeon;
+    const remaining = getGachaBoxRemaining(machine);
+    if (remaining <= 0) {
+      setMsgs((prev) => [...prev.slice(-80), "ガチャマシーンは空っぽだ！"]);
+      return;
+    }
     if ((p2.gold || 0) < GACHA_COST) {
       setMsgs((prev) => [...prev.slice(-80), `お金が足りない！（必要: ${GACHA_COST}G）`]);
       return;
     }
     const ml = installPlayerHpMessageHook([], p2);
     p2.gold -= GACHA_COST;
-    const prizeRarity = rollGachaRarity();
+    const prizeRarity = drawFromGachaBox(machine);
     const prize = makeGachaPrize(prizeRarity, p2.depth);
     placeItemAt(dg2, machine.x, machine.y, prize, ml, new Set(), 0, p2);
     const resultLabel = prize.rarity === "A" ? "大当たり！" : prize.rarity === "B" ? "当たり！" : "";

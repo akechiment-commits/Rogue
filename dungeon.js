@@ -21,7 +21,7 @@ import {
 import { ordinaryFloorGoldRange } from "./springRules.js";
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
-import { GACHA_SPAWN_RATE } from './gachaRules.js';
+import { GACHA_SPAWN_RATE, createGachaBox } from './gachaRules.js';
 import { specialFixtureRate } from './specialFixtures.js';
 import { assignWanderingAdventurerKnowledge, assignWanderingAdventurerPersonality, createWanderingAdventurerIdentity, rollWanderingAdventurerStats } from './wanderingAdventurer.js';
 
@@ -700,7 +700,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       for (let a = 0; a < 40; a++) {
         const [gx, gy] = pick(floorTiles);
         if (allOcc(gx, gy)) continue;
-        gachaMachines.push({ id: uid(), x: gx, y: gy, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン" });
+        gachaMachines.push({ id: uid(), x: gx, y: gy, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン", box: createGachaBox() });
         break;
       }
     }
@@ -750,7 +750,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       for (let a = 0; a < 40; a++) {
         const [gx, gy] = pick(floorTiles);
         if (allOcc(gx, gy)) continue;
-        gachaMachines.push({ id: uid(), x: gx, y: gy, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン" });
+        gachaMachines.push({ id: uid(), x: gx, y: gy, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン", box: createGachaBox() });
         fixturesPlaced++;
         break;
       }
@@ -1961,7 +1961,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
     } else {
       gachaMachines.push({
         id: uid(), x: p[0], y: p[1], tile: TI.GACHA,
-        type: "gacha", kind: "gacha_machine", name: "ガチャマシーン",
+        type: "gacha", kind: "gacha_machine", name: "ガチャマシーン", box: createGachaBox(),
       });
     }
   }
@@ -3004,6 +3004,7 @@ export function placeGachaMachine(dg, randomFn = Math.random) {
     id: uid(), x: cell.x, y: cell.y, tile: TI.GACHA,
     type: "gacha", kind: "gacha_machine", name: "ガチャマシーン",
     shopId: shop?.id ?? null,
+    box: createGachaBox(randomFn),
   };
   dg.gachaMachines.push(machine);
   return machine;

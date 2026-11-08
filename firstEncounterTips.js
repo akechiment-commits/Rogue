@@ -22,7 +22,7 @@ export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   shop: { title: "ダンジョン内の店", trigger: "ダンジョン内の店へ入る", text: ["店の道具は拾うと未払いになる。", "買わずに出ると泥棒扱い。"] },
   spring: { title: "泉", trigger: "初めて泉の上に乗る、または横から存在を調べる", text: ["泉では水を飲んだり道具を浸せる。", "使うと枯れることがある。"] },
   bigbox: { title: "大箱", trigger: "初めて大箱の上に乗る、または横から存在を調べる", text: ["道具を投げ入れると効果が起きる。", "中身は箱を壊すと取り出せる。"] },
-  gacha_machine: { title: "ガチャマシーン", trigger: "足元・正面・フロア一覧からガチャマシーンを調べる", text: ["1000Gで景品が1個出る。", "店内の台を壊すと泥棒扱い。"] },
+  gacha_machine: { title: "ガチャマシーン", trigger: "足元・正面・フロア一覧からガチャマシーンを調べる", text: ["1000Gで景品が1個出る（各台100個のBox制）。", "店内の台を壊すと泥棒扱い。"] },
   dimensional_vault: { title: "次元宝物庫", trigger: "次元宝物庫の部屋へ入る", text: ["中の道具には消えるまでの時間がある。", "残りターンを見て急いで拾おう。"] },
   wandering_merchant: { title: "行商人", trigger: "行商人に話しかける", text: ["その場で道具を売買できる。", "攻撃すると敵対する。"] },
   altar: { title: "祭壇", trigger: "祭壇を調べる", text: ["食料を捧げると別の道具が返る。", "捧げるほど良い返礼品が出やすい。"] },

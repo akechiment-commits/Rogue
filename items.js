@@ -48,7 +48,7 @@ import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js'
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { grantPlayerHaste, hasteDurationLabel, playerHasteStage, worldTickDamageTurnForCurrentAction } from './actionClock.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
-import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
+import { isGachaMachine, isInsideGachaShop, pickGachaTemplate, drawFromGachaBox } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
 import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
@@ -1637,7 +1637,8 @@ export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
   if (machine.shopId != null && p) {
     declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを壊した！泥棒扱いになった！" });
   }
-  const prize = makeGachaPrize(null, Number.isFinite(p?.depth) ? p.depth : 1);
+  const prizeRarity = drawFromGachaBox(machine);
+  const prize = makeGachaPrize(prizeRarity, Number.isFinite(p?.depth) ? p.depth : 1);
   const ft = new Set();
   placeItemAt(dg, x, y, prize, ml, ft, 0, p);
   ml.push(`${machine.name || "ガチャマシーン"}が壊れた！${resolveItemName(prize, nameFn)}が1個落ちた！`);
