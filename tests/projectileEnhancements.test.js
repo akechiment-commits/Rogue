@@ -137,4 +137,45 @@ describe('飛び道具・投擲のバリア・状態解除・反射防具検証'
     expect(npc.state).toBe("hostile");
     expect(msgs.some(m => m.includes("金縛りが解けた"))).toBe(true);
   });
+  it("跳ね返された杖をプレイヤーがバリアで防いだ際、破壊効果は発動しない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const wand = { id: "w1", name: "魔法の杖", type: "wand", effect: "lightning", charges: 5 };
+    const player = makePlayer({ x: 2, y: 2, depth: 1, hp: 100, maxHp: 100, barrier: 1, inventory: [wand] });
+    const reflector = { id: "ref1", name: "ミラー", x: 2, y: 4, hp: 50, maxHp: 50, subtype: "reflector" };
+    const dungeon = makeEmptyDg({ depth: 1, monsters: [reflector], rooms: [] });
+    const sr = { current: { player, dungeon, ident: new Set() } };
+    const msgs = [];
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs: (fn) => msgs.push(...fn([])), setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setThrowMode: vi.fn(), throwMode: { idx: 0, mode: "throw" },
+      pushAnim: () => {}, withPitfallBag: (fn) => fn()
+    });
+
+    actions.execDirection(0, 1);
+    expect(player.barrier).toBe(0);
+    expect(player.hp).toBe(100);
+    // バリアで防がれたので雷の破壊ダメージ等のメッセージは出ない
+    expect(msgs.some(m => m.includes("雷"))).toBe(false);
+  });
+
+  it("跳ね返された食料がプレイヤーに当たった際、満腹度が回復する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const food = { id: "f1", name: "大きなパン", type: "food", nutrition: 50 };
+    const player = makePlayer({ x: 2, y: 2, depth: 1, hp: 100, maxHp: 100, hunger: 20, maxHunger: 100, inventory: [food] });
+    const reflector = { id: "ref1", name: "ミラー", x: 2, y: 4, hp: 50, maxHp: 50, subtype: "reflector" };
+    const dungeon = makeEmptyDg({ depth: 1, monsters: [reflector], rooms: [] });
+    const sr = { current: { player, dungeon, ident: new Set() } };
+    const msgs = [];
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs: (fn) => msgs.push(...fn([])), setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setThrowMode: vi.fn(), throwMode: { idx: 0, mode: "throw" },
+      pushAnim: () => {}, withPitfallBag: (fn) => fn()
+    });
+
+    actions.execDirection(0, 1);
+    expect(player.hunger).toBeGreaterThan(20);
+    expect(msgs.some(m => m.includes("満腹度"))).toBe(true);
+  });
 });

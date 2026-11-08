@@ -4809,17 +4809,29 @@ export function useItemActions({
                           const _poison = applyYabaiPoison(p, "player");
                           ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
                         }
-                        const _rfConfuseT = statusTurns("confuse", { kind: "player" });
-                        const _rfSlowT = statusTurns("slow", { kind: "player" });
                         if (!isStatusImmune(p, ml)) {
-                          let confused = false;
+                          const _rfConfuseT = statusTurns("confuse", { kind: "player" });
+                          const _rfBewitchT = statusTurns("bewitch", { kind: "player" });
+                          const _rfSlowT = statusTurns("slow", { kind: "player" });
+                          const _rfAilments = [];
                           if (hasAbility(p.armor, "confuse_proof")) {
                             ml.push("防具が混乱を防いだ！(耐混乱)");
-                          } else {
-                            confused = applyPlayerConfusion(p, _rfConfuseT, ml);
+                          } else if (applyPlayerConfusion(p, _rfConfuseT, ml)) {
+                            _rfAilments.push(`混乱(${_rfConfuseT}ターン)`);
                           }
-                          p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
-                          ml.push(confused ? `混乱(${_rfConfuseT}ターン)・鈍足(${_rfSlowT}ターン)状態になった！` : `鈍足(${_rfSlowT}ターン)状態になった！`);
+                          if (hasAbility(p.armor, "bewitch_proof")) {
+                            ml.push("防具が幻惑を防いだ！(耐惑わし)");
+                          } else {
+                            p.bewitchedTurns = (p.bewitchedTurns || 0) + _rfBewitchT;
+                            _rfAilments.push(`幻惑(${_rfBewitchT}ターン)`);
+                          }
+                          if (hasAbility(p.armor, "slow_proof")) {
+                            ml.push("防具が鈍足を防いだ！(耐鈍足)");
+                          } else {
+                            p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
+                            _rfAilments.push(`鈍足(${_rfSlowT}ターン)`);
+                          }
+                          if (_rfAilments.length > 0) ml.push(`${_rfAilments.join("・")}状態になった！`);
                         }
                       }
                     } else if (it.type === "food" && it.rotten && !it.yabai) {
@@ -4830,12 +4842,15 @@ export function useItemActions({
                         ml.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                       }
                     }
-                  }
-                  if (it.type === "wand") {
-                    const _rfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-                    withPitfallBag(() => triggerWandBreakEffect(_rfSnap, p.x, p.y, dg, p, ml, lu, {
-                      singleTargetKind: "player", singleTarget: p, effectDx: -_rfdx || 1, effectDy: -_rfdy || 0,
-                    }));
+                    if (it.type === "food") {
+                      applyFoodEffectsOnHit(it, "player", p, dg, p, ml, lu);
+                    }
+                    if (it.type === "wand") {
+                      const _rfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+                      withPitfallBag(() => triggerWandBreakEffect(_rfSnap, p.x, p.y, dg, p, ml, lu, {
+                        singleTargetKind: "player", singleTarget: p, effectDx: -_rfdx || 1, effectDy: -_rfdy || 0,
+                      }));
+                    }
                   }
                   /* プレイヤーに当たったアイテムは消滅（床には残らない） */
                 } else if (_rfx !== tx || _rfy !== ty) {
