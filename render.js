@@ -191,7 +191,7 @@ export const TILE_NAMES = {
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
 /* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
-const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
+const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208, 260]);
 const GWEN_SPRITE_TILE_IDS = new Set([255, 256]);
 const CRISP_MONSTER_TILE_IDS = new Set([257, 258, 259, 261, 262, 263, 264, 265, 266]);
 export function clearCustomTileImages() {
@@ -533,7 +533,7 @@ export function drawTile(ctx, ts, idx, dx, dy, sz, options = null) {
   ctx.textAlign = "start";
 }
 
-export const VW_M = 17,
+export const VW_M = 13,
   VH_M = 13,
   VW_D = 33,
   VH_D = 19,
