@@ -2612,6 +2612,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
             : `${srcLabel}の爆発により`;
           p.hp -= dmg;
           ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
+          resolveParalysisHit(p, ml);
+          interruptPlayerSleep(p, ml);
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true,
             { ...context, killerMon, sourceIsPlayer: context.sourceIsPlayer ?? !killerMon });
         }
@@ -2622,8 +2624,14 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               if (_largeMonstersHit.has(m)) continue;
               _largeMonstersHit.add(m);
             }
+            wakeIfDormant(m, ml);
+            if (m.explosionImmune) {
+              ml.push(`${m.name}は爆発を受け付けない！`);
+              continue;
+            }
             if (consumeBarrier(m, ml)) continue;
-            if (m.baseKind === "firedemon") {
+            resolveParalysisHit(m, ml);
+            if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
               const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
               for (const [_sx, _sy] of _fd8) {
@@ -2639,10 +2647,12 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
             }
             if (m.isBoss) {
               if (blockLargeMonsterDamage(m, p, ml)) continue;
-              const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
+              let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
+              _bd = scaleMonFireDmg(m, _bd);
+              _bd = monScaleOutgoingDamage(killerMon, _bd);
               m.hp -= _bd;
               retaliateAgainstExplosionSource(m);
-              ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
+              ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn, false, killerMon);
               continue;
             }
@@ -2660,6 +2670,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       if (!dg.items.includes(it)) continue;
       if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 2) continue;
       if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 火薬壺は後で連鎖処理 */
+      if (it.shopPrice) chargeShopItem(it, dg, ml, p);
       if (it.type === "scroll" || it.type === "spellbook") {
         _blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が爆風で燃えてなくなった！`);
       } else if (it.type === "potion") {
@@ -2727,6 +2738,19 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
       }
     }
+    /* 爆発範囲内の石像 */
+    for (let ddx = -2; ddx <= 2; ddx++) {
+      for (let ddy = -2; ddy <= 2; ddy++) {
+        const ax = cx + ddx, ay = cy + ddy;
+        hitStatueWithAction(dg, ax, ay, p, ml, luFn, p?.depth, {
+          breaks: true,
+          spawnItem: false,
+          spawnMonster: false,
+          breakMessage: "石像が爆発で粉々になって消えた！",
+          itemDeps: getFixtureItemDeps(),
+        });
+      }
+    }
   } finally {
     _gunpowderDepth--;
   }
@@ -2789,6 +2813,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           ml.push(`大爆発！HPが1になった！`);
           applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         }
+        resolveParalysisHit(p, ml);
+        interruptPlayerSleep(p, ml);
       }
       /* モンスター：炎無効(火ダルマ)以外は消滅（ボスは現在HPの4分の1ダメージ） */
       for (const m of [...dg.monsters.filter(mm => !mm.disguisedAsItem && monsterOccupiesCell(mm, ax, ay))]) {
@@ -2798,8 +2824,13 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
           _largeMonstersHit.add(m);
         }
         wakeIfDormant(m, ml);
+        if (m.explosionImmune) {
+          ml.push(`${m.name}は爆発を受け付けない！`);
+          continue;
+        }
         if (consumeBarrier(m, ml)) continue;
-        if (m.baseKind === "firedemon") {
+        resolveParalysisHit(m, ml);
+        if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
           const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
           for (const [_sx, _sy] of _sd8) {
@@ -2815,9 +2846,11 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
         }
         if (m.isBoss) {
           if (blockLargeMonsterDamage(m, p, ml)) continue;
-          const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
+          let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
+          _bd = scaleMonFireDmg(m, _bd);
+          _bd = monScaleOutgoingDamage(options.killerMon || null, _bd);
           m.hp -= _bd;
-          ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
+          ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
           if (m.hp <= 0) { _killed.add(m); killMonsterByTrap(m, dg, p, ml, luFn, bombCause, options.killerMon || null); }
           continue;
         }
@@ -2829,6 +2862,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
       for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
         if (!dg.items.includes(it)) continue;
         if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 後で連鎖 */
+        if (it.shopPrice) chargeShopItem(it, dg, ml, p);
         if (it.type === "scroll") {
           blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "spellbook") {
@@ -2854,8 +2888,37 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
   }
   for (const it of blasted) destroyItemMimicFloorItem(dg, it);
   if (blasted.size > 0) dg.items = dg.items.filter(i => !blasted.has(i));
+  /* 範囲内の大箱を破壊 */
+  const _tbBlastedBB = [];
+  for (let _bbdx = -R; _bbdx <= R; _bbdx++) {
+    for (let _bbdy = -R; _bbdy <= R; _bbdy++) {
+      const _bax = cx + _bbdx, _bay = cy + _bbdy;
+      if (_bax < 0 || _bax >= MW || _bay < 0 || _bay >= MH) continue;
+      const _hitBBs = (dg.bigboxes || []).filter(b => b.x === _bax && b.y === _bay);
+      for (const _hbb of _hitBBs) {
+        if (_tbBlastedBB.includes(_hbb)) continue;
+        _tbBlastedBB.push(_hbb);
+        ml.push(`${_hbb.name}が爆発で壊れた！`);
+        breakBigboxContents(_hbb, dg, ml, nameFn, null, null, { ...options, player: p, luFn, killerMon: options.killerMon || null });
+      }
+    }
+  }
+  if (_tbBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_tbBlastedBB.includes(b));
   breakGachaMachinesInRadius(dg, cx, cy, R, ml, p, nameFn);
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
+  /* 爆発範囲内の石像 */
+  for (let ddx = -R; ddx <= R; ddx++) {
+    for (let ddy = -R; ddy <= R; ddy++) {
+      const ax = cx + ddx, ay = cy + ddy;
+      hitStatueWithAction(dg, ax, ay, p, ml, luFn, p?.depth, {
+        breaks: true,
+        spawnItem: false,
+        spawnMonster: false,
+        breakMessage: "石像が爆発で粉々になって消えた！",
+        itemDeps: getFixtureItemDeps(),
+      });
+    }
+  }
   /* 範囲内の火薬壺を連鎖爆発 */
   const _chainPots = dg.items.filter(it =>
     it.type === "pot" && it.potEffect === "gunpowder" &&
