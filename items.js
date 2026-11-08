@@ -3239,7 +3239,7 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
   }
   const items = (dg.items || []).filter((it) =>
     it && it.x != null && it.y != null &&
-    it.type !== "goal" && it.type !== "gold" && !it.shopId && !it.itemMimicId &&
+    it.type !== "goal" && it.type !== "gold" && !it.shopPrice && !it.shopId && !it._shopId && !it.itemMimicId && !it.wallEmbedded &&
     it.x >= room.x && it.x < room.x + room.w && it.y >= room.y && it.y < room.y + room.h);
   if (items.length === 0) {
     ml.push("しかし変化する道具がなかった。");
@@ -3251,27 +3251,34 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
   for (const it of items) {
     const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true, excludeLarge: true, poolFloor });
     if (!picked?.base) continue;
+    const mon = makeMonsterFromBase(picked.base, picked.spawnLevel, it.x, it.y, {
+      aware: true,
+      lastPx: p?.x || it.x,
+      lastPy: p?.y || it.y,
+    });
+    const canOccupy = (x, y) => {
+      if (x < 0 || y < 0 || x >= MW || y >= MH) return false;
+      const tile = dg.map[y]?.[x];
+      if (tile === T.WALL || tile === T.BWALL) return false;
+      if (p && p.x === x && p.y === y) return false;
+      if ((dg.monsters || []).some((m) => monsterOccupiesCell(m, x, y))) return false;
+      if (!canMonsterSurviveOnWater(mon, dg, x, y)) return false;
+      return true;
+    };
     let mx = it.x, my = it.y;
-    const blocked = (x, y) =>
-      (p && p.x === x && p.y === y) ||
-      (dg.monsters || []).some((m) => monsterOccupiesCell(m, x, y));
-    if (blocked(mx, my)) {
+    if (!canOccupy(mx, my)) {
       let found = false;
       for (const [ox, oy] of [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         const nx = it.x + ox, ny = it.y + oy;
-        if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
-        if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) continue;
-        if (blocked(nx, ny)) continue;
-        mx = nx; my = ny; found = true; break;
+        if (canOccupy(nx, ny)) {
+          mx = nx; my = ny; found = true; break;
+        }
       }
       if (!found) continue;
+      mon.x = mx;
+      mon.y = my;
     }
     removeFloorItem(dg, it);
-    const mon = makeMonsterFromBase(picked.base, picked.spawnLevel, mx, my, {
-      aware: true,
-      lastPx: p?.x || mx,
-      lastPy: p?.y || my,
-    });
     dg.monsters.push(mon);
     n++;
   }
