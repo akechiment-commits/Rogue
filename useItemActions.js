@@ -1,11 +1,11 @@
-import { isStatusImmune, statusResultMessage, monsterStatusTurns, applyPlayerParalyze } from "./statusDuration.js";
+import { isStatusImmune, statusResultMessage, monsterStatusTurns, applyPlayerParalyze, resolveParalysisHit } from "./statusDuration.js";
 import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
-import { hasForcedTurn } from "./turnUpkeep.js";
+import { hasForcedTurn, interruptPlayerSleep } from "./turnUpkeep.js";
 import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem, clearDimensionalVaultItemCounter } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
-import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel, revealItemMimicAt } from "./monsters.js";
+import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel, revealItemMimicAt, wakeIfDormant } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage, applyPoisonArrowDamageReduction,
@@ -25,7 +25,7 @@ import {
   resolveItemName, applyBubbleGoldScroll, pickBigboxType, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, breakAltar,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
-  applyShopUnpaidCharge, shopPriceNote,
+  applyShopUnpaidCharge, shopPriceNote, hasLightningResist, reduceLightningDamage, lightningResistDamageLabel,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -39,7 +39,7 @@ import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
-import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness, monElementDamageMultiplier } from "./monTraits.js";
+import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness, monElementDamageMultiplier, monEffectiveMagicImmune } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel, hasteStageLabel } from "./actionClock.js";
@@ -48,6 +48,7 @@ import { synchronizeFloorArrival } from "./floorArrival.js";
 import { adjustRingHp, ringHpBonus } from "./equipmentEffects.js";
 import { reducePotCapacity } from "./items.js";
 import { isFloorOccupancyBlocked } from "./floorObjectPlacement.js";
+import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -1233,14 +1234,19 @@ export function useItemActions({
             if (_m.hp <= 0) continue;
             if (_m.hp <= 0 || !dg.monsters.includes(_m)) continue;
             if (skipDodgemoleScroll(_m, ml)) continue;
-            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
+              if (consumeBarrier(p, ml)) continue;
               let _rdmg = rollElementScrollDamage(it);
               _rdmg = multiplyCursedMagicDamage(_rdmg, p, dg);
+              _rdmg = reduceLightningDamage(_rdmg, p);
               p.hp -= _rdmg;
               p.deathCause = `${_m.name}に雷を跳ね返されて`;
-              ml.push(`${_m.name}が雷を跳ね返した！${_rdmg}ダメージ！`);
+              ml.push(`${_m.name}が雷を跳ね返した！${_rdmg}ダメージ！${lightningResistDamageLabel(p)}`);
+              interruptPlayerSleep(p, ml);
+              resolveParalysisHit(p, ml);
               pushLightningAnim(p.x, p.y);
+              if (!hasLightningResist(p)) applyLightningToInventory(p, dg, ml, lu, dnameRef, false, { killerMon: _m });
               continue;
             }
             if (consumeBarrier(_m, ml)) continue;
@@ -1250,17 +1256,25 @@ export function useItemActions({
             const _thunderResist = monElementDamageMultiplier(_m, "thunder");
             _dmg = Math.max(1, Math.floor(_dmg * _thunderResist));
             _m.hp -= _dmg;
+            wakeIfDormant(_m, ml);
+            resolveParalysisHit(_m, ml);
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${monHasElementWeakness(_m, "thunder") ? "雷弱点！" : ""}${_thunderResist < 1 ? "雷半減！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
             if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }
           // 呪い：自分にも同ダメージの雷が落ちる
           if (it.cursed) {
-            const _selfDmg = multiplyCursedMagicDamage(Math.max(1, rng(30, 40)), p, dg);
-            p.hp -= _selfDmg;
-            p.deathCause = "呪われた雷の巻物で";
-            ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
-            pushLightningAnim(p.x, p.y);
+            if (!consumeBarrier(p, ml)) {
+              let _selfDmg = multiplyCursedMagicDamage(Math.max(1, rng(30, 40)), p, dg);
+              _selfDmg = reduceLightningDamage(_selfDmg, p);
+              p.hp -= _selfDmg;
+              p.deathCause = "呪われた雷の巻物で";
+              ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！${lightningResistDamageLabel(p)}【呪】`);
+              interruptPlayerSleep(p, ml);
+              resolveParalysisHit(p, ml);
+              pushLightningAnim(p.x, p.y);
+              if (!hasLightningResist(p)) applyLightningToInventory(p, dg, ml, lu, dnameRef, false);
+            }
           }
         }
         } // end hasCursedExplosionPentacle else
@@ -1268,14 +1282,18 @@ export function useItemActions({
         if (it.cursed) {
           // 呪い：自分含め視界内全員に、通常回復量と同じ50ダメージ（魔法倍率は掛けない）
           const _rdmg = recoveryScrollAmount({ cursed: true });
-          p.hp -= _rdmg;
-          p.deathCause = "呪われた回復の巻物で";
-          ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
+          if (!consumeBarrier(p, ml)) {
+            p.hp -= _rdmg;
+            p.deathCause = "呪われた回復の巻物で";
+            ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
+          }
           pushExplosionAnim(p.x, p.y);
           for (const _m of monsterAreaTargets(dg.monsters, (x, y) => dg.visible?.[y]?.[x])) {
             if (_m.hp <= 0 || !dg.monsters.includes(_m)) continue;
             if (skipDodgemoleScroll(_m, ml, "呪いのエネルギー")) continue;
-            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
               const _refC = Math.min(_rdmg, p.maxHp - p.hp);
               if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}がエネルギーを跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
@@ -1289,6 +1307,8 @@ export function useItemActions({
             }
             if (consumeBarrier(_m, ml)) continue;
             _m.hp -= _rdmg;
+            wakeIfDormant(_m, ml);
+            resolveParalysisHit(_m, ml);
             ml.push(`呪いのエネルギーが${_m.name}を直撃！${_rdmg}ダメージ！`);
             pushExplosionAnim(_m.x, _m.y);
             if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
@@ -1302,7 +1322,7 @@ export function useItemActions({
           for (const _m of monsterAreaTargets(dg.monsters, (x, y) => dg.visible?.[y]?.[x])) {
             if (_m.hp <= 0 || !dg.monsters.includes(_m)) continue;
             if (skipDodgemoleScroll(_m, ml, "回復の効果")) continue;
-            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
               const _refN = Math.min(_rh, p.maxHp - p.hp);
               if (_refN > 0) { p.hp += _refN; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refN}！`); pushHealAnim(p.x, p.y); }
@@ -1312,7 +1332,10 @@ export function useItemActions({
             if (_m.kind === "undead") {
               if (consumeBarrier(_m, ml)) continue;
               const _ud = Math.min(multiplyMagicDamage(_rh, p.weapon, _m, dg), _m.hp);
-              _m.hp -= _ud; ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
+              _m.hp -= _ud;
+              wakeIfDormant(_m, ml);
+              resolveParalysisHit(_m, ml);
+              ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
               if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
               continue;
             }
@@ -1361,9 +1384,10 @@ export function useItemActions({
           if ((p.statusImmune || 0) > 0) ml.push("眠気が辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
           else if (hasAbility(p.armor, "sleep_proof")) ml.push("眠気が辺りを包んだ！しかし防具が防いだ！(耐眠)【呪】");
           else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が辺りを包んだ！${_pst}ターン眠ってしまう…【呪】`); }
-          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+          const _sCursedSleep = dg.monsters.filter((m) => !m.isPlayerClone && monsterBodyCells(m).some((c) => dg.visible[c.y]?.[c.x]));
+          for (const _m of _sCursedSleep) {
             if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
-            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
               if (hasAbility(p.armor, "sleep_proof")) { ml.push(`${_m.name}が眠りを跳ね返したが、防具が防いだ！(耐眠)`); continue; }
@@ -1372,6 +1396,8 @@ export function useItemActions({
             }
             if (consumeBarrier(_m, ml)) continue;
             if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+            if (blockLargeMonsterStatus(_m, "sleep", ml)) continue;
+            startLargeMonsterStatusCooldown(_m, "sleep");
             const _mt = statusTurns("sleep", { kind: "monster", target: _m });
             _m.sleepTurns = (_m.sleepTurns || 0) + _mt;
             ml.push(`${_m.name}も眠りに落ちた！(${_mt}ターン)【呪】`);
@@ -1379,13 +1405,15 @@ export function useItemActions({
         } else {
           // 通常：視界内、祝福：フロア全体（ターンは基準／祝福2倍）
           const _stPl = statusTurns("sleep", { kind: "player", blessed: !!it.blessed });
-          const _sSleep = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          const _sSleep = it.blessed
+            ? dg.monsters.filter((m) => !m.isPlayerClone)
+            : dg.monsters.filter((m) => !m.isPlayerClone && monsterBodyCells(m).some((c) => dg.visible[c.y]?.[c.x]));
           if (_sSleep.length === 0) {
             ml.push(it.blessed ? "眠気が漂うが、フロアに敵はいない。【祝】" : "眠気が漂うが、視界に敵はいない。");
           } else {
             for (const _m of _sSleep) {
-            if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
-            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
+              if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "sleep_proof")) { ml.push(`${_m.name}が眠りを跳ね返したが、防具が防いだ！(耐眠)`); continue; }
@@ -1394,6 +1422,8 @@ export function useItemActions({
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+              if (blockLargeMonsterStatus(_m, "sleep", ml)) continue;
+              startLargeMonsterStatusCooldown(_m, "sleep");
               const _st = statusTurns("sleep", { kind: "monster", blessed: !!it.blessed, target: _m });
               _m.sleepTurns = (_m.sleepTurns || 0) + _st;
               ml.push(`${_m.name}が眠りに落ちた！(${_st}ターン)${it.blessed ? "【祝】" : ""}`);
@@ -1407,9 +1437,10 @@ export function useItemActions({
           if ((p.statusImmune || 0) > 0) ml.push("混乱ガスが辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
           else if (hasAbility(p.armor, "confuse_proof")) ml.push("混乱ガスが辺りを包んだ！しかし防具が防いだ！(耐混乱)【呪】");
           else if (applyPlayerConfusion(p, _pct, ml)) { ml.push(`混乱ガスが辺りを包んだ！${_pct}ターン混乱する…【呪】`); }
-          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+          const _sCursedConf = dg.monsters.filter((m) => !m.isPlayerClone && monsterBodyCells(m).some((c) => dg.visible[c.y]?.[c.x]));
+          for (const _m of _sCursedConf) {
             if (skipDodgemoleScroll(_m, ml, "混乱ガス")) continue;
-            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
               if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
@@ -1417,18 +1448,22 @@ export function useItemActions({
             }
             if (consumeBarrier(_m, ml)) continue;
             if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+            if (blockLargeMonsterStatus(_m, "confuse", ml)) continue;
+            startLargeMonsterStatusCooldown(_m, "confuse");
             const _mct = statusTurns("confuse", { kind: "monster", target: _m });
             _m.confusedTurns = (_m.confusedTurns || 0) + _mct;
             ml.push(`${_m.name}も混乱した！(${_mct}ターン)【呪】`);
           }
         } else {
           const _ctPl = statusTurns("confuse", { kind: "player", blessed: !!it.blessed });
-          const _cfTgts = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          const _cfTgts = it.blessed
+            ? dg.monsters.filter((m) => !m.isPlayerClone)
+            : dg.monsters.filter((m) => !m.isPlayerClone && monsterBodyCells(m).some((c) => dg.visible[c.y]?.[c.x]));
           if (_cfTgts.length === 0) { ml.push(it.blessed ? "混乱ガスが漂うが、フロアに敵はいない。【祝】" : "混乱ガスが漂うが、視界に敵はいない。"); }
           else {
             for (const _m of _cfTgts) {
               if (skipDodgemoleScroll(_m, ml, "混乱ガス")) continue;
-              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
@@ -1436,6 +1471,8 @@ export function useItemActions({
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+              if (blockLargeMonsterStatus(_m, "confuse", ml)) continue;
+              startLargeMonsterStatusCooldown(_m, "confuse");
               const _ct = statusTurns("confuse", { kind: "monster", blessed: !!it.blessed, target: _m });
               _m.confusedTurns = (_m.confusedTurns || 0) + _ct;
               ml.push(`${_m.name}が混乱した！(${_ct}ターン)${it.blessed ? "【祝】" : ""}`);
@@ -1450,11 +1487,17 @@ export function useItemActions({
           for (const _m of _flTgts) {
             if (_m.hp <= 0) continue;
             if (skipDodgemoleScroll(_m, ml, "炎の効果")) continue;
-            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
-              const _refFlDmg = multiplyCursedMagicDamage(Math.max(1, Math.round(rng(15, 25) * _scrBm)), p, dg);
+              if (consumeBarrier(p, ml)) continue;
+              let _refFlDmg = multiplyCursedMagicDamage(Math.max(1, Math.round(rng(15, 25) * _scrBm)), p, dg);
+              _refFlDmg = reduceFireDamage(_refFlDmg, p, { includeRingFire: true });
               p.hp -= _refFlDmg; p.deathCause = `${_m.name}に炎を跳ね返されて`;
-              ml.push(`${_m.name}が炎を跳ね返した！${_refFlDmg}ダメージ！`); pushExplosionAnim(p.x, p.y); continue;
+              ml.push(`${_m.name}が炎を跳ね返した！${_refFlDmg}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
+              interruptPlayerSleep(p, ml);
+              resolveParalysisHit(p, ml);
+              pushExplosionAnim(p.x, p.y);
+              continue;
             }
             if (consumeBarrier(_m, ml)) continue;
             if (monHasFlameMantle(_m)) {
@@ -1468,29 +1511,37 @@ export function useItemActions({
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
             _flDmg = scaleMonFireDmg(_m, multiplyMagicDamage(_flDmg, p.weapon, _m, dg));
             _m.hp -= _flDmg;
+            wakeIfDormant(_m, ml);
+            resolveParalysisHit(_m, ml);
             ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${monHasElementWeakness(_m, "fire") ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
             if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }
         }
         if (it.cursed) {
-          const _flSelfDmg = multiplyCursedMagicDamage(Math.max(1, rng(30, 40)), p, dg);
-          p.hp -= _flSelfDmg; p.deathCause = "呪われた炎の巻物で";
-          ml.push(`呪われた炎が爆発した！${_flSelfDmg}ダメージ！【呪】`); pushExplosionAnim(p.x, p.y);
+          if (!consumeBarrier(p, ml)) {
+            let _flSelfDmg = multiplyCursedMagicDamage(Math.max(1, rng(30, 40)), p, dg);
+            _flSelfDmg = reduceFireDamage(_flSelfDmg, p, { includeRingFire: true });
+            p.hp -= _flSelfDmg; p.deathCause = "呪われた炎の巻物で";
+            ml.push(`呪われた炎が爆発した！${_flSelfDmg}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}【呪】`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
+            pushExplosionAnim(p.x, p.y);
+          }
         }
       } else if (it.effect === "berserker_scroll") {
         if (it.cursed) {
           // 呪い：部屋内の敵が20ターン平和主義状態（攻撃不可）
           const _bsCurRoom = findRoom(dg.rooms, p.x, p.y);
           const _bsCurTgts = _bsCurRoom
-            ? dg.monsters.filter(m => findRoom(dg.rooms, m.x, m.y) === _bsCurRoom)
+            ? dg.monsters.filter(m => !m.isPlayerClone && monsterBodyCells(m).some(c => findRoom(dg.rooms, c.x, c.y) === _bsCurRoom))
             : [];
           if (_bsCurTgts.length === 0) {
             ml.push("平和の気が辺りを包んだが、部屋に敵はいない。【呪】");
           } else {
             for (const _m of _bsCurTgts) {
               if (skipDodgemoleScroll(_m, ml, "平和の効果")) continue;
-              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が平和を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.pacifistTurns = (p.pacifistTurns || 0) + 20;
@@ -1506,14 +1557,14 @@ export function useItemActions({
           // 通常/祝福：部屋内(通常) or フロア全体(祝福) の敵が50ターンバーサーク状態
           const _bsRoom = findRoom(dg.rooms, p.x, p.y);
           const _bsTgts = it.blessed
-            ? [...dg.monsters]
-            : (_bsRoom ? dg.monsters.filter(m => findRoom(dg.rooms, m.x, m.y) === _bsRoom) : []);
+            ? dg.monsters.filter(m => !m.isPlayerClone)
+            : (_bsRoom ? dg.monsters.filter(m => !m.isPlayerClone && monsterBodyCells(m).some(c => findRoom(dg.rooms, c.x, c.y) === _bsRoom)) : []);
           if (_bsTgts.length === 0) {
             ml.push(it.blessed ? "バーサークの気が漂うが、フロアに敵はいない。【祝】" : "バーサークの気が漂うが、部屋に敵はいない。");
           } else {
             for (const _m of _bsTgts) {
               if (skipDodgemoleScroll(_m, ml, "バーサークの効果")) continue;
-              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}がバーサークを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 50;
@@ -1550,12 +1601,12 @@ export function useItemActions({
             ml.push("呪いの力が自分に降り注いだ！50ターン攻撃力・防御力が半減する！【呪】");
           }
         } else {
-          const _dbTgts = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          const _dbTgts = dg.monsters.filter((m) => !m.isPlayerClone && monsterBodyCells(m).some((c) => dg.visible[c.y]?.[c.x]));
           if (_dbTgts.length === 0) { ml.push("視界に敵はいない。"); }
           else {
             for (const _m of _dbTgts) {
               if (skipDodgemoleScroll(_m, ml, "解除の効果")) continue;
-              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
                 // 反射：自分に攻撃力半減・防御力半減デバフ
                 if (!isStatusImmune(p, ml)) {
@@ -1703,13 +1754,13 @@ export function useItemActions({
           else { const _pt = statusTurns("paralyze", { kind: "player" }); applyPlayerParalyze(p, _pt, { mode: "add" }); ml.push(`金縛りの呪いが自分を襲った！${_pt}ターン体が動かない！【呪】`); }
         } else {
           const _btTgts = it.blessed
-            ? dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])
-            : dg.monsters.filter((m) => Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1);
+            ? dg.monsters.filter((m) => !m.isPlayerClone && monsterBodyCells(m).some((c) => dg.visible[c.y]?.[c.x]))
+            : dg.monsters.filter((m) => !m.isPlayerClone && monsterBodyCells(m).some((c) => Math.abs(c.x - p.x) <= 1 && Math.abs(c.y - p.y) <= 1));
           if (_btTgts.length === 0) { ml.push(it.blessed ? "視界に敵はいない。" : "周囲に敵はいない。"); }
           else {
             for (const _m of _btTgts) {
               if (skipDodgemoleScroll(_m, ml, "金縛りの効果")) continue;
-              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (monEffectiveMagicImmune(_m)) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が金縛りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "paralyze_proof")) { ml.push(`${_m.name}が金縛りを跳ね返したが、防具が防いだ！`); continue; }
@@ -1718,6 +1769,8 @@ export function useItemActions({
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+              if (blockLargeMonsterStatus(_m, "paralyze", ml)) continue;
+              startLargeMonsterStatusCooldown(_m, "paralyze");
               const _pt = applyMonsterParalyze(_m, { blessed: !!it.blessed, ml: null });
               ml.push(`${_m.name}が金縛りになった！${_m.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}${it.blessed ? "【祝】" : ""}`);
             }
@@ -1817,7 +1870,7 @@ export function useItemActions({
             let _reflectedToPlayer = false;
             for (const _sm of _inRoom) {
               if (skipDodgemoleScroll(_sm, ml, "召喚の呪い")) continue;
-              if (_sm.magicImmune) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
+              if (monEffectiveMagicImmune(_sm)) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
               if (monReflectsMagic(_sm)) { ml.push(`${_sm.name}が呪いの召喚を跳ね返した！`); _reflectedToPlayer = true; continue; }
               if (consumeBarrier(_sm, ml)) continue;
               const _tr = pick(_otherRooms);
