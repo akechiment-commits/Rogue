@@ -4972,7 +4972,9 @@ export function useItemActions({
           } else if (_genHitSelf) {
             const lb = _mkThrowLb();
             ml.push(`風に煽られた${lb}が自分に当たった！`);
-            if (it.type === "wand") {
+            if (consumeBarrier(p, ml)) {
+              // バリアで防ぐ
+            } else if (it.type === "wand") {
               const _sfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
               withPitfallBag(() => triggerWandBreakEffect(_sfSnap, p.x, p.y, dg, p, ml, lu, {
                 singleTargetKind: "player", singleTarget: p, effectDx: 0, effectDy: 0,
@@ -4985,19 +4987,58 @@ export function useItemActions({
               p.hp -= _selfD;
               p.deathCause = "風に煽られた投げ物に当たって";
               ml.push(`${_selfD}ダメージ！`);
+              interruptPlayerSleep(p, ml);
+              resolveParalysisHit(p, ml);
               if (it.type === "food" && it.yabai) {
-                const _poison = applyYabaiPoison(p, "player");
-                if (!isStatusImmune(p, ml)) {
-                  if (applyPlayerConfusion(p, statusTurns("confuse", { kind: "player" }), ml)) ml.push("ヤバイ食料の影響で混乱した！");
+                if (hasAbility(p.armor, "yabai_proof")) {
+                  ml.push("防具がヤバイ食料の効果を防いだ！(耐ヤバイ食料)");
+                } else {
+                  const _rfyDmg = rng(15, 25);
+                  p.hp -= _rfyDmg;
+                  p.deathCause = "風に煽られたヤバイ食料に当たって";
+                  ml.push(`ヤバイ食料がぶつかって食べさせられた！さらに${_rfyDmg}ダメージ！`);
+                  if (hasRingEffect(p, "antidote_ring")) {
+                    ml.push("毒消しの指輪が毒を防いだ！");
+                  } else {
+                    const _poison = applyYabaiPoison(p, "player");
+                    ml.push(statusResultMessage(_poison, `食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
+                  }
+                  if (!isStatusImmune(p, ml)) {
+                    const _rfConfuseT = statusTurns("confuse", { kind: "player" });
+                    const _rfBewitchT = statusTurns("bewitch", { kind: "player" });
+                    const _rfSlowT = statusTurns("slow", { kind: "player" });
+                    const _rfAilments = [];
+                    if (hasAbility(p.armor, "confuse_proof")) {
+                      ml.push("防具が混乱を防いだ！(耐混乱)");
+                    } else if (applyPlayerConfusion(p, _rfConfuseT, ml)) {
+                      _rfAilments.push(`混乱(${_rfConfuseT}ターン)`);
+                    }
+                    if (hasAbility(p.armor, "bewitch_proof")) {
+                      ml.push("防具が幻惑を防いだ！(耐惑わし)");
+                    } else {
+                      p.bewitchedTurns = (p.bewitchedTurns || 0) + _rfBewitchT;
+                      _rfAilments.push(`幻惑(${_rfBewitchT}ターン)`);
+                    }
+                    if (hasAbility(p.armor, "slow_proof")) {
+                      ml.push("防具が鈍足を防いだ！(耐鈍足)");
+                    } else {
+                      p.slowTurns = (p.slowTurns || 0) + _rfSlowT;
+                      _rfAilments.push(`鈍足(${_rfSlowT}ターン)`);
+                    }
+                    if (_rfAilments.length > 0) ml.push(`${_rfAilments.join("・")}状態になった！`);
+                  }
                 }
-                ml.push(statusResultMessage(_poison, `ヤバイ食料の影響で毒(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`));
-              } else if (it.type === "food" && it.rotten) {
-                if (!hasRingEffect(p, "antidote_ring")) {
+              } else if (it.type === "food" && it.rotten && !it.yabai) {
+                if (hasRingEffect(p, "antidote_ring")) {
+                  ml.push("毒消しの指輪が毒を防いだ！");
+                } else {
                   const _poison = applyPlayerPoison(p);
-                  ml.push(statusResultMessage(_poison, `腐った食料で毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
+                  ml.push(statusResultMessage(_poison, `腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
                 }
               }
-              applyFoodEffectsOnHit(it, "player", p, dg, p, ml, lu);
+              if (it.type === "food") {
+                applyFoodEffectsOnHit(it, "player", p, dg, p, ml, lu);
+              }
             }
           } else if (_isFarcast) {
             const lb = _mkThrowLb();

@@ -178,4 +178,46 @@ describe('飛び道具・投擲のバリア・状態解除・反射防具検証'
     expect(player.hunger).toBeGreaterThan(20);
     expect(msgs.some(m => m.includes("満腹度"))).toBe(true);
   });
+  it("風穴で曲がって自分に当たった投擲物をバリアで防ぐ", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const rock = { id: "r1", name: "石ころ", type: "misc" };
+    const player = makePlayer({ x: 2, y: 5, depth: 1, hp: 100, maxHp: 100, barrier: 1, inventory: [rock] });
+    // (6, 5) に左向き風穴を置き、右 (1, 0) に投げると (4, 5) で左に曲がって (2, 5) の自分に当たる
+    const dungeon = makeEmptyDg({ depth: 1, rooms: [], vents: [{ x: 6, y: 5, dx: -1, dy: 0, dir: "left" }] });
+    const sr = { current: { player, dungeon, ident: new Set() } };
+    const msgs = [];
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs: (fn) => msgs.push(...fn([])), setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setThrowMode: vi.fn(), throwMode: { idx: 0, mode: "throw" },
+      pushAnim: () => {}, withPitfallBag: (fn) => fn()
+    });
+
+    actions.execDirection(1, 0);
+    expect(player.barrier).toBe(0);
+    expect(player.hp).toBe(100);
+    expect(msgs.some(m => m.includes("風に煽られた"))).toBe(true);
+  });
+  it("風穴で曲がって自分に当たったヤバイ食料を耐ヤバイ食料防具で防ぐ", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const food = { id: "f1", name: "ヤバイ草", type: "food", yabai: true };
+    const armor = { id: "arm1", name: "耐ヤバイの盾", type: "armor", abilities: ["yabai_proof"] };
+    const player = makePlayer({ x: 2, y: 5, depth: 1, hp: 100, maxHp: 100, armor, inventory: [food, armor] });
+    const dungeon = makeEmptyDg({ depth: 1, rooms: [], vents: [{ x: 6, y: 5, dx: -1, dy: 0, dir: "left" }] });
+    const sr = { current: { player, dungeon, ident: new Set() } };
+    const msgs = [];
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs: (fn) => msgs.push(...fn([])), setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setThrowMode: vi.fn(), throwMode: { idx: 0, mode: "throw" },
+      pushAnim: () => {}, withPitfallBag: (fn) => fn()
+    });
+
+    actions.execDirection(1, 0);
+    // 基本投擲ダメージは受けるが、ヤバイ食料の追加ダメージや状態異常は防具で防がれる
+    expect(player.poisonTurns || 0).toBe(0);
+    expect(player.confusedTurns || 0).toBe(0);
+    expect(player.slowTurns || 0).toBe(0);
+    expect(msgs.some(m => m.includes("耐ヤバイ食料"))).toBe(true);
+  });
 });
