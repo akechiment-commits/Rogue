@@ -18,15 +18,16 @@ describe("calcAtkDefDmg", () => {
   it("高 atk でもミスリル級の防御で明確に減る（2ヘッド相当）", () => {
     const naked = calcAtkDefDmg(999, 2, { defWeight: 1.5, variance: false });
     const mithril = calcAtkDefDmg(999, 15, { defWeight: 1.5, variance: false });
-    /* 旧式は十数差しかなかった。割合込みで 100 前後は差が欲しい */
+    /* トルネコ3式: 防御15で (35/36)^15 ≒ 0.66 倍まで減る */
     expect(naked - mithril).toBeGreaterThan(100);
-    expect(mithril).toBeGreaterThan(700); /* 無敵にしすぎない */
+    expect(mithril).toBeGreaterThan(600);
+    expect(mithril).toBeLessThan(700);
   });
 
-  it("割合軽減は maxRed で頭打ち", () => {
+  it("高防御でも指数で減り続け、最低1は残る", () => {
     const d80 = calcAtkDefDmg(100, 80, { defWeight: 1, variance: false, softK: DEF_SOFT_K, maxRed: DEF_SOFT_MAX_RED });
     const d200 = calcAtkDefDmg(100, 200, { defWeight: 1, variance: false, softK: DEF_SOFT_K, maxRed: DEF_SOFT_MAX_RED });
-    /* soft 上限は同じ40%だが、基本式側の def はまだ効くので d200 <= d80 */
+    /* 指数軽減に上限はないので d200 <= d80 */
     expect(d200).toBeLessThanOrEqual(d80);
     /* ただし 0 にはならない */
     expect(d200).toBeGreaterThanOrEqual(1);

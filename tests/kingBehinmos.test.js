@@ -158,14 +158,14 @@ describe('上級20階のキングベヒんもス',()=>{
     expect(loaded.dungeon.pendingMeteors[0]).toMatchObject({x:5,y:10,turnsLeft:1});
     advanceMeteors(loaded.dungeon,loaded.player,[],()=>{}); expect(loaded.player.hp).toBe(52);
   });
-  it('防御40のメテオは通常防御計算でプレイヤー70・敵77ダメージになる',()=>{
+  it('防御40のメテオは通常防御計算でプレイヤー47・敵47ダメージになる',()=>{
     const s=setup(), victim={id:'v',name:'敵',x:6,y:10,hp:200,maxHp:200,def:40};
     s.player.def=40; s.dungeon.monsters.push(victim); attack(s); hazards(s,{worldTicks:2});
-    expect(s.player.hp).toBe(130); expect(victim.hp).toBe(123);
+    expect(s.player.hp).toBe(153); expect(victim.hp).toBe(153);
   });
   it('呪い魔封じはメテオの防御軽減後のダメージを2倍にする',()=>{
     const s=setup(); s.player.def=40; s.dungeon.pentacles=[{kind:'magic_seal',cursed:true,x:3,y:3}];
-    attack(s); hazards(s,{worldTicks:2}); expect(s.player.hp).toBe(60);
+    attack(s); hazards(s,{worldTicks:2}); expect(s.player.hp).toBe(106);
   });
   it('ダストストームは本体の外周で1体につき1回だけ当たり、キングへは当たらない',()=>{
     vi.spyOn(Math,'random').mockReturnValue(0);

@@ -1352,7 +1352,7 @@ export const MONS = [
   { name: "ムカデ",       hp: 12,  atk: 5,  def: 5,  exp: 6,   speed: 1,   tile: 12,  kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,  dungeonFloors: { beginner: { min: 2, max: 5 }, intermediate: { min: 1, max: 4 }, advanced: { min: 1, max: 5 } },
     levels: [
       { name: "巨大ムカデ",             hp: 32,  atk: 13, def: 16,  exp: 35, dungeonFloors: { advanced: { min: 9, max: 11 } } },
-      { name: "重装甲ムカデ",           hp: 52,  atk: 20, def: 38, exp: 160, dungeonFloors: { advanced: { min: 15, max: 17 } } },
+      { name: "重装甲ムカデ",           hp: 52,  atk: 20, def: 30, exp: 160, dungeonFloors: { advanced: { min: 15, max: 17 } } },
     ],
   },
   { name: "マイナーダイミョウ", hp: 28,  atk: 15, def: 3,  exp: 40,  speed: 1,   tile: 158, kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 14 }, advanced: { min: 7, max: 15 } },
@@ -1494,7 +1494,7 @@ export const MONS = [
   { name: "ヤドカリ壺荒らし", hp: 45, atk: 18, def: 12, exp: 75, speed: 1, tile: 234, kind: "beast", baseKind: "potRaider", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "thunder", subtype: "potRaider", desc: "同レベルの新たなヤドカリ壺荒らしを容量の残った壺へ押し込む（1体につき在庫4体まで。残りの在庫がドロップすることはない）。Lv2は一直線上3マス以内から、Lv3は4マス以内から放物線で投げ込む（外れると隣に出現）。壺を割るか吸い出すとヤドカリ壺荒らしが現れる。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
     levels: [
       { name: "大ヤドカリ壺荒らし", hp: 85, atk: 28, def: 22, exp: 200, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 25, max: 27 }, legend: { min: 36, max: 39 } } },
-      { name: "ヤドカリ壺大将", hp: 140, atk: 40, def: 34, exp: 580, dungeonFloors: { legend: { min: 48, max: 50 } } },
+      { name: "ヤドカリ壺大将", hp: 140, atk: 40, def: 30, exp: 580, dungeonFloors: { legend: { min: 48, max: 50 } } },
     ],
   },
   { name: "炎の料理人", hp: 32, atk: 15, def: 4, exp: 42, speed: 1, tile: 237, kind: "humanoid", baseKind: "fireCook", monLevel: 1, minFloor: 14, maxFloor: 50, elemWeak: "ice", subtype: "fireCook", desc: "隣接すると装備中でない所持品を焦げた料理へ変える。ヤバイ料理は焦げた料理に再調理し、腐った食料は元に戻す。焦げた料理をさらに焦がすとヤバイ料理になる。中身入りの壺は割って中身を散らす。", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 16 }, advanced: { min: 14, max: 16 }, legend: { min: 23, max: 26 } },
@@ -1606,7 +1606,7 @@ export const MONS = [
   { name: "バリア蟹",     hp: 32,  atk: 15, def: 10,  exp: 50,  speed: 1,   tile: 147, kind: "beast", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, elemWeak: "thunder", barrier: 1, waterWalker: true, dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
     levels: [
       { name: "どこにも居場所がカニ", hp: 55,  atk: 22, def: 20,  exp: 120, barrier: 2 },
-      { name: "なんでも無効蟹",     hp: 85, atk: 30, def: 34,  exp: 340, barrier: 3 },
+      { name: "なんでも無効蟹",     hp: 85, atk: 30, def: 30,  exp: 340, barrier: 3 },
     ],
   },
   { name: "ウィンドメイジ", hp: 32, atk: 14, def: 3, exp: 45,  speed: 1,   tile: 157, kind: "undead",   baseKind: "windmage",     monLevel: 1, minFloor: 23, maxFloor: 50, float: true, subtype: "wanduser", wandEffect: "blowback_wand", dungeonFloors: { intermediate: null, advanced: { min: 17, max: 27 } },
@@ -1661,7 +1661,7 @@ export const MONS = [
   { name: "ゴーレム",     hp: 95, atk: 26, def: 14, exp: 110, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",         monLevel: 1, minFloor: 27, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
     levels: [
       { name: "ゴーレムLv2",        hp: 180, atk: 38, def: 26, exp: 320 },
-      { name: "ゴーレムーガ",       hp: 320, atk: 54, def: 44, exp: 950 },
+      { name: "ゴーレムーガ",       hp: 320, atk: 54, def: 30, exp: 950 },
     ],
   },
   { name: "デーモン",     hp: 70, atk: 26, def: 10, exp: 110, speed: 2,   tile: 58, kind: "undead",   baseKind: "daemon",        monLevel: 1, minFloor: 27, maxFloor: 50, maxAttacks: 3, float: true, dungeonFloors: { intermediate: null, advanced: { min: 25, max: 30 } },
@@ -1981,54 +1981,54 @@ export const BOSSES = [
     speed: 1,   tile: 138, kind: "humanoid", baseKind: "boss_darkbullet",
     isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1, deathLines: SION_DEATH_LINES },
   /* 第3ボス B15F (depth=14) */
-  { name: "深淵の番人", hp: 600,   atk: 56,  def: 32,  exp: 2500,
+  { name: "深淵の番人", hp: 600,   atk: 56,  def: 30,  exp: 2500,
     speed: 1,   tile: 139, kind: "beast",    baseKind: "boss_guardian",
     isBoss: true, bossTier: 3,  monLevel: 1, maxAttacks: 3 },
   /* 第4ボス B20F (depth=19) */
-  { name: "魔神王",     hp: 900,   atk: 73,  def: 41,  exp: 5000,
+  { name: "魔神王",     hp: 900,   atk: 73,  def: 30,  exp: 5000,
     speed: 2,   tile: 140, kind: "beast",    baseKind: "boss_demonking",
     isBoss: true, bossTier: 4,  monLevel: 1, maxAttacks: 3, float: true },
   /* 第5ボス B25F (depth=24)
    * 【鎧砕き蓄積型】遅いが攻撃を受けるたびに防御が半減し続ける。後半は1発が致命的になる。
    * 攻略：なるべく攻撃を受けず、防御アイテムを使いながら早期撃破 */
-  { name: "魔将軍",     hp: 800,   atk: 96,  def: 55,  exp: 9000,
+  { name: "魔将軍",     hp: 800,   atk: 96,  def: 30,  exp: 9000,
     speed: 1,   tile: 95, kind: "humanoid", baseKind: "boss_warlord",
     isBoss: true, bossTier: 5,  monLevel: 1, maxAttacks: 2 },
   /* 第6ボス B30F (depth=29)
    * 【物量召喚型】3ターンに2体召喚し続けて数で圧倒。HP吸収で長期戦も不利。
    * 攻略：通路など狭い場所で召喚を制限し本体に集中攻撃 */
-  { name: "骸骨王",     hp: 1000,  atk: 108, def: 60,  exp: 15000,
+  { name: "骸骨王",     hp: 1000,  atk: 108, def: 30,  exp: 15000,
     speed: 2,   tile: 96, kind: "undead",   baseKind: "boss_skullking",
     isBoss: true, bossTier: 6,  monLevel: 1, maxAttacks: 1, float: true },
   /* 第7ボス B35F (depth=34)
    * 【油炎コンボ型】倍速で動きながら油まみれブレスを吐く。油状態で攻撃を受けると炎ダメージ2倍。
    * 攻略：油を素早く解消するか炎耐性で対抗。ブレスターンか攻撃ターンかを読む */
-  { name: "炎帝竜",     hp: 1200,  atk: 122, def: 68,  exp: 25000,
+  { name: "炎帝竜",     hp: 1200,  atk: 122, def: 30,  exp: 25000,
     speed: 2,   tile: 97, kind: "dragon",   baseKind: "boss_flamedragon",
     isBoss: true, bossTier: 7,  monLevel: 1, maxAttacks: 3 },
   /* 第8ボス B40F (depth=39)
    * 【消耗戦型】速度は遅いが毎ターン回復し、5ターンに1度ランダム状態異常を付与し続ける。
    * 攻略：封印されてもごり押せる火力を確保。回復量を超える火力を出し切る */
-  { name: "虚無の僧侶", hp: 1500,  atk: 138, def: 82,  exp: 40000,
+  { name: "虚無の僧侶", hp: 1500,  atk: 138, def: 30,  exp: 40000,
     speed: 1,   tile: 98, kind: "undead",   baseKind: "boss_voidmonk",
     isBoss: true, bossTier: 8,  monLevel: 1, maxAttacks: 2, float: true },
   /* 第9ボス B45F (depth=44)
    * 【激昂型】通常は倍速・攻撃2回だがHP50%以下で激昂してspeed3になり手がつけられない。
    * 攻略：激昂前に一気に仕留める。激昂後は即死火力か即逃げしか選択肢がない */
-  { name: "煉獄公",     hp: 1900,  atk: 163, def: 87,  exp: 65000,
+  { name: "煉獄公",     hp: 1900,  atk: 163, def: 30,  exp: 65000,
     speed: 2,   tile: 99, kind: "beast",    baseKind: "boss_infernoking",
     isBoss: true, bossTier: 9,  monLevel: 1, maxAttacks: 2, float: true },
   /* 第10ボス B50F (depth=49) ― 最終ボス
    * 【全部乗せ型】倍速+毎ターン回復+4T召喚+金縛り+防御半減が全部来る。全ての脅威の集大成。
    * 攻略：ダンジョン全体で収集したリソースを惜しまず使い切る */
-  { name: "深淵神",     hp: 2400,  atk: 183, def: 97,  exp: 100000,
+  { name: "深淵神",     hp: 2400,  atk: 183, def: 30,  exp: 100000,
     speed: 2,   tile: 100, kind: "beast",   baseKind: "boss_abyssgod",
     isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
 ];
 
 /* 超上級B30F専用の群体ボス。個体ごとの報酬は抑止し、6体と骨の処理後に一括報酬を出す。 */
 export const PYROBOLOS_BOSS = {
-  name: "ピュロボロス", hp: 400, atk: 60, def: 35, exp: 500,
+  name: "ピュロボロス", hp: 400, atk: 60, def: 30, exp: 500,
   speed: 1, tile: 261, kind: "beast", baseKind: "boss_pyrobolos",
   isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, float: true, elemWeak: "ice",
   explosionImmune: true,
@@ -2037,7 +2037,7 @@ export const PYROBOLOS_BOSS = {
 
 /* 上級20階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔神王は維持する。 */
 export const KING_BEHINMOS = {
-  name: "キングベヒんもス", hp: 950, atk: 74, def: 42, exp: 5500,
+  name: "キングベヒんもス", hp: 950, atk: 74, def: 30, exp: 5500,
   speed: 1, tile: 224, kind: "beast", baseKind: "boss_kingbehinmos",
   isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, bodySize: 3,
   meteorDamage: 148, meteorImmune: true, meteorInterval: 4,
@@ -2054,7 +2054,7 @@ export const BATTERING_RAM = {
 };
 
 export const CHIRANIKUTSUNNOKU = {
-  name: "ちらにくつんのく", hp: 720, atk: 58, def: 34, exp: 3000,
+  name: "ちらにくつんのく", hp: 720, atk: 58, def: 30, exp: 3000,
   speed: 1, tile: 251, kind: "insect", baseKind: "boss_chiranikuttsunnoku",
   isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
   elemWeak: "thunder",
@@ -2071,7 +2071,7 @@ export const TAISAIJIN = {
 
 /* 上級25階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔将軍は維持する。 */
 export const OHPLENTY = {
-  name: "オープレンティ", hp: 1100, atk: 86, def: 50, exp: 9000,
+  name: "オープレンティ", hp: 1100, atk: 86, def: 30, exp: 9000,
   speed: 2, tile: 253, kind: "material", baseKind: "boss_ohplenty",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1,
   desc: "宝箱の姿をしたモンスター。2倍速・1回行動。遠距離直線上の最初の生物を50%で隣接マスへ引き寄せる。壁が進路を塞ぐと壁の手前まで飛びつく。隣接時は25%でカスワック（周囲1マス予告・1ターン後発動、通常対象50ターン・ボス25ターンの状態付与、重複で即死）、25%でデストラップ（周囲1マス無差別攻撃+金縛り）を繰り出す。状態防止中はカスワックを防げる。",
@@ -2079,7 +2079,7 @@ export const OHPLENTY = {
 
 /* 上級30階専用ボス。通常ボス一覧を置換しないため、ほかのダンジョンの魔王は維持する。 */
 export const MIREU = {
-  name: "ミレウ", hp: 1400, atk: 105, def: 60, exp: 14000,
+  name: "ミレウ", hp: 1400, atk: 105, def: 30, exp: 14000,
   speed: 1, tile: 254, kind: "dragon", baseKind: "boss_mireu",
   isBoss: true, bossTier: 6, monLevel: 1, maxAttacks: 1, bodySize: 3,
   meteorDamage: 210, meteorImmune: true, meteorInterval: 4,
@@ -2088,7 +2088,7 @@ export const MIREU = {
 
 /* 超上級15階専用ボス。鋼鉄の巨体で物理攻撃と爆発に耐え、属性攻撃で崩す。 */
 export const KORGON_BOSS = {
-  name: "鋼鉄竜「コルゴン」", hp: 820, atk: 62, def: 42, exp: 4200,
+  name: "鋼鉄竜「コルゴン」", hp: 820, atk: 62, def: 30, exp: 4200,
   speed: 1, tile: 259, kind: "dragon", baseKind: "boss_korgon",
   isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 1, bodySize: 2,
   fixedDamageOnly: true, fireImmune: true, explosionImmune: true,
@@ -2128,7 +2128,7 @@ export const GWEN_BOSS = {
 };
 
 export const GWEN_VETERAN_BOSS = {
-  name: "勤勉で勇敢な少女「グウェン」", hp: 900, atk: 73, def: 41, exp: 5000,
+  name: "勤勉で勇敢な少女「グウェン」", hp: 900, atk: 73, def: 30, exp: 5000,
   speed: 1, tile: 256, kind: "humanoid", baseKind: "boss_gwen_veteran", subtype: "gwen_veteran",
   isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, gwenWandCharges: 6,
   dialogueLines: GWEN_VETERAN_IDLE_DIALOGUE_LINES, deathLines: GWEN_VETERAN_DEATH_LINES,
@@ -2143,7 +2143,7 @@ export const FLOCK_BOSS = {
 };
 
 export const FLOCK_REVENGE_BOSS = {
-  name: "逆襲のフロック", hp: 1280, atk: 88, def: 56, exp: 11000,
+  name: "逆襲のフロック", hp: 1280, atk: 88, def: 30, exp: 11000,
   speed: 1, tile: 258, kind: "humanoid", baseKind: "boss_flock_revenge", subtype: "flockRevengeBoss",
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, float: true,
   mp: 1300, maxMp: 1300, flockEmpowered: true, flockMagicPowerMultiplier: 2,
@@ -2152,7 +2152,7 @@ export const FLOCK_REVENGE_BOSS = {
 };
 
 export const FLOCK_STALKER_BOSS = {
-  name: "執念のフロック", hp: 2000, atk: 145, def: 85, exp: 52000,
+  name: "執念のフロック", hp: 2000, atk: 145, def: 30, exp: 52000,
   speed: 2, tile: 258, kind: "humanoid", baseKind: "boss_flock_stalker", subtype: "flockStalkerBoss",
   isBoss: true, bossTier: 8, monLevel: 1, maxAttacks: 1, float: true,
   mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 2,
@@ -2162,7 +2162,7 @@ export const FLOCK_STALKER_BOSS = {
 
 /* 超上級B35F専用。中級クラーケンの水域戦術を進化させた2×2マスの水棲ボス。 */
 export const KRAKEN_BIO_BOSS = {
-  name: "クラーケンバイオ", hp: 1800, atk: 110, def: 75, exp: 30000,
+  name: "クラーケンバイオ", hp: 1800, atk: 110, def: 30, exp: 30000,
   speed: 1, tile: 262, kind: "beast", baseKind: "boss_krakenbio",
   isBoss: true, bossTier: 7, monLevel: 1, maxAttacks: 2, bodySize: 2,
   waterWalker: true, elemWeak: "thunder",
@@ -2173,7 +2173,7 @@ export const SPECIAL_BOSSES = [KING_BEHINMOS, BATTERING_RAM, CHIRANIKUTSUNNOKU, 
 
 /* 超上級B40F専用。多色の属性ブレスと隣接6連撃を使う3×3竜。 */
 export const HEXACHROMATIC_BOSS = {
-  name: "ヘキサクロマティック", hp: 2000, atk: 145, def: 85, exp: 52000,
+  name: "ヘキサクロマティック", hp: 2000, atk: 145, def: 30, exp: 52000,
   speed: 1, tile: 263, kind: "dragon", baseKind: "boss_hexachromatic",
   isBoss: true, bossTier: 8, monLevel: 1, maxAttacks: 2, bodySize: 3, float: true,
   elemResistAll: true,
@@ -2184,7 +2184,7 @@ SPECIAL_BOSSES.push(HEXACHROMATIC_BOSS);
 
 /* 超上級B45F専用の双頭級ボス。3×3の両者が隣接セルを個別に殴る。 */
 export const OMEGA_BOSS = {
-  name: "オメガ", hp: 2400, atk: 172, def: 95, exp: 42000,
+  name: "オメガ", hp: 2400, atk: 172, def: 30, exp: 42000,
   speed: 1, tile: 264, kind: "material", baseKind: "boss_omega",
   isBoss: true, bossTier: 9, monLevel: 1, maxAttacks: 1, bodySize: 3,
   magicReflect: true, elemWeak: "thunder",
@@ -2192,7 +2192,7 @@ export const OMEGA_BOSS = {
 };
 
 export const SHINRYU_BOSS = {
-  name: "神竜", hp: 2400, atk: 172, def: 95, exp: 42000,
+  name: "神竜", hp: 2400, atk: 172, def: 30, exp: 42000,
   speed: 1, tile: 265, kind: "dragon", baseKind: "boss_shinryu",
   isBoss: true, bossTier: 9, monLevel: 1, maxAttacks: 1, bodySize: 3, float: true,
   desc: "超上級B45Fにオメガと同時に現れる中心基準の3×3浮遊ドラゴン。遠距離直線上でタイダルウエイブ（射線に沿う幅3・長さ10マスの帯へ2ターン後に通常攻撃の2倍の水属性ダメージと、発射方向の逆への吹き飛ばし。範囲内の魔方陣を破壊し、落ちている巻物・魔法書を白紙化）20%、アトミックレイ（80ダメージ火炎ブレス）20%。構え中は移動せず、移動・死亡・行動不能・魔法封じで予兆が中断される。視界内では稲妻（同室の生物へ約50ダメージ。オメガにも命中）20%、マイティガード（10ターン全被ダメージ半減）10%。この2つは隣接時も同じ確率で使う。隣接時10%で悪魔の瞳を予告し、次ターンに本体の全隣接マスへ石化を与える。通常攻撃は3×3本体の全隣接マスを攻撃する。",
@@ -2200,7 +2200,7 @@ export const SHINRYU_BOSS = {
 
 /* 超上級B50F専用の最終ボス。現行B50Fボスの能力値を維持し、特技・行動回数のみ置換する。 */
 export const ABSOLUTE_VIRTUE_BOSS = {
-  name: "Absolute Virtue", hp: 2400, atk: 183, def: 97, exp: 100000,
+  name: "Absolute Virtue", hp: 2400, atk: 183, def: 30, exp: 100000,
   speed: 2, tile: 266, kind: "humanoid", baseKind: "boss_absolute_virtue",
   isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 1, bodySize: 3,
   desc: "超上級B50Fに現れる3×3マスの最終ボス。2倍速・1回行動で、毎行動終了時にHP20回復する。視界内では絶対回避（必中以外を10ターン回避）、マイティストライク（10ターン攻撃力2倍）、女神の祝福（同室の全員を250回復）、連続魔（10ターン、メテオ着弾1ターン・エアロガ2ヒット）を各5%、メテオを20%で使う。距離2〜10の直線上ではエアロガ（80ダメージ・吹き飛ばし）と引き寄せの魔法を各20%で使う。HP25%未満になると2回行動に変化する。",
@@ -2220,11 +2220,11 @@ export const INTERMEDIATE_BOSSES = [
     speed: 1, tile: 142, kind: "humanoid", baseKind: "im_boss_titan",
     isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1 },
   /* B15F (depth=14) 水中20HP/ターン回復＋HP半減で逃走＋一直線墨（暗闇+ダメージ） */
-  { name: "クラーケン", hp: 720, atk: 65, def: 42, exp: 3000,
+  { name: "クラーケン", hp: 720, atk: 65, def: 30, exp: 3000,
     speed: 1, tile: 143, kind: "beast",    baseKind: "im_boss_kraken",
     isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2, waterWalker: true, elemWeak: "thunder" },
   /* B20F (depth=19) 攻撃力255・特技なし */
-  { name: "2ヘッドドラゴン", hp: 1080, atk: 255, def: 48, exp: 6000,
+  { name: "2ヘッドドラゴン", hp: 1080, atk: 255, def: 30, exp: 6000,
     speed: 1, tile: 144, kind: "dragon",   baseKind: "im_boss_twohead",
     isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1 },
 ];

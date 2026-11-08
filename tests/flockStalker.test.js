@@ -32,7 +32,7 @@ describe("超上級帰り道の追跡ボス：執念のフロック", () => {
     expect(FLOCK_STALKER_BOSS.baseKind).toBe("boss_flock_stalker");
     expect(FLOCK_STALKER_BOSS.hp).toBe(2000);
     expect(FLOCK_STALKER_BOSS.atk).toBe(145);
-    expect(FLOCK_STALKER_BOSS.def).toBe(85);
+    expect(FLOCK_STALKER_BOSS.def).toBe(30);
     expect(FLOCK_STALKER_BOSS.exp).toBe(52000);
     expect(FLOCK_STALKER_BOSS.speed).toBe(2);
     expect(FLOCK_STALKER_BOSS.maxAttacks).toBe(1);

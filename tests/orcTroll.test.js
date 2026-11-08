@@ -76,7 +76,7 @@ describe("オーク系・トロル系の痛恨", () => {
 
       monsterAI(troll, dg, player, messages, { attackOnly: true });
 
-      expect(player.hp).toBe(70);
+      expect(player.hp).toBe(72);
       expect(messages.at(-1)).toContain("痛恨の一撃");
     } finally {
       random.mockRestore();

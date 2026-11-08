@@ -86,13 +86,9 @@ export function createSeededRng(seed) {
 export const rng = (a, b, randomFn = Math.random) => Math.floor(randomFn() * (b - a + 1)) + a;
 
 /**
- * 攻撃 vs 防御のダメージ計算。
- * 1) 従来: floor(atk^2 / (atk + floor(def * defWeight)))
- * 2) 防御のソフト割合軽減: 最終ダメージ *= (1 - min(maxRed, def/(def+softK)))
- *    softK が大きいほど割合軽減は弱い。maxRed で上限を切る（デフォルト40%）。
- * 3) 乱数 ±2（variance）
- *
- * 敵→プレイヤーは defWeight=1.5、プレイヤー→敵・矢は defWeight=1（従来どおり）。
+ * 攻撃 vs 防御のダメージ計算（トルネコ3式）。
+ * ダメージ = 攻撃 × (35/36)^防御。防御1点ごとに被ダメージが約2.8%ずつ減る指数軽減のみで、
+ * 攻撃の大小によらず軽減率は一定。ブレは ±12.5% の比例乱数（×0.875〜×1.125）。最低1。
  */
 export const DEF_SOFT_K = 80;
 export const DEF_SOFT_MAX_RED = 0.40;
@@ -106,13 +102,9 @@ export function calcAtkDefDmg(atk, def, {
 } = {}) {
   const ap = Math.max(1, Math.floor(Number(atk) || 0));
   const df = Math.max(0, Math.floor(Number(def) || 0));
-  const denom = ap + Math.floor(df * defWeight);
-  let base = Math.floor((ap * ap) / Math.max(1, denom));
-  if (base === 0) base = 1;
-  /* 割合軽減：def15 ≒ 15.8%、def30 ≒ 27%、def80 ≒ 40%（上限） */
-  const red = Math.min(maxRed, df / (df + softK));
-  base = Math.max(1, Math.floor(base * (1 - red)));
-  if (variance) base = Math.max(1, base + rngFn(-2, 2));
+  /* トルネコ3式: 防御1点ごとに被ダメージが ×35/36 になる指数軽減のみ。defWeight/softK/maxRed は旧式互換のため受けるが使わない。 */
+  let base = Math.max(1, Math.floor(ap * Math.pow(35 / 36, df)));
+  if (variance) base = Math.max(1, Math.floor(base * (0.875 + rngFn(0, 250) / 1000)));
   return base;
 }
 
