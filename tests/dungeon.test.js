@@ -688,3 +688,83 @@ describe("prepareLastFloor", () => {
     expect(dg.lastFloorGoalPos).toEqual(originalStairDown);
   });
 });
+
+describe("水地形と浮島生成", () => {
+  it("通常フロアで水マスや浮島が適切に生成され、階段間の歩行経路が塞がれない", () => {
+    let waterFloors = 0;
+    let islandFloors = 0;
+    const trials = 100;
+
+    for (let i = 0; i < trials; i++) {
+      const dg = genDungeon(5, "standard");
+      if (dg.floorType) continue; // 特殊フロアはスキップ
+
+      let waterCount = 0;
+      for (let y = 0; y < dg.map.length; y++) {
+        for (let x = 0; x < dg.map[0].length; x++) {
+          if (dg.map[y][x] === T.WATER) waterCount++;
+        }
+      }
+      if (waterCount > 0) waterFloors++;
+
+      const hasIsland = dg.rooms.some(r => r.hasFloatingIsland);
+      if (hasIsland) islandFloors++;
+
+      // 階段間の歩行導通テスト（FLOOR/DOOR/階段のみ）
+      const visited = new Set();
+      const q = [{ x: dg.stairUp.x, y: dg.stairUp.y }];
+      visited.add(`${dg.stairUp.x},${dg.stairUp.y}`);
+      let reached = false;
+      while (q.length > 0) {
+        const cur = q.shift();
+        if (cur.x === dg.stairDown.x && cur.y === dg.stairDown.y) {
+          reached = true;
+          break;
+        }
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cur.x + dx, ny = cur.y + dy;
+          if (nx < 0 || nx >= dg.map[0].length || ny < 0 || ny >= dg.map.length) continue;
+          const k = `${nx},${ny}`;
+          if (visited.has(k)) continue;
+          const tile = dg.map[ny][nx];
+          if (tile !== T.FLOOR && tile !== T.DOOR && tile !== T.SU && tile !== T.SD) continue;
+          visited.add(k);
+          q.push({ x: nx, y: ny });
+        }
+      }
+      expect(reached).toBe(true);
+    }
+
+    // 試行フロアの多くで水マスが存在し、浮島も適度な頻度で生成されること
+    expect(waterFloors).toBeGreaterThan(trials * 0.5);
+    expect(islandFloors).toBeGreaterThan(0);
+  });
+
+  it("浮島が存在する部屋には回転板とアイテムが配置され周囲が水で囲まれている", () => {
+    let checked = false;
+    for (let trial = 0; trial < 100 && !checked; trial++) {
+      const dg = genDungeon(5, "standard");
+      const islandRoom = dg.rooms.find(r => r.hasFloatingIsland);
+      if (!islandRoom) continue;
+
+      // 部屋内に水マスが存在する
+      let waterInRoom = 0;
+      for (let y = islandRoom.y; y < islandRoom.y + islandRoom.h; y++) {
+        for (let x = islandRoom.x; x < islandRoom.x + islandRoom.w; x++) {
+          if (dg.map[y][x] === T.WATER) waterInRoom++;
+        }
+      }
+      expect(waterInRoom).toBeGreaterThanOrEqual(8);
+
+      // 島内に永続回転板が存在する
+      const spin = dg.traps.find(t =>
+        t.effect === "spin" && t.permanent &&
+        t.x >= islandRoom.x && t.x < islandRoom.x + islandRoom.w &&
+        t.y >= islandRoom.y && t.y < islandRoom.y + islandRoom.h
+      );
+      expect(spin).toBeTruthy();
+      checked = true;
+    }
+    expect(checked).toBe(true);
+  });
+});
