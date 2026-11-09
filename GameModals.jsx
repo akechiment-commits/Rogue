@@ -1826,7 +1826,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
       ? `${name}の正体が判明した！`
       : ((isInstanceOnly || wasAlreadyNamed) ? `${item.name}の祝呪が判明した！` : `${item.name}と判明した！`);
     setMsgs((prev) => [...prev.slice(-80), `識別料${price}Gを支払った。${result}`]);
-    setMode(null);
+    const remainingTargets = (s.player?.inventory || [])
+      .map((it, idx) => ({ it, idx }))
+      .filter(({ it, idx }) => isScrollTargetCandidate({ mode: "identify" }, it, idx, s.ident));
+    setMenuSel((prev) => Math.min(prev, remainingTargets.length));
     sr.current = { ...s };
     setGs({ ...sr.current });
   };
