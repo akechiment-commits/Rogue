@@ -966,7 +966,7 @@ export function useItemActions({
       }
       // 識別の巻物でダイアログが必要な場合は消費せず early-return（魔封じの魔方陣内は除く）
       const _scrollFootBb = dg.bigboxes?.find(b => b.x === p.x && b.y === p.y);
-      if (it.effect === "identify" && !_scrollBcKnown && !inMagicSealRoom(p.x, p.y, dg)) {
+      if (it.effect === "identify" && !it.blessed && !inMagicSealRoom(p.x, p.y, dg)) {
         const _ik_scr = getIdentKey(it); // "s:identify"
         if (it.cursed) {
           const _tgts = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
