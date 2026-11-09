@@ -33,7 +33,7 @@ describe("HP0からのMP復活後の回復禁止", () => {
     expect(player.mp).toBe(1);
   });
 
-  it("マナ回復薬と全回復の願いでもMPを回復しない", () => {
+  it("マナ回復薬ではMPを回復しないが、全回復の願いは回復禁止を解除してMPを全回復する", () => {
     const player = makePlayer({ mpSealTurns: MP_REVIVAL_SEAL_TURNS });
     const dungeon = makeEmptyDg();
     const messages = [];
@@ -47,7 +47,8 @@ describe("HP0からのMP復活後の回復禁止", () => {
       { player, dungeon, ml: messages },
     );
     expect(result.ok).toBe(true);
-    expect(player.mp).toBe(0);
+    expect(isMpRecoveryBlocked(player)).toBe(false);
+    expect(player.mp).toBe(player.maxMp);
   });
 
   it("呪われた封印の薬だけが魔法封印と復活後の回復禁止を解除する", () => {

@@ -11,7 +11,7 @@ export function mpRecoveryBlockTurns(player) {
   return player?.mpSealTurns || 0;
 }
 
-/** 呪われた封印の薬だけが、復活後のMP回復禁止を解除する。 */
+/** 呪われた封印の薬が、復活後のMP回復禁止を解除する（願いの全回復も解除する。wish.js）。 */
 export function clearMpRecoveryBlockFromCursedSealPotion(player) {
   if (!player) return false;
   const wasBlocked = isMpRecoveryBlocked(player);

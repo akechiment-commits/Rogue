@@ -481,14 +481,15 @@ export function grantWish(wish, ctx) {
   if (wish.kind === "preset") {
     switch (wish.id) {
       case "full_restore": {
-        p.hp = p.maxHp;
-        const _wishMpBlocked = isMpRecoveryBlocked(p);
-        if ((p.maxMp || 0) > 0 && !_wishMpBlocked) p.mp = p.maxMp;
-        p.hunger = p.maxHunger || 100;
+        /* 願いの全回復は、復活後のMP回復禁止（mpSealTurns）も解除する仕様。先に解除してからMPを全回復する。 */
+        const _wishMpWasBlocked = isMpRecoveryBlocked(p);
         clearMajorDebuffs(p);
+        p.hp = p.maxHp;
+        if ((p.maxMp || 0) > 0) p.mp = p.maxMp;
+        p.hunger = p.maxHunger || 100;
         if (p.hunger > 0) delete p._hungerDmgStarted;
-        ml.push(_wishMpBlocked
-          ? "体中に力が戻ってきた！HPが全快し、腹も満たされた！（MP回復禁止中）"
+        ml.push(_wishMpWasBlocked
+          ? "体中に力が戻ってきた！全快し、腹も満たされた！MP回復禁止も解けた！"
           : "体中に力が戻ってきた！全快し、腹も満たされた！");
         return { ok: true };
       }
