@@ -32,6 +32,7 @@ describe('プレイヤーのみかわしは飛び道具が本人に届いた時�
   });
 
   it('プレイヤーに届く前に別の敵へ当たった矢は、その敵に命中する', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const archer = { id: 'archer', name: '射手', x: 3, y: 5, hp: 100, atk: 10 };
     const target = { id: 'target', name: '途中の敵', x: 6, y: 5, hp: 40, def: 0 };
     const { p, dg, logs } = setup([archer, target]);

@@ -82,6 +82,42 @@ describe("投擲物を使う敵の弾薬", () => {
     expect(ally.hp).toBe(70);
   });
 
+  it("ロキソ忍は味方がいない時に隣接プレイヤーへ特技失敗を出さず通常攻撃する", () => {
+    const healer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, 5, 5, { aware: true });
+    healer.projectileAmmo.count = 5;
+    healer.alwaysUseSpecial = true;
+    const player = makePlayer({ x: 6, y: 5, hp: 100, maxHp: 100, def: 0 });
+    const dg = openBattlefield(healer);
+    const messages = [];
+
+    monsterAI(healer, dg, player, messages, { moveOnly: true });
+    monsterAI(healer, dg, player, messages, { attackOnly: true });
+
+    expect(messages.some((m) => m.includes("味方がいなかった"))).toBe(false);
+    expect(messages.some((m) => m.includes("攻撃！"))).toBe(true);
+    expect(healer.projectileAmmo.count).toBe(5);
+  });
+
+  it("ロキソ忍は予約後に対象味方が消えた場合のみ回復失敗メッセージを出す", () => {
+    const healer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, 5, 5, { aware: true });
+    healer.projectileAmmo.count = 5;
+    healer.alwaysUseSpecial = true;
+    const ally = { id: "wounded-ally", name: "負傷した味方", x: 3, y: 5, hp: 10, maxHp: 30, def: 0 };
+    const player = makePlayer({ x: 6, y: 5, hp: 100, maxHp: 100, def: 0 });
+    const dg = openBattlefield(healer);
+    dg.monsters.push(ally);
+    const messages = [];
+
+    // 移動フェーズで味方がいるため回復を予約
+    monsterAI(healer, dg, player, messages, { moveOnly: true });
+    // 行動フェーズ前に対象が死亡・消滅
+    dg.monsters = [healer];
+    monsterAI(healer, dg, player, messages, { attackOnly: true });
+
+    expect(messages.some((m) => m.includes("回復薬を投げようとしたが、回復できる味方がいなかった！"))).toBe(true);
+    expect(healer.projectileAmmo.count).toBe(5);
+  });
+
   it.each([
     ["薬師系", "potionthrower", 2],
     ["ロキソ忍系", "potionhealer", 1],

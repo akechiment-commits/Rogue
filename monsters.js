@@ -9744,9 +9744,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       delete m._rangedAttackThisTurn;
       if (hasMonsterProjectileAmmo(m) && m.aware && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const target = findPotionHealerTarget(m, dg, pl);
-        const adjacentPlayer = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= 1;
-        if ((target || adjacentPlayer) && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
-          m._potionHealerTarget = target?.target || null;
+        if (target && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+          m._potionHealerTarget = target.target;
           m._potionHealerAttempted = true;
           m._rangedAttackThisTurn = true;
           return;
