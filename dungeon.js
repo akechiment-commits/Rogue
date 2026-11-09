@@ -3706,7 +3706,7 @@ function placeLegendSynergyPair(dg, floor) {
   );
   if (!group || Math.random() >= group.chance) return false;
   const bases = group.kinds.map(kind => MONS.find(base => base.baseKind === kind));
-  if (bases.some(base => !base || base.penaltyOnly || base.floodedOnly || base.waterOnly || monsterBodySize(base) > 1)) return false;
+  if (bases.some(base => !base || base.penaltyOnly || base.floodedOnly || base.waterOnly)) return false;
   const tiles = legendOpenFloorTiles(dg);
   if (tiles.length < 2 || (dg.monsters || []).filter(isReplaceableLegendMonster).length < 2) return false;
 
@@ -3752,6 +3752,7 @@ function attachFloorGimmicks(dg, depth) {
     if (floor >= 3) {
       placeLegendSynergyPair(dg, floor);
       ensureLegendSpecialSpawn(dg, floor);
+      settleLargeMonsterSpawns(dg);
     }
   }
   dg.vents = dg.vents || [];
