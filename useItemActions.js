@@ -34,7 +34,7 @@ import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } fr
 import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
-import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
+import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearPlayerPoison, applyAttackSeal, installMonsterHpHook, resolveParalysisHit } from "./statusDuration.js";
 import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
@@ -1261,7 +1261,12 @@ export function useItemActions({
             resolveParalysisHit(_m, ml);
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${monHasElementWeakness(_m, "thunder") ? "雷弱点！" : ""}${_thunderResist < 1 ? "雷半減！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
-            if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
+            if (_m.hp <= 0) {
+              killMonster(_m, dg, p, ml, lu);
+            } else {
+              triggerMushroomCounterSpore(_m, dg, p, ml);
+              if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
+            }
           }
           // 呪い：自分にも同ダメージの雷が落ちる
           if (it.cursed) {
@@ -1312,7 +1317,12 @@ export function useItemActions({
             resolveParalysisHit(_m, ml);
             ml.push(`呪いのエネルギーが${_m.name}を直撃！${_rdmg}ダメージ！`);
             pushExplosionAnim(_m.x, _m.y);
-            if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
+            if (_m.hp <= 0) {
+              killMonster(_m, dg, p, ml, lu);
+            } else {
+              triggerMushroomCounterSpore(_m, dg, p, ml);
+              if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
+            }
           }
         } else {
           const _rh = recoveryScrollAmount({ blessed: !!it.blessed });
@@ -1337,7 +1347,12 @@ export function useItemActions({
               wakeIfDormant(_m, ml);
               resolveParalysisHit(_m, ml);
               ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
-              if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
+              if (_m.hp <= 0) {
+                killMonster(_m, dg, p, ml, lu);
+              } else {
+                triggerMushroomCounterSpore(_m, dg, p, ml);
+                if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
+              }
               continue;
             }
             const _mra = Math.min(_rh, _m.maxHp - _m.hp);
@@ -1516,7 +1531,12 @@ export function useItemActions({
             resolveParalysisHit(_m, ml);
             ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${monHasElementWeakness(_m, "fire") ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
-            if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
+            if (_m.hp <= 0) {
+              killMonster(_m, dg, p, ml, lu);
+            } else {
+              triggerMushroomCounterSpore(_m, dg, p, ml);
+              if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
+            }
           }
         }
         if (it.cursed) {
@@ -1659,11 +1679,21 @@ export function useItemActions({
             const _creature = dg.monsters?.find((mon) => monsterOccupiesCell(mon, _wx, _wy));
             if (_creature) {
               /* 生き物がいるマスは壁にせず、壁の魔法でダメージを与える */
-              if (!consumeBarrier(_creature, ml)) {
+              installMonsterHpHook(_creature);
+              wakeIfDormant(_creature, ml);
+              if (monEffectiveMagicImmune(_creature)) {
+                ml.push(`魔法は${_creature.name}に効かない！`);
+              } else if (!consumeBarrier(_creature, ml)) {
                 const _dmg = multiplyMagicDamage(rng(5, 15), p?.weapon, _creature, dg);
                 _creature.hp -= _dmg;
+                resolveParalysisHit(_creature, ml);
                 ml.push(`壁の魔法が${_creature.name}に${_dmg}ダメージ！`);
-                if (_creature.hp <= 0) killMonster(_creature, dg, p, ml, lu);
+                if (_creature.hp <= 0) {
+                  killMonster(_creature, dg, p, ml, lu);
+                } else {
+                  triggerMushroomCounterSpore(_creature, dg, p, ml);
+                  if (_creature.type === "shopkeeper") markWanderingNpcHostile(_creature, dg, p, ml);
+                }
               }
               continue;
             }
@@ -2133,7 +2163,12 @@ export function useItemActions({
                   wakeIfDormant(_gm, ml);
                   resolveParalysisHit(_gm, ml);
                   ml.push(`重力の力で${_gm.name}は水没に耐えたが${_bd}ダメージを受けた！`);
-                  if (_gm.hp <= 0) killMonster(_gm, dg, p, ml, lu);
+                  if (_gm.hp <= 0) {
+                    killMonster(_gm, dg, p, ml, lu);
+                  } else {
+                    triggerMushroomCounterSpore(_gm, dg, p, ml);
+                    if (_gm.type === "shopkeeper") markWanderingNpcHostile(_gm, dg, p, ml);
+                  }
                 } else {
                   ml.push(`重力の力で${_gm.name}は逃げ場がなく即死した！`);
                   _gm.hp = 0;
