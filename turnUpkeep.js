@@ -28,10 +28,6 @@ export function advancePlayerUpkeep(player, messages, {
     player.hunger = Math.max(0, player.hunger - 1);
   }
 
-  if (hasAbility(player.weapon, "gluttony") && player.turns % 5 === 0) {
-    player.hunger = Math.max(0, player.hunger - 1);
-  }
-
   if (shouldVomit(player)) {
     applyPlayerVomit(player, messages, { hungerLoss: DRUNK_VOMIT_HUNGER_LOSS, causePrefix: "酩酊して" });
   }

@@ -11337,6 +11337,8 @@ export function calcHungerDrainRate(p) {
   let rate = Math.max(0, 4 - n) / 4;
   if ((p.butterHungerTurns || 0) > 0) rate *= 0.5;
   if (hasRingEffect(p, "hunger_ring")) rate *= 2;
+  /* 大食い武器：空腹の進みが2倍（他の倍率と同じ掛け算で扱う） */
+  if (hasAbility(p.weapon, "gluttony")) rate *= 2;
   return rate;
 }
 

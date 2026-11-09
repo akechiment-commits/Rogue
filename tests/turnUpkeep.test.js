@@ -150,10 +150,10 @@ describe("advancePlayerUpkeep", () => {
     expect(player.hp).toBe(74);
   });
 
-  it("大食い武器は5ターン目に追加で空腹度を減らす", () => {
+  it("大食い武器の2倍は空腹レート側で扱い、upkeepは追加で空腹度を減らさない", () => {
     const player = makePlayer({ turns: 4, hunger: 20, weapon: { ability: "gluttony" } });
     advance(player);
-    expect(player.hunger).toBe(18);
+    expect(player.hunger).toBe(19);
   });
 });
 

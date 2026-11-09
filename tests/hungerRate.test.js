@@ -6,6 +6,15 @@ describe("calcHungerDrainRate", () => {
     expect(calcHungerDrainRate({ armor: null, rings: [] })).toBe(1);
   });
 
+  it("大食い武器で 2倍（説明どおり。3倍にならない）", () => {
+    expect(calcHungerDrainRate({ armor: null, rings: [], weapon: { ability: "gluttony" } })).toBe(2);
+    expect(calcHungerDrainRate({
+      armor: { ability: "slow_hunger" },
+      rings: [],
+      weapon: { ability: "gluttony" },
+    })).toBeCloseTo(1.5);
+  });
+
   it("腹持ち1つで 3/4", () => {
     expect(calcHungerDrainRate({
       armor: { ability: "slow_hunger" },
