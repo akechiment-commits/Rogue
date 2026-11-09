@@ -188,6 +188,19 @@ describe("applyWandEffect", () => {
     expect(drainAnims()).toContainEqual({ type: "playerTeleport", fromX: 5, fromY: 5, toX: 5, toY: 5 });
   });
 
+  it("床の矢・石は祝福の杖・呪いの杖でも祝呪されない", () => {
+    const arrow = { name: "木の矢", type: "arrow", count: 10, x: 6, y: 5 };
+    const p = makePlayer();
+    const ml1 = [], ml2 = [];
+    applyWandEffect("bless_wand", "item", arrow, 1, 0, dg, p, ml1, noop);
+    expect(arrow.blessed).toBeUndefined();
+    expect(ml1.some(m => m.includes("祝福が効かない"))).toBe(true);
+
+    applyWandEffect("curse_wand", "item", arrow, 1, 0, dg, p, ml2, noop);
+    expect(arrow.cursed).toBeUndefined();
+    expect(ml2.some(m => m.includes("呪いが効かない"))).toBe(true);
+  });
+
   it("魔法無効のモンスターには杖が効かない", () => {
     const mon = { name: "ラプラス", magicImmune: true, hp: 50, maxHp: 50, x: 6, y: 5 };
     const p = makePlayer();

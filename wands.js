@@ -1560,6 +1560,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _bwCursed  = blMult < 1;
       if (kind === "item") {
         if (target.type === "gold_nugget") { ml.push(`${_dname_item(target)}には効果がなかった。`); break; }
+        if (target.type === "arrow") {
+          ml.push(_bwCursed ? "矢には呪いが効かない。" : `${_dname_item(target)}には祝福が効かない。`);
+          break;
+        }
         if (_bwCursed) {
           // 呪われた祝福の杖→落ちてるアイテムを呪う
           if (target.type === "pot") {
@@ -1639,6 +1643,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _cwCursed  = blMult < 1;
       if (kind === "item") {
         if (target.type === "gold_nugget") { ml.push(`${_dname_item(target)}には効果がなかった。`); break; }
+        if (target.type === "arrow") {
+          ml.push(_cwCursed ? `${_dname_item(target)}には祝福が効かない。` : "矢には呪いが効かない。");
+          break;
+        }
         if (_cwCursed) {
           // 呪われた呪いの杖→落ちてるアイテムを祝福する（反転）
           if (target.type === "pot") {
@@ -1650,7 +1658,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           }
           break;
         }
-        if (target.type === "arrow") { ml.push("矢には呪いが効かない。"); break; }
         if (target.type === "pot") {
           const _potLoss = _cwBlessed ? 2 : 1;
           if (!reducePotCapacity(target, _potLoss, dg, p, ml, nameFn).broken) {
