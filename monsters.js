@@ -73,6 +73,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
+import { applyDamageToMonster } from "./monsterDamage.js";
 import { statusTurns, applyPlayerParalyze, applyPlayerPoison, applyPlayerConfusion, applyMonsterDarkness, applyMonsterParalyze, isAttackSealed, installMonsterHpHook, resolveParalysisHit } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
@@ -738,17 +739,19 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
       return;
     }
-    if (consumeBarrier(_fBlock, ml)) {
-      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_fBlock, m, ml);
-      return;
-    }
     const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
-    const _fDmg = monScaleOutgoingDamage(m, clampDmgFixed(_fBlock, scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult), true));
-    _fBlock.hp -= _fDmg;
-    resolveParalysisHit(_fBlock, ml);
-    ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(_fBlock)}`);
-    triggerMushroomCounterSpore(_fBlock, dg, pl, ml);
-    if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); }
+    const _fRawDmg = monScaleOutgoingDamage(m, scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult));
+    const res = applyDamageToMonster(_fBlock, _fRawDmg, {
+      isPhysical: true,
+      attacker: m,
+      dungeon: dg,
+      player: pl,
+      messages: ml,
+      killIfDead: true,
+    });
+    if (!res.blocked) {
+      ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${res.damage}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(_fBlock)}`);
+    }
   };
   const _applyFireToPlayer = () => {
     if (consumeBarrier(pl, ml)) return;
@@ -827,26 +830,26 @@ export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   };
   let _cx = m.x, _cy = m.y, _windMsg = false;
   const _hitIceMon = (_iBlock) => {
-    wakeIfDormant(_iBlock, ml);
-    if (consumeBarrier(_iBlock, ml)) {
-      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_iBlock, m, ml);
-      return;
-    }
     let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
     const _iIsWeak = monHasElementWeakness(_iBlock, "ice");
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
     const _iResist = monElementDamageMultiplier(_iBlock, "ice");
     _iDmg = Math.max(1, Math.floor(_iDmg * _iResist));
-    _iDmg = monScaleOutgoingDamage(m, clampDmgFixed(_iBlock, _iDmg, true));
-    _iBlock.hp -= _iDmg;
-    resolveParalysisHit(_iBlock, ml);
+    const _rawDmg = monScaleOutgoingDamage(m, _iDmg);
+    const res = applyDamageToMonster(_iBlock, _rawDmg, {
+      isPhysical: true,
+      attacker: m,
+      dungeon: dg,
+      player: pl,
+      messages: ml,
+      killIfDead: true,
+    });
+    if (res.blocked) return;
     const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
     if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
     _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
     if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow;
-    ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}${_iResist < 1 ? "氷半減！" : ""}鈍足${_iSlow}ターン！`);
-    triggerMushroomCounterSpore(_iBlock, dg, pl, ml);
-    if (_iBlock.hp <= 0) killMonster(_iBlock, dg, pl, ml, null, false, m);
+    ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${res.damage}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}${_iResist < 1 ? "氷半減！" : ""}鈍足${_iSlow}ターン！`);
   };
   const _hitIcePl = () => {
     if (consumeBarrier(pl, ml)) return;
@@ -1308,18 +1311,19 @@ export function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
     if (victim === m) continue;
     if (victim.hp <= 0 || !dg.monsters.includes(victim) || victim.disguisedAsItem) continue;
     if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
-    if (consumeBarrier(victim, ml)) {
-      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(victim, m, ml);
-      continue;
-    }
     const normalDamage = monScaleOutgoingDamage(m, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
     const damage = Math.max(1, Math.floor(normalDamage * 0.5));
-    const finalDmg = clampDmgFixed(victim, damage, true);
-    victim.hp -= finalDmg;
-    wakeIfDormant(victim, ml);
-    resolveParalysisHit(victim, ml);
-    ml.push(`ダストストームが${victim.name}に命中！${finalDmg}ダメージ！`);
-    triggerMushroomCounterSpore(victim, dg, pl, ml);
+    const res = applyDamageToMonster(victim, damage, {
+      isPhysical: true,
+      attacker: m,
+      dungeon: dg,
+      player: pl,
+      messages: ml,
+      killIfDead: true,
+      luFn: luFn || null,
+    });
+    if (res.blocked) continue;
+    ml.push(`ダストストームが${victim.name}に命中！${res.damage}ダメージ！`);
     if (victim.hp > 0) {
       if (victim.type === "guard") {
         ml.push(`${victim.name}には暗闇が効かなかった！`);
@@ -3271,12 +3275,19 @@ function recognizedDecoyForMonster(m, dg, pl) {
 }
 
 function attackPlayerClone(m, clone, dg, pl, ml, luFn) {
-  if (consumeBarrier(clone, ml)) return;
-  const damage = monScaleOutgoingDamage(m, clampDmgFixed(clone, Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 })), true));
-  clone.hp -= damage;
-  resolveParalysisHit(clone, ml);
-  ml.push(`${m.name}が分身を攻撃！${damage}ダメージ！`);
-  if (clone.hp <= 0) killMonster(clone, dg, pl, ml, luFn, true, m);
+  const rawDamage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 })));
+  const res = applyDamageToMonster(clone, rawDamage, {
+    isPhysical: true,
+    attacker: m,
+    dungeon: dg,
+    player: pl,
+    messages: ml,
+    killIfDead: true,
+    luFn: luFn || null,
+  });
+  if (!res.blocked) {
+    ml.push(`${m.name}が分身を攻撃！${res.damage}ダメージ！`);
+  }
 }
 
 /** プレイヤーを通らずに囮へ到達できる経路があるか。 */
@@ -3666,13 +3677,18 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       })) {
         return "consumed";
       }
-      wakeIfDormant(mon, mlx);
-      const _dmg = monScaleOutgoingDamage(m, clampDmgFixed(mon, Math.max(1, m.atk + rng(-2, 2)), true));
-      mon.hp -= _dmg;
-      resolveParalysisHit(mon, mlx);
-      mlx.push(`${m.name}の${_arName}が${mon.name}に命中！${_dmg}ダメージ！`);
-      triggerMushroomCounterSpore(mon, dg, pl, mlx);
-      if (mon.hp <= 0) killMonster(mon, dg, pl, mlx, null, false, m);
+      const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk + rng(-2, 2)));
+      const res = applyDamageToMonster(mon, rawDmg, {
+        isPhysical: true,
+        attacker: m,
+        dungeon: dg,
+        player: pl,
+        messages: mlx,
+        killIfDead: true,
+      });
+      if (!res.blocked) {
+        mlx.push(`${m.name}の${_arName}が${mon.name}に命中！${res.damage}ダメージ！`);
+      }
     },
     onBigbox: (bb, lx, ly, mlx) => {
       mlx.push(`${m.name}の${_arName}が${bb.name}に当たった。`);
@@ -3974,17 +3990,19 @@ export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride 
         hitMon.hp = Math.min(hitMon.maxHp, hitMon.hp + heal);
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${heal}HP回復した！`);
       } else {
-        wakeIfDormant(hitMon, ml);
-        if (consumeBarrier(hitMon, ml)) {
-          if (m && dg.monsters?.includes(m)) beginNpcRetaliation(hitMon, m, ml);
-          return;
+        const rawDmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1)));
+        const res = applyDamageToMonster(hitMon, rawDmg, {
+          isPhysical: true,
+          attacker: m,
+          dungeon: dg,
+          player: pl,
+          messages: ml,
+          killIfDead: true,
+          luFn: luFn || null,
+        });
+        if (!res.blocked) {
+          ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${res.damage}ダメージ！`);
         }
-        const dmg = monScaleOutgoingDamage(m, clampDmgFixed(hitMon, Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1)), true));
-        hitMon.hp -= dmg;
-        resolveParalysisHit(hitMon, ml);
-        ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
-        triggerMushroomCounterSpore(hitMon, dg, pl, ml);
-        if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, luFn, false, m);
       }
       if (hitMon.hp > 0) applySoakedStatusToMonster(hitMon, ml);
       return;
@@ -4188,17 +4206,19 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     if (onMonHit) {
       onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y, _homingMon.x, _homingMon.y);
     } else {
-      wakeIfDormant(_homingMon, ml);
-      if (consumeBarrier(_homingMon, ml)) {
-        if (_killerMon && dg.monsters?.includes(_killerMon)) beginNpcRetaliation(_homingMon, _killerMon, ml);
-        return;
+      const rawDmg = monScaleOutgoingDamage(m, calcMonDmg(_homingMon));
+      const res = applyDamageToMonster(_homingMon, rawDmg, {
+        isPhysical: true,
+        attacker: _killerMon,
+        dungeon: dg,
+        player: pl,
+        messages: ml,
+        killIfDead: true,
+        luFn: luFn || null,
+      });
+      if (!res.blocked) {
+        ml.push(`${_shooterPrefix}${boltName}が${_homingMon.name}に命中！${res.damage}ダメージ！`);
       }
-      const _homingDmg = monScaleOutgoingDamage(m, clampDmgFixed(_homingMon, calcMonDmg(_homingMon), true));
-      _homingMon.hp -= _homingDmg;
-      resolveParalysisHit(_homingMon, ml);
-      ml.push(`${_shooterPrefix}${boltName}が${_homingMon.name}に命中！${_homingDmg}ダメージ！`);
-      triggerMushroomCounterSpore(_homingMon, dg, pl, ml);
-      if (_homingMon.hp <= 0) killMonster(_homingMon, dg, pl, ml, luFn, false, _killerMon);
     }
     return;
   }
@@ -4397,41 +4417,45 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           }
           /* 実体ある射手のみ反射弾の衝突対象。仮想射手（hp未定義）はその位置を素通り */
           if (m.hp != null && monsterOccupiesCell(m, _rnx, _rny)) {
-            if (consumeBarrier(m, ml)) {
-              _rrx = _rnx; _rry = _rny;
-              break;
-            }
             if (onReflectedMonHit) {
               onReflectedMonHit(m, ml, _rnx, _rny, _mon, -dx, -dy);
               return;
             }
-            const _rrdmg = monScaleOutgoingDamage(_mon, clampDmgFixed(m, calcMonDmg(m), true));
-            m.hp -= _rrdmg;
-            resolveParalysisHit(m, ml);
-            ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
-            triggerMushroomCounterSpore(m, dg, pl, ml);
-            if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
+            const _rawDmg = monScaleOutgoingDamage(_mon, calcMonDmg(m));
+            const res = applyDamageToMonster(m, _rawDmg, {
+              isPhysical: true,
+              attacker: _mon,
+              dungeon: dg,
+              player: pl,
+              messages: ml,
+              killIfDead: true,
+              luFn: luFn || null,
+            });
+            if (!res.blocked) {
+              ml.push(`跳ね返された${boltName}が${m.name}に命中！${res.damage}ダメージ！`);
+            }
             _rrx = _rnx; _rry = _rny;
             break;
           }
           const _rrMon = dg.monsters.find(o => monsterOccupiesCell(o, _rnx, _rny) && o !== m && o !== _mon);
           if (_rrMon) {
-            if (consumeBarrier(_rrMon, ml)) {
-              if (_mon && dg.monsters?.includes(_mon)) beginNpcRetaliation(_rrMon, _mon, ml);
-              _rrx = _rnx; _rry = _rny;
-              break;
-            }
             if (onReflectedMonHit) {
               onReflectedMonHit(_rrMon, ml, _rnx, _rny, _mon, -dx, -dy);
               return;
             }
-            wakeIfDormant(_rrMon, ml);
-            const _rrdmg = monScaleOutgoingDamage(_mon, clampDmgFixed(_rrMon, calcMonDmg(_rrMon), true));
-            _rrMon.hp -= _rrdmg;
-            resolveParalysisHit(_rrMon, ml);
-            ml.push(`跳ね返された${boltName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
-            triggerMushroomCounterSpore(_rrMon, dg, pl, ml);
-            if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, luFn, false, _mon);
+            const _rawDmg = monScaleOutgoingDamage(_mon, calcMonDmg(_rrMon));
+            const res = applyDamageToMonster(_rrMon, _rawDmg, {
+              isPhysical: true,
+              attacker: _mon,
+              dungeon: dg,
+              player: pl,
+              messages: ml,
+              killIfDead: true,
+              luFn: luFn || null,
+            });
+            if (!res.blocked) {
+              ml.push(`跳ね返された${boltName}が${_rrMon.name}に命中！${res.damage}ダメージ！`);
+            }
             _rrx = _rnx; _rry = _rny;
             break;
           }
@@ -4446,13 +4470,19 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
         return;
       }
-      wakeIfDormant(_mon, ml);
-      const _mdmg = monScaleOutgoingDamage(m, clampDmgFixed(_mon, calcMonDmg(_mon), true));
-      _mon.hp -= _mdmg;
-      resolveParalysisHit(_mon, ml);
-      ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
-      triggerMushroomCounterSpore(_mon, dg, pl, ml);
-      if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, _killerMon);
+      const _rawDmg = monScaleOutgoingDamage(m, calcMonDmg(_mon));
+      const res = applyDamageToMonster(_mon, _rawDmg, {
+        isPhysical: true,
+        attacker: _killerMon,
+        dungeon: dg,
+        player: pl,
+        messages: ml,
+        killIfDead: true,
+        luFn: luFn || null,
+      });
+      if (!res.blocked) {
+        ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${res.damage}ダメージ！`);
+      }
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
     /* 大箱命中（onBigbox未指定なら素通り：シオン銃弾などアイテムでない弾向け）。遠投中は無視して素通り */
@@ -5712,18 +5742,17 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       if (_chHitPlayer) {
         monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
       } else if (_chHitMonster) {
-        if (consumeBarrier(_chHitMonster, ml)) {
-          if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_chHitMonster, m, ml);
-        } else {
-          const _dmg = clampDmgFixed(_chHitMonster, _chHitMonsterDmg, true);
-          _chHitMonster.hp -= _dmg;
-          wakeIfDormant(_chHitMonster, ml);
-          resolveParalysisHit(_chHitMonster, ml);
-          ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_dmg}ダメージ！`);
-          triggerMushroomCounterSpore(_chHitMonster, dg, pl, ml);
-          if (_chHitMonster.hp <= 0) {
-            killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
-          }
+        const res = applyDamageToMonster(_chHitMonster, _chHitMonsterDmg, {
+          isPhysical: true,
+          attacker: m,
+          dungeon: dg,
+          player: pl,
+          messages: ml,
+          killIfDead: true,
+          luFn: _luFn || null,
+        });
+        if (!res.blocked) {
+          ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${res.damage}ダメージ！`);
         }
       }
       return true;
@@ -5932,17 +5961,21 @@ function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
           monster.turnAttacks++;
           if (checkMonsterEvasion(target, { baseMissRate: 0.10 })) {
             messages.push(`${monster.name}の${target.name}への攻撃は外れた！`);
-          } else if (consumeBarrier(target, messages)) {
-            messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
           } else {
-            const damage = monScaleOutgoingDamage(monster, clampDmgFixed(target, Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)), true));
-            target.hp -= damage;
-            wakeIfDormant(target, messages);
-            resolveParalysisHit(target, messages);
-            messages.push(`${monster.name}が${target.name}を攻撃！${damage}ダメージ！`);
-            triggerMushroomCounterSpore(target, dungeon, player, messages);
-            if (target.hp <= 0 && dungeon.monsters.includes(target)) {
-              killMonster(target, dungeon, player, messages, opts.luFn || (() => {}), false, monster);
+            const rawDmg = monScaleOutgoingDamage(monster, Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
+            const res = applyDamageToMonster(target, rawDmg, {
+              isPhysical: true,
+              attacker: monster,
+              dungeon,
+              player,
+              messages,
+              killIfDead: true,
+              luFn: opts.luFn || (() => {}),
+            });
+            if (res.blocked) {
+              messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
+            } else {
+              messages.push(`${monster.name}が${target.name}を攻撃！${res.damage}ダメージ！`);
             }
           }
         }
@@ -6090,19 +6123,21 @@ function performStrifeRingAttack(monster, target, dungeon, player, messages, opt
     messages.push(`${monster.name}は争いの指輪にあおられて${target.name}に襲いかかったが、外れた！`);
     return true;
   }
-  if (consumeBarrier(target, messages)) {
+  const rawDamage = monScaleOutgoingDamage(monster, Math.max(1,
+    calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
+  const res = applyDamageToMonster(target, rawDamage, {
+    isPhysical: true,
+    attacker: monster,
+    dungeon,
+    player,
+    messages,
+    killIfDead: true,
+    luFn: opts.luFn || (() => {}),
+  });
+  if (res.blocked) {
     messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
-    return true;
-  }
-  const damage = monScaleOutgoingDamage(monster, clampDmgFixed(target, Math.max(1,
-    calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)), true));
-  target.hp -= damage;
-  wakeIfDormant(target, messages);
-  resolveParalysisHit(target, messages);
-  messages.push(`${monster.name}は争いの指輪にあおられて${target.name}を攻撃！${damage}ダメージ！`);
-  triggerMushroomCounterSpore(target, dungeon, player, messages);
-  if (target.hp <= 0 && dungeon.monsters.includes(target)) {
-    killMonster(target, dungeon, player, messages, opts.luFn || (() => {}), false, monster);
+  } else {
+    messages.push(`${monster.name}は争いの指輪にあおられて${target.name}を攻撃！${res.damage}ダメージ！`);
   }
   return true;
 }
@@ -6298,16 +6333,20 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
     if (_moveOnly) return;
     if (_attackOnly && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
-    if (consumeBarrier(_target, ml)) return;
     m.turnAttacks++;
-    const _damage = monScaleOutgoingDamage(m, clampDmgFixed(_target, Math.max(1, calcAtkDefDmg(m.atk, _target.def || 0, { defWeight: 1 })), true));
-    _target.hp -= _damage;
-    wakeIfDormant(_target, ml);
-    resolveParalysisHit(_target, ml);
-    ml.push(`分身が${_target.name}を攻撃！${_damage}ダメージ！`);
-    triggerMushroomCounterSpore(_target, dg, pl, ml);
-    /* 分身はプレイヤーの代わりに戦うため、撃破報酬はプレイヤーへ入り、分身は強化されない。 */
-    if (_target.hp <= 0) killMonster(_target, dg, pl, ml, opts.luFn || null);
+    const _rawDamage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _target.def || 0, { defWeight: 1 })));
+    const res = applyDamageToMonster(_target, _rawDamage, {
+      isPhysical: true,
+      attacker: m,
+      dungeon: dg,
+      player: pl,
+      messages: ml,
+      killIfDead: true,
+      luFn: opts.luFn || null,
+    });
+    if (!res.blocked) {
+      ml.push(`分身が${_target.name}を攻撃！${res.damage}ダメージ！`);
+    }
     return;
   }
   if (_attackOnly) return;
@@ -7842,16 +7881,20 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_other) {
           if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
             m.turnAttacks++;
-            if (consumeBarrier(_other, ml)) {
+            const rawDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
+            const res = applyDamageToMonster(_other, rawDmg, {
+              isPhysical: true,
+              attacker: m,
+              dungeon: dg,
+              player: pl,
+              messages: ml,
+              killIfDead: true,
+              luFn: _luFn || null,
+            });
+            if (res.blocked) {
               ml.push(`${_other.name}は${m.name}の攻撃をバリアで防いだ！`);
             } else {
-              const _odmg = monScaleOutgoingDamage(m, clampDmgFixed(_other, Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)), true));
-              _other.hp -= _odmg;
-              wakeIfDormant(_other, ml);
-              resolveParalysisHit(_other, ml);
-              ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
-              triggerMushroomCounterSpore(_other, dg, pl, ml);
-              if (_other.hp <= 0) killMonster(_other, dg, pl, ml, _luFn, false, m);
+              ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${res.damage}ダメージ！`);
             }
           }
         } else if (!_attackOnly && _canMoveTo(_cnx, _cny) && isWalkable(dg.map, _cnx, _cny, dg)) {
@@ -7889,16 +7932,20 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     } else if (_dother) {
       if (!_moveOnly && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
-        if (consumeBarrier(_dother, ml)) {
+        const rawDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
+        const res = applyDamageToMonster(_dother, rawDmg, {
+          isPhysical: true,
+          attacker: m,
+          dungeon: dg,
+          player: pl,
+          messages: ml,
+          killIfDead: true,
+          luFn: _luFn || null,
+        });
+        if (res.blocked) {
           ml.push(`${_dother.name}は${m.name}の攻撃をバリアで防いだ！`);
         } else {
-          const _dodmg = monScaleOutgoingDamage(m, clampDmgFixed(_dother, Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)), true));
-          _dother.hp -= _dodmg;
-          wakeIfDormant(_dother, ml);
-          resolveParalysisHit(_dother, ml);
-          ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
-          triggerMushroomCounterSpore(_dother, dg, pl, ml);
-          if (_dother.hp <= 0) killMonster(_dother, dg, pl, ml, _luFn, false, m);
+          ml.push(`暗闇の${m.name}が${_dother.name}に突進！${res.damage}ダメージ！`);
         }
       }
     } else if (_canMoveTo(_dnx, _dny)) {
@@ -9520,18 +9567,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               );
               if (_nearMon && m.turnAttacks < monEffectiveMaxAttacks(m)) {
                 m.turnAttacks++;
-                if (consumeBarrier(_nearMon, ml)) {
-                  if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_nearMon, m, ml);
-                } else {
-                  const _ddmg = monScaleOutgoingDamage(m, clampDmgFixed(_nearMon, Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2)), true));
-                  _nearMon.hp -= _ddmg;
-                  wakeIfDormant(_nearMon, ml);
-                  resolveParalysisHit(_nearMon, ml);
-                  ml.push(`${m.name}が${_nearMon.name}を攻撃！${_ddmg}ダメージ！`);
-                  triggerMushroomCounterSpore(_nearMon, dg, pl, ml);
-                  if (_nearMon.hp <= 0) {
-                    killMonster(_nearMon, dg, pl, ml, null, true, m);
-                  }
+                const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2)));
+                const res = applyDamageToMonster(_nearMon, rawDmg, {
+                  isPhysical: true,
+                  attacker: m,
+                  dungeon: dg,
+                  player: pl,
+                  messages: ml,
+                  killIfDead: true,
+                  awardExpToPlayer: true,
+                });
+                if (!res.blocked) {
+                  ml.push(`${m.name}が${_nearMon.name}を攻撃！${res.damage}ダメージ！`);
                 }
               }
             }
@@ -9549,18 +9596,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 );
                 if (_adjOccup) {
                   m.turnAttacks++;
-                  if (consumeBarrier(_adjOccup, ml)) {
-                    if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_adjOccup, m, ml);
-                  } else {
-                    const _ddmg = monScaleOutgoingDamage(m, clampDmgFixed(_adjOccup, Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2)), true));
-                    _adjOccup.hp -= _ddmg;
-                    wakeIfDormant(_adjOccup, ml);
-                    resolveParalysisHit(_adjOccup, ml);
-                    ml.push(`${m.name}が${_adjOccup.name}を攻撃！${_ddmg}ダメージ！`);
-                    triggerMushroomCounterSpore(_adjOccup, dg, pl, ml);
-                    if (_adjOccup.hp <= 0) {
-                      killMonster(_adjOccup, dg, pl, ml, null, true, m);
-                    }
+                  const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2)));
+                  const res = applyDamageToMonster(_adjOccup, rawDmg, {
+                    isPhysical: true,
+                    attacker: m,
+                    dungeon: dg,
+                    player: pl,
+                    messages: ml,
+                    killIfDead: true,
+                    awardExpToPlayer: true,
+                  });
+                  if (!res.blocked) {
+                    ml.push(`${m.name}が${_adjOccup.name}を攻撃！${res.damage}ダメージ！`);
                   }
                 }
               }
@@ -9592,18 +9639,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _occup = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _dn.x, _dn.y));
             if (_occup && !_moveOnly) {
               /* 次マスに別の敵: 囮の争奪戦 */
-              if (consumeBarrier(_occup, ml)) {
-                if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_occup, m, ml);
-              } else {
-                const _ddmg = monScaleOutgoingDamage(m, clampDmgFixed(_occup, Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2)), true));
-                _occup.hp -= _ddmg;
-                wakeIfDormant(_occup, ml);
-                resolveParalysisHit(_occup, ml);
-                ml.push(`${m.name}が${_occup.name}を攻撃！${_ddmg}ダメージ！`);
-                triggerMushroomCounterSpore(_occup, dg, pl, ml);
-                if (_occup.hp <= 0) {
-                  killMonster(_occup, dg, pl, ml, null, true, m);
-                }
+              const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2)));
+              const res = applyDamageToMonster(_occup, rawDmg, {
+                isPhysical: true,
+                attacker: m,
+                dungeon: dg,
+                player: pl,
+                messages: ml,
+                killIfDead: true,
+                awardExpToPlayer: true,
+              });
+              if (!res.blocked) {
+                ml.push(`${m.name}が${_occup.name}を攻撃！${res.damage}ダメージ！`);
               }
             } else if (!_occup) {
               m.dir = { x: _dn.x - m.x, y: _dn.y - m.y };
@@ -9830,14 +9877,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         for (const victim of [...dg.monsters]) {
           if (victim === m || victim.hp <= 0 || victim.disguisedAsItem || !dg.monsters.includes(victim) || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;
-          if (consumeBarrier(victim, ml)) continue;
-          const damage = monScaleOutgoingDamage(m, clampDmgFixed(victim, Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)), true));
-          victim.hp -= damage;
-          ml.push(`烈風が${victim.name}を襲う！${damage}ダメージ！`);
-          wakeIfDormant(victim, ml);
-          resolveParalysisHit(victim, ml);
-          triggerMushroomCounterSpore(victim, dg, pl, ml);
-          if (victim.hp <= 0) killMonster(victim, dg, pl, ml, _luFn, false, m);
+          const rawDamage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
+          const res = applyDamageToMonster(victim, rawDamage, {
+            isPhysical: true,
+            attacker: m,
+            dungeon: dg,
+            player: pl,
+            messages: ml,
+            killIfDead: true,
+            luFn: _luFn || null,
+          });
+          if (!res.blocked) {
+            ml.push(`烈風が${victim.name}を襲う！${res.damage}ダメージ！`);
+          }
         }
         return;
       }
@@ -9946,16 +9998,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             }
           } else if (_chHitMonster) {
             m.turnAttacks++;
-            if (consumeBarrier(_chHitMonster, ml)) {
-              if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_chHitMonster, m, ml);
-            } else {
-              const _dmg = clampDmgFixed(_chHitMonster, _chHitMonsterDmg, true);
-              _chHitMonster.hp -= _dmg;
-              wakeIfDormant(_chHitMonster, ml);
-              resolveParalysisHit(_chHitMonster, ml);
-              ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_dmg}ダメージ！`);
-              triggerMushroomCounterSpore(_chHitMonster, dg, pl, ml);
-              if (_chHitMonster.hp <= 0) killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
+            const res = applyDamageToMonster(_chHitMonster, _chHitMonsterDmg, {
+              isPhysical: true,
+              attacker: m,
+              dungeon: dg,
+              player: pl,
+              messages: ml,
+              killIfDead: true,
+              luFn: _luFn || null,
+            });
+            if (!res.blocked) {
+              ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${res.damage}ダメージ！`);
             }
           }
           return;
@@ -10868,16 +10921,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         } else {
           const _bTarget = pick(_bcAdj);
-          if (consumeBarrier(_bTarget, ml)) {
-            if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_bTarget, m, ml);
-          } else {
-            const _bDmg = monScaleOutgoingDamage(m, clampDmgFixed(_bTarget, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)), true));
-            _bTarget.hp -= _bDmg;
-            wakeIfDormant(_bTarget, ml);
-            resolveParalysisHit(_bTarget, ml);
-            ml.push(`${m.name}が${_bTarget.name}に攻撃！${_bDmg}ダメージ！`);
-            triggerMushroomCounterSpore(_bTarget, dg, pl, ml);
-            if (_bTarget.hp <= 0) killMonster(_bTarget, dg, pl, ml, _luFn, false, m);
+          const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)));
+          const res = applyDamageToMonster(_bTarget, rawDmg, {
+            isPhysical: true,
+            attacker: m,
+            dungeon: dg,
+            player: pl,
+            messages: ml,
+            killIfDead: true,
+            luFn: _luFn || null,
+          });
+          if (!res.blocked) {
+            ml.push(`${m.name}が${_bTarget.name}に攻撃！${res.damage}ダメージ！`);
           }
         }
         return;

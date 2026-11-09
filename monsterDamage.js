@@ -19,6 +19,7 @@ import { markShopkeeperHostileToPlayer, killMonster } from "./items.js";
  * @param {boolean} [options.sourceIsPlayer=false] - プレイヤーによる攻撃・被弾か
  * @param {boolean} [options.skipBarrier=false] - バリア判定をスキップするか
  * @param {boolean} [options.killIfDead=true] - HP<=0のときkillMonsterを呼ぶか
+ * @param {boolean} [options.awardExpToPlayer=false] - 撃破経験値をプレイヤーに付与するか
  * @param {function|null} [options.luFn=null] - レベルアップコールバック
  * @returns {{ damage: number, blocked: boolean, killed: boolean }}
  */
@@ -31,6 +32,7 @@ export function applyDamageToMonster(target, rawDamage, {
   sourceIsPlayer = false,
   skipBarrier = false,
   killIfDead = true,
+  awardExpToPlayer = false,
   luFn = null,
 } = {}) {
   if (!target || target.hp <= 0) {
@@ -76,7 +78,7 @@ export function applyDamageToMonster(target, rawDamage, {
   // 8. 撃破判定
   let killed = false;
   if (target.hp <= 0 && killIfDead && dungeon?.monsters?.includes(target)) {
-    killMonster(target, dungeon, player, messages, luFn || null, false, attacker);
+    killMonster(target, dungeon, player, messages, luFn || null, awardExpToPlayer, attacker);
     killed = true;
   }
 
