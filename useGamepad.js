@@ -944,9 +944,6 @@ export function useGamepad({
         }
       } else if (!move) {
         moveHeldRef.current = null;
-        if (!rbHeld && arrowHeldRef?.current) {
-          arrowHeldRef.current = { up: false, down: false, left: false, right: false };
-        }
       }
 
       if (edgeDown(prev, next, BTN.LB) && !move && !anyModalUi() && !dead && !xHeld && !facingModeRef.current) {
