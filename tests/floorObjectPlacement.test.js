@@ -128,6 +128,30 @@ describe("stairs", () => {
     expect(dg.map[5][2]).toBe(T.FLOOR);
   });
 
+  it("復旧した階段は隠し部屋・次元の保管庫・浮島を避ける", () => {
+    const dg = makeDg();
+    // Mark room with hidden room, dimensional vault, and floating island
+    // Let cells (1,1) to (4,4) be hiddenRoom
+    dg.hiddenRooms = [{ x: 1, y: 1, w: 4, h: 4 }];
+    // Let (5,1) to (8,4) be dimensionalVault
+    dg.dimensionalVaults = [{ x: 5, y: 1, room: { x: 5, y: 1, w: 4, h: 4 } }];
+    // Let (1,5) to (5,8) be floating island room
+    dg.rooms = [{ x: 1, y: 5, w: 5, h: 4, hasFloatingIsland: true }];
+    // Available free area: e.g. (6, 6)
+    dg.stairUp = null;
+    dg.stairDown = null;
+    const r = ensureStairsPresent(dg, { p: { x: 8, y: 8 } });
+    expect(r.fixedUp).toBe(true);
+    // Neither stair should be in hiddenRoom
+    const inHR = (pt) => pt.x >= 1 && pt.x < 5 && pt.y >= 1 && pt.y < 5;
+    const inDV = (pt) => pt.x >= 5 && pt.x < 9 && pt.y >= 1 && pt.y < 5;
+    const inIsland = (pt) => pt.x >= 3 && pt.x < 4 && pt.y >= 7 && pt.y < 7;
+    expect(inHR(dg.stairUp)).toBe(false);
+    expect(inDV(dg.stairUp)).toBe(false);
+    expect(inHR(dg.stairDown)).toBe(false);
+    expect(inDV(dg.stairDown)).toBe(false);
+  });
+
   it("ensureStairsPresent が欠けた上り・下りを復元する", () => {
     const dg = makeDg();
     dg.stairUp = null;

@@ -41,9 +41,9 @@ export function isFloorOccupancyBlocked(dg, x, y, opts = {}) {
 /**
  * 床物体のテレポート先（重ならない空き床）。
  */
-export function pickFreeFloorObjectCell(dg, ignore, p, fromX, fromY) {
+export function pickFreeFloorObjectCell(dg, ignore, p, fromX, fromY, customFilter = null) {
   return randomTeleportDest(dg, fromX ?? 0, fromY ?? 0, (x, y) =>
-    !isFloorOccupancyBlocked(dg, x, y, { ignore, p }),
+    !isFloorOccupancyBlocked(dg, x, y, { ignore, p }) && (!customFilter || customFilter(x, y)),
   );
 }
 
