@@ -824,7 +824,7 @@ export function useGamepad({
 
       /* 右スティック: 見渡す */
       const lookDir = readLookDir(gp);
-      if (lookDir && !dead && !xHeld) {
+      if (lookDir && !dead && !xHeld && (!anyModalUi() || lookModeRef.current)) {
         if (!lookStickActiveRef.current && !lookModeRef.current) {
           openLook();
           lookStickActiveRef.current = true;
