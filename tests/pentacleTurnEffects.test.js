@@ -46,6 +46,35 @@ function effectDeps(overrides = {}) {
 }
 
 describe("resolveTeleportAndTrapPentacleEffect", () => {
+  it("罠生成の魔方陣は祭壇・ガチャ・風穴のマスを避ける", () => {
+    const pc = { kind: "trap_gen", name: "罠生成の魔方陣", x: 2, y: 2 };
+    // room is (1,1) to (3,3), total 9 tiles. Player at (1,1).
+    // Let altars, gachas, vents take up other tiles except (3,3).
+    const dg = dungeon({
+      pentacles: [pc],
+      altars: [{ x: 1, y: 2 }, { x: 1, y: 3 }, { x: 2, y: 1 }],
+      gachaMachines: [{ x: 2, y: 2 }, { x: 2, y: 3 }],
+      vents: [{ x: 3, y: 1 }, { x: 3, y: 2 }],
+    });
+    const player = { x: 1, y: 1 };
+    let calls = 0;
+    const testDeps = deps(() => 0.05);
+    // rng will return coordinates
+    testDeps.rng = (min, max) => {
+      // First try (1,2) -> altar, second try (3,3) -> free
+      calls++;
+      return calls % 2 === 1 ? 1 : 2; // will generate x, y
+    };
+    resolveTeleportAndTrapPentacleEffect(pc, dg, player, [], {
+      ...testDeps,
+      rng: vi.fn()
+        .mockReturnValueOnce(1).mockReturnValueOnce(2) // (1,2) has altar
+        .mockReturnValueOnce(3).mockReturnValueOnce(3), // (3,3) is free
+    });
+    expect(dg.traps.length).toBe(1);
+    expect(dg.traps[0]).toMatchObject({ x: 3, y: 3 });
+  });
+
   it("通常の転送陣は範囲内のプレイヤーを独立抽選で転送する", () => {
     const pc = { kind: "teleport_trap", name: "転送の魔方陣", x: 2, y: 2 };
     const dg = dungeon({ pentacles: [pc] });

@@ -78,6 +78,9 @@ export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messag
     if (dungeon.pentacles?.some(other => other.x === x && other.y === y)) continue;
     if (dungeon.oilyTiles?.some(tile => tile.x === x && tile.y === y)) continue;
     if (dungeon.statues?.some(statue => statue.x === x && statue.y === y)) continue;
+    if (dungeon.altars?.some(altar => altar.x === x && altar.y === y)) continue;
+    if (dungeon.gachaMachines?.some(gacha => gacha.x === x && gacha.y === y)) continue;
+    if (dungeon.vents?.some(vent => vent.x === x && vent.y === y)) continue;
     dungeon.traps.push({ ...pickTrap(), id: uid(), x, y, revealed: false });
     return;
   }
