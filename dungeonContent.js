@@ -221,5 +221,15 @@ export function lootPoolForDungeon(pool, dungeonType, floor) {
   /* Floor-gated items must not leak through the compatibility fallback. */
   const floorEligible = pool.filter((it) => !Number.isFinite(it?.minFloor) || currentFloor >= it.minFloor);
   const filtered = floorEligible.filter((it) => lootAllowedInDungeon(it, dungeonType, currentFloor));
-  return filtered.length ? filtered : floorEligible.filter((it) => lootAllowedInDungeon(it, dungeonType, 99));
+  if (filtered.length) return filtered;
+  /* 互換フォールバック。階ゲート（minFloor）だけでなく、初心者1〜5階のレア度帯（E/Dのみ）も漏らさない。
+   * 該当なしで空になる場合、呼び出し側（指輪など）は食料にフォールバックする。 */
+  return floorEligible.filter((it) =>
+    lootAllowedInDungeon(it, dungeonType, 99) && !beginnerRankBlockedAtFloor(it, dungeonType, currentFloor));
+}
+
+function beginnerRankBlockedAtFloor(item, dungeonType, floor) {
+  if (dungeonType !== "beginner" || floor >= 6) return false;
+  if (item.type === "gold" || item.type === "food") return false;
+  return rarityRank(item.rarity) >= 2 && !BEGINNER_LOOT_ANY_FLOOR.has(beginnerLootId(item));
 }

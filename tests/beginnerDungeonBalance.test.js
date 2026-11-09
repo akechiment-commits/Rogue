@@ -3,10 +3,11 @@ import {
   trapAllowedInDungeon,
   bbAllowedInDungeon,
   lootAllowedInDungeon,
+  lootPoolForDungeon,
   trapPoolForDungeon,
   bbPoolForDungeon,
 } from "../dungeonContent.js";
-import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS } from "../items.js";
+import { TRAPS, BB_TYPES, ITEMS, SPELLBOOKS, WANDS, RINGS } from "../items.js";
 import { MONS, pickMonsterDef } from "../monsters.js";
 import { genDungeon, genCorridorFloor, populateHiddenRoom } from "../dungeon.js";
 import { T, MW, MH } from "../utils.js";
@@ -114,6 +115,15 @@ describe("初心者ダンジョンの出現制限", () => {
     if (idBook) expect(lootAllowedInDungeon(idBook, "beginner", 10)).toBe(false);
     const fireBook = SPELLBOOKS.find((s) => s.spell === "fire_bolt");
     if (fireBook) expect(lootAllowedInDungeon(fireBook, "beginner", 10)).toBe(false);
+  });
+
+  it("初心者1〜5階にC/Bランクの指輪が出ない", () => {
+    for (let f = 1; f <= 5; f++) {
+      const pool = lootPoolForDungeon(RINGS, "beginner", f);
+      expect(pool).toEqual([]);
+    }
+    const pool6 = lootPoolForDungeon(RINGS, "beginner", 6);
+    expect(pool6.length).toBeGreaterThan(0);
   });
 
   it("初心者の床と店に魔法書が出ない", () => {
