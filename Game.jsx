@@ -5702,6 +5702,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     } else if (r < 0.39) {
       // 満腹度回復
       p.hunger = Math.min(p.maxHunger, p.hunger + 20);
+      if (p.hunger > 0) delete p._hungerDmgStarted;
       ml.push("喉が潤った。");
     } else if (r < 0.45) {
       // MP回復
