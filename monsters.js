@@ -603,12 +603,14 @@ function dragonBreathSpecialRate(m) {
 
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
+  isMonsterBerserk,
   monIsSealed, monEffectiveFloat, monEffectiveWaterWalker, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monScaleOutgoingDamage,
   monEffectiveMaxAttacks, monEffectiveSpeed, monEffectiveAttack, monCanUseExplosiveAbility, monHasElementWeakness,
   monElementDamageMultiplier,
 } from "./monTraits.js";
 import {
+  isMonsterBerserk,
   monEffectiveFloat, monEffectiveWaterWalker, monEffectiveMagicImmune, monEffectiveWallWalker, monHasFlameMantle,
   monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monScaleOutgoingDamage, monEffectiveMaxAttacks, monEffectiveAttack,
   monCanUseExplosiveAbility, monHasElementWeakness, monElementDamageMultiplier,
@@ -5334,7 +5336,7 @@ export function useManaEaterDrain(m, pl, ml) {
  */
 export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   if (!src || !m || !pl) return false;
-  if (src.sealed) return false;
+  if (src.sealed || isMonsterBerserk(src)) return false;
   const canSee = !!ctx.canSee;
   const sameRoom = !!ctx.sameRoom;
   const plOnSanc = !!ctx.plOnSanc;
@@ -5451,7 +5453,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
  * （移動すると攻撃フェーズがスキップされ、プレイヤー非隣接時にものまねできなくなる）
  */
 export function tryReserveMimicSkill(m, dg, pl, opts = {}, ctx = {}) {
-  if (!m || m.subtype !== "mimic" || m.sealed) return false;
+  if (!m || m.subtype !== "mimic" || m.sealed || isMonsterBerserk(m)) return false;
   if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
   const sources = getAdjacentMimicSources(m, dg).filter((src) =>
     canMimicSourceSkill(src, m, dg, pl, opts, ctx),
@@ -5471,7 +5473,7 @@ export function tryReserveMimicSkill(m, dg, pl, opts = {}, ctx = {}) {
  * ctx.forceReady: moveOnly で予約済みなら再抽選せず実行する。
  */
 export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
-  if (!m || m.subtype !== "mimic" || m.sealed) return false;
+  if (!m || m.subtype !== "mimic" || m.sealed || isMonsterBerserk(m)) return false;
   if (ctx.moveOnly) return false;
   if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
 
@@ -7035,7 +7037,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* 逆襲のフロックは、毒の継続ダメージを受けてから行動可能な異常を浄化する。 */
   if ((_isFlockRevenge || _isFlockStalker) && hasFlockPurgeableStatus(m) &&
       !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
-      !!opts.monsterWandFn && !m.sealed &&
+      !!opts.monsterWandFn && !m.sealed && !isMonsterBerserk(m) &&
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
       ensureFlockMp(m) >= FLOCK_MAGIC_MP_COSTS.purify_magic) {
     if (_moveOnly && !_attackOnly) {
@@ -7159,6 +7161,89 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (m.paralyzed) return;
+  }
+
+  /* ── berserker（バーサーカー等）：敵味方区別なく攻撃、店主除く ── */
+  /* バーサーク状態の敵は特技を使用せず、通常攻撃と接近移動のみを行う（受動特性は封印されない） */
+  if (isMonsterBerserk(m)) {
+    delete m._rangedAttackThisTurn;
+    delete m._defHalfMagicReady;
+    delete m._pentacleDrawReady;
+    delete m._mimicReady;
+    delete m._mimicSourceId;
+    delete m._potionHealerTarget;
+    delete m._potionHealerAttempted;
+    delete m._willowAttackType;
+    delete m._ramChargeReady;
+    delete m._petroBreathReady;
+    delete m._pullPlayerReady;
+    delete m._caswackReady;
+    delete m._deathTrapReady;
+    delete m._hexLiberatioCharging;
+    delete m._hexLiberatioReady;
+    delete m._hexAttackReady;
+    delete m._flockPendingSpell;
+    delete m._flockEarlySpellPending;
+
+    m.aware = true;
+    /* 隣接ターゲット（店主除く、生存中、擬態中モドキ除く）を探す */
+    const _bcAdj = (dg.monsters || []).filter(o =>
+      o !== m && o.type !== "shopkeeper" && (o.hp || 0) > 0 &&
+      !(o.subtype === "itemMimic" && o.disguisedAsItem !== false) &&
+      Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1
+    );
+    const _bcAdjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc;
+    const _strifeRingPlayerPriority = strifeRingTarget(m, dg, pl) === pl;
+    /* 攻撃フェーズ：隣接ターゲットを攻撃 */
+    if (!_moveOnly && (_bcAdj.length > 0 || _bcAdjPl) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (isAttackSealed(m)) {
+        ml.push(`${m.name}は攻撃が封印されていて攻撃できない！`);
+        return;
+      }
+      m.turnAttacks++;
+      if (_strifeRingPlayerPriority || (_bcAdjPl && (_bcAdj.length === 0 || Math.random() < 0.5))) {
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      } else {
+        const _bTarget = pick(_bcAdj);
+        m.dir = { x: Math.sign(_bTarget.x - m.x), y: Math.sign(_bTarget.y - m.y) };
+        const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)));
+        const res = applyDamageToMonster(_bTarget, rawDmg, {
+          isPhysical: true,
+          attacker: m,
+          dungeon: dg,
+          player: pl,
+          messages: ml,
+          killIfDead: true,
+          luFn: _luFn || null,
+        });
+        if (!res.blocked) {
+          ml.push(`${m.name}が${_bTarget.name}に攻撃！${res.damage}ダメージ！`);
+        }
+      }
+      return;
+    }
+    /* 移動フェーズ：最も近いターゲット（店主除く、生存中）に向かう */
+    if (!_attackOnly) {
+      if (_strifeRingPlayerPriority) return;
+      let _bTx = pl.x, _bTy = pl.y;
+      let _bNearDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+      for (const _bm of (dg.monsters || [])) {
+        if (_bm === m || _bm.type === "shopkeeper" || (_bm.hp || 0) <= 0) continue;
+        if (_bm.subtype === "itemMimic" && _bm.disguisedAsItem !== false) continue;
+        const _bd = Math.max(Math.abs(_bm.x - m.x), Math.abs(_bm.y - m.y));
+        if (_bd < _bNearDist) { _bNearDist = _bd; _bTx = _bm.x; _bTy = _bm.y; }
+      }
+      const _bNext = bfsNext(dg.map, [], m.x, m.y, _bTx, _bTy, m, 40, dg.pentacles, _effFloat, (x, y) => canEnter(dg.map, x, y, _effFloat, dg, monEffectiveWaterWalker(m)), false, dg.rooms, dg);
+      if (_bNext &&
+          !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bNext.x && pc.y === _bNext.y) &&
+          !dg.monsters?.some(o => o !== m && monsterOccupiesCell(o, _bNext.x, _bNext.y)) &&
+          !(_bNext.x === pl.x && _bNext.y === pl.y)) {
+        m.dir = { x: _bNext.x - m.x, y: _bNext.y - m.y };
+        m.x = _bNext.x; m.y = _bNext.y;
+        m._movedThisTurn = true;
+      }
+    }
+    return;
   }
 
   /* ピュロボロス：同群の骨への復帰を優先し、隣接自爆・歩数光線を予約して行動する。 */
@@ -10903,61 +10988,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* 引き寄せ後も通常攻撃・移動にフォールスルー */
     }
 
-    /* ── berserker（バーサーカー等）：敵味方区別なく攻撃、店主除く ── */
-    if ((m.subtype === "berserker" || (m.berserkerTurns || 0) > 0) && !m.sealed) {
-      m.aware = true;
-      /* 隣接ターゲット（店主除く）を探す */
-      const _bcAdj = dg.monsters.filter(o =>
-        o !== m && o.type !== "shopkeeper" &&
-        Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1
-      );
-      const _bcAdjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc;
-      const _strifeRingPlayerPriority = strifeRingTarget(m, dg, pl) === pl;
-      /* 攻撃フェーズ：隣接ターゲットを攻撃 */
-      if (!_moveOnly && (_bcAdj.length > 0 || _bcAdjPl) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-        m.turnAttacks++;
-        if (_strifeRingPlayerPriority || (_bcAdjPl && (_bcAdj.length === 0 || Math.random() < 0.5))) {
-          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
-        } else {
-          const _bTarget = pick(_bcAdj);
-          const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)));
-          const res = applyDamageToMonster(_bTarget, rawDmg, {
-            isPhysical: true,
-            attacker: m,
-            dungeon: dg,
-            player: pl,
-            messages: ml,
-            killIfDead: true,
-            luFn: _luFn || null,
-          });
-          if (!res.blocked) {
-            ml.push(`${m.name}が${_bTarget.name}に攻撃！${res.damage}ダメージ！`);
-          }
-        }
-        return;
-      }
-      /* 移動フェーズ：最も近いターゲット（店主除く）に向かう */
-      if (!_attackOnly) {
-        if (_strifeRingPlayerPriority) return;
-        let _bTx = pl.x, _bTy = pl.y;
-        let _bNearDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-        for (const _bm of dg.monsters) {
-          if (_bm === m || _bm.type === "shopkeeper") continue;
-          const _bd = Math.max(Math.abs(_bm.x - m.x), Math.abs(_bm.y - m.y));
-          if (_bd < _bNearDist) { _bNearDist = _bd; _bTx = _bm.x; _bTy = _bm.y; }
-        }
-        const _bNext = bfsNext(map, [], m.x, m.y, _bTx, _bTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
-        if (_bNext &&
-            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bNext.x && pc.y === _bNext.y) &&
-            !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _bNext.x, _bNext.y)) &&
-            !(_bNext.x === pl.x && _bNext.y === pl.y)) {
-          m.dir = { x: _bNext.x - m.x, y: _bNext.y - m.y };
-          m.x = _bNext.x; m.y = _bNext.y;
-          m._movedThisTurn = true;
-        }
-      }
-      return;
-    }
+    /* berserker 行動は特技より前に先行実行済み (isMonsterBerserk) */
 
     /* ── defhalf（キラープラスター等）：同部屋で15%防御半減魔法 ── */
     if (m.subtype === "defhalf" && !m.sealed) {

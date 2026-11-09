@@ -9,6 +9,11 @@ export function monIsSealed(m) {
   return !!(m && m.sealed);
 }
 
+/** バーサーク状態（特技不可・敵味方無差別近接攻撃。封印中は無効） */
+export function isMonsterBerserk(m) {
+  return !!(m && !m.sealed && (m.subtype === "berserker" || (m.berserkerTurns || 0) > 0));
+}
+
 /** 主弱点・副弱点のどちらに対しても属性弱点判定を行う。 */
 export function monHasElementWeakness(m, element) {
   if (!m || !element) return false;
