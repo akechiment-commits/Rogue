@@ -3650,7 +3650,7 @@ function legendOpenFloorTiles(dg) {
       if (reservedRooms.some(room => isInsideRoom(room, x, y))) continue;
       if (blockers.some(list => list?.some(object => object.x === x && object.y === y))) continue;
       const occupant = (dg.monsters || []).find(monster => monsterOccupiesCell(monster, x, y));
-      if (occupant && monsterBodySize(occupant) > 1) continue;
+      if (occupant && (monsterBodySize(occupant) > 1 || !isReplaceableLegendMonster(occupant))) continue;
       const roomIndex = (dg.rooms || []).findIndex(room => isInsideRoom(room, x, y));
       tiles.push({ x, y, roomIndex, occupant });
     }
@@ -3729,7 +3729,8 @@ function placeLegendSynergyPair(dg, floor) {
   }
   if (!pair) return false;
 
-  const removed = new Set(pair.map(tile => tile.occupant).filter(Boolean));
+  if (pair.some(tile => tile.occupant && !isReplaceableLegendMonster(tile.occupant))) return false;
+  const removed = new Set(pair.map(tile => tile.occupant).filter(isReplaceableLegendMonster));
   const replaceable = (dg.monsters || []).filter(monster => isReplaceableLegendMonster(monster) && !removed.has(monster));
   while (removed.size < 2 && replaceable.length) removed.add(replaceable.splice(rng(0, replaceable.length - 1), 1)[0]);
   if (removed.size < 2) return false;

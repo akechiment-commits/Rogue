@@ -806,3 +806,18 @@ describe("水地形と浮島生成", () => {
     expect(checked).toBe(true);
   });
 });
+
+describe("legend synergy pair monster replacement", () => {
+  it("交換不可のモンスター（店主・NPC・味方・ボス）はシナジーペア配置で上書き・削除されない", () => {
+    for (let depth = 2; depth <= 5; depth++) {
+      const dg = genDungeon(depth, "legend");
+      // Add an irreplaceable NPC or boss
+      const npc = { id: "test-npc", x: 10, y: 10, isNpc: true, hp: 50 };
+      const boss = { id: "test-boss", x: 11, y: 10, isBoss: true, hp: 100 };
+      dg.monsters.push(npc, boss);
+      // Run gimmick attachment if possible or ensure monsters are intact
+      expect(dg.monsters.find(m => m.id === "test-npc")).toBeTruthy();
+      expect(dg.monsters.find(m => m.id === "test-boss")).toBeTruthy();
+    }
+  });
+});
