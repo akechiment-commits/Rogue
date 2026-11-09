@@ -1,6 +1,6 @@
 import {
   MW, MH, T, uid, calcAtkDefDmg, calcPlayerDefense, randomTeleportDest,
-  stepProjectile, playerHpEffectLabel, rng, consumeBarrier,
+  stepProjectile, playerHpEffectLabel, rng, consumeBarrier, clampDmgFixed,
   checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from './utils.js';
 import { monsterPointDistance, monsterBodyCells, canPlaceMonsterBody, monsterOccupiesCell } from './monsterGeometry.js';
@@ -9,7 +9,8 @@ import { plName } from './playerLabel.js';
 import { statusTurns, resolveParalysisHit } from './statusDuration.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { releaseInvalidCapture } from './captureRules.js';
-import { scaleMonsterFireDamage, monsterFireDamageLabel } from './monsterRuntime.js';
+import { scaleMonsterFireDamage, monsterFireDamageLabel, wakeIfDormant, triggerMushroomCounterSpore } from './monsterRuntime.js';
+import { beginNpcRetaliation } from './npcRetaliation.js';
 import { monHasElementWeakness, monSubmergesProjectiles, monScaleOutgoingDamage } from './monTraits.js';
 import {
   reduceFireDamage, hasFireResist, fireResistDamageLabel, isFireExplosionNullified,
@@ -172,14 +173,19 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
   };
 
   const applyFireToMon = (victim) => {
-    if (consumeBarrier(victim, ml)) return;
+    wakeIfDormant(victim, ml);
+    if (consumeBarrier(victim, ml)) {
+      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(victim, m, ml);
+      return;
+    }
     const baseDmg = 70;
     const oilyMult = (victim.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === victim.x && t.y === victim.y) ? 2 : 1;
     const weaknessMult = monHasElementWeakness(victim, "fire") ? 1.5 : 1;
-    const finalDmg = monScaleOutgoingDamage(m, scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult)));
+    const finalDmg = monScaleOutgoingDamage(m, clampDmgFixed(victim, scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult)), true));
     victim.hp -= finalDmg;
     ml.push(`${m.name}のハイパーサーミックブレスが${victim.name}に直撃！${finalDmg}ダメージ！${weaknessMult > 1 ? "炎弱点！" : ""}${monsterFireDamageLabel(victim)}${oilyMult > 1 ? "(油まみれ×2)" : ""}`);
     resolveParalysisHit(victim, ml);
+    triggerMushroomCounterSpore(victim, dg, pl, ml);
     if (victim.hp <= 0) {
       killMonster(victim, dg, pl, ml, opts.luFn || null, false, m);
     }
@@ -298,17 +304,22 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
   for (const victim of [...(dg.monsters || [])]) {
     if (victim === m || victim.hp <= 0 || victim.disguisedAsItem) continue;
     if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
-    if (consumeBarrier(victim, ml)) continue;
+    wakeIfDormant(victim, ml);
+    if (consumeBarrier(victim, ml)) {
+      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(victim, m, ml);
+      continue;
+    }
 
     if (checkMonsterEvasion(victim, { baseMissRate: 0.05 })) {
       ml.push(victim.baseKind === "boss_mireu" ? `${victim.name}は攻撃をかわした！` : `${victim.name}への攻撃は外れた！`);
       continue;
     }
 
-    const vDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk * 3, victim.def || 0, { defWeight: 1 }) + rng(-2, 2)));
+    const vDmg = monScaleOutgoingDamage(m, clampDmgFixed(victim, Math.max(1, calcAtkDefDmg(m.atk * 3, victim.def || 0, { defWeight: 1 }) + rng(-2, 2)), true));
     victim.hp -= vDmg;
     resolveParalysisHit(victim, ml);
     ml.push(`スパイクフレイルが${victim.name}を強打！${vDmg}ダメージ！`);
+    triggerMushroomCounterSpore(victim, dg, pl, ml);
 
     if (victim.hp > 0) {
       if (hasCursedTeleportPentacle(dg)) {

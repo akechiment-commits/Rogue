@@ -1,6 +1,6 @@
 import {
   T, MW, MH, uid, rng, calcAtkDefDmg, calcPlayerDefense, playerHpEffectLabel,
-  checkMonsterEvasion, consumeBarrier,
+  checkMonsterEvasion, consumeBarrier, clampDmgFixed,
 } from "./utils.js";
 import {
   monsterBodyCells, monsterBounds, monsterOccupiesCell,
@@ -17,6 +17,8 @@ import {
 import { monElementDamageMultiplier, monHasElementWeakness, monScaleOutgoingDamage } from "./monTraits.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { pushAnim, pushLightningAnim, pushSplashAnim } from "./animEvents.js";
+import { wakeIfDormant, triggerMushroomCounterSpore } from "./monsterRuntime.js";
+import { beginNpcRetaliation } from "./npcRetaliation.js";
 
 let combatDeps = {};
 
@@ -210,10 +212,16 @@ function targetHitCounts(dungeon, cells, source) {
 
 function applyFixedWaveDamage(source, target, amount, dungeon, player, messages, label) {
   if (target.hp <= 0 || !dungeon.monsters?.includes(target)) return;
-  if (consumeBarrier(target, messages)) return;
-  amount = monScaleOutgoingDamage(source, amount);
+  wakeIfDormant(target, messages);
+  if (consumeBarrier(target, messages)) {
+    if (source && dungeon.monsters?.includes(source)) beginNpcRetaliation(target, source, messages);
+    return;
+  }
+  amount = monScaleOutgoingDamage(source, clampDmgFixed(target, amount, true));
   target.hp -= amount;
   messages.push(`${label}が${target.name}に命中！${amount}ダメージ！`);
+  resolveParalysisHit(target, messages);
+  triggerMushroomCounterSpore(target, dungeon, player, messages);
   if (target.hp <= 0) killMonster(target, dungeon, player, messages, combatDeps.luFn || null, false, source);
 }
 
@@ -298,13 +306,18 @@ function applyTidalWave(attack, dungeon, player, messages, source) {
   for (const [target, hitCount] of targets) {
     let hit = false;
     for (let count = 0; count < hitCount && target.hp > 0 && dungeon.monsters.includes(target); count++) {
-      if (consumeBarrier(target, messages)) continue;
+      wakeIfDormant(target, messages);
+      if (consumeBarrier(target, messages)) {
+        if (source && dungeon.monsters?.includes(source)) beginNpcRetaliation(target, source, messages);
+        continue;
+      }
       resolveParalysisHit(target, messages);
       const base = calcAtkDefDmg(attack.sourceAtk, target.def || 0, { defWeight: 1 });
-      const damage = monScaleOutgoingDamage(source, Math.max(1, base * 2));
+      const damage = monScaleOutgoingDamage(source, clampDmgFixed(target, Math.max(1, base * 2), true));
       target.hp -= damage;
       hit = true;
       messages.push(`タイダルウエイブが${target.name}に命中！水属性の${damage}ダメージ！`);
+      triggerMushroomCounterSpore(target, dungeon, player, messages);
       if (target.hp <= 0) killMonster(target, dungeon, player, messages, combatDeps.luFn || null, false, source);
     }
     if (hit && target.hp > 0 && dungeon.monsters.includes(target)) {
@@ -430,12 +443,18 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
   }
   for (const target of [...(dungeon.monsters || [])]) {
     if (target === monster || target.hp <= 0 || !dungeon.monsters.includes(target) || !inRoom(target.x, target.y)) continue;
-    if (consumeBarrier(target, messages)) continue;
+    wakeIfDormant(target, messages);
+    if (consumeBarrier(target, messages)) {
+      if (monster && dungeon.monsters?.includes(monster)) beginNpcRetaliation(target, monster, messages);
+      continue;
+    }
     const weakness = monHasElementWeakness(target, "thunder") ? 1.5 : 1;
     const resistance = monElementDamageMultiplier(target, "thunder");
-    const damage = monScaleOutgoingDamage(monster, Math.max(1, Math.floor(50 * weakness * resistance)));
+    const damage = monScaleOutgoingDamage(monster, clampDmgFixed(target, Math.max(1, Math.floor(50 * weakness * resistance)), true));
     target.hp -= damage;
+    resolveParalysisHit(target, messages);
     messages.push(`稲妻が${target.name}にも落ちた！${damage}ダメージ！${weakness > 1 ? "雷弱点！" : ""}${resistance < 1 ? "雷半減！" : ""}`);
+    triggerMushroomCounterSpore(target, dungeon, player, messages);
     pushLightningAnim(target.x, target.y);
     if (target.hp <= 0) killMonster(target, dungeon, player, messages, luFn, false, monster);
   }
@@ -486,11 +505,16 @@ export function attackOmegaShinryuAdjacentCells(monster, dungeon, player, messag
       messages.push(`${monster.name}の${target.name}への攻撃は外れた！`);
       continue;
     }
-    if (consumeBarrier(target, messages)) continue;
+    wakeIfDormant(target, messages);
+    if (consumeBarrier(target, messages)) {
+      if (monster && dungeon.monsters?.includes(monster)) beginNpcRetaliation(target, monster, messages);
+      continue;
+    }
     resolveParalysisHit(target, messages);
-    const damage = monScaleOutgoingDamage(monster, Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
+    const damage = monScaleOutgoingDamage(monster, clampDmgFixed(target, Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)), true));
     target.hp -= damage;
     messages.push(`${monster.name}が${target.name}を攻撃！${damage}ダメージ！`);
+    triggerMushroomCounterSpore(target, dungeon, player, messages);
     if (target.hp <= 0 && dungeon.monsters.includes(target)) {
       killMonster(target, dungeon, player, messages, opts.luFn || null, false, monster);
     }
