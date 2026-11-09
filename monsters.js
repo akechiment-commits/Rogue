@@ -3264,8 +3264,10 @@ function recognizedDecoyForMonster(m, dg, pl) {
 }
 
 function attackPlayerClone(m, clone, dg, pl, ml, luFn) {
-  const damage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 })));
+  if (consumeBarrier(clone, ml)) return;
+  const damage = monScaleOutgoingDamage(m, clampDmgFixed(clone, Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 })), true));
   clone.hp -= damage;
+  resolveParalysisHit(clone, ml);
   ml.push(`${m.name}が分身を攻撃！${damage}ダメージ！`);
   if (clone.hp <= 0) killMonster(clone, dg, pl, ml, luFn, true, m);
 }
@@ -5681,10 +5683,18 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       if (_chHitPlayer) {
         monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
       } else if (_chHitMonster) {
-        _chHitMonster.hp -= _chHitMonsterDmg;
-        ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_chHitMonsterDmg}ダメージ！`);
-        if (_chHitMonster.hp <= 0) {
-          killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
+        if (consumeBarrier(_chHitMonster, ml)) {
+          if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_chHitMonster, m, ml);
+        } else {
+          const _dmg = clampDmgFixed(_chHitMonster, _chHitMonsterDmg, true);
+          _chHitMonster.hp -= _dmg;
+          wakeIfDormant(_chHitMonster, ml);
+          resolveParalysisHit(_chHitMonster, ml);
+          ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_dmg}ダメージ！`);
+          triggerMushroomCounterSpore(_chHitMonster, dg, pl, ml);
+          if (_chHitMonster.hp <= 0) {
+            killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
+          }
         }
       }
       return true;
@@ -9481,11 +9491,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               );
               if (_nearMon && m.turnAttacks < monEffectiveMaxAttacks(m)) {
                 m.turnAttacks++;
-                const _ddmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2)));
-                _nearMon.hp -= _ddmg;
-                ml.push(`${m.name}が${_nearMon.name}を攻撃！${_ddmg}ダメージ！`);
-                if (_nearMon.hp <= 0) {
-                  killMonster(_nearMon, dg, pl, ml, null, true, m);
+                if (consumeBarrier(_nearMon, ml)) {
+                  if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_nearMon, m, ml);
+                } else {
+                  const _ddmg = monScaleOutgoingDamage(m, clampDmgFixed(_nearMon, Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2)), true));
+                  _nearMon.hp -= _ddmg;
+                  wakeIfDormant(_nearMon, ml);
+                  resolveParalysisHit(_nearMon, ml);
+                  ml.push(`${m.name}が${_nearMon.name}を攻撃！${_ddmg}ダメージ！`);
+                  triggerMushroomCounterSpore(_nearMon, dg, pl, ml);
+                  if (_nearMon.hp <= 0) {
+                    killMonster(_nearMon, dg, pl, ml, null, true, m);
+                  }
                 }
               }
             }
@@ -9503,11 +9520,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 );
                 if (_adjOccup) {
                   m.turnAttacks++;
-                  const _ddmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2)));
-                  _adjOccup.hp -= _ddmg;
-                  ml.push(`${m.name}が${_adjOccup.name}を攻撃！${_ddmg}ダメージ！`);
-                  if (_adjOccup.hp <= 0) {
-                    killMonster(_adjOccup, dg, pl, ml, null, true, m);
+                  if (consumeBarrier(_adjOccup, ml)) {
+                    if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_adjOccup, m, ml);
+                  } else {
+                    const _ddmg = monScaleOutgoingDamage(m, clampDmgFixed(_adjOccup, Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2)), true));
+                    _adjOccup.hp -= _ddmg;
+                    wakeIfDormant(_adjOccup, ml);
+                    resolveParalysisHit(_adjOccup, ml);
+                    ml.push(`${m.name}が${_adjOccup.name}を攻撃！${_ddmg}ダメージ！`);
+                    triggerMushroomCounterSpore(_adjOccup, dg, pl, ml);
+                    if (_adjOccup.hp <= 0) {
+                      killMonster(_adjOccup, dg, pl, ml, null, true, m);
+                    }
                   }
                 }
               }
@@ -9539,11 +9563,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _occup = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _dn.x, _dn.y));
             if (_occup && !_moveOnly) {
               /* 次マスに別の敵: 囮の争奪戦 */
-              const _ddmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2)));
-              _occup.hp -= _ddmg;
-              ml.push(`${m.name}が${_occup.name}を攻撃！${_ddmg}ダメージ！`);
-              if (_occup.hp <= 0) {
-                killMonster(_occup, dg, pl, ml, null, true, m);
+              if (consumeBarrier(_occup, ml)) {
+                if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_occup, m, ml);
+              } else {
+                const _ddmg = monScaleOutgoingDamage(m, clampDmgFixed(_occup, Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2)), true));
+                _occup.hp -= _ddmg;
+                wakeIfDormant(_occup, ml);
+                resolveParalysisHit(_occup, ml);
+                ml.push(`${m.name}が${_occup.name}を攻撃！${_ddmg}ダメージ！`);
+                triggerMushroomCounterSpore(_occup, dg, pl, ml);
+                if (_occup.hp <= 0) {
+                  killMonster(_occup, dg, pl, ml, null, true, m);
+                }
               }
             } else if (!_occup) {
               m.dir = { x: _dn.x - m.x, y: _dn.y - m.y };
@@ -9886,9 +9917,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             }
           } else if (_chHitMonster) {
             m.turnAttacks++;
-            _chHitMonster.hp -= _chHitMonsterDmg;
-            ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_chHitMonsterDmg}ダメージ！`);
-            if (_chHitMonster.hp <= 0) killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
+            if (consumeBarrier(_chHitMonster, ml)) {
+              if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_chHitMonster, m, ml);
+            } else {
+              const _dmg = clampDmgFixed(_chHitMonster, _chHitMonsterDmg, true);
+              _chHitMonster.hp -= _dmg;
+              wakeIfDormant(_chHitMonster, ml);
+              resolveParalysisHit(_chHitMonster, ml);
+              ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${_dmg}ダメージ！`);
+              triggerMushroomCounterSpore(_chHitMonster, dg, pl, ml);
+              if (_chHitMonster.hp <= 0) killMonster(_chHitMonster, dg, pl, ml, _luFn, false, m);
+            }
           }
           return;
         }
@@ -10800,10 +10839,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         } else {
           const _bTarget = pick(_bcAdj);
-          const _bDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)));
-          ml.push(`${m.name}が${_bTarget.name}に攻撃！${_bDmg}ダメージ！`);
-          _bTarget.hp -= _bDmg;
-          if (_bTarget.hp <= 0) killMonster(_bTarget, dg, pl, ml, _luFn, false, m);
+          if (consumeBarrier(_bTarget, ml)) {
+            if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_bTarget, m, ml);
+          } else {
+            const _bDmg = monScaleOutgoingDamage(m, clampDmgFixed(_bTarget, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)), true));
+            _bTarget.hp -= _bDmg;
+            wakeIfDormant(_bTarget, ml);
+            resolveParalysisHit(_bTarget, ml);
+            ml.push(`${m.name}が${_bTarget.name}に攻撃！${_bDmg}ダメージ！`);
+            triggerMushroomCounterSpore(_bTarget, dg, pl, ml);
+            if (_bTarget.hp <= 0) killMonster(_bTarget, dg, pl, ml, _luFn, false, m);
+          }
         }
         return;
       }
