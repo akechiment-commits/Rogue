@@ -15,7 +15,7 @@ export function withLargeMonsterDamageTurn(player, callback) {
 
 /** Explosion and percentage damage share one per-player-turn allowance for each large monster. */
 export function blockLargeMonsterDamage(monster, player, messages) {
-  if (!monster || monsterBodySize(monster) <= 1 || !player) return false;
+  if (!monster || (!monster.isBoss && monsterBodySize(monster) <= 1) || !player) return false;
   const turn = player._largeMonsterDamageTurn ?? (Number(player.turns) || 0) + 1;
   if (monster.largeDamageTurnToken === turn) {
     if (monster.largeDamageBlockedMessageTurn !== turn) {
