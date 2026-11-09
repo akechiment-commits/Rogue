@@ -5731,7 +5731,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
         if (_chOther) {
           _chHitMonster = _chOther;
-        _chHitMonsterDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2)));
+        _chHitMonsterDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
           break;
         }
         m.x = _cnx; m.y = _cny; _chMoved++;
