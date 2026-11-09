@@ -2386,8 +2386,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   const _killed = new Set();
   const _largeMonstersHit = new Set();
   const retaliateAgainstExplosionSource = (monster) => {
-    if (killerMon && monster.type === "shopkeeper" && monster.hp > 0) {
-      beginNpcRetaliation(monster, killerMon, ml);
+    if (monster.type === "shopkeeper" && monster.hp > 0) {
+      if (killerMon) beginNpcRetaliation(monster, killerMon, ml);
+      else if (p && options.sourceIsPlayer !== false) markShopkeeperHostileToPlayer(monster, dg, p, ml);
     }
   };
   const killBlastedMonster = (monster, noExp = noExpKills || ringExplosion) => {
@@ -2432,12 +2433,16 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           if (_largeMonstersHit.has(m)) continue;
           _largeMonstersHit.add(m);
         }
+        installMonsterHpHook(m);
         wakeIfDormant(m, ml);
         if (m.explosionImmune) {
           ml.push(`${m.name}は爆発を受け付けない！`);
           continue;
         }
-        if (consumeBarrier(m, ml)) continue;
+        if (consumeBarrier(m, ml)) {
+          retaliateAgainstExplosionSource(m);
+          continue;
+        }
         resolveParalysisHit(m, ml);
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
         if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
@@ -2472,6 +2477,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
             if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion); }
+            else triggerMushroomCounterSpore(m, dg, p, ml);
             continue;
           }
           m.hp = 0;
@@ -2484,6 +2490,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           retaliateAgainstExplosionSource(m);
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
           if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
+          else triggerMushroomCounterSpore(m, dg, p, ml);
         } else {
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
@@ -2493,6 +2500,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
           if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
+          else triggerMushroomCounterSpore(m, dg, p, ml);
         }
       }
       /* アイテム破壊 */
@@ -2600,8 +2608,9 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
   const initialDepth = p?.depth;
   const floorChanged = () => p?.depth !== initialDepth;
   const retaliateAgainstExplosionSource = (monster) => {
-    if (killerMon && monster.type === "shopkeeper" && monster.hp > 0) {
-      beginNpcRetaliation(monster, killerMon, ml);
+    if (monster.type === "shopkeeper" && monster.hp > 0) {
+      if (killerMon) beginNpcRetaliation(monster, killerMon, ml);
+      else if (p && context.sourceIsPlayer !== false) markShopkeeperHostileToPlayer(monster, dg, p, ml);
     }
   };
   _gunpowderDepth++;
@@ -2647,12 +2656,16 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               if (_largeMonstersHit.has(m)) continue;
               _largeMonstersHit.add(m);
             }
+            installMonsterHpHook(m);
             wakeIfDormant(m, ml);
             if (m.explosionImmune) {
               ml.push(`${m.name}は爆発を受け付けない！`);
               continue;
             }
-            if (consumeBarrier(m, ml)) continue;
+            if (consumeBarrier(m, ml)) {
+              retaliateAgainstExplosionSource(m);
+              continue;
+            }
             resolveParalysisHit(m, ml);
             if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
@@ -2684,6 +2697,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               retaliateAgainstExplosionSource(m);
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn, false, killerMon);
+              else triggerMushroomCounterSpore(m, dg, p, ml);
               continue;
             }
             ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
