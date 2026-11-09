@@ -50,7 +50,7 @@ for (const [startText, kinds] of Object.entries(ADVANCED_MONSTER_STARTS)) {
 /*
  * 再登場帯。序盤の単純敵は中盤にLv2として戻し、後半の候補には
  * 「能力は厄介だが数値は低め」の敵をもう一度入れる。
- * 追加分は通常帯と重複するため、後半は柳・眠れる獅子を除いて最大13種になる。
+ * 追加分は通常帯と重複するため、後半は特技・大型敵を除いて約13種を基準とする。
  */
 const ADVANCED_MONSTER_REINFORCEMENTS = Object.freeze({
   10: ["rat", "bat", "centipede"],
