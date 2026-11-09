@@ -272,6 +272,22 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
     expect(cursedFood).toMatchObject({ name: "猛毒のパン", value: 28, potionEffects: ["c_milk"] });
   });
 
+  it("満腹度限界超過時に牛乳を浴びると嘔吐し、牛乳以外の薬では嘔吐しない", () => {
+    const fullPlayer = makePlayer({ hunger: 200, maxHunger: 100 });
+    const messages = [];
+    applyPotionEffect("milk", 15, "player", null, makeEmptyDg(), fullPlayer, messages, () => {});
+    expect(messages.some(msg => msg.includes("お腹いっぱいのところに牛乳を浴びて、嘔吐した！"))).toBe(true);
+    // 200 - 25 = 175
+    expect(fullPlayer.hunger).toBe(175);
+
+    const fullPlayer2 = makePlayer({ hunger: 200, maxHunger: 100, hp: 50, maxHp: 100 });
+    const messages2 = [];
+    applyPotionEffect("heal", 20, "player", null, makeEmptyDg(), fullPlayer2, messages2, () => {});
+    expect(messages2.some(msg => msg.includes("嘔吐"))).toBe(false);
+    expect(fullPlayer2.hunger).toBe(200);
+    expect(fullPlayer2.hp).toBe(70);
+  });
+
   it("ドーピングコンソメは通常・祝福・呪いの倍率状態を設定する", () => {
     const normal = makePlayer();
     applyPotionEffect("doping", 50, "player", null, makeEmptyDg(), normal, [], () => {});

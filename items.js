@@ -5756,20 +5756,37 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     }
     case "milk": {
       if (kind === "player") {
+        const maxValue = Number(p.maxHunger ?? 100);
+        const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
+        const hunger = Math.floor(Math.max(0, Number(p.hunger) || 0));
         const baseDelta = cursed ? -15 : blessed ? 30 : 15;
         const _delta = weakEffect ? Math.max(1, Math.floor(Math.abs(baseDelta) * effectScale)) * Math.sign(baseDelta) : baseDelta;
-        const _before = p.hunger || 0;
-        p.hunger = Math.max(0, Math.min(p.maxHunger || 100, _before + _delta));
-        if (p.hunger > 0) delete p._hungerDmgStarted;
-        if (cursed) {
-          if (hasRingEffect(p, "antidote_ring")) {
-            ml.push(`牛乳でお腹を壊したが、防具が毒を防いだ！満腹度${_delta}`);
-          } else {
-            const _poison = applyPlayerPoison(p, { atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale, sourceName: kind === "player" ? killerMon?.name || null : null });
-            ml.push(statusResultMessage(_poison, `牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`));
+        if (hunger > maxHunger) {
+          const loss = Math.min(hunger, Math.max(10, Math.floor(maxHunger * 0.25)));
+          p.hunger = Math.max(0, hunger - loss);
+          ml.push(`お腹いっぱいのところに牛乳を浴びて、嘔吐した！満腹度が${loss}減った！`);
+          if (cursed) {
+            if (hasRingEffect(p, "antidote_ring")) {
+              ml.push("牛乳でお腹を壊したが、防具が毒を防いだ！");
+            } else {
+              const _poison = applyPlayerPoison(p, { atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale, sourceName: kind === "player" ? killerMon?.name || null : null });
+              ml.push(statusResultMessage(_poison, `牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！【呪】`));
+            }
           }
         } else {
-          ml.push(`牛乳を飲んだ。満腹度+${_delta}${blessed ? "【祝福】" : ""}`);
+          if (cursed) {
+            p.hunger = Math.max(0, hunger + _delta);
+            if (p.hunger > 0) delete p._hungerDmgStarted;
+            if (hasRingEffect(p, "antidote_ring")) {
+              ml.push(`牛乳でお腹を壊したが、防具が毒を防いだ！満腹度${_delta}`);
+            } else {
+              const _poison = applyPlayerPoison(p, { atkLoss: weakEffect ? 0.1 : undefined, durationMultiplier: effectScale, sourceName: kind === "player" ? killerMon?.name || null : null });
+              ml.push(statusResultMessage(_poison, `牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`));
+            }
+          } else {
+            const added = addFoodHunger(p, _delta);
+            ml.push(`牛乳を飲んだ。満腹度+${added}${blessed ? "【祝福】" : ""}`);
+          }
         }
       } else if (kind === "monster" && cursed) {
         if (isStatusImmune(target, ml, target.name) || blockLargeMonsterStatus(target, "poison", ml)) {
