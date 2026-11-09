@@ -10139,6 +10139,7 @@ export function gatherFloorItems(dungeon, player, items, messages, { scatter = f
 
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv = 1, castMpCost = null) {
   if (kind === "monster") {
+    installMonsterHpHook(target);
     wakeIfDormant(target, ml);
     if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
     if (consumeBarrier(target, ml)) return;
@@ -10315,6 +10316,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
             ml.push(`魔法は${_monster.name}に効かない！`);
             continue;
           }
+          installMonsterHpHook(_monster);
+          wakeIfDormant(_monster, ml);
+          markShopkeeperHostileToPlayer(_monster, dg, p, ml);
           const _baseDamage = Math.round(rng(15, 25) * _lvF);
           if (monReflectsMagic(_monster)) {
             if (consumeBarrier(p, ml)) continue;
@@ -10332,6 +10336,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           ml.push(`地震の魔法が${_monster.name}に命中！${_damage}ダメージ！`);
           resolveParalysisHit(_monster, ml);
           if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, luFn);
+          else triggerMushroomCounterSpore(_monster, dg, p, ml);
         }
       }
       break;
@@ -10402,9 +10407,13 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         for (const _lm of _ltTargets) {
           if (_lm.hp <= 0) continue;
           if (monEffectiveMagicImmune(_lm)) { ml.push(`魔法は${_lm.name}に効かない！`); continue; }
+          installMonsterHpHook(_lm);
+          wakeIfDormant(_lm, ml);
+          markShopkeeperHostileToPlayer(_lm, dg, p, ml);
+          const _baseDamage = Math.round(rng(22, 32) * _lvF);
           if (monReflectsMagic(_lm)) {
             if (consumeBarrier(p, ml)) continue;
-            const _reflectedBaseDamage = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _lvF), p, dg);
+            const _reflectedBaseDamage = multiplyCursedMagicDamage(_baseDamage, p, dg);
             const _reflectedDamage = reduceLightningDamage(_reflectedBaseDamage, p);
             p.hp -= _reflectedDamage;
             p.deathCause = `${_lm.name}に雷の魔法を反射されて`;
@@ -10417,11 +10426,12 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           if (consumeBarrier(_lm, ml)) continue;
           const _lweak = monHasElementWeakness(_lm, "thunder") ? 1.5 : 1;
           const _lresist = monElementDamageMultiplier(_lm, "thunder");
-          const _ld = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm) * _lresist));
+          const _ld = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(_baseDamage * _lweak), _lm) * _lresist));
           _lm.hp -= _ld;
           resolveParalysisHit(_lm, ml);
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}${_lresist < 1 ? "雷半減！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
+          else triggerMushroomCounterSpore(_lm, dg, p, ml);
         }
       }
       if (kind === "monster") {
@@ -10443,6 +10453,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "sleep_bolt": {
       if (kind === "monster") {
+        if (target.type === "shopkeeper") markShopkeeperHostileToPlayer(target, dg, p, ml);
         if (isStatusImmune(target, ml, target.name)) break;
         if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "sleep", ml)) break;
         if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "sleep");
@@ -10454,6 +10465,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "transform_magic": {
       if (kind === "monster") {
+        if (target.type === "shopkeeper") markShopkeeperHostileToPlayer(target, dg, p, ml);
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
         const _tfPool = resolveRuntimeSpawnPoolFloor(dg, p.depth);
         const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, 0, { poolFloor: _tfPool }); const prevName = target.name;
@@ -10466,6 +10478,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "teleport_other": {
       if (kind === "monster") {
+        if (target.type === "shopkeeper") markShopkeeperHostileToPlayer(target, dg, p, ml);
         if (target.forcedMoveImmune) { ml.push(`${target.name}は強制移動を受けない！`); break; }
         if (hasCursedTeleportPentacle(dg)) { ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！"); break; }
         const _tof = [];
@@ -10482,6 +10495,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "poison_bolt": {
       if (kind === "monster") {
+        if (target.type === "shopkeeper") markShopkeeperHostileToPlayer(target, dg, p, ml);
         if (isStatusImmune(target, ml, target.name)) break;
         if (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "poison", ml)) break;
         if (monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "poison");
@@ -10541,6 +10555,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "paralyze_magic": {
       if (kind === "monster") {
+        if (target.type === "shopkeeper") markShopkeeperHostileToPlayer(target, dg, p, ml);
         if (!isStatusImmune(target, ml, target.name)) {
           const _pt = applyMonsterParalyze(target, { ml: null });
           ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！${target.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`);
@@ -10563,8 +10578,13 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     default: ml.push("魔法弾は効果なく消えた。");
   }
-  if (kind === "monster" && Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
-    calmShopkeeperIfFullyHealed(target, dg, p, ml);
+  if (kind === "monster") {
+    if (Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
+      calmShopkeeperIfFullyHealed(target, dg, p, ml);
+    } else if (Number.isFinite(_beforeMonsterHp) && target.hp < _beforeMonsterHp && target.hp > 0) {
+      triggerMushroomCounterSpore(target, dg, p, ml);
+      markShopkeeperHostileToPlayer(target, dg, p, ml);
+    }
   }
 }
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
@@ -10642,6 +10662,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       if (monEffectiveMagicImmune(mon)) {
         ml.push(`魔法は${mon.name}に効かない！`);
       } else if (monReflectsMagic(mon)) {
+        if (mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, ml);
         ml.push(`${mon.name}が魔法を跳ね返した！`);
         const _rfLvF = getSpellPowerMultiplier(lv);
         switch (spell.effect) {
