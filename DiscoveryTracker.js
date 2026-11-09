@@ -195,6 +195,8 @@ export function restoreDiscoveries(data) {
     bigboxes: { ...(normalized.bigboxes || {}) },
     monsterNameMigrationVersion: normalized.monsterNameMigrationVersion,
   };
+  _pendingBigboxes = [];
+  _pendingBigboxEntities = new WeakSet();
 }
 
 export function getDiscoveries() {

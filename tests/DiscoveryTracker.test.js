@@ -115,6 +115,13 @@ describe("DiscoveryTracker", () => {
     expect(getDiscoveries().bigboxes.identify.count).toBe(1);
   });
 
+  it("restoreDiscoveries は保留中の大箱ステージングを破棄する", () => {
+    stageBigbox({ name: "変化の大箱", kind: "change" });
+    restoreDiscoveries({ bigboxes: {} });
+    commitPendingBigboxes();
+    expect(getDiscoveries().bigboxes.change).toBeUndefined();
+  });
+
   it("旧名のモンスター図鑑を現行名へ合算する", () => {
     restoreDiscoveries({
       monsters: {
