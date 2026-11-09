@@ -710,7 +710,7 @@ function dragonBreathOrigin(monster, target) {
       Math.max(Math.abs(target.x - b.x), Math.abs(target.y - b.y)))[0] || null;
 }
 
-function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
+export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
   if (isFireExplosionNullified(dg, pl)) {
     ml.push((pl.fireExplosionNullTurns || 0) > 0
@@ -738,13 +738,20 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
       return;
     }
+    if (consumeBarrier(_fBlock, ml)) {
+      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_fBlock, m, ml);
+      return;
+    }
     const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
-    const _fDmg = monScaleOutgoingDamage(m, scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult));
+    const _fDmg = monScaleOutgoingDamage(m, clampDmgFixed(_fBlock, scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult), true));
     _fBlock.hp -= _fDmg;
+    resolveParalysisHit(_fBlock, ml);
     ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(_fBlock)}`);
+    triggerMushroomCounterSpore(_fBlock, dg, pl, ml);
     if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); }
   };
   const _applyFireToPlayer = () => {
+    if (consumeBarrier(pl, ml)) return;
     const pdef = calcPlayerDef(pl);
     let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
     const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -808,7 +815,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
 }
 
 /* ===== 氷竜ブレス（風で曲がる物理ブレス） ===== */
-function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
+export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   const _iLvl = m.monLevel || 1;
   let _idx = Math.sign(pl.x - m.x), _idy = Math.sign(pl.y - m.y);
   if (_idx === 0 && _idy === 0) _idy = 1;
@@ -820,21 +827,29 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   };
   let _cx = m.x, _cy = m.y, _windMsg = false;
   const _hitIceMon = (_iBlock) => {
+    wakeIfDormant(_iBlock, ml);
+    if (consumeBarrier(_iBlock, ml)) {
+      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_iBlock, m, ml);
+      return;
+    }
     let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
     const _iIsWeak = monHasElementWeakness(_iBlock, "ice");
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
     const _iResist = monElementDamageMultiplier(_iBlock, "ice");
     _iDmg = Math.max(1, Math.floor(_iDmg * _iResist));
-    _iDmg = monScaleOutgoingDamage(m, _iDmg);
+    _iDmg = monScaleOutgoingDamage(m, clampDmgFixed(_iBlock, _iDmg, true));
     _iBlock.hp -= _iDmg;
+    resolveParalysisHit(_iBlock, ml);
     const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
     if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
     _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
     if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow;
     ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}${_iResist < 1 ? "氷半減！" : ""}鈍足${_iSlow}ターン！`);
+    triggerMushroomCounterSpore(_iBlock, dg, pl, ml);
     if (_iBlock.hp <= 0) killMonster(_iBlock, dg, pl, ml, null, false, m);
   };
   const _hitIcePl = () => {
+    if (consumeBarrier(pl, ml)) return;
     const pdef = calcPlayerDef(pl);
     let _iDmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
     const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -845,6 +860,8 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     pl.deathCause = `${m.name}の氷ブレスで`;
     pl.hp -= _iDmg;
     onPlayerHit?.(_iDmg, m);
+    interruptPlayerSleep(pl, ml, "寒さで目が覚めた！");
+    weakenOrClearParalysis(pl, ml);
     if (_hasIceR) {
       ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！${iceResistDamageLabel(pl)}・鈍足無効`);
     } else if (isStatusImmune(pl, ml)) {
