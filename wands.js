@@ -2463,12 +2463,20 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       if (_generatedIceChunks.includes(it)) { lastX = tx; lastY = ty; continue; }
       if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${resolveItemName(it, nameFn)}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
-      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬", seal:"封印の薬", panacea:"万能薬" };
-      if (it.effect === "water" && BOTTLE_XFORM[eff]) {
-        const nm = BOTTLE_XFORM[eff];
-        Object.assign(it, { name: nm, effect: eff, value: eff === "sleep" ? 4 : 0 });
-        ml.push(`水が${nm}に変化した！`);
-        return;
+      if (it.effect === "water") {
+        const tmpl = ITEMS.find(item => item.type === "potion" && item.effect === eff);
+        if (tmpl) {
+          const { id, x, y, cursed, blessed, bcKnown, fullIdent, discovered } = it;
+          Object.keys(it).forEach(k => delete it[k]);
+          Object.assign(it, JSON.parse(JSON.stringify(tmpl)), { id, x, y });
+          if (cursed != null) it.cursed = cursed;
+          if (blessed != null) it.blessed = blessed;
+          if (bcKnown != null) it.bcKnown = bcKnown;
+          if (fullIdent != null) it.fullIdent = fullIdent;
+          if (discovered != null) it.discovered = discovered;
+          ml.push(`水が${it.name}に変化した！`);
+          return;
+        }
       }
       applyWandEffect(eff, "item", it, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, nameFn);
       return;
