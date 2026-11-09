@@ -1,7 +1,8 @@
 import { isFloorOccupancyBlocked } from "./floorObjectPlacement.js";
 import { markItemIdentifiedForDungeon } from "./items.js";
 import { uid } from "./utils.js";
-import { canPlaceMonsterBody } from './monsterGeometry.js';
+import { canPlaceMonsterBody, monsterBodySize } from './monsterGeometry.js';
+import { canSpawnLargeMonsterAt } from './largeMonsterPlacement.js';
 
 function syncFallenMonster(entity, actionTime) {
   entity.actionTime = actionTime;
@@ -29,7 +30,7 @@ export function placeFallenEntities(dungeon, entries = [], { player = null, acti
   while (pending.length) {
     const entry = pending.shift();
     const freeCells = cells.filter(cell => !isFloorOccupancyBlocked(dungeon, cell.x, cell.y, { p: player }) &&
-      (entry.kind !== 'monster' || canPlaceMonsterBody(dungeon, entry.entity, cell.x, cell.y, player)));
+      (entry.kind !== 'monster' || (canPlaceMonsterBody(dungeon, entry.entity, cell.x, cell.y, player) && (monsterBodySize(entry.entity) <= 1 || canSpawnLargeMonsterAt(dungeon, entry.entity, cell.x, cell.y)))));
     if (!freeCells.length) { dungeon.pendingPitfalls.push(entry); continue; }
     const roomCells = freeCells.filter(cell => cell.inRoom);
     const pool = roomCells.length ? roomCells : freeCells;

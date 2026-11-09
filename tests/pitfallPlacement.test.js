@@ -28,6 +28,21 @@ describe("落下物の配置", () => {
     expect(monster._phaseActionCount).toBe(0);
     expect(monster._movedThisTurn).toBeUndefined();
   });
+  it("落とし穴で落ちた大型モンスターは階段を覆わないマスへ配置される", () => {
+    const dg = smallFloor();
+    // smallFloor room is (2,2) to (5,5) (4x4).
+    // Let stairUp be at (3,3).
+    dg.stairUp = { x: 3, y: 3 };
+    dg.map[3][3] = T.SU;
+    // A 2x2 monster
+    const largeMob = { hp: 50, bodySize: 2 };
+    placeFallenEntities(dg, [{ kind: "monster", entity: largeMob }], { random: () => 0 });
+    expect(dg.monsters).toContain(largeMob);
+    // Any body cell of largeMob must not overlap with stairUp (3,3)
+    const coversStair = (largeMob.x === 3 || largeMob.x + 1 === 3) && (largeMob.y === 3 || largeMob.y + 1 === 3);
+    expect(coversStair).toBe(false);
+  });
+
   it("部屋のない廊下フロアにも配置できる", () => {
     const dg = smallFloor(); dg.rooms = [];
     const monster = { hp: 10 };
