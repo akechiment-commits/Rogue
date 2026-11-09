@@ -19,12 +19,11 @@ describe("blockLargeMonsterDamage", () => {
     expect(messages).toContain("ドラゴンはこのターン、爆発・割合ダメージの追加分を防いだ！");
   });
 
-  it("小型ボス（サイズ1）も同ターン2回目以降の爆発・割合ダメージをブロックする", () => {
+  it("小型ボス（サイズ1）はブロックしない（倍速行動での多段攻撃や火薬壺を妨げない）", () => {
     const smallBoss = { name: "グウェン", hp: 80, isBoss: true };
     const player = { turns: 5 };
     const messages = [];
     expect(blockLargeMonsterDamage(smallBoss, player, messages)).toBe(false);
-    expect(blockLargeMonsterDamage(smallBoss, player, messages)).toBe(true);
-    expect(messages).toContain("グウェンはこのターン、爆発・割合ダメージの追加分を防いだ！");
+    expect(blockLargeMonsterDamage(smallBoss, player, messages)).toBe(false);
   });
 });
