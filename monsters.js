@@ -5117,7 +5117,7 @@ function useDiamondWeapon(m, dg, ml) {
 /** ものまねの対象になる特技持ちか（パッシブのみの敵は除外） */
 export function isMimicableSkillSource(o) {
   if (!o || (o.hp || 0) <= 0) return false;
-  if (o.sealed) return false;
+  /* コピー元が封印やバーサーク状態であっても、型を持っていればものまね師は真似できる */
   if (o.subtype === "mimic" || o.baseKind === "mimic") return false;
   if (o.type === "shopkeeper") return false;
   if (o.subtype) {
@@ -5336,7 +5336,7 @@ export function useManaEaterDrain(m, pl, ml) {
  */
 export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   if (!src || !m || !pl) return false;
-  if (src.sealed || isMonsterBerserk(src)) return false;
+  /* コピー元(src)が封印やバーサークであっても、ものまね師本人が封印・バーサークでなければ真似可能 */
   const canSee = !!ctx.canSee;
   const sameRoom = !!ctx.sameRoom;
   const plOnSanc = !!ctx.plOnSanc;

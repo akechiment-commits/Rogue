@@ -358,7 +358,7 @@ describe("Monster berserk state: specials disabled, passive traits preserved", (
     expect(flock.x).toBeLessThan(10); // moved closer towards player
   });
 
-  it("mimic cannot mimic skills from a berserk monster", () => {
+  it("mimic can mimic skills from adjacent sealed or berserk monsters, but cannot mimic if mimic itself is sealed or berserk", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 5, y: 5 });
     const ml = [];
@@ -376,12 +376,27 @@ describe("Monster berserk state: specials disabled, passive traits preserved", (
       def: 10,
       berserkerTurns: 10,
     };
+    const sealedArcher = {
+      id: "arch_src",
+      name: "リリパット",
+      subtype: "archer",
+      monLevel: 1,
+      x: 6,
+      y: 6,
+      hp: 50,
+      maxHp: 50,
+      atk: 20,
+      def: 5,
+      hasBow: true,
+      arrowStock: 10,
+      sealed: true,
+    };
     const mimic = {
       id: "mimic1",
       name: "ものまね師",
       subtype: "mimic",
       x: 7,
-      y: 5, // adjacent to dragon
+      y: 5,
       hp: 50,
       maxHp: 50,
       atk: 15,
@@ -389,11 +404,56 @@ describe("Monster berserk state: specials disabled, passive traits preserved", (
       speed: 1,
       turnAttacks: 0,
       aware: true,
+      alwaysUseSpecial: true,
     };
-    dg.monsters = [mimic, berserkDragon];
+    dg.monsters = [mimic, berserkDragon, sealedArcher];
 
+    // Mimic can copy from adjacent berserk or sealed enemy
     monsterAI(mimic, dg, p, ml, { moveOnly: true });
-    // Mimic should NOT reserve dragon breath because the dragon is berserk
-    expect(mimic._mimicReady).toBeFalsy();
+    expect(mimic._mimicReady).toBe(true);
+
+    // But if mimic itself is berserk, it cannot mimic
+    const berserkMimic = {
+      id: "mimic2",
+      name: "ものまね師",
+      subtype: "mimic",
+      x: 7,
+      y: 5,
+      hp: 50,
+      maxHp: 50,
+      atk: 15,
+      def: 5,
+      speed: 1,
+      turnAttacks: 0,
+      aware: true,
+      alwaysUseSpecial: true,
+      berserkerTurns: 10,
+    };
+    dg.monsters = [berserkMimic, berserkDragon];
+    const ml2 = [];
+    monsterAI(berserkMimic, dg, p, ml2, { moveOnly: true });
+    expect(berserkMimic._mimicReady).toBeFalsy();
+
+    // If mimic itself is sealed, it cannot mimic
+    const sealedMimic = {
+      id: "mimic3",
+      name: "ものまね師",
+      subtype: "mimic",
+      x: 7,
+      y: 5,
+      hp: 50,
+      maxHp: 50,
+      atk: 15,
+      def: 5,
+      speed: 1,
+      turnAttacks: 0,
+      aware: true,
+      alwaysUseSpecial: true,
+      sealed: true,
+    };
+    dg.monsters = [sealedMimic, berserkDragon];
+    const ml3 = [];
+    monsterAI(sealedMimic, dg, p, ml3, { moveOnly: true });
+    expect(sealedMimic._mimicReady).toBeFalsy();
   });
 });

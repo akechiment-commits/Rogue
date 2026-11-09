@@ -45,7 +45,9 @@ describe("ものまね師", () => {
     expect(isMimicableSkillSource({ subtype: "reflector", hp: 10 })).toBe(false);
     expect(isMimicableSkillSource({ type: "shopkeeper", hp: 10 })).toBe(false);
     expect(isMimicableSkillSource({ subtype: "thief", hp: 0 })).toBe(false);
-    expect(isMimicableSkillSource({ subtype: "archer", hp: 10, sealed: true })).toBe(false);
+    // コピー元が封印やバーサーク状態であっても、特技持ちであればコピー対象になる
+    expect(isMimicableSkillSource({ subtype: "archer", hp: 10, sealed: true })).toBe(true);
+    expect(isMimicableSkillSource({ subtype: "archer", hp: 10, berserkerTurns: 10 })).toBe(true);
   });
 
   it("getAdjacentMimicSources は隣接する特技持ちのみ返す", () => {
@@ -323,6 +325,30 @@ describe("ものまね師", () => {
     const archer = { id: "a", name: "アーチャー", subtype: "archer", x: 6, y: 5, hp: 10 };
     const dg = makeEmptyDg({ monsters: [mimic, archer] });
     expect(tryMimicAdjacentSkill(mimic, dg, makePlayer({ x: 5, y: 8 }), [], {}, { canSee: true })).toBe(false);
+  });
+
+  it("コピー元が封印またはバーサーク状態でも、ものまね師本人が健全ならものまねできる", () => {
+    const { map, rooms } = makeRoomMap();
+    const mimic = makeMimic(5, 5);
+    const sealedArcher = {
+      id: "a_sealed", name: "アーチャー", subtype: "archer", baseKind: "archer",
+      x: 6, y: 5, hp: 20, monLevel: 1, sealed: true, hasBow: true, arrowStock: 10,
+    };
+    const pl = makePlayer({ x: 5, y: 8 });
+    const dg = makeEmptyDg({
+      map, rooms, monsters: [mimic, sealedArcher], traps: [], items: [], pentacles: [],
+      visible: Array.from({ length: 15 }, () => Array(20).fill(true)),
+    });
+    const ml = [];
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      expect(tryMimicAdjacentSkill(mimic, dg, pl, ml, {}, {
+        canSee: true, sameRoom: true, plOnBlessedSanc: false,
+      })).toBe(true);
+      expect(ml.some(m => m.includes("ものまねをした"))).toBe(true);
+    } finally {
+      rnd.mockRestore();
+    }
   });
 
   it("プレイヤー非隣接でもワッカ隣接なら moveOnly 予約→attackOnly で石投げ", () => {
