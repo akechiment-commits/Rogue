@@ -722,4 +722,31 @@ describe("removeTrap break loot", () => {
     expect(mon.paralyzed).toBe(false);
     expect(mon.paralyzeTurns).toBe(0);
   });
+
+  it("吹き飛ばしの罠でキノコと衝突時、胞子が発動し休眠が解除される", () => {
+    const blowTrap = { effect: "blowback_trap", name: "吹き飛ばしの罠", x: 5, y: 5, id: "bb1" };
+    const mushroom = { id: "mush1", name: "オオマツタケ", baseKind: "mushroom", monLevel: 1, x: 5, y: 8, hp: 50, maxHp: 50, dormant: true };
+    const dg = makeEmptyDg({ traps: [blowTrap], monsters: [mushroom] });
+    const p = makePlayer({ x: 5, y: 5, facing: { dx: 0, dy: -1 } });
+    const ml = [];
+
+    fireTrapPlayer(blowTrap, p, dg, ml);
+
+    expect(mushroom.hp).toBe(40);
+    expect(mushroom.dormant).toBe(false);
+    expect(ml.some(m => m.includes("毒胞子を撒き散らした"))).toBe(true);
+  });
+
+  it("吹き飛ばしの罠で店主と衝突時、店主が敵対する", () => {
+    const blowTrap = { effect: "blowback_trap", name: "吹き飛ばしの罠", x: 5, y: 5, id: "bb2" };
+    const shopkeeper = { id: "shop1", name: "店主", type: "shopkeeper", state: "friendly", x: 5, y: 3, hp: 100, maxHp: 100 };
+    const dg = makeEmptyDg({ traps: [blowTrap], monsters: [shopkeeper] });
+    const p = makePlayer({ x: 5, y: 5, facing: { dx: 0, dy: 1 } });
+    const ml = [];
+
+    fireTrapPlayer(blowTrap, p, dg, ml);
+
+    expect(shopkeeper.state).toBe("hostile");
+    expect(ml.some(m => m.includes("店主が怒った！"))).toBe(true);
+  });
 });

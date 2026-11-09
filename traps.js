@@ -1,11 +1,11 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode, consumeBarrier, clampDmgFixed } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap, markShopkeeperHostileToPlayer } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns, resolveParalysisHit, applyPlayerConfusion } from "./statusDuration.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
-import { wakeIfDormant } from "./monsterRuntime.js";
+import { wakeIfDormant, triggerMushroomCounterSpore } from "./monsterRuntime.js";
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
 import { claimTrapActivation } from "./trapActivationTurn.js";
@@ -356,7 +356,15 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
             interruptPlayerSleep(p, ml);
             resolveParalysisHit(p, ml);
           }
-          if (!_monsterBlocked) resolveParalysisHit(_bbHitMon, ml);
+          if (!_monsterBlocked) {
+            resolveParalysisHit(_bbHitMon, ml);
+            triggerMushroomCounterSpore(_bbHitMon, dg, p, ml);
+            if (_bbHitMon.type === "shopkeeper" && _bbHitMon.hp > 0) {
+              markShopkeeperHostileToPlayer(_bbHitMon, dg, p, ml);
+            }
+          } else if (_monsterBlocked && _bbHitMon.type === "shopkeeper") {
+            markShopkeeperHostileToPlayer(_bbHitMon, dg, p, ml);
+          }
           if (_bbHitMon.hp <= 0) {
             killMonsterByTrap(_bbHitMon, dg, p, ml, luFn, `${trap.name}の衝突`);
           }
