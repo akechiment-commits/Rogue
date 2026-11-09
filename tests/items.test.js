@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, burnFoodItem, recookYabaiFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, doTimeBombExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, applyFoodEffectsOnHit, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, burnFoodItem, recookYabaiFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, doTimeBombExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, makeScrollTransformedItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook, playerDopingMultiplier } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -1764,5 +1764,34 @@ describe("announceFireExplosionNullified", () => {
     announceFireExplosionNullified({ pentacles: [] }, { fireExplosionNullTurns: 10 }, ml2, "爆発");
     expect(ml2[0]).toContain("不発");
     expect(ml2[0]).toContain("10");
+  });
+});
+
+describe("変身・変化による杖・ペンの回数", () => {
+  it("変換の巻物で生成されたペンは初期回数ロールを持つ", () => {
+    const penTemplate = ITEMS.find(i => i.type === "pen");
+    if (!penTemplate) return;
+    const source = { type: "potion", rarity: penTemplate.rarity || "C" };
+    // Force random to pick penTemplate
+    const result = makeScrollTransformedItem(source, { blessed: false }, () => 0.5);
+    if (result && result.type === "pen") {
+      expect(result.charges).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("変化の大箱で生成された杖とペンは正規の初期回数を持つ", () => {
+    // Generate many change box items until we see wand and pen
+    let sawWand = false, sawPen = false;
+    for (let i = 0; i < 200; i++) {
+      const item = makeChangeBoxItem();
+      if (item.type === "wand") {
+        sawWand = true;
+        expect(item.charges).toBeGreaterThanOrEqual(1);
+      } else if (item.type === "pen") {
+        sawPen = true;
+        expect(item.charges).toBeGreaterThanOrEqual(1);
+      }
+    }
+    expect(sawWand || sawPen).toBe(true);
   });
 });

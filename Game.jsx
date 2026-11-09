@@ -34,7 +34,7 @@ import {
   CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
-  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus,
+  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus, rollGeneratedWandCharges, penInitialCharges,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, weaponCriticalDamageMultiplier, inMagicSealRoom, inCursedMagicSealRoom,
@@ -6275,8 +6275,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       reward.confinedMonsters = [];
     }
     if (reward?.type === "arrow") reward.count = rng(3, 12);
-    if (reward?.type === "wand") reward.charges = reward.effect === "curse_wand" || reward.effect === "bless_wand" || reward.effect === "wish" ? 1 : Math.max(1, reward.charges || 5);
-    if (reward?.type === "pen") reward.charges = reward.charges || 3;
+    if (reward?.type === "wand") reward.charges = rollGeneratedWandCharges(reward);
+    if (reward?.type === "pen") reward.charges = penInitialCharges(reward);
     applyGeneratedRingPlus(reward);
     const ml = [`${itemDisplayName(food, s.fakeNames, s.ident, s.nicknames)}を祭壇に捧げた。（${altar.offerCount}回目）`];
     if (reward) {
