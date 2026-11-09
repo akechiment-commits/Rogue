@@ -34,7 +34,7 @@ import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } fr
 import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
-import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearPlayerPoison, applyAttackSeal, installMonsterHpHook, resolveParalysisHit } from "./statusDuration.js";
+import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearPlayerPoison, applyAttackSeal, installMonsterHpHook } from "./statusDuration.js";
 import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
