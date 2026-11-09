@@ -649,7 +649,7 @@ describe("portraits", () => {
       newMsgs: ["混乱の罠が発動！", "頭がくらくらする！(混乱10ターン)"],
       lastMsg: "",
     });
-    expect(confused.src).toMatch(/reaction_confused/);
+    expect(confused.src).toMatch(/status_confused/);
     expect(confused.holdKey).toBe("status_confused");
   });
 
@@ -659,7 +659,7 @@ describe("portraits", () => {
       armor: { id: "armor" }, confusedTurns: 8,
     };
     const event = resolvePortraitEvent({ player, prev: null, lastMsg: "" });
-    expect(event.src).toMatch(/reaction_confused/);
+    expect(event.src).toMatch(/status_confused/);
     expect(event.holdKey).toBe("status_confused");
   });
 
@@ -838,7 +838,35 @@ describe("portraits", () => {
     expect(event.src).toMatch(/hp_hunger/);
   });
 
+
+  it("レベルダウン時は喜ぶ立ち絵ではなく落胆（reaction_sad）を表示する", () => {
+    const base = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 19,
+      armor: { id: "armor" },
+    };
+    // 罠によるレベルダウン
+    const trapEvent = resolvePortraitEvent({
+      player: { ...base, level: 18 },
+      prev: base,
+      newMsgs: ["レベルダウンの罠が発動！", "レベルが1下がった！Lv.18！"],
+      lastMsg: "レベルが1下がった！Lv.18！",
+    });
+    expect(trapEvent.src).toMatch(/reaction_sad/);
+    expect(trapEvent.force).toBe(true);
+
+    // ドレイン等のメッセージによるレベルダウン
+    const drainEvent = resolvePortraitEvent({
+      player: { ...base, level: 18 },
+      prev: base,
+      newMsgs: ["レベルが1下がった！Lv.18！"],
+      lastMsg: "レベルが1下がった！Lv.18！",
+    });
+    expect(drainEvent.src).toMatch(/reaction_sad/);
+    expect(drainEvent.force).toBe(true);
+  });
+
   it("空腹・錆・回転板の罠は状況に合う立ち絵へ対応する", () => {
+    expect(getTrapPortraitKey("レベルダウンの罠が発動！")).toBe("reaction_sad");
     expect(getTrapPortraitKey("空腹の罠が発動！急に空腹を感じた！満腹度が10%下がった。")).toBe("hp_hunger");
     expect(getTrapPortraitKey("錆の罠が発動！剣が錆びた！")).toBe("reaction_trap_rust");
     expect(getTrapPortraitKey("回転板が発動！吹き飛ばされた！")).toBe("reaction_trap_spin");

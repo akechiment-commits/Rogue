@@ -361,6 +361,7 @@ export function isSummonTrapMsg(msg) {
 }
 
 const TRAP_PORTRAIT_RULES = [
+  [/レベルダウンの罠/, "reaction_sad"],
   [/毒矢の罠/, "reaction_trap_poison_arrow"],
   [/強矢の罠/, "reaction_trap_strong_arrow"],
   [/MP吸収の罠/, "reaction_trap_mp_absorb"],
@@ -384,7 +385,7 @@ const TRAP_PORTRAIT_RULES = [
 ];
 
 const TRAP_NAMES_WITHOUT_DEDICATED_PORTRAIT =
-  /(?:睡眠ガス|鈍足|混乱|暗闇|油まみれ|浮遊|封印|影ぬい|惑わし|道具魔物化|加速|装備外し|レベルダウン)の罠|罠の罠/;
+  /(?:睡眠ガス|鈍足|混乱|暗闇|油まみれ|浮遊|封印|影ぬい|惑わし|道具魔物化|加速|装備外し)の罠|罠の罠/;
 
 /** 罠が実際に作動したログから、発動時に出すリアクションを返す。 */
 export function getTrapPortraitKey(msg) {
@@ -662,6 +663,10 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   if (p.level > prev.level) {
     return pe("levelup");
+  }
+
+  if (p.level < prev.level || findMsgInNew(newMsgs, eventLastMsg, (m) => /レベルが\d+下がった/.test(m))) {
+    return pe("reaction_sad", { force: true });
   }
 
   if (findMsgInNew(newMsgs, eventLastMsg, isStairsMsg)) {

@@ -45,7 +45,11 @@ describe("portraitCatalog", () => {
     expect(sets.status_soaked).toEqual(["status_soaked"]);
     expect(sets.status_floating).toEqual(["status_floating"]);
     expect(sets.status_floating_unarmored).toEqual(["status_floating_unarmored"]);
-    expect(sets.status_confused).toEqual(["reaction_confused"]);
+    expect(sets.status_confused).toEqual(["status_confused"]);
+    expect(sets.reaction_confused).toEqual(["reaction_confused"]);
+    expect(sets.reaction_confused_unarmored).toEqual(["reaction_confused_unarmored"]);
+    expect(sets.levelup).toContain("reaction_surprised_joy");
+    expect(sets.reaction_surprised).not.toContain("reaction_surprised_joy");
     expect(sets.status_confused_unarmored).toEqual(["status_confused_unarmored"]);
     expect(sets.status_bound).toEqual(["status_bound"]);
     expect(sets.status_confined).toEqual(["status_confined"]);

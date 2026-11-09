@@ -92,6 +92,7 @@ const BASE_PORTRAIT_CATEGORIES = [
     group: null,
     slots: [
       { file: "status_poison", label: "毒", group: "status_poison" },
+      { file: "status_confused", label: "混乱", group: "status_confused" },
       { file: "status_sleep", label: "睡眠", group: "status_sleep" },
       { file: "status_cursed", label: "呪い", group: "status_cursed" },
 
@@ -125,8 +126,8 @@ const BASE_PORTRAIT_CATEGORIES = [
       { file: "reaction_motivated", label: "やる気", group: "levelup" },
       { file: "reaction_joy", label: "喜び", group: "levelup" },
       { file: "reaction_surprised", label: "驚き", group: "reaction_surprised" },
-      { file: "reaction_surprised_joy", label: "驚き（喜び）", group: "reaction_surprised" },
-      { file: "reaction_confused", label: "困惑・混乱", group: "status_confused" },
+      { file: "reaction_surprised_joy", label: "驚き（喜び）", group: "levelup" },
+      { file: "reaction_confused", label: "困惑", group: "reaction_confused" },
       { file: "reaction_sad", label: "悲しみ", group: "reaction_sad" },
       { file: "reaction_fall_ground", label: "転倒", group: "reaction_fall" },
       { file: "reaction_stairs", label: "階段・フロア移動", group: "reaction_stairs" },
