@@ -49,7 +49,12 @@ export function monEffectiveFloat(m) {
 
 /** 実効水上歩行（固有 waterWalker は封印で無効） */
 export function monEffectiveWaterWalker(m) {
-  return !!(m && m.waterWalker && !m.sealed);
+  if (!m || !m.waterWalker) return false;
+  /* クラーケン系は封印で水中歩行が無効化されるが、ワッカ系等の一般水中歩行は体質のため封印されない */
+  if (m.baseKind === "im_boss_kraken" || m.baseKind === "boss_krakenbio") {
+    return !m.sealed;
+  }
+  return true;
 }
 
 export function monEffectiveMagicImmune(m) {

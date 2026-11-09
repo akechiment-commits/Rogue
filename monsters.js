@@ -7227,7 +7227,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       } else {
         const _bTarget = pick(_bcAdj);
         m.dir = { x: Math.sign(_bTarget.x - m.x), y: Math.sign(_bTarget.y - m.y) };
-        const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2)));
+        const rawDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk || 1, _bTarget.def || 0, { defWeight: 1 }) + rng(-1, 1)));
         const res = applyDamageToMonster(_bTarget, rawDmg, {
           isPhysical: true,
           attacker: m,
