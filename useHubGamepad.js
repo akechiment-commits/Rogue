@@ -130,10 +130,9 @@ export function useHubGamepad(enabled = true) {
       if (edgeDown(prev, next, BTN.B)) pulseKey("z", "KeyZ");
       if (edgeDown(prev, next, BTN.START)) pulseKey("Enter", "Enter");
 
-      /* 戻る・キャンセル（ハブは x / Escape の両方を見る） */
+      /* 戻る・キャンセル（ハブは x / Escape の両方をサポートしているため x のみ発火） */
       if (edgeDown(prev, next, BTN.A)) {
         pulseKey("x", "KeyX");
-        pulseKey("Escape", "Escape");
       }
 
       /* 倉庫などのタブ切替（キーボードは Shift） */
