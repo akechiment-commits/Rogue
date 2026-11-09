@@ -1367,7 +1367,6 @@ export function useKeyHandler({
           }
           pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
           endTurn(sr.current, p, ml);
-          refreshFOV(dg, p);
           setTpSelectMode(null);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
           sr.current = { ...sr.current };
