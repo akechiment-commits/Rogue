@@ -169,8 +169,9 @@ export function useItemActions({
     const it = p.inventory[idx];
     if (!it) return;
     if (cannotActWithItems(p)) return;
-    if (it.type === "food" && (Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)) {
-      setMsgs((prev) => [...prev.slice(-80), "満腹度が限界を超えていて、食べられない！"]);
+    if ((it.type === "food" || it.type === "potion") && (Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)) {
+      const verb = it.type === "food" ? "食べられない！" : "飲めない！";
+      setMsgs((prev) => [...prev.slice(-80), `満腹度が限界を超えていて、${verb}`]);
       return;
     }
 
@@ -205,7 +206,11 @@ export function useItemActions({
       const _potionHunger = it.effect === "milk"
         ? (it.cursed ? -15 : it.blessed ? 30 : 15)
         : 3;
-      p.hunger = Math.max(0, Math.min(p.maxHunger || 100, (p.hunger || 0) + _potionHunger));
+      if (_potionHunger > 0) {
+        addFoodHunger(p, _potionHunger);
+      } else if (_potionHunger < 0) {
+        p.hunger = Math.max(0, (Number(p.hunger) || 0) + _potionHunger);
+      }
       if (p.hunger > 0) delete p._hungerDmgStarted;
       if (it.effect === "heal" || it.effect === "heal_big") {
         const _isReverseHp = (p.reverseTurns || 0) > 0;
@@ -2326,7 +2331,8 @@ export function useItemActions({
 
     const candidates = getHypnosisItemCandidates(p.inventory).filter(({ it }) =>
       (it.type !== "pot" || getHypnosisPotContents(p.inventory, it, p).length > 0) &&
-      (it.type !== "food" || (Number(p.hunger) || 0) <= Number(p.maxHunger ?? 100))
+      (it.type !== "food" || (Number(p.hunger) || 0) <= Number(p.maxHunger ?? 100)) &&
+      (it.type !== "potion" || (Number(p.hunger) || 0) <= Number(p.maxHunger ?? 100))
     );
 
     p.hypnosisPending = Math.max(0, (p.hypnosisPending || 0) - 1);

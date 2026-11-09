@@ -122,3 +122,47 @@ describe("腐敗状態の食料を食べる", () => {
     expect(messages.some(message => message.includes("HP+3"))).toBe(true);
   });
 });
+
+describe("満腹度限界超過時の薬の飲用制限と満腹度計算", () => {
+  it.each([
+    ["牛乳", { type: "potion", name: "牛乳", effect: "milk", value: 15 }],
+    ["回復薬", { type: "potion", name: "薬草", effect: "heal", value: 20 }],
+  ])("満腹度が最大値（100）を超えている時は%sを自分から飲めない", (_label, potion) => {
+    const player = makePlayer({ hunger: 150, maxHunger: 100, inventory: [potion] });
+    const dungeon = makeEmptyDg();
+    const endTurn = vi.fn();
+    const messages = [];
+    const actions = useItemActions({
+      sr: { current: { player, dungeon, ident: new Set() } }, endTurn,
+      dnameRef: item => item.name, setGs: vi.fn(), setMsgs: fn => messages.push(...fn([])),
+      setShowInv: vi.fn(), setSelIdx: vi.fn(), setShowDesc: vi.fn(),
+    });
+
+    actions.doUseItem(0);
+
+    expect(messages.some(msg => msg.includes("満腹度が限界を超えていて、飲めない！"))).toBe(true);
+    expect(player.inventory).toHaveLength(1);
+    expect(player.hunger).toBe(150);
+    expect(endTurn).not.toHaveBeenCalled();
+  });
+
+  it("上限（100）未満から牛乳を飲んだ時は上限突破し、100に切り捨てられない", () => {
+    const milk = { type: "potion", name: "牛乳", effect: "milk", value: 15, blessed: true };
+    const player = makePlayer({ hunger: 90, maxHunger: 100, inventory: [milk] });
+    const dungeon = makeEmptyDg({
+      visible: Array.from({ length: MH }, () => Array(MW).fill(false)),
+      explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
+    });
+    const actions = useItemActions({
+      sr: { current: { player, dungeon, ident: new Set(["p:milk"]) } }, endTurn: vi.fn(),
+      dnameRef: item => item.name, setGs: vi.fn(), setMsgs: vi.fn(),
+      setShowInv: vi.fn(), setSelIdx: vi.fn(), setShowDesc: vi.fn(), setRevealMode: vi.fn(),
+    });
+
+    actions.doUseItem(0);
+
+    // 90 + 30 = 120 -> 100 + (120-100)/2 = 110
+    expect(player.hunger).toBe(110);
+    expect(player.inventory[0]?.name).toBe("空き瓶");
+  });
+});
