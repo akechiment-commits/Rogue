@@ -3144,6 +3144,7 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null, bbFn = n
       _rfm.hp -= _rfd2;
       ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
       resolveParalysisHit(_rfm, ml);
+      triggerMushroomCounterSpore(_rfm, dg, p, ml);
       if (_rfm.hp <= 0) killMonsterByTrap(_rfm, dg, p, ml, null, trap?.name || "落石の罠");
     }
   }
@@ -3610,6 +3611,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
             ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
           }
           resolveParalysisHit(m, ml);
+          triggerMushroomCounterSpore(m, dg, p, ml);
           if (m.hp <= 0) {
             killMonsterByTrap(m, dg, p, ml, null, trap?.name || `${label}の罠`);
           }
@@ -4027,6 +4029,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             _bbm.hp -= _wDmg;
             ml.push(`${_bbm.name}が壁に激突！${_wDmg}ダメージ！`);
             resolveParalysisHit(_bbm, ml);
+            triggerMushroomCounterSpore(_bbm, dg, p, ml);
           }
           if (_bbHitOther) {
             wakeIfDormant(_bbm, ml);
@@ -4042,8 +4045,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
               !_otherBlocked ? `${_bbHitOther.name}に${_d2}ダメージ！` : `${_bbHitOther.name}へのダメージはバリアが防いだ！`,
             ].join("");
             ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！${_collisionDamage}`);
-            if (!_bbmBlocked) resolveParalysisHit(_bbm, ml);
-            if (!_otherBlocked) resolveParalysisHit(_bbHitOther, ml);
+            if (!_bbmBlocked) {
+              resolveParalysisHit(_bbm, ml);
+              triggerMushroomCounterSpore(_bbm, dg, p, ml);
+            }
+            if (!_otherBlocked) {
+              resolveParalysisHit(_bbHitOther, ml);
+              triggerMushroomCounterSpore(_bbHitOther, dg, p, ml);
+            }
           }
           if (_bbm.hp <= 0) killMonsterByTrap(_bbm, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           if (_bbHitOther?.hp <= 0) killMonsterByTrap(_bbHitOther, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
@@ -4089,7 +4098,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             interruptPlayerSleep(p, ml);
             resolveParalysisHit(p, ml);
           }
-          if (!_monsterBlocked) resolveParalysisHit(_pHitMon, ml);
+          if (!_monsterBlocked) {
+            resolveParalysisHit(_pHitMon, ml);
+            triggerMushroomCounterSpore(_pHitMon, dg, p, ml);
+            if (_pHitMon.type === "shopkeeper" && _pHitMon.hp > 0) {
+              markShopkeeperHostileToPlayer(_pHitMon, dg, p, ml);
+            }
+          }
           if (_pHitMon.hp <= 0) {
             killMonsterByTrap(_pHitMon, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           }
@@ -8054,10 +8069,19 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
   const _collisionAtk = monScaleOutgoingDamage(killerMon, collisionAtk);
   const _damageMonsterOnCollision = (monster, damage) => {
     if (!monster || !(damage > 0) || consumeBarrier(monster, ml)) return 0;
-    monster.hp -= damage;
+    const finalDmg = clampDmgFixed(monster, damage, true);
+    monster.hp -= finalDmg;
     wakeIfDormant(monster, ml);
     resolveParalysisHit(monster, ml);
-    return damage;
+    triggerMushroomCounterSpore(monster, dg, p, ml);
+    if (monster.type === "shopkeeper" && monster.hp > 0) {
+      if (killerMon) {
+        beginNpcRetaliation(monster, killerMon, ml);
+      } else if (p) {
+        markShopkeeperHostileToPlayer(monster, dg, p, ml);
+      }
+    }
+    return finalDmg;
   };
   const _damagePlayerOnCollision = (damage, deathCause) => {
     if (!p || !(damage > 0) || consumeBarrier(p, ml)) return 0;
