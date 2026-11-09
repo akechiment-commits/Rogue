@@ -33,13 +33,7 @@ export function advancePlayerUpkeep(player, messages, {
   }
 
   if (shouldVomit(player)) {
-    const lost = Math.min(Math.max(0, player.hunger || 0), DRUNK_VOMIT_HUNGER_LOSS);
-    player.hunger = Math.max(0, (player.hunger || 0) - DRUNK_VOMIT_HUNGER_LOSS);
-    if (lost > 0) {
-      messages.push(`酩酊して嘔吐した！満腹度が${lost}減った！`);
-    } else {
-      messages.push("酩酊して嘔吐したが、空腹で何も出なかった。");
-    }
+    applyPlayerVomit(player, messages, { hungerLoss: DRUNK_VOMIT_HUNGER_LOSS, causePrefix: "酩酊して" });
   }
 
   /* 蜂蜜回復は空腹ダメージより先。HP0以下や毒状態からは回復させない。 */
@@ -114,15 +108,43 @@ export function advancePentacleWear(player, dungeon, messages) {
   }
 }
 
+/** プレイヤーの嘔吐処理。満腹度減少、最大HP10%のダメージ、1ターン硬直を適用する。 */
+export function applyPlayerVomit(player, messages, { hungerLoss = 10, causePrefix = "" } = {}) {
+  if (!player) return 0;
+  const currentHunger = Math.floor(Math.max(0, Number(player.hunger) || 0));
+  const lost = Math.min(currentHunger, Math.max(0, Math.floor(Number(hungerLoss) || 0)));
+  player.hunger = Math.max(0, currentHunger - lost);
+  if (player.hunger === 0 && currentHunger > 0) player._hungerDmgStarted = true;
+
+  if (causePrefix) {
+    if (lost > 0) {
+      messages.push(`${causePrefix}嘔吐した！満腹度が${lost}減った！`);
+    } else {
+      messages.push(`${causePrefix}嘔吐したが、空腹で何も出なかった。`);
+    }
+  }
+
+  const vomitDamage = Math.max(1, Math.floor((player.maxHp || 100) * 0.1));
+  player.hp -= vomitDamage;
+  if (player.hp <= 0) {
+    player.deathCause = "激しい嘔吐により";
+  }
+  player.vomitStunTurns = Math.max(player.vomitStunTurns || 0, 1);
+  messages.push(`激しい嘔吐で体力を消耗した！${vomitDamage}ダメージ！`);
+  return vomitDamage;
+}
+
 /** プレイヤー操作を受け付けず、ターンだけを進める状態かを返す。 */
 export function hasForcedTurn(player) {
+  if (!player || player.hp <= 0) return false;
   return (player.sleepTurns || 0) > 0 ||
     (player.sleepInterruptedTurns || 0) > 0 ||
     (player.paralyzeTurns || 0) > 0 ||
     (player.frozenTurns || 0) > 0 ||
     (player.petrifiedTurns || 0) > 0 ||
     !!player.slowSkip ||
-    (player.potConfinedTurns || 0) > 0;
+    (player.potConfinedTurns || 0) > 0 ||
+    (player.vomitStunTurns || 0) > 0;
 }
 
 /**
@@ -202,6 +224,11 @@ export function advanceForcedTurn(player, messages) {
     messages.push("壺から出られない！");
     if (player.potConfinedTurns > 1) player.potConfinedTurns--;
     return { advanced: true, exitPotAfterTurn: player.potConfinedTurns === 1 };
+  }
+  if ((player.vomitStunTurns || 0) > 0) {
+    player.vomitStunTurns--;
+    messages.push("嘔吐の苦しみで体が動かなかった！");
+    return { advanced: true, exitPotAfterTurn: false };
   }
   if (player.slowSkip) {
     player.slowSkip = false;

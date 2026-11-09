@@ -74,8 +74,8 @@ describe("advancePlayerUpkeep", () => {
     expect(warnings).toBe(1);
   });
 
-  it("酩酊中は5%で嘔吐し、満腹度を10減らす", () => {
-    const player = makePlayer({ drunkenTurns: 5, hunger: 40 });
+  it("酩酊中は5%で嘔吐し、満腹度を10減らし、最大HPの10%ダメージと1ターン硬直を受ける", () => {
+    const player = makePlayer({ drunkenTurns: 5, hunger: 40, hp: 100, maxHp: 100 });
     const messages = [];
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
@@ -84,7 +84,35 @@ describe("advancePlayerUpkeep", () => {
       random.mockRestore();
     }
     expect(player.hunger).toBe(29); // 通常の空腹減少1 + 嘔吐10
-    expect(messages).toEqual(["酩酊して嘔吐した！満腹度が10減った！"]);
+    expect(player.hp).toBe(91); // 最大HP100の10%ダメージ + ターン自然回復1
+    expect(player.vomitStunTurns).toBe(1);
+    expect(messages).toEqual([
+      "酩酊して嘔吐した！満腹度が10減った！",
+      "激しい嘔吐で体力を消耗した！10ダメージ！",
+    ]);
+
+    // 次のターンは硬直する
+    const nextMessages = [];
+    expect(hasForcedTurn(player)).toBe(true);
+    const forced = advanceForcedTurn(player, nextMessages);
+    expect(forced).toEqual({ advanced: true, exitPotAfterTurn: false });
+    expect(nextMessages).toEqual(["嘔吐の苦しみで体が動かなかった！"]);
+    expect(player.vomitStunTurns).toBe(0);
+    expect(hasForcedTurn(player)).toBe(false);
+  });
+
+  it("嘔吐ダメージでHPが0以下になると死亡し、死因が記録される", () => {
+    const player = makePlayer({ drunkenTurns: 5, hunger: 40, hp: 5, maxHp: 100 });
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      advance(player, messages);
+    } finally {
+      random.mockRestore();
+    }
+    expect(player.hp).toBeLessThanOrEqual(0);
+    expect(player.deathCause).toBe("激しい嘔吐により");
+    expect(hasForcedTurn(player)).toBe(false);
   });
 
   it("再生防具と回復の指輪は自然回復量をそれぞれ+1する", () => {

@@ -45,7 +45,7 @@ import { TIME_BOMB_BLAST_RADIUS } from './timeBombWarnings.js';
 import { beginNpcRetaliation, clearNpcRetaliation } from "./npcRetaliation.js";
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
-import { interruptPlayerSleep } from './turnUpkeep.js';
+import { interruptPlayerSleep, applyPlayerVomit } from './turnUpkeep.js';
 import { grantPlayerHaste, hasteDurationLabel, playerHasteStage, worldTickDamageTurnForCurrentAction } from './actionClock.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate, drawFromGachaBox } from './gachaRules.js';
@@ -5762,9 +5762,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         const baseDelta = cursed ? -15 : blessed ? 30 : 15;
         const _delta = weakEffect ? Math.max(1, Math.floor(Math.abs(baseDelta) * effectScale)) * Math.sign(baseDelta) : baseDelta;
         if (hunger > maxHunger) {
-          const loss = Math.min(hunger, Math.max(10, Math.floor(maxHunger * 0.25)));
-          p.hunger = Math.max(0, hunger - loss);
-          ml.push(`お腹いっぱいのところに牛乳を浴びて、嘔吐した！満腹度が${loss}減った！`);
+          const loss = Math.max(10, Math.floor(maxHunger * 0.25));
+          applyPlayerVomit(p, ml, { hungerLoss: loss, causePrefix: "お腹いっぱいのところに牛乳を浴びて、" });
           if (cursed) {
             if (hasRingEffect(p, "antidote_ring")) {
               ml.push("牛乳でお腹を壊したが、防具が毒を防いだ！");
@@ -5876,9 +5875,8 @@ export function applyFoodEffectsOnHit(item, kind, target, dg, p, ml, luFn, kille
     const maxHunger = Number.isFinite(maxValue) ? Math.max(1, maxValue) : 100;
     const hunger = Math.floor(Math.max(0, Number(p.hunger) || 0));
     if (hunger >= maxHunger) {
-      const loss = Math.min(hunger, Math.max(10, Math.floor(maxHunger * 0.25)));
-      p.hunger = Math.max(0, hunger - loss);
-      ml.push(`お腹いっぱいのところに食べ物が当たり、嘔吐した！満腹度が${loss}減った！`);
+      const loss = Math.max(10, Math.floor(maxHunger * 0.25));
+      applyPlayerVomit(p, ml, { hungerLoss: loss, causePrefix: "お腹いっぱいのところに食べ物が当たり、" });
     } else {
       const amount = isIceCream ? 15 : foodHungerAmount(item, getBlessMultiplier(item));
       const gained = addFoodHunger(p, amount);

@@ -273,12 +273,22 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
   });
 
   it("満腹度限界超過時に牛乳を浴びると嘔吐し、牛乳以外の薬では嘔吐しない", () => {
-    const fullPlayer = makePlayer({ hunger: 200, maxHunger: 100 });
+    const fullPlayer = makePlayer({ hunger: 200, maxHunger: 100, hp: 100, maxHp: 100 });
     const messages = [];
     applyPotionEffect("milk", 15, "player", null, makeEmptyDg(), fullPlayer, messages, () => {});
     expect(messages.some(msg => msg.includes("お腹いっぱいのところに牛乳を浴びて、嘔吐した！"))).toBe(true);
     // 200 - 25 = 175
     expect(fullPlayer.hunger).toBe(175);
+    // 最大HP100の10%ダメージ
+    expect(fullPlayer.hp).toBe(90);
+    expect(fullPlayer.vomitStunTurns).toBe(1);
+
+    // 瀕死の状態で嘔吐すると死亡し、死因が「激しい嘔吐により」になる
+    const dyingPlayer = makePlayer({ hunger: 200, maxHunger: 100, hp: 5, maxHp: 100 });
+    const dyingMessages = [];
+    applyPotionEffect("milk", 15, "player", null, makeEmptyDg(), dyingPlayer, dyingMessages, () => {});
+    expect(dyingPlayer.hp).toBeLessThanOrEqual(0);
+    expect(dyingPlayer.deathCause).toBe("激しい嘔吐により");
 
     const fullPlayer2 = makePlayer({ hunger: 200, maxHunger: 100, hp: 50, maxHp: 100 });
     const messages2 = [];
