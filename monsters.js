@@ -9163,9 +9163,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (roll < 0.40) return !_avSpellBlocked && canCastMeteor(m, dg) ? "meteor" : null;
       if (roll < 0.60) return _avLine && !_avSpellBlocked ? "aeroga" : null;
       if (roll < 0.80) return _avLine && !_avSpellBlocked ? "pull" : null;
-    } else if (_avLine && !_avSpellBlocked) {
-      if (roll < 0.20) return "aeroga";
-      if (roll < 0.40) return "pull";
     }
     return null;
   };
