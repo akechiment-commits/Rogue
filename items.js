@@ -4648,12 +4648,24 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     messagePrefix: opts.messagePrefix ?? "飛んできた",
   })) return { blocked: true, killed: false, swallowed: true };
   return withParalysisHit(mon, ml, () => {
-  if (consumeBarrier(mon, ml)) return { blocked: true, killed: false };
+  installMonsterHpHook(mon);
+  wakeIfDormant(mon, ml);
+  if (consumeBarrier(mon, ml)) {
+    if (mon.type === "shopkeeper") {
+      if (killerMon) beginNpcRetaliation(mon, killerMon, ml);
+      else if (p) markShopkeeperHostileToPlayer(mon, dg, p, ml);
+    }
+    return { blocked: true, killed: false };
+  }
 
   const dmg = monScaleOutgoingDamage(killerMon, clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true));
   mon.hp -= dmg;
   ml.push(hitMessage(mon, dmg));
   triggerMushroomCounterSpore(mon, dg, p, ml);
+  if (mon.type === "shopkeeper" && mon.hp > 0) {
+    if (killerMon) beginNpcRetaliation(mon, killerMon, ml);
+    else if (p) markShopkeeperHostileToPlayer(mon, dg, p, ml);
+  }
 
   /* 毒矢：命中ごとに敵の与ダメージを半減する。ATK値自体は変更しない。 */
   if (item.type === "arrow" && item.poison) {
@@ -7846,6 +7858,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       return;
     }
     if (shooter === p && !reflectedBy && mon.type === "shopkeeper") markShopkeeperHostileToPlayer(mon, dg, p, mlx);
+    else if (killerMon && mon.type === "shopkeeper") beginNpcRetaliation(mon, killerMon, mlx);
     if (_isPotion) {
       if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
       res.consumed = true; res.splash = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
@@ -8349,6 +8362,7 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
 /** reflector に当たった魔法の石をプレイヤーへホーミング反射する。 */
 export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml) {
   if (!p || !monReflectsProjectiles(reflector)) return null;
+  if (reflector.type === "shopkeeper") markShopkeeperHostileToPlayer(reflector, null, p, ml);
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
   if (consumeBarrier(p, ml)) return 0;
   const dmg = monScaleOutgoingDamage(reflector, calcProjectileDmg(p, stoneAtk || 5, 0));
@@ -9039,6 +9053,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       return;
     }
     if (monReflectsProjectiles(_wakkaTarget)) {
+      if (_wakkaTarget.type === "shopkeeper") markShopkeeperHostileToPlayer(_wakkaTarget, dg, p, ml);
       reflectMagicStoneToPlayer(p, _wakkaTarget, _arName, _arAtk || 5, ml);
       _ensureShopPeeled();
       return;
@@ -9054,13 +9069,17 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const _wakkaDmg = clampDmgFixed(_wakkaTarget, calcProjectileDmg(p, _arAtk, _wakkaTarget.def), true);
     if (!consumeBarrier(_wakkaTarget, ml)) {
+      installMonsterHpHook(_wakkaTarget);
       wakeIfDormant(_wakkaTarget, ml);
+      if (_wakkaTarget.type === "shopkeeper") markShopkeeperHostileToPlayer(_wakkaTarget, dg, p, ml);
       _wakkaTarget.hp -= _wakkaDmg;
       resolveParalysisHit(_wakkaTarget, ml);
       const _wakkaPoisonStacks = _isPoison ? applyPoisonArrowDamageReduction(_wakkaTarget, ml) : 0;
       ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? (_wakkaPoisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _wakkaPoisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
       triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
       if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
+    } else {
+      if (_wakkaTarget.type === "shopkeeper") markShopkeeperHostileToPlayer(_wakkaTarget, dg, p, ml);
     }
     if (st.bombArrow) {
       if (isFireExplosionNullified(dg, p)) {
@@ -9141,6 +9160,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       }
       /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す（封印中は無効） ── */
       if (!_pierceMode && monReflectsProjectiles(m)) {
+        if (m.type === "shopkeeper") markShopkeeperHostileToPlayer(m, dg, p, ml);
         ml.push(`${_arName}が${m.name}に弾き返された！`);
         const _rdx = Math.sign(p.x - tx), _rdy = Math.sign(p.y - ty);
         let _rx = tx, _ry = ty, _rHit = false;
@@ -9180,8 +9200,13 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         }
         hit = true; break;
       }
-      if (consumeBarrier(m, ml)) { hit = true; break; }
+      if (consumeBarrier(m, ml)) {
+        if (m.type === "shopkeeper") markShopkeeperHostileToPlayer(m, dg, p, ml);
+        hit = true; break;
+      }
+      installMonsterHpHook(m);
       wakeIfDormant(m, ml);
+      if (m.type === "shopkeeper") markShopkeeperHostileToPlayer(m, dg, p, ml);
       const _arDmg = clampDmgFixed(m, calcProjectileDmg(p, _arAtk, m.def), true);
       m.hp -= _arDmg;
       resolveParalysisHit(m, ml);

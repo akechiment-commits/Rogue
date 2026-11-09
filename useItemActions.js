@@ -3480,6 +3480,7 @@ export function useItemActions({
                 }
               }
             } else if (monReflectsProjectiles(_msTarget)) {
+              markWanderingNpcHostile(_msTarget, dg, p, ml);
               pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget, _stName, _arItem.atk || 5, ml);
               _stPeelIfNeeded();
@@ -3502,8 +3503,10 @@ export function useItemActions({
                 _stPeelIfNeeded();
               } else {
                 if (consumeBarrier(_msTarget, ml)) {
+                  markWanderingNpcHostile(_msTarget, dg, p, ml);
                   _stPeelIfNeeded();
                 } else {
+                  installMonsterHpHook(_msTarget);
                   const _actualDmg = clampDmgFixed(_msTarget, _msDmg, true);
                   _msTarget.hp -= _actualDmg;
                   wakeIfDormant(_msTarget, ml);
@@ -4202,6 +4205,7 @@ export function useItemActions({
                 }
               }
             } else if (monReflectsProjectiles(_msTarget2)) {
+              markWanderingNpcHostile(_msTarget2, dg, p, ml);
               pushAnim({ type: "projectileReturn", fromX: _msTarget2.x, fromY: _msTarget2.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget2, _invStName, _invStAtk, ml);
               _invStPeel();
@@ -4215,8 +4219,10 @@ export function useItemActions({
                 withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, _invStDrop(), ml, _msft2, 0, p));
               } else {
                 if (consumeBarrier(_msTarget2, ml)) {
+                  markWanderingNpcHostile(_msTarget2, dg, p, ml);
                   _invStPeel();
                 } else {
+                  installMonsterHpHook(_msTarget2);
                   const _msDmg2 = clampDmgFixed(_msTarget2, calcProjectileDmg(p, _invStAtk, _msTarget2.def), true);
                   _msTarget2.hp -= _msDmg2;
                   wakeIfDormant(_msTarget2, ml);
