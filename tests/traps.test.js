@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, isPlayerFloating, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeKatanaToSoboro, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
+import { fireTrapItem, applyRockfallEffect, isPlayerFloating, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeKatanaToSoboro, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 import { MONS, makeMonsterFromBase } from "../monsters.js";
@@ -674,5 +674,52 @@ describe("removeTrap break loot", () => {
     removeTrap(dg, trap, ml, { skipLoot: true });
     expect(dg.traps).toHaveLength(0);
     expect(dg.items).toHaveLength(0);
+  });
+
+  it("吹き飛ばしの罠の衝突ダメージはfixedDamageOnlyを尊重し、撃破時に共通撃破処理を通る", () => {
+    const trap = { effect: "blowback_trap", name: "吹き飛ばしの罠", x: 5, y: 5, id: "bb1" };
+    const mon = {
+      id: "m1",
+      name: "メタルスライム",
+      x: 5,
+      y: 4,
+      hp: 1,
+      maxHp: 5,
+      fixedDamageOnly: 1,
+      dormant: true,
+      paralyzed: true,
+      paralyzeTurns: 2,
+    };
+    const revPc = { kind: "revival", name: "復活の魔方陣", x: 5, y: 4 };
+    const dg = makeEmptyDg({ traps: [trap], monsters: [mon], pentacles: [revPc] });
+    const p = makePlayer({ x: 5, y: 5, facing: { dx: 0, dy: 1 }, sleepTurns: 3, paralyzeTurns: 2 });
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.sleepTurns).toBe(0);
+    expect(p.paralyzeTurns).toBe(0);
+    expect(mon.dormant).toBe(false);
+    expect(mon.paralyzed).toBe(false);
+    expect(mon.hp).toBe(5);
+    expect(ml.some((m) => String(m).includes("メタルスライムに1ダメージ"))).toBe(true);
+    expect(ml.some((m) => String(m).includes("復活の魔方陣の力でHP全回復"))).toBe(true);
+  });
+
+  it("矢の罠・落石の罠のダメージでプレイヤーの睡眠・金縛りと敵の金縛りが解除される", () => {
+    const arrowTrap = { effect: "arrow_trap", name: "矢の罠", x: 5, y: 5, id: "ar1" };
+    const rockTrap = { effect: "rockfall", name: "落石の罠", x: 5, y: 5, id: "rf1" };
+    const dg = makeEmptyDg({ traps: [arrowTrap, rockTrap] });
+    const p = makePlayer({ x: 5, y: 5, facing: { dx: 0, dy: 1 }, sleepTurns: 3, paralyzeTurns: 2 });
+    const ml = [];
+    fireTrapPlayer(arrowTrap, p, dg, ml);
+    expect(p.sleepTurns).toBe(0);
+    expect(p.paralyzeTurns).toBe(0);
+
+    const mon = { id: "m2", name: "ゴブリン", x: 5, y: 5, hp: 50, maxHp: 50, paralyzed: true, paralyzeTurns: 2 };
+    dg.monsters.push(mon);
+    p.x = 1;
+    p.y = 1;
+    applyRockfallEffect(dg, 5, 5, rockTrap, ml, new Set(["rf1"]), p);
+    expect(mon.paralyzed).toBe(false);
+    expect(mon.paralyzeTurns).toBe(0);
   });
 });

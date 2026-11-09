@@ -246,6 +246,8 @@ export function applyFallImpactDamage(p, ml, deathCause, messagePrefix) {
   p.deathCause = deathCause;
   p.hp -= damage;
   ml.push(`${messagePrefix}${damage}ダメージ！`);
+  interruptPlayerSleep(p, ml);
+  resolveParalysisHit(p, ml);
   return damage;
 }
 
@@ -3092,6 +3094,7 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null, bbFn = n
       const _rfd2 = clampDmgFixed(_rfm, rng(15, 25));
       _rfm.hp -= _rfd2;
       ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
+      resolveParalysisHit(_rfm, ml);
       if (_rfm.hp <= 0) killMonsterByTrap(_rfm, dg, p, ml, null, trap?.name || "落石の罠");
     }
   }
@@ -3103,6 +3106,8 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null, bbFn = n
       p.hp -= _rfd3;
       /* 「Nダメージ！」単体だと立ち絵の被ダメ判定に乗らないので岩命中を明示 */
       ml.push(`岩が命中！${_rfd3}ダメージ！`);
+      interruptPlayerSleep(p, ml);
+      resolveParalysisHit(p, ml);
     }
   }
   if (!hit) {
@@ -3487,6 +3492,8 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
       } else {
         ml.push(`${label}が命中！${d}ダメージ！`);
       }
+      interruptPlayerSleep(p, ml);
+      resolveParalysisHit(p, ml);
       hit = true;
       break;
     }
@@ -3522,6 +3529,8 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
             } else {
               ml.push(`跳ね返された${label}が${pl()}に命中！${d}ダメージ！`);
             }
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
             break;
           }
           rx += fdx; ry += fdy;
@@ -3551,6 +3560,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           } else {
             ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
           }
+          resolveParalysisHit(m, ml);
           if (m.hp <= 0) {
             killMonsterByTrap(m, dg, p, ml, null, trap?.name || `${label}の罠`);
           }
@@ -3963,19 +3973,28 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           }
           ml.push(`${_bbm.name}が吹き飛ばされた！`);
           if (_bbHitWall && !consumeBarrier(_bbm, ml)) {
-            _bbm.hp -= 10;
-            ml.push(`${_bbm.name}が壁に激突！10ダメージ！`);
+            wakeIfDormant(_bbm, ml);
+            const _wDmg = clampDmgFixed(_bbm, 10, true);
+            _bbm.hp -= _wDmg;
+            ml.push(`${_bbm.name}が壁に激突！${_wDmg}ダメージ！`);
+            resolveParalysisHit(_bbm, ml);
           }
           if (_bbHitOther) {
+            wakeIfDormant(_bbm, ml);
+            wakeIfDormant(_bbHitOther, ml);
             const _bbmBlocked = consumeBarrier(_bbm, ml);
             const _otherBlocked = consumeBarrier(_bbHitOther, ml);
-            if (!_bbmBlocked) _bbm.hp -= 10;
-            if (!_otherBlocked) _bbHitOther.hp -= 10;
+            const _d1 = clampDmgFixed(_bbm, 10, true);
+            const _d2 = clampDmgFixed(_bbHitOther, 10, true);
+            if (!_bbmBlocked) _bbm.hp -= _d1;
+            if (!_otherBlocked) _bbHitOther.hp -= _d2;
             const _collisionDamage = [
-              !_bbmBlocked ? `${_bbm.name}に10ダメージ！` : `${_bbm.name}へのダメージはバリアが防いだ！`,
-              !_otherBlocked ? `${_bbHitOther.name}に10ダメージ！` : `${_bbHitOther.name}へのダメージはバリアが防いだ！`,
+              !_bbmBlocked ? `${_bbm.name}に${_d1}ダメージ！` : `${_bbm.name}へのダメージはバリアが防いだ！`,
+              !_otherBlocked ? `${_bbHitOther.name}に${_d2}ダメージ！` : `${_bbHitOther.name}へのダメージはバリアが防いだ！`,
             ].join("");
             ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！${_collisionDamage}`);
+            if (!_bbmBlocked) resolveParalysisHit(_bbm, ml);
+            if (!_otherBlocked) resolveParalysisHit(_bbHitOther, ml);
           }
           if (_bbm.hp <= 0) killMonsterByTrap(_bbm, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           if (_bbHitOther?.hp <= 0) killMonsterByTrap(_bbHitOther, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
@@ -3999,17 +4018,29 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             p.deathCause = `${trap.name}による壁への衝突により`;
             p.hp -= 10;
             ml.push("壁に激突！10ダメージ！");
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
           }
         } else if (_pHitMon) {
+          wakeIfDormant(_pHitMon, ml);
           const _playerBlocked = consumeBarrier(p, ml);
           const _monsterBlocked = consumeBarrier(_pHitMon, ml);
-          if (!_playerBlocked) p.hp -= 10;
-          if (!_monsterBlocked) _pHitMon.hp -= 10;
+          const _mDmg = clampDmgFixed(_pHitMon, 10, true);
+          if (!_playerBlocked) {
+            p.deathCause = `${trap.name}による衝突により`;
+            p.hp -= 10;
+          }
+          if (!_monsterBlocked) _pHitMon.hp -= _mDmg;
           const _collisionDamage = [
             !_playerBlocked ? "自分に10ダメージ！" : "自分へのダメージはバリアが防いだ！",
-            !_monsterBlocked ? `${_pHitMon.name}に10ダメージ！` : `${_pHitMon.name}へのダメージはバリアが防いだ！`,
+            !_monsterBlocked ? `${_pHitMon.name}に${_mDmg}ダメージ！` : `${_pHitMon.name}へのダメージはバリアが防いだ！`,
           ].join("");
           ml.push(`${_pHitMon.name}に激突！${_collisionDamage}`);
+          if (!_playerBlocked) {
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
+          }
+          if (!_monsterBlocked) resolveParalysisHit(_pHitMon, ml);
           if (_pHitMon.hp <= 0) {
             killMonsterByTrap(_pHitMon, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           }
@@ -7395,7 +7426,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
   }
 }
 
-function killMonsterByTrap(mon, dg, p, ml, luFn, cause, killerMon = null) {
+export function killMonsterByTrap(mon, dg, p, ml, luFn, cause, killerMon = null) {
   killMonster(mon, dg, p, ml, luFn, true, killerMon, false, false, false, cause);
 }
 
