@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MONS, makeMonsterFromBase } from "../monsters.js";
 import { killMonster } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { T } from "../utils.js";
 
 describe("爆発の魔方陣", () => {
   it("撃破連鎖の爆発で大箱を壊し、中身を床へ配置して処理を完了する", () => {
@@ -69,5 +70,98 @@ describe("爆発の魔方陣", () => {
     expect(rawFood.name).toBe("焼いた大きなパン");
     expect(rawFood.value).toBe(100);
     expect(messages).toContain("地雷が誘爆した！");
+  });
+
+  it("爆発の魔方陣の爆発で祭壇を破壊し、固定転送陣は消去しない", () => {
+    const base = MONS.find((m) => m.baseKind === "slime") || MONS[0];
+    const monster = makeMonsterFromBase(base, 1, 5, 5);
+    monster.hp = 0;
+    const altar = { id: "altar1", name: "大地の祭壇", x: 6, y: 5 };
+    const fixedPortal = { id: "fp1", name: "固定転送陣", kind: "fixed_portal", fixed: true, x: 4, y: 5 };
+    const normalPentacle = { id: "np1", name: "回復の魔方陣", kind: "healing", x: 5, y: 6 };
+    const dg = makeEmptyDg({
+      monsters: [monster],
+      altars: [altar],
+      pentacles: [
+        { name: "爆発の魔方陣", kind: "explosion", x: 5, y: 5, cursed: false },
+        fixedPortal,
+        normalPentacle,
+      ],
+      rooms: [],
+    });
+    const messages = [];
+
+    killMonster(monster, dg, makePlayer({ x: 20, y: 20 }), messages, null, true);
+
+    expect(dg.altars).toHaveLength(0);
+    expect(messages).toContain("大地の祭壇が壊れた！");
+    expect(dg.pentacles).toContain(fixedPortal);
+    expect(dg.pentacles).not.toContain(normalPentacle);
+  });
+
+  it("爆発の魔方陣の爆発で火ダルマが水上以外へ分裂し、分裂個体にHPフックがつく", () => {
+    const base = MONS.find((m) => m.baseKind === "slime") || MONS[0];
+    const triggerMonster = makeMonsterFromBase(base, 1, 5, 5);
+    triggerMonster.hp = 0;
+    const fireDemon = {
+      id: "fd1",
+      name: "火ダルマ",
+      baseKind: "firedemon",
+      x: 6,
+      y: 5,
+      hp: 20,
+      maxHp: 20,
+    };
+    const dg = makeEmptyDg({
+      monsters: [triggerMonster, fireDemon],
+      pentacles: [{ name: "爆発の魔方陣", kind: "explosion", x: 5, y: 5, cursed: false }],
+      rooms: [],
+    });
+    // 周囲8マスのうち1箇所だけ床にし、他は水にする
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = fireDemon.x + dx, ny = fireDemon.y + dy;
+        dg.map[ny][nx] = (dx === 1 && dy === 0) ? T.FLOOR : T.WATER;
+      }
+    }
+    const messages = [];
+
+    killMonster(triggerMonster, dg, makePlayer({ x: 20, y: 20 }), messages, null, true);
+
+    expect(messages).toContain("火ダルマが爆発を受けて分裂した！");
+    const splitMon = dg.monsters.find((m) => m.id !== "fd1" && m.baseKind === "firedemon");
+    expect(splitMon).toBeDefined();
+    expect(splitMon.x).toBe(7);
+    expect(splitMon.y).toBe(5);
+    splitMon.dormant = true;
+    splitMon.hp -= 5;
+    expect(splitMon.dormant).toBe(false);
+  });
+
+  it("炎まといを持つモンスターは爆発の魔方陣の爆風を吸収して即死しない", () => {
+    const base = MONS.find((m) => m.baseKind === "slime") || MONS[0];
+    const triggerMonster = makeMonsterFromBase(base, 1, 5, 5);
+    triggerMonster.hp = 0;
+    const flameMon = {
+      id: "fm1",
+      name: "フレイムナイト",
+      x: 6,
+      y: 5,
+      hp: 30,
+      maxHp: 30,
+      flameMantleTurns: 10,
+    };
+    const dg = makeEmptyDg({
+      monsters: [triggerMonster, flameMon],
+      pentacles: [{ name: "爆発の魔方陣", kind: "explosion", x: 5, y: 5, cursed: false }],
+      rooms: [],
+    });
+    const messages = [];
+
+    killMonster(triggerMonster, dg, makePlayer({ x: 20, y: 20 }), messages, null, true);
+
+    expect(flameMon.hp).toBe(30);
+    expect(messages).toContain("フレイムナイトは爆風の炎を吸収した！");
   });
 });

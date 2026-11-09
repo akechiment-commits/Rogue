@@ -31,7 +31,7 @@ import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
 import { isYogurtImmune } from './statusImmunity.js';
 import { rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
 import {
@@ -2447,11 +2447,18 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             const _nx = ax + _sx, _ny = ay + _sy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
             if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+            if (!canMonsterSurviveOnWater(m, dg, _nx, _ny)) continue;
             if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
             if (p && _nx === p.x && _ny === p.y) continue;
-            dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+            const _split = { ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true };
+            installMonsterHpHook(_split);
+            dg.monsters.push(_split);
             break;
           }
+          continue;
+        }
+        if (monHasFlameMantle(m)) {
+          ml.push(`${m.name}は爆風の炎を吸収した！`);
           continue;
         }
         if (_hasExPentacle || ringExplosion || mineExplosion || _instantMonsterKill) {
@@ -2556,10 +2563,18 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       });
     }
   }
-  /* 爆発範囲内の魔方陣を消滅 */
+  /* 爆発範囲内の祭壇 */
+  if (dg.altars?.length > 0) {
+    const _blastedAltars = dg.altars.filter(a => Math.max(Math.abs(a.x - cx), Math.abs(a.y - cy)) <= _blastRadius);
+    for (const altar of _blastedAltars) {
+      breakAltar(altar, dg, ml, p, killerMon || null, luFn);
+    }
+  }
+  /* 爆発範囲内の魔方陣を消滅（固定転送・固定魔方陣は除く） */
   if (dg.pentacles?.length > 0) {
     const _blastPcs = dg.pentacles.filter(pc =>
-      Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= _blastRadius
+      Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= _blastRadius &&
+      !pc.fixed && pc.kind !== "fixed_portal"
     );
     if (_blastPcs.length > 0) {
       dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
@@ -2646,11 +2661,18 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
                 const _nx = m.x + _sx, _ny = m.y + _sy;
                 if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
                 if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+                if (!canMonsterSurviveOnWater(m, dg, _nx, _ny)) continue;
                 if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
                 if (p && _nx === p.x && _ny === p.y) continue;
-                dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+                const _split = { ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true };
+                installMonsterHpHook(_split);
+                dg.monsters.push(_split);
                 break;
               }
+              continue;
+            }
+            if (monHasFlameMantle(m)) {
+              ml.push(`${m.name}は爆風の炎を吸収した！`);
               continue;
             }
             if (m.isBoss) {
@@ -2738,9 +2760,19 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     if (floorChanged()) return;
     /* 火薬壺も他の爆発と同じく、範囲内の地雷・時限爆弾を誘爆する */
     chainExplosionHazards(cx, cy, 2, dg, p, ml, luFn);
-    /* 爆発範囲内の魔方陣を消滅 */
+    /* 爆発範囲内の祭壇 */
+    if (dg.altars?.length > 0) {
+      const _blastedAltars = dg.altars.filter(a => Math.max(Math.abs(a.x - cx), Math.abs(a.y - cy)) <= 2);
+      for (const altar of _blastedAltars) {
+        breakAltar(altar, dg, ml, p, killerMon || null, luFn);
+      }
+    }
+    /* 爆発範囲内の魔方陣を消滅（固定転送・固定魔方陣は除く） */
     if (dg.pentacles?.length > 0) {
-      const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 2);
+      const _blastPcs = dg.pentacles.filter(pc =>
+        Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 2 &&
+        !pc.fixed && pc.kind !== "fixed_portal"
+      );
       if (_blastPcs.length > 0) {
         dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
         for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
@@ -2845,11 +2877,18 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
             const _nx = ax + _sx, _ny = ay + _sy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
             if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+            if (!canMonsterSurviveOnWater(m, dg, _nx, _ny)) continue;
             if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
             if (p && _nx === p.x && _ny === p.y) continue;
-            dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+            const _split = { ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true };
+            installMonsterHpHook(_split);
+            dg.monsters.push(_split);
             break;
           }
+          continue;
+        }
+        if (monHasFlameMantle(m)) {
+          ml.push(`${m.name}は爆風の炎を吸収した！`);
           continue;
         }
         if (m.isBoss) {
@@ -2938,9 +2977,19 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, opti
   }
   /* 他の爆発と同じく、時限爆弾同士を含む地雷系を連鎖爆発 */
   chainExplosionHazards(cx, cy, R, dg, p, ml, luFn, nameFn, options);
-  /* 爆発範囲内の魔方陣を消滅 */
+  /* 爆発範囲内の祭壇 */
+  if (dg.altars?.length > 0) {
+    const _blastedAltars = dg.altars.filter(a => Math.max(Math.abs(a.x - cx), Math.abs(a.y - cy)) <= R);
+    for (const altar of _blastedAltars) {
+      breakAltar(altar, dg, ml, p, options.killerMon || null, luFn);
+    }
+  }
+  /* 爆発範囲内の魔方陣を消滅（固定転送・固定魔方陣は除く） */
   if (dg.pentacles?.length > 0) {
-    const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= R);
+    const _blastPcs = dg.pentacles.filter(pc =>
+      Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= R &&
+      !pc.fixed && pc.kind !== "fixed_portal"
+    );
     if (_blastPcs.length > 0) {
       dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
       for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
@@ -7288,11 +7337,17 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 const _nx = ax + _sx, _ny = ay + _sy;
                 if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
                 if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+                if (!canMonsterSurviveOnWater(m, dg, _nx, _ny)) continue;
                 if (dg.monsters.some(o => monsterOccupiesCell(o, _nx, _ny))) continue;
                 if (p && _nx === p.x && _ny === p.y) continue;
-                dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+                const _split = { ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true };
+                installMonsterHpHook(_split);
+                dg.monsters.push(_split);
                 break;
               }
+            } else if (monHasFlameMantle(m)) {
+              ml.push(`${m.name}は爆風の炎を吸収した！`);
+              continue;
             } else if (m.isBoss) {
               if (blockLargeMonsterDamage(m, p, ml)) continue;
               const _bd = scaleMonFireDmg(m, bossInstantDeathDamage(m) * oilyDamageMult(dg, m));
@@ -7356,6 +7411,14 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
             ml.push("大箱が爆発で壊れた！");
           }
         }
+        /* 祭壇の破壊 */
+        if (dg.altars) {
+          const ai = dg.altars.findIndex(a => a.x === ax && a.y === ay);
+          if (ai >= 0) {
+            const altar = dg.altars[ai];
+            breakAltar(altar, dg, ml, p, null, luFn);
+          }
+        }
       }
     }
     for (let ddx = -1; ddx <= 1; ddx++) {
@@ -7369,9 +7432,10 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         });
       }
     }
-    /* 爆発範囲内の魔方陣を消滅 */
+    /* 爆発範囲内の魔方陣を消滅（固定転送・固定魔方陣は除く） */
     const _blastPcs = dg.pentacles.filter(pc =>
-      Math.max(Math.abs(pc.x - mx), Math.abs(pc.y - my)) <= 1
+      Math.max(Math.abs(pc.x - mx), Math.abs(pc.y - my)) <= 1 &&
+      !pc.fixed && pc.kind !== "fixed_portal"
     );
     if (_blastPcs.length > 0) {
       dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
