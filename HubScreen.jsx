@@ -991,6 +991,8 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
     if (!purchaseCheck.ok) {
       if (purchaseCheck.reason === "warehouse_full") {
         showNotice(`倉庫が満杯で購入できない！（${whCount}/${whMax}）`);
+      } else if (purchaseCheck.reason === "insufficient_gold") {
+        showNotice("所持金が足りない！");
       }
       return;
     }
