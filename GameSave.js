@@ -161,6 +161,9 @@ export function saveGameState(session, msgs, dungeonConfig, discoveries) {
       penSpriteMap: session.penSpriteMap || {},
       potionSpriteMap: session.potionSpriteMap || {},
       msgs: (msgs || []).slice(-80),
+      _flockStalkerActive: !!session._flockStalkerActive,
+      _flockStalkerSnapshot: session._flockStalkerSnapshot || null,
+      _abyssTomeAcquired: !!session._abyssTomeAcquired,
       dungeonConfig: dungeonConfig || null,
       discoveries: discoveries || null,
     };
@@ -211,6 +214,9 @@ export function loadGameState() {
       penSpriteMap: data.penSpriteMap || {},
       potionSpriteMap: data.potionSpriteMap || {},
       msgs: data.msgs || [],
+      _flockStalkerActive: !!data._flockStalkerActive,
+      _flockStalkerSnapshot: data._flockStalkerSnapshot || null,
+      _abyssTomeAcquired: !!data._abyssTomeAcquired,
       dungeonConfig: data.dungeonConfig || null,
       discoveries: normalizeDiscoveryData(data.discoveries),
     };

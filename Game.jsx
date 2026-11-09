@@ -1433,7 +1433,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
         if (_tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
-          if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
+          if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); spawnFlockStalker(sr.current, p, nd, ml2, 1); }
         } else if (_tr === "deferred_explosion" && dg2._pendingMineExplosion) {
           /* 敵の特技は攻撃フェーズ中にも罠を起動する。
              通常の発火フェーズを待つと次のプレイヤー行動まで持ち越されるため即時解決する。 */
@@ -2351,6 +2351,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (nextDungeon) {
             st.dungeon = nextDungeon;
             ml.push(`地下${p.depth}階に落ちた！`);
+            spawnFlockStalker(st, p, nextDungeon, ml, 1);
           }
         }
         resolvePlayerPentacleEffects(p, st.dungeon, ml, {
@@ -3770,6 +3771,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (nd) {
                 st.dungeon = nd;
                 ml.push(`地下${p.depth}階に落ちた！`);
+                spawnFlockStalker(st, p, nd, ml, 1);
               }
             } else if (tr === "deferred_explosion") {
               /* 地雷：モンスター移動後に爆発（dg._pendingMineExplosion → endTurn） */
@@ -4057,7 +4059,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
                 if (_tr2 === "pitfall") {
                   const nd2 = chgFloor(p, 1, true);
-                  if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+                  if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); spawnFlockStalker(st, p, nd2, ml, 1); }
                 }
               }
               acted = true;
@@ -4431,6 +4433,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (nd) {
             st.dungeon = nd;
             ml.push(`地下${p.depth}階に落ちた！`);
+            spawnFlockStalker(st, p, nd, ml, 1);
           }
           endTurn(st, p, ml);
           await waitForDashTrap();
