@@ -1,4 +1,4 @@
-import { itemPrice, ITEMS } from "./items.js";
+import { itemPrice, ITEMS, isNoChargeBoostWand } from "./items.js";
 import { hasClearableStatusAilments } from "./statusDuration.js";
 
 export const ALTAR_PRIEST_SERVICES = Object.freeze([
@@ -20,7 +20,7 @@ export function altarPriestServiceTargets(inventory, service, player = null) {
   return (inventory || [])
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => {
-      if (service === "refill_wand") return item.type === "wand";
+      if (service === "refill_wand") return item.type === "wand" && !isNoChargeBoostWand(item);
       if (service === "refill_pen") return item.type === "pen";
       if (service === "upgrade") {
         return item.type === "weapon" || item.type === "armor" ||
