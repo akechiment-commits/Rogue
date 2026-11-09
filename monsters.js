@@ -6893,6 +6893,27 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _sanctSuppressed = inMagicSealRoom(pl.x, pl.y, dg);
   const _plOnSanc = !_sanctSuppressed && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
   const _plOnBlessedSanc = !_sanctSuppressed && _plOnSanc && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+  const _plInvis = (pl.invisibleTurns || 0) > 0 || _plPotHidden;
+  /* プレイヤー認識（canSee）。関数後半の特技ブロックより前でも使えるよう、
+   * 宣言前参照（TDZ）にならない関数として定義する。呼び出し時点の座標で評価する。 */
+  const _monsterCanSeePlayer = () => {
+    const _monRoomNow = findRoom(dg.rooms, m.x, m.y);
+    const _plRoomNow = findRoom(dg.rooms, pl.x, pl.y);
+    const _sameRoomNow = _monRoomNow !== null && _plRoomNow !== null &&
+      _monRoomNow.x === _plRoomNow.x && _monRoomNow.y === _plRoomNow.y;
+    const _isGiantNow = monsterBodySize(m) > 1;
+    const _giantSightlineNow = !_isGiantNow || monsterBodyHasLineOfSight(m, dg, pl.x, pl.y);
+    const _inPlayerFovNow = monsterBodyCells(m).some(cell =>
+      dg.visible?.[cell.y]?.[cell.x] && (!_isGiantNow || !isOpaqueMonsterSightTile(dg, cell.x, cell.y))
+    );
+    const _adjPlNow = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
+    const _cloneCandidateNow = recognizedDecoyForMonster(m, dg, pl);
+    const _cloneDecoyNow = _cloneCandidateNow && (!_isGiantNow || monsterBodyHasLineOfSight(m, dg, _cloneCandidateNow.x, _cloneCandidateNow.y))
+      ? _cloneCandidateNow
+      : null;
+    const _cloneTargetedNow = !!_cloneDecoyNow?.isPlayerClone;
+    return (!_plInvis && (_sameRoomNow || (_giantSightlineNow && (_adjPlNow || _inPlayerFovNow)))) || _cloneTargetedNow;
+  };
   /* 重力の魔方陣：浮遊系モンスターの実効float（魔法無効モンスターは重力の影響を受けない）
    * floatTurns: 浮遊の罠など一時浮遊。封印中は固有float無効 */
   const _hasFloatFlag = monEffectiveFloat(m);
@@ -7667,7 +7688,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _vh = Math.min(12, m.maxHp - m.hp);
     if (_vh > 0) { m.hp += _vh; ml.push(`${m.name}は虚無の力で回復した！(+${_vh}HP)`); }
     m._statusCooldown = (m._statusCooldown || 0) - 1;
-    if (m._statusCooldown <= 0 && canSee && !_plInvis && !_plPotHidden) {
+    if (m._statusCooldown <= 0 && _monsterCanSeePlayer() && !_plInvis && !_plPotHidden) {
       m._statusCooldown = 5;
       if (_plOnBlessedSanc) {
         ml.push(`祝福された聖域の加護が${m.name}の呪いを防いだ！`);
@@ -7795,7 +7816,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _kiDist = Math.max(Math.abs(_kiAdx), Math.abs(_kiAdy));
       const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
       const _kiLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-      if (_kiDist >= 2 && _kiInLine && _kiLOS && canSee && !_plInvis && !_plPotHidden &&
+      if (_kiDist >= 2 && _kiInLine && _kiLOS && _monsterCanSeePlayer() && !_plInvis && !_plPotHidden &&
           m.turnAttacks < Math.max(monEffectiveMaxAttacks(m), m.sealed ? 1 : 2) && Math.random() < MONSTER_SPECIAL_RATE.status) {
         if (_plOnBlessedSanc) return;
         m._krakInkReady = true;
@@ -7820,7 +7841,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     } else if (m._krakInkReady) {
       /* attackOnlyフェーズ：予約済み墨吐きを実行 */
       delete m._krakInkReady;
-      if (!canSee || _plInvis || _plPotHidden) return;
+      if (!_monsterCanSeePlayer() || _plInvis || _plPotHidden) return;
       if (_krakenBio && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
       if (_plOnBlessedSanc) {
         m.turnAttacks++;
@@ -8738,7 +8759,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _plRoom  = findRoom(rooms, pl.x, pl.y);
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
     _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
-  const _plInvis = (pl.invisibleTurns || 0) > 0 || _plPotHidden;
   /*
    * 視認（相互認識）:
    * - 同部屋
