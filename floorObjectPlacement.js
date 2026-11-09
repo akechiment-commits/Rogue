@@ -176,7 +176,16 @@ function _placeStairTile(dg, dir, p) {
   for (const t of _scanStairTiles(dg, tileType)) {
     dg.map[t.y][t.x] = T.FLOOR;
   }
-  const cell = pickFreeFloorObjectCell(dg, null, p, p?.x ?? 1, p?.y ?? 1);
+  const stairFilter = (x, y) => {
+    if (dg.hiddenRooms?.some(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h)) return false;
+    if (dg.dimensionalVaults?.some(v => (v.room ? (x >= v.room.x && x < v.room.x + v.room.w && y >= v.room.y && y < v.room.y + v.room.h) : (v.x === x && v.y === y)))) return false;
+    if (dg.rooms?.some(r => r.hasFloatingIsland && (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h))) return false;
+    return true;
+  };
+  let cell = pickFreeFloorObjectCell(dg, null, p, p?.x ?? 1, p?.y ?? 1, stairFilter);
+  if (!cell) {
+    cell = pickFreeFloorObjectCell(dg, null, p, p?.x ?? 1, p?.y ?? 1);
+  }
   if (!cell) return false;
   dg.map[cell.y][cell.x] = tileType;
   if (dir === "up") dg.stairUp = { x: cell.x, y: cell.y };
