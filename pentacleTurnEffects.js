@@ -27,7 +27,7 @@ export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messag
       other !== pc && other.kind === "teleport_trap" && other.cursed);
     if (!floorBlocked) {
       if (inRange && random() < 0.1) {
-        const destination = randomTeleportDest(dungeon, player.x, player.y);
+        const destination = randomTeleportDest(dungeon, player.x, player.y, (x, y) => !dungeon.monsters.some(m => monsterOccupiesCell(m, x, y)));
         if (destination) {
           player.x = destination.x;
           player.y = destination.y;
