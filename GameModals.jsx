@@ -1719,6 +1719,10 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 /* ===== Shop Modal ===== */
 export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile, shopActionsRef }) {
   if (shopActionsRef) shopActionsRef.current = null;
+  const itemRefs = useRef([]);
+  useEffect(() => {
+    itemRefs.current[menuSel]?.scrollIntoView?.({ block: "nearest" });
+  }, [menuSel, mode]);
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
   const _shopIdentifyMode = mode === "identify" || mode === "identifyFromPay" || mode === "identifyFromSell";
@@ -1937,6 +1941,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             ]).map((item, mi) => (
               <button
                 key={mi}
+                ref={(el) => { itemRefs.current[mi] = el; }}
                 onClick={() => confirmShopOption(mi)}
                 style={{
                   padding: "6px 10px",
@@ -1986,7 +1991,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             {_unpaidItems.length === 0 && _otherUnpaid <= 0 && <div style={{ color: "#888", fontSize: 13 }}>所持品に未払いの商品はありません。</div>}
             <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
               {shopOptions(options).map((option, mi) => (
-                <button key={`${option.label}-${mi}`} onClick={() => confirmShopOption(mi)} disabled={option.disabled} style={{
+                <button key={`${option.label}-${mi}`} ref={(el) => { itemRefs.current[mi] = el; }} onClick={() => confirmShopOption(mi)} disabled={option.disabled} style={{
                   display: "block", width: "100%", padding: "6px 10px", marginBottom: 2,
                   background: option.disabled ? "#1b160f" : menuSel === mi ? "#4a2a00" : "#2a1a00",
                   border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
@@ -2021,7 +2026,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             {_identifyTargets.length === 0 && <div style={{ color: "#888", fontSize: 13 }}>識別できる品を持っていない。</div>}
             <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
               {shopOptions(options).map((item, mi) => (
-                <button key={`${item.label}-${mi}`} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
+                <button key={`${item.label}-${mi}`} ref={(el) => { itemRefs.current[mi] = el; }} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
                   display: "block", width: "100%", padding: "6px 10px", marginBottom: 2,
                   background: item.disabled ? "#1b160f" : menuSel === mi ? "#4a2a00" : "#2a1a00",
                   border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
@@ -2075,7 +2080,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   },
                 },
               ]).map((item, mi) => (
-                <button key={mi} onClick={() => confirmShopOption(mi)} style={{
+                <button key={mi} ref={(el) => { itemRefs.current[mi] = el; }} onClick={() => confirmShopOption(mi)} style={{
                   padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                   border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
                   color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 14, cursor: "pointer", textAlign: "left",
@@ -2103,7 +2108,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
               },
               ...(_identifyTargets.length > 0 ? [_identifyServiceOption("identify")] : []),
             ]).map((item, mi) => (
-              <button key={mi} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
+              <button key={mi} ref={(el) => { itemRefs.current[mi] = el; }} onClick={() => confirmShopOption(mi)} disabled={item.disabled} style={{
                 padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                 border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
                 color: item.disabled ? "#664422" : menuSel === mi ? "#ffa" : "#fa8",
@@ -2190,6 +2195,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 {shopOptions(allOpts).map((item, mi) => (
                   <button
                     key={mi}
+                    ref={(el) => { itemRefs.current[mi] = el; }}
                     onClick={() => confirmShopOption(mi)}
                     style={{
                       display: "block",
