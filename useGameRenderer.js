@@ -57,10 +57,11 @@ function drawMonsterTile(ctx, ts, mon, tile, px, py, sz) {
   }
   ctx.save();
   ctx.globalAlpha = 0.68;
+  const cloneTile = customTileImages[tile] ? tile : TI.PLAYER;
   if (customImg) {
     ctx.drawImage(customImg, px, py, sz, sz);
   } else {
-    drawTile(ctx, ts, tile, px, py, sz, { monLevel: lv, monName: mon?.name });
+    drawTile(ctx, ts, cloneTile, px, py, sz, { monLevel: lv, monName: mon?.name });
   }
   ctx.globalAlpha = 1;
   ctx.fillStyle = "rgba(80, 180, 255, 0.18)";
