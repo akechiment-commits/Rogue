@@ -863,10 +863,23 @@ describe("portraits", () => {
     });
     expect(drainEvent.src).toMatch(/reaction_sad/);
     expect(drainEvent.force).toBe(true);
+
+    // 罠が作動したが誰もいなかった場合は罠リアクション（Sadなど）を表示しない
+    const emptyTrapEvent = resolvePortraitEvent({
+      player: base,
+      prev: base,
+      newMsgs: [
+        "レベルダウンの罠が発動！",
+        "しかし誰もいなかった。",
+        "ガチャマシーンから赤銅の壺が出てきた。",
+      ],
+      lastMsg: "ガチャマシーンから赤銅の壺が出てきた。",
+    });
+    expect(emptyTrapEvent?.src || "").not.toMatch(/reaction_sad/);
   });
 
   it("空腹・錆・回転板の罠は状況に合う立ち絵へ対応する", () => {
-    expect(getTrapPortraitKey("レベルダウンの罠が発動！")).toBe("reaction_sad");
+    expect(getTrapPortraitKey("レベルダウンの罠が発動！")).toBe("reaction_surprised");
     expect(getTrapPortraitKey("空腹の罠が発動！急に空腹を感じた！満腹度が10%下がった。")).toBe("hp_hunger");
     expect(getTrapPortraitKey("錆の罠が発動！剣が錆びた！")).toBe("reaction_trap_rust");
     expect(getTrapPortraitKey("回転板が発動！吹き飛ばされた！")).toBe("reaction_trap_spin");

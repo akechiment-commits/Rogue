@@ -361,7 +361,6 @@ export function isSummonTrapMsg(msg) {
 }
 
 const TRAP_PORTRAIT_RULES = [
-  [/レベルダウンの罠/, "reaction_sad"],
   [/毒矢の罠/, "reaction_trap_poison_arrow"],
   [/強矢の罠/, "reaction_trap_strong_arrow"],
   [/MP吸収の罠/, "reaction_trap_mp_absorb"],
@@ -385,7 +384,7 @@ const TRAP_PORTRAIT_RULES = [
 ];
 
 const TRAP_NAMES_WITHOUT_DEDICATED_PORTRAIT =
-  /(?:睡眠ガス|鈍足|混乱|暗闇|油まみれ|浮遊|封印|影ぬい|惑わし|道具魔物化|加速|装備外し)の罠|罠の罠/;
+  /(?:睡眠ガス|鈍足|混乱|暗闇|油まみれ|浮遊|封印|影ぬい|惑わし|道具魔物化|加速|装備外し|レベルダウン)の罠|罠の罠/;
 
 /** 罠が実際に作動したログから、発動時に出すリアクションを返す。 */
 export function getTrapPortraitKey(msg) {
@@ -600,13 +599,22 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   /* 罠専用絵は優先するが、驚きへフォールバックする状態系の罠は
    * 付与された混乱・浮遊などの立ち絵を先に出す。 */
+  const isLevelDown =
+    p.level < prev.level || findMsgInNew(newMsgs, eventLastMsg, (m) => /レベルが\d+下がった/.test(m));
+
   const trapPortraitKey = findMsgInNew(newMsgs, eventLastMsg, (msg) => getTrapPortraitKey(msg) !== null);
   if (trapPortraitKey) {
-    const trapKey = getTrapPortraitKey(trapPortraitKey);
-    if ((trapKey === "reaction_surprised" || trapKey === "hp_hunger") && stickyKey) {
-      return { ...pe(stickyKey, { force: true }), holdKey: stickyKey };
+    const isTrapEmpty = findMsgInNew(newMsgs, eventLastMsg, (m) => /しかし誰もいなかった/.test(m));
+    if (!isTrapEmpty) {
+      if (isLevelDown) {
+        return pe("reaction_sad", { force: true });
+      }
+      const trapKey = getTrapPortraitKey(trapPortraitKey);
+      if ((trapKey === "reaction_surprised" || trapKey === "hp_hunger") && stickyKey) {
+        return { ...pe(stickyKey, { force: true }), holdKey: stickyKey };
+      }
+      return pe(trapKey, { force: true });
     }
-    return pe(trapKey, { force: true });
   }
 
   /* 腐った/ヤバイ食事は状態異常より先（食べた瞬間のリアクション） */
@@ -665,7 +673,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return pe("levelup");
   }
 
-  if (p.level < prev.level || findMsgInNew(newMsgs, eventLastMsg, (m) => /レベルが\d+下がった/.test(m))) {
+  if (isLevelDown) {
     return pe("reaction_sad", { force: true });
   }
 
