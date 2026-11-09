@@ -20,8 +20,7 @@ import {
   monHasElementWeakness,
 } from "./monTraits.js";
 import { pushAnim, pushLightningAnim, pushSplashAnim } from "./animEvents.js";
-import { wakeIfDormant, triggerMushroomCounterSpore } from "./monsterRuntime.js";
-import { beginNpcRetaliation } from "./npcRetaliation.js";
+import { applyDamageToMonster } from "./monsterDamage.js";
 
 let combatDeps = {};
 
@@ -97,17 +96,19 @@ function traceBreath(monster, dungeon, player, line, color) {
 }
 
 function applyBreathMonsterDamage(monster, victim, damage, dungeon, player, messages, opts, label) {
-  wakeIfDormant(victim, messages);
-  if (consumeBarrier(victim, messages)) {
-    if (monster && dungeon.monsters?.includes(monster)) beginNpcRetaliation(victim, monster, messages);
-    return;
+  damage = monScaleOutgoingDamage(monster, damage);
+  const res = applyDamageToMonster(victim, damage, {
+    isPhysical: true,
+    attacker: monster,
+    dungeon,
+    player,
+    messages,
+    killIfDead: true,
+    luFn: opts.luFn || null,
+  });
+  if (!res.blocked) {
+    messages.push(`${monster.name}の${label}が${victim.name}に命中！${res.damage}ダメージ！`);
   }
-  damage = monScaleOutgoingDamage(monster, clampDmgFixed(victim, damage, true));
-  victim.hp -= damage;
-  messages.push(`${monster.name}の${label}が${victim.name}に命中！${damage}ダメージ！`);
-  resolveParalysisHit(victim, messages);
-  triggerMushroomCounterSpore(victim, dungeon, player, messages);
-  if (victim.hp <= 0) killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
 }
 
 export function hexachromaticFireBreath(monster, dungeon, player, line, messages, opts = {}) {
@@ -175,21 +176,22 @@ export function hexachromaticWindBreath(monster, dungeon, player, line, messages
     return;
   }
   const victim = hit.target;
-  wakeIfDormant(victim, messages);
-  if (consumeBarrier(victim, messages)) {
-    if (monster && dungeon.monsters?.includes(monster)) beginNpcRetaliation(victim, monster, messages);
-    return;
-  }
   if (checkMonsterEvasion(victim, { baseMissRate: 0.05 })) {
     messages.push(`${victim.name}は風のブレスをかわした！`);
     return;
   }
   const normalDamage = calcAtkDefDmg(monster.atk, victim.def || 0, { defWeight: 1, variance: false });
-  const damage = monScaleOutgoingDamage(monster, clampDmgFixed(victim, Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1)), true));
-  victim.hp -= damage;
-  messages.push(`${monster.name}の風のブレスが${victim.name}に命中！${damage}ダメージ！`);
-  resolveParalysisHit(victim, messages);
-  triggerMushroomCounterSpore(victim, dungeon, player, messages);
+  const rawDamage = monScaleOutgoingDamage(monster, Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1)));
+  const res = applyDamageToMonster(victim, rawDamage, {
+    isPhysical: true,
+    attacker: monster,
+    dungeon,
+    player,
+    messages,
+    killIfDead: false,
+  });
+  if (res.blocked) return;
+  messages.push(`${monster.name}の風のブレスが${victim.name}に命中！${res.damage}ダメージ！`);
   if (victim.hp <= 0) {
     killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
   } else {
@@ -232,24 +234,24 @@ export function hexachromaticDarkBreath(monster, dungeon, player, line, messages
     return;
   }
   const victim = hit.target;
-  wakeIfDormant(victim, messages);
-  if (consumeBarrier(victim, messages)) {
-    if (monster && dungeon.monsters?.includes(monster)) beginNpcRetaliation(victim, monster, messages);
-    return;
-  }
   if (checkMonsterEvasion(victim, { baseMissRate: 0.05 })) {
     messages.push(`${victim.name}は闇のブレスをかわした！`);
     return;
   }
   const normalDamage = calcAtkDefDmg(monster.atk, victim.def || 0, { defWeight: 1, variance: false });
-  const damage = monScaleOutgoingDamage(monster, clampDmgFixed(victim, Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1)), true));
-  victim.hp -= damage;
-  messages.push(`${monster.name}の闇のブレスが${victim.name}に命中！${damage}ダメージ！`);
-  resolveParalysisHit(victim, messages);
-  triggerMushroomCounterSpore(victim, dungeon, player, messages);
-  if (victim.hp <= 0) {
-    killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
-  } else {
+  const rawDamage = monScaleOutgoingDamage(monster, Math.max(1, Math.floor(normalDamage * 0.5) + rng(-1, 1)));
+  const res = applyDamageToMonster(victim, rawDamage, {
+    isPhysical: true,
+    attacker: monster,
+    dungeon,
+    player,
+    messages,
+    killIfDead: true,
+    luFn: opts.luFn || null,
+  });
+  if (res.blocked) return;
+  messages.push(`${monster.name}の闇のブレスが${victim.name}に命中！${res.damage}ダメージ！`);
+  if (victim.hp > 0) {
     applyMonsterDarknessStatus(victim, messages);
   }
 }
@@ -268,17 +270,19 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
       continue;
     }
     revealDisguisedItemMimic(dungeon, victim, messages);
-    wakeIfDormant(victim, messages);
-    if (consumeBarrier(victim, messages)) {
-      if (monster && dungeon.monsters?.includes(monster)) beginNpcRetaliation(victim, monster, messages);
-      continue;
+    const rawDamage = monScaleOutgoingDamage(monster, rng(15, 25));
+    const res = applyDamageToMonster(victim, rawDamage, {
+      isPhysical: true,
+      attacker: monster,
+      dungeon,
+      player,
+      messages,
+      killIfDead: true,
+      luFn: opts.luFn || null,
+    });
+    if (!res.blocked) {
+      messages.push(`地震が${victim.name}を襲った！${res.damage}ダメージ！`);
     }
-    const damage = monScaleOutgoingDamage(monster, clampDmgFixed(victim, rng(15, 25), true));
-    victim.hp -= damage;
-    messages.push(`地震が${victim.name}を襲った！${damage}ダメージ！`);
-    resolveParalysisHit(victim, messages);
-    triggerMushroomCounterSpore(victim, dungeon, player, messages);
-    if (victim.hp <= 0) killMonster(victim, dungeon, player, messages, opts.luFn || null, false, monster);
   }
   if (player.hp <= 0 || !inRoom(player.x, player.y)) return;
   const playerFloating = (hasRingEffect(player, "float_ring") || (player.floatTurns || 0) > 0) &&
