@@ -1282,7 +1282,7 @@ function ramCharge(m, dg, pl, ml, opts = {}, onHit = null, onMiss = null, luFn =
   });
 }
 
-function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
+export function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
   ml.push(`${m.name}がダストストームを放った！`);
   pushSplashAnim(m.x, m.y, "#b8a777");
   const inStorm = (x, y) => monsterPointDistance(m, x, y) === 1;
@@ -1308,11 +1308,18 @@ function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
     if (victim === m) continue;
     if (victim.hp <= 0 || !dg.monsters.includes(victim) || victim.disguisedAsItem) continue;
     if (!monsterBodyCells(victim).some(cell => inStorm(cell.x, cell.y))) continue;
-    if (consumeBarrier(victim, ml)) continue;
+    if (consumeBarrier(victim, ml)) {
+      if (m && dg.monsters?.includes(m)) beginNpcRetaliation(victim, m, ml);
+      continue;
+    }
     const normalDamage = monScaleOutgoingDamage(m, calcAtkDefDmg(m.atk, victim.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
     const damage = Math.max(1, Math.floor(normalDamage * 0.5));
-    victim.hp -= damage;
-    ml.push(`ダストストームが${victim.name}に命中！${damage}ダメージ！`);
+    const finalDmg = clampDmgFixed(victim, damage, true);
+    victim.hp -= finalDmg;
+    wakeIfDormant(victim, ml);
+    resolveParalysisHit(victim, ml);
+    ml.push(`ダストストームが${victim.name}に命中！${finalDmg}ダメージ！`);
+    triggerMushroomCounterSpore(victim, dg, pl, ml);
     if (victim.hp > 0) {
       if (victim.type === "guard") {
         ml.push(`${victim.name}には暗闇が効かなかった！`);
@@ -3660,9 +3667,11 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         return "consumed";
       }
       wakeIfDormant(mon, mlx);
-      const _dmg = monScaleOutgoingDamage(m, Math.max(1, m.atk + rng(-2, 2)));
+      const _dmg = monScaleOutgoingDamage(m, clampDmgFixed(mon, Math.max(1, m.atk + rng(-2, 2)), true));
       mon.hp -= _dmg;
+      resolveParalysisHit(mon, mlx);
       mlx.push(`${m.name}の${_arName}が${mon.name}に命中！${_dmg}ダメージ！`);
+      triggerMushroomCounterSpore(mon, dg, pl, mlx);
       if (mon.hp <= 0) killMonster(mon, dg, pl, mlx, null, false, m);
     },
     onBigbox: (bb, lx, ly, mlx) => {
@@ -3917,7 +3926,7 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
-function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null) {
+export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null) {
   const origin = originOverride || { x: m.x, y: m.y };
   const adx = pl.x - origin.x, ady = pl.y - origin.y;
   let dx = Math.sign(adx), dy = Math.sign(ady);
@@ -3966,10 +3975,15 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride = null)
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${heal}HP回復した！`);
       } else {
         wakeIfDormant(hitMon, ml);
-        if (consumeBarrier(hitMon, ml)) return;
-        const dmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1)));
+        if (consumeBarrier(hitMon, ml)) {
+          if (m && dg.monsters?.includes(m)) beginNpcRetaliation(hitMon, m, ml);
+          return;
+        }
+        const dmg = monScaleOutgoingDamage(m, clampDmgFixed(hitMon, Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1)), true));
         hitMon.hp -= dmg;
+        resolveParalysisHit(hitMon, ml);
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
+        triggerMushroomCounterSpore(hitMon, dg, pl, ml);
         if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, luFn, false, m);
       }
       if (hitMon.hp > 0) applySoakedStatusToMonster(hitMon, ml);
@@ -4175,9 +4189,15 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y, _homingMon.x, _homingMon.y);
     } else {
       wakeIfDormant(_homingMon, ml);
-      const _homingDmg = monScaleOutgoingDamage(m, calcMonDmg(_homingMon));
+      if (consumeBarrier(_homingMon, ml)) {
+        if (_killerMon && dg.monsters?.includes(_killerMon)) beginNpcRetaliation(_homingMon, _killerMon, ml);
+        return;
+      }
+      const _homingDmg = monScaleOutgoingDamage(m, clampDmgFixed(_homingMon, calcMonDmg(_homingMon), true));
       _homingMon.hp -= _homingDmg;
+      resolveParalysisHit(_homingMon, ml);
       ml.push(`${_shooterPrefix}${boltName}が${_homingMon.name}に命中！${_homingDmg}ダメージ！`);
+      triggerMushroomCounterSpore(_homingMon, dg, pl, ml);
       if (_homingMon.hp <= 0) killMonster(_homingMon, dg, pl, ml, luFn, false, _killerMon);
     }
     return;
@@ -4341,6 +4361,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         continue;
       }
       if (consumeBarrier(_mon, ml)) {
+        if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_mon, m, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
         if (onFlyOff) onFlyOff(_tx, _ty, ml);
         return;
@@ -4384,9 +4405,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               onReflectedMonHit(m, ml, _rnx, _rny, _mon, -dx, -dy);
               return;
             }
-            const _rrdmg = monScaleOutgoingDamage(_mon, calcMonDmg(m));
+            const _rrdmg = monScaleOutgoingDamage(_mon, clampDmgFixed(m, calcMonDmg(m), true));
             m.hp -= _rrdmg;
+            resolveParalysisHit(m, ml);
             ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
+            triggerMushroomCounterSpore(m, dg, pl, ml);
             if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
             _rrx = _rnx; _rry = _rny;
             break;
@@ -4394,6 +4417,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           const _rrMon = dg.monsters.find(o => monsterOccupiesCell(o, _rnx, _rny) && o !== m && o !== _mon);
           if (_rrMon) {
             if (consumeBarrier(_rrMon, ml)) {
+              if (_mon && dg.monsters?.includes(_mon)) beginNpcRetaliation(_rrMon, _mon, ml);
               _rrx = _rnx; _rry = _rny;
               break;
             }
@@ -4402,9 +4426,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               return;
             }
             wakeIfDormant(_rrMon, ml);
-            const _rrdmg = monScaleOutgoingDamage(_mon, calcMonDmg(_rrMon));
+            const _rrdmg = monScaleOutgoingDamage(_mon, clampDmgFixed(_rrMon, calcMonDmg(_rrMon), true));
             _rrMon.hp -= _rrdmg;
+            resolveParalysisHit(_rrMon, ml);
             ml.push(`跳ね返された${boltName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
+            triggerMushroomCounterSpore(_rrMon, dg, pl, ml);
             if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, luFn, false, _mon);
             _rrx = _rnx; _rry = _rny;
             break;
@@ -4421,8 +4447,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         return;
       }
       wakeIfDormant(_mon, ml);
-      const _mdmg = monScaleOutgoingDamage(m, calcMonDmg(_mon));
-      _mon.hp -= _mdmg; ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
+      const _mdmg = monScaleOutgoingDamage(m, clampDmgFixed(_mon, calcMonDmg(_mon), true));
+      _mon.hp -= _mdmg;
+      resolveParalysisHit(_mon, ml);
+      ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
+      triggerMushroomCounterSpore(_mon, dg, pl, ml);
       if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, _killerMon);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
