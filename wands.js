@@ -27,7 +27,7 @@ import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, mon
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
-import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
+import { blockLargeMonsterDamage, withLargeMonsterDamageEvent, newDamageEventToken } from './largeMonsterDamage.js';
 import { beginNpcRetaliation } from './npcRetaliation.js';
 import { triggerMushroomCounterSpore } from './monsterRuntime.js';
 import {
@@ -2918,6 +2918,10 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
 
 /** 残回数ありの杖が破壊されたとき、指定座標を中心に壊し効果を発動 */
 export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {}) {
+  return withLargeMonsterDamageEvent(newDamageEventToken("wand_break"), () => _triggerWandBreakEffectInner(wand, cx, cy, dg, p, ml, luFn, opts));
+}
+
+function _triggerWandBreakEffectInner(wand, cx, cy, dg, p, ml, luFn, opts = {}) {
   if (p) installPlayerHpReverseHook(p);
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   const { skipSealCheck = false, singleTargetKind = null, singleTarget = null, effectDx = 0, effectDy = 0 } = opts;

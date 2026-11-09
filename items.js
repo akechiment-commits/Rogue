@@ -52,7 +52,7 @@ import { isGachaMachine, isInsideGachaShop, pickGachaTemplate, drawFromGachaBox 
 import { convertToIceCream } from './iceCreamData.js';
 import { adjustPlayerBaseMaxHp, replacePlayerRings, unequipPlayerItem } from './equipmentEffects.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
-import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
+import { blockLargeMonsterDamage, withLargeMonsterDamageEvent, newDamageEventToken } from './largeMonsterDamage.js';
 import { applySakeEffect } from './intoxication.js';
 import { formatEquipmentPlusChange } from './inventoryLabel.js';
 
@@ -2335,6 +2335,10 @@ export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = 
 }
 
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
+  return withLargeMonsterDamageEvent(newDamageEventToken("explosion"), () => _doExplosionInner(cx, cy, dg, p, ml, nameFn, srcLabel, excludeItem, luFn, proportional, ringExplosion, mineExplosion, noExpKills, options));
+}
+
+function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
   const killerMon = options.killerMon || null;
   const initialDepth = p?.depth;
   const floorChanged = () => p?.depth !== initialDepth;
@@ -2620,6 +2624,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
 /** 火薬壺の爆発処理。中心から半径2マス（5×5=25マス）を対象にする。連鎖爆発あり。 */
 let _gunpowderDepth = 0;
 export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺", killerMon = null, context = {}) {
+  return withLargeMonsterDamageEvent(newDamageEventToken("gunpowder"), () => _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel, killerMon, context));
+}
+
+function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺", killerMon = null, context = {}) {
   if (_gunpowderDepth > 5) return;
   if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, `${srcLabel}の爆発`); return; }
   ensureItemMimicFloorItems(dg);
@@ -2835,6 +2843,10 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
  * 地雷・火薬壺を連鎖爆発させる。
  */
 export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, options = {}) {
+  return withLargeMonsterDamageEvent(newDamageEventToken("timebomb"), () => _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn, options));
+}
+
+function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, options = {}) {
   const bombLabel = (options.killerMon?.name || options.sourcePending?.sourceName)
     ? `${options.killerMon?.name || options.sourcePending.sourceName}のマスタードボム`
     : "時限爆弾の罠";
