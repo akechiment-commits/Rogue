@@ -10873,7 +10873,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _bt = _buffable[rng(0, _buffable.length - 1)];
           const _buffAmt = rng(2, 4);
           _bt.atk += _buffAmt;
-          _bt.atkBuffed = true;
+          _bt.atkBuffed = _buffAmt;
           ml.push(`${m.name}が${_bt.name}を強化！攻撃力+${_buffAmt}！`);
           return;
         }

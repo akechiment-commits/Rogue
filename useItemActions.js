@@ -1644,7 +1644,7 @@ export function useItemActions({
               }
               if (consumeBarrier(_m, ml)) continue;
               let _removed = [];
-              if (_m.atkBuffed) { _m.atk = Math.max(1, _m.atk - 3); _m.atkBuffed = false; _removed.push("攻撃バフ"); }
+              if (_m.atkBuffed) { const _amt = typeof _m.atkBuffed === "number" ? _m.atkBuffed : 3; _m.atk = Math.max(1, _m.atk - _amt); _m.atkBuffed = false; _removed.push("攻撃バフ"); }
               if (clearArmorBreathBuff(_m) > 0) _removed.push("ロックアーマー");
               if (clearDiamondWeaponBuff(_m) > 0) _removed.push("ダイヤモンドウエポン");
               if (_m._enraged) { _m._enraged = false; _removed.push("激昂"); }
