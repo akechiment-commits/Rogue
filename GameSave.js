@@ -6,6 +6,7 @@ import { installPlayerHpReverseHook, MW, MH, TI } from "./utils.js";
 import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { installMonsterHpHook } from "./statusDuration.js";
+import { ensureFakeNames } from "./items.js";
 
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 const GAME_SAVE_VERSION = 2;
@@ -196,7 +197,7 @@ export function loadGameState() {
       floors: data.floors || {},
       ident: new Set(data.ident || []),         /* Array → Set */
       identifiedBigboxes,                         /* Array → Set */
-      fakeNames: data.fakeNames,
+      fakeNames: ensureFakeNames(data.fakeNames),
       bbFakeNames: data.bbFakeNames,
       nicknames: data.nicknames || {},
       isDebugRun: data.isDebugRun,

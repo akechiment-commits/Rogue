@@ -582,5 +582,7 @@ export function itemDisplayName(it, fakeNames, ident, nicknames) {
     const _pfx = key[0]==='p' ? '薬' : key[0]==='s' ? '巻' : key[0]==='w' ? '杖' : key[0]==='n' ? 'ペン' : key[0]==='b' ? '書' : key[0]==='r' ? '指輪' : '壺';
     return `${_pfx}:${nicknames[key]}`;
   }
-  return fakeNames?.[key] ?? _realName;
+  if (fakeNames?.[key]) return fakeNames[key];
+  const _typeFallback = key[0]==='p' ? '薬' : key[0]==='s' ? '巻物' : key[0]==='w' ? '杖' : key[0]==='n' ? 'ペン' : key[0]==='b' ? '魔法書' : key[0]==='r' ? '指輪' : '壺';
+  return `謎の${_typeFallback}`;
 }

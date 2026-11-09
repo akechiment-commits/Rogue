@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { WANDS, rollGeneratedWandCharges } from "../items.js";
+import { WANDS, rollGeneratedWandCharges, ensureFakeNames, generateFakeNames, getIdentKey, UNIDENTIFIED_NAME_POOLS } from "../items.js";
 import { applyWandEffect, breakWandAoE } from "../wands.js";
+import { itemDisplayName } from "../render.js";
 import { makePlayer } from "./helpers.js";
 
 describe("ただの杖の実装", () => {
@@ -14,11 +15,11 @@ describe("ただの杖の実装", () => {
     expect(wand.tile).toBe(24);
   });
 
-  it("rollGeneratedWandCharges でただの杖の回数は4〜7回でランダム生成される", () => {
+  it("rollGeneratedWandCharges でただの杖の回数は3〜7回でランダム生成される", () => {
     const wand = WANDS.find((w) => w.name === "ただの杖");
-    const minC = rollGeneratedWandCharges(wand, () => 4);
+    const minC = rollGeneratedWandCharges(wand, () => 3);
     const maxC = rollGeneratedWandCharges(wand, () => 7);
-    expect(minC).toBe(4);
+    expect(minC).toBe(3);
     expect(maxC).toBe(7);
   });
 
@@ -50,5 +51,37 @@ describe("ただの杖の実装", () => {
 
     breakWandAoE(p, dg, "plain", ml, null, 1);
     expect(ml.some((msg) => msg.includes("杖が壊れたが何も起こらなかった"))).toBe(true);
+  });
+
+  it("未識別のただの杖は正式名称ではなく木の偽名で表示される", () => {
+    const wand = { ...WANDS.find((w) => w.name === "ただの杖"), id: "w1" };
+    const fakeNames = generateFakeNames(WANDS, []);
+    const ident = new Set();
+    const displayName = itemDisplayName(wand, fakeNames, ident, {});
+    expect(displayName).not.toBe("ただの杖");
+    expect(UNIDENTIFIED_NAME_POOLS.wand).toContain(displayName);
+
+    // 識別済みなら本名
+    ident.add(getIdentKey(wand));
+    expect(itemDisplayName(wand, fakeNames, ident, {})).toBe("ただの杖");
+  });
+
+  it("ensureFakeNames で欠損キー（旧セーブデータ）に未重複の偽名が自動補完される", () => {
+    const wand = { ...WANDS.find((w) => w.name === "ただの杖"), id: "w1" };
+    // w:plain が欠けた古い fakeNames
+    const oldFakeNames = { "w:lightning": "ヒノキの杖" };
+    expect(oldFakeNames["w:plain"]).toBeUndefined();
+
+    // 欠損キーがあっても itemDisplayName は本名を漏らさず安全フォールバックする
+    expect(itemDisplayName(wand, oldFakeNames, new Set(), {})).toBe("謎の杖");
+
+    // ensureFakeNames を通すと w:plain が自動補完される
+    const healed = ensureFakeNames(oldFakeNames);
+    expect(healed["w:plain"]).toBeDefined();
+    expect(UNIDENTIFIED_NAME_POOLS.wand).toContain(healed["w:plain"]);
+    expect(healed["w:plain"]).not.toBe("ヒノキの杖"); // 既存のヒノキと重複しない
+
+    // 補完後は正しい偽名で表示される
+    expect(itemDisplayName(wand, healed, new Set(), {})).toBe(healed["w:plain"]);
   });
 });

@@ -391,22 +391,39 @@ export function generateBbFakeNames() {
   return bbFakeNames;
 }
 
-export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
-  const fakeNames = {};
-  const assign = (keys, pool) => {
-    const shuffled = shuffle([...pool]);
-    keys.forEach((k, i) => { fakeNames[k] = shuffled[i % shuffled.length]; });
+export function ensureFakeNames(fakeNames = {}, items = null, pots = null, spellbooks = null, rings = null) {
+  const result = { ...(fakeNames || {}) };
+  const allItems = items || [...ITEMS, ...WANDS];
+  const allPots = pots || POTS;
+  const allSpellbooks = spellbooks || SPELLBOOKS;
+  const allRings = rings || RINGS;
+
+  const assignMissing = (keys, pool) => {
+    const used = new Set(Object.values(result));
+    const available = pool.filter(n => !used.has(n));
+    let poolIdx = 0;
+    const shuffledAvailable = shuffle([...(available.length ? available : pool)]);
+    for (const k of keys) {
+      if (!result[k]) {
+        result[k] = shuffledAvailable[poolIdx % shuffledAvailable.length];
+        poolIdx++;
+      }
+    }
   };
   const uniq = (arr) => [...new Set(arr)];
-  assign(uniq(items.filter(i => i.type === 'potion' && i.effect !== 'water').map(i => `p:${i.effect}`)), _FAKE.potion.filter(n => n !== "透明な薬"));
-  fakeNames['p:water'] = "透明な薬"; // 水は常に透明な薬
-  assign(uniq(items.filter(i => i.type === 'scroll' && i.effect !== 'blank').map(i => `s:${i.effect}`)), _FAKE.scroll);
-  assign(uniq(items.filter(i => i.type === 'wand').map(i => `w:${i.effect}`)), _FAKE.wand);
-  assign(uniq(items.filter(i => i.type === 'pen').map(i => `n:${i.effect}`)), _FAKE.pen);
-  assign(pots.map(p => `o:${p.potEffect}`), _FAKE.pot);
-  assign(uniq(spellbooks.filter(sb => sb.spell).map(sb => `b:${sb.spell}`)), _FAKE.spellbook);
-  assign(uniq(rings.filter(r => r.type === 'ring').map(r => `r:${r.effect}`)), _FAKE.ring);
-  return fakeNames;
+  if (!result['p:water']) result['p:water'] = "透明な薬";
+  assignMissing(uniq(allItems.filter(i => i.type === 'potion' && i.effect !== 'water').map(i => `p:${i.effect}`)), _FAKE.potion.filter(n => n !== "透明な薬"));
+  assignMissing(uniq(allItems.filter(i => i.type === 'scroll' && i.effect !== 'blank').map(i => `s:${i.effect}`)), _FAKE.scroll);
+  assignMissing(uniq(allItems.filter(i => i.type === 'wand').map(i => `w:${i.effect}`)), _FAKE.wand);
+  assignMissing(uniq(allItems.filter(i => i.type === 'pen').map(i => `n:${i.effect}`)), _FAKE.pen);
+  assignMissing(allPots.map(p => `o:${p.potEffect}`), _FAKE.pot);
+  assignMissing(uniq(allSpellbooks.filter(sb => sb.spell).map(sb => `b:${sb.spell}`)), _FAKE.spellbook);
+  assignMissing(uniq(allRings.filter(r => r.type === 'ring').map(r => `r:${r.effect}`)), _FAKE.ring);
+  return result;
+}
+
+export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
+  return ensureFakeNames({}, items, pots, spellbooks, rings);
 }
 
 /* ===== ITEMS ===== */
@@ -1627,6 +1644,7 @@ export function makeGachaPrize(rarity = null, floor = 1) {
   if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], confinedMonsters: [], capacity: randPotCapacity(tmpl.potEffect) };
   if (tmpl.type === "ring") return applyGeneratedRingPlus({ ...tmpl, id: uid() });
   if (tmpl.type === "arrow") return { ...tmpl, id: uid(), count: rng(3, 15) };
+  if (tmpl.type === "wand") return { ...tmpl, id: uid(), charges: rollGeneratedWandCharges(tmpl) };
   if (tmpl.type === "pen" || tmpl.type === "marker") return { ...tmpl, id: uid(), charges: penInitialCharges(tmpl) };
   return maybeApplyInitialNegativeEquipmentPlus({ ...tmpl, id: uid() });
 }
