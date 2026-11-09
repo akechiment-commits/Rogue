@@ -437,7 +437,7 @@ function forceLevelUp(p, ml) {
   p.nextExp = Math.floor((p.nextExp || 20) * 1.5);
   adjustPlayerBaseMaxHp(p, 5);
   p.hp = Math.min(p.hp + 10, p.maxHp);
-  p.atk = (p.atk || 1) + 1;
+  p.atk = (p.atk || 1) + ((p.level % 2 === 0) ? 2 : 1);
   if (p.level % 3 === 0) {
     p.def = (p.def || 0) + 1;
     p.maxMp = (p.maxMp || 0) + 1;
