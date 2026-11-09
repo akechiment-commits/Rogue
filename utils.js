@@ -1,4 +1,11 @@
-import { clearStatusEffectsOnHpZero, applyDamageParalysisStep } from "./statusDuration.js";
+import {
+  clearStatusEffectsOnHpZero,
+  applyDamageParalysisStep,
+  installMonsterHpHook,
+  registerPendingDamageStatusEntity,
+  clearPendingDamageStatusEntities,
+  flushPendingDamageStatusMessages,
+} from "./statusDuration.js";
 
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 
@@ -371,7 +378,9 @@ export function destroyItemMimicFloorItem(dg, item) {
 
 /** 化けているアイテムモドキの床アイテムを必ず生成・同期する。 */
 export function ensureItemMimicFloorItems(dg) {
-  if (!dg || !Array.isArray(dg.monsters) || !Array.isArray(dg.items)) return;
+  if (!dg || !Array.isArray(dg.monsters)) return;
+  for (const mon of dg.monsters) installMonsterHpHook(mon);
+  if (!Array.isArray(dg.items)) return;
   const activeIds = new Set();
   for (const mimic of dg.monsters) {
     if (mimic.subtype !== "itemMimic" || mimic._itemMimicDestroyed || mimic.disguisedAsItem === false) continue;
@@ -871,6 +880,7 @@ export function refreshFOV(dg, p) {
    バリアがあれば1回分消費してtrueを返す（呼び出し側はダメージをスキップ）。
    barrier は数値（残り回数）。0 またはfalsy なら無効。 */
 export function consumeBarrier(m, ml) {
+  if (Array.isArray(ml)) installPlayerHpMessageHook(ml);
   /* 封印中はバリア特性も無効 */
   if (!m.barrier || m.sealed) return false;
   m.barrier -= 1;
@@ -980,8 +990,17 @@ function isNullifiedPlayerDamageMessage(message, effect) {
  * プレイヤーHPの直後に追加されるログを、逆転状態の実際の効果に合わせる。
  * ゲーム側の各HP処理を個別に書き換えなくても、既存のログ形式を保ったまま補正できる。
  */
-export function installPlayerHpMessageHook(messages, p) {
-  if (!Array.isArray(messages) || !p || messages._playerHpMessageHook) return messages;
+export function installPlayerHpMessageHook(messages, p = null) {
+  if (!Array.isArray(messages)) return messages;
+  if (p) {
+    Object.defineProperty(messages, "_hookPlayer", {
+      value: p,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
+  }
+  if (messages._playerHpMessageHook) return messages;
   const rawPush = messages.push.bind(messages);
   Object.defineProperty(messages, "_playerHpMessageHook", { value: true, enumerable: false });
   Object.defineProperty(messages, "push", {
@@ -989,10 +1008,11 @@ export function installPlayerHpMessageHook(messages, p) {
     enumerable: false,
     writable: true,
     value: (...items) => {
-      const effect = p._lastHpEffectForMessage;
-      delete p._lastHpEffectForMessage;
-      const guts = p._lastHpGutsTriggered;
-      delete p._lastHpGutsTriggered;
+      const player = messages._hookPlayer;
+      const effect = player?._lastHpEffectForMessage;
+      if (player) delete player._lastHpEffectForMessage;
+      const guts = player?._lastHpGutsTriggered;
+      if (player) delete player._lastHpGutsTriggered;
       let nullificationMessageHandled = false;
       const nextItems = effect
         ? items.map((message) => {
@@ -1000,7 +1020,7 @@ export function installPlayerHpMessageHook(messages, p) {
               if (nullificationMessageHandled || !isNullifiedPlayerDamageMessage(message, effect)) return message;
               nullificationMessageHandled = true;
             }
-            return rewritePlayerHpMessage(message, p, effect);
+            return rewritePlayerHpMessage(message, player, effect);
           })
         : [...items];
       if (effect?.nullified && !nullificationMessageHandled) {
@@ -1009,7 +1029,9 @@ export function installPlayerHpMessageHook(messages, p) {
       if (guts) {
         nextItems.push("しかし根性でHP1で踏みとどまった！");
       }
-      return rawPush(...nextItems);
+      const res = rawPush(...nextItems);
+      flushPendingDamageStatusMessages(messages, rawPush);
+      return res;
     },
   });
   return messages;
@@ -1047,6 +1069,7 @@ export function setPlayerHpForCapacityChange(p, hp) {
  * セーブ後の復元時も呼ぶこと。
  */
 export function installPlayerHpReverseHook(p) {
+  clearPendingDamageStatusEntities();
   if (!p || p._hpReverseHook) return p;
   let raw = Number(p.hp) || 0;
   Object.defineProperty(p, "hp", {
@@ -1076,10 +1099,13 @@ export function installPlayerHpReverseHook(p) {
           if (raw <= 0) {
             clearStatusEffectsOnHpZero(this);
           } else if (raw < prevRaw) {
+            delete this._autoWakeMsgRef;
+            delete this._autoParalysisResolvedHp;
             if ((this.sleepTurns || 0) > 0) {
               this.sleepTurns = 0;
               this.sleepInterruptedTurns = Math.max(this.sleepInterruptedTurns || 0, 1);
               this._pendingSleepWake = true;
+              registerPendingDamageStatusEntity(this);
             }
             applyDamageParalysisStep(this);
           }
@@ -1104,10 +1130,13 @@ export function installPlayerHpReverseHook(p) {
       if (!fixedEffect && next < raw && raw >= (Number(this.maxHp) || raw) && next <= 0 && !isEnemyDamageContext(this)) {
         raw = 1;
         this._lastHpGutsTriggered = true;
+        delete this._autoWakeMsgRef;
+        delete this._autoParalysisResolvedHp;
         if ((this.sleepTurns || 0) > 0) {
           this.sleepTurns = 0;
           this.sleepInterruptedTurns = Math.max(this.sleepInterruptedTurns || 0, 1);
           this._pendingSleepWake = true;
+          registerPendingDamageStatusEntity(this);
         }
         applyDamageParalysisStep(this);
         return;
@@ -1118,10 +1147,13 @@ export function installPlayerHpReverseHook(p) {
       if (raw <= 0) {
         clearStatusEffectsOnHpZero(this);
       } else if (raw < prevRaw) {
+        delete this._autoWakeMsgRef;
+        delete this._autoParalysisResolvedHp;
         if ((this.sleepTurns || 0) > 0) {
           this.sleepTurns = 0;
           this.sleepInterruptedTurns = Math.max(this.sleepInterruptedTurns || 0, 1);
           this._pendingSleepWake = true;
+          registerPendingDamageStatusEntity(this);
         }
         applyDamageParalysisStep(this);
       }

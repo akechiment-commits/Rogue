@@ -1914,7 +1914,12 @@ export function monLevelUp(mon, dg, ml) {
   mon.def    = template.def + armorBreathBonus;
   mon.exp    = template.exp;
   mon.maxHp  = template.hp;
-  mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
+  mon._suppressHpDamageHook = true;
+  try {
+    mon.hp   = Math.max(1, Math.round(template.hp * hpRatio));
+  } finally {
+    delete mon._suppressHpDamageHook;
+  }
   mon.monLevel = nextLevel;
   mon.speed = levelTemplateSpeed(mon, template, nextLevel);
   mon.baseSpeed = mon.speed;
@@ -1958,7 +1963,12 @@ export function monLevelDown(mon, dg, ml) {
   mon.def    = template.def + armorBreathBonus;
   mon.exp    = template.exp;
   mon.maxHp  = template.hp;
-  mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
+  mon._suppressHpDamageHook = true;
+  try {
+    mon.hp   = Math.max(1, Math.round(template.hp * hpRatio));
+  } finally {
+    delete mon._suppressHpDamageHook;
+  }
   mon.monLevel = prevLevel;
   mon.speed = levelTemplateSpeed(mon, template, prevLevel);
   mon.baseSpeed = mon.speed;
@@ -2496,9 +2506,14 @@ export function applyMonsterTransformation(target, definition, _dungeon = null, 
   delete target._gelBoost;
   delete target._gelBaseAtk;
   delete target.atkBuffed;
-  Object.assign(target, definition, {
-    maxHp: definition.hp, baseSpeed: definition.speed ?? 1, turnAccum: 0,
-  });
+  target._suppressHpDamageHook = true;
+  try {
+    Object.assign(target, definition, {
+      maxHp: definition.hp, baseSpeed: definition.speed ?? 1, turnAccum: 0,
+    });
+  } finally {
+    delete target._suppressHpDamageHook;
+  }
   if (target.subtype === "itemMimic") target.disguisedAsItem = false;
   if (_dungeon) ensureItemMimicFloorItems(_dungeon);
   if (_player && _player.capturedBy === target.id && target.subtype !== "grabber" && target.subtype !== "giantEel") {

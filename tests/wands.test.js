@@ -708,4 +708,60 @@ describe("万能の杖", () => {
     expect(yabai.cooked).toBeFalsy();
     expect(yabai.name).toBe("ヤバイ食料");
   });
+
+  it("杖効果がプレイヤーに命中したとき、入口でバリアを消費して無効化する", () => {
+    const localDg = makeEmptyDg();
+    const p = makePlayer({ hp: 100, maxHp: 100, barrier: 2 });
+    const ml = [];
+
+    applyWandEffect("fire_wand", "player", p, 1, 0, localDg, p, ml, noop);
+    expect(p.barrier).toBe(1);
+    expect(p.hp).toBe(100);
+
+    applyWandEffect("slow", "player", p, 1, 0, localDg, p, ml, noop);
+    expect(p.barrier).toBe(0);
+    expect(p.slowTurns || 0).toBe(0);
+    expect(ml.some(m => m.includes("バリアが砕けた"))).toBe(true);
+  });
+
+  it("敵の雷撃（monsterFireLightning）がプレイヤーに命中したときバリアで防ぎ、被弾時は睡眠・金縛りを解除する", () => {
+    const localDg = makeEmptyDg();
+    const p = makePlayer({ x: 7, y: 5, hp: 100, maxHp: 100, barrier: 1, sleepTurns: 4, paralyzeTurns: 5 });
+    const ml = [];
+
+    monsterFireLightning(5, 5, localDg, p, 1, 0, ml, noop, null, "サンダーメイジ");
+    expect(p.barrier).toBe(0);
+    expect(p.hp).toBe(100);
+    expect(p.sleepTurns).toBe(4);
+
+    monsterFireLightning(5, 5, localDg, p, 1, 0, ml, noop, null, "サンダーメイジ");
+    expect(p.hp).toBeLessThan(100);
+    expect(p.sleepTurns).toBe(0);
+    expect(p.sleepInterruptedTurns).toBe(1);
+    expect(p.paralyzeTurns).toBe(0);
+    expect(ml.some(m => m.includes("目が覚めた"))).toBe(true);
+    expect(ml.some(m => m.includes("金縛りが解けた"))).toBe(true);
+  });
+
+  it("呪われた軟化・穴掘りの壁魔法ダメージは魔法無効の敵に効かず、通常敵の仮眠・金縛りを自動解除する", () => {
+    const localDg = makeEmptyDg();
+    const immuneMon = { id: "im1", name: "キラープラスター", x: 6, y: 5, hp: 50, maxHp: 50, magicImmune: true };
+    const sleepMon = { id: "sl1", name: "ゴブリン", x: 6, y: 5, hp: 50, maxHp: 50, dormant: true, paralyzed: true };
+    localDg.monsters.push(immuneMon);
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+
+    fireWandBolt(p, localDg, "soften", 1, 0, ml, noop, null, 0.5);
+    expect(immuneMon.hp).toBe(50);
+    expect(ml.some(m => m.includes("魔法はキラープラスターに効かない"))).toBe(true);
+
+    localDg.monsters = [sleepMon];
+    const ml2 = [];
+    fireWandBolt(p, localDg, "dig", 1, 0, ml2, noop, null, 0.5);
+    expect(sleepMon.hp).toBeLessThan(50);
+    expect(sleepMon.dormant).toBe(false);
+    expect(sleepMon.paralyzed).toBe(false);
+    expect(ml2.some(m => m.includes("目を覚ました"))).toBe(true);
+    expect(ml2.some(m => m.includes("金縛りが解けた"))).toBe(true);
+  });
 });

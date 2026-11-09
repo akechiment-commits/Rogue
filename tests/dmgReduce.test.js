@@ -29,7 +29,8 @@ describe("dmg_reduce (ミスリル被ダメ軽減)", () => {
       const p = makePlayer({ hp, maxHp: 100, armor: { ...MITHRIL_ARMOR_T }, sleepTurns: 3 });
       withEnemyDamageContext(p, () => { p.hp -= damage; });
       expect(p.hp).toBe(expected);
-      expect(p.sleepTurns).toBe(expected > 0 ? 3 : 0);
+      expect(p.sleepTurns).toBe(0);
+      expect(p.sleepInterruptedTurns).toBe(expected > 0 ? 1 : 0);
     },
   );
 

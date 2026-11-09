@@ -25,10 +25,37 @@ export const BOSS_SEAL_TURNS = 20;
 /** ボス金縛りの有限ターン（通常敵は永続＝被ダメ解除） */
 export const BOSS_PARALYZE_TURNS = 50;
 
+const _pendingDamageStatusEntities = new Set();
+let _pendingCleanupScheduled = false;
+let _inStatusMessageFlush = 0;
+
+export function registerPendingDamageStatusEntity(entity) {
+  if (!entity) return;
+  _pendingDamageStatusEntities.add(entity);
+  if (!_pendingCleanupScheduled) {
+    _pendingCleanupScheduled = true;
+    queueMicrotask(() => {
+      _pendingCleanupScheduled = false;
+      _pendingDamageStatusEntities.clear();
+    });
+  }
+}
+
+export function clearPendingDamageStatusEntities() {
+  _pendingDamageStatusEntities.clear();
+}
+
+export function withStatusMessageFlush(fn) {
+  _inStatusMessageFlush++;
+  try { return fn(); }
+  finally { _inStatusMessageFlush--; }
+}
+
 /** プレイヤーへの金縛りを付与する。祝福時の強金縛りは2回分の被弾を要する。 */
 export function applyPlayerParalyze(target, turns, { blessed = false, mode = "set" } = {}) {
   if (!target || !(turns > 0)) return 0;
   delete target._pendingParalysisOutcome;
+  delete target._autoParalysisResolvedHp;
   const wasParalyzed = !!target.paralyzed || (target.paralyzeTurns || 0) > 0;
   const current = target.paralyzeTurns || 0;
   target.paralyzeTurns = mode === "add"
@@ -45,10 +72,12 @@ export function applyPlayerParalyze(target, turns, { blessed = false, mode = "se
 export function applyDamageParalysisStep(entity) {
   if (!entity || entity._inParalysisHit > 0) return false;
   if (!entity.paralyzed && (entity.paralyzeTurns || 0) <= 0) return false;
+  delete entity._autoParalysisResolvedHp;
   if ((entity.paralyzeHits || 0) > 1) {
     entity.paralyzeHits--;
     entity._paralyzeHp = entity.hp;
     entity._pendingParalysisOutcome = { type: "weakened", hp: entity.hp };
+    registerPendingDamageStatusEntity(entity);
     return true;
   }
   entity.paralyzed = false;
@@ -56,21 +85,30 @@ export function applyDamageParalysisStep(entity) {
   entity.paralyzeTurns = 0;
   entity._paralyzeHp = null;
   entity._pendingParalysisOutcome = { type: "cleared", hp: entity.hp };
+  registerPendingDamageStatusEntity(entity);
   return true;
 }
 
 /** 有効な攻撃や効果を受けた時の金縛り解除。強金縛りは2回分を数える。 */
 export function resolveParalysisHit(entity, messages = null, name = null) {
+  if (!entity || entity._inParalysisHit > 0) return false;
+  if (entity._autoParalysisResolvedHp !== undefined && entity._autoParalysisResolvedHp === entity.hp) {
+    delete entity._autoParalysisResolvedHp;
+    return true;
+  }
+  delete entity._autoParalysisResolvedHp;
   const label = name ?? entity?.name ?? "";
   const prefix = label ? `${label}の` : "";
   if (entity?._pendingParalysisOutcome && entity._pendingParalysisOutcome.hp === entity.hp) {
     const outcome = entity._pendingParalysisOutcome.type;
     delete entity._pendingParalysisOutcome;
-    if (outcome === "weakened") {
-      messages?.push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
-    } else {
-      messages?.push(`${prefix}金縛りが解けた！`);
-    }
+    withStatusMessageFlush(() => {
+      if (outcome === "weakened") {
+        messages?.push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
+      } else {
+        messages?.push(`${prefix}金縛りが解けた！`);
+      }
+    });
     return true;
   }
   delete entity?._pendingParalysisOutcome;
@@ -78,15 +116,70 @@ export function resolveParalysisHit(entity, messages = null, name = null) {
   if ((entity.paralyzeHits || 0) > 1) {
     entity.paralyzeHits--;
     entity._paralyzeHp = entity.hp;
-    messages?.push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
+    withStatusMessageFlush(() => {
+      messages?.push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
+    });
     return true;
   }
   entity.paralyzed = false;
   entity.paralyzeHits = 0;
   entity.paralyzeTurns = 0;
   entity._paralyzeHp = null;
-  messages?.push(`${prefix}金縛りが解けた！`);
+  withStatusMessageFlush(() => {
+    messages?.push(`${prefix}金縛りが解けた！`);
+  });
   return true;
+}
+
+/**
+ * HP減少時に保留された睡眠解除・金縛り解除・初期仮眠覚醒のログを自動出力する。
+ * 個別箇所で interruptPlayerSleep / resolveParalysisHit / wakeIfDormant を呼び忘れても
+ * ダメージログ出力時に確実にメッセージと解除が反映される。
+ */
+export function flushPendingDamageStatusMessages(messages, rawPush = null) {
+  if (!Array.isArray(messages) || _inStatusMessageFlush > 0 || _pendingDamageStatusEntities.size === 0) return;
+  const push = rawPush || messages.push.bind(messages);
+  const entities = [..._pendingDamageStatusEntities];
+  _pendingDamageStatusEntities.clear();
+  for (const entity of entities) {
+    if (!entity || (entity.hp ?? 0) <= 0) {
+      if (entity) {
+        delete entity._pendingDormantWake;
+        delete entity._pendingSleepWake;
+        delete entity._pendingParalysisOutcome;
+      }
+      continue;
+    }
+    const isPlayerEntity = !entity.baseKind && !entity.type && entity.inventory !== undefined;
+    if (isPlayerEntity && messages._hookPlayer && entity !== messages._hookPlayer) {
+      continue;
+    }
+    if (entity._pendingDormantWake && entity._pendingDormantWake.hp === entity.hp) {
+      delete entity._pendingDormantWake;
+      if (entity.name) push(`${entity.name}が目を覚ました！`);
+    } else {
+      delete entity._pendingDormantWake;
+    }
+    if (entity._pendingSleepWake) {
+      delete entity._pendingSleepWake;
+      push("衝撃で目が覚めた！");
+      entity._autoWakeMsgRef = { arr: messages, idx: messages.length - 1 };
+    }
+    if (entity._pendingParalysisOutcome && entity._pendingParalysisOutcome.hp === entity.hp) {
+      const outcome = entity._pendingParalysisOutcome.type;
+      delete entity._pendingParalysisOutcome;
+      entity._autoParalysisResolvedHp = entity.hp;
+      const label = entity.name ?? "";
+      const prefix = label ? `${label}の` : "";
+      if (outcome === "weakened") {
+        push(`${prefix}強い金縛りが弱まった！(あと1回で解除)`);
+      } else {
+        push(`${prefix}金縛りが解けた！`);
+      }
+    } else {
+      delete entity._pendingParalysisOutcome;
+    }
+  }
 }
 
 /**
@@ -367,7 +460,10 @@ export function clearStatusEffectsOnHpZero(entity) {
   delete entity._eqSpeedSlowPending;
   delete entity._dashInterrupt;
   delete entity._pendingParalysisOutcome;
+  delete entity._autoParalysisResolvedHp;
   delete entity._pendingSleepWake;
+  delete entity._autoWakeMsgRef;
+  delete entity._pendingDormantWake;
 
   return hadStatus;
 }
@@ -404,11 +500,35 @@ export function installMonsterHpHook(monster) {
         currentHp = nextHp;
       }
       if (currentHp <= 0) {
+        this.dormant = false;
+        this.dormantHouse = false;
+        this._dormantTouched = false;
+        delete this._dormantHp;
         clearStatusEffectsOnHpZero(this);
         return;
       }
       const capacityClamp = Number.isFinite(this.maxHp) && currentHp === this.maxHp && prevHp > this.maxHp;
-      if (currentHp < prevHp && !capacityClamp) {
+      if (currentHp < prevHp && !capacityClamp && !this._suppressHpDamageHook) {
+        delete this._autoParalysisResolvedHp;
+        if (this.dormantHouse || this.dormant) {
+          const sleepingLion = this.subtype === "sleepingLion";
+          if (this.dormantHouse) {
+            this.dormantHouse = false;
+            this.aware = true;
+          }
+          if (this.dormant) {
+            this.dormant = false;
+            this._dormantTouched = false;
+            delete this._dormantHp;
+            if (sleepingLion) this.aware = true;
+          }
+          if (sleepingLion) {
+            this._movedThisTurn = true;
+            this._justWoke = true;
+          }
+          this._pendingDormantWake = { hp: currentHp };
+          registerPendingDamageStatusEntity(this);
+        }
         applyDamageParalysisStep(this);
       }
     },
@@ -443,6 +563,7 @@ export function applyMonsterParalyze(target, { blessed = false, ml = null, name 
   startLargeMonsterStatusCooldown(target, "paralyze");
   installMonsterHpHook(target);
   delete target._pendingParalysisOutcome;
+  delete target._autoParalysisResolvedHp;
   const nm = name || target.name || "敵";
   target.paralyzed = true;
   target._paralyzeHp = target.hp;

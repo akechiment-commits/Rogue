@@ -48,7 +48,17 @@ export function monLevelDown(...args) {
   return requireRuntime("monLevelDown")(...args);
 }
 
+import { withStatusMessageFlush } from "./statusDuration.js";
+
 export function wakeIfDormant(monster, messages) {
+  if (!monster) return;
+  if (monster._pendingDormantWake) {
+    delete monster._pendingDormantWake;
+    withStatusMessageFlush(() => {
+      messages?.push(`${monster.name}が目を覚ました！`);
+    });
+    return;
+  }
   const sleepingLion = monster.subtype === "sleepingLion";
   if (monster.dormantHouse) {
     monster.dormantHouse = false;
@@ -57,7 +67,9 @@ export function wakeIfDormant(monster, messages) {
       monster._movedThisTurn = true;
       monster._justWoke = true;
     }
-    messages.push(`${monster.name}が目を覚ました！`);
+    withStatusMessageFlush(() => {
+      messages?.push(`${monster.name}が目を覚ました！`);
+    });
     return;
   }
   if (!monster.dormant) return;
@@ -69,7 +81,9 @@ export function wakeIfDormant(monster, messages) {
   }
   monster._dormantTouched = false;
   delete monster._dormantHp;
-  messages.push(`${monster.name}が目を覚ました！`);
+  withStatusMessageFlush(() => {
+    messages?.push(`${monster.name}が目を覚ました！`);
+  });
 }
 
 export function resolveMonsterBolt(...args) {

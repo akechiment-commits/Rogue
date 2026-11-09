@@ -1,6 +1,6 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBounds, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties } from "./equipmentEffects.js";
-import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, randomTeleportDest, shuffle, stepProjectile, resolveRuntimeSpawnPoolFloor } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft, declareShopTheft, applyFallImpactDamage,
@@ -21,7 +21,7 @@ import { interruptPlayerSleep } from './turnUpkeep.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue, placeAltarPriest } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
-import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness, monElementDamageMultiplier, monScaleOutgoingDamage } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -79,6 +79,8 @@ function statueTeleportDest(dg, ox, oy, p) {
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null) {
+  if (p) installPlayerHpReverseHook(p);
+  if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   // 敵行動中は Game の罠処理へ渡し、階移動と予約された地雷の即時解決まで行う。
   const _activatePlayerTrap = trap => fireTrapFn
     ? fireTrapFn(trap, p, dg, ml)
@@ -231,6 +233,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     return;
   }
   if (kind === "monster") {
+    installMonsterHpHook(target);
     if (monSubmergesProjectiles(target)) {
       ml.push(`${target.name}が潜って杖の効果をかわした！`);
       return;
@@ -244,6 +247,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       ml.push(`${target.name}は強制移動を受けない！`);
       return;
     }
+  } else if (kind === "player" && p) {
+    if (consumeBarrier(p, ml)) return;
   }
   const _statusVictim = kind === "player" ? p : kind === "monster" ? target : null;
   if (_statusVictim && blMult >= 1 && ["slow", "sleep", "paralyze", "seal", "confuse", "darkness", "bewitch", "soften"].includes(eff) &&
@@ -410,16 +415,28 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
            箱を再度壊さないよう、床から外してからダメージを適用する。 */
         dg.bigboxes = (dg.bigboxes || []).filter(box => box !== target);
         if (_bbHitPlayer) {
-          const _bbDmg = _outgoingDamage(rng(20, 40));
-          p.deathCause = `${target.name}との衝突により`;
-          p.hp -= _bbDmg;
-          ml.push(`${target.name}が${pl()}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
-          interruptPlayerSleep(p, ml);
+          if (!consumeBarrier(p, ml)) {
+            const _bbDmg = _outgoingDamage(rng(20, 40));
+            p.deathCause = `${target.name}との衝突により`;
+            p.hp -= _bbDmg;
+            ml.push(`${target.name}が${pl()}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
+          } else {
+            ml.push(`${target.name}は壊れた！`);
+          }
         } else if (_bbHitMon) {
-          const _bbDmg = _outgoingDamage(rng(20, 40));
-          _bbHitMon.hp -= _bbDmg;
-          ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
-          if (_bbHitMon.hp <= 0) _defeat(_bbHitMon);
+          installMonsterHpHook(_bbHitMon);
+          if (!consumeBarrier(_bbHitMon, ml)) {
+            const _bbDmg = _outgoingDamage(rng(20, 40));
+            _bbHitMon.hp -= _bbDmg;
+            wakeIfDormant(_bbHitMon, ml);
+            resolveParalysisHit(_bbHitMon, ml);
+            ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
+            if (_bbHitMon.hp <= 0) _defeat(_bbHitMon);
+          } else {
+            ml.push(`${target.name}は壊れた！`);
+          }
         }
         breakBigboxContents(target, dg, ml, nameFn, bbx, bby, { player: p, luFn, killerMon, fireTrapFn, sourceIsPlayer, breaker });
         if (_bbHitPlayer || _bbHitMon) {
@@ -2121,15 +2138,22 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
 }
 
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null, bigboxNameFn = null) {
+  if (p) installPlayerHpReverseHook(p);
+  if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   /* 呪われた軟化：1マス先に壊せる壁を生成（穴掘り呪いと同一挙動） */
   if (eff === "soften" && blMult < 1) {
     const wx = p.x + dx, wy = p.y + dy;
     if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && !(p.x === wx && p.y === wy)) {
       const _mon = monsterAt(dg, wx, wy);
       if (_mon) {
-        if (!consumeBarrier(_mon, ml)) {
+        installMonsterHpHook(_mon);
+        wakeIfDormant(_mon, ml);
+        if (monEffectiveMagicImmune(_mon)) {
+          ml.push(`魔法は${_mon.name}に効かない！`);
+        } else if (!consumeBarrier(_mon, ml)) {
           const _dmg = multiplyMagicDamage(rng(5, 15), p?.weapon, _mon, dg);
           _mon.hp -= _dmg;
+          resolveParalysisHit(_mon, ml);
           ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
           if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
         }
@@ -2161,9 +2185,14 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       const creature = dg.monsters?.find((mon) => monsterOccupiesCell(mon, wx, wy));
       if (creature) {
         stopReason = "creature";
-        if (!consumeBarrier(creature, ml)) {
+        installMonsterHpHook(creature);
+        wakeIfDormant(creature, ml);
+        if (monEffectiveMagicImmune(creature)) {
+          ml.push(`魔法は${creature.name}に効かない！`);
+        } else if (!consumeBarrier(creature, ml)) {
           const damage = multiplyMagicDamage(rng(5, 15), p?.weapon, creature, dg);
           creature.hp -= damage;
+          resolveParalysisHit(creature, ml);
           ml.push(`壁の魔法が${creature.name}に${damage}ダメージ！`);
           if (creature.hp <= 0) killMonster(creature, dg, p, ml, luFn);
         }
@@ -2471,6 +2500,8 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
 export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null, blessed = false, fireTrapFn = null) {
+  if (pl) installPlayerHpReverseHook(pl);
+  if (Array.isArray(ml)) installPlayerHpMessageHook(ml, pl);
   const applyEnemyEffect = (kind, target) =>
     applyWandEffect("lightning", kind, target, dx, dy, dg, pl, ml, luFn, bbFn,
       kind === "monster" && blessed ? 2 : 1, nameFn, 0, killerMon, null, false, killerMon, fireTrapFn);
@@ -2484,13 +2515,18 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     _cx = tx; _cy = ty;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
-      if (killerMon && !consumeBarrier(killerMon, ml)) {
-        const _wdmg = monScaleOutgoingDamage(killerMon, multiplyCursedMagicDamage(Math.round(rng(15, 25) * (blessed ? 2 : 1)), killerMon, dg));
-        killerMon.hp -= _wdmg;
-        ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
-        pushLightningAnim(killerMon.x, killerMon.y);
-        if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, killerMon);
-      } else if (!killerMon) {
+      if (killerMon) {
+        installMonsterHpHook(killerMon);
+        wakeIfDormant(killerMon, ml);
+        if (!consumeBarrier(killerMon, ml)) {
+          const _wdmg = monScaleOutgoingDamage(killerMon, multiplyCursedMagicDamage(Math.round(rng(15, 25) * (blessed ? 2 : 1)), killerMon, dg));
+          killerMon.hp -= _wdmg;
+          resolveParalysisHit(killerMon, ml);
+          ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
+          pushLightningAnim(killerMon.x, killerMon.y);
+          if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, killerMon);
+        }
+      } else {
         ml.push("魔法弾は壁に消えた。");
       }
       return;
@@ -2503,11 +2539,14 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       const _hasReflect = hasPlayerMagicReflect(pl);
       if (_hasReflect) {
         ml.push(`${playerMagicReflectLabel(pl)}が雷撃を跳ね返した！`);
-        const _srcMon = monsterAt(dg, cx, cy);
+        const _srcMon = killerMon || monsterAt(dg, cx, cy);
         if (_srcMon) {
+          installMonsterHpHook(_srcMon);
+          wakeIfDormant(_srcMon, ml);
           if (!consumeBarrier(_srcMon, ml)) {
             const _rdmg = monScaleOutgoingDamage(killerMon, multiplyCursedMagicDamage(rng(15, 25), _srcMon, dg));
             _srcMon.hp -= _rdmg;
+            resolveParalysisHit(_srcMon, ml);
             ml.push(`跳ね返った雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
             pushLightningAnim(_srcMon.x, _srcMon.y);
             if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
@@ -2515,6 +2554,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         }
         return;
       }
+      if (consumeBarrier(pl, ml)) return;
       /* ゴムゴムの胴 / 万能耐性: 雷ダメージ半減・所持品破壊を防ぐ */
       const _hasLightRes = hasLightningResist(pl);
       let dmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
@@ -2529,7 +2569,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       } else {
         ml.push("ゴムゴムの胴がアイテムへの雷を弾いた！");
       }
-      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+      interruptPlayerSleep(pl, ml);
       resolveParalysisHit(pl, ml);
       return;
     }
@@ -2537,9 +2577,12 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     if (mon) {
       if (monReflectsMagic(mon) && killerMon) {
         ml.push(`${mon.name}が雷撃を跳ね返した！`);
+        installMonsterHpHook(killerMon);
+        wakeIfDormant(killerMon, ml);
         if (!consumeBarrier(killerMon, ml)) {
           const _rdmg = monScaleOutgoingDamage(mon, multiplyCursedMagicDamage(rng(15, 25), killerMon, dg));
           killerMon.hp -= _rdmg;
+          resolveParalysisHit(killerMon, ml);
           ml.push(`跳ね返った雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, mon);
@@ -2760,25 +2803,33 @@ function _createWandPitfall(dg, cx, cy, p, ml, nameFn = null) {
 }
 
 function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, label, context = {}) {
+  if (p) installPlayerHpReverseHook(p);
+  if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   let dmg = baseDmg;
   if (p.x === cx && p.y === cy) {
+    if (consumeBarrier(p, ml)) return;
     dmg = multiplyCursedMagicDamage(dmg, p, dg);
     p.deathCause = deathCause;
     p.hp -= dmg;
     ml.push(`${label}爆発で${dmg}ダメージ！`);
+    interruptPlayerSleep(p, ml);
+    resolveParalysisHit(p, ml);
     return;
   }
   const mon = monsterAt(dg, cx, cy);
   if (mon) {
+    installMonsterHpHook(mon);
     if (monSubmergesProjectiles(mon)) {
       ml.push(`${mon.name}が潜って杖の爆発をかわした！`);
       return;
     }
+    wakeIfDormant(mon, ml);
     if (consumeBarrier(mon, ml)) return;
     dmg = (context.sourceIsPlayer ?? !context.killerMon)
       ? multiplyMagicDamage(dmg, p?.weapon, mon, dg)
       : multiplyCursedMagicDamage(dmg, mon, dg);
     mon.hp -= dmg;
+    resolveParalysisHit(mon, ml);
     ml.push(`${label}爆発で${mon.name}に${dmg}ダメージ！`);
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, context.killerMon || null);
   }
@@ -2786,6 +2837,8 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
 
 /** 残回数ありの杖が破壊されたとき、指定座標を中心に壊し効果を発動 */
 export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {}) {
+  if (p) installPlayerHpReverseHook(p);
+  if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   const { skipSealCheck = false, singleTargetKind = null, singleTarget = null, effectDx = 0, effectDy = 0 } = opts;
   if (!wand || wand.type !== "wand") return { triggered: false };
   const blMult = wand.blessed ? 2 : wand.cursed ? 0.5 : 1;
@@ -2839,6 +2892,8 @@ export function destroyFloorWand(dg, wand, p, ml, luFn, destroyMsg = null, conte
 }
 
 export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sageContext = {}) {
+  if (p) installPlayerHpReverseHook(p);
+  if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   const cx = center?.x ?? p.x;
   const cy = center?.y ?? p.y;
   const initialDepth = p.depth;
@@ -2875,9 +2930,14 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
         if (wx >= 0 && wx < MW && wy >= 0 && wy < MH) {
           const _mon = monsterAt(dg, wx, wy);
           if (_mon) {
-            if (!consumeBarrier(_mon, ml)) {
+            installMonsterHpHook(_mon);
+            wakeIfDormant(_mon, ml);
+            if (monEffectiveMagicImmune(_mon)) {
+              ml.push(`魔法は${_mon.name}に効かない！`);
+            } else if (!consumeBarrier(_mon, ml)) {
               const _dmg = _breakMagicDamage(rng(5, 15), _mon);
               _mon.hp -= _dmg;
+              resolveParalysisHit(_mon, ml);
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
               if (_mon.hp <= 0) _defeat(_mon);
             }
@@ -2919,9 +2979,14 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
         if (wx >= 0 && wx < MW && wy >= 0 && wy < MH) {
           const _mon = monsterAt(dg, wx, wy);
           if (_mon) {
-            if (!consumeBarrier(_mon, ml)) {
+            installMonsterHpHook(_mon);
+            wakeIfDormant(_mon, ml);
+            if (monEffectiveMagicImmune(_mon)) {
+              ml.push(`魔法は${_mon.name}に効かない！`);
+            } else if (!consumeBarrier(_mon, ml)) {
               const _dmg = _breakMagicDamage(rng(5, 15), _mon);
               _mon.hp -= _dmg;
+              resolveParalysisHit(_mon, ml);
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
               if (_mon.hp <= 0) _defeat(_mon);
             }
@@ -2943,7 +3008,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     const _sfcCenterItems = _floorItemsAt(dg, cx, cy);
     const _sfcEnt = _centerWandTarget(dg, cx, cy, p);
     if (_sfcEnt?.kind === "player") {
-      if (!isStatusImmune(p, ml)) {
+      if (!consumeBarrier(p, ml) && !isStatusImmune(p, ml)) {
         const _ds = statusTurns("defSoftened", { kind: "player", blessed: blMult > 1 });
         p.defSoftenedTurns = (p.defSoftenedTurns || 0) + _ds;
         ml.push(`軟化の杖が壊れた！防御力が半減した！(${_ds}ターン)`);
@@ -3033,9 +3098,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       if (_bm && (!_vsbMax || _bm.hp > _vsbMax.hp)) _vsbMax = _bm;
     }
     if (_vsbMax) {
-      if (!consumeBarrier(_vsbMax, ml)) {
-        _applyBreakEffect(eff, "monster", _vsbMax, 0, 0);
-      }
+      _applyBreakEffect(eff, "monster", _vsbMax, 0, 0);
     } else {
       ml.push("杖が壊れたが周囲にモンスターがいなかった。");
     }
