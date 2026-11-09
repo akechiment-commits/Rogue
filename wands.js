@@ -4,7 +4,7 @@ import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, applyMonsterTransformation, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName, getIdentKey, markItemIdentifiedForDungeon, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft, declareShopTheft, applyFallImpactDamage,
-  killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
+  killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer,
   soakItemIntoSpring, splashPotion, applyPotionEffect, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, withParalysisHit,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
@@ -28,6 +28,8 @@ import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
 import { blockLargeMonsterDamage } from './largeMonsterDamage.js';
+import { beginNpcRetaliation } from './npcRetaliation.js';
+import { triggerMushroomCounterSpore } from './monsterRuntime.js';
 import {
   isFloorOccupancyBlocked,
   pickFreeFloorObjectCell,
@@ -107,6 +109,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     pushPlayerTeleportAnim(_fromX, _fromY, p.x, p.y);
   };
   const _defeat = (victim) => killMonster(victim, dg, p, ml, luFn, false, killerMon);
+  const _angerShopkeeper = (mon) => {
+    if (!mon || mon.hp <= 0) return;
+    if (mon.type === "shopkeeper") {
+      if (killerMon) {
+        beginNpcRetaliation(mon, killerMon, ml);
+      } else if (sourceIsPlayer && p) {
+        markShopkeeperHostileToPlayer(mon, dg, p, ml);
+      }
+    }
+  };
+  const _onMonsterDamaged = (mon) => {
+    if (!mon || mon.hp <= 0) return;
+    triggerMushroomCounterSpore(mon, dg, p, ml);
+    _angerShopkeeper(mon);
+  };
   const _hitYou = (bolt) => sourceIsPlayer ? `${bolt}が自分に命中！` : `${bolt}が命中！`;
   const _wandDeath = (label) => sourceIsPlayer
     ? `${label}の魔法により`
@@ -702,6 +719,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           }
         } else if (target.hp <= 0 && dg.monsters.includes(target)) {
           killMonster(target, dg, p, ml, luFn, false, killerMon);
+        } else if (target.hp > 0 && dg.monsters.includes(target)) {
+          _onMonsterDamaged(target);
         }
         break;
       }
@@ -776,6 +795,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const _lcdmg = _magicDamage(rng(20, 30));
             target.hp -= _lcdmg; ml.push(`${target.name}はアンデッドのため${_lcdmg}ダメージを受けた！【呪】`);
             if (target.hp <= 0) _defeat(target);
+            else _onMonsterDamaged(target);
           } else {
             const _lheal = Math.min(rng(20, 30), target.maxHp - target.hp);
             if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
@@ -801,6 +821,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`雷撃が${target.name}に命中！${_lFinalDmg}ダメージ！${_lWeakMult > 1 ? "雷弱点！" : ""}${_lResist < 1 ? "雷半減！" : ""}`);
         pushLightningAnim(target.x, target.y);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
+        else _onMonsterDamaged(target);
         break;
       }
       if (kind === "player") {
@@ -882,6 +903,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             /* 祝福：金縛りも追加（鈍足杖の祝福なので金縛り自体は通常100T） */
             applyMonsterParalyze(target, { ml });
           }
+          _angerShopkeeper(target);
           break;
         }
         if (kind === "player") {
@@ -971,6 +993,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _ratio = _sfBlessed ? "4分の1" : "半分";
         const _duration = target.isBoss ? `（${target.debuffDefHalfTurns}ターン）` : "";
         ml.push(`軟化の魔法弾が${target.name}に命中！防御力が${_ratio}になった！(${_prevDef}→${target.def})${_duration}`);
+        _angerShopkeeper(target);
         break;
       }
       if (kind === "item") {
@@ -1045,6 +1068,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.x = ox;  target.y = oy;
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
+        _angerShopkeeper(target);
         if (drownMonsterIfNeeded(target, dg, p, ml, luFn, killerMon)) break;
         const landingTile = dg.map[target.y]?.[target.x];
         const canRemainInWall = landingTile === T.WALL && monEffectiveWallWalker(target);
@@ -1056,6 +1080,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             target.hp -= damage;
             ml.push(`${target.name}は壁の中に埋められたが${damage}ダメージを受けた！`);
             if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
           } else {
             ml.push(`${target.name}は壁の中に埋まり消滅した！`);
             _defeat(target);
@@ -1072,6 +1097,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             target.hp -= _bd;
             ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
             if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
             break;
           }
           if (killerMon) {
@@ -1154,6 +1180,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.hp -= dmg;
         ml.push(`穴掘りの魔法弾が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
       }
       if (kind === "player") {
         dmg = _magicDamage(dmg, p);
@@ -1247,7 +1274,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             dg.map[_w1y][_w1x] !== T.WALL && dg.map[_w1y][_w1x] !== T.BWALL &&
             (kind === "monster" ? canPlaceMonsterBody(dg, target, _w1x, _w1y, p) : !monsterAt(dg, _w1x, _w1y)) &&
             !(kind === "monster" && p.x === _w1x && p.y === _w1y)) {
-          if (kind === "monster") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少しだけテレポートした。`); }
+          if (kind === "monster") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少しだけテレポートした。`); _angerShopkeeper(target); }
           else if (kind === "player") { _teleportPlayer(_w1x, _w1y); ml.push("少しだけテレポートした。"); }
           else if (kind === "item") {
             target.x = _w1x; target.y = _w1y;
@@ -1271,6 +1298,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             target.x = stairsX; target.y = stairsY;
             const _pt = applyMonsterParalyze(target, { ml: null });
             ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！${target.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`);
+            _angerShopkeeper(target);
           } else if (kind === "player") {
             const _stOccupied = dg.monsters.some(m => monsterOccupiesCell(m, stairsX, stairsY));
             if (_stOccupied) {
@@ -1386,7 +1414,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       const dest = randomTeleportDest(dg, _warpOx, _warpOy, (x, y) => kind === "monster" ? canPlaceMonsterBody(dg, target, x, y, p) : !monsterAt(dg, x, y));
       if (!dest) { ml.push("テレポートに失敗した。"); break; }
-      if (kind === "monster") { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへテレポートした！`); }
+      if (kind === "monster") { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへテレポートした！`); _angerShopkeeper(target); }
       if (kind === "player")  { _teleportPlayer(dest.x, dest.y); ml.push("テレポートした！"); }
       if (kind === "item") {
         target.x = dest.x; target.y = dest.y;
@@ -1416,6 +1444,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
         applyMonsterParalyze(target, { blessed: _pzBlessed, ml });
+        _angerShopkeeper(target);
         break;
       }
       if (kind === "player") {
@@ -1461,6 +1490,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const st = statusTurns("sleep", { kind: "monster", blessed: _slBlessed, target });
         target.sleepTurns = (target.sleepTurns || 0) + st;
         ml.push(`${target.name}は眠りに落ちた！(${st}ターン)${_slBlessed ? "【祝=強眠】" : ""}`);
+        _angerShopkeeper(target);
         break;
       }
       if (kind === "player") {
@@ -1504,6 +1534,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const _at = applyAttackSeal(target, { kind: "monster", target });
             ml.push(`さらに${target.name}は攻撃封印になった！(${_at}ターン)(祝福)`);
           }
+          _angerShopkeeper(target);
           break;
         }
         if (kind === "player") {
@@ -1564,6 +1595,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.kind === "undead") {
             target.hp -= _bh; ml.push(`${target.name}はアンデッドのため${_bh}ダメージを受けた！`);
             if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
           } else {
             target.hp = Math.min(target.maxHp, target.hp + _bh);
             ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！${_bwBlessed ? "（祝福）" : ""}`);
@@ -1637,6 +1669,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.kind === "undead") {
             target.hp -= _ch; ml.push(`${target.name}はアンデッドのため${_ch}ダメージを受けた！`);
             if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
           } else {
             target.hp = Math.min(target.maxHp, target.hp + _ch);
             ml.push(`${target.name}は呪いの魔法で回復した！${_ch}HP【呪→回復】`);
@@ -1700,6 +1733,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _cfTurns = statusTurns("confuse", { kind: "monster", blessed: _cfBlessed, target });
         target.confusedTurns = (target.confusedTurns || 0) + _cfTurns;
         ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${_cfBlessed ? "【祝=強混乱】" : ""}`);
+        _angerShopkeeper(target);
         break;
       }
       if (kind === "player") {
@@ -1740,6 +1774,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (applyMonsterDarkness(target, _dkBaseTurns, ml) > 0) {
           ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dkBaseTurns) ? "(永続)" : `(${_dkBaseTurns}ターン)`}`);
         }
+        _angerShopkeeper(target);
         break;
       }
       if (kind === "player") {
@@ -1776,6 +1811,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (applyMonsterBewitch(target, _bwBaseTurns, ml) > 0) {
           ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bwBaseTurns) ? "(永続)" : `(${_bwBaseTurns}ターン)`}`);
         }
+        _angerShopkeeper(target);
         break;
       }
       if (kind === "player") {
@@ -1836,6 +1872,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const _fwcd = _magicDamage(rng(20, 30));
             target.hp -= _fwcd; ml.push(`${target.name}はアンデッドのため${_fwcd}ダメージを受けた！【呪】`);
             if (target.hp <= 0) _defeat(target);
+            else _onMonsterDamaged(target);
           } else {
             const _fwh = Math.min(rng(20, 30), target.maxHp - target.hp);
             if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
@@ -1866,6 +1903,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.hp -= _fwDmg;
         ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
         break;
       }
       if (kind === "player") {
@@ -1947,6 +1985,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const _iwd = _magicDamage(rng(15, 25));
             target.hp -= _iwd; ml.push(`${target.name}はアンデッドのため${_iwd}ダメージを受けた！【呪】`);
             if (target.hp <= 0) _defeat(target);
+            else _onMonsterDamaged(target);
           } else {
             const _iwh = Math.min(rng(15, 25), target.maxHp - target.hp);
             if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
@@ -1979,6 +2018,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwIceMult>1 ? "氷弱点×2！" : ""}${_iwResist < 1 ? "氷半減！" : ""}`);
         }
         if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
         break;
       }
       if (kind === "player") {
@@ -2026,6 +2066,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.hp -= _gsDmg;
         ml.push(`ゴッドスパーク炸裂！${target.name}に${_gsDmg}ダメージ！${_gsBlessed ? "【祝】" : ""}`);
         if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
         break;
       }
       if (kind === "player") {
@@ -2106,6 +2147,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           setPlayerHpForFixedEffect(p, Math.min(p.maxHp, _bossDmg));
           ml.push(`${target.name}は体力交換を跳ね返した！${_bossDmg}ダメージ！プレイヤーのHPが${_oldPlayerHp}→${p.hp}になった！`);
           if (target.hp <= 0) _defeat(target);
+        else _onMonsterDamaged(target);
           break;
         }
         const _pOldHp = p.hp;
@@ -2155,7 +2197,12 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           _mon.hp -= _dmg;
           resolveParalysisHit(_mon, ml);
           ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-          if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+          if (_mon.hp <= 0) {
+            killMonster(_mon, dg, p, ml, luFn);
+          } else {
+            triggerMushroomCounterSpore(_mon, dg, p, ml);
+            if (_mon.type === "shopkeeper" && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
+          }
         }
       } else if (dg.map[wy][wx] === T.FLOOR) {
         dg.map[wy][wx] = T.BWALL;
@@ -2194,7 +2241,12 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           creature.hp -= damage;
           resolveParalysisHit(creature, ml);
           ml.push(`壁の魔法が${creature.name}に${damage}ダメージ！`);
-          if (creature.hp <= 0) killMonster(creature, dg, p, ml, luFn);
+          if (creature.hp <= 0) {
+            killMonster(creature, dg, p, ml, luFn);
+          } else {
+            triggerMushroomCounterSpore(creature, dg, p, ml);
+            if (creature.type === "shopkeeper" && p) markShopkeeperHostileToPlayer(creature, dg, p, ml);
+          }
         }
         break;
       }
@@ -2525,6 +2577,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, killerMon);
+          else triggerMushroomCounterSpore(killerMon, dg, pl, ml);
         }
       } else {
         ml.push("魔法弾は壁に消えた。");
@@ -2550,6 +2603,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
             ml.push(`跳ね返った雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
             pushLightningAnim(_srcMon.x, _srcMon.y);
             if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
+            else triggerMushroomCounterSpore(_srcMon, dg, pl, ml);
           }
         }
         return;
@@ -2586,6 +2640,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           ml.push(`跳ね返った雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, mon);
+          else triggerMushroomCounterSpore(killerMon, dg, pl, ml);
         }
       } else {
         applyEnemyEffect("monster", mon);
@@ -2831,7 +2886,18 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
     mon.hp -= dmg;
     resolveParalysisHit(mon, ml);
     ml.push(`${label}爆発で${mon.name}に${dmg}ダメージ！`);
-    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, context.killerMon || null);
+    if (mon.hp <= 0) {
+      killMonster(mon, dg, p, ml, luFn, false, context.killerMon || null);
+    } else {
+      triggerMushroomCounterSpore(mon, dg, p, ml);
+      if (mon.type === "shopkeeper") {
+        if (context.killerMon) {
+          beginNpcRetaliation(mon, context.killerMon, ml);
+        } else if ((context.sourceIsPlayer ?? !context.killerMon) && p) {
+          markShopkeeperHostileToPlayer(mon, dg, p, ml);
+        }
+      }
+    }
   }
 }
 
@@ -2939,7 +3005,15 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
               _mon.hp -= _dmg;
               resolveParalysisHit(_mon, ml);
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-              if (_mon.hp <= 0) _defeat(_mon);
+              if (_mon.hp <= 0) {
+                _defeat(_mon);
+              } else {
+                triggerMushroomCounterSpore(_mon, dg, p, ml);
+                if (_mon.type === "shopkeeper") {
+                  if (killerMon) beginNpcRetaliation(_mon, killerMon, ml);
+                  else if (sourceIsPlayer && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
+                }
+              }
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
@@ -2988,7 +3062,15 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
               _mon.hp -= _dmg;
               resolveParalysisHit(_mon, ml);
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-              if (_mon.hp <= 0) _defeat(_mon);
+              if (_mon.hp <= 0) {
+                _defeat(_mon);
+              } else {
+                triggerMushroomCounterSpore(_mon, dg, p, ml);
+                if (_mon.type === "shopkeeper") {
+                  if (killerMon) beginNpcRetaliation(_mon, killerMon, ml);
+                  else if (sourceIsPlayer && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
+                }
+              }
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
