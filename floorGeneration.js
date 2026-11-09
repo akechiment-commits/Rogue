@@ -6,7 +6,7 @@ export function generateSessionFloor(session, depth, { pitfall = false, sourceDe
   const maxDepth = session?.maxDepth ?? null;
   const treasure = pitfall && maxDepth !== null && sourceDepth >= maxDepth && depth > sourceDepth;
   let floor;
-  if (treasure) floor = genTreasureRoom(sourceDepth, dungeonType);
+  if (treasure) floor = genTreasureRoom(Math.max(0, sourceDepth - 1), dungeonType);
   else if (dungeonType === "tutorial") {
     const mobile = typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) < 700;
     floor = genTutorialFloor(depth, { mobile });
