@@ -2974,7 +2974,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       };
       /* 催眠中はキー入力を受け付けず、自動実行される強制行動を待つ。 */
       if ((p.hypnosisPending || 0) > 0) return;
-      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || (p.petrifiedTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
+      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || (p.petrifiedTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0 || (p.vomitStunTurns || 0) > 0) return;
       if (type === "inventory") {
         setSpellListMode(false);
         setShowInv((v) => {
