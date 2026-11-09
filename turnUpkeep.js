@@ -28,7 +28,8 @@ export function advancePlayerUpkeep(player, messages, {
     player.hunger = Math.max(0, player.hunger - 1);
   }
 
-  if (shouldVomit(player)) {
+  /* 既にHP0以下（死亡確定）のプレイヤーは嘔吐・空腹で死因を上書きしない。 */
+  if (player.hp > 0 && shouldVomit(player)) {
     applyPlayerVomit(player, messages, { hungerLoss: DRUNK_VOMIT_HUNGER_LOSS, causePrefix: "酩酊して" });
   }
 
@@ -38,7 +39,7 @@ export function advancePlayerUpkeep(player, messages, {
     if (heal > 0) player.hp += heal;
   }
 
-  if (player.hunger === 0) {
+  if (player.hunger === 0 && player.hp > 0) {
     player.deathCause = "空腹により";
     if (!player._hungerDmgStarted) {
       player._hungerDmgStarted = true;

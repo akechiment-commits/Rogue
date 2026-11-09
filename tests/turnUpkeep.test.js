@@ -150,6 +150,20 @@ describe("advancePlayerUpkeep", () => {
     expect(player.hp).toBe(74);
   });
 
+  it("既に死亡したプレイヤーは空腹で死因を上書きされず、HPも減らない", () => {
+    const player = makePlayer({ hp: 0, hunger: 0, deathCause: "呪われた回復薬を飲んで" });
+    advance(player);
+    expect(player.deathCause).toBe("呪われた回復薬を飲んで");
+    expect(player.hp).toBe(0);
+  });
+
+  it("空腹0で生存中なら従来どおり空腹で死因が付く", () => {
+    const player = makePlayer({ hp: 1, hunger: 0 });
+    advance(player);
+    expect(player.hp).toBe(0);
+    expect(player.deathCause).toBe("空腹により");
+  });
+
   it("大食い武器の2倍は空腹レート側で扱い、upkeepは追加で空腹度を減らさない", () => {
     const player = makePlayer({ turns: 4, hunger: 20, weapon: { ability: "gluttony" } });
     advance(player);
@@ -479,3 +493,4 @@ describe("advanceEarlyStatusTimers", () => {
     expect(messages).toEqual(["毒に冒されている！1ダメージ！", "毒の効果が切れた。攻撃力の低下は残っている..."]);
   });
 });
+
