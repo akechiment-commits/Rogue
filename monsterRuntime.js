@@ -103,5 +103,5 @@ export function monsterFireDamageLabel(...args) {
 }
 
 export function triggerMushroomCounterSpore(...args) {
-  return requireRuntime("triggerMushroomCounterSpore")(...args);
+  return runtime?.triggerMushroomCounterSpore?.(...args) ?? false;
 }

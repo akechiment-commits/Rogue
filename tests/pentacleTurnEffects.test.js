@@ -349,4 +349,45 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     expect(messages).toContain("石飛ばしの魔方陣の魔法の石がミラーゴーレムに弾き返された！");
     expect(messages).toContain("魔法の石が魔方陣の周辺に落ちた。");
   });
+
+  it("石飛ばし・回復の魔方陣のダメージで睡眠・金縛り・仮眠を解除し店主を敵対化させる", () => {
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", x: 2, y: 2 };
+    const shopkeeper = {
+      name: "店主",
+      type: "shopkeeper",
+      friendly: true,
+      dormant: true,
+      paralyzed: true,
+      paralyzeTurns: 2,
+      x: 3,
+      y: 2,
+      hp: 30,
+      maxHp: 30,
+    };
+    const dg = dungeon({ pentacles: [pc], monsters: [shopkeeper] });
+    const player = { x: 2, y: 2, hp: 30, maxHp: 30, sleepTurns: 3, paralyzeTurns: 2, paralyzeHits: 2 };
+    const messages = [];
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dg,
+      player,
+      messages,
+      effectDeps({ random: () => 0, pick: (values) => values.find((t) => t.kind === "player") }),
+    );
+    expect(player.sleepTurns).toBe(0);
+    expect(player.paralyzeHits).toBe(1);
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dg,
+      player,
+      messages,
+      effectDeps({ random: () => 0, pick: (values) => values.find((t) => t.monster === shopkeeper) }),
+    );
+    expect(shopkeeper.dormant).toBe(false);
+    expect(shopkeeper.paralyzed).toBe(false);
+    expect(shopkeeper.state).toBe("hostile");
+    expect(messages).toContain("店主が怒った！");
+  });
 });

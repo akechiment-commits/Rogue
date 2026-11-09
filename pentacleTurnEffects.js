@@ -6,7 +6,10 @@ import { consumeBarrier, getDodgePentacleMode, isEvasionDisabledByStatus } from 
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
  */
 import { pl } from "./playerLabel.js";
-import { resolveParalysisHit } from "./statusDuration.js";
+import { resolveParalysisHit, installMonsterHpHook } from "./statusDuration.js";
+import { interruptPlayerSleep } from "./turnUpkeep.js";
+import { wakeIfDormant, triggerMushroomCounterSpore } from "./monsterRuntime.js";
+import { markShopkeeperHostileToPlayer } from "./items.js";
 
 export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messages, deps) {
   const {
@@ -96,6 +99,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   onMonsterDefeated,
 }) {
   if (pc.kind !== "stone_throw" && pc.kind !== "heal_aura") return;
+  for (const m of dungeon?.monsters || []) installMonsterHpHook(m);
 
   /* ラクガキ魔系が描いた魔方陣は、所有者が残っている時だけ撃破の帰属を付ける。 */
   const painter = pc.painterId == null
@@ -137,6 +141,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
         player.deathCause = `${pc.name}の呪いにより`;
         player.hp -= damage;
         messages.push(`${pc.name}の呪いで${damage}ダメージを受けた！`);
+        interruptPlayerSleep(player, messages);
         resolveParalysisHit(player, messages);
       } else {
         const heal = Math.min(amount, player.maxHp - player.hp);
@@ -152,10 +157,14 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
         const multiplier = inCursedMagicSealRoom(monster.x, monster.y, dungeon) ? 2 : 1;
         const damage = amount * multiplier;
         monster.hp -= damage;
+        wakeIfDormant(monster, messages);
+        resolveParalysisHit(monster, messages);
         messages.push(`${pc.name}の呪いで${monster.name}が${damage}ダメージを受けた！`);
         if (monster.hp <= 0) notifyMonsterDefeated(monster);
       } else if (monster.kind === "undead") {
         monster.hp -= amount;
+        wakeIfDormant(monster, messages);
+        resolveParalysisHit(monster, messages);
         messages.push(`${pc.name}の回復力が${monster.name}を傷つけた！${amount}ダメージ！(アンデッド)`);
         if (monster.hp <= 0) notifyMonsterDefeated(monster, { noBone: true });
       } else {
@@ -239,7 +248,13 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
         return;
       }
       targetMonster.hp -= baseAmount;
+      wakeIfDormant(targetMonster, messages);
+      resolveParalysisHit(targetMonster, messages);
+      if (pc.painterId == null && targetMonster.type === "shopkeeper") {
+        markShopkeeperHostileToPlayer(targetMonster, dungeon, player, messages);
+      }
       messages.push(`${pc.name}の魔法の石が${targetMonster.name}に当たった！${baseAmount}ダメージ！(アンデッド)`);
+      triggerMushroomCounterSpore(targetMonster, dungeon, player, messages);
       if (targetMonster.hp <= 0) notifyMonsterDefeated(targetMonster, { noBone: true });
     } else {
       const heal = Math.min(baseAmount, targetMonster.maxHp - targetMonster.hp);
@@ -261,6 +276,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
     player.deathCause = `${pc.name}の魔法の石により`;
     player.hp -= damage;
     messages.push(`${pc.name}の魔法の石が${pl()}に当たった！${damage}ダメージ！`);
+    interruptPlayerSleep(player, messages);
     resolveParalysisHit(player, messages);
     return;
   }
@@ -291,6 +307,12 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   }
 
   targetMonster.hp -= damage;
+  wakeIfDormant(targetMonster, messages);
+  resolveParalysisHit(targetMonster, messages);
+  if (pc.painterId == null && targetMonster.type === "shopkeeper") {
+    markShopkeeperHostileToPlayer(targetMonster, dungeon, player, messages);
+  }
   messages.push(`${pc.name}の魔法の石が${targetMonster.name}に当たった！${damage}ダメージ！`);
+  triggerMushroomCounterSpore(targetMonster, dungeon, player, messages);
   if (targetMonster.hp <= 0) notifyMonsterDefeated(targetMonster);
 }
