@@ -160,6 +160,7 @@ describe("clearStatusEffectsOnHpZero", () => {
       atkDebuffTurns: 5,
       defDebuffTurns: 6,
       potConfinedTurns: 2,
+      vomitStunTurns: 1,
       hypnosisPending: 1,
       mpSealTurns: 1000,
     };
@@ -186,6 +187,7 @@ describe("clearStatusEffectsOnHpZero", () => {
       atkDebuffTurns: 0,
       defDebuffTurns: 0,
       potConfinedTurns: 0,
+      vomitStunTurns: 0,
       hypnosisPending: 0,
       mpSealTurns: 1000,
     });
