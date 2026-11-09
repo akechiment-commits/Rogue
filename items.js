@@ -4935,7 +4935,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   const scaledPotionTurns = (turns) => Math.max(1, Math.floor(turns * effectScale));
   const scaledPotionAmount = (amount, minimum = 1) => Math.max(minimum, Math.floor(amount * effectScale));
   const weakDiscreteEffect = () => !weakEffect || Math.random() < effectScale;
-  if (kind === "monster") wakeIfDormant(target, ml);
+  if (kind === "monster") {
+    installMonsterHpHook(target);
+    wakeIfDormant(target, ml);
+  }
   if (kind === "monster" && monHasFlameMantle(target) && eff !== "water" && eff !== "fire") {
     ml.push(`${target.name}は炎をまとっていて、薬の効果が蒸発した！`);
     return;
@@ -5770,8 +5773,23 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       /* 未登録の effect が渡された場合は警告 (items.js ITEMS への追加を忘れずに) */
       console.warn(`[applyPotionEffect] 未登録の effect: "${eff}" — applyPotionEffect の switch に case を追加してください`);
   }
-  if (kind === "monster" && Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
-    calmShopkeeperIfFullyHealed(target, dg, p, ml);
+  if (kind === "monster") {
+    if (Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
+      calmShopkeeperIfFullyHealed(target, dg, p, ml);
+    } else if (Number.isFinite(_beforeMonsterHp) && target.hp < _beforeMonsterHp && target.hp > 0) {
+      triggerMushroomCounterSpore(target, dg, p, ml);
+      if (target.type === "shopkeeper") {
+        if (killerMon) beginNpcRetaliation(target, killerMon, ml);
+        else if (p) markShopkeeperHostileToPlayer(target, dg, p, ml);
+      }
+    } else if (target.type === "shopkeeper" && target.hp > 0) {
+      const isHarmfulStatus = (!cursed && ["sleep", "slow", "confuse", "darkness", "bewitch", "seal", "paralyze", "sake", "poison", "fire"].includes(eff)) ||
+        (cursed && ["power", "levelup", "doping", "panacea", "heal", "heal_big", "superheal"].includes(eff));
+      if (isHarmfulStatus) {
+        if (killerMon) beginNpcRetaliation(target, killerMon, ml);
+        else if (p) markShopkeeperHostileToPlayer(target, dg, p, ml);
+      }
+    }
   }
 }
 
