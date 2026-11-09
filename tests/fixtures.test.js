@@ -85,6 +85,19 @@ describe("偽階段", () => {
     }
   });
 
+  it("祭壇は渡した既存配列へ push せず、新規分だけを返す（二重登録しない）", () => {
+    const map = Array.from({ length: 20 }, () => Array(20).fill(T.FLOOR));
+    const rooms = [{ x: 1, y: 1, w: 18, h: 18 }];
+    let sawAltar = false;
+    for (let i = 0; i < 30; i++) {
+      const existing = [];
+      const g = scatterFloorGimmicks(map, rooms, 3, { dungeonType: "normal", altarRate: 1, altars: existing });
+      expect(existing).toHaveLength(0);
+      expect(g.altars.length).toBeLessThanOrEqual(1);
+      if (g.altars.length === 1) sawAltar = true;
+    }
+    expect(sawAltar).toBe(true);
+  });
   it("偽階段はB16F相当のdepth=15から生成される", () => {
     const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
     const rooms = [{ x: 1, y: 1, w: 8, h: 8 }];

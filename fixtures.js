@@ -480,6 +480,8 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   const statues = [];
   const addedTraps = [];
   const addedPentacles = [];
+  /* 引数の altars（既存）へは push しない。新規分だけを返し、呼び出し側が追加する（二重登録の防止）。 */
+  const addedAltars = [];
 
   const blocked = (x, y) => {
     if (map[y]?.[x] !== T.FLOOR) return true;
@@ -493,6 +495,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     if (addedPentacles.some((pc) => pc.x === x && pc.y === y)) return true;
     if (vents.some((v) => v.x === x && v.y === y)) return true;
     if (altars.some((a) => a.x === x && a.y === y)) return true;
+    if (addedAltars.some((a) => a.x === x && a.y === y)) return true;
     if (statues.some((s) => s.x === x && s.y === y)) return true;
     /* 偽階段などは未看破時もアイテムと重ならないようにする */
     if (items.some((it) => it.x === x && it.y === y)) return true;
@@ -549,7 +552,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   for (let i = 0; i < altarN; i++) {
     const p = rndFloor();
     if (!p) break;
-    altars.push(makeAltar(p[0], p[1]));
+    addedAltars.push(makeAltar(p[0], p[1]));
   }
 
   /* 固定転送ペア 0〜1 */
@@ -562,5 +565,5 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     }
   }
 
-  return { vents, statues, altars, traps: addedTraps, pentacles: addedPentacles };
+  return { vents, statues, altars: addedAltars, traps: addedTraps, pentacles: addedPentacles };
 }
