@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { mireuHyperthermicBreath, mireuSpikeFlail } from "../mireu.js";
 import { hexachromaticFireBreath, hexachromaticEarthquake } from "../hexachromatic.js";
@@ -6,6 +6,13 @@ import { castShinryuLightning } from "../omegaShinryu.js";
 import "../monsters.js"; // register runtime
 
 describe("Boss monster attacks against other monsters: barrier, fixed damage, spore, dormant", () => {
+  beforeEach(() => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it("mireuHyperthermicBreath hitting mushroom triggers counter spore, wakes dormant, clamps fixed damage", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 10, y: 5 });
