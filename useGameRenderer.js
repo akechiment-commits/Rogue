@@ -913,7 +913,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       /* PC: ウィンドウ高さからUI固定要素（statsバー+メッセージ欄+padding+border）を引いて計算 */
       const uiH = 180; /* stats ~50px, msg 70px, padding/border ~60px */
       const availH = window.innerHeight - uiH;
-      vh = Math.max(10, Math.floor(availH / sz));
+      vh = Math.max(10, Math.min(Math.floor(availH / sz), MH));
     } else {
       vh = VH_L; /* mobile landscape */
     }
