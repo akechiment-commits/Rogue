@@ -8441,7 +8441,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       return;
     } finally {
-      if (m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] && summonGwenMonster(m, dg, pl, ml)) {
+      if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] && summonGwenMonster(m, dg, pl, ml)) {
         m.gwenVisibleTurns = 0;
       }
       if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {
