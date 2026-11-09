@@ -6358,7 +6358,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs((prev) => [...prev.slice(-80), "持ち物がいっぱいだ！"]);
       return;
     }
-    const price = Math.max(1, itemPrice(item));
+    const price = Math.max(1, calcShopBuyPrice(p, itemPrice(item)));
     if (p.gold < price) {
       setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
       return;

@@ -8,7 +8,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
-import { makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, KATANA_T, MURAMASA_T, SILVER_AXE_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, clearShopItemTags, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
+import { calcShopBuyPrice, makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, KATANA_T, MURAMASA_T, SILVER_AXE_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, clearShopItemTags, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
 import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T, releaseConfinedMonstersFromPot } from "./items.js";
 import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
@@ -3438,7 +3438,7 @@ export function MerchantModal({ mode, setMode, gs, merchantRef, menuSel, setMenu
       ...pageItems.map((entry) => {
         const item = mode === "buy" ? entry : entry.item;
         return {
-          label: `${dname(item)}　${Math.max(1, mode === "buy" ? itemPrice(item) : Math.ceil(itemPrice(item) * 0.5))}G`,
+          label: `${dname(item)}　${Math.max(1, mode === "buy" ? calcShopBuyPrice(p, itemPrice(item)) : Math.ceil(itemPrice(item) * 0.5))}G`,
         };
       }),
       ...(currentPage === totalPages - 1 ? [{ label: "戻る" }] : []),
