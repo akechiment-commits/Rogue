@@ -3,7 +3,7 @@ import { monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
 import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { releaseInvalidCapture } from "./captureRules.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
-import { reducePotCapacity } from "./items.js";
+import { reducePotCapacity, addFoodHunger } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { dungeonScoreLabel } from "./adventureScores.js";
@@ -5701,8 +5701,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push("生命力が満ちてきた。最大HP+3");
     } else if (r < 0.39) {
       // 満腹度回復
-      p.hunger = Math.min(p.maxHunger, p.hunger + 20);
-      if (p.hunger > 0) delete p._hungerDmgStarted;
+      addFoodHunger(p, 20);
       ml.push("喉が潤った。");
     } else if (r < 0.45) {
       // MP回復
