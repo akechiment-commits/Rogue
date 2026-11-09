@@ -11043,7 +11043,7 @@ export function multiplyMagicDamage(amount, weapon, target = null, dg = null) {
 
 /* 力・守り・命の指輪は、生成時に必ず＋1〜3を持つ。 */
 export function applyGeneratedRingPlus(item, randomFn = Math.random) {
-  if (item?.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect) && (item.plus || 0) < 1) {
+  if (item?.type === "ring" && ["power_ring", "defense_ring", "life_ring", "niebelung_ring"].includes(item.effect) && (item.plus || 0) < 1) {
     item.plus = rng(1, 3, randomFn);
   }
   return item;
