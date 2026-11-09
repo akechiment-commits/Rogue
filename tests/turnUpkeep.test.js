@@ -320,11 +320,25 @@ describe("advanceForcedTurn", () => {
     expect(messages.some((message) => message.includes("酩酊して嘔吐した"))).toBe(true);
   });
 
+  it("壺閉じ込め持続10ターンは10回の強制スキップを経て脱出する", () => {
+    const confined = makePlayer({ potConfinedTurns: 10 });
+    let count = 0;
+    while (confined.potConfinedTurns > 0) {
+      count++;
+      const res = advanceForcedTurn(confined, []);
+      if (res.exitPotAfterTurn) {
+        confined.potConfinedTurns = 0;
+        break;
+      }
+    }
+    expect(count).toBe(10);
+  });
+
   it("壺の最終ターンは敵行動後の脱出を要求し、鈍足の種類を引き継ぐ", () => {
     const confined = makePlayer({ potConfinedTurns: 1 });
     const potMessages = [];
     expect(advanceForcedTurn(confined, potMessages)).toEqual({ advanced: true, exitPotAfterTurn: true });
-    expect(confined.potConfinedTurns).toBe(1);
+    expect(confined.potConfinedTurns).toBe(0);
     expect(potMessages).toEqual(["壺から出られない！"]);
 
     const slowed = makePlayer({ slowSkip: true, _eqSpeedSlowPending: true });

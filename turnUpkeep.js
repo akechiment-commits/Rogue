@@ -219,8 +219,8 @@ export function advanceForcedTurn(player, messages) {
   }
   if ((player.potConfinedTurns || 0) > 0) {
     messages.push("壺から出られない！");
-    if (player.potConfinedTurns > 1) player.potConfinedTurns--;
-    return { advanced: true, exitPotAfterTurn: player.potConfinedTurns === 1 };
+    player.potConfinedTurns--;
+    return { advanced: true, exitPotAfterTurn: player.potConfinedTurns === 0 };
   }
   if ((player.vomitStunTurns || 0) > 0) {
     player.vomitStunTurns--;
