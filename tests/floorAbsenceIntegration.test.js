@@ -7,10 +7,14 @@ import { generateSessionFloor } from "../floorGeneration.js";
 import { synchronizeFloorArrival } from "../floorArrival.js";
 import { declareFloorExitTheft } from "../items.js";
 import { markBigboxKindIdentified } from "../GameHelpers.js";
+import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "../monsterGeometry.js";
+import { statueAt } from "../fixtures.js";
+import { T, MW, MH } from "../dungeon.js";
 
 // Reactを起動せず、本体の階移動コールバックそのものを実行する。
 function changeFloorFor(state) {
   const source = fs.readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
+  const helperStart = source.indexOf("function findStairArrivalRelocateCell");
   const start = source.indexOf("  const chgFloor = useCallback(");
   const end = source.indexOf("  const withPitfallBag", start);
   const deps = {
@@ -18,8 +22,12 @@ function changeFloorFor(state) {
     generateSessionFloor, synchronizeFloorArrival, declareFloorExitTheft,
     setDungeonAllBcKnown: () => {}, ensureStairsPresent: () => {}, markBigboxKindIdentified,
     refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, rng: low => low,
+    monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody, statueAt, T, MW, MH,
   };
-  return new Function(...Object.keys(deps), `${source.slice(start, end)}; return chgFloor;`)(...Object.values(deps));
+  const helperEnd = helperStart >= 0 ? source.indexOf("\n}\n", helperStart) : -1;
+  const helperCode = helperEnd >= 0 ? source.slice(helperStart, helperEnd + 3) : "";
+  const code = helperCode + source.slice(start, end);
+  return new Function(...Object.keys(deps), `${code}; return chgFloor;`)(...Object.values(deps));
 }
 
 describe("階移動と不在処理の接続", () => {
