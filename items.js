@@ -31,7 +31,7 @@ import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
+import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyMonsterFlameMantle, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
 import { isYogurtImmune } from './statusImmunity.js';
 import { rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
 import {
@@ -2282,6 +2282,14 @@ function fireBreakFloorPotion(item, x, y, dg, p, ml, luFn, nameFn = null, killer
   return true;
 }
 
+function applyExplosionFlameMantle(dg, cx, cy, radius, ml) {
+  for (const monster of dg.monsters || []) {
+    if (monster.baseKind === "firedemon" || (monster.hp ?? 1) <= 0) continue;
+    if (Math.max(Math.abs(monster.x - cx), Math.abs(monster.y - cy)) > radius) continue;
+    applyMonsterFlameMantle(monster, ml);
+  }
+}
+
 /** 爆発範囲内の地雷・時限爆弾を、爆発の種類によらず連鎖させる。 */
 export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = null, options = {}) {
   if (!dg || (dg.timeStopTurns || 0) > 0 || _explosionChainDepth > 8) return;
@@ -2351,6 +2359,10 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
     return;
   }
   const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
+  const _fireMantleSourceInBlast = !options.nonElemental && (dg.monsters || []).some(m =>
+    m.baseKind === "firedemon" && monHasFlameMantle(m) &&
+    Math.max(Math.abs(m.x - cx), Math.abs(m.y - cy)) <= _blastRadius
+  );
   const _instantMonsterKill = options.instantMonsterKill === true;
   const _damageMultiplier = Math.max(0, Number(options.damageMultiplier) || 1);
   const _excludeMonsterId = options.excludeMonsterId ?? null;
@@ -2583,6 +2595,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
   breakGachaMachinesInRadius(dg, cx, cy, _blastRadius, ml, p, nameFn);
   removeBlastedItems();
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
+  if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, cx, cy, _blastRadius, ml);
   /* 爆発範囲内の石像 */
   for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
     for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
@@ -2636,6 +2649,10 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
   ensureItemMimicFloorItems(dg);
   const initialDepth = p?.depth;
   const floorChanged = () => p?.depth !== initialDepth;
+  const _fireMantleSourceInBlast = (dg.monsters || []).some(m =>
+    m.baseKind === "firedemon" && monHasFlameMantle(m) &&
+    Math.max(Math.abs(m.x - cx), Math.abs(m.y - cy)) <= 2
+  );
   const retaliateAgainstExplosionSource = (monster) => {
     if (monster.type === "shopkeeper" && monster.hp > 0) {
       if (killerMon) beginNpcRetaliation(monster, killerMon, ml);
@@ -2767,6 +2784,7 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
     for (const it of _blasted) destroyItemMimicFloorItem(dg, it);
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
     dg.monsters = dg.monsters.filter(m => m.hp > 0);
+    if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, cx, cy, 2, ml);
     if (floorChanged()) return;
     /* 範囲内の大箱を破壊 */
     const _gpBlastedBB = [];
@@ -2860,6 +2878,10 @@ function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, optio
   }
   ensureItemMimicFloorItems(dg);
   const R = TIME_BOMB_BLAST_RADIUS;
+  const _fireMantleSourceInBlast = (dg.monsters || []).some(m =>
+    m.baseKind === "firedemon" && monHasFlameMantle(m) &&
+    Math.max(Math.abs(m.x - cx), Math.abs(m.y - cy)) <= R
+  );
   pushExplosionAnim(cx, cy);
   ml.push(`${bombLabel}が大爆発した！5×5マスに爆風が吹き荒れる！`);
   const blasted = new Set();
@@ -3000,6 +3022,7 @@ function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, optio
   if (_tbBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_tbBlastedBB.includes(b));
   breakGachaMachinesInRadius(dg, cx, cy, R, ml, p, nameFn);
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
+  if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, cx, cy, R, ml);
   /* 爆発範囲内の石像 */
   for (let ddx = -R; ddx <= R; ddx++) {
     for (let ddy = -R; ddy <= R; ddy++) {
@@ -7405,6 +7428,10 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
       (pc.blessed || dg.rooms?.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h) === mRoom)
     );
     if (!exPc) return;
+    const _fireMantleSourceInBlast = (dg.monsters || []).some(m =>
+      m.baseKind === "firedemon" && monHasFlameMantle(m) &&
+      Math.max(Math.abs(m.x - mx), Math.abs(m.y - my)) <= 1
+    );
     ml.push(`${exPc.name}の力で爆発した！`);
     const blasted = new Set();
     const largeMonstersHit = new Set();
@@ -7552,6 +7579,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     dg.items = dg.items.filter(i => !blasted.has(i));
     breakGachaMachinesInRadius(dg, mx, my, 1, ml, p);
     dg.monsters = dg.monsters.filter(m => m.hp > 0);
+    if (_fireMantleSourceInBlast) applyExplosionFlameMantle(dg, mx, my, 1, ml);
     /* 破壊された火薬壺の連鎖爆発 */
     for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
       doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
