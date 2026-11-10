@@ -7752,8 +7752,12 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       placeItemAt(dg, mx, my, _stone, ml, _goldFt, 0, p);
       ml.push(`戦利品は黄金の魔方陣の呪いで${resolveItemName(_stone)}に変わった！`);
     } else {
-      let _goldValue = _convertItems.reduce((s, i) => s + (i.type === "gold" ? (i.value || 0) : Math.max(1, Math.floor(itemPrice(i) / 2))), 0);
-      if (_goldValue <= 0) _goldValue = Math.min(100, Math.max(5, mon.exp || 5));
+      /* 金額はその階の床に落ちる金貨の金額範囲（通常フロア金貨）で決まる。
+         敵が落とした金貨そのものは額面どおり合算する。 */
+      const _goldFloor = Number.isFinite(mon.rewardFloor) ? mon.rewardFloor : (Number.isFinite(p?.depth) ? p.depth : 1);
+      const _goldRange = ordinaryFloorGoldRange(_goldFloor);
+      let _goldValue = rng(_goldRange.min, _goldRange.max)
+        + _convertItems.reduce((s, i) => s + (i.type === "gold" ? (i.value || 0) : 0), 0);
       if (_goldPc.blessed) _goldValue *= 2;
       placeItemAt(dg, mx, my, { name: "金貨", type: "gold", value: _goldValue, tile: 22, id: uid() }, ml, _goldFt, 0, p);
       ml.push(_convertItems.length > 0
