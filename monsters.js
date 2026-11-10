@@ -656,6 +656,7 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
 
 /* ===== ゼラチンキューブ：移動後に床のアイテムを全て取り込む ===== */
 function _gelCubeAbsorbItems(m, dg, ml) {
+  if (m.sealed) return;
   const _onTile = dg.items.filter(it => it.x === m.x && it.y === m.y);
   if (_onTile.length === 0) return;
   m.heldItems = m.heldItems || [];
@@ -1046,10 +1047,10 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
   /* 祝福防具：近接ダメージ-2 */
   if (pl.armor?.blessed) dmg = Math.max(1, dmg - 2);
   /* タトゥーバード: 25%で痛恨の一撃（ダメージ2倍） */
-  const _tbCrit = m.subtype === "tattoobird" && Math.random() < 0.25;
+  const _tbCrit = m.subtype === "tattoobird" && !m.sealed && Math.random() < 0.25;
   if (_tbCrit) dmg *= 2;
   /* トロル系: 通常攻撃の25%で痛恨の一撃（ダメージ1.5倍） */
-  const _trollCrit = m.baseKind === "troll" && Math.random() < 0.25;
+  const _trollCrit = m.baseKind === "troll" && !m.sealed && Math.random() < 0.25;
   if (_trollCrit) dmg = Math.max(1, Math.floor(dmg * 1.5));
   if (damageMultiplier !== 1) dmg = Math.max(1, Math.floor(dmg * damageMultiplier));
   /* 平和の指輪：受ける近接ダメージ半減 */
@@ -1088,7 +1089,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     }
   }
   /* ノッカー：攻撃後にプレイヤーを2〜4マス吹き飛ばす */
-  if (m.subtype === "knocker" && dmg > 0) {
+  if (m.subtype === "knocker" && !m.sealed && dmg > 0) {
     if (hasRingEffect(pl, "core_ring")) {
       ml.push("体幹の指輪のおかげで踏ん張った！吹き飛ばされなかった！");
     } else {
@@ -1137,7 +1138,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         if (applyPlayerConfusion(pl, _ct, ml)) ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(${_ct}ターン)`);
       }
     }
-    if (m.baseKind === "boss_demonking" && Math.random() < MONSTER_SPECIAL_RATE.status) {
+    if (m.baseKind === "boss_demonking" && !m.sealed && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`魔神王の一撃が魂を縛った！しかし状態防止中のため効かなかった！`);
       } else {
@@ -1146,7 +1147,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
       }
     }
-    if (m.baseKind === "boss_warlord" && Math.random() < MONSTER_SPECIAL_RATE.status) {
+    if (m.baseKind === "boss_warlord" && !m.sealed && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`魔将軍の刃が鎧を砕いた！しかし状態防止中のため効かなかった！`);
       } else if (!isStatusImmune(pl, ml)) {
@@ -1155,11 +1156,11 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(${_ds}ターン)`);
       }
     }
-    if (m.baseKind === "boss_skullking" && Math.random() < 0.35) {
+    if (m.baseKind === "boss_skullking" && !m.sealed && Math.random() < 0.35) {
       const _drain = Math.min(20, pl.hp - 1);
     if (_drain > 0) { const _actualDrain = monScaleOutgoingDamage(m, _drain); pl.hp -= _actualDrain; m.hp = Math.min(m.maxHp, m.hp + _actualDrain); ml.push(`骸骨王が命を吸い取った！${playerHpEffectLabel(pl, _actualDrain)}！`); }
     }
-    if (m.baseKind === "boss_flamedragon") {
+    if (m.baseKind === "boss_flamedragon" && !m.sealed) {
       const _oily = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y);
       if (_oily) {
         const _xdmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(dmg * 0.5)));
@@ -1168,7 +1169,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         ml.push(`油が引火して追加炎ダメージ！${playerHpEffectLabel(pl, _xdmg)}！`);
       }
     }
-    if (m.baseKind === "boss_voidmonk" && Math.random() < MONSTER_SPECIAL_RATE.status) {
+    if (m.baseKind === "boss_voidmonk" && !m.sealed && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`虚無の僧侶の呪いが魔力を封じた！しかし状態防止中のため効かなかった！`);
       } else {
@@ -1177,7 +1178,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(${_st}ターン)`);
       }
     }
-    if (m.baseKind === "boss_infernoking" && Math.random() < MONSTER_SPECIAL_RATE.status) {
+    if (m.baseKind === "boss_infernoking" && !m.sealed && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`煉獄公の爪に毒が！しかし状態防止中のため効かなかった！`);
       } else if (hasRingEffect(pl, "antidote_ring")) {
@@ -1189,7 +1190,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         ml.push(statusResultMessage(_poison, `煉獄公の爪に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
       }
     }
-    if (m.baseKind === "boss_abyssgod") {
+    if (m.baseKind === "boss_abyssgod" && !m.sealed) {
       if (Math.random() < MONSTER_SPECIAL_RATE.status) {
         if ((pl.statusImmune || 0) > 0) {
           ml.push(`深淵神の一撃が意識を蝕んだ！しかし状態防止中のため効かなかった！`);
@@ -1210,7 +1211,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
       }
     }
     /* 中級ボス固有 on-hit */
-    if (m.baseKind === "im_boss_titan" && Math.random() < MONSTER_SPECIAL_RATE.status) {
+    if (m.baseKind === "im_boss_titan" && !m.sealed && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`${m.name}の強烈な一撃！しかし状態防止中のため移動封じは効かなかった！`);
       } else {
@@ -4805,7 +4806,7 @@ function isStationaryMonster(m) {
 
 /* かわしモグラは通過した罠を作動させず、その場で消滅させる。 */
 function _clearDodgemoleTrap(m, dg, ml, pl) {
-  if (m.baseKind !== "dodgemole") return;
+  if (m.baseKind !== "dodgemole" || m.sealed) return;
   const trap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
   if (!trap) return;
   removeTrap(dg, trap, ml, { fromStep: true, message: `${m.name}が${trap.name}を潜って消した！`, p: pl });
@@ -7417,7 +7418,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       if (m._pyrobolosBeamReady) {
         delete m._pyrobolosBeamReady;
-        _pyroFireBeam();
+        if (!m.sealed) _pyroFireBeam();
         return true;
       }
       if (m._pyrobolosMeleeReady) {
@@ -7489,7 +7490,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         _pyroMoveToBone(bone);
         return;
       }
-      if (!isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m) && _pyroLine() && Math.random() < 0.25) {
+      if (!m.sealed && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m) && _pyroLine() && Math.random() < 0.25) {
         m._pyrobolosBeamReady = true;
         return;
       }
@@ -7536,7 +7537,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         else _pyroMoveToBone(bone);
         return;
       }
-      if (!isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m) && _pyroLine() && Math.random() < 0.25) {
+      if (!m.sealed && !isAttackSealed(m) && m.turnAttacks < monEffectiveMaxAttacks(m) && _pyroLine() && Math.random() < 0.25) {
         _pyroFireBeam();
         return;
       }
@@ -8462,7 +8463,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       return;
     } finally {
-      if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] && summonGwenMonster(m, dg, pl, ml)) {
+      if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] && !m.sealed && summonGwenMonster(m, dg, pl, ml)) {
         m.gwenVisibleTurns = 0;
       }
       if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {
@@ -8484,7 +8485,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (!_attackOnly && m.gwenVisibleTurns >= 4 && dg.visible?.[m.y]?.[m.x] &&
-        summonGwenWave(m, dg, pl, ml)) {
+        !m.sealed && summonGwenWave(m, dg, pl, ml)) {
       m.gwenVisibleTurns = 0;
     }
     if (!_attackOnly && dg.visible?.[m.y]?.[m.x] && Math.random() < GWEN_DIALOGUE_CHANCE) {
@@ -8503,7 +8504,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.subtype === "splitter" && !m.isBoss && m.hp > 0) {
     const _prevHp = m._lastHp;
     m._lastHp = m.hp;
-    if (_prevHp !== undefined && m.hp < _prevHp && Math.random() < 0.25) {
+    if (_prevHp !== undefined && m.hp < _prevHp && !m.sealed && Math.random() < 0.25) {
       const _splitDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
       for (const [_sdx, _sdy] of _splitDirs) {
         const _snx = m.x + _sdx, _sny = m.y + _sdy;
@@ -9616,7 +9617,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (isStationaryGrabber(m)) {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
         let _justCaptured = false;
-        if (!pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
+        if (!m.sealed && !pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
           pl.capturedBy = m.id;
           _justCaptured = true;
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
@@ -9636,7 +9637,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* ── giantEel（巨大ウナギ等）：隣接時にプレイヤーを拘束する ── */
     if (m.subtype === "giantEel" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       let _justBound = false;
-      if (!pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
+      if (!m.sealed && !pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
         pl.capturedBy = m.id;
         _justBound = true;
         ml.push(`${m.name}に締め付けられた！倒さなければ逃げられない！`);

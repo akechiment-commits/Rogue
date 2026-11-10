@@ -135,7 +135,8 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
 
   if (pc.kind === "heal_aura") {
     const amount = pc.blessed ? 10 : 5;
-    const playerInRange = pc.blessed || playerRoom === room;
+    /* 祝福は回復量だけを増やす。範囲は通常・祝福とも同室のみ */
+    const playerInRange = playerRoom === room;
 
     if (playerInRange) {
       if (pc.cursed) {

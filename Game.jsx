@@ -867,6 +867,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     /* 持ち込み品・補給装備も、この冒険で手に入った個体として記録する。 */
     p.inventory.forEach(trackItem);
     refreshFOV(d, p);
+    applyVisibilityOverrides(d, p, { findRoom, inMagicSealRoom });
     const _dt = dungeonConfig?.dungeonType || "beginner";
     const _allIdentKeys = (_dt === "debug" || _dt === "beginner")
       ? new Set([
@@ -989,6 +990,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       /* 旧セーブには個体の計上印がないため、再開時の所持品を一度だけ補完する。 */
       rs.player.inventory?.forEach(trackItem);
       refreshFOV(rs.dungeon, rs.player);
+      applyVisibilityOverrides(rs.dungeon, rs.player, { findRoom, inMagicSealRoom });
       syncSpawnFloorMeta(rs, rs.dungeon);
       sr.current = rs;
       setGs(rs);
@@ -3353,7 +3355,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               wakeIfDormant(attackMon, ml);
               /* ── ガーディアンチェック：隣接する guardian が肩代わり ── */
               const _guardMon = dg.monsters.find(gm =>
-                gm !== attackMon && gm.subtype === "guardian" &&
+                gm !== attackMon && gm.subtype === "guardian" && !gm.sealed &&
                 Math.abs(gm.x - attackMon.x) <= 1 && Math.abs(gm.y - attackMon.y) <= 1
               );
               if (_guardMon) {
@@ -3372,14 +3374,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 acted = true;
               } else {
               /* タトゥーバード: 50%ひらりと回避 */
-              const _tbDodge = !isEvasionDisabledByStatus(attackMon) && attackMon.subtype === "tattoobird" && Math.random() < 0.50;
+              const _tbDodge = !isEvasionDisabledByStatus(attackMon) && !attackMon.sealed && attackMon.subtype === "tattoobird" && Math.random() < 0.50;
               if (_tbDodge) {
                 ml.push(`${attackMon.name}はひらりとかわした！`);
                 _ad.attacks.push({ type: "attack", x: _hitX, y: _hitY, dx, dy });
                 acted = true;
               } else {
               /* フェザーガード: 50%ダメージ半減 */
-              if (attackMon.subtype === "tattoobird" && Math.random() < 0.50) {
+              if (attackMon.subtype === "tattoobird" && !attackMon.sealed && Math.random() < 0.50) {
                 d = Math.max(1, Math.floor(d / 2));
                 ml.push(`フェザーガード！${attackMon.name}はダメージを半減した！`);
               }

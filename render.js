@@ -271,6 +271,9 @@ export const TILE_RENDER = {
   63: { bg: null, fg: "#ffe030", ch: "@" },
   64: { bg: null, fg: "#ffe030", ch: "@" },
   65: { bg: null, fg: "#ffe030", ch: "@" },
+  66: { bg: null, fg: "#ffb060", ch: "%" }, /* 調理済み食料 */
+  67: { bg: null, fg: "#60d0e0", ch: "W" }, /* ワッカ */
+  68: { bg: null, fg: "#aaaaaa", ch: "O" }, /* 岩の精霊 */
   69: { bg: null, fg: "#a06020", ch: "t" },
   70: { bg: null, fg: "#ff88cc", ch: "p" },
   71: { bg: null, fg: "#8040a0", ch: "^" },

@@ -2977,7 +2977,8 @@ export function placeGachaMachine(dg, randomFn = Math.random) {
     dg.vents?.some((vent) => vent.x === x && vent.y === y) ||
     dg.gachaMachines.some((machine) => machine.x === x && machine.y === y) ||
     dg.altars?.some((altar) => altar.x === x && altar.y === y) ||
-    dg.dimensionalVaults?.some((vault) => vault.x === x && vault.y === y) ||
+    dg.dimensionalVaults?.some((vault) => (vault.x === x && vault.y === y) ||
+      (vault.room && x >= vault.room.x && x < vault.room.x + vault.room.w && y >= vault.room.y && y < vault.room.y + vault.room.h)) ||
     (dg.stairUp && dg.stairUp.x === x && dg.stairUp.y === y) ||
     (dg.stairDown && dg.stairDown.x === x && dg.stairDown.y === y);
   const inRoom = (room, x, y) => x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
@@ -3777,6 +3778,7 @@ function attachFloorGimmicks(dg, depth) {
     stairUp: dg.stairUp,
     stairDown: dg.stairDown,
     dungeonType: dg.dungeonType,
+    occ: (x, y) => (dg.monsters || []).some((m) => m.hp > 0 && monsterOccupiesCell(m, x, y)),
   });
   if (g.traps?.length) dg.traps.push(...g.traps);
   if (g.vents?.length) dg.vents.push(...g.vents);

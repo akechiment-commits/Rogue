@@ -436,6 +436,11 @@ export function useGamepad({
         aDoubleTapPendingRef.current = false;
         waitHeldRef.current = false;
         waitStoppedRef.current = false;
+        xHeldRef.current = false;
+        if (facingModeRef.current) {
+          facingModeRef.current = false;
+          setFacingMode?.(false);
+        }
         if (rbHeldUiRef.current) {
           rbHeldUiRef.current = false;
           setRbHeld(false);

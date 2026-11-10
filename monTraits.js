@@ -1,7 +1,8 @@
 /**
  * 敵の封印中に無効化される固有特性の判定。
  * 封印中: 特技不可・通常速(1)・maxAttacks=1 に加え、
- * 浮遊・水上歩行・魔法無効・壁抜け・物理/魔法反射・固定ダメ等を無効化する。
+ * 浮遊・魔法無効・壁抜け・物理/魔法反射・固定ダメ等を無効化する。
+ * 例外: 水棲（waterOnly）・水陸（waterWalker）の特性は封印されない（溺死防止）。
  * 一時 floatTurns は状態異常なので封印でも有効。
  */
 
@@ -24,6 +25,7 @@ export function monHasElementWeakness(m, element) {
 /** 属性耐性をダメージ倍率として返す。通常の敵定義では無指定なら等倍。 */
 export function monElementDamageMultiplier(m, element) {
   if (!m || !element) return 1;
+  if (m.sealed) return 1;
   const resistances = [m.elemResist, m.elemResist2].flatMap(value => Array.isArray(value) ? value : [value]);
   return m.elemResistAll || resistances.includes(element) ? 0.5 : 1;
 }
@@ -49,12 +51,8 @@ export function monEffectiveFloat(m) {
 
 /** 実効水上歩行（固有 waterWalker は封印で無効） */
 export function monEffectiveWaterWalker(m) {
-  if (!m || !m.waterWalker) return false;
-  /* クラーケン系は封印で水中歩行が無効化されるが、ワッカ系等の一般水中歩行は体質のため封印されない */
-  if (m.baseKind === "im_boss_kraken" || m.baseKind === "boss_krakenbio") {
-    return !m.sealed;
-  }
-  return true;
+  /* 水陸の体質は封印の対象外（封印で落とすと水上の敵が溺死するため、水棲の waterOnly と同様に常に有効） */
+  return !!(m && m.waterWalker);
 }
 
 export function monEffectiveMagicImmune(m) {

@@ -676,8 +676,8 @@ export function checkMonsterEvasion(target, { sureHit = false, baseMissRate = 0.
   if (!target) return false;
   if (sureHit) return false;
   if (isEvasionDisabledByStatus(target)) return false;
-  if ((target.absoluteEvasionTurns || 0) > 0) return true;
-  const missChance = target.baseKind === "boss_mireu" ? 0.50 : baseMissRate;
+  if (!target.sealed && (target.absoluteEvasionTurns || 0) > 0) return true;
+  const missChance = target.baseKind === "boss_mireu" && !target.sealed ? 0.50 : baseMissRate;
   return random() < missChance;
 }
 

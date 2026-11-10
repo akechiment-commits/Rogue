@@ -170,13 +170,19 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     expect(onMonsterDefeated).toHaveBeenCalledWith(undead, { noBone: true, noExp: true });
   });
 
-  it("祝福された回復の魔方陣は別室のプレイヤーにも10回復する", () => {
+  it("祝福された回復の魔方陣は回復量だけが増え、別室のプレイヤーは回復しない", () => {
     const pc = { kind: "heal_aura", name: "回復の魔方陣", blessed: true, x: 2, y: 2 };
-    const player = { x: 5, y: 5, hp: 1, maxHp: 20 };
+    const otherRoomPlayer = { x: 5, y: 5, hp: 1, maxHp: 20 };
 
-    resolveStoneAndHealingPentacleEffect(pc, dungeon({ pentacles: [pc] }), player, [], effectDeps());
+    resolveStoneAndHealingPentacleEffect(pc, dungeon({ pentacles: [pc] }), otherRoomPlayer, [], effectDeps());
 
-    expect(player.hp).toBe(11);
+    expect(otherRoomPlayer.hp).toBe(1);
+
+    const sameRoomPlayer = { x: 2, y: 3, hp: 1, maxHp: 20 };
+
+    resolveStoneAndHealingPentacleEffect(pc, dungeon({ pentacles: [pc] }), sameRoomPlayer, [], effectDeps());
+
+    expect(sameRoomPlayer.hp).toBe(11);
   });
 
   it("呪われた回復の魔方陣は呪われた魔封じ内の対象へ2倍ダメージを与える", () => {

@@ -509,6 +509,7 @@ export const ITEMS = [
   { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n呪い：逆に5ダメージ。", tile:42 },
   { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"A", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・繰り返し有効）。\n呪い：同じ部屋での蘇りをすべて封じる（MP復活・復活魔方陣・骨からの復活など）。", tile:42 },
   { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n呪い：ランダムワープになる。", tile:42 },
+  { name:"黄金のペン",       type:"pen",    effect:"gold",          charges:2, rarity:"B", weight:2,  sellPrice:3000,  desc:"足元に黄金の魔方陣を描く。\nこの魔方陣のある部屋で倒した敵は必ず金貨を落とし、戦利品はすべて金貨に変わる。飲み込まれたり盗まれたりした物はそのまま戻り、金貨も追加で落ちる。骨は残らない。ごく稀に金塊も落ちる。\n祝福：金貨の金額が2倍。\n呪い：戦利品が石1個に変わる。低確率で右の石や魔法の石、さらに低確率で偽物の金塊になる。", tile:42 },
   { name:"短剣",             type:"weapon", atk:1,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"カタナ",           type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"鋭い切れ味を誇る東洋の刀。",       tile:20 },
@@ -780,9 +781,9 @@ export function itemPrice(it) {
       const perCharge = Math.max(100, Math.floor(base * 0.1));
       return Math.round((base + charges * perCharge) * _bcMult);
     }
-    // 矢は個数に応じて加算（sellPriceは1個あたりの価値）
+    // 矢は本数分をそのまま加算（sellPriceは1個あたりの価値、まとめ割引なし）
     if (it.type === "arrow") {
-      return Math.max(base, Math.floor(base * (it.count || 1) / 3));
+      return Math.max(1, Math.floor(base * (it.count || 1)));
     }
     // 壺は容量・中身の合計価格を加算（1容量あたりbase×10%）
     if (it.type === "pot") {
@@ -1189,7 +1190,10 @@ export function makeFreshDuplicate(source) {
   delete copy.oilProofUses;
   if (copy.type === "pen") {
     copy.charges = penInitialCharges(copy);
-  } else if (copy.type === "wand" || copy.type === "marker") {
+  } else if (copy.type === "wand") {
+    /* 通常生成と同じ回数ロールを通す（テンプレ固定にしない） */
+    copy.charges = rollGeneratedWandCharges(copy);
+  } else if (copy.type === "marker") {
     copy.charges = template?.charges ?? source.maxCharges ?? 1;
   }
   if (copy.type === "pot") {
@@ -1306,8 +1310,8 @@ export function canConfineMonsterInPot(mon) {
   if (!mon) return false;
   if (mon.isBoss) return false;
   if (mon.type === "shopkeeper") return false;
-  if (mon.baseKind === "firedemon") return false;
-  if (mon.baseKind === "synthmonster") return false;
+  if (!mon.sealed && mon.baseKind === "firedemon") return false;
+  if (!mon.sealed && mon.baseKind === "synthmonster") return false;
   return true;
 }
 
@@ -4810,6 +4814,7 @@ export function absorbProjectileIntoMonster(monster, item, dg, p, ml, luFn, opts
   } = opts;
   const farcastMode = getFarcastMode(p?.x, p?.y, dg);
   if (farcastMode === "farcast" || (sourceIsPlayer && farcastMode !== "cursed" && hasRingEffect(p, "farcast_ring"))) return false;
+  if (monster.sealed) return false;
   if (monster.baseKind === "synthmonster") {
     const box = ensureSynthMonsterBox(monster);
     if (bbFn) {
@@ -7603,6 +7608,16 @@ export function killMonsterByTrap(mon, dg, p, ml, luFn, cause, killerMon = null)
 
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
+/** 黄金の魔方陣：(x, y) の部屋に黄金の魔方陣があればそれを返す（魔封じの部屋にある陣は無効）。 */
+function goldenPentacleAt(dg, x, y) {
+  if (!dg?.pentacles?.length || !dg.rooms?.length) return null;
+  const room = dg.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  if (!room) return null;
+  return dg.pentacles.find(pc => pc.kind === "gold" &&
+    !inMagicSealRoom(pc.x, pc.y, dg) &&
+    pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h) || null;
+}
+
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false, noExpCause = null) {
   const mx = mon.x, my = mon.y;
   if (mon.isPlayerClone) {
@@ -7627,6 +7642,8 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* 呪われた復活の魔方陣：同部屋の蘇りを封じる（復活魔方陣・骨残しなど） */
   const _reviveBlocked = isRevivalSuppressedAt(dg, mx, my);
+  /* 黄金の魔方陣：この部屋で倒れた敵の戦利品は金貨に変わり、骨は残らない */
+  const _goldPc = goldenPentacleAt(dg, mx, my);
   /* 復活の魔方陣チェック：魔方陣上/同部屋内でHPゼロになったら全回復。発動では消費しない。 */
   /* noRevive: 願いの敵全滅など、特別に復活させない撃破 */
   if (!noRevive && !_reviveBlocked && dg.pentacles?.length > 0) {
@@ -7715,7 +7732,42 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       ml.push(`${mon.name}が持っていた${resolveItemName(_held)}を落とした！`);
     }
   }
-  monsterDrop(mon, dg, ml, p);
+  if (_goldPc) {
+    const _beforeItems = new Set(dg.items || []);
+    /* 飲み込み・盗みで保持していた物は変換対象外（そのまま返し、金貨は追加で落ちる） */
+    const _exemptItems = new Set();
+    if (mon.baseKind === "gelcube" || mon.baseKind === "stealthrower") (mon.heldItems || []).forEach(i => _exemptItems.add(i));
+    if (mon._stealthrowerHeldItem) _exemptItems.add(mon._stealthrowerHeldItem);
+    if (mon.baseKind === "synthmonster") (mon.synthBox?.contents || []).forEach(i => _exemptItems.add(i));
+    monsterDrop(mon, dg, ml, p);
+    const _convertItems = (dg.items || []).filter(i => !_beforeItems.has(i) && !_exemptItems.has(i));
+    if (_convertItems.length > 0) dg.items = dg.items.filter(i => !_convertItems.includes(i));
+    const _goldFt = new Set();
+    if (_goldPc.cursed) {
+      const _roll = Math.random();
+      const _stone = _roll < 0.01 ? { ...FAKE_GOLD_NUGGET_T, id: uid() }
+        : _roll < 0.045 ? { ...RIGHT_STONE_T, id: uid() }
+        : _roll < 0.08 ? { ...MAGIC_STONE_T, id: uid() }
+        : { ...STONE_T, id: uid() };
+      placeItemAt(dg, mx, my, _stone, ml, _goldFt, 0, p);
+      ml.push(`戦利品は黄金の魔方陣の呪いで${resolveItemName(_stone)}に変わった！`);
+    } else {
+      let _goldValue = _convertItems.reduce((s, i) => s + (i.type === "gold" ? (i.value || 0) : Math.max(1, Math.floor(itemPrice(i) / 2))), 0);
+      if (_goldValue <= 0) _goldValue = Math.min(100, Math.max(5, mon.exp || 5));
+      if (_goldPc.blessed) _goldValue *= 2;
+      placeItemAt(dg, mx, my, { name: "金貨", type: "gold", value: _goldValue, tile: 22, id: uid() }, ml, _goldFt, 0, p);
+      ml.push(_convertItems.length > 0
+        ? `戦利品は黄金の魔方陣で金貨${_goldValue}枚に変わった！`
+        : `${mon.name}は黄金の魔方陣で金貨${_goldValue}枚を落とした！`);
+      /* ごく稀に金塊も落ちる */
+      if (Math.random() < 0.02) {
+        placeItemAt(dg, mx, my, { ...GOLD_NUGGET_T, id: uid() }, ml, _goldFt, 0, p);
+        ml.push(`金塊も落ちた！`);
+      }
+    }
+  } else {
+    monsterDrop(mon, dg, ml, p);
+  }
   /* ピュロボロスは撃破方法やnoBone指定に関係なく、群れIDと個体番号を持つ骨を必ず残す。 */
   if (mon.pyrobolosGroupId) {
     dg.traps ||= [];
@@ -7738,7 +7790,9 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     rest.sort((a, b) => Math.max(Math.abs(a.x - mx), Math.abs(a.y - my)) - Math.max(Math.abs(b.x - mx), Math.abs(b.y - my)));
     for (const cell of rest) addCandidate(cell.x, cell.y);
     const pos = candidates.find(cell => !dg.traps.some(trap => trap.x === cell.x && trap.y === cell.y)) || candidates[0];
-    if (pos) {
+    if (pos && _goldPc) {
+      ml.push(_goldPc.cursed ? `${mon.name}の骨は残らなかった。` : `${mon.name}の骨は金貨に変わった。`);
+    } else if (pos) {
       dg.traps.push({
         id: uid(), name: "ピュロボロスの骨", effect: "bone", tile: 107,
         x: pos.x, y: pos.y, revealed: true, permanent: false,
@@ -7762,7 +7816,10 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   /* スケルトン：50%で骨を残し5ターン後に復活（復活抑制下では骨を残さない） */
   else if (!noBone && mon.baseKind === "skeleton" && Math.random() < 0.5) {
-    if (_reviveBlocked) {
+    if (_goldPc) {
+      /* 黄金の魔方陣：骨も金貨に変わり残らない */
+      ml.push(_goldPc.cursed ? `${mon.name}の骨は残らなかった。` : `${mon.name}の骨は金貨に変わった。`);
+    } else if (_reviveBlocked) {
       ml.push(REVIVAL_SUPPRESS_MSG);
       ml.push(`${mon.name}の骨は散らばって消えた。`);
     } else {
