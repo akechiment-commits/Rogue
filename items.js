@@ -8966,6 +8966,8 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
       }
       if (sp.kind === "crawling_bomb") {
         detonateCrawlingBomb(sp, dg, p, ml, luFn, `${sp.name}が壁に触れて爆発した！`);
+      } else if (sp.kind === "torpedo") {
+        detonateTorpedo(sp, dg, p, ml, luFn);
       } else {
         ml.push(`${sp.name}は進めず消えた。`);
       }
