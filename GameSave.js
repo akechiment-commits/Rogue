@@ -164,6 +164,7 @@ export function saveGameState(session, msgs, dungeonConfig, discoveries) {
       _flockStalkerActive: !!session._flockStalkerActive,
       _flockStalkerSnapshot: session._flockStalkerSnapshot || null,
       _abyssTomeAcquired: !!session._abyssTomeAcquired,
+      _portalDrawCount: session._portalDrawCount || 0,
       dungeonConfig: dungeonConfig || null,
       discoveries: discoveries ? { ...discoveries, pendingBigboxes: getPendingBigboxes() } : null,
     };
@@ -217,6 +218,7 @@ export function loadGameState() {
       _flockStalkerActive: !!data._flockStalkerActive,
       _flockStalkerSnapshot: data._flockStalkerSnapshot || null,
       _abyssTomeAcquired: !!data._abyssTomeAcquired,
+      _portalDrawCount: data._portalDrawCount || 0,
       dungeonConfig: data.dungeonConfig || null,
       discoveries: normalizeDiscoveryData(data.discoveries),
     };
