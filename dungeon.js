@@ -2268,7 +2268,7 @@ function canCirculateRoom(map, r, candidateWaterCells, su = null, sd = null) {
 
 /* ===== FLOATING ISLANDS ===== */
 /* 稀に部屋中央に水で囲まれた浮島を生成（浮遊の指輪なしでは到達不可） */
-function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, monsters, su, sd, dungeonType = null, waterItems = []) {
+function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, monsters, su, sd, dungeonType = null, waterItems = [], springs = []) {
   const permSpin = { name: "回転板", effect: "spin", tile: 29, permanent: true };
   /* 通常フロアで約20%の確率（5フロアに1回程度）で浮島を1部屋生成 */
   if (Math.random() >= 0.20) return;
@@ -2323,6 +2323,7 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, monsters,
         if (!items.some(i => i.x === fx && i.y === fy) &&
             !traps.some(t => t.x === fx && t.y === fy) &&
             !bigboxes.some(b => b.x === fx && b.y === fy) &&
+            !springs.some(s => s.x === fx && s.y === fy) &&
             !monsters.some(m => monsterOccupiesCell(m, fx, fy))) {
           return { x: fx, y: fy };
         }
@@ -2385,7 +2386,8 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, monsters,
     const isOcc = (x, y) =>
       items.some(i => i.x === x && i.y === y) ||
       traps.some(t => t.x === x && t.y === y) ||
-      bigboxes.some(b => b.x === x && b.y === y);
+      bigboxes.some(b => b.x === x && b.y === y) ||
+      springs.some(s => s.x === x && s.y === y);
 
     /* 永続回転板を1つ配置 */
     for (let a = 0; a < 30; a++) {
@@ -3472,7 +3474,7 @@ export function placeWanderingMerchant(dg, depth, randomFn = Math.random) {
     for (let y = room.y; y < room.y + room.h; y++) {
       for (let x = room.x; x < room.x + room.w; x++) {
         if (dg.map[y]?.[x] !== T.FLOOR) continue;
-        if (dg.monsters?.some((monster) => monster.x === x && monster.y === y)) continue;
+        if (dg.monsters?.some((monster) => monsterOccupiesCell(monster, x, y))) continue;
         if (dg.items?.some((item) => item.x === x && item.y === y)) continue;
         if (dg.traps?.some((trap) => trap.x === x && trap.y === y)) continue;
         if (dg.springs?.some((spring) => spring.x === x && spring.y === y)) continue;
@@ -4157,6 +4159,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       if (traps.some((t) => t.x === bx && t.y === by)) continue;
       if (springs.some((s) => s.x === bx && s.y === by)) continue;
       if (items.some((i) => i.x === bx && i.y === by)) continue;
+      if (bigboxes.some((b) => b.x === bx && b.y === by)) continue;
       if (occ(bx, by)) continue;
       const bbt = pickBB(_BB_EXCLUDE, dungeonType, depth);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
@@ -4184,7 +4187,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const nonShopRooms = shopRoomIdx >= 0 ? rooms.filter((_, i) => i !== shopRoomIdx) : rooms;
   const waterItems = [];
   /* 浮島を先に生成（水リングマスのアイテムを waterItems に水没処理、島アイテム・回転板配置） */
-  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, mons, su, sd, dungeonType, waterItems);
+  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, mons, su, sd, dungeonType, waterItems, springs);
   /* 水溜まりを生成（浮島部屋はスキップ、中央を避けてコーナーに配置） */
   addWaterPools(map, nonShopRooms, su, sd, mons);
   /* 水タイルに被った罠・アイテムを後処理 */
@@ -4205,6 +4208,27 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 水タイルになった大箱を削除 */
   for (let bi = bigboxes.length - 1; bi >= 0; bi--) {
     if (map[bigboxes[bi].y]?.[bigboxes[bi].x] === T.WATER) bigboxes.splice(bi, 1);
+  }
+  /* 水タイルになった泉は近くの空いた床へ移す（移せなければ削除） */
+  for (let si = springs.length - 1; si >= 0; si--) {
+    const sp = springs[si];
+    if (map[sp.y]?.[sp.x] !== T.WATER) continue;
+    let moved = false;
+    for (let r = 1; r <= 6 && !moved; r++) {
+      for (let yy = sp.y - r; yy <= sp.y + r && !moved; yy++) {
+        for (let xx = sp.x - r; xx <= sp.x + r && !moved; xx++) {
+          if (map[yy]?.[xx] !== T.FLOOR) continue;
+          if ((xx === su.x && yy === su.y) || (xx === sd.x && yy === sd.y)) continue;
+          if (items.some((i) => i.x === xx && i.y === yy)) continue;
+          if (traps.some((t) => t.x === xx && t.y === yy)) continue;
+          if (bigboxes.some((b) => b.x === xx && b.y === yy)) continue;
+          if (springs.some((s) => s !== sp && s.x === xx && s.y === yy)) continue;
+          if (mons.some((m) => monsterOccupiesCell(m, xx, yy))) continue;
+          sp.x = xx; sp.y = yy; moved = true;
+        }
+      }
+    }
+    if (!moved) springs.splice(si, 1);
   }
   /* 浮島・水溜まりともに canCirculateRoom（BFS）により部屋外周・通路口間の導通が保証されているため、中央水タイルの強制床戻しは不要 */
   /* waterOnlyモンスター（わてり等）を水タイルに配置 — 全水面操作の後に行う */
@@ -4340,11 +4364,12 @@ export function genTreasureRoom(depth, dungeonType = null) {
     shop: null, pentacles: [], waterItems: [], hiddenRooms: [], monsterHouseRoom: null,
     floorType: "treasureRoom", isTreasureRoom: true,
     noNaturalSpawn: true,
-    /* 自然湧きはしないが、召喚罠・召喚の巻物用に最下層の敵プールを載せる */
+    /* 自然湧きはしないが、召喚罠・召喚の巻物用に最下層の敵プールを載せる。
+       depth 引数は0始まりだが、出現プール側のメタは1始まりで統一されているため +1 して載せる */
     dungeonType: dungeonType || null,
-    spawnFloor: depth,
-    maxFloors: depth,
-    maxReachedFloor: depth,
+    spawnFloor: depth + 1,
+    maxFloors: depth + 1,
+    maxReachedFloor: depth + 1,
   };
 }
 
