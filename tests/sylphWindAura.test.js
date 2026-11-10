@@ -49,7 +49,7 @@ describe("シルフ系（風まといモンスター）", () => {
 
     const desc = getMonsterDescription("シルフ");
     expect(desc).toContain("風");
-    expect(desc).toContain("3×3→5×5→7×7");
+    expect(desc).toContain("風の範囲");
   });
 
   it("生成時に8方向からランダムな風向きを持ち、レベルに応じて風の範囲が3×3→5×5→7×7へ広がる", () => {

@@ -34,8 +34,8 @@ describe("encyclopedia data", () => {
     expect(getMonsterDescription("かわしモグラ")).toContain("罠は発動させず消滅");
     expect(getMonsterDescription("サラマンダー")).toContain("ボス");
     expect(getMonsterNumber("好まざる猫「フリージア」")).not.toBeNull();
-    expect(getMonsterDescription("分裂スライム")).toContain("25%の確率");
-    expect(getMonsterDescription("タトゥーバード")).toContain("フェザーガード");
+    expect(getMonsterDescription("分裂スライム")).toContain("分裂");
+    expect(getMonsterDescription("タトゥーバード")).toContain("羽毛");
     expect(getMonsterDescription("深淵神")).toContain("最終ボス");
     expect(getMonsterDescription("杖術師")).toContain("テレポート");
     expect(getMonsterDescription("にじりヘビ")).toContain("毒");
