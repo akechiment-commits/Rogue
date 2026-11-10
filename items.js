@@ -578,8 +578,8 @@ export const ITEMS = [
     desc:"読むと大金が手に入るが、しばらくすると消える。\n呪い：先に大きく減って、しばらくすると一部戻る。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"B", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。爆発範囲内の地雷・時限爆弾も誘爆する。\n99本まで束にできる。", tile:23 },
-  { name:"魚雷", type:"arrow", atk:64, specialProjectile:"torpedo", count:3, rarity:"C", weight:4, sellPrice:150,
-    desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。敵に当たると着弾点で爆発し、爆発範囲内の地雷・時限爆弾も誘爆する。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", tile:23 },
+  { name:"魚雷", type:"arrow", atk:70, specialProjectile:"torpedo", count:3, rarity:"C", weight:4, sellPrice:150,
+    desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与え、爆発範囲内の地雷・時限爆弾も誘爆する。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", tile:23 },
   { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", count:3, rarity:"B", weight:2, sellPrice:250,
     desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。爆発範囲内の地雷・時限爆弾も誘爆する。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", tile:23 },
   { name:"誘導弾", type:"arrow", atk:7, specialProjectile:"homing", count:3, rarity:"B", weight:2, sellPrice:220,
@@ -1217,7 +1217,8 @@ export function makeScrollTransformedItem(source, mode, random = Math.random, op
   const template = pickLootFromPool(pool, "change", random) || pickLootFromPool(fallback, "change", random);
   if (!template) return null;
   const item = { ...template, id: uid() };
-  if (template.type === "wand") item.charges = template.maxCharges ?? template.charges ?? 5;
+  if (template.type === "wand") item.charges = rollGeneratedWandCharges(template);
+  if (template.type === "pen") item.charges = penInitialCharges(template, random);
   if (template.type === "arrow") item.count = template.count ?? 1;
   return maybeApplyInitialNegativeEquipmentPlus(item, random);
 }
@@ -1603,7 +1604,7 @@ export function makeChangeBoxItem(context = "change", options = {}) {
   if (rt === "wand") {
     const pool = dungeonLootPool(WANDS, options);
     const wt = pickLootFromPool(pool, context) || pick(pool);
-    return { ...wt, id: uid() };
+    return { ...wt, id: uid(), charges: rollGeneratedWandCharges(wt) };
   }
   if (rt === "pot") return makePot(context, options);
   if (rt === "ring") {
@@ -1629,7 +1630,9 @@ export function makeChangeBoxItem(context = "change", options = {}) {
     const range = ordinaryFloorGoldRange(options.floor);
     return { ...tmpl, id: uid(), value: rng(range.min, range.max) };
   }
-  return maybeApplyInitialNegativeEquipmentPlus({ ...tmpl, id: uid() });
+  const changedItem = { ...tmpl, id: uid() };
+  if (changedItem.type === "pen") changedItem.charges = penInitialCharges(changedItem);
+  return maybeApplyInitialNegativeEquipmentPlus(changedItem);
 }
 
 /** ガチャマシーンの景品を生成する。指定レア度はそのレア度、未指定はD/Eから抽選する。 */
@@ -7095,7 +7098,7 @@ function makeBossRewardItem(template) {
   }
   if (!template) return null;
   const item = { ...template, id: uid() };
-  if (item.type === "wand") item.charges = item.effect === "wish" ? Math.max(1, template.charges || 1) : rng(3, 5);
+  if (item.type === "wand") item.charges = rollGeneratedWandCharges(item);
   if (item.type === "pen") item.charges = penInitialCharges(item);
   if (item.type === "pot") {
     item.capacity = randPotCapacity(item.potEffect);

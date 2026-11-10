@@ -3,7 +3,7 @@
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
 import { installPlayerHpReverseHook, MW, MH, TI } from "./utils.js";
-import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
+import { normalizeDiscoveryData, getPendingBigboxes } from "./DiscoveryTracker.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { installMonsterHpHook } from "./statusDuration.js";
 import { ensureFakeNames } from "./items.js";
@@ -165,7 +165,7 @@ export function saveGameState(session, msgs, dungeonConfig, discoveries) {
       _flockStalkerSnapshot: session._flockStalkerSnapshot || null,
       _abyssTomeAcquired: !!session._abyssTomeAcquired,
       dungeonConfig: dungeonConfig || null,
-      discoveries: discoveries || null,
+      discoveries: discoveries ? { ...discoveries, pendingBigboxes: getPendingBigboxes() } : null,
     };
     localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(data));
     return true;

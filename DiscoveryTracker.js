@@ -176,10 +176,15 @@ export function stageBigbox(bb) {
   });
 }
 
+/* セーブ用：ステージ中の大箱の図鑑エントリ一覧を返す */
+export function getPendingBigboxes() {
+  return _pendingBigboxes.map(({ entry }) => ({ ...entry }));
+}
+
 /* ステージ中の大箱を図鑑に確定する */
 export function commitPendingBigboxes() {
   for (const { entity, entry } of _pendingBigboxes) {
-    if (markEntityTracked(entity)) _bumpEntry(_disc.bigboxes, entry.kind, entry);
+    if (!entity || markEntityTracked(entity)) _bumpEntry(_disc.bigboxes, entry.kind, entry);
   }
   _pendingBigboxes = [];
   _pendingBigboxEntities = new WeakSet();
@@ -195,7 +200,12 @@ export function restoreDiscoveries(data) {
     bigboxes: { ...(normalized.bigboxes || {}) },
     monsterNameMigrationVersion: normalized.monsterNameMigrationVersion,
   };
-  _pendingBigboxes = [];
+  /* セーブに含まれていたステージ中の大箱を復元する（実体はフロアに残っていないのでエントリのみ） */
+  _pendingBigboxes = Array.isArray(data.pendingBigboxes)
+    ? data.pendingBigboxes
+        .filter((entry) => entry && typeof entry === "object" && entry.kind)
+        .map((entry) => ({ entity: null, entry: { name: entry.name, tile: 38, kind: entry.kind } }))
+    : [];
   _pendingBigboxEntities = new WeakSet();
 }
 
