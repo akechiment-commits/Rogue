@@ -7659,9 +7659,11 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     ml.push(`${mon.name}「${pick(deathLines)}」`);
   }
   const _suicide = !!(killerMon && killerMon === mon);
+  /* 分身の撃破はプレイヤーの撃破として扱う（経験値はプレイヤーへ入り、分身は成長しない） */
+  const _cloneKill = !!killerMon?.isPlayerClone;
   if (_suicide) {
     ml.push(`${mon.name}は自滅した！`);
-  } else if (killerMon) {
+  } else if (killerMon && !_cloneKill) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
   } else if (noExp || !p) {
     ml.push(noExpCause
@@ -7803,9 +7805,9 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     p.capturedBy = null;
     ml.push(mon.subtype === "giantEel" ? "拘束から解放された！" : "捕獲から解放された！");
   }
-  if (!skipKillerLevelUp && !_suicide && killerMon && (killerMon.hp ?? 0) > 0 && dg.monsters?.includes(killerMon)) {
+  if (!skipKillerLevelUp && !_suicide && killerMon && !killerMon.isPlayerClone && (killerMon.hp ?? 0) > 0 && dg.monsters?.includes(killerMon)) {
     monLevelUp(killerMon, dg, ml);
-  } else if (!killerMon && luFn && p) {
+  } else if ((!killerMon || killerMon.isPlayerClone) && luFn && p) {
     luFn(p, ml);
   }
   _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
