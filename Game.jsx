@@ -147,6 +147,42 @@ import { FloorMapOverlay } from "./FloorMapOverlay.jsx";
 import { GACHA_COST, drawFromGachaBox, getGachaBoxRemaining, rollGachaRarity } from "./gachaRules.js";
 import { activateDimensionalVaults, advanceDimensionalVaults, pickAltarRewardTemplate } from "./specialFixtures.js";
 
+/* 階段到着マスに重なる敵の移動先を探す。体の全マスが収まり、階段にもプレイヤーの到着マスにも被らない近くのマス。見つからなければ null。 */
+function findStairArrivalRelocateCell(d, monster, stTarget) {
+  const _stairCells = [d.stairUp, d.stairDown].filter(Boolean);
+  const _bodyOk = (x, y, strict) => {
+    for (const c of monsterBodyCells({ ...monster, x, y })) {
+      if (c.x < 0 || c.x >= MW || c.y < 0 || c.y >= MH) return false;
+      const tile = d.map?.[c.y]?.[c.x];
+      if (tile === T.WALL || tile === T.BWALL) return false;
+      if (statueAt(d, c.x, c.y)) return false;
+      if (_stairCells.some(s => s.x === c.x && s.y === c.y)) return false;
+      if (strict && tile !== T.FLOOR) return false;
+      if (!strict && tile === T.WATER && !monster.float) return false;
+    }
+    return true;
+  };
+  const _try = (x, y, strict) =>
+    _bodyOk(x, y, strict) && canPlaceMonsterBody(d, monster, x, y, { x: stTarget.x, y: stTarget.y });
+  for (const strict of [true, false]) {
+    for (let r = 1; r <= 8; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const x = stTarget.x + dx, y = stTarget.y + dy;
+          if (_try(x, y, strict)) return { x, y };
+        }
+      }
+    }
+    for (let y = 1; y < MH - 1; y++) {
+      for (let x = 1; x < MW - 1; x++) {
+        if (_try(x, y, strict)) return { x, y };
+      }
+    }
+  }
+  return null;
+}
+
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
@@ -2198,6 +2234,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       pl.y = rng(_pr.y, _pr.y + _pr.h - 1);
     } else {
       const _stTarget = dir > 0 ? d.stairUp : (d.stairDown || d.stairUp);
+      /* 到着マスに敵がいるとプレイヤーと重なるので、その敵だけを近くの安全なマスへ移す */
+      if (_stTarget) {
+        for (const _m of (d.monsters || [])) {
+          if (_m.disguisedAsItem || (_m.hp ?? 1) <= 0) continue;
+          if (!monsterOccupiesCell(_m, _stTarget.x, _stTarget.y)) continue;
+          const _dest = findStairArrivalRelocateCell(d, _m, _stTarget);
+          if (_dest) { _m.x = _dest.x; _m.y = _dest.y; }
+        }
+      }
       pl.x = _stTarget.x;
       pl.y = _stTarget.y;
     }
