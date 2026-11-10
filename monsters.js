@@ -7556,9 +7556,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
   /* ===== 特殊AI ===== */
+  /* ボスの毎ターン処理（回復・クールダウン進行）は、移動したターンでも止まらないよう
+     フロアターン単位で1回だけ進める。攻撃の代わりになる発動部分は従来どおり攻撃フェーズ側に残す。
+     floorTurns が無い呼び出し（テスト等）では毎回進める従来動作にする */
+  const _bossTickDue = () => {
+    const _ft = dg.floorTurns;
+    if (typeof _ft !== "number") return true;
+    if (m._bossTickTurn === _ft) return false;
+    m._bossTickTurn = _ft;
+    return true;
+  };
   /* 遺物の番人：7ターンごとにプレイヤーの隣に瞬間移動（逃げ場なし）
      HP50%以下で激昂：毎ターン5HP回復 + 次ワープまでの間隔が4ターンに縮む */
-  if (m.baseKind === "pursuer" && !m.sealed && !_moveOnly) {
+  if (m.baseKind === "pursuer" && !m.sealed && _bossTickDue()) {
     const _enraged = m.hp <= m.maxHp * 0.5;
     if (_enraged && !m._enragedPursuer) {
       m._enragedPursuer = true;
@@ -7572,7 +7582,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* ワープカウントダウン */
     const _warpInterval = _enraged ? 4 : 7;
     m._warpCooldown = (m._warpCooldown === undefined ? _warpInterval : m._warpCooldown) - 1;
-    if (m._warpCooldown <= 0) {
+  }
+  if (m.baseKind === "pursuer" && !m.sealed && !_moveOnly) {
+    const _warpInterval = (m.hp <= m.maxHp * 0.5) ? 4 : 7;
+    if ((m._warpCooldown || 0) <= 0) {
       m._warpCooldown = _warpInterval;
       const _warpDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
       let _warped = false;
@@ -7615,14 +7628,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* 深淵の番人：毎ターン8HP回復（最大HPを超えない） */
-  if (m.baseKind === "boss_guardian" && !m.sealed && !_moveOnly) {
+  if (m.baseKind === "boss_guardian" && !m.sealed && _bossTickDue()) {
     const _heal = Math.min(8, m.maxHp - m.hp);
     if (_heal > 0) { m.hp += _heal; ml.push(`${m.name}は傷を再生した！(+${_heal}HP)`); }
   }
   /* 魔神王：5ターンごとに周囲に取り巻きを1体召喚（召喚したターンは攻撃しない） */
-  if (m.baseKind === "boss_demonking" && !m.sealed && !_moveOnly) {
+  if (m.baseKind === "boss_demonking" && !m.sealed && _bossTickDue()) {
     m._summonCooldown = (m._summonCooldown || 0) - 1;
-    if (m._summonCooldown <= 0) {
+  }
+  if (m.baseKind === "boss_demonking" && !m.sealed && !_moveOnly) {
+    if ((m._summonCooldown || 0) <= 0) {
       m._summonCooldown = 5;
       const _bDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
       const _shuffled = _bDirs;
@@ -7644,9 +7659,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* 骸骨王：3ターンごとに周囲に手下を2体召喚（最大8体）（召喚したターンは攻撃しない） */
-  if (m.baseKind === "boss_skullking" && !m.sealed && !_moveOnly) {
+  if (m.baseKind === "boss_skullking" && !m.sealed && _bossTickDue()) {
     m._summonCooldown = (m._summonCooldown || 0) - 1;
-    if (m._summonCooldown <= 0) {
+  }
+  if (m.baseKind === "boss_skullking" && !m.sealed && !_moveOnly) {
+    if ((m._summonCooldown || 0) <= 0) {
       m._summonCooldown = 3;
       const _bDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
       const _nearMons = dg.monsters.filter(mn => Math.abs(mn.x - m.x) <= 3 && Math.abs(mn.y - m.y) <= 3 && mn !== m);
@@ -7684,11 +7701,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   /* 虚無の僧侶：毎ターン12HP回復（行動消費なし）+ 5ターンごとにランダム状態異常付与（付与したターンは攻撃しない） */
-  if (m.baseKind === "boss_voidmonk" && !m.sealed && !_moveOnly) {
+  if (m.baseKind === "boss_voidmonk" && !m.sealed && _bossTickDue()) {
     const _vh = Math.min(12, m.maxHp - m.hp);
     if (_vh > 0) { m.hp += _vh; ml.push(`${m.name}は虚無の力で回復した！(+${_vh}HP)`); }
     m._statusCooldown = (m._statusCooldown || 0) - 1;
-    if (m._statusCooldown <= 0 && _monsterCanSeePlayer() && !_plInvis && !_plPotHidden) {
+  }
+  if (m.baseKind === "boss_voidmonk" && !m.sealed && !_moveOnly) {
+    if ((m._statusCooldown || 0) <= 0 && _monsterCanSeePlayer() && !_plInvis && !_plPotHidden) {
       m._statusCooldown = 5;
       if (_plOnBlessedSanc) {
         ml.push(`祝福された聖域の加護が${m.name}の呪いを防いだ！`);
@@ -7725,7 +7744,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   /* 煉獄公：周囲4マスを油まみれタイルに（行動消費なし） + HP50%以下で激昂（speed+1、行動消費なし） */
-  if (m.baseKind === "boss_infernoking" && !m.sealed && !_moveOnly) {
+  if (m.baseKind === "boss_infernoking" && !m.sealed && _bossTickDue()) {
     dg.oilyTiles = dg.oilyTiles || [];
     for (const [_dx, _dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
       const _tx = m.x + _dx, _ty = m.y + _dy;
@@ -7744,11 +7763,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   /* 深淵神：毎ターン20HP回復（行動消費なし）+ 4ターンごとに周囲に2体召喚（召喚したターンは攻撃しない） */
-  if (m.baseKind === "boss_abyssgod" && !m.sealed && !_moveOnly) {
+  if (m.baseKind === "boss_abyssgod" && !m.sealed && _bossTickDue()) {
     const _ah = Math.min(20, m.maxHp - m.hp);
     if (_ah > 0) { m.hp += _ah; ml.push(`${m.name}は深淵の力で回復した！(+${_ah}HP)`); }
     m._summonCooldown = (m._summonCooldown || 0) - 1;
-    if (m._summonCooldown <= 0) {
+  }
+  if (m.baseKind === "boss_abyssgod" && !m.sealed && !_moveOnly) {
+    if ((m._summonCooldown || 0) <= 0) {
       m._summonCooldown = 4;
       const _agDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
       let _summoned = 0;
@@ -10172,36 +10193,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           opts.fireTrapFn(_ttTrap, pl, dg, ml);
           return;
         }
-      }
-
-      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && !hasMonsterProjectileAmmo(m)) {
-        delete m._potionHealerTarget;
-      }
-
-      if (!_moveOnly && m.subtype === "potionhealer" && m._potionHealerTarget && hasMonsterProjectileAmmo(m)) {
-        const preferredTarget = m._potionHealerTarget;
-        delete m._potionHealerTarget;
-        if (m.sealed || m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
-        const healTarget = findPotionHealerTarget(m, dg, pl, preferredTarget) || findPotionHealerTarget(m, dg, pl);
-        if (!healTarget) {
-          consumeFailedMonsterSpecial(m, ml, "が回復薬を投げようとしたが、回復できる味方がいなかった！");
-          return;
-        }
-        m.turnAttacks++;
-        const level = m.monLevel || 1;
-        const potion = level >= 3
-          ? { name: "超回復薬", effect: "superheal", value: 100, tile: 17 }
-          : level >= 2
-            ? { name: "大回復薬", effect: "heal_big", value: 60, tile: 17 }
-            : { name: "回復薬", effect: "heal", value: 30, tile: 16 };
-        monsterThrowPotion(m, dg, pl, ml, opts.bbFn, opts.fireTrapFn, {
-          target: healTarget.target,
-          aim: healTarget.aim,
-          potion,
-          wind: false,
-          color: "#7bff96",
-        });
-        return;
       }
 
       if (m.subtype === "potionthrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
