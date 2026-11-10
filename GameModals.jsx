@@ -3531,7 +3531,6 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             else { const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1); if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); } _ml.push("壁の中！ランダムにテレポートした。"); }
             pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
             endTurn(sr.current, _p, _ml);
-            refreshFOV(_dg, _p);
             setMode(null);
             setMsgs(prev => [...prev.slice(-80), ..._ml]);
             sr.current = { ...sr.current };
@@ -3547,7 +3546,6 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); }
             _ml.push("テレポートした！");
             endTurn(sr.current, _p, _ml);
-            refreshFOV(_dg, _p);
             setMode(null);
             setMsgs(prev => [...prev.slice(-80), ..._ml]);
             sr.current = { ...sr.current };

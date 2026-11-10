@@ -2276,7 +2276,6 @@ export function useItemActions({
           if (_confRes === true) {
             endTurn(sr.current, p, ml);
             setMsgs((prev) => [...prev.slice(-80), ...ml]);
-            refreshFOV(dg, p);
             setSelIdx(null);
             setShowDesc(null);
             setShowInv(false);
@@ -2313,7 +2312,6 @@ export function useItemActions({
     } else {
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
     }
-    refreshFOV(dg, p);
     setSelIdx(null);
     setShowDesc(null);
     setShowInv(false);

@@ -237,6 +237,7 @@ export function useGamepad({
   const waitStoppedRef = useRef(false);
   const waitRepeatAtRef = useRef(0);
   const moveHeldRef = useRef(null);
+  const rbWasHeldRef = useRef(false);
   const moveRepeatAtRef = useRef(0);
   const moveFirstAtRef = useRef(0);
   const lookStickActiveRef = useRef(false);
@@ -860,8 +861,12 @@ export function useGamepad({
             left: buttonPressed(gp, BTN.LEFT) || (!!stick && stick.dx < 0),
             right: buttonPressed(gp, BTN.RIGHT) || (!!stick && stick.dx > 0),
           };
+        } else if (rbWasHeldRef.current) {
+          /* RBを離したらパッドが書いた方向を消す（後のキーボード入力に残留させない） */
+          arrowHeldRef.current = {};
         }
       }
+      rbWasHeldRef.current = rbHeld;
 
       let move = dpad || stick;
       if (rbHeld && !anyModalUi() && !(xHeld || facingModeRef.current)) {
@@ -876,8 +881,8 @@ export function useGamepad({
       if (move) {
         const key = `${move.dx},${move.dy}${rbHeld ? ":rb" : ""}`;
         const isNew = moveHeldRef.current !== key;
-        const inFace = xHeld || facingModeRef.current;
         const inModal = anyModalUi() || dead;
+        const inFace = (xHeld || facingModeRef.current) && !inModal;
 
         if (isNew) {
           moveHeldRef.current = key;
@@ -959,6 +964,7 @@ export function useGamepad({
       cancelAnimationFrame(raf);
       setGamepadModifier(aRef, keyboardDashRef, gamepadDashRef, false);
       setGamepadModifier(shiftRef, keyboardShiftRef, gamepadShiftRef, false);
+      if (arrowHeldRef) arrowHeldRef.current = {};
       waitHeldRef.current = false;
       waitStoppedRef.current = false;
     };
