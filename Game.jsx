@@ -1496,7 +1496,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           killerMon = m, sourceIsPlayer = false, breaker = killerMon || m) =>
           applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
             _wandBlMult, _wbItemNameFn, m.atk, killerMon, _wbBbNameFn, sourceIsPlayer, breaker, opts.fireTrapFn);
-        if (_we === "lightning_magic" && m.baseKind === "boss_flock_revenge") {
+        if (_we === "lightning_magic" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           const room = findRoom(dg.rooms, m.x, m.y);
           if (!room || findRoom(dg.rooms, pl.x, pl.y) !== room) return;
           ml.push(`${m.name}が同じ部屋に雷の魔法を放った！`);
@@ -1507,7 +1507,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             _applyMonsterWandEffect("lightning", "player", pl, 0, 0, ml);
             if (pl.hp <= 0) pl.deathCause = `${m.name}の雷の魔法により`;
           }
-        } else if (_we === "sleep_bolt" && m.baseKind === "boss_flock_revenge") {
+        } else if (_we === "sleep_bolt" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, range: 10, boltColor: "sleep_wand", reflectColor: "#bc86ff", wandLabel: "眠りの魔法",
             onPlayerHit: (mlx) => _applyMonsterWandEffect("sleep", "player", pl, dx, dy, mlx),
@@ -1516,7 +1516,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onMagicReflect: (_reflector, mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
             onPlayerReflect: (mlx) => _applyMonsterWandEffect("sleep", "monster", m, -dx, -dy, mlx),
           });
-        } else if (_we === "drain_hp" && m.baseKind === "boss_flock_revenge") {
+        } else if (_we === "drain_hp" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           const drain = (target, recipient, killerMon = m) => {
             if (!target || target.hp <= 0 || consumeBarrier(target, ml)) return;
             const power = Math.max(1, Number(m.flockMagicPowerMultiplier) || 1);
@@ -1536,10 +1536,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onMagicReflect: (reflector) => drain(m, reflector, reflector),
             onPlayerReflect: () => drain(m, pl, null),
           });
-        } else if (_we === "reflect_magic" && m.baseKind === "boss_flock_revenge") {
+        } else if (_we === "reflect_magic" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           m.flockReflectTurns = Math.max(m.flockReflectTurns || 0, 10);
           ml.push(`${m.name}は反射の魔法で魔法反射状態になった！(10ターン)`);
-        } else if (_we === "guard_magic" && m.baseKind === "boss_flock_revenge") {
+        } else if (_we === "guard_magic" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           if (!(m.flockGuardDefBonus > 0)) {
             const bonus = 16;
             m.def = (m.def || 0) + bonus;
@@ -1548,7 +1548,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
           m.flockGuardTurns = Math.max(m.flockGuardTurns || 0, 10);
           ml.push(`${m.name}は守護の魔法で防御力が上がった！(+${m.flockGuardDefBonus}、10ターン)`);
-        } else if (_we === "flame_mantle" && m.baseKind === "boss_flock_revenge") {
+        } else if (_we === "flame_mantle" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           m.flameMantleTurns = Math.max(m.flameMantleTurns || 0, 10);
           ml.push(`${m.name}は炎上の魔法で炎をまとった！(10ターン)`);
         } else if (_we === "clone_magic" && m.baseKind === "boss_flock_revenge") {
@@ -1587,7 +1587,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           dg.monsters.push(clone);
           m._flockCloneSummoned = true;
           ml.push(`逆襲のフロックは分身の魔法で2人に増えた！分身のHPは${cloneHp}！`);
-        } else if (_we === "self_destruct_magic" && m.baseKind === "boss_flock_revenge") {
+        } else if (_we === "self_destruct_magic" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           doExplosion(m.x, m.y, dg, pl, ml, _wbItemNameFn, "自爆の魔法", null, lu, false, false, false, false, {
             radius: 1, killerMon: m, excludeMonsterId: m.id,
             damageMultiplier: Math.max(1, Number(m.flockMagicPowerMultiplier) || 1),

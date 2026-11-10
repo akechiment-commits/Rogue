@@ -2196,7 +2196,7 @@ export const FLOCK_STALKER_BOSS = {
   name: "執念のフロック", hp: 2000, atk: 145, def: 29, exp: 52000,
   speed: 2, tile: 258, kind: "humanoid", baseKind: "boss_flock_stalker", subtype: "flockStalkerBoss",
   isBoss: true, bossTier: 8, monLevel: 1, maxAttacks: 1, float: true,
-  mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 2,
+  mp: 1800, maxMp: 1800, flockEmpowered: true, flockMagicPowerMultiplier: 3,
   deathLines: FLOCK_STALKER_DEATH_LINES,
   desc: "深淵の禁書を持ち帰ろうとする冒険者を執拗に追うフロック。超上級B10F以降の帰り道に出現する。40階ボス相当の能力値と2倍速1回行動を持ち、禁書を取り返すためプレイヤーへ接近して隣接時に盗みを試みる。盗みは護盗で防げる。禁書を奪うか床の禁書を拾うとテレポートで逃走し、本来の3マス維持・隣接時テレポートの遠距離魔法AIに戻る。倒さない限り上の階層へ移動しても追跡してくる。",
 };
