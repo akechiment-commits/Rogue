@@ -45,8 +45,8 @@ describe('上級20階のキングベヒんもス',()=>{
   });
   it('図鑑・全スタイルのタイル定義から専用ボスを参照できる',()=>{
     expect(getMonsterEncyclopediaEntry(KING_BEHINMOS.name)).toBe(KING_BEHINMOS);
-    expect(getMonsterDescription(KING_BEHINMOS.name)).toContain('2ターン後');
-    expect(getMonsterDescription(KING_BEHINMOS.name)).toContain('半分未満なら1ターン後');
+    expect(getMonsterDescription(KING_BEHINMOS.name)).toContain('メテオ');
+    expect(getMonsterDescription(KING_BEHINMOS.name)).toContain('予兆');
     expect(TILE_NAMES[224]).toBe('king_behinmos'); expect(TILE_RENDER[224].ch).toBe('B');
     expect(MONSTER_SHEET_MAP[224]).toBeDefined(); expect(DAWNLIKE_FALLBACKS[224]).toBe(99);
   });
