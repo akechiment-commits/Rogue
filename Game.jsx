@@ -1469,7 +1469,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
         if (_tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
-          if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
+          if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); spawnFlockStalker(sr.current, p, nd, ml2, 1); }
         } else if (_tr === "deferred_explosion" && dg2._pendingMineExplosion) {
           /* 敵の特技は攻撃フェーズ中にも罠を起動する。
              通常の発火フェーズを待つと次のプレイヤー行動まで持ち越されるため即時解決する。 */
@@ -2123,8 +2123,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.x = _dest.portal.x; p.y = _dest.portal.y;
       ml.push(`ポータルから${_dest.portal.name}へ抜けた！`);
     } else {
+      const _srcDepthP = p.depth;
       declareFloorExitTheft(p, sr.current.dungeon, ml);
       sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter((monster) => !monster.isPlayerClone);
+      const _oldStalkerP = sr.current.dungeon?.monsters?.find(m => m.baseKind === "boss_flock_stalker");
+      if (_oldStalkerP) {
+        sr.current._flockStalkerSnapshot = {
+          hp: _oldStalkerP.hp,
+          mp: _oldStalkerP.mp,
+          _hasStolenBook: _oldStalkerP._hasStolenBook,
+          stolenGoalItem: _oldStalkerP.stolenGoalItem,
+        };
+        sr.current.dungeon.monsters = sr.current.dungeon.monsters.filter(m => m !== _oldStalkerP);
+      }
       _dest.dg.monsters = _dest.dg.monsters.filter((monster) => !monster.isPlayerClone);
       suspendFloor(sr.current.dungeon, p);
       sr.current.floors[p.depth] = sr.current.dungeon;
@@ -2133,6 +2144,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       st.dungeon = _dest.dg;
       p.depth = _dest.depth;
       p.x = _dest.portal.x; p.y = _dest.portal.y;
+      spawnFlockStalker(st, p, _dest.dg, ml, _dest.depth > _srcDepthP ? 1 : -1);
       synchronizeFloorArrival(st, _dest.dg);
       sr.current.floorTurns = st.floorTurns;
       sr.current.maxReachedFloor = st.maxReachedFloor;
@@ -2396,6 +2408,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (nextDungeon) {
             st.dungeon = nextDungeon;
             ml.push(`地下${p.depth}階に落ちた！`);
+            spawnFlockStalker(st, p, nextDungeon, ml, 1);
           }
         }
         resolvePlayerPentacleEffects(p, st.dungeon, ml, {
@@ -3815,6 +3828,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (nd) {
                 st.dungeon = nd;
                 ml.push(`地下${p.depth}階に落ちた！`);
+                spawnFlockStalker(st, p, nd, ml, 1);
               }
             } else if (tr === "deferred_explosion") {
               /* 地雷：モンスター移動後に爆発（dg._pendingMineExplosion → endTurn） */
@@ -4102,7 +4116,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu, { ident: sr.current?.ident, bbFn: bigboxAddItem });
                 if (_tr2 === "pitfall") {
                   const nd2 = chgFloor(p, 1, true);
-                  if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+                  if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); spawnFlockStalker(st, p, nd2, ml, 1); }
                 }
               }
               acted = true;
@@ -4476,6 +4490,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (nd) {
             st.dungeon = nd;
             ml.push(`地下${p.depth}階に落ちた！`);
+            spawnFlockStalker(st, p, nd, ml, 1);
           }
           endTurn(st, p, ml);
           await waitForDashTrap();
@@ -6267,7 +6282,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
     setPutMode, putMode, setPutMenuSel, setPutPage,
     setIdentifyMode, setRevealMode, setWishMode,
-    lu, endTurn, chgFloor, withPitfallBag,
+    lu, endTurn, chgFloor, spawnFlockStalker, withPitfallBag,
     dnameRef, bigboxAddItem,
     onReturnToHub: returnToHubFromItem, dropModeRef, setFloorSelectMode, setTpSelectMode,
     floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
@@ -6520,6 +6535,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (nd2) {
         s.dungeon = nd2;
         ml.push(`地下${_p.depth}階に落ちた！`);
+        spawnFlockStalker(s, _p, nd2, ml, 1);
       }
     }
 

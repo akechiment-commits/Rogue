@@ -25,7 +25,7 @@ function callbacksFor(state, overrides = {}) {
     bigboxAddItem: () => {}, lu: () => {}, applyWandEffect, inMagicSealRoom, findRoom, takeDueActions,
     suspendFloor, resumeFloor, generateSessionFloor, synchronizeFloorArrival, declareFloorExitTheft,
     setDungeonAllBcKnown: () => {}, ensureStairsPresent: () => {}, markBigboxKindIdentified,
-    refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, rng: low => low, ...overrides,
+    refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, rng: low => low, spawnFlockStalker: () => false, ...overrides,
   };
   return new Function(...Object.keys(deps), `${source.slice(floorStart, floorEnd)}\n${source.slice(moveStart, moveEnd)}\nreturn { moveMons, chgFloor };`)(...Object.values(deps));
 }

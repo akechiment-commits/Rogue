@@ -26,7 +26,7 @@ function moveEnemiesFor(state) {
     runMineExplosion, takeDueActions, findRoom, inMagicSealRoom, applyWandEffect, monsterFireLightning,
     resolveMonsterWandEffect, _resolveMonsterWandBolt, hasGravityPentacle,
     interruptPlayerSleep, itemDisplayName, killMonster, chgFloor, trackTrap, hasPlayerMagicReflect, playerMagicReflectLabel,
-    bbDisplayName: box => box.name, bigboxAddItem: createGameBigboxHandlers(state).bigboxAddItem, lu: () => {} };
+    bbDisplayName: box => box.name, bigboxAddItem: createGameBigboxHandlers(state).bigboxAddItem, lu: () => {}, spawnFlockStalker: () => false };
   const moveMons = new Function(...Object.keys(deps), `${source.slice(start, end)}; return moveMons;`)(...Object.values(deps));
   return { moveMons, chgFloor, destination };
 }

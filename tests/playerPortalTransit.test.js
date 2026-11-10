@@ -11,7 +11,7 @@ export function portalFor(state) {
   const start = source.indexOf("  const playerPortalWarp = useCallback(");
   const end = source.indexOf("  const chgFloor", start);
   const deps = { sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor, monsterOccupiesCell,
-    declareFloorExitTheft, synchronizeFloorArrival, refreshFOV: () => {}, pushPlayerTeleportAnim: () => {} };
+    declareFloorExitTheft, synchronizeFloorArrival, refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, spawnFlockStalker: () => false };
   return new Function(...Object.keys(deps), `${source.slice(start, end)}; return playerPortalWarp;`)(...Object.values(deps));
 }
 function fixture({ debt = 100, goods = true } = {}) {

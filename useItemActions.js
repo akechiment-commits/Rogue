@@ -154,7 +154,7 @@ export function useItemActions({
   setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
   setPutMode, putMode, setPutMenuSel, setPutPage,
   setIdentifyMode, setRevealMode, setWishMode,
-  lu, endTurn, chgFloor, withPitfallBag,
+  lu, endTurn, chgFloor, spawnFlockStalker = () => false, withPitfallBag,
   dnameRef, bigboxAddItem,
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
   floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
@@ -538,7 +538,7 @@ export function useItemActions({
             if (p.hp > 0) {
               ml.push(`${_useItemName}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
               const _luNd = chgFloor(p, -1, true);
-              if (_luNd) sr.current.dungeon = _luNd;
+              if (_luNd) { sr.current.dungeon = _luNd; spawnFlockStalker(sr.current, p, _luNd, ml, -1); }
             } else {
               ml.push(`${_useItemName}を飲んだ。天井を突き破った衝撃で倒れた！【呪】`);
             }
@@ -2430,6 +2430,7 @@ export function useItemActions({
         if (_nd) {
           sr.current.dungeon = _nd;
           ml.push(`地下${p.depth}階に落ちた！`);
+          spawnFlockStalker(sr.current, p, _nd, ml, 1);
         }
       }
     }
@@ -2537,6 +2538,7 @@ export function useItemActions({
         if (_nd) {
           sr.current.dungeon = _nd;
           ml.push(`地下${p.depth}階に落ちた！`);
+          spawnFlockStalker(sr.current, p, _nd, ml, 1);
         }
       }
     }
@@ -2684,7 +2686,7 @@ export function useItemActions({
           delete p._pendingWarpUp;
           if (p.depth > 1) {
             const _bwNd = chgFloor(p, -1);
-            if (_bwNd) sr.current.dungeon = _bwNd;
+            if (_bwNd) { sr.current.dungeon = _bwNd; spawnFlockStalker(sr.current, p, _bwNd, ml, -1); }
           } else if (onReturnToHub) {
             clearGameSave();
             const _hasGoalBw = p.inventory.some(i => i.type === "goal");
@@ -3237,7 +3239,7 @@ export function useItemActions({
             delete p._pendingWarpUp;
             if (p.depth > 1) {
               const _boilWarpNd = chgFloor(p, -1, true);
-              if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
+              if (_boilWarpNd) { sr.current.dungeon = _boilWarpNd; spawnFlockStalker(sr.current, p, _boilWarpNd, ml, -1); }
             } else if (onReturnToHub) {
               clearGameSave();
               const _hasGoalBoil = p.inventory.some(i => i.type === "goal");
@@ -4012,7 +4014,7 @@ export function useItemActions({
             delete p._pendingWarpUp;
             if (p.depth > 1) {
               const _warpNd = chgFloor(p, -1, true);
-              if (_warpNd) sr.current.dungeon = _warpNd;
+              if (_warpNd) { sr.current.dungeon = _warpNd; spawnFlockStalker(sr.current, p, _warpNd, ml, -1); }
             } else if (onReturnToHub) {
               clearGameSave();
               const _hasGoalWv = p.inventory.some(i => i.type === "goal");
@@ -4938,7 +4940,7 @@ export function useItemActions({
                   _wandFiredEffect = true;
                   if (p._pendingWarpUp) {
                     delete p._pendingWarpUp;
-                    if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
+                    if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) { sr.current.dungeon = _wn; spawnFlockStalker(sr.current, p, _wn, ml, -1); } }
                     else if (onReturnToHub) {
                       clearGameSave();
                       const _hasGoalTw = p.inventory.some(i => i.type === "goal");
