@@ -4364,12 +4364,11 @@ export function genTreasureRoom(depth, dungeonType = null) {
     shop: null, pentacles: [], waterItems: [], hiddenRooms: [], monsterHouseRoom: null,
     floorType: "treasureRoom", isTreasureRoom: true,
     noNaturalSpawn: true,
-    /* 自然湧きはしないが、召喚罠・召喚の巻物用に最下層の敵プールを載せる。
-       depth 引数は0始まりだが、出現プール側のメタは1始まりで統一されているため +1 して載せる */
+    /* 自然湧きはしないが、召喚罠・召喚の巻物用に最下層の敵プールを載せる */
     dungeonType: dungeonType || null,
-    spawnFloor: depth + 1,
-    maxFloors: depth + 1,
-    maxReachedFloor: depth + 1,
+    spawnFloor: depth,
+    maxFloors: depth,
+    maxReachedFloor: depth,
   };
 }
 
