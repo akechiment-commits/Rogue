@@ -6456,7 +6456,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs((prev) => [...prev.slice(-80), "装備中の道具は売れない。"]);
       return;
     }
-    const price = Math.max(1, Math.ceil(itemPrice(item) * 0.5));
+    const price = item.type === "gem" ? gemSellPrice(item, p.depth) : Math.max(1, Math.ceil(itemPrice(item) * 0.5));
     p.inventory.splice(inventoryIndex, 1);
     shop.stock.push({ ...item, id: uid() });
     p.gold += price;
