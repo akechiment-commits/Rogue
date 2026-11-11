@@ -3438,7 +3438,7 @@ export function MerchantModal({ mode, setMode, gs, merchantRef, menuSel, setMenu
       ...pageItems.map((entry) => {
         const item = mode === "buy" ? entry : entry.item;
         return {
-          label: `${dname(item)}　${Math.max(1, mode === "buy" ? calcShopBuyPrice(p, itemPrice(item)) : Math.ceil(itemPrice(item) * 0.5))}G`,
+          label: `${dname(item)}　${Math.max(1, mode === "buy" ? calcShopBuyPrice(p, itemPrice(item)) : (item.type === "gem" ? gemSellPrice(item, p.depth) : Math.ceil(itemPrice(item) * 0.5)))}G`,
         };
       }),
       ...(currentPage === totalPages - 1 ? [{ label: "戻る" }] : []),
