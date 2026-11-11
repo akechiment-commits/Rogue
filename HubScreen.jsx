@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
-import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES, potOccupancyCount } from "./items.js";
+import { itemPrice, gemSellPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES, potOccupancyCount } from "./items.js";
 import { clampCarryGold, validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { useHubGamepad } from "./useHubGamepad.js";
@@ -38,6 +38,9 @@ const BDR  = "#2a2a3a";
 const TXT  = "#ccc";
 const GOLD = "#f0c040";
 const BTN  = { fontFamily:"monospace", cursor:"pointer", borderRadius:5, border:`1px solid ${BDR}`, fontSize:13 };
+
+/* 倉庫での売却額。宝石は「1階で売った扱い」（買った階からの距離ボーナス込み）、他は定価の半分 */
+const warehouseSellPrice = (it) => (it?.type === "gem" ? gemSellPrice(it, 1) : Math.max(1, Math.floor(itemPrice(it) / 2)));
 
 const GRAPHIC_STYLE_OPTIONS = [
   { id: "mon1", label: "スタイル3:リッチ", desc: "個別イラスト中心" },
@@ -175,7 +178,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       : [
           { label: "← 持参する", key: "toCarry", color: "#8cf",
             bg: "#081828", bgSel: "#0a2840" },
-          { label: `売る (${Math.max(1, Math.floor(itemPrice(item) / 2))}G)`, key: "sell", color: GOLD,
+          { label: `売る (${warehouseSellPrice(item)}G)`, key: "sell", color: GOLD,
             bg: "#0a1800", bgSel: "#142000" },
         ];
     if (item.desc) acts.push({ label: "説明", key: "desc", color: "#888", bg: "#0d0d18", bgSel: "#1a1a30" });
@@ -223,7 +226,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       const warehouse = prev.warehouse || [];
       const item      = warehouse[idx];
       if (!item) return prev;
-      const price = Math.max(1, Math.floor(itemPrice(item) / 2));
+      const price = warehouseSellPrice(item);
       return {
         ...prev,
         warehouse: warehouse.filter((_, i) => i !== idx),
@@ -253,7 +256,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       const warehouse = prev.warehouse || [];
       let earned = 0;
       const remaining = warehouse.filter((item, i) => {
-        if (checkedIdxs.has(i)) { earned += Math.max(1, Math.floor(itemPrice(item) / 2)); return false; }
+        if (checkedIdxs.has(i)) { earned += warehouseSellPrice(item); return false; }
         return true;
       });
       return { ...prev, warehouse: remaining, hubGold: (prev.hubGold || 0) + earned };
@@ -309,7 +312,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   /* 一括操作用の集計 */
   const checkedWhItems = !isCarry ? [...checkedIdxs].filter(i => i < wh.length).map(i => wh[i]) : [];
   const checkedCarryCount = isCarry ? [...checkedIdxs].filter(i => i < hubInv.length).length : 0;
-  const checkedSellTotal  = checkedWhItems.reduce((s, it) => s + Math.max(1, Math.floor(itemPrice(it) / 2)), 0);
+  const checkedSellTotal  = checkedWhItems.reduce((s, it) => s + warehouseSellPrice(it), 0);
   const anyChecked = isCarry ? checkedCarryCount > 0 : checkedWhItems.length > 0;
 
   /* フォーカス追従スクロール */

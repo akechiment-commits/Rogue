@@ -854,8 +854,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       for (const it of dungeonConfig.startInventory) {
         if (p.inventory.length < (p.maxInventory || 100)) {
           const copy = { ...it, id: uid() };
+          /* 持ち込んだ宝石は「1階で手に入れた扱い」（売値の距離起点を1階にする） */
+          if (copy.type === "gem") copy.originDepth = 1;
           if (it.type === "pot") {
-            copy.contents = [...(it.contents || [])];
+            copy.contents = (it.contents || []).map((c) => (c?.type === "gem" ? { ...c, originDepth: 1 } : c));
             copy.confinedMonsters = [...(it.confinedMonsters || [])];
           }
           p.inventory.push(copy);
