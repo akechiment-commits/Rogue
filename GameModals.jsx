@@ -4141,7 +4141,7 @@ export function InventoryModal({
         if (_inShopRoom) {
           const _totalSell = p.inventory
             .filter(it => it.type !== "gold")
-            .reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
+            .reduce((s, it) => s + (it.type === "gem" ? gemSellPrice(it, p.depth) : Math.ceil(itemPrice(it) * 0.5)), 0);
           return (
             <div style={{ background: "#1a1400", border: "1px solid #665500", borderRadius: 4, padding: "4px 8px", marginBottom: 6, color: "#ffcc44", fontSize: 13 }}>
               全売却合計: <span style={{ fontWeight: "bold", color: "#ffee88" }}>{_totalSell.toLocaleString()}G</span>
@@ -4274,7 +4274,7 @@ export function InventoryModal({
                   {it.shopPrice
                     ? <span style={{ color: "#ff6622", fontSize: 12, marginLeft: 4 }}>〔未払:{getShopItemCharge(it)}G〕</span>
                     : (_inShopRoom2 && it.type !== "gold"
-                        ? <span style={{ color: "#aaa880", fontSize: 12, marginLeft: 4 }}>売:{Math.ceil(itemPrice(it) * 0.5)}G</span>
+                        ? <span style={{ color: "#aaa880", fontSize: 12, marginLeft: 4 }}>売:{it.type === "gem" ? gemSellPrice(it, p.depth) : Math.ceil(itemPrice(it) * 0.5)}G</span>
                         : null)
                   }
                 </span>
