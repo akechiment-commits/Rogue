@@ -23,7 +23,7 @@ import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight, getDigitNumber, isDashModifi
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
-import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
+import { isBigboxKindIdentified, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { isDebugItemGetEffect } from "./debugSpellRules.js";
 import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 import { unlockAudio, triggerSE } from "./soundEvents.js";
@@ -265,7 +265,9 @@ export function useKeyHandler({
         const _dg_id = sr.current.dungeon;
         const _footBb_id = (identifyMode.bbFootId != null ? _dg_id?.bigboxes?.find(b => b.id != null && String(b.id) === String(identifyMode.bbFootId)) : null)
           || _dg_id?.bigboxes?.find(b => b.x === _p_id.x && b.y === _p_id.y);
-        const _bbOk_id = !!(_footBb_id && !_isBCMode && !_isForgeRemovalMode && identifyMode.mode !== 'unidentify' && identifyMode.mode !== 'forge_item');
+        const _bbUnidentifyOk_id = identifyMode.mode !== 'unidentify' || identifyMode.wasUnknown || isBigboxKindIdentified(_footBb_id, sr.current) || !!_footBb_id?.revealed;
+        const _bbIdentifyOk_id = identifyMode.mode !== 'identify' || identifyMode.showAll || identifyMode.wasUnknown || !isBigboxKindIdentified(_footBb_id, sr.current);
+        const _bbOk_id = !!(_footBb_id && !_isBCMode && !_isForgeRemovalMode && identifyMode.mode !== 'forge_item' && _bbIdentifyOk_id && _bbUnidentifyOk_id);
         const _footBbName_id = _footBb_id ? (isBigboxKindIdentified(_footBb_id, sr.current) ? _footBb_id.name : (sr.current.bbFakeNames?.[_footBb_id.kind] || "謎の大箱")) : null;
         const _allList_id = [...(_bbOk_id ? [{ it: { _isBbTarget: true, _bbId: _footBb_id.id, name: `${_footBbName_id}（足元の大箱）` }, i: -1 }] : []), ..._filt_id];
         const _len_id = _allList_id.length;
@@ -327,6 +329,10 @@ export function useKeyHandler({
               if (identifyMode.mode === 'identify') {
                 markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
                 _bbMsg = `大箱「${_bbDN}」の正体が明らかになった！`;
+              } else if (identifyMode.mode === 'unidentify') {
+                clearBigboxKindIdentified(sr.current, _bb);
+                _bb.revealed = false;
+                _bbMsg = `大箱「${_bbDN}」の識別が失われた...【呪】`;
               } else if (identifyMode.mode === 'duplicate') {
                 if (identifyMode.cursed) {
                   _releaseBbConfined();

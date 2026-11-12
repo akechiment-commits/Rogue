@@ -28,7 +28,7 @@ import { formatPlusSuffix, isEquipmentPlusKnown } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
-import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
+import { isBigboxKindIdentified, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { GACHA_COST, GACHA_BOX_TOTAL, getGachaBoxRemaining, createGachaBox } from "./gachaRules.js";
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 import { foodPotionEffectLabel } from "./foodData.js";
@@ -1336,10 +1336,10 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     if (identifyConfirmRef) identifyConfirmRef.current = _confirmBridgeRef.current;
   });
   if (!mode || !gs) return null;
-  const _p = gs.player;
+  const _p = sr.current?.player || gs?.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
   const _isForgeRemovalMode_ui = mode.mode === 'forge_remove_ability';
-  const _forgeTarget_ui = _isForgeRemovalMode_ui ? _p.inventory[mode.abilityTargetIndex] : null;
+  const _forgeTarget_ui = _isForgeRemovalMode_ui ? _p?.inventory?.[mode.abilityTargetIndex] : null;
   const _forgeAbilityDefs_ui = _forgeTarget_ui?.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
   const _forgeAbilityOptions_ui = _isForgeRemovalMode_ui
     ? (mode.abilityIds || []).map((id, index) => {
@@ -1349,12 +1349,14 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     : null;
   const _dg_ui = sr.current?.dungeon || gs?.dungeon;
   const _footBb = (mode.bbFootId != null ? _dg_ui?.bigboxes?.find(b => b.id != null && String(b.id) === String(mode.bbFootId)) : null)
-    || _dg_ui?.bigboxes?.find(b => b.x === _p.x && b.y === _p.y);
+    || _dg_ui?.bigboxes?.find(b => b.x === _p?.x && b.y === _p?.y);
   const _footBbName = _footBb ? (isBigboxKindIdentified(_footBb, sr.current || gs) ? _footBb.name : ((sr.current || gs)?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
-  const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify' && mode.mode !== 'forge_item';
+  const _bbUnidentifyOk = mode.mode !== 'unidentify' || mode.wasUnknown || isBigboxKindIdentified(_footBb, sr.current || gs) || !!_footBb.revealed;
+  const _bbIdentifyOk = mode.mode !== 'identify' || mode.showAll || mode.wasUnknown || !isBigboxKindIdentified(_footBb, sr.current || gs);
+  const _bbModeOk = _footBb && !_isBCMode_ui && !_isForgeRemovalMode_ui && mode.mode !== 'forge_item' && _bbIdentifyOk && _bbUnidentifyOk;
   const _filtered = _isForgeRemovalMode_ui ? _forgeAbilityOptions_ui : [
     ...(_bbModeOk ? [{ it: { _isBbTarget: true, _bbId: _footBb.id, name: `${_footBbName}（足元の大箱）` }, i: -1 }] : []),
-    ..._p.inventory
+    ...(_p?.inventory || [])
       .map((it, i) => ({ it, i }))
       .filter(({ it, i }) => {
         return isScrollTargetCandidate(mode, it, i, gs.ident);
@@ -1426,6 +1428,10 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         if (mode.mode === 'identify') {
           markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
           _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
+        } else if (mode.mode === 'unidentify') {
+          clearBigboxKindIdentified(sr.current, _bb);
+          _bb.revealed = false;
+          _bbMsg = `大箱「${_bbDN}」の識別が失われた...【呪】`;
         } else if (mode.mode === 'duplicate') {
           if (mode.cursed) {
             _releaseBbConfined();

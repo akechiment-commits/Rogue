@@ -972,7 +972,7 @@ export function useItemActions({
         if (it.cursed) {
           const _tgts = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
             { mode: "unidentify", scrollIdx: idx, wasUnknown: _scrollChoiceUnknown }, _ii, _i, sr.current.ident));
-          if (_tgts.length > 0) {
+          if (_tgts.length > 0 || _scrollFootBb) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
             setMsgs((prev) => [...prev.slice(-80), _scrollChoiceUnknown ? "どのアイテムを選びますか？" : "どのアイテムの識別を解除する？【呪】"]);
             setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, identKey: _ik_scr || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
@@ -1829,7 +1829,7 @@ export function useItemActions({
             if (isBcInstanceType(_ii)) return _ii.fullIdent || _ii.bcKnown;
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
-          if (_targets.length === 0) {
+          if (_targets.length === 0 && !_scrollFootBb) {
             ml.push("未識別に戻せるアイテムがない。【呪】");
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];

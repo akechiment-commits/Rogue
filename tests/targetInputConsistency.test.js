@@ -401,4 +401,18 @@ describe.each(inputs)("大箱の未識別名を含む操作の一致: %s", input
     expect(result.messages.join("\n")).toContain(`大箱「${originalName}」の正体が明らかになった！`);
     expect(result.sr.current.identifiedBigboxes.has(originalKind)).toBe(true);
   });
+  it("呪われた識別の巻物（祝呪未識別: mode=unidentify）でも足元の大箱を対象に選べる", () => {
+    let originalName, originalKind;
+    const potion = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, potion, "unidentify", { bbFootId: "original-box", wasUnknown: true }, {
+      setupDungeon(dungeon, player) {
+        const box = prepareBoxDungeon(dungeon, player);
+        box.revealed = true;
+        originalName = box.name; originalKind = box.kind;
+      },
+      identifiedBigboxes: [BB_TYPES[0].kind],
+    });
+    expect(result.messages.join("\n")).toContain(`大箱「${originalName}」の識別が失われた...【呪】`);
+    expect(result.sr.current.identifiedBigboxes.has(originalKind)).toBe(false);
+  });
 });

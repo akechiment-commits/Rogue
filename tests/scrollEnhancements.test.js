@@ -83,4 +83,50 @@ describe('巻物処理の追加検証（魔法無効封印・プレイヤー防�
     expect(largeMon.sleepTurns).toBeGreaterThan(0);
     expect(largeMon.largeStatusCooldowns?.sleep).toBe(10);
   });
+
+  it('足元に大箱がある状態で祝呪未識別の呪われた識別の巻物を読んだ場合、unidentifyモードかつbbFootId付きでモーダルが開く', () => {
+    const scroll = { id: 'scroll', name: '識別の巻物', type: 'scroll', effect: 'identify', cursed: true, bcKnown: false };
+    const box = { id: 'box-1', x: 2, y: 2, kind: 'round', name: '丸みのある大箱', capacity: 3, contents: [] };
+    const otherItem = { id: 'pot', name: '保存の壺', type: 'pot', capacity: 4 };
+    const player = makePlayer({ x: 2, y: 2, depth: 1, hp: 100, maxHp: 100, inventory: [scroll, otherItem] });
+    const dungeon = makeEmptyDg({ depth: 1, monsters: [], rooms: [], bigboxes: [box] });
+    const sr = { current: { player, dungeon, ident: new Set(), allBcKnown: false } };
+    const setIdentifyMode = vi.fn();
+    const setMsgs = vi.fn();
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs, setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setIdentifyMode
+    });
+
+    actions.doUseItem(0);
+    expect(setIdentifyMode).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'unidentify',
+      bbFootId: 'box-1',
+      wasUnknown: true
+    }));
+  });
+
+  it('足元に大箱がある状態で祝呪未識別の通常識別の巻物を読んだ場合、identifyモードかつbbFootId付きでモーダルが開く', () => {
+    const scroll = { id: 'scroll', name: '識別の巻物', type: 'scroll', effect: 'identify', cursed: false, bcKnown: false };
+    const box = { id: 'box-2', x: 2, y: 2, kind: 'round', name: '丸みのある大箱', capacity: 3, contents: [] };
+    const otherItem = { id: 'pot', name: '保存の壺', type: 'pot', capacity: 4 };
+    const player = makePlayer({ x: 2, y: 2, depth: 1, hp: 100, maxHp: 100, inventory: [scroll, otherItem] });
+    const dungeon = makeEmptyDg({ depth: 1, monsters: [], rooms: [], bigboxes: [box] });
+    const sr = { current: { player, dungeon, ident: new Set(), allBcKnown: false } };
+    const setIdentifyMode = vi.fn();
+    const setMsgs = vi.fn();
+    const actions = useItemActions({
+      sr, endTurn: vi.fn(), dnameRef: (it) => it.name, lu: () => {},
+      setGs: () => {}, setMsgs, setShowInv: () => {}, setSelIdx: () => {}, setShowDesc: () => {},
+      setIdentifyMode
+    });
+
+    actions.doUseItem(0);
+    expect(setIdentifyMode).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'identify',
+      bbFootId: 'box-2',
+      wasUnknown: true
+    }));
+  });
 });
