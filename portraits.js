@@ -19,7 +19,7 @@ export const PORTRAIT_WALK_STEPS_JITTER = 8;
 export const PORTRAIT_FALLBACK = "stand_normal";
 
 /* Keep PNG sources editable and serve their compressed WebP copies in production. */
-export const CHAR_PATH = (name) => `/tiles/Character/${name}.webp?v=20261112b-portrait-webp`;
+export const CHAR_PATH = (name) => `/tiles/Character/${name}.webp?v=20261112c-portrait-webp`;
 
 export const PORTRAIT_SETS = buildPortraitSets(MERGED_PORTRAIT_CATEGORIES);
 
