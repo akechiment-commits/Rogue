@@ -7288,7 +7288,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m.turnAttacks++;
       _resolveBolt(m, dg, pl, ml, _luFn, {
         dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
-        baseRange: 10, terminalOnly: true, wind: false, animColor: "#ff642d",
+        baseRange: 10, wind: false, animColor: "#ff642d",
         fireMsg: `${m.name}が歩数光線を放った！`, boltName: "歩数光線",
         deathCause: `${m.name}の歩数光線で`,
         calcPlDmg: () => damage,
