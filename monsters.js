@@ -7790,12 +7790,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* クラーケン：逃走AI＋墨吐き（二フェーズシステム対応） ※HP回復はGame.jsx側で実施 */
-  if (m.sealed) {
+  /* 暗闇・混乱・幻惑の間は専用行動をせず、後段の汎用状態異常処理に任せる */
+  const _krakenStatusBlocked = (m.darknessTurns || 0) > 0 || (m.confusedTurns || 0) > 0 || (m.fleeingTurns || 0) > 0;
+  if (m.sealed || _krakenStatusBlocked) {
     delete m._krakInkReady;
     delete m._krakenBioWaterGunReady;
     delete m._krakenBioTornadoReady;
   }
-  if (!m.sealed && (m.baseKind === "im_boss_kraken" || m.baseKind === "boss_krakenbio")) {
+  if (!m.sealed && !_krakenStatusBlocked && (m.baseKind === "im_boss_kraken" || m.baseKind === "boss_krakenbio")) {
     const _krakenBio = m.baseKind === "boss_krakenbio";
     if (_moveOnly) {
       if (!m._krakFleeing && (_krakenBio ? m.hp <= m.maxHp * 0.5 : m.hp < m.maxHp * 0.5)) {
@@ -7829,8 +7831,25 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       return;
     }
-    /* 逃走中はattackOnlyで何もしない */
-    if (m._krakFleeing) return;
+    /* 逃走中はattackOnlyで何もしない（水中で同室・直線攻撃の範囲外なら竜巻のみ撃つ） */
+    if (m._krakFleeing) {
+      if (_krakenBio && !_moveOnly && !isAttackSealed(m) && !m.blind && !_plOnBlessedSanc &&
+          m.turnAttacks < monEffectiveMaxAttacks(m) && dg.map[m.y]?.[m.x] === T.WATER) {
+        const _kfAdx = pl.x - m.x, _kfAdy = pl.y - m.y;
+        const _kfDist = Math.max(Math.abs(_kfAdx), Math.abs(_kfAdy));
+        const _kfInLine = _kfAdx === 0 || _kfAdy === 0 || Math.abs(_kfAdx) === Math.abs(_kfAdy);
+        const _kfLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+        const _kfInkRange = _kfDist >= 2 && _kfDist <= 19 && _kfInLine && _kfLOS;
+        const _kfGunRange = _kfInLine && _kfDist >= 1 && _kfDist <= 8;
+        const _kfRoom = findRoom(dg.rooms, m.x, m.y);
+        const _kfSameRoom = !!_kfRoom && findRoom(dg.rooms, pl.x, pl.y) === _kfRoom;
+        if (_kfSameRoom && !_kfInkRange && !_kfGunRange && Math.random() < 0.5) {
+          m.turnAttacks++;
+          launchMonsterHomingProjectile(m, dg, pl, ml, { name: "竜巻" });
+        }
+      }
+      return;
+    }
     if (_krakenBio && _moveOnly && (m._krakInkReady || m._krakenBioWaterGunReady || m._krakenBioTornadoReady)) return;
     /* 墨吐き：moveOnlyで25%予約→attackOnlyで実行 */
     if (_moveOnly) {
@@ -7838,13 +7857,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _kiDist = Math.max(Math.abs(_kiAdx), Math.abs(_kiAdy));
       const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
       const _kiLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-      if (_kiDist >= 2 && _kiInLine && _kiLOS && _monsterCanSeePlayer() && !_plInvis && !_plPotHidden &&
+      if (_kiDist >= 2 && _kiInLine && _kiLOS && _monsterCanSeePlayer() && !_plInvis && !_plPotHidden && !isAttackSealed(m) && !m.blind &&
           m.turnAttacks < Math.max(monEffectiveMaxAttacks(m), m.sealed ? 1 : 2) && Math.random() < MONSTER_SPECIAL_RATE.status) {
         if (_plOnBlessedSanc) return;
         m._krakInkReady = true;
         return; /* 移動しない→attackOnlyで墨発動 */
       }
-      if (_krakenBio && !m.sealed && !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (_krakenBio && !m.sealed && !_plOnBlessedSanc && !isAttackSealed(m) && !m.blind && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const _bioWaterGunRange = _kiInLine && _kiDist >= 1 && _kiDist <= 8;
         if (_bioWaterGunRange && Math.random() < 0.25) {
           m._krakenBioWaterGunReady = true;
@@ -7863,7 +7882,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     } else if (m._krakInkReady) {
       /* attackOnlyフェーズ：予約済み墨吐きを実行 */
       delete m._krakInkReady;
-      if (!_monsterCanSeePlayer() || _plInvis || _plPotHidden) return;
+      if (!_monsterCanSeePlayer() || _plInvis || _plPotHidden || isAttackSealed(m) || m.blind) return;
       if (_krakenBio && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
       if (_plOnBlessedSanc) {
         m.turnAttacks++;
@@ -7912,7 +7931,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (_krakenBio && !_moveOnly && m._krakenBioWaterGunReady) {
       delete m._krakenBioWaterGunReady;
       if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
-      if (!_plOnBlessedSanc && !m.sealed) {
+      if (!_plOnBlessedSanc && !m.sealed && !isAttackSealed(m) && !m.blind) {
         m.turnAttacks++;
         monsterShootWaterGun(m, dg, pl, ml, _luFn);
       }
@@ -7921,7 +7940,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (_krakenBio && !_moveOnly && m._krakenBioTornadoReady) {
       delete m._krakenBioTornadoReady;
       if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
-      if (!m.sealed) {
+      if (!m.sealed && !isAttackSealed(m) && !m.blind) {
         m.turnAttacks++;
         launchMonsterHomingProjectile(m, dg, pl, ml, { name: "竜巻" });
       }
