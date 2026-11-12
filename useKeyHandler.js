@@ -327,8 +327,18 @@ export function useKeyHandler({
                 }
               };
               if (identifyMode.mode === 'identify') {
-                markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
-                _bbMsg = `大箱「${_bbDN}」の正体が明らかになった！`;
+                if (identifyMode.cursed) {
+                  if (isBigboxKindIdentified(_bb, sr.current)) {
+                    clearBigboxKindIdentified(sr.current, _bb);
+                    _bb.revealed = false;
+                    _bbMsg = `識別の巻物は呪われていた！【呪】大箱「${_bbDN}」の識別が失われた...`;
+                  } else {
+                    _bbMsg = `識別の巻物は呪われていた！【呪】${_bbDN}には効果がなかった。`;
+                  }
+                } else {
+                  markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
+                  _bbMsg = `大箱「${_bbDN}」の正体が明らかになった！`;
+                }
               } else if (identifyMode.mode === 'unidentify') {
                 clearBigboxKindIdentified(sr.current, _bb);
                 _bb.revealed = false;
@@ -511,13 +521,24 @@ export function useKeyHandler({
             const _isBcOnly = isBcInstanceType(_selIt);
             const _selKey = _isBcOnly ? null : getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
-              const _wasAlreadyNamed = !_isBcOnly && _selKey && sr.current.ident.has(_selKey);
-              if (_selKey) { sr.current.ident.add(_selKey); if (!_wasAlreadyNamed) trackItem(_selIt); }
-              _selIt.fullIdent = true; _selIt.bcKnown = true;
-              const _knownName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              _msgResult = _selIt.type === "gold_nugget"
-                ? `${_knownName}の正体が判明した！`
-                : ((_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`);
+              if (identifyMode.cursed) {
+                const _isIdentified = _isBcOnly ? (_selIt.fullIdent || _selIt.bcKnown) : (_selKey && sr.current.ident.has(_selKey));
+                if (_isIdentified) {
+                  if (_selKey) sr.current.ident.delete(_selKey);
+                  _selIt.fullIdent = false; _selIt.bcKnown = false;
+                  _msgResult = `識別の巻物は呪われていた！【呪】${_selIt.name}の識別が失われた...`;
+                } else {
+                  _msgResult = `識別の巻物は呪われていた！【呪】効果がなかった。`;
+                }
+              } else {
+                const _wasAlreadyNamed = !_isBcOnly && _selKey && sr.current.ident.has(_selKey);
+                if (_selKey) { sr.current.ident.add(_selKey); if (!_wasAlreadyNamed) trackItem(_selIt); }
+                _selIt.fullIdent = true; _selIt.bcKnown = true;
+                const _knownName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                _msgResult = _selIt.type === "gold_nugget"
+                  ? `${_knownName}の正体が判明した！`
+                  : ((_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`);
+              }
             } else {
               if (_selKey) sr.current.ident.delete(_selKey);
               _selIt.fullIdent = false; _selIt.bcKnown = false;

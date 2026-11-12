@@ -30,7 +30,7 @@ import {
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { formatWandUseSuffix, isEquipmentPlusKnown } from "./inventoryLabel.js";
-import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
+import { bbDisplayName, isBigboxKindIdentified, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -180,7 +180,6 @@ export function useItemActions({
     const _ik_reveal = (it.type === 'potion' || it.type === 'scroll') ? getIdentKey(it) : null;
     const _wasUnknown = !!(_ik_reveal && !sr.current.ident.has(_ik_reveal));
     const _scrollBcKnown = !!(it.fullIdent || it.bcKnown);
-    const _scrollChoiceUnknown = _wasUnknown || (it.type === "scroll" && !_scrollBcKnown);
     const _hypnosisAutoSelect = hypnosisAutoRef.current?.kind === "scroll" && hypnosisAutoRef.current.idx === idx;
     const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
     const _revReal = _wasUnknown ? it.name : null;
@@ -969,26 +968,39 @@ export function useItemActions({
       if (_scrollFootBb && _scrollFootBb.id == null) _scrollFootBb.id = uid();
       if (it.effect === "identify" && !it.blessed && !inMagicSealRoom(p.x, p.y, dg)) {
         const _ik_scr = getIdentKey(it); // "s:identify"
-        if (it.cursed) {
+        if (it.cursed && it.bcKnown) {
+          /* 呪いが判明している場合のみ、識別解除モード（識別済みアイテム対象）を開く */
           const _tgts = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
-            { mode: "unidentify", scrollIdx: idx, wasUnknown: _scrollChoiceUnknown }, _ii, _i, sr.current.ident));
-          if (_tgts.length > 0 || _scrollFootBb) {
-            const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-            setMsgs((prev) => [...prev.slice(-80), _scrollChoiceUnknown ? "どのアイテムを選びますか？" : "どのアイテムの識別を解除する？【呪】"]);
-            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, identKey: _ik_scr || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
+            { mode: "unidentify", scrollIdx: idx, wasUnknown: false }, _ii, _i, sr.current.ident));
+          const _bbNeedUnident = _scrollFootBb && (isBigboxKindIdentified(_scrollFootBb, sr.current) || !!_scrollFootBb.revealed);
+          if (_tgts.length > 0 || _bbNeedUnident) {
+            setMsgs((prev) => [...prev.slice(-80), "どのアイテムの識別を解除する？【呪】"]);
+            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: false, identKey: _ik_scr || null, revMsg: null, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
           }
         } else {
-          /* 未識別の巻物だった場合は全アイテム選択可（識別効果がわからないため）、識別済みなら未識別アイテムのみ */
-          const _showAll = _scrollChoiceUnknown;
+          /* 未識別の巻物（名前自体が未識別）だった場合は全アイテム選択可（識別効果がわからないため）、名前判明済みなら未識別アイテムのみ */
+          const _showAll = _wasUnknown;
           const _tgts = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
-            { mode: "identify", scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, showAll: _showAll }, _ii, _i, sr.current.ident));
-          if (_tgts.length > 0 || _scrollFootBb) {
+            { mode: "identify", scrollIdx: idx, wasUnknown: _wasUnknown, showAll: _showAll }, _ii, _i, sr.current.ident));
+          const _bbNeedIdent = _scrollFootBb && (_showAll || !isBigboxKindIdentified(_scrollFootBb, sr.current));
+          if (_tgts.length > 0 || _bbNeedIdent) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-            setMsgs((prev) => [...prev.slice(-80), _scrollChoiceUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]);
-            setIdentifyMode({ mode: 'identify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, showAll: _showAll, identKey: _ik_scr || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
+            setMsgs((prev) => [...prev.slice(-80), _wasUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]);
+            setIdentifyMode({
+              mode: 'identify',
+              sel: 0,
+              scrollIdx: idx,
+              wasUnknown: _wasUnknown,
+              showAll: _showAll,
+              identKey: _ik_scr || null,
+              revMsg: _revMsg,
+              bbFootId: _scrollFootBb?.id,
+              autoSelect: _hypnosisAutoSelect,
+              cursed: it.cursed || false
+            });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -1823,34 +1835,35 @@ export function useItemActions({
           }
           if (_scrollFootBb && !_scrollFootBb.revealed) { markBigboxKindIdentified(sr.current, _scrollFootBb); _scrollFootBb.revealed = true; trackBigbox(_scrollFootBb); ml.push(`大箱「${_scrollFootBb.name}」の正体が明らかになった！`); }
           ml.push("全てのアイテムが識別された！");
-        } else if (it.cursed) {
-          // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具・食料の祝呪も含む）
+        } else if (it.cursed && it.bcKnown) {
+          // 呪いが判明している場合のみ未識別化
           const _targets = p.inventory.filter(_ii => {
             if (isBcInstanceType(_ii)) return _ii.fullIdent || _ii.bcKnown;
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
-          if (_targets.length === 0 && !_scrollFootBb) {
+          const _bbNeedUnident = _scrollFootBb && (isBigboxKindIdentified(_scrollFootBb, sr.current) || !!_scrollFootBb.revealed);
+          if (_targets.length === 0 && !_bbNeedUnident) {
             ml.push("未識別に戻せるアイテムがない。【呪】");
           } else {
-            { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-              setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, "どのアイテムの識別を解除する？【呪】"]); }
-            setIdentifyMode({ mode: 'unidentify', wasUnknown: _wasUnknown, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
+            setMsgs((prev) => [...prev.slice(-80), ...ml, "どのアイテムの識別を解除する？【呪】"]);
+            setIdentifyMode({ mode: 'unidentify', wasUnknown: false, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
           }
         } else {
-          // 通常: 1つ選んで識別（武器・防具・食料の祝呪も含む）
+          // 通常、または祝呪未識別（呪われていてもプレイヤーにはわからない）
           const _targets = p.inventory.filter(_ii => {
             if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
             const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
           });
-          if (_targets.length === 0 && !_scrollFootBb) {
+          const _bbNeedIdent = _scrollFootBb && (_wasUnknown || !isBigboxKindIdentified(_scrollFootBb, sr.current));
+          if (_targets.length === 0 && !_bbNeedIdent) {
             ml.push("未識別のアイテムがない。");
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
               setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, _wasUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]); }
-            setIdentifyMode({ mode: 'identify', wasUnknown: _wasUnknown, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
+            setIdentifyMode({ mode: 'identify', wasUnknown: _wasUnknown, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect, cursed: it.cursed || false });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;

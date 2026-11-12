@@ -415,4 +415,14 @@ describe.each(inputs)("大箱の未識別名を含む操作の一致: %s", input
     expect(result.messages.join("\n")).toContain(`大箱「${originalName}」の識別が失われた...【呪】`);
     expect(result.sr.current.identifiedBigboxes.has(originalKind)).toBe(false);
   });
+  it("祝呪未識別の呪われた識別の巻物で足元の大箱を対象に選ぶと呪いが発覚する", () => {
+    const potion = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, potion, "identify", { bbFootId: "original-box", cursed: true, wasUnknown: false, showAll: false }, {
+      setupDungeon(dungeon, player) {
+        const box = prepareBoxDungeon(dungeon, player);
+        box.revealed = false;
+      },
+    });
+    expect(result.messages.join("\n")).toContain("識別の巻物は呪われていた！【呪】");
+  });
 });
