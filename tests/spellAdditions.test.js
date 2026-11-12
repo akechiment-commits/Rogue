@@ -537,6 +537,42 @@ describe("追加魔法", () => {
     expect(messages).toContain("分身の時間切れで消えた！");
   });
 
+  it("分身は視界外（壁の向こうの別部屋）の敵を追わず、フロアを巡回する", () => {
+    const player = makePlayer({ x: 2, y: 2 });
+    const clone = makePlayerClone(player, 3, 2, 30);
+    // 部屋1 (x:1..6, y:1..6) に分身とプレイヤー
+    // 部屋2 (x:15..20, y:1..6) に敵（壁の向こう）
+    const enemyInOtherRoom = { name: "別部屋の敵", hp: 100, maxHp: 100, atk: 10, def: 0, x: 17, y: 3 };
+    const room1 = { x: 1, y: 1, w: 6, h: 6 };
+    const room2 = { x: 15, y: 1, w: 6, h: 6 };
+    const dungeon = makeEmptyDg({
+      monsters: [clone, enemyInOtherRoom],
+      rooms: [room1, room2],
+    });
+
+    // 視界外なのでターゲットにならず、フロア巡回（patrolTarget設定）を開始する
+    monsterAI(clone, dungeon, player, []);
+    expect(clone.patrolTarget).not.toBeNull();
+  });
+
+  it("分身は視界内に敵が入るとその敵へ接近して交戦する", () => {
+    const player = makePlayer({ x: 2, y: 2 });
+    const clone = makePlayerClone(player, 3, 2, 30);
+    // 同部屋内に敵がいる
+    const enemyInSameRoom = { name: "同部屋の敵", hp: 100, maxHp: 100, atk: 10, def: 0, x: 5, y: 2 };
+    const room1 = { x: 1, y: 1, w: 10, h: 10 };
+    const dungeon = makeEmptyDg({
+      monsters: [clone, enemyInSameRoom],
+      rooms: [room1],
+    });
+
+    monsterAI(clone, dungeon, player, [], { moveOnly: true });
+    // 敵 (x:5, y:2) に向かって接近
+    expect(clone.x).toBe(4);
+    expect(clone.y).toBe(2);
+    expect(clone.patrolTarget).toBeNull();
+  });
+
   it("魔法書読書時のMP不足反動：生存時は反動を受けながらも魔法が発動し、死亡時は発動しない", () => {
     const powerSpell = SPELLS.find((s) => s.id === "power_magic");
     expect(powerSpell).toBeDefined();

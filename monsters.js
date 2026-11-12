@@ -6316,29 +6316,96 @@ registerMonsterRuntime({
   triggerMushroomCounterSpore,
 });
 
-/** 分身のAI。通常敵を優先して攻撃し、敵がいなければプレイヤーから離れすぎないよう追従する。 */
+/** 分身が視界内（同部屋、または直線視線 hasLOS が通る）と認識できる敵か */
+export function cloneCanSeeTarget(clone, target, dg) {
+  if (!clone || !target || target === clone || target.hp <= 0) return false;
+  if (chebyshevDistance(clone, target) <= 1) return true;
+  const cloneRoom = findRoom(dg?.rooms || [], clone.x, clone.y);
+  const targetRoom = findRoom(dg?.rooms || [], target.x, target.y);
+  if (cloneRoom && targetRoom && cloneRoom.x === targetRoom.x && cloneRoom.y === targetRoom.y) return true;
+  return chebyshevDistance(clone, target) <= 8 && hasLOS(dg?.map, clone.x, clone.y, target.x, target.y);
+}
+
+/** 分身の巡回：視界内に敵がいない場合、通常敵の未覚醒時と同様に別部屋や廊下を目標にしてフロアを探索する */
+export function chooseClonePatrolTarget(m, dg, pl) {
+  const map = dg.map;
+  const rooms = dg.rooms || [];
+  const room = findRoom(rooms, m.x, m.y);
+  if (room) {
+    const otherRooms = rooms.filter(r => r !== room);
+    if (otherRooms.length > 0) {
+      const prev = m.lastPatrolTarget;
+      const destCands = prev
+        ? otherRooms.filter(r => !(r.x <= prev.x && prev.x < r.x + r.w && r.y <= prev.y && prev.y < r.y + r.h))
+        : otherRooms;
+      const destRoom = pick(destCands.length > 0 ? destCands : otherRooms);
+      for (let a = 0; a < 30; a++) {
+        const tx = rng(destRoom.x, destRoom.x + destRoom.w - 1);
+        const ty = rng(destRoom.y, destRoom.y + destRoom.h - 1);
+        if (isWalkable(map, tx, ty, dg)) return { x: tx, y: ty };
+      }
+    }
+    const exits = [];
+    for (let ex = room.x; ex < room.x + room.w; ex++) {
+      if (isWalkable(map, ex, room.y - 1, dg)) exits.push({ x: ex, y: room.y - 1 });
+      if (isWalkable(map, ex, room.y + room.h, dg)) exits.push({ x: ex, y: room.y + room.h });
+    }
+    for (let ey = room.y; ey < room.y + room.h; ey++) {
+      if (isWalkable(map, room.x - 1, ey, dg)) exits.push({ x: room.x - 1, y: ey });
+      if (isWalkable(map, room.x + room.w, ey, dg)) exits.push({ x: room.x + room.w, y: ey });
+    }
+    if (exits.length > 0) {
+      const prev = m.lastPatrolTarget;
+      const cands = prev ? exits.filter(e => e.x !== prev.x || e.y !== prev.y) : exits;
+      return pick(cands.length > 0 ? cands : exits);
+    }
+  } else {
+    const dirs4 = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+    const open = dirs4.filter(([dx, dy]) => isWalkable(map, m.x + dx, m.y + dy, dg));
+    const notRev = m.dir
+      ? open.filter(([dx, dy]) => !(dx === -m.dir.x && dy === -m.dir.y))
+      : open;
+    const chosen = pick(notRev.length > 0 ? notRev : open);
+    if (chosen) {
+      let ptx = m.x, pty = m.y;
+      for (let s = 1; s <= 16; s++) {
+        const nx = m.x + chosen[0] * s, ny = m.y + chosen[1] * s;
+        if (!isWalkable(map, nx, ny, dg)) break;
+        ptx = nx; pty = ny;
+      }
+      return { x: ptx, y: pty };
+    }
+  }
+  return null;
+}
+
+/** 分身のAI。視界内の通常敵を優先して攻撃・接近し、敵が見えなければフロアを巡回・探索する。 */
 function playerCloneAI(m, dg, pl, ml, opts = {}) {
   const _moveOnly = !!opts.moveOnly;
   const _attackOnly = !!opts.attackOnly;
   if (!m.isPlayerClone || m.hp <= 0) return;
   m.turnAttacks = m.turnAttacks || 0;
 
-  const _targets = (dg.monsters || []).filter((other) =>
+  /* 敵候補（他の分身・未看破の擬態モドキ・非敵対の店主を除く） */
+  const _validEnemies = (dg.monsters || []).filter((other) =>
     other !== m && other.hp > 0 && !other.isPlayerClone &&
     !(other.subtype === "itemMimic" && other.disguisedAsItem !== false) &&
     !(other.type === "shopkeeper" && other.state !== "hostile")
   );
-  _targets.sort((a, b) => chebyshevDistance(m, a) - chebyshevDistance(m, b));
-  const _target = _targets[0] || null;
-  if (_target && chebyshevDistance(m, _target) <= 1) {
+
+  /* 隣接敵チェック（即座に攻撃） */
+  const _adjTargets = _validEnemies.filter((other) => chebyshevDistance(m, other) <= 1);
+  const _adjTarget = _adjTargets[0] || null;
+  if (_adjTarget) {
     m._cloneCombatTurn = true;
+    m.patrolTarget = null;
     if (isAttackSealed(m)) return;
     if (_moveOnly) return;
     if (_attackOnly && m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return;
     m.turnAttacks++;
-    const _rawDamage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _target.def || 0, { defWeight: 1 })));
-    const res = applyDamageToMonster(_target, _rawDamage, {
+    const _rawDamage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _adjTarget.def || 0, { defWeight: 1 })));
+    const res = applyDamageToMonster(_adjTarget, _rawDamage, {
       isPhysical: true,
       attacker: m,
       dungeon: dg,
@@ -6348,7 +6415,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
       luFn: opts.luFn || null,
     });
     if (!res.blocked) {
-      ml.push(`分身が${_target.name}を攻撃！${res.damage}ダメージ！`);
+      ml.push(`分身が${_adjTarget.name}を攻撃！${res.damage}ダメージ！`);
     }
     return;
   }
@@ -6356,15 +6423,60 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
 
   if ((m.immobileTurns || 0) > 0) return;
 
-  const _followTarget = _target || (chebyshevDistance(m, pl) > 2 ? pl : null);
-  if (!_followTarget) return;
-  const _next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, _followTarget.x, _followTarget.y, m,
-    40, dg.pentacles, false, null, false, dg.rooms, dg);
-  if (!_next || (_next.x === pl.x && _next.y === pl.y) ||
-      dg.monsters.some((other) => other !== m && monsterOccupiesCell(other, _next.x, _next.y))) return;
-  m.dir = { x: _next.x - m.x, y: _next.y - m.y };
-  m.x = _next.x;
-  m.y = _next.y;
+  /* 視界内の敵のみを索敵対象にする（壁の向こうや遠くの部屋の敵は追わない） */
+  const _visibleTargets = _validEnemies
+    .filter((other) => cloneCanSeeTarget(m, other, dg))
+    .sort((a, b) => chebyshevDistance(m, a) - chebyshevDistance(m, b));
+  const _visibleTarget = _visibleTargets[0] || null;
+
+  if (_visibleTarget) {
+    /* 視界内に敵がいる → 敵へ接近 */
+    m.patrolTarget = null;
+    const _next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, _visibleTarget.x, _visibleTarget.y, m,
+      40, dg.pentacles, false, null, false, dg.rooms, dg);
+    if (_next && !(_next.x === pl.x && _next.y === pl.y) &&
+        !dg.monsters.some((other) => other !== m && monsterOccupiesCell(other, _next.x, _next.y))) {
+      m.dir = { x: _next.x - m.x, y: _next.y - m.y };
+      m.x = _next.x;
+      m.y = _next.y;
+    }
+    return;
+  }
+
+  /* 視界内に敵がいない場合：通常モンスターの未覚醒AIと同様にフロアを巡回探索 */
+  const _arrived = m.patrolTarget && m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;
+  if (_arrived || !m.patrolTarget || Math.random() < 0.02) {
+    if (_arrived) m.lastPatrolTarget = { x: m.patrolTarget.x, y: m.patrolTarget.y };
+    m.patrolTarget = chooseClonePatrolTarget(m, dg, pl);
+  }
+
+  if (m.patrolTarget) {
+    const _next = bfsNext(dg.map, [], m.x, m.y,
+      m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, false, null, false, dg.rooms, dg);
+    if (_next && !(_next.x === pl.x && _next.y === pl.y)) {
+      if (!dg.monsters.some((other) => other !== m && monsterOccupiesCell(other, _next.x, _next.y))) {
+        m.dir = { x: _next.x - m.x, y: _next.y - m.y };
+        m.x = _next.x;
+        m.y = _next.y;
+        return;
+      }
+      /* 次マスが占有されている場合はランダムな隣接空きマスへ横ずれ */
+      m.patrolTarget = null;
+      const _tryDirs4 = shuffle([[0, 1], [0, -1], [1, 0], [-1, 0]]);
+      for (const [_adx, _ady] of _tryDirs4) {
+        const _anx = m.x + _adx, _any = m.y + _ady;
+        if (!isWalkable(dg.map, _anx, _any, dg)) continue;
+        if (_anx === pl.x && _any === pl.y) continue;
+        if (dg.pentacles?.some((pc) => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
+        if (dg.monsters.some((other) => other !== m && monsterOccupiesCell(other, _anx, _any))) continue;
+        m.dir = { x: _adx, y: _ady };
+        m.x = _anx;
+        m.y = _any;
+        return;
+      }
+    }
+    m.patrolTarget = null;
+  }
 }
 
 const GWEN_B5_SUMMON_BASE_KINDS = new Set(["zombie", "slime", "wokka"]);
