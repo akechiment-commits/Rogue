@@ -9140,7 +9140,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const adjacent = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
       const attack = isOmega
         ? chooseOmegaAttack(line, adjacent, canSee)
-        : chooseShinryuAttack(line, adjacent, canSee);
+        : chooseShinryuAttack(line, adjacent, canSee, Math.random, m);
       if (attack && (!_omegaShinryuMagicSealed || attack === "lightning")) {
         m._omegaShinryuAttackReady = attack;
         if (line) m._omegaShinryuAttackLine = { origin: line.origin, dx: line.dx, dy: line.dy, distance: line.distance };

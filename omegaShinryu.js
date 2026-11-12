@@ -74,20 +74,22 @@ export function chooseOmegaAttack(line, adjacent, canSee, random = Math.random) 
   return null;
 }
 
-export function chooseShinryuAttack(line, adjacent, canSee, random = Math.random) {
+export function chooseShinryuAttack(line, adjacent, canSee, random = Math.random, monster = null) {
   const roll = random();
+  /* マイティガード発動中は再び唱えない */
+  const guardActive = (monster?.mightyGuardTurns || 0) > 0;
   if (line?.distance >= 2) {
     if (roll < 0.20) return "tidalWave";
     if (roll < 0.40) return "atomicRay";
     if (canSee && roll < 0.60) return "lightning";
-    if (canSee && roll < 0.70) return "mightyGuard";
+    if (canSee && roll < 0.70 && !guardActive) return "mightyGuard";
   } else if (adjacent) {
     if (roll < 0.10) return "evilEye";
     if (canSee && roll < 0.30) return "lightning";
-    if (canSee && roll < 0.40) return "mightyGuard";
+    if (canSee && roll < 0.40 && !guardActive) return "mightyGuard";
   } else if (canSee) {
     if (roll < 0.20) return "lightning";
-    if (roll < 0.30) return "mightyGuard";
+    if (roll < 0.30 && !guardActive) return "mightyGuard";
   }
   return null;
 }
