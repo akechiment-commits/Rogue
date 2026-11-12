@@ -118,10 +118,14 @@ export function findMeleeAttackKey(newMsgs = [], lastMsg = "", player = null) {
 
 /** メッセージからアイテム使用の種別を判定（直近ログも参照） */
 export function msgToActionKey(msg, recentMsgs = []) {
-  /* 敵に食べさせた投擲食料はプレイヤーの食事ではない。 */
-  if (/食べさせられた/.test(msg || "")) return null;
+  if (!msg) return null;
+  /* 敵や環境の能動アクション（「○○が〜を投げた／振った／割れて…」）はプレイヤーの道具使用ではないため除外 */
+  if (/^[^！\n]+が.+(?:投げ|投擲|振|放|撃|攻撃|唱え|描い|読|曲げ|割れ|落と)/.test(msg)) return null;
+  /* 敵に食べさせた投擲食料はプレイヤーの食事ではない */
+  if (/食べさせられた/.test(msg)) return null;
+
   const texts = [...recentMsgs];
-  if (msg && texts[texts.length - 1] !== msg) texts.push(msg);
+  if (texts[texts.length - 1] !== msg) texts.push(msg);
 
   for (let i = texts.length - 1; i >= 0; i--) {
     const m = texts[i];
@@ -130,29 +134,24 @@ export function msgToActionKey(msg, recentMsgs = []) {
     if (/腐っていた！/.test(m)) return "act_food_rotten";
   }
 
-  if (!msg) return null;
   /* 泉は「飲んだ」より先に判定（薬立ち絵に吸われないように） */
   if (/泉の水を飲んだ|清らかな水を飲んだ/.test(msg)) return "act_spring_drink";
   if (/を泉に浸した|泉に浸した/.test(msg)) return "act_spring_soak";
-  if (/薬を飲|ポーション|飲んだ/.test(msg)) return "act_potion";
-  /* 食料名や生成ログへの言及ではなく、実際に食べる操作だけを判定する。 */
-  if (/食べ/.test(msg)) return "act_food";
-  if (/魔法書.*(?:を)?(?:読|使)|(?:読|使).*(?:魔法書)/.test(msg)) return "act_spellbook";
-  if (/巻物.*(?:を)?(?:読|使)|(?:読|使).*(?:巻物)/.test(msg)) return "act_scroll";
-  /* 敵の「○○が杖を振った！」はプレイヤーの使用ログではない */
-  if (
-    /杖を振|ワンド/.test(msg) &&
-    !/^[^！\n]*が[^！\n]*(?:杖を振|ワンド)/.test(msg)
-  ) return "act_wand";
-  /* プレイヤー自身が描いたときだけ（敵「〜が足元に〜を描いた」は除外） */
+  /* 薬・ポーションを飲んだ時のみ（単独の「ポーション」や敵の行動で誤爆しない） */
+  if (/(?:薬|ポーション|水|ミルク|酒|エキス)を飲|を飲んだ/.test(msg)) return "act_potion";
+  /* 食料を食べる操作 */
+  if (/(?:食料|おにぎり|パン|肉|草|種|実|リンゴ|バナナ|キノコ|魚|弁当|お菓子)を食べ|を食べた|食べた[。！]/.test(msg) && !/食べられない/.test(msg)) return "act_food";
+  if (/(?:魔法書.*(?:を)?(?:読|使)|(?:読|使).*(?:魔法書)|を唱えた[！!])/.test(msg)) return "act_spellbook";
+  if (/(?:巻物.*(?:を)?(?:読|使)|(?:読|使).*(?:巻物))/.test(msg)) return "act_scroll";
+  if (/杖を振|ワンドを振/.test(msg)) return "act_wand";
+  /* プレイヤー自身が描いたときだけ */
   if (/^足元に.+を描いた|魔方陣を描いた瞬間|ペンで/.test(msg)) return "act_pen";
-  if (/魔法を放/.test(msg)) return "act_magic";
-  /* プレイヤーの射撃操作ログだけを対象にし、敵名「弓の達人」などの言及では反応しない。 */
+  if (/魔法を放った/.test(msg)) return "act_magic";
+  /* プレイヤーの射撃操作ログだけを対象 */
   if (/矢を射る方向を選んでください|(?:矢|弾|石|氷塊)を射った[。！]/.test(msg)) return "act_bow";
-  /* 敵の「ワッカが石を投げた」などはプレイヤーの投擲ではない。 */
-  if (/投げた|投擲/.test(msg) && !/^[^！\n]*が.+(?:投げ|投擲)/.test(msg)) return "act_throw";
+  if (/を投げた|を投擲した/.test(msg)) return "act_throw";
   /* プレイヤーが壺を操作したときだけ。
-   * 「壺〜が爆発で割れた」など副次破壊は除外（自爆の巻物後に壺使用立ち絵になるのを防ぐ） */
+   * 「壺〜が爆発で割れた」など副次破壊は除外 */
   if (/が爆発で割れ|が割れて|が爆発で壊れ/.test(msg)) {
     /* fall through — not act_pot */
   } else if (
@@ -164,7 +163,7 @@ export function msgToActionKey(msg, recentMsgs = []) {
   ) {
     return "act_pot";
   }
-  if (/宝箱/.test(msg)) return "act_chest";
+  if (/宝箱を開けた|宝箱から/.test(msg)) return "act_chest";
   return null;
 }
 

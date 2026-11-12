@@ -169,6 +169,17 @@ describe("portraits", () => {
     expect(msgToActionKey("腐った食料を食べさせられた遺物の番人の攻撃力が半減した！")).toBeNull();
     expect(msgToActionKey("ワッカが石を投げた！")).toBeNull();
     expect(findItemActionKey(["ワッカが石を投げた！", "ワッカの石が命中！8ダメージ！"])).toBeNull();
+    expect(msgToActionKey("ポーションメーカーが謎の薬を投げた！")).toBeNull();
+    expect(msgToActionKey("風穴の風が飛び道具を曲げた！")).toBeNull();
+    expect(msgToActionKey("瓶が割れて中身が飛び散った！")).toBeNull();
+    expect(findItemActionKey([
+      "ゴブリン王を倒した！(+140exp)",
+      "ポーションメーカーが謎の薬を投げた！",
+      "風穴の風が飛び道具を曲げた！",
+      "瓶が割れて中身が飛び散った！",
+    ])).toBeNull();
+    expect(msgToActionKey("ポーションを飲んだ。")).toBe("act_potion");
+    expect(msgToActionKey("薬草を飲んだ。")).toBe("act_potion");
   });
 
   it("敵の弓ログでは射撃立ち絵を出さず、プレイヤーの矢射撃は判定する", () => {
