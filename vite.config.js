@@ -318,6 +318,7 @@ function serveRootTilesPlugin() {
               ? "image/webp"
               : "application/octet-stream";
           res.setHeader("Content-Type", mime);
+          res.setHeader("Cache-Control", "no-cache");
           fs.createReadStream(filePath).pipe(res);
         } else {
           next();
