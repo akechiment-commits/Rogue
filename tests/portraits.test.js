@@ -428,7 +428,7 @@ describe("portraits", () => {
 
     const baseOnly = { damage_fire: ["damage_fire"] };
     expect(pickPortraitForPlayer("damage_fire", { armor: null }, baseOnly)).toBe(
-      "/tiles/Character/damage_fire.webp?v=20261112c-portrait-webp",
+      "/tiles/Character/damage_fire.webp?v=20261113-portrait-webp",
     );
 
     const withBranch = {
@@ -436,7 +436,7 @@ describe("portraits", () => {
       damage_fire_unarmored: ["damage_fire_unarmored"],
     };
     expect(pickPortraitForPlayer("damage_fire", { armor: null }, withBranch)).toMatch(
-      /^\/tiles\/Character\/damage_fire_unarmored\.webp\?v=20261112c-portrait-webp&portraitFallback=/,
+      /^\/tiles\/Character\/damage_fire_unarmored\.webp\?v=20261113-portrait-webp&portraitFallback=/,
     );
   });
 
@@ -885,10 +885,10 @@ describe("portraits", () => {
     expect(getTrapPortraitKey("回転板が発動！吹き飛ばされた！")).toBe("reaction_trap_spin");
     const armoredPlayer = { armor: { id: "armor" } };
     expect(pickPortraitForPlayer("reaction_trap_arrow", armoredPlayer)).toMatch(
-      /^\/tiles\/Character\/reaction_trap_arrow\.webp\?v=20261112c-portrait-webp$/,
+      /^\/tiles\/Character\/reaction_trap_arrow\.webp\?v=20261113-portrait-webp$/,
     );
     expect(pickPortraitForPlayer("reaction_trap_mp_absorb", armoredPlayer)).toMatch(
-      /^\/tiles\/Character\/reaction_trap_mp_absorb\.webp\?v=20261112c-portrait-webp$/,
+      /^\/tiles\/Character\/reaction_trap_mp_absorb\.webp\?v=20261113-portrait-webp$/,
     );
 
     const player = {
