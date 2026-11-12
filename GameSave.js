@@ -2,7 +2,7 @@
    ダンジョン途中のゲーム状態をlocalStorageに保存・復元する。
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
-import { installPlayerHpReverseHook, MW, MH, TI } from "./utils.js";
+import { installPlayerHpReverseHook, MW, MH, TI, uid } from "./utils.js";
 import { normalizeDiscoveryData, getPendingBigboxes } from "./DiscoveryTracker.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { installMonsterHpHook } from "./statusDuration.js";
@@ -184,6 +184,9 @@ export function loadGameState() {
     if (!data) return null;
     for (const dungeon of [data.dungeon, ...Object.values(data.floors || {})]) {
       for (const monster of dungeon.monsters || []) installMonsterHpHook(monster);
+      for (const bb of dungeon.bigboxes || []) {
+        if (bb && bb.id == null) bb.id = uid();
+      }
     }
     const identifiedBigboxes = new Set(data.identifiedBigboxes || []);
     /* 変更前のセーブには共有識別状態がないため、既に revealed だった種類を引き継ぐ。 */

@@ -263,9 +263,11 @@ export function useKeyHandler({
             .map((_it, _i) => ({ it: _it, i: _i }))
             .filter(({ it, i }) => isScrollTargetCandidate(identifyMode, it, i, sr.current.ident));
         const _dg_id = sr.current.dungeon;
-        const _footBb_id = identifyMode.bbFootId ? _dg_id?.bigboxes?.find(b => b.id === identifyMode.bbFootId) : null;
+        const _footBb_id = (identifyMode.bbFootId != null ? _dg_id?.bigboxes?.find(b => b.id != null && String(b.id) === String(identifyMode.bbFootId)) : null)
+          || _dg_id?.bigboxes?.find(b => b.x === _p_id.x && b.y === _p_id.y);
         const _bbOk_id = !!(_footBb_id && !_isBCMode && !_isForgeRemovalMode && identifyMode.mode !== 'unidentify' && identifyMode.mode !== 'forge_item');
-        const _allList_id = [...(_bbOk_id ? [{ it: { _isBbTarget: true, _bbId: _footBb_id.id }, i: -1 }] : []), ..._filt_id];
+        const _footBbName_id = _footBb_id ? (isBigboxKindIdentified(_footBb_id, sr.current) ? _footBb_id.name : (sr.current.bbFakeNames?.[_footBb_id.kind] || "謎の大箱")) : null;
+        const _allList_id = [...(_bbOk_id ? [{ it: { _isBbTarget: true, _bbId: _footBb_id.id, name: `${_footBbName_id}（足元の大箱）` }, i: -1 }] : []), ..._filt_id];
         const _len_id = _allList_id.length;
         const _idPage    = identifyMode.page || 0;
         const _idTotalPg = Math.max(1, Math.ceil(_len_id / 10));
@@ -308,7 +310,8 @@ export function useKeyHandler({
           }
           /* ===== 大箱ターゲット処理 ===== */
           if (_selIt._isBbTarget) {
-            const _bb = _dg_id?.bigboxes?.find(b => b.id === _selIt._bbId);
+            const _bb = (_dg_id?.bigboxes?.find(b => _selIt._bbId != null && String(b.id) === String(_selIt._bbId)))
+              || _dg_id?.bigboxes?.find(b => b.x === _p_id.x && b.y === _p_id.y);
             let _bbMsg = "";
             const _bbEffectMsgs = [];
             if (_bb) {
@@ -527,7 +530,7 @@ export function useKeyHandler({
           /* bless/curseの魔法：MPが続く限りモーダルを開き続ける */
           const _isBCSpell_k = (identifyMode.mode === 'bless' || identifyMode.mode === 'curse') && identifyMode.spellCost != null && identifyMode.scrollIdx == null;
           if (_isBCSpell_k && sr.current.player.mp >= identifyMode.spellCost) {
-            setIdentifyMode({ mode: identifyMode.mode, sel: 0, spellCost: identifyMode.spellCost, spellMsg: identifyMode.spellMsg });
+            setIdentifyMode({ mode: identifyMode.mode, sel: 0, spellCost: identifyMode.spellCost, spellMsg: identifyMode.spellMsg, bbFootId: identifyMode.bbFootId });
           } else {
             setIdentifyMode(null);
             if (_isBCSpell_k) _ml_id.push("MPが足りない。");
@@ -733,22 +736,24 @@ export function useKeyHandler({
                 if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
                 const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
               });
-              if (_idt.length === 0) {
+              const _spellFootBb = _dg_spl?.bigboxes?.find(b => b.x === _p_spl?.x && b.y === _p_spl?.y);
+              if (_idt.length === 0 && !_spellFootBb) {
                 p2.mp -= spell.mpCost;
                 ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
                 ml2.push("未識別のアイテムがない。");
                 endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
               } else {
                 setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
-                setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+                setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]`, bbFootId: _spellFootBb?.id });
                 setShowInv(false); setSelIdx(null); setShowDesc(null);
                 sr.current = { ...sr.current }; setGs({ ...sr.current });
               }
             } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
               const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
               const _bcPrompt = _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。";
+              const _spellFootBb = _dg_spl?.bigboxes?.find(b => b.x === _p_spl?.x && b.y === _p_spl?.y);
               setMsgs((prev) => [...prev.slice(-80), _bcPrompt]);
-              setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+              setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]`, bbFootId: _spellFootBb?.id });
               setShowInv(false); setSelIdx(null); setShowDesc(null);
               sr.current = { ...sr.current }; setGs({ ...sr.current });
             } else if (spell.effect.startsWith("debug_")) {

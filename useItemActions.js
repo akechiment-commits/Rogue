@@ -966,6 +966,7 @@ export function useItemActions({
       }
       // 識別の巻物でダイアログが必要な場合は消費せず early-return（魔封じの魔方陣内は除く）
       const _scrollFootBb = dg.bigboxes?.find(b => b.x === p.x && b.y === p.y);
+      if (_scrollFootBb && _scrollFootBb.id == null) _scrollFootBb.id = uid();
       if (it.effect === "identify" && !it.blessed && !inMagicSealRoom(p.x, p.y, dg)) {
         const _ik_scr = getIdentKey(it); // "s:identify"
         if (it.cursed) {
@@ -974,7 +975,7 @@ export function useItemActions({
           if (_tgts.length > 0) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
             setMsgs((prev) => [...prev.slice(-80), _scrollChoiceUnknown ? "どのアイテムを選びますか？" : "どのアイテムの識別を解除する？【呪】"]);
-            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, identKey: _ik_scr || null, revMsg: _revMsg, autoSelect: _hypnosisAutoSelect });
+            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, identKey: _ik_scr || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -1833,7 +1834,7 @@ export function useItemActions({
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
               setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, "どのアイテムの識別を解除する？【呪】"]); }
-            setIdentifyMode({ mode: 'unidentify', autoSelect: _hypnosisAutoSelect });
+            setIdentifyMode({ mode: 'unidentify', wasUnknown: _wasUnknown, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -1844,12 +1845,12 @@ export function useItemActions({
             if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
             const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
           });
-          if (_targets.length === 0) {
+          if (_targets.length === 0 && !_scrollFootBb) {
             ml.push("未識別のアイテムがない。");
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
               setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, _wasUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]); }
-            setIdentifyMode({ mode: 'identify', wasUnknown: _wasUnknown, autoSelect: _hypnosisAutoSelect });
+            setIdentifyMode({ mode: 'identify', wasUnknown: _wasUnknown, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;

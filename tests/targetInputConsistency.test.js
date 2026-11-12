@@ -60,7 +60,7 @@ function choose(input, source, action = "duplicate", modifiers = {}, nameState =
   useKeyHandler({ ...props, identifyMode: mode, setIdentifyMode: props.setMode, identifyConfirmRef,
     shiftRef: { current: false }, aRef: { current: false }, arrowHeldRef: { current: {} }, execRef: { current: null } });
   effects.splice(0).forEach(fn => fn());
-  if (input === "click" || input === "tap") findTarget(tree, modifiers.bbFootId ? "-1" : "0").props.onClick();
+  if (input === "click" || input === "tap") findTarget(tree, (modifiers.targetKey ?? (modifiers.bbFootId ? "-1" : "0"))).props.onClick();
   else if (input === "mobileConfirm") identifyConfirmRef.current(0);
   else if (input === "keyboard") listeners.keydown(new KeyboardEvent("keydown", { key: "Enter", code: "Enter" }));
   else {
@@ -373,6 +373,32 @@ describe.each(inputs)("大箱の未識別名を含む操作の一致: %s", input
       },
     });
     expect(result.messages.join("\n")).toContain(originalName);
+    expect(result.sr.current.identifiedBigboxes.has(originalKind)).toBe(true);
+  });
+  it("識別の巻物（祝呪未識別）で足元の大箱を対象に選んで識別できる", () => {
+    let originalName, originalKind;
+    const potion = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, potion, "identify", { bbFootId: "original-box", wasUnknown: true, showAll: true }, {
+      setupDungeon(dungeon, player) {
+        const box = prepareBoxDungeon(dungeon, player);
+        box.revealed = false;
+        originalName = box.name; originalKind = box.kind;
+      },
+    });
+    expect(result.messages.join("\n")).toContain(`大箱「${originalName}」の正体が明らかになった！`);
+    expect(result.sr.current.identifiedBigboxes.has(originalKind)).toBe(true);
+  });
+  it("bbFootIdが未指定でもプレイヤーの足元座標から大箱を対象に含めて識別できる", () => {
+    let originalName, originalKind;
+    const potion = ITEMS.find(item => item.type === "potion" && item.effect === "heal");
+    const result = choose(input, potion, "identify", { wasUnknown: true, showAll: true, targetKey: "-1" }, {
+      setupDungeon(dungeon, player) {
+        const box = prepareBoxDungeon(dungeon, player);
+        box.revealed = false;
+        originalName = box.name; originalKind = box.kind;
+      },
+    });
+    expect(result.messages.join("\n")).toContain(`大箱「${originalName}」の正体が明らかになった！`);
     expect(result.sr.current.identifiedBigboxes.has(originalKind)).toBe(true);
   });
 });

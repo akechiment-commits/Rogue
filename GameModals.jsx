@@ -1347,8 +1347,10 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       return { it: { _isForgeAbility: true, abilityId: id, name: ability?.name || id, desc: ability?.desc || "" }, i: index };
     })
     : null;
-  const _footBb = mode.bbFootId ? gs?.dungeon?.bigboxes?.find(b => b.id === mode.bbFootId) : null;
-  const _footBbName = _footBb ? (isBigboxKindIdentified(_footBb, gs) ? _footBb.name : (gs?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
+  const _dg_ui = sr.current?.dungeon || gs?.dungeon;
+  const _footBb = (mode.bbFootId != null ? _dg_ui?.bigboxes?.find(b => b.id != null && String(b.id) === String(mode.bbFootId)) : null)
+    || _dg_ui?.bigboxes?.find(b => b.x === _p.x && b.y === _p.y);
+  const _footBbName = _footBb ? (isBigboxKindIdentified(_footBb, sr.current || gs) ? _footBb.name : ((sr.current || gs)?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
   const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify' && mode.mode !== 'forge_item';
   const _filtered = _isForgeRemovalMode_ui ? _forgeAbilityOptions_ui : [
     ...(_bbModeOk ? [{ it: { _isBbTarget: true, _bbId: _footBb.id, name: `${_footBbName}（足元の大箱）` }, i: -1 }] : []),
@@ -1406,7 +1408,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     /* ===== 大箱ターゲット処理 ===== */
     if (_selIt._isBbTarget) {
-      const _bb = sr.current.dungeon?.bigboxes?.find(b => b.id === _selIt._bbId);
+      const _bb = (sr.current.dungeon?.bigboxes?.find(b => _selIt._bbId != null && String(b.id) === String(_selIt._bbId)))
+        || sr.current.dungeon?.bigboxes?.find(b => b.x === sr.current.player.x && b.y === sr.current.player.y);
       let _bbMsg = "";
       const _bbEffectMsgs = [];
       if (_bb) {
@@ -3826,22 +3829,24 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
         ml2.push("魔法が封印されている！MPは消費しない。");
         endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
       } else if (spell.effect === "identify_magic") {
+        const _spellFootBb = (sr.current?.dungeon || gs?.dungeon)?.bigboxes?.find(b => b.x === p2.x && b.y === p2.y);
         const _idt = p2.inventory.filter(_ii => {
           if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
           const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
         });
-        if (_idt.length === 0) {
+        if (_idt.length === 0 && !_spellFootBb) {
           p2.mp -= spell.mpCost; ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`); ml2.push("未識別のアイテムがない。");
           endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
         } else {
           setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
-          setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+          setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]`, bbFootId: _spellFootBb?.id });
           setShowInv(false); setSelIdx(null); setShowDesc(null); sr.current = { ...sr.current }; setGs({ ...sr.current });
         }
       } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
         const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
+        const _spellFootBb = (sr.current?.dungeon || gs?.dungeon)?.bigboxes?.find(b => b.x === p2.x && b.y === p2.y);
         setMsgs((prev) => [...prev.slice(-80), _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。"]);
-        setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+        setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]`, bbFootId: _spellFootBb?.id });
         setShowInv(false); setSelIdx(null); setShowDesc(null); sr.current = { ...sr.current }; setGs({ ...sr.current });
       } else if (spell.effect.startsWith("debug_")) {
         setDebugSpellMode({ effect: spell.effect });
