@@ -158,6 +158,25 @@ describe("genDungeon", () => {
     }
   });
 
+  it("ボス地形L_shapeは2つの部屋が幅6以上の退避通路で接続され直接重ならない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.52);
+    const dg = genDungeon(4, "beginner");
+    expect(dg.bossLayout).toBe("L_shape");
+    expect(dg.rooms.length).toBe(2);
+    const [startRoom, mainRoom] = dg.rooms;
+    expect(startRoom.x + startRoom.w).toBeLessThanOrEqual(mainRoom.x);
+    expect(dg.bossEscapeCorridors.length).toBe(1);
+    const corridor = dg.bossEscapeCorridors[0];
+    expect(corridor.width).toBeGreaterThanOrEqual(6);
+    expect(corridor.x).toBeGreaterThanOrEqual(startRoom.x + startRoom.w);
+    expect(corridor.x + corridor.w).toBeLessThanOrEqual(mainRoom.x);
+    // 通路の上下は壁（WALL）で区切られていること
+    for (let x = corridor.x; x < corridor.x + corridor.w; x++) {
+      expect([T.WALL, T.BWALL]).toContain(dg.map[corridor.y - 1]?.[x]);
+      expect([T.WALL, T.BWALL]).toContain(dg.map[corridor.y + corridor.h]?.[x]);
+    }
+  });
+
   it("ボスフロアの道具・大箱・罠・泉は部屋の中だけに出る", () => {
     const inPlace = (dg, x, y) =>
       dg.rooms.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) ||

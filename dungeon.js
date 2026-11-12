@@ -2485,18 +2485,19 @@ function carveBossLayout(map, layout) {
     };
   }
   if (layout === "L_shape") {
-    carveBossRect(map, 4, 16, 40, 11);
-    carveBossRect(map, 36, 3, 20, 24);
+    carveBossRect(map, 4, 14, 16, 12);
+    carveBossRect(map, 20, 17, 14, 6);
+    carveBossRect(map, 34, 3, 22, 23);
     placeBossPillars(map, [
-      [48, 8], [49, 8], [48, 9], [49, 9],
-      [48, 20], [49, 20], [48, 21], [49, 21],
+      [40, 8], [41, 8], [40, 9], [41, 9],
+      [40, 19], [41, 19], [40, 20], [41, 20],
     ]);
     return {
-      rooms: [bossRoom(4, 16, 40, 11), bossRoom(36, 3, 20, 24)],
-      main: bossRoom(36, 3, 20, 24),
-      su: { x: 6, y: 21 },
-      sd: { x: 50, y: 5 },
-      escapeCorridors: [{ x: 4, y: 16, w: 40, h: 11, width: 11, axis: "horizontal" }],
+      rooms: [bossRoom(4, 14, 16, 12), bossRoom(34, 3, 22, 23)],
+      main: bossRoom(34, 3, 22, 23),
+      su: { x: 8, y: 20 },
+      sd: { x: 45, y: 6 },
+      escapeCorridors: [{ x: 20, y: 17, w: 14, h: 6, width: 6, axis: "horizontal" }],
     };
   }
   if (layout === "two_stage") {
