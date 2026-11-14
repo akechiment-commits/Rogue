@@ -81,7 +81,7 @@ describe.each(inputs)("店の入力一致: %s", input => {
       expect(state.item).toMatchObject({ shopPrice: 1000, _shopCharge: expectedCharge, _shopId: "shop" });
       expect(state.shop.unpaidTotal).toBe(expectedCharge);
       expect(state.dungeon.monsters[0].state).toBe("blocking");
-      expect(state.setMode).toHaveBeenCalledWith(null);
+      expect(state.setMode).toHaveBeenCalledWith("buy");
       state.player.inventory = [];
       placeItemAt(state.dungeon, 5, 5, state.item, [], new Set(), 0, state.player);
       expect(state.shop.unpaidTotal).toBe(0);
@@ -155,5 +155,5 @@ it("キャンセル後に届いた古いボタン入力は売却しない", () =
   choose(state, "click", "はい、全て売る", 1);
   expect(state.player.gold).toBe(2000);
   expect(state.item.shopPrice).toBeUndefined();
-  expect(state.setMode).toHaveBeenCalledWith("browse");
+  expect(state.setMode).toHaveBeenCalledWith("sell");
 });
