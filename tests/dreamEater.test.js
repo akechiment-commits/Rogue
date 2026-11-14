@@ -41,4 +41,44 @@ describe("夢喰い", () => {
     expect(messages.join(" ")).toContain("夢喰い攻撃");
     expect(messages.join(" ")).toContain("吸収した");
   });
+
+  it("眠っている相手がいない時は特技を使わず通常攻撃し、失敗メッセージを出さない", () => {
+    const base = MONS.find((m) => m.baseKind === "dreamEater");
+    const eater = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makePlayer({ x: 6, y: 5, hp: 100, maxHp: 100, def: 0, sleepTurns: 0 });
+    const dg = makeEmptyDg({ rooms: [], monsters: [eater] });
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.01);
+
+    try {
+      monsterAI(eater, dg, player, messages, { moveOnly: true });
+      monsterAI(eater, dg, player, messages, { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
+
+    expect(messages.some((m) => m.includes("眠っている相手がいなかった"))).toBe(false);
+    expect(messages.some((m) => m.includes("夢喰いの攻撃！"))).toBe(true);
+    expect(player.hp).toBeLessThan(100);
+  });
+
+  it("moveOnly で睡眠対象を予約した後に攻撃前に起きると attackOnly で1回だけ失敗する", () => {
+    const base = MONS.find((m) => m.baseKind === "dreamEater");
+    const eater = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makePlayer({ x: 6, y: 5, hp: 100, maxHp: 100, def: 0, sleepTurns: 3 });
+    const dg = makeEmptyDg({ rooms: [], monsters: [eater] });
+    const messages = [];
+
+    monsterAI(eater, dg, player, messages, { moveOnly: true });
+    expect(eater._dreamEaterStrikeReady).toBe(true);
+
+    // 攻撃フェーズ前にプレイヤーが起きた
+    player.sleepTurns = 0;
+    monsterAI(eater, dg, player, messages, { attackOnly: true });
+
+    const failMsgs = messages.filter((m) => m.includes("眠っている相手がいなかった"));
+    expect(failMsgs).toHaveLength(1);
+    expect(player.hp).toBe(100);
+    expect(eater._dreamEaterStrikeReady).toBeUndefined();
+  });
 });

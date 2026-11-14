@@ -9783,33 +9783,45 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
   if (m.aware) {
     /* ── 夢喰い：睡眠中のプレイヤーを倍打撃＋吸収。いなければ眠った敵を起こして自身を回復 ── */
-    if (m.subtype === "dreamEater" && !m.sealed && !inMagicSealRoom(m.x, m.y, dg)) {
-      const _dePlayerAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
-      const _dePlayerSleep = _dePlayerAdj && (pl.sleepTurns || 0) > 0 && !_plOnSanc;
-      if (_dePlayerSleep && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-        if (_moveOnly) {
-          m._dreamEaterStrikeReady = true;
+    if (m.subtype === "dreamEater") {
+      const _hadDreamEaterReservation = !!(m._dreamEaterStrikeReady || m._dreamEaterTargetId);
+      if (m.sealed || inMagicSealRoom(m.x, m.y, dg)) {
+        delete m._dreamEaterStrikeReady;
+        delete m._dreamEaterTargetId;
+      } else {
+        const _dePlayerAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+        const _dePlayerSleep = _dePlayerAdj && (pl.sleepTurns || 0) > 0 && !_plOnSanc;
+        if (_dePlayerSleep && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          if (_moveOnly) {
+            m._dreamEaterStrikeReady = true;
+            delete m._dreamEaterTargetId;
+            return;
+          }
+          delete m._dreamEaterStrikeReady;
+          delete m._dreamEaterTargetId;
+          m.turnAttacks++;
+          dreamEaterStrike(m, dg, pl, ml, _onHit, _onMiss, _luFn);
+          return;
+        }
+        const _deTarget = findDreamEaterTarget(m, dg);
+        if (_deTarget && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          if (_moveOnly) {
+            m._dreamEaterTargetId = _deTarget.id;
+            delete m._dreamEaterStrikeReady;
+            return;
+          }
+          delete m._dreamEaterStrikeReady;
+          delete m._dreamEaterTargetId;
+          m.turnAttacks++;
+          dreamEaterWakeTarget(m, dg, ml);
           return;
         }
         delete m._dreamEaterStrikeReady;
-        m.turnAttacks++;
-        dreamEaterStrike(m, dg, pl, ml, _onHit, _onMiss, _luFn);
-        return;
-      }
-      const _deTarget = findDreamEaterTarget(m, dg);
-      if (_deTarget) {
-        if (_moveOnly) {
-          m._dreamEaterTargetId = _deTarget.id;
+        delete m._dreamEaterTargetId;
+        if (!_moveOnly && _hadDreamEaterReservation && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          consumeFailedMonsterSpecial(m, ml, "が夢を食べようとしたが、眠っている相手がいなかった！");
           return;
         }
-        delete m._dreamEaterTargetId;
-        dreamEaterWakeTarget(m, dg, ml);
-        return;
-      }
-      delete m._dreamEaterTargetId;
-      if (_dePlayerAdj && canSee && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) {
-        consumeFailedMonsterSpecial(m, ml, "が夢を食べようとしたが、眠っている相手がいなかった！");
-        return;
       }
     }
 
