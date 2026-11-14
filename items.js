@@ -6752,13 +6752,50 @@ export function makeSpringEjectedItem(rngFn = Math.random) {
   return { ...template, id: uid() };
 }
 
+function _drySpring(spr, dg, ml, pl = null) {
+  if (!spr || !dg) return false;
+  dg.springs = (dg.springs || []).filter(s => s !== spr);
+  const items = spr.contents || [];
+  if (items.length > 0) {
+    ml?.push("泉が干上がった！中のアイテムが飛び出した！");
+    const _ft = new Set();
+    for (const _ci of items) {
+      placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
+    }
+  }
+  /* 保持されていたモンスターも、他の干上がり経路と同じく放出する */
+  releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, pl, ml);
+  if (items.length === 0) {
+    ml?.push("泉は干上がってしまった...");
+  }
+  return true;
+}
+
+/**
+ * 泉を1回分使用する（飲む・浸す・消滅アイテム投入など）。
+ * 残り容量を1減らし、満杯状態や容量超過なら泉を干上がらせる。
+ * @returns {boolean} 干上がった場合 true
+ */
+export function consumeSpringCapacity(spr, dg, ml, pl = null) {
+  if (!spr) return false;
+  spr.contents = spr.contents || [];
+  if (spr.capacity == null) spr.capacity = DEFAULT_SPRING_CAPACITY;
+  const capBefore = spr.capacity;
+  const wasFull = spr.contents.length >= capBefore;
+  spr.capacity = Math.max(0, capBefore - 1);
+  const overflowed = wasFull || spr.contents.length > spr.capacity;
+  if (dg && overflowed) {
+    _drySpring(spr, dg, ml, pl);
+    return true;
+  }
+  return false;
+}
+
 export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = null, opts = {}) {
   const _dn = (it) => dnFn ? dnFn(it) : resolveItemName(it);
   const rngFn = opts.rngFn || Math.random;
   spr.contents = spr.contents || [];
   if (spr.capacity == null) spr.capacity = DEFAULT_SPRING_CAPACITY;
-  const capBefore = spr.capacity;
-  const wasFull = spr.contents.length >= capBefore;
   let consumedCapacity = false;
   let wishTriggered = false;
   let itemEjected = null;
@@ -6936,27 +6973,17 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
     spr.contents.push(item);
   }
   /* 消滅した投入物（金貨・金塊・アイス等）の分も容量を減らし、容量超過時に干上がらせる */
-  if (consumedCapacity) {
-    spr.capacity = Math.max(0, capBefore - 1);
-  }
   if (wishTriggered) {
+    if (consumedCapacity) spr.capacity = Math.max(0, spr.capacity - 1);
     return { wish: true, dried: false, itemEjected: null };
   }
-  const overflowed = wasFull || spr.contents.length > spr.capacity;
+  if (consumedCapacity) {
+    const dried = consumeSpringCapacity(spr, dg, ml, pl);
+    return { wish: false, dried, itemEjected };
+  }
+  const overflowed = spr.contents.length > spr.capacity;
   if (dg && overflowed) {
-    dg.springs = dg.springs.filter(s => s !== spr);
-    if (spr.contents.length > 0) {
-      ml.push("泉が干上がった！中のアイテムが飛び出した！");
-      const _ft = new Set();
-      for (const _ci of spr.contents) {
-        placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
-      }
-    }
-    /* 保持されていたモンスターも、他の干上がり経路と同じく放出する */
-    releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, pl, ml);
-    if (spr.contents.length === 0) {
-      ml.push("泉は干上がってしまった...");
-    }
+    _drySpring(spr, dg, ml, pl);
   }
 
   return { wish: false, dried: dg ? overflowed : false, itemEjected };

@@ -33,7 +33,7 @@ import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
-  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring,
+  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring, consumeSpringCapacity,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus, rollGeneratedWandCharges, penInitialCharges,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
@@ -4699,30 +4699,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       triggerMonsterHouseWithTip,
     ],
   );
-  const springTryDry = useCallback((dg, p, ml) => {
-    if (Math.random() < 0.25) {
-      const sprTarget = springTargetRef.current;
-      springTargetRef.current = null;
-      const spr =
-        (sprTarget && dg.springs?.includes(sprTarget) ? sprTarget : null) ||
-        dg.springs?.find((s) => s.x === p.x && s.y === p.y);
-      if (spr) {
-        dg.springs = dg.springs.filter((s) => s !== spr);
-        if (spr.contents?.length > 0) {
-          ml.push("泉が干上がり、中のアイテムが現れた！");
-          const ft = new Set();
-          for (const item of spr.contents)
-            placeItemAt(dg, spr.x, spr.y, item, ml, ft);
-        }
-        if (spr.confinedMonsters?.length) {
-          releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, p, ml);
-        }
-        ml.push("泉は干上がってしまった...");
-        return true;
-      }
-    }
-    return false;
+  const resolveActiveSpring = useCallback((dg, p) => {
+    const sprTarget = springTargetRef.current;
+    return (sprTarget && dg.springs?.includes(sprTarget) ? sprTarget : null) ||
+      dg.springs?.find((s) => s.x === p.x && s.y === p.y) ||
+      null;
   }, []);
+  const consumeActiveSpring = useCallback((dg, p, ml) => {
+    const spr = resolveActiveSpring(dg, p);
+    if (!spr) return false;
+    const dried = consumeSpringCapacity(spr, dg, ml, p);
+    if (dried && springTargetRef.current === spr) springTargetRef.current = null;
+    return dried;
+  }, [resolveActiveSpring]);
   const breakBigbox = useCallback((bb, dg, ml, context = {}) => {
     if (bb.kind === "nitro") {
       detonateNitroBox(bb, dg, sr.current.player, ml, lu, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames), null, context.killerMon || null, context);
@@ -5722,6 +5711,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const springDrink = useCallback(() => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
+    if ((Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)) {
+      setMsgs((prev) => [...prev.slice(-80), "満腹度が限界を超えていて、飲めない！"]);
+      return;
+    }
     /* 超低確率で願い */
     if (rollWishChance("drink")) {
       const ml = ["泉の底から声が聞こえる…", "「何を願う？」"];
@@ -5871,13 +5864,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         else ml.push("何かが泉の中でうごめいた。");
       }
     }
-    springTryDry(dg, p, ml);
+    consumeActiveSpring(dg, p, ml);
     endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
     setSpringMode(null);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
-  }, [endTurn, springTryDry]);
+  }, [endTurn, consumeActiveSpring]);
   const springDoSoak = useCallback(
     (idx) => {
       if (!sr.current) return;
@@ -5890,7 +5883,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         dg.springs?.find(s => s.x === p.x && s.y === p.y);
       let _springOverflowDried = false;
       const _isSpringGear = ["weapon", "armor", "ring"].includes(it.type) || (it.cursed && _isEquipped);
-      if (_isSpringGear && !_targetSpring) {
+      if ((_isSpringGear || it.type === "gold" || it.type === "gold_nugget") && !_targetSpring) {
         setMsgs((prev) => [...prev.slice(-80), `${dnameRef(it)}を浸す泉が見つからない。`]);
         return;
       }
@@ -5968,8 +5961,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ? `${dnameRef(it)}を泉に浸したが、呪いは解けなかった。`
           : `${dnameRef(it)}を泉に浸した。何も起こらなかった。`);
       }
-      /* 超低確率で願い（浸したあと） */
-      if (rollWishChance("soak")) {
+      /* 超低確率で願い（浸したあと、まだ泉が残っている場合のみ） */
+      if (!_springOverflowDried && rollWishChance("soak")) {
         ml.push("泉が静かに光り、願いを叶えてくれそうだ…");
         ml.push("「何を願う？」");
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -5979,7 +5972,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         setGs({ ...sr.current });
         return;
       }
-      const _dried = _springOverflowDried || springTryDry(dg, p, ml);
+      const _dried = _isSpringGear
+        ? _springOverflowDried
+        : consumeActiveSpring(dg, p, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (_dried) {
@@ -5992,7 +5987,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
     },
-    [endTurn, springTryDry],
+    [endTurn, consumeActiveSpring],
   );
   const bigboxPutItem = useCallback(
     (itemIdx) => {

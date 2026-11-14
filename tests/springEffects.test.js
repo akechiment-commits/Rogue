@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { placeItemAt, soakItemIntoSpring } from "../items.js";
+import { consumeSpringCapacity, placeItemAt, soakItemIntoSpring } from "../items.js";
 import {
   SPRING_CONFUSION_TURNS,
   SPRING_CAPACITY_MIN,
@@ -133,5 +134,43 @@ describe("泉の効果", () => {
     expect(dg.springs).toHaveLength(0);
     expect(dg.items.length).toBeGreaterThanOrEqual(2);
     expect(ml).toContain("泉が干上がった！中のアイテムが飛び出した！");
+  });
+
+  it("飲む・浸す（consumeSpringCapacity）でも同じ容量を消費し、規定回数超過で干上がる", () => {
+    const spr = createSpring(5, 5, { capacity: 3 });
+    const dg = makeEmptyDg({ rooms: [{ x: 1, y: 1, w: 10, h: 10 }], springs: [spr] });
+    const p = makePlayer({ x: 3, y: 3 });
+    const ml = [];
+
+    // 1回目: アイテムを入れて1枠使う（contents 1, capacity 3）
+    soakItemIntoSpring(spr, { id: "s1", name: "石", type: "arrow", stone: true, count: 1 }, ml, dg, null, p);
+    expect(dg.springs).toHaveLength(1);
+
+    // 2回目: 飲む（または浸す）で残り容量が減る（contents 1, capacity 2）
+    expect(consumeSpringCapacity(spr, dg, ml, p)).toBe(false);
+    expect(spr.capacity).toBe(2);
+    expect(dg.springs).toHaveLength(1);
+
+    // 3回目: もう一度飲む（contents 1, capacity 1 -> 満杯）
+    expect(consumeSpringCapacity(spr, dg, ml, p)).toBe(false);
+    expect(spr.capacity).toBe(1);
+    expect(dg.springs).toHaveLength(1);
+
+    // 4回目: 満杯状態で飲むと干上がり、中に入っていた石が出る
+    expect(consumeSpringCapacity(spr, dg, ml, p)).toBe(true);
+    expect(dg.springs).toHaveLength(0);
+    expect(dg.items.length).toBeGreaterThanOrEqual(1);
+    expect(ml).toContain("泉が干上がった！中のアイテムが飛び出した！");
+  });
+
+  it("Game.jsx の泉飲用は満腹度限界超過時に飲めず、ランダム25%ではなく共通容量を消費する", () => {
+    const gameSrc = readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
+    const drinkBlockMatch = gameSrc.match(/const springDrink = useCallback\(\(\) => \{[\s\S]*?\}, \[endTurn, consumeActiveSpring\]\);/);
+    expect(drinkBlockMatch).not.toBeNull();
+    const drinkBlock = drinkBlockMatch[0];
+    expect(drinkBlock).toContain("Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)");
+    expect(drinkBlock).toContain("満腹度が限界を超えていて、飲めない！");
+    expect(drinkBlock).toContain("consumeActiveSpring(dg, p, ml)");
+    expect(gameSrc).not.toContain("springTryDry");
   });
 });
