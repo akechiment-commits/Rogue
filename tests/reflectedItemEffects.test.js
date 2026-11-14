@@ -39,7 +39,8 @@ describe("敵へ反射された道具の命中効果", () => {
   it("毒矢は通常投擲と同じ追加効果を適用する", () => {
     const s = setup();
     s.throwItem({ id: "arrow", type: "arrow", name: "毒矢", atk: 3, poison: true });
-    expect(s.shooter.atk).toBe(10);
+    expect(s.shooter.atk).toBe(20);
+    expect(s.shooter.poisonArrowDamageHalves).toBe(1);
     expect(s.shooter.hp).toBeLessThan(100);
   });
 
