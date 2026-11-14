@@ -522,7 +522,7 @@ export const ITEMS = [
   { name:"アサメ",           type:"weapon", atk:2,  ability:"magic_power",  rarity:"A", weight:1,  sellPrice:1800, desc:"魔法・杖・巻物で与えるダメージが1.5倍になる武器。", tile:20 },
   { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical_war_god_axe", rarity:"A", weight:1,  sellPrice:2500, desc:"会心の一撃が出やすい武器。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:4, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
-  { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
+  { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を3ターン封じる。", tile:20 },
   { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"C", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に1.5倍ダメージ。", tile:20 },
   { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"C", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"C", weight:4,  sellPrice:1500, desc:"雷属性の剣。雷弱点の敵に1.5倍ダメージ。",             tile:20 },
@@ -1431,6 +1431,70 @@ export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
 }
 
 /**
+ * 武器の攻撃時状態異常付与（鈍足・金縛り・睡眠・暗闇・混乱・幻惑・封印・影縫い）を共通処理する。
+ * 状態異常防止・大型敵耐性・ボス半減を一貫して適用する。
+ */
+export function applyWeaponStatusInflictions(target, {
+  hasAbility: abilityCheck,
+  dungeon = null,
+  player = null,
+  messages = null,
+  luFn = null,
+  randomFn = Math.random,
+} = {}) {
+  if (!target || target.hp <= 0 || typeof abilityCheck !== "function") return;
+  const ml = messages;
+  const applyTimed = (statusKey, cooldownKey, prop, turns, msg) => {
+    if (isStatusImmune(target, ml, target.name)) return;
+    if (blockLargeMonsterStatus(target, cooldownKey, ml)) return;
+    startLargeMonsterStatusCooldown(target, cooldownKey);
+    const resolvedTurns = turns ?? statusTurns(statusKey, { kind: "monster", target });
+    target[prop] = (target[prop] || 0) + resolvedTurns;
+    ml?.push(`${target.name}${msg}(${resolvedTurns}ターン)`);
+  };
+
+  const entries = [
+    ["inflict_slow", 0.1, () => {
+      if (isStatusImmune(target, ml, target.name)) return;
+      if (blockLargeMonsterStatus(target, "slow", ml)) return;
+      startLargeMonsterStatusCooldown(target, "slow");
+      if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
+      target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+      const st = target.isBoss ? statusTurns("bossSlow", { kind: "monster", target }) : 0;
+      if (target.isBoss) target.bossSlowTurns = Math.max(target.bossSlowTurns || 0, st);
+      ml?.push(`${target.name}は鈍足になった！${target.isBoss ? `(${st}ターン)` : "(永続)"}`);
+    }],
+    ["inflict_paralyze", 0.1, () => applyMonsterParalyze(target, { ml })],
+    ["inflict_sleep", 0.1, () => applyTimed("sleep", "sleep", "sleepTurns", null, "は眠りに落ちた！")],
+    ["inflict_darkness", 0.1, () => {
+      if (target.type === "guard") {
+        ml?.push(`${target.name}には暗闇が効かなかった！`);
+        return;
+      }
+      const dt = statusTurns("darkness", { kind: "monster", target });
+      if (applyMonsterDarkness(target, dt, ml) > 0) {
+        ml?.push(`${target.name}は暗闇になった！(${dt}ターン)`);
+      }
+    }],
+    ["inflict_confuse", 0.1, () => applyTimed("confuse", "confuse", "confusedTurns", null, "は混乱した！")],
+    ["inflict_bewitch", 0.1, () => {
+      const bt = statusTurns("bewitch", { kind: "monster", target });
+      if (applyMonsterBewitch(target, bt, ml) > 0) {
+        ml?.push(`${target.name}は幻惑状態になり逃げ出した！(${bt}ターン)`);
+      }
+    }],
+    ["inflict_seal", 0.1, () => applyMonsterSeal(target, dungeon, player, ml, luFn)],
+    ["inflict_immobile", 0.25, () => applyTimed("immobile", "immobile", "immobileTurns", monsterStatusTurns(3, target), "は影に縫い止められた！")],
+  ];
+
+  for (const [abId, chance, applyFn] of entries) {
+    if (target.hp > 0 && abilityCheck(abId) && randomFn() < chance) {
+      applyFn();
+    }
+  }
+}
+
+/**
  * プレイヤーに魔法封印を付与する（封印の罠と同じ sealedTurns）。
  * @returns {number} 付与したターン。防いだ場合は 0
  */
@@ -2154,7 +2218,7 @@ export const WEAPON_ABILITIES = [
   { id:"inflict_confuse", name:"混乱付与",  desc:"攻撃時10%の確率で敵を混乱させる" },
   { id:"inflict_bewitch", name:"惑わし付与",desc:"攻撃時10%の確率で敵を幻惑にする" },
   { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
-  { id:"inflict_immobile",name:"影縫い",    desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる" },
+  { id:"inflict_immobile",name:"影縫い",    desc:"攻撃時25%の確率で敵の移動を3ターン封じる" },
   { id:"fire_elem",       name:"炎属性",      desc:"油まみれ・炎弱点の敵に1.5倍ダメージ" },
   { id:"ice_elem",        name:"氷属性",      desc:"氷弱点の敵に1.5倍ダメージ" },
   { id:"thunder_elem",    name:"雷属性",      desc:"雷弱点の敵に1.5倍ダメージ" },
