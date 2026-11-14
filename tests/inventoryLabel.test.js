@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatInventoryItem, formatPlusSuffix, formatRefillMessage, formatWandUseSuffix } from "../inventoryLabel.js";
+import { formatInventoryItem, formatItemChargeChange, formatPlusSuffix, formatRefillMessage, formatWandUseSuffix, isItemChargesKnown } from "../inventoryLabel.js";
 
 function label(item, overrides = {}) {
   return formatInventoryItem(item, {
@@ -72,5 +72,15 @@ describe("formatRefillMessage", () => {
   it("未識別のペンもインクの追加量と残り回数を表示しない", () => {
     expect(formatRefillMessage("青いペン", "pen", 1, 3, false)).toBe("青いペンのインクが補充された！");
     expect(formatRefillMessage("青いペン", "pen", 1, 3, true)).toBe("青いペンのインクが1回分補充された！(3回)");
+  });
+
+  it("isItemChargesKnown と formatItemChargeChange は完全識別または全識別時のみ回数を表示する", () => {
+    const unknown = { type: "wand", charges: 3, bcKnown: true, fullIdent: false };
+    const known = { type: "wand", charges: 3, fullIdent: true };
+    expect(isItemChargesKnown(unknown)).toBe(false);
+    expect(isItemChargesKnown(unknown, { allBcKnown: true })).toBe(true);
+    expect(isItemChargesKnown(known)).toBe(true);
+    expect(formatItemChargeChange(unknown, 3, 4)).toBe("");
+    expect(formatItemChargeChange(known, 3, 4)).toBe("(3→4回)");
   });
 });

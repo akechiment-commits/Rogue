@@ -105,7 +105,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
-import { formatInventoryItem, formatRefillMessage, isEquipmentPlusKnown, formatEquipmentPlusChange } from "./inventoryLabel.js";
+import { formatInventoryItem, formatRefillMessage, isEquipmentPlusKnown, formatEquipmentPlusChange, formatItemChargeChange } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
@@ -4254,7 +4254,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           priestRef.current = mon;
           setPriestMode("menu");
           setPriestMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), "司祭：「祭壇の加護を授けよう。杖やペンの補充、装備の強化、解呪、状態異常の解除を望むか？」"]);
+          setMsgs((prev) => [...prev.slice(-80), "司祭：「加護を授けよう」"]);
           return;
         }
         const dg6 = sr.current.dungeon;
@@ -6391,7 +6391,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
       const before = Math.max(0, item.charges || 0);
       item.charges = before + 1;
-      result = `${name}の回数が1回分補充された！(${before}→${item.charges}回)`;
+      result = `${name}の回数が1回分補充された！${formatItemChargeChange(item, before, item.charges, s)}`;
     } else {
       const name = itemDisplayName(item, s.fakeNames, s.ident, s.nicknames);
       const before = item.plus || 0;

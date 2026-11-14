@@ -38,6 +38,17 @@ export function formatWandUseSuffix(item) {
   return item?.fullIdent ? `[残${item.charges}回]` : "";
 }
 
+/** 杖・ペンの残り回数は個体が完全識別（fullIdent）または全識別モードのときのみ見せる。 */
+export function isItemChargesKnown(item, session = null) {
+  return !!(item && (item.fullIdent || session?.allBcKnown));
+}
+
+/** 回数補充時の変化も、残り回数未判明の杖・ペンでは数値を表示しない。 */
+export function formatItemChargeChange(item, before, after, session = null) {
+  if (!isItemChargesKnown(item, session)) return "";
+  return `(${before}→${after}回)`;
+}
+
 /** インベントリに表示する1アイテム分のラベルを組み立てる。 */
 export function formatInventoryItem(item, {
   player,

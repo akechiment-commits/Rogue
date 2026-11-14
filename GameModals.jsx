@@ -24,7 +24,7 @@ import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { scoresForDungeon, dungeonScoreLabel, scoreHeadline, formatDeathCause, loadAdventureScores } from "./adventureScores.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
-import { formatPlusSuffix, isEquipmentPlusKnown } from "./inventoryLabel.js";
+import { formatPlusSuffix, isEquipmentPlusKnown, isItemChargesKnown } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
@@ -3302,6 +3302,10 @@ export function GachaModal({ mode, setMode, gs, gachaRef, menuSel, setMenuSel, o
 
 /* ===== Altar Priest Modal ===== */
 export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel, setMenuSel, onService, mobile, dname }) {
+  const rowRefs = useRef([]);
+  useEffect(() => {
+    rowRefs.current[menuSel]?.scrollIntoView?.({ block: "nearest" });
+  }, [menuSel, mode]);
   if (!mode || !gs?.player || !priestRef.current) {
     if (actionsRef) actionsRef.current = null;
     return null;
@@ -3338,7 +3342,9 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
             ? isEquipmentPlusKnown(item)
               ? `現在 ${item.plus > 0 ? `+${item.plus}` : item.plus || 0} → +${(item.plus || 0) + 1}`
               : "＋1強化"
-            : `現在 ${item.charges || 0}回 → ${(item.charges || 0) + 1}回`;
+            : isItemChargesKnown(item, gs)
+              ? `現在 ${item.charges || 0}回 → ${(item.charges || 0) + 1}回`
+              : "＋1回補充";
           return {
             id: item.id,
             item,
@@ -3392,7 +3398,7 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
       <div style={{ color: "#e1d2a0", fontSize: 13, marginBottom: 8 }}>{heading}</div>
       <div style={{ maxHeight: "55dvh", overflowY: "auto" }}>
         {rows.map((row, index) => (
-          <button key={`${row.id}-${index}`} onClick={() => confirm(index)} disabled={row.disabled} style={{
+          <button key={`${row.id}-${index}`} ref={(el) => { rowRefs.current[index] = el; }} onClick={() => confirm(index)} disabled={row.disabled} style={{
             display: "block", width: "100%", padding: "7px 10px", margin: "5px 0", textAlign: "left",
             background: row.disabled ? "#1b1912" : menuSel === index ? "#4b3c17" : "#29230f",
             color: row.disabled ? "#746b4b" : menuSel === index ? "#fff1b0" : "#ddca84",
