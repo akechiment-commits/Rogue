@@ -21,6 +21,13 @@ describe("getVisitedFloors", () => {
     })).toEqual([2]);
   });
 
+  it("落下物などで事前生成された未訪問フロアは含めない", () => {
+    expect(getVisitedFloors({
+      floors: { 1: {}, 2: { _preGenerated: true } },
+      player: { depth: 1 },
+    })).toEqual([1]);
+  });
+
   it("空セッションは空配列", () => {
     expect(getVisitedFloors(null)).toEqual([]);
     expect(getVisitedFloors({})).toEqual([]);

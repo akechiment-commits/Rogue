@@ -2267,12 +2267,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       pl.y = _stTarget.y;
     }
     d.monsters = d.monsters.filter((monster) => !monster.isPlayerClone);
-    if (_saved) resumeFloor(d, pl);
+    const _firstVisit = !_saved || !!d._preGenerated;
+    delete d._preGenerated;
+    if (_saved && !_firstVisit) resumeFloor(d, pl);
     refreshFOV(d, pl);
     /* 落とし穴・ランダム階層移動は同座標でも、落下してから出現する待機を必ず入れる */
     if (pitfall) pushPlayerTeleportAnim(_pitfallFromX, _pitfallFromY, pl.x, pl.y, true);
     synchronizeFloorArrival(sr.current, d);
-    d._firstVisit = !_saved;
+    d._firstVisit = _firstVisit;
     return d;
   }, []);
   const withPitfallBag = useCallback((fn) => {
@@ -2483,8 +2485,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             worldTicks: _clock.worldTicks,
           });
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
+      const _arrivedMidTurn = !!st.dungeon._firstVisit;
+      if (_arrivedMidTurn) {
+        st.dungeon._firstVisit = false;
+        syncActorsToClock(st.dungeon.monsters, p.actionTime || 0);
+      }
       const _attackPhase = runMonsterAttackPhase(st.dungeon, p, ml, {
-        skipMonsterActions: _skipMonAct,
+        skipMonsterActions: _skipMonAct || _arrivedMidTurn,
         spinFired: _spinFired,
         moveMons,
       });

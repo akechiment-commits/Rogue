@@ -564,7 +564,10 @@ export function processPitfallBag(bag, floors, depth, session = null) {
   if (!bag || bag.length === 0) return;
   const nd = depth + 1;
   const currentDestination = session?.player?.depth === nd ? session.dungeon : null;
-  if (!currentDestination && !floors[nd]) floors[nd] = generateSessionFloor(session, nd, { pitfall: true, sourceDepth: depth });
+  if (!currentDestination && !floors[nd]) {
+    floors[nd] = generateSessionFloor(session, nd, { pitfall: true, sourceDepth: depth });
+    floors[nd]._preGenerated = true;
+  }
   const nf = currentDestination || floors[nd];
   placeFallenEntities(nf, bag, { player: currentDestination ? session.player : null, actionTime: session?.player?.actionTime || 0 });
 }

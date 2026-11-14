@@ -735,7 +735,8 @@ export function getVisitedFloors(session, currentDepth) {
   const set = new Set();
   const d = currentDepth ?? session?.player?.depth;
   if (d != null && Number(d) > 0) set.add(Number(d));
-  for (const k of Object.keys(session?.floors || {})) {
+  for (const [k, floor] of Object.entries(session?.floors || {})) {
+    if (floor?._preGenerated) continue;
     const n = Number(k);
     if (Number.isFinite(n) && n > 0) set.add(n);
   }

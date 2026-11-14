@@ -23,6 +23,7 @@ function recognizesPlayer(monster, dungeon, player) {
 
 /** 不在フロアは更新せず、離脱時刻と待ち伏せする敵だけを保存する。 */
 export function suspendFloor(dungeon, player, { stairs = false } = {}) {
+  delete dungeon._preGenerated;
   dungeon.absentSince = player.actionTime || 0;
   for (const monster of dungeon.monsters || []) {
     monster.absentSince = dungeon.absentSince;

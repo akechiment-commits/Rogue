@@ -10,6 +10,16 @@ describe("落下によるフロア生成", () => {
     processPitfallBag([{ kind: "item", entity: { type: "arrow", name: "石" } }], floors, 4, state);
     expect(floors[5].dungeonType).toBe(dungeonType);
     expect(floors[5].isBossFloor).toBe(true);
+    expect(floors[5]._preGenerated).toBe(true);
+  });
+
+  it("既に訪問済みとして保存されている階へ落とした場合は事前生成フラグを付けない", () => {
+    const state = { dungeonType: "beginner", maxDepth: 10, player: makePlayer({ depth: 1 }) };
+    const visitedFloor = makeEmptyDg({ rooms: [{ x: 2, y: 2, w: 4, h: 4 }] });
+    const floors = { 2: visitedFloor };
+    processPitfallBag([{ kind: "item", entity: { type: "arrow", name: "石" } }], floors, 1, state);
+    expect(floors[2]).toBe(visitedFloor);
+    expect(floors[2]._preGenerated).toBeUndefined();
   });
   it("最下層の下は先行生成でも宝部屋になり、最深階には目標アイテムがある", () => {
     const state = { dungeonType: "advanced", maxDepth: 30, player: makePlayer({ depth: 30 }) };

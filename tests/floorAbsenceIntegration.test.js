@@ -4,6 +4,7 @@ import { suspendFloor, resumeFloor } from "../floorAbsence.js";
 import { beginPlayerTurnClock, takeDueActions } from "../actionClock.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { generateSessionFloor } from "../floorGeneration.js";
+import { processPitfallBag } from "../render.js";
 import { synchronizeFloorArrival } from "../floorArrival.js";
 import { declareFloorExitTheft } from "../items.js";
 import { markBigboxKindIdentified } from "../GameHelpers.js";
@@ -70,5 +71,29 @@ describe("階移動と不在処理の接続", () => {
     expect(enemy).toMatchObject({ x: 20, y: 20, actionTime: 12000 });
     beginPlayerTurnClock(player);
     expect(takeDueActions(enemy, player.actionTime, 1)).toBe(1);
+  });
+
+  it("アイテムや敵の落下で事前生成された未訪問階へ初めて降りた時は初回訪問扱いになり、再訪時は通常行動する", () => {
+    const player = makePlayer({ depth: 1, x: 4, y: 4, actionTime: 100, turns: 10 });
+    const floor1 = makeEmptyDg({ stairUp: { x: 2, y: 2 }, stairDown: { x: 4, y: 4 } });
+    const state = { dungeonType: "beginner", maxDepth: 10, player, dungeon: floor1, floors: {}, allBcKnown: true };
+    const fallenEnemy = { id: "fallen", name: "落ちゴブリン", x: 1, y: 1, hp: 20, speed: 1 };
+    processPitfallBag([{ kind: "monster", entity: fallenEnemy }], state.floors, 1, state);
+    expect(state.floors[2]._preGenerated).toBe(true);
+
+    player.actionTime += 400;
+    const fallenStart = { x: fallenEnemy.x, y: fallenEnemy.y };
+    const change = changeFloorFor(state);
+    state.dungeon = change(player, 1, false, { stairs: true });
+    expect(state.dungeon._firstVisit).toBe(true);
+    expect(state.dungeon._preGenerated).toBeUndefined();
+    expect([fallenEnemy.x, fallenEnemy.y]).toEqual([fallenStart.x, fallenStart.y]);
+
+    // 一度2階を離れてから階段で昇り降り（再訪）すると _firstVisit にならず通常通り敵が動ける
+    state.dungeon._firstVisit = false;
+    state.dungeon = change(player, -1, false, { stairs: true });
+    expect(state.floors[2]._preGenerated).toBeUndefined();
+    state.dungeon = change(player, 1, false, { stairs: true });
+    expect(state.dungeon._firstVisit).toBe(false);
   });
 });
