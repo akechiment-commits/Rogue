@@ -83,19 +83,24 @@ describe("投擲物を使う敵の弾薬", () => {
   });
 
   it("ロキソ忍は味方がいない時に隣接プレイヤーへ特技失敗を出さず通常攻撃する", () => {
-    const healer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, 5, 5, { aware: true });
-    healer.projectileAmmo.count = 5;
-    healer.alwaysUseSpecial = true;
-    const player = makePlayer({ x: 6, y: 5, hp: 100, maxHp: 100, def: 0 });
-    const dg = openBattlefield(healer);
-    const messages = [];
+    const randSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const healer = makeMonsterFromBase(MONS.find((m) => m.baseKind === "potionhealer"), 1, 5, 5, { aware: true });
+      healer.projectileAmmo.count = 5;
+      healer.alwaysUseSpecial = true;
+      const player = makePlayer({ x: 6, y: 5, hp: 100, maxHp: 100, def: 0 });
+      const dg = openBattlefield(healer);
+      const messages = [];
 
-    monsterAI(healer, dg, player, messages, { moveOnly: true });
-    monsterAI(healer, dg, player, messages, { attackOnly: true });
+      monsterAI(healer, dg, player, messages, { moveOnly: true });
+      monsterAI(healer, dg, player, messages, { attackOnly: true });
 
-    expect(messages.some((m) => m.includes("味方がいなかった"))).toBe(false);
-    expect(messages.some((m) => m.includes("攻撃！"))).toBe(true);
-    expect(healer.projectileAmmo.count).toBe(5);
+      expect(messages.some((m) => m.includes("味方がいなかった"))).toBe(false);
+      expect(messages.some((m) => m.includes("攻撃！"))).toBe(true);
+      expect(healer.projectileAmmo.count).toBe(5);
+    } finally {
+      randSpy.mockRestore();
+    }
   });
 
   it("ロキソ忍は予約後に対象味方が消えた場合のみ回復失敗メッセージを出す", () => {
