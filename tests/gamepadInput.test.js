@@ -5,6 +5,8 @@ import {
   edgeUp,
   buttonPressed,
   hasNearbyMonster,
+  createWaitHoldState,
+  stepContinuousWaitHold,
   QUICK_MENU_ITEMS,
 } from "../gamepadInput.js";
 
@@ -50,6 +52,34 @@ describe("hasNearbyMonster", () => {
   it("3マス以内の敵を足踏み停止対象にする", () => {
     expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 8, y: 7 }] })).toBe(true);
     expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 9, y: 5 }] })).toBe(false);
+  });
+
+  it("大型モンスターは占有点との最短距離で判定し、分身・未正体ミミック・友好NPCは除外する", () => {
+    expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 1, y: 5, bodySize: 2 }] })).toBe(true);
+    expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 0, y: 5, bodySize: 2 }] })).toBe(false);
+    expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 6, y: 5, isPlayerClone: true }] })).toBe(false);
+    expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 6, y: 5, disguisedAsItem: true }] })).toBe(false);
+    expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 6, y: 5, type: "shopkeeper", state: "calm" }] })).toBe(false);
+    expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 6, y: 5, type: "shopkeeper", state: "hostile" }] })).toBe(true);
+    expect(hasNearbyMonster({ x: 5, y: 5 }, { monsters: [{ x: 6, y: 5, hp: 0 }] })).toBe(false);
+  });
+});
+
+describe("stepContinuousWaitHold", () => {
+  it("遠距離では連続許可し、敵が3マス以内に入ったら解放するまで停止する", () => {
+    const state = createWaitHoldState();
+    const player = { x: 5, y: 5 };
+    const farDg = { monsters: [{ x: 10, y: 5 }] };
+    const nearDg = { monsters: [{ x: 8, y: 5 }] };
+
+    expect(stepContinuousWaitHold(state, { active: true, player, dungeon: farDg }).shouldAct).toBe(true);
+    expect(stepContinuousWaitHold(state, { active: true, player, dungeon: farDg }).shouldAct).toBe(true);
+    expect(stepContinuousWaitHold(state, { active: true, player, dungeon: nearDg }).shouldAct).toBe(false);
+    expect(stepContinuousWaitHold(state, { active: true, player, dungeon: farDg }).shouldAct).toBe(false);
+
+    stepContinuousWaitHold(state, { active: false });
+    expect(stepContinuousWaitHold(state, { active: true, player, dungeon: nearDg }).shouldAct).toBe(true);
+    expect(stepContinuousWaitHold(state, { active: true, player, dungeon: nearDg }).shouldAct).toBe(false);
   });
 });
 

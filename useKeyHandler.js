@@ -27,6 +27,7 @@ import { isBigboxKindIdentified, markBigboxKindIdentified, clearBigboxKindIdenti
 import { isDebugItemGetEffect } from "./debugSpellRules.js";
 import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 import { unlockAudio, triggerSE } from "./soundEvents.js";
+import { hasNearbyMonster, createWaitHoldState, stepContinuousWaitHold } from "./gamepadInput.js";
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
 
@@ -198,6 +199,30 @@ export function useKeyHandler({
   const tHeldRef = useRef(false);
   const tUsedDirRef = useRef(false);
   const tFacedEnemyRef = useRef(false);
+  const waitHoldRef = useRef({ key: null, state: createWaitHoldState() });
+
+  const runWaitHoldAction = useCallback((waitKey, actionType, e) => {
+    if (!e?.repeat) {
+      waitHoldRef.current = { key: waitKey, state: createWaitHoldState() };
+    } else if (waitHoldRef.current.key !== waitKey) {
+      waitHoldRef.current = { key: waitKey, state: { held: true, stopped: false } };
+    }
+    const current = sr?.current;
+    const step = stepContinuousWaitHold(waitHoldRef.current.state, {
+      active: true,
+      blocked: false,
+      player: current?.player,
+      dungeon: current?.dungeon,
+      repeatReady: true,
+    });
+    if (!step.shouldAct) return false;
+    act(actionType);
+    const after = sr?.current;
+    if (hasNearbyMonster(after?.player, after?.dungeon)) {
+      waitHoldRef.current.state.stopped = true;
+    }
+    return true;
+  }, [act, sr]);
 
   const canUse = (it) =>
     ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen", "gold"].includes(it.type);
@@ -1951,7 +1976,7 @@ export function useKeyHandler({
         }
 
         if (dx !== null && dy !== null) {
-          if (dx === 0 && dy === 0) act("wait");
+          if (dx === 0 && dy === 0) runWaitHoldAction("Numpad5", "wait", e);
           else if (aRef.current) doDash(dx, dy);
           else act("move", dx, dy);
           return;
@@ -1976,13 +2001,13 @@ export function useKeyHandler({
       }
       if (k === ".") {
         e.preventDefault();
-        act("wait");
+        runWaitHoldAction(".", "wait", e);
       } else if (k === " ") {
         e.preventDefault();
         setMapMode(true);
       } else if (k === "s") {
         e.preventDefault();
-        act("search_traps");
+        runWaitHoldAction("s", "search_traps", e);
       } else if (k === "q") act("shoot_arrow");
       else if (k === ">") act("stairs_down");
       else if (k === "<") act("stairs_up");
@@ -2117,12 +2142,19 @@ export function useKeyHandler({
       onDismissEnding,
       setEndingSel,
       setEndingView,
+      runWaitHoldAction,
     ],
   );
   handleKeyRef.current = handleKey;
 
   const handleKeyUp = useCallback((e) => {
     const k = e.key ? e.key.toLowerCase() : "";
+    if (k === "." || k === "s" || e.code === "Numpad5") {
+      const releasedKey = e.code === "Numpad5" ? "Numpad5" : k;
+      if (!waitHoldRef.current.key || waitHoldRef.current.key === releasedKey) {
+        waitHoldRef.current = { key: null, state: createWaitHoldState() };
+      }
+    }
     if (k === "t") {
       tHeldRef.current = false;
       if (tUsedDirRef.current || tFacedEnemyRef.current) {
@@ -2141,6 +2173,9 @@ export function useKeyHandler({
       handleKeyRef.current?.(e);
     };
     const onKeyUp = (e) => handleKeyUpRef.current?.(e);
+    const onBlur = () => {
+      waitHoldRef.current = { key: null, state: createWaitHoldState() };
+    };
     if (typeof window !== "undefined") {
       if (window[ROGUE_KD]) {
         window.removeEventListener("keydown", window[ROGUE_KD], true);
@@ -2152,9 +2187,11 @@ export function useKeyHandler({
       window[ROGUE_KU] = onKeyUp;
       window.addEventListener("keydown", onKeyDown, true);
       window.addEventListener("keyup", onKeyUp, true);
+      window.addEventListener("blur", onBlur);
     }
     return () => {
       if (typeof window !== "undefined") {
+        window.removeEventListener("blur", onBlur);
         if (window[ROGUE_KD] === onKeyDown) {
           window.removeEventListener("keydown", onKeyDown, true);
           delete window[ROGUE_KD];

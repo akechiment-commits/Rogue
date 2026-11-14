@@ -2,6 +2,7 @@
  * Browser Gamepad API helpers (Xbox / Standard mapping).
  * Pure functions — no React, safe for unit tests.
  */
+import { monsterPointDistance } from "./monsterGeometry.js";
 
 export const BTN = {
   A: 0,
@@ -106,12 +107,70 @@ export function pickFirstGamepad(list) {
   return null;
 }
 
+export function isHostileWaitStopMonster(monster) {
+  if (!monster || (monster.hp ?? 1) <= 0) return false;
+  if (monster.disguisedAsItem) return false;
+  if (monster.isPlayerClone) return false;
+  if (monster.type === "shopkeeper" && (monster.state !== "hostile" || monster._npcRetaliationTargetId)) {
+    return false;
+  }
+  return true;
+}
+
 /** 足踏みを止める敵の近距離判定（8方向移動に合わせたチェビシェフ距離）。 */
 export function hasNearbyMonster(player, dungeon, radius = WAIT_STOP_RADIUS) {
   if (!player || !dungeon) return false;
   return (dungeon.monsters || []).some((monster) =>
-    Math.max(Math.abs((monster.x ?? 0) - player.x), Math.abs((monster.y ?? 0) - player.y)) <= radius
+    isHostileWaitStopMonster(monster) &&
+    monsterPointDistance(monster, player.x, player.y) <= radius
   );
+}
+
+export function createWaitHoldState() {
+  return { held: false, stopped: false };
+}
+
+/**
+ * 連続足踏み（A+B / . / s / Numpad5 長押し）の1ステップ判定。
+ * 敵が近距離にいる場合は初回1ターンだけ通してから停止し、離して押し直すまで再開しない。
+ */
+export function stepContinuousWaitHold(
+  state,
+  {
+    active = false,
+    blocked = false,
+    player = null,
+    dungeon = null,
+    repeatReady = true,
+    radius = WAIT_STOP_RADIUS,
+  } = {},
+) {
+  if (!active) {
+    state.held = false;
+    state.stopped = false;
+    return { shouldAct: false, nearby: false, stopped: false, firstAfterPress: false };
+  }
+  if (blocked) {
+    state.held = true;
+    state.stopped = true;
+    return { shouldAct: false, nearby: false, stopped: true, firstAfterPress: false };
+  }
+  if (state.stopped) {
+    return { shouldAct: false, nearby: false, stopped: true, firstAfterPress: false };
+  }
+  const nearby = hasNearbyMonster(player, dungeon, radius);
+  const firstAfterPress = !state.held;
+  if (firstAfterPress || (!nearby && repeatReady)) {
+    state.held = true;
+    if (nearby) state.stopped = true;
+    return { shouldAct: true, nearby, stopped: state.stopped, firstAfterPress };
+  }
+  if (nearby) {
+    state.held = true;
+    state.stopped = true;
+    return { shouldAct: false, nearby: true, stopped: true, firstAfterPress: false };
+  }
+  return { shouldAct: false, nearby: false, stopped: false, firstAfterPress: false };
 }
 
 export const QUICK_MENU_ITEMS = [
