@@ -763,7 +763,7 @@ export function useKeyHandler({
                 if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
                 const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
               });
-              const _spellFootBb = _dg_spl?.bigboxes?.find(b => b.x === _p_spl?.x && b.y === _p_spl?.y);
+              const _spellFootBb = dg2?.bigboxes?.find(b => b.x === p2?.x && b.y === p2?.y);
               if (_idt.length === 0 && !_spellFootBb) {
                 p2.mp -= spell.mpCost;
                 ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
@@ -778,7 +778,7 @@ export function useKeyHandler({
             } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
               const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
               const _bcPrompt = _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。";
-              const _spellFootBb = _dg_spl?.bigboxes?.find(b => b.x === _p_spl?.x && b.y === _p_spl?.y);
+              const _spellFootBb = dg2?.bigboxes?.find(b => b.x === p2?.x && b.y === p2?.y);
               setMsgs((prev) => [...prev.slice(-80), _bcPrompt]);
               setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]`, bbFootId: _spellFootBb?.id });
               setShowInv(false); setSelIdx(null); setShowDesc(null);
