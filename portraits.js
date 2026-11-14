@@ -605,14 +605,25 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   if (trapPortraitKey) {
     const isTrapEmpty = findMsgInNew(newMsgs, eventLastMsg, (m) => /しかし誰もいなかった/.test(m));
     if (!isTrapEmpty) {
-      if (isLevelDown) {
-        return pe("reaction_sad", { force: true });
-      }
       const trapKey = getTrapPortraitKey(trapPortraitKey);
-      if ((trapKey === "reaction_surprised" || trapKey === "hp_hunger") && stickyKey) {
-        return { ...pe(stickyKey, { force: true }), holdKey: stickyKey };
+      const isArrowTrap =
+        trapKey === "reaction_trap_poison_arrow" ||
+        trapKey === "reaction_trap_strong_arrow" ||
+        trapKey === "reaction_trap_arrow";
+      const hasArrowHitPlayer =
+        !isArrowTrap ||
+        !!findMsgInNew(newMsgs, eventLastMsg, (m) =>
+          /(?:^|！)(?:毒矢|強矢|矢)が命中！|跳ね返された(?:毒矢|強矢|矢)が.+に命中！/.test(m)
+        );
+      if (hasArrowHitPlayer) {
+        if (isLevelDown) {
+          return pe("reaction_sad", { force: true });
+        }
+        if ((trapKey === "reaction_surprised" || trapKey === "hp_hunger") && stickyKey) {
+          return { ...pe(stickyKey, { force: true }), holdKey: stickyKey };
+        }
+        return pe(trapKey, { force: true });
       }
-      return pe(trapKey, { force: true });
     }
   }
 

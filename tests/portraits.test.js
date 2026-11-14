@@ -933,6 +933,60 @@ describe("portraits", () => {
     expect(event.force).toBe(true);
   });
 
+  it("毒矢の罠・矢の罠は発動しただけや敵命中では立ち絵を出さず、プレイヤー命中時だけ表示する", () => {
+    const base = {
+      hp: 100, maxHp: 100, hunger: 50, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+
+    const enemyHitEvent = resolvePortraitEvent({
+      player: base,
+      prev: base,
+      newMsgs: [
+        "毒矢の罠が発動！",
+        "毒矢がアンデッドナイに命中！6ダメージ！攻撃力が下がった！",
+        "毒矢の罠は壊れた。",
+      ],
+      lastMsg: "毒矢の罠は壊れた。",
+    });
+    expect(enemyHitEvent?.src || "").not.toMatch(/reaction_trap_poison_arrow/);
+
+    const missedEvent = resolvePortraitEvent({
+      player: base,
+      prev: base,
+      newMsgs: ["矢の罠が発動！", "矢の罠は壊れた。"],
+      lastMsg: "矢の罠は壊れた。",
+    });
+    expect(missedEvent?.src || "").not.toMatch(/reaction_trap_arrow/);
+
+    const playerHitEvent = resolvePortraitEvent({
+      player: { ...base, hp: 94, poisoned: true },
+      prev: base,
+      newMsgs: [
+        "毒矢の罠が発動！",
+        "毒矢が命中！6ダメージ！毒を受けた！(10ターン)攻撃力が下がった！",
+        "毒矢の罠は壊れた。",
+      ],
+      lastMsg: "毒矢の罠は壊れた。",
+    });
+    expect(playerHitEvent.src).toMatch(/reaction_trap_poison_arrow/);
+    expect(playerHitEvent.force).toBe(true);
+
+    const reflectedHitEvent = resolvePortraitEvent({
+      player: { ...base, hp: 94, poisoned: true },
+      prev: base,
+      newMsgs: [
+        "毒矢の罠が発動！",
+        "毒矢がミラーゴーレムに弾き返された！",
+        "跳ね返された毒矢が勇者に命中！6ダメージ！毒を受けた！(10ターン)攻撃力が下がった！",
+      ],
+      lastMsg: "跳ね返された毒矢が勇者に命中！6ダメージ！毒を受けた！(10ターン)攻撃力が下がった！",
+    });
+    expect(reflectedHitEvent.src).toMatch(/reaction_trap_poison_arrow/);
+    expect(reflectedHitEvent.force).toBe(true);
+  });
+
   it("isHungerMsg が空腹ログを判定する", () => {
     expect(isHungerMsg("空腹でHPが減り始めた！")).toBe(true);
     expect(isHungerMsg("急に空腹を感じた！満腹度が10%下がった。")).toBe(true);
