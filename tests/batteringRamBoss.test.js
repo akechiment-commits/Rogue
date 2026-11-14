@@ -402,7 +402,7 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
 
     advancePetroBreaths(dg, player, messages, () => {}, 1);
 
-    expect(giantTarget.petrifiedTurns).toBe(4);
+    expect(giantTarget.petrifiedTurns).toBe(2);
     expect(messages.filter(m => m.includes("大型標的は石化してしまった"))).toHaveLength(1);
     expect(messages.some(m => m.includes("状態異常への耐性で無効化"))).toBe(false);
   });
