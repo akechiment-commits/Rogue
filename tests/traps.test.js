@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, applyRockfallEffect, isPlayerFloating, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeKatanaToSoboro, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
+import { fireTrapItem, applyRockfallEffect, isPlayerFloating, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeKatanaToSoboro, maybeLongswordToSoboro, SOBURO_T, makePoisonArrow, shootArrow } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 import { MONS, makeMonsterFromBase } from "../monsters.js";
@@ -748,5 +748,24 @@ describe("removeTrap break loot", () => {
 
     expect(shopkeeper.state).toBe("hostile");
     expect(ml.some(m => m.includes("店主が怒った！"))).toBe(true);
+  });
+
+  it("毒矢が敵に当たった時のログは『攻撃力が下がった！』だけにする", () => {
+    const mon = { id: "m_pa1", name: "アンデッドナイト", x: 5, y: 7, hp: 50, maxHp: 50, def: 0 };
+    const dg = makeEmptyDg({ monsters: [mon] });
+    const p = makePlayer({ x: 5, y: 5, facing: { dx: 0, dy: 1 } });
+    const trapMl = [];
+    fireTrapArrowFromFacing({ effect: "poison_arrow", name: "毒矢の罠", x: 5, y: 8 }, p, dg, trapMl, { poison: true });
+    expect(trapMl.some(m => /毒矢がアンデッドナイトに命中！\d+ダメージ！攻撃力が下がった！$/.test(m))).toBe(true);
+
+    p.inventory = [makePoisonArrow(2)];
+    const shootMl = [];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.9);
+    try {
+      shootArrow(p, dg, 0, 0, 1, shootMl, () => {});
+    } finally {
+      randomSpy.mockRestore();
+    }
+    expect(shootMl.some(m => /毒矢がアンデッドナイトに命中！\d+ダメージ！攻撃力が下がった！$/.test(m))).toBe(true);
   });
 });

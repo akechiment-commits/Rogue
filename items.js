@@ -3657,7 +3657,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           m.hp -= d;
           if (poison) {
             const stacks = applyPoisonArrowDamageReduction(m, ml);
-            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！${stacks ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** stacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！"}`);
+            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！${stacks ? "攻撃力が下がった！" : "毒矢の追加効果は効かなかった！"}`);
           } else {
             ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
           }
@@ -4721,7 +4721,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   /* 毒矢：命中ごとに敵の与ダメージを半減する。ATK値自体は変更しない。 */
   if (item.type === "arrow" && item.poison) {
     const stacks = applyPoisonArrowDamageReduction(mon, ml);
-    if (stacks > 0) ml[ml.length - 1] += `毒矢で与ダメージが${Math.max(1, Math.floor(100 / (2 ** stacks)))}%に低下した！（最低1ダメージ）`;
+    if (stacks > 0) ml[ml.length - 1] += "攻撃力が下がった！";
   }
 
   /* ヤバイ食料：追加ダメージ＋毒・混乱・幻惑・鈍足。 */
@@ -9202,7 +9202,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       _wakkaTarget.hp -= _wakkaDmg;
       resolveParalysisHit(_wakkaTarget, ml);
       const _wakkaPoisonStacks = _isPoison ? applyPoisonArrowDamageReduction(_wakkaTarget, ml) : 0;
-      ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? (_wakkaPoisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _wakkaPoisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
+      ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? (_wakkaPoisonStacks > 0 ? "攻撃力が下がった！" : "毒矢の追加効果は効かなかった！") : ""}`);
       triggerMushroomCounterSpore(_wakkaTarget, dg, p, ml);
       if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
     } else {
@@ -9338,7 +9338,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       m.hp -= _arDmg;
       resolveParalysisHit(m, ml);
       const _poisonStacks = _isPoison ? applyPoisonArrowDamageReduction(m, ml) : 0;
-      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? (_poisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _poisonStacks)))}%に低下した！（最低1ダメージ）${m.isBoss ? `(${m.poisonArrowDamageTurns}ターン)` : "(永続)"}` : "毒矢の追加効果は効かなかった！") : ""}`);
+      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? (_poisonStacks > 0 ? "攻撃力が下がった！" : "毒矢の追加効果は効かなかった！") : ""}`);
       triggerMushroomCounterSpore(m, dg, p, ml);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }

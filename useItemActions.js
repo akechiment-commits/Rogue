@@ -3825,7 +3825,7 @@ export function useItemActions({
             resolveParalysisHit(mon, mlx);
             markWanderingNpcHostile(mon, dg, p, mlx);
             const _poisonStacks = _arIsPoison ? applyPoisonArrowDamageReduction(mon, mlx) : 0;
-            mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? (_poisonStacks > 0 ? `与ダメージが${Math.max(1, Math.floor(100 / (2 ** _poisonStacks)))}%に低下した！（最低1ダメージ）` : "毒矢の追加効果は効かなかった！") : ""}`);
+            mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? (_poisonStacks > 0 ? "攻撃力が下がった！" : "毒矢の追加効果は効かなかった！") : ""}`);
             triggerMushroomCounterSpore(mon, dg, p, mlx);
             if (mon.hp <= 0) { killMonster(mon, dg, p, mlx, lu); }
             if (!_arIsPierce) _arPeelIfNeeded();
