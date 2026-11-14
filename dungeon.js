@@ -18,7 +18,7 @@ import {
   legendMonsterSynergyGroupsAtFloor,
   LEGEND_ACTIVE_SPECIAL_KINDS,
 } from "./legendMonsterRules.js";
-import { ordinaryFloorGoldRange } from "./springRules.js";
+import { createSpring, ordinaryFloorGoldRange } from "./springRules.js";
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE, createGachaBox } from './gachaRules.js';
@@ -166,7 +166,7 @@ function genBigRoom(depth, dungeonType = null) {
       const sx = rng(rx + 1, rx + rw - 2), sy = rng(ry + 1, ry + rh - 2);
       if (map[sy][sx] !== T.FLOOR) continue;
       if (occ(sx, sy) || traps.some(t => t.x === sx && t.y === sy) || springs.some(s => s.x === sx && s.y === sy)) continue;
-      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+      springs.push(createSpring(sx, sy));
       break;
     }
   }
@@ -304,7 +304,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
       const sy = rng(room.y + 1, room.y + room.h - 2);
       if (map[sy]?.[sx] !== T.FLOOR) continue;
       if (allOcc(sx, sy)) continue;
-      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+      springs.push(createSpring(sx, sy));
       break;
     }
   }
@@ -739,7 +739,7 @@ export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, tra
       for (let a = 0; a < 40; a++) {
         const [sx, sy] = pick(floorTiles);
         if (allOcc(sx, sy)) continue;
-        springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+        springs.push(createSpring(sx, sy));
         fixturesPlaced++;
         break;
       }
@@ -1231,7 +1231,7 @@ function genMiddleRoom(depth, dungeonType = null) {
   const _mdPick = buildUniPool(depth, dungeonType);
   for (let i = 0; i < rng(14, 22); i++) { const p = rndFloor(); if (p) { items.push(Object.assign(applyStdMods(_mdPick(), depth), { x: p[0], y: p[1] })); } }
   for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
-  for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push(createSpring(p[0], p[1])); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const _mdMHRoom = tryGenerateFloorMonsterHouse({
     rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
@@ -1273,7 +1273,7 @@ export function genMiniRoom(depth, dungeonType = null) {
   const _mnPick = buildUniPool(depth, dungeonType);
   for (let i = 0; i < rng(7, 13); i++) { const p = rndFloor(); if (p) { items.push(Object.assign(applyStdMods(_mnPick(), depth), { x: p[0], y: p[1] })); } }
   for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
-  if (Math.random() < 0.5) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  if (Math.random() < 0.5) { const p = rndFloor(); if (p) springs.push(createSpring(p[0], p[1])); }
   for (let i = 0; i < rng(1, 2); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const _mnMHRoom = tryGenerateFloorMonsterHouse({
     rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
@@ -1560,7 +1560,7 @@ export function genCorridorFloor(depth, dungeonType = null) {
   for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType,{ existingMonsters: mons }));}
   for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold'){const range=ordinaryFloorGoldRange(depth+1);it.value=rng(range.min,range.max);}items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndRoom();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
-  for(let i=0;i<rng(1,3);i++){const p=rndRoom();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
+  for(let i=0;i<rng(1,3);i++){const p=rndRoom();if(p)springs.push(createSpring(p[0],p[1]));}
   for(let i=0;i<rng(1,2);i++){const p=rndRoom();if(p){const bbt=pickBB([], dungeonType, depth);bigboxes.push({id:uid(),x:p[0],y:p[1],tile:TI.BIGBOX,kind:bbt.kind,name:bbt.name,capacity:bbt.cap(),contents:[]});}}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters:mons, items, traps, springs, bigboxes, stairUp:su, stairDown:sd, visible, explored, shop:null, hiddenRooms:[], monsterHouseRoom:null, waterItems:[], floorType:"corridorFloor" };
@@ -1595,7 +1595,7 @@ export function genGridRoom(depth, dungeonType = null) {
   /* 格子の柱に埋まるアイテムは稀にだけ配置する。 */
   if (Math.random() < 0.15) genWallItems(map, depth, items, new Set(), 1, dungeonType);
   for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrapFor(depth, dungeonType), id: uid(), x: p[0], y: p[1], revealed: false }); }
-  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push(createSpring(p[0], p[1])); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB([], dungeonType, depth); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const _grMHRoom = tryGenerateFloorMonsterHouse({
     rooms, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType,
@@ -1709,7 +1709,7 @@ function genRingCorridorFloor(depth, dungeonType = null) {
   for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType,{ existingMonsters: mons }));}
   for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it=applyInitialItemCharges({...pickLootFromPool(lootPool),id:uid(),x:p[0],y:p[1]});if(it.type==='gold'){const range=ordinaryFloorGoldRange(depth+1);it.value=rng(range.min,range.max);}items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
-  for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
+  for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push(createSpring(p[0],p[1]));}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "ringCorridorFloor" };
 }
@@ -1797,7 +1797,7 @@ function genCaveFloor(depth, dungeonType = null) {
   const _cvPick = buildUniPool(depth, dungeonType);
   for(let i=0;i<rng(12,20)+depth;i++){const p=rndCor();if(p){items.push(Object.assign(applyStdMods(_cvPick(),depth),{x:p[0],y:p[1]}));}}
   for(let i=0;i<rng(5,10)+depth;i++){const p=rndCorWide();if(p)traps.push({...pickTrapFor(depth, dungeonType),id:uid(),x:p[0],y:p[1],revealed:false});}
-  for(let i=0;i<rng(1,3);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
+  for(let i=0;i<rng(1,3);i++){const p=rndCor();if(p)springs.push(createSpring(p[0],p[1]));}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "caveFloor" };
 }
@@ -1955,7 +1955,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
       const bbt = pickBB([], dungeonType, depth);
       bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
     } else if (kind === "spring") {
-      springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
+      springs.push(createSpring(p[0], p[1]));
     } else if (kind === "altar") {
       altars.push(makeAltar(p[0], p[1]));
     } else {
@@ -1993,7 +1993,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
   }
   for (let i = 0; i < rng(1, 2); i++) {
     const p = rnd(dryTiles);
-    if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
+    if (p) springs.push(createSpring(p[0], p[1]));
   }
   for (let i = 0; i < rng(1, 3); i++) {
     const p = rnd(itemTiles);
@@ -2134,7 +2134,7 @@ export function genTwinWingFloor(depth, dungeonType = null) {
   }
   {
     const p = rnd(leftTiles);
-    if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
+    if (p) springs.push(createSpring(p[0], p[1]));
   }
   for (let i = 0; i < rng(1, 3); i++) {
     const p = rnd(rightTiles);
@@ -2910,7 +2910,7 @@ function genBossFloor(depth, dungeonType = null) {
   for (let _si = 0; _si < rng(1, 3); _si++) {
     const p = rndBossFloor(springOcc, true);
     if (!p) break;
-    springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] });
+    springs.push(createSpring(p[0], p[1]));
   }
 
   /* 大箱 */
@@ -4138,7 +4138,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         !occ(sx2, sy2) &&
         !springs.some((s) => s.x === sx2 && s.y === sy2)
       ) {
-        springs.push({ id: uid(), x: sx2, y: sy2, tile: TI.SPRING, contents: [] });
+        springs.push(createSpring(sx2, sy2));
         break;
       }
     }
@@ -4486,7 +4486,7 @@ export function genDebugDungeon() {
   /* 泉×4 */
   for (let i = 0; i < 4; i++) {
     const sp = nextItemPos();
-    springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
+    springs.push(createSpring(sp.x, sp.y));
   }
   /* 大箱：各種1つずつ */
   for (const bbt of BB_TYPES) {
@@ -4548,7 +4548,7 @@ export function genDebugDungeonFloor2() {
   }
   /* 泉 */
   const sp = nextItemPos();
-  springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
+  springs.push(createSpring(sp.x, sp.y));
 
   /* モンスター隔離部屋 */
   /* 2階デバッグ：ワッカとウィンドメイジのLv1〜3のみ配置 */

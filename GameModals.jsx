@@ -32,6 +32,7 @@ import { isBigboxKindIdentified, markBigboxKindIdentified, clearBigboxKindIdenti
 import { GACHA_COST, GACHA_BOX_TOTAL, getGachaBoxRemaining, createGachaBox } from "./gachaRules.js";
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 import { foodPotionEffectLabel } from "./foodData.js";
+import { createSpring } from "./springRules.js";
 import { deleteImage } from "./imageStorage.js";
 import { ALTAR_PRIEST_SERVICES, altarPriestServicePrice, altarPriestServiceTargets } from "./priestServiceRules.js";
 
@@ -5047,7 +5048,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           (dg.gachaMachines || (dg.gachaMachines = [])).push(gacha);
           ml.push("ガチャマシーンを設置した！");
         } else if (objectKind === "spring") {
-          const spring = { id: uid(), x: nx, y: ny, tile: TI.SPRING, contents: [] };
+          const spring = createSpring(nx, ny);
           (dg.springs || (dg.springs = [])).push(spring);
           ml.push("泉を設置した！");
         } else if (objectKind === "vent") {

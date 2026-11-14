@@ -33,7 +33,7 @@ import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
 import { isYogurtImmune } from './statusImmunity.js';
-import { rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
+import { DEFAULT_SPRING_CAPACITY, rollWishChance, goldCoinEjectChance, SPRING_EJECT_CANDIDATES } from "./springRules.js";
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat, monEffectiveWaterWalker, monScaleOutgoingDamage, monHasFlameMantle,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles, monHasElementWeakness, monElementDamageMultiplier,
@@ -6756,40 +6756,46 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
   const _dn = (it) => dnFn ? dnFn(it) : resolveItemName(it);
   const rngFn = opts.rngFn || Math.random;
   spr.contents = spr.contents || [];
+  if (spr.capacity == null) spr.capacity = DEFAULT_SPRING_CAPACITY;
+  const capBefore = spr.capacity;
+  const wasFull = spr.contents.length >= capBefore;
+  let consumedCapacity = false;
+  let wishTriggered = false;
+  let itemEjected = null;
+
   if (item.iceCream) {
     ml.push(`${_dn(item)}が泉に落ちて溶けて消滅した！`);
-    return { wish: false, dried: false, itemEjected: null };
-  }
-  if (item.type === "gold") {
+    consumedCapacity = true;
+  } else if (item.type === "gold") {
     const coinValue = Math.max(0, Number(item.value) || 0);
+    consumedCapacity = true;
     if (rollWishChance("gold_coin", rngFn, coinValue)) {
       ml.push(`${_dn(item)}が泉の底へ吸い込まれると、泉が神秘的な光を放ち始めた！`);
       ml.push("「何を願う？」");
-      return { wish: true, dried: false, itemEjected: null };
-    }
-    ml.push(`${_dn(item)}は泉の底へ吸い込まれて消えた…`);
-    const ejectChance = goldCoinEjectChance(coinValue);
-    if (rngFn() < ejectChance) {
-      const ejected = makeSpringEjectedItem(rngFn);
-      if (dg) {
-        const _eft = new Set();
-        placeItemAt(dg, spr.x, spr.y, ejected, ml, _eft, 0, pl, spr.x, spr.y, false, true);
+      wishTriggered = true;
+    } else {
+      ml.push(`${_dn(item)}は泉の底へ吸い込まれて消えた…`);
+      const ejectChance = goldCoinEjectChance(coinValue);
+      if (rngFn() < ejectChance) {
+        const ejected = makeSpringEjectedItem(rngFn);
+        if (dg) {
+          const _eft = new Set();
+          placeItemAt(dg, spr.x, spr.y, ejected, ml, _eft, 0, pl, spr.x, spr.y, false, true);
+        }
+        ml.push(`泉から${_dn(ejected)}が飛び出してきた！`);
+        itemEjected = ejected;
       }
-      ml.push(`泉から${_dn(ejected)}が飛び出してきた！`);
-      return { wish: false, dried: false, itemEjected: ejected };
     }
-    return { wish: false, dried: false, itemEjected: null };
-  }
-  if (item.type === "gold_nugget") {
+  } else if (item.type === "gold_nugget") {
+    consumedCapacity = true;
     if (!item.isFake && rollWishChance("gold_nugget", rngFn)) {
       ml.push(`${_dn(item)}が泉の底へ吸い込まれると、眩い光が泉全体から溢れ出した！`);
       ml.push("「何を願う？」");
-      return { wish: true, dried: false, itemEjected: null };
+      wishTriggered = true;
+    } else {
+      ml.push(item.isFake ? `${_dn(item)}は泉の底へ吸い込まれて消えた…何も起こらなかった。` : `${_dn(item)}は泉の底へ吸い込まれて静かに消えた…`);
     }
-    ml.push(item.isFake ? `${_dn(item)}は泉の底へ吸い込まれて消えた…何も起こらなかった。` : `${_dn(item)}は泉の底へ吸い込まれて静かに消えた…`);
-    return { wish: false, dried: false, itemEjected: null };
-  }
-  if (item.type === "bottle") {
+  } else if (item.type === "bottle") {
     const wb = { ...WATER_BOTTLE, id:uid() };
     if (item.blessed) { wb.blessed = true; wb.bcKnown = true; }
     else if (item.cursed) { wb.cursed = true; wb.bcKnown = true; }
@@ -6929,19 +6935,31 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
     ml.push(_dn(item) + "が泉に落ちた。" + _elseNote);
     spr.contents.push(item);
   }
-  /* 5個目が入ったら泉が干上がる（容量4） */
-  if (dg && spr.contents.length >= 5) {
-    ml.push("泉が干上がった！中のアイテムが飛び出した！");
-    const _ft = new Set();
+  /* 消滅した投入物（金貨・金塊・アイス等）の分も容量を減らし、容量超過時に干上がらせる */
+  if (consumedCapacity) {
+    spr.capacity = Math.max(0, capBefore - 1);
+  }
+  if (wishTriggered) {
+    return { wish: true, dried: false, itemEjected: null };
+  }
+  const overflowed = wasFull || spr.contents.length > spr.capacity;
+  if (dg && overflowed) {
     dg.springs = dg.springs.filter(s => s !== spr);
+    if (spr.contents.length > 0) {
+      ml.push("泉が干上がった！中のアイテムが飛び出した！");
+      const _ft = new Set();
+      for (const _ci of spr.contents) {
+        placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
+      }
+    }
     /* 保持されていたモンスターも、他の干上がり経路と同じく放出する */
     releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, pl, ml);
-    for (const _ci of spr.contents) {
-      placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
+    if (spr.contents.length === 0) {
+      ml.push("泉は干上がってしまった...");
     }
   }
 
-  return { wish: false, dried: dg ? spr.contents.length >= 5 : false, itemEjected: null };
+  return { wish: false, dried: dg ? overflowed : false, itemEjected };
 }
 
 function soakItem(item) {

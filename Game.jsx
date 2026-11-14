@@ -5916,6 +5916,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setGs({ ...sr.current });
           return;
         }
+        if (_res?.dried && springTargetRef.current === _targetSpring) springTargetRef.current = null;
         endTurn(sr.current, p, ml);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSpringMode(null);

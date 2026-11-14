@@ -1,5 +1,30 @@
+import { rng, uid, TI } from "./utils.js";
+
 /** 泉から発生する効果の固定値・抽選範囲。 */
 export const SPRING_CONFUSION_TURNS = 5;
+
+/** 泉の初期容量（未指定データの後方互換は 4、新規生成は 3〜6 でランダム）。 */
+export const DEFAULT_SPRING_CAPACITY = 4;
+export const SPRING_CAPACITY_MIN = 3;
+export const SPRING_CAPACITY_MAX = 6;
+
+export function randSpringCapacity(rngFn = null) {
+  if (typeof rngFn === "function") {
+    return Math.floor(rngFn() * (SPRING_CAPACITY_MAX - SPRING_CAPACITY_MIN + 1)) + SPRING_CAPACITY_MIN;
+  }
+  return rng(SPRING_CAPACITY_MIN, SPRING_CAPACITY_MAX);
+}
+
+export function createSpring(x, y, opts = {}) {
+  return {
+    id: opts.id ?? uid(),
+    x,
+    y,
+    tile: TI.SPRING,
+    contents: [],
+    capacity: opts.capacity ?? randSpringCapacity(opts.rngFn),
+  };
+}
 
 /** 飲む／浸す／金貨／金塊投入で願いが発動する確率 */
 export const WISH_CHANCE_DRINK = 0.001;
