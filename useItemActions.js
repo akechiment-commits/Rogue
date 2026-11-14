@@ -149,6 +149,20 @@ function cannotActWithItems(player) {
   return !player || player.hp <= 0 || hasForcedTurn(player);
 }
 
+/* 正体判明時に reveal モーダル用 setter がない呼び出し（単体テスト等）では即座に本文ログへ流す。 */
+function flushUseRevealMessages(setMsgs, setRevealMode, wasUnknown, revFake, revReal, ml) {
+  if (wasUnknown && revFake && revFake !== revReal) {
+    if (typeof setRevealMode === "function") {
+      setMsgs((prev) => [...prev.slice(-80), `${revFake}は${revReal}だった！`]);
+      if (ml.length) setRevealMode({ pendingMsgs: [...ml] });
+      return;
+    }
+    setMsgs((prev) => [...prev.slice(-80), `${revFake}は${revReal}だった！`, ...ml]);
+    return;
+  }
+  if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+}
+
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
   setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
@@ -2320,12 +2334,7 @@ export function useItemActions({
       }
     }
     endTurn(sr.current, p, ml);
-    if (_wasUnknown && _revFake && _revFake !== _revReal) {
-      setMsgs(prev => [...prev.slice(-80), `${_revFake}は${_revReal}だった！`]);
-      if (ml.length) setRevealMode({ pendingMsgs: [...ml] });
-    } else {
-      if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-    }
+    flushUseRevealMessages(setMsgs, setRevealMode, _wasUnknown, _revFake, _revReal, ml);
     setSelIdx(null);
     setShowDesc(null);
     setShowInv(false);
@@ -3051,12 +3060,7 @@ export function useItemActions({
     setShowInv(false); setSelIdx(null); setShowDesc(null);
     endTurn(sr.current, p, ml);
     /* リビールメッセージ */
-    if (_wasUnknown && _revFake && _revFake !== _revReal) {
-      setMsgs(prev => [...prev.slice(-80), `${_revFake}は${_revReal}だった！`]);
-      if (ml.length) setRevealMode({ pendingMsgs: [...ml] });
-    } else {
-      setMsgs((prev) => [...prev.slice(-80), ...ml]);
-    }
+    flushUseRevealMessages(setMsgs, setRevealMode, _wasUnknown, _revFake, _revReal, ml);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   }, [endTurn]);
   const doMarkerWrite = useCallback(
