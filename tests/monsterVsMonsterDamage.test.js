@@ -1,6 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { monsterAI } from "../monsters.js";
+
+beforeEach(() => vi.spyOn(Math, "random").mockReturnValue(0.5));
+afterEach(() => vi.restoreAllMocks());
 
 describe("Monster vs Monster combat: spore, dormant, paralysis, fixed damage", () => {
   it("clone attack against mushroom triggers counter spore, wakes dormant, and clamps physical damage", () => {
