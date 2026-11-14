@@ -149,3 +149,99 @@ describe("詰まり脱出", () => {
     expect(m.x !== before.x || m.y !== before.y).toBe(true);
   });
 });
+
+describe("長時間ブロック時の対向スワップ制限", () => {
+  function corridorMap(y = 5, startX = 1, endX = 30) {
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.WALL));
+    for (let x = startX; x <= endX; x++) map[y][x] = T.FLOOR;
+    return map;
+  }
+
+  function makeCorridorEnemy(overrides = {}) {
+    return {
+      name: "スライム",
+      baseKind: "slime",
+      x: 10,
+      y: 5,
+      hp: 20,
+      maxHp: 20,
+      atk: 5,
+      def: 0,
+      exp: 5,
+      speed: 1,
+      baseSpeed: 1,
+      aware: true,
+      dormant: false,
+      lastPx: 20,
+      lastPy: 5,
+      turnAccum: 0,
+      monLevel: 1,
+      dir: { x: 1, y: 0 },
+      ...overrides,
+    };
+  }
+
+  it("対向する通常敵同士でも15ターン塞がれるまではスワップせず、16ターン目にスワップする", () => {
+    const map = corridorMap(5, 1, 25);
+    const backLeft = makeCorridorEnemy({ id: "backLeft", x: 8, paralyzed: true });
+    const left = makeCorridorEnemy({ id: "left", x: 9, lastPx: 20, lastPy: 5 });
+    const right = makeCorridorEnemy({ id: "right", x: 10, lastPx: 1, lastPy: 5 });
+    const pl = makePlayer({ x: 25, y: 5 });
+    const dg = makeEmptyDg({ map, rooms: [], monsters: [backLeft, left, right], items: [], traps: [] });
+
+    for (let turn = 0; turn < 15; turn++) {
+      monsterAI(left, dg, pl, [], { moveOnly: true });
+    }
+    expect(left.x).toBe(9);
+    expect(right.x).toBe(10);
+
+    monsterAI(left, dg, pl, [], { moveOnly: true });
+    expect(left.x).toBe(10);
+    expect(right.x).toBe(9);
+  });
+
+  it("道を塞いでいる相手がボスなら何ターン塞がれてもスワップしない", () => {
+    const map = corridorMap(5, 1, 25);
+    const backLeft = makeCorridorEnemy({ id: "backLeft", x: 8, paralyzed: true });
+    const chaser = makeCorridorEnemy({ id: "chaser", x: 9, lastPx: 20, lastPy: 5 });
+    const boss = makeCorridorEnemy({
+      id: "boss",
+      name: "シオン・ザ・ダークブレット",
+      baseKind: "boss_darkbullet",
+      isBoss: true,
+      x: 10,
+      aware: true,
+      lastPx: 1,
+      lastPy: 5,
+    });
+    const pl = makePlayer({ x: 25, y: 5 });
+    const dg = makeEmptyDg({ map, rooms: [], monsters: [backLeft, chaser, boss], items: [], traps: [] });
+
+    for (let turn = 0; turn < 25; turn++) {
+      monsterAI(chaser, dg, pl, [], { moveOnly: true });
+    }
+    expect(chaser.x).toBe(9);
+    expect(boss.x).toBe(10);
+  });
+
+  it("道を塞いでいる相手が未覚醒・睡眠・金縛りの通常敵なら何ターン塞がれてもスワップしない", () => {
+    for (const blockerState of [
+      { aware: false, lastPx: 10, lastPy: 5 },
+      { aware: true, sleepTurns: 30, lastPx: 1, lastPy: 5 },
+      { aware: true, paralyzed: true, lastPx: 1, lastPy: 5 },
+    ]) {
+      const map = corridorMap(5, 1, 25);
+      const backLeft = makeCorridorEnemy({ id: "backLeft", x: 8, paralyzed: true });
+      const chaser = makeCorridorEnemy({ id: "chaser", x: 9, lastPx: 20, lastPy: 5 });
+      const blocker = makeCorridorEnemy({ id: "blocker", x: 10, ...blockerState });
+      const pl = makePlayer({ x: 25, y: 5 });
+      const dg = makeEmptyDg({ map, rooms: [], monsters: [backLeft, chaser, blocker], items: [], traps: [] });
+
+      for (let turn = 0; turn < 25; turn++) {
+        monsterAI(chaser, dg, pl, [], { moveOnly: true });
+      }
+      expect(chaser.x).toBe(9);
+      expect(blocker.x).toBe(10);
+    }
+  });
+});

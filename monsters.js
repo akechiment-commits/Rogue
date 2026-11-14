@@ -4965,6 +4965,80 @@ function isPentacleDrawBlocked(dg, x, y) {
   return false;
 }
 
+const MONSTER_SWAP_STUCK_TURNS = 15;
+
+/** 状態異常や詠唱・待機などで移動自体ができない状態か */
+function isMonsterMovementDisabled(m, dg, gravityLocksFlightOnly = false) {
+  if (!m) return true;
+  return !!(
+    m.paralyzed ||
+    (m.sleepTurns || 0) > 0 ||
+    (m.immobileTurns || 0) > 0 ||
+    (m.knockdownTurns || 0) > 0 ||
+    gravityLocksFlightOnly ||
+    isStationaryMonster(m) ||
+    m._isPetroBreathing ||
+    dg?.pendingPetroBreaths?.some(b => b.sourceId === m.id) ||
+    m._isCaswackCasting ||
+    dg?.pendingCaswacks?.some(c => c.sourceId === m.id) ||
+    hasPendingOmegaShinryuCharge(m, dg) ||
+    m._hexLiberatioCharging ||
+    m._hexLiberatioReady
+  );
+}
+
+/** 十分なターン数を塞がれ、かつ相互に対向している通常モンスター同士のみ位置を交換する */
+function trySwapWithBlocker(m, blocker, next, dg, map, pl, ml) {
+  if (!m || !blocker || !next || !dg || !map || !pl) return false;
+  if ((m._blockedSwapTurns || 0) < MONSTER_SWAP_STUCK_TURNS) return false;
+  if (monsterBodySize(m) !== 1 || monsterBodySize(blocker) !== 1) return false;
+  if (m.isBoss || m.forcedMoveImmune || isStationaryGrabber(m) || isStationaryMonster(m) || m.type === "shopkeeper") return false;
+  if (blocker.isBoss || blocker.forcedMoveImmune || isStationaryGrabber(blocker) || isStationaryMonster(blocker) || blocker.type === "shopkeeper") return false;
+  if (!blocker.aware || blocker.dormant || blocker.dormantHouse || blocker.disguisedAsItem) return false;
+
+  const blockerGravityLocksFlightOnly = !!(blocker.flightOnly && !monEffectiveMagicImmune(blocker) && hasGravityPentacle(dg, blocker.x, blocker.y));
+  if (isMonsterMovementDisabled(blocker, dg, blockerGravityLocksFlightOnly)) return false;
+  if ((blocker.pacifistTurns || 0) > 0 || (blocker.confusedTurns || 0) > 0 || isAlcoholDirectionRandomized(blocker) ||
+      (blocker.darknessTurns || 0) > 0 || isFleeingMonster(blocker)) return false;
+
+  /* m・blocker の双方がスワップ先のマスへ安全に入れること */
+  if (m.x === pl.x && m.y === pl.y) return false;
+  if (m.waterOnly && map[next.y]?.[next.x] !== T.WATER && !dg.springs?.some(s => s.x === next.x && s.y === next.y)) return false;
+
+  const bEffFloat = monEffectiveFloat(blocker) && (monEffectiveMagicImmune(blocker) || !hasGravityPentacle(dg, blocker.x, blocker.y));
+  const bWaterWalker = monEffectiveWaterWalker(blocker);
+  const bWaterOnlyOk = map[m.y]?.[m.x] === T.WATER || !!dg.springs?.some(s => s.x === m.x && s.y === m.y);
+  if (blocker.waterOnly ? !bWaterOnlyOk : !canEnter(map, m.x, m.y, bEffFloat, dg, bWaterWalker)) return false;
+  if (!inMagicSealRoom(blocker.x, blocker.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === m.x && pc.y === m.y)) return false;
+
+  const bTileFilter = blocker.waterOnly
+    ? (nx, ny) => inBounds(nx, ny) && isWalkable(map, nx, ny, dg) &&
+        (map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false))
+    : bWaterWalker
+      ? (nx, ny) => isWalkable(map, nx, ny, dg)
+      : null;
+  const bTx = blocker.lastPx ?? pl.x;
+  const bTy = blocker.lastPy ?? pl.y;
+  const bNext = bfsNext(map, [], blocker.x, blocker.y, bTx, bTy, blocker, 4, dg.pentacles, bEffFloat, bTileFilter, false, dg.rooms, dg);
+  if (!bNext || bNext.x !== m.x || bNext.y !== m.y) return false;
+
+  blocker.dir = { x: m.x - next.x, y: m.y - next.y };
+  blocker.x = m.x;
+  blocker.y = m.y;
+  blocker._idleStuck = 0;
+  blocker.posHistory = [];
+  delete blocker._blockedSwapTurns;
+  m.dir = { x: next.x - m.x, y: next.y - m.y };
+  m.x = next.x;
+  m.y = next.y;
+  m._idleStuck = 0;
+  m.posHistory = [];
+  delete m._blockedSwapTurns;
+  if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
+  if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
+  return true;
+}
+
 /** 長時間停滞／往復時に別方向へ1歩逃がす */
 function tryUnstickMove(m, dg, pl, float = false) {
   if (!m || !dg) return false;
@@ -6242,20 +6316,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       _clearDodgemoleTrap(m, dg, ml, pl);
       _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}), opts.bbFn);
     }
-    const movementDisabled =
-      m.paralyzed ||
-      (m.sleepTurns || 0) > 0 ||
-      (m.immobileTurns || 0) > 0 ||
-      (m.knockdownTurns || 0) > 0 ||
-      _gravityLocksFlightOnly ||
-      isStationaryMonster(m) ||
-      m._isPetroBreathing ||
-      dg.pendingPetroBreaths?.some(b => b.sourceId === m.id) ||
-      m._isCaswackCasting ||
-      dg.pendingCaswacks?.some(c => c.sourceId === m.id) || hasPendingOmegaShinryuCharge(m, dg) || m._hexLiberatioCharging || m._hexLiberatioReady;
+    const movementDisabled = isMonsterMovementDisabled(m, dg, _gravityLocksFlightOnly);
     if (movementDisabled) {
       m._idleStuck = 0;
       m.posHistory = [];
+      delete m._blockedSwapTurns;
     }
     const _cloneCombatTurn = !!m._cloneCombatTurn;
     delete m._cloneCombatTurn;
@@ -6263,6 +6328,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* 分身との交戦中は、攻撃で動かないことを停滞とはみなさない。 */
       m._idleStuck = 0;
       m.posHistory = [];
+      delete m._blockedSwapTurns;
     }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
     if (!_cloneCombatTurn && !_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly &&
@@ -6275,8 +6341,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         /* 特殊AIの目的地へ向かう敵は、汎用のランダム脱出移動で目標から離さない。 */
         m._idleStuck = 0;
         m.posHistory = [];
+        delete m._blockedSwapTurns;
       } else if (_adjPl) {
         m._idleStuck = 0;
+        delete m._blockedSwapTurns;
       } else {
         if (!moved) {
           m._idleStuck = (m._idleStuck || 0) + 1;
@@ -11548,30 +11616,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m.dir = { x: next.x - m.x, y: next.y - m.y };
         m.x = next.x;
         m.y = next.y;
+        delete m._blockedSwapTurns;
         if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         if (_forceAlt) m.posHistory = [];
         return;
       }
       /* 次マスが別モンスターに占有 */
-      /* 対向（互いに相手のマスへ向かっている）なら位置を交換してデッドロック解消 */
+      /* 長時間道を塞がれ、かつ対向（互いに相手のマスへ向かっている）場合のみ位置を交換してデッドロック解消 */
       const _blocker = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, next.x, next.y));
-      if (_blocker && monsterBodySize(m) === 1 && monsterBodySize(_blocker) === 1 && !isStationaryGrabber(_blocker) && _blocker.type !== "shopkeeper") {
-        const _bNext = bfsNext(map, [], _blocker.x, _blocker.y,
-          (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
-          (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
-          _blocker, 4, dg.pentacles, _blocker.float, null, false, dg.rooms, dg);
-        if (_bNext && _bNext.x === m.x && _bNext.y === m.y &&
-            /* waterOnly：スワップ先が水/泉でない場合はスワップ不可 */
-            (!m.waterOnly || map[next.y]?.[next.x] === T.WATER || dg.springs?.some(s => s.x === next.x && s.y === next.y))) {
-          /* 正面衝突：スワップ（店主・からめ鬼はスワップ不可） */
-          _blocker.x = m.x; _blocker.y = m.y;
-          m.dir = { x: next.x - m.x, y: next.y - m.y };
-          m.x = next.x; m.y = next.y;
-          if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
-          if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
-          return;
-        }
+      if (trySwapWithBlocker(m, _blocker, next, dg, map, pl, ml)) {
+        return;
       }
       /* 塞がれた場合：チェビシェフ距離でソートして隣接を維持できる方向を選ぶ */
       const _curDist = Math.max(Math.abs(tx - m.x), Math.abs(ty - m.y));
@@ -11609,10 +11664,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
         m.x = _ab.x; m.y = _ab.y;
+        delete m._blockedSwapTurns;
         if (monHasFlameMantle(m)) _fireDemonBurnItems(m, dg, ml, pl);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         return;
       }
+      m._blockedSwapTurns = (m._blockedSwapTurns || 0) + 1;
       return; /* 前の敵が動けない場合は自然なキューイングで待機 */
     }
     /* BFS 経路なし（壁で完全遮断）：_forceAlt 時のみランダム脱出を試みる */
