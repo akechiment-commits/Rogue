@@ -6989,6 +6989,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (_isFlockVariant) ensureFlockMp(m);
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
+  let _movementLocked = false;
   let _flockMovementLocked = false;
   if (_isAbsoluteVirtue && m.hp > 0 && !m._absoluteVirtuePhaseTwo &&
       Number.isFinite(m.maxHp) && m.hp < m.maxHp * 0.25) {
@@ -8181,7 +8182,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       _flockMovementLocked = true;
       if (_attackOnly && !m._flockPendingSpell) _attackOnly = false;
     } else {
-      _attackOnly = true;
+      _movementLocked = true;
     }
   }
   /* ===== 混乱・酩酊・酔い：ランダム方向に移動・攻撃 ===== */
@@ -8224,7 +8225,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${res.damage}ダメージ！`);
             }
           }
-        } else if (!_attackOnly && _canMoveTo(_cnx, _cny) && isWalkable(dg.map, _cnx, _cny, dg)) {
+        } else if (!_attackOnly && !_movementLocked && _canMoveTo(_cnx, _cny) && isWalkable(dg.map, _cnx, _cny, dg)) {
           m.x = _cnx; m.y = _cny;
         }
       }
@@ -8276,7 +8277,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
     } else if (_canMoveTo(_dnx, _dny)) {
-      if (!_attackOnly) {
+      if (!_attackOnly && !_movementLocked) {
         m.x = _dnx; m.y = _dny;
       }
     } else {
@@ -8293,7 +8294,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (_isFlockVariant && flockHasNoManaTurn(m, dg, ml, _attackOnly)) return;
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (isStationaryMonster(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
-    if (!_attackOnly) {
+    if (!_attackOnly && !_movementLocked) {
       const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, monEffectiveWaterWalker(m));
       if (_fleeStep && _canMoveTo(_fleeStep.x, _fleeStep.y)) {
         m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
@@ -8649,7 +8650,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         });
         return;
       }
-      if (chebyshevDistance(m, pl) > 1) {
+      if (!_movementLocked && chebyshevDistance(m, pl) > 1) {
         const next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,
           60, dg.pentacles, false, null, true, dg.rooms, dg);
         if (next && (next.x !== pl.x || next.y !== pl.y) &&
@@ -8672,7 +8673,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   if (_isGwen) {
-    if (!_attackOnly && chebyshevDistance(m, pl) > 1) {
+    if (!_attackOnly && !_movementLocked && chebyshevDistance(m, pl) > 1) {
       const next = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,
         60, dg.pentacles, false, null, true, dg.rooms, dg);
       if (next && (next.x !== pl.x || next.y !== pl.y) &&
@@ -8845,7 +8846,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       return;
     }
-    if (dg.items.length > 0) {
+    if (!_attackOnly && !_movementLocked && dg.items.length > 0) {
       const _gcTarget = dg.items.reduce((best, it) =>
         Math.hypot(it.x - m.x, it.y - m.y) < Math.hypot(best.x - m.x, best.y - m.y) ? it : best
       );
@@ -8871,7 +8872,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== 詰まり検出（位置履歴で停滞・往復を判定） ===== */
-  if (!_attackOnly) {
+  if (!_attackOnly && !_movementLocked) {
     m.posHistory = m.posHistory || [];
     m.posHistory.push({ x: m.x, y: m.y });
     if (m.posHistory.length > 6) m.posHistory.shift();
@@ -9684,7 +9685,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 2回目以降は移動のみ → 経路探索へフォールスルー */
     }
-    if (!_attackOnly) {
+    if (!_attackOnly && !_movementLocked) {
       /* 外周・破壊不能壁以外は壁も含め通行可（他モンスターは bfsNext が迂回） */
       const _wwCan = (x, y) =>
         x > 0 && x < MW - 1 && y > 0 && y < MH - 1 &&
@@ -9730,7 +9731,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       if (_moveOnly) return;
     }
-    if (!_attackOnly) {
+    if (!_attackOnly && !_movementLocked) {
       const _wddx = Math.sign(pl.x - m.x), _wddy = Math.sign(pl.y - m.y);
       if (_wddx !== 0 || _wddy !== 0) {
         const _wdnx = m.x + _wddx, _wdny = m.y + _wddy;
@@ -9975,7 +9976,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               if (!res.blocked) {
                 ml.push(`${m.name}が${_occup.name}を攻撃！${res.damage}ダメージ！`);
               }
-            } else if (!_occup) {
+            } else if (!_occup && !_movementLocked) {
               m.dir = { x: _dn.x - m.x, y: _dn.y - m.y };
               m.x = _dn.x; m.y = _dn.y;
               m.aware = true;
@@ -10018,7 +10019,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           ml.push(`${m.name}が${resolveItemName(_itTarget)}を拾った！`);
           return;
         }
-        if (_itTarget) {
+        if (_itTarget && !_movementLocked) {
           const _itNext = bfsNext(map, [], m.x, m.y, _itTarget.x, _itTarget.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
           if (_itNext && !(_itNext.x === pl.x && _itNext.y === pl.y) &&
               !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, _itNext.x, _itNext.y))) {
@@ -10633,7 +10634,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* ── runner（フクマル等）：認識中は効率逃走（出口BFS）。未覚醒は通常パトロール ── */
     /* 封印中は逃げずに通常AI（接近・攻撃）で動く */
     if (m.subtype === "runner" && !m.sealed) {
-      if (!_attackOnly) {
+      if (!_attackOnly && !_movementLocked) {
         const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, monEffectiveWaterWalker(m));
         if (_fleeStep) {
           m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
@@ -10724,7 +10725,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       /* 盗んだ後は逃げ回る（runnerと同じ効率逃走） */
       if (m._stolenFromPlayer) {
-        if (!_attackOnly) {
+        if (!_attackOnly && !_movementLocked) {
           const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, monEffectiveWaterWalker(m));
           if (_fleeStep) {
             m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
@@ -11239,7 +11240,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
       /* 移動フェーズ */
-      if (!_attackOnly) {
+      if (!_attackOnly && !_movementLocked) {
         const _kpTx = canSee ? pl.x : m.lastPx;
         const _kpTy = canSee ? pl.y : m.lastPy;
         const _kpNext = bfsNext(map, [], m.x, m.y, _kpTx, _kpTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
@@ -11292,7 +11293,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
       /* 移動フェーズ */
-      if (!_attackOnly) {
+      if (!_attackOnly && !_movementLocked) {
         const _ppTx = canSee ? pl.x : m.lastPx;
         const _ppTy = canSee ? pl.y : m.lastPy;
         const _ppNext = bfsNext(map, [], m.x, m.y, _ppTx, _ppTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
@@ -11316,7 +11317,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
       /* 移動フェーズ：仲間が隣接していれば動かない。いなければ最寄り仲間へ向かう */
-      if (!_attackOnly) {
+      if (!_attackOnly && !_movementLocked) {
         const _gaAdjAlly = dg.monsters.some(o => o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1);
         if (!_gaAdjAlly) {
           let _gaTx = pl.x, _gaTy = pl.y, _gaNear = Infinity;
@@ -11342,7 +11343,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const ty = canSee ? pl.y : m.lastPy;
 
     /* ── わてり：水上限定のため、部屋内では射線合わせを優先する ── */
-    if (!_attackOnly && canSee && _sameRoom &&
+    if (!_attackOnly && !_movementLocked && canSee && _sameRoom &&
         m.subtype === "watergunner" && !m.sealed) {
       const _ralDx = pl.x - m.x, _ralDy = pl.y - m.y;
       const _inLineNow = _ralDx === 0 || _ralDy === 0 || Math.abs(_ralDx) === Math.abs(_ralDy);
@@ -11376,7 +11377,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── シオン・ザ・ダークブレット：プレイヤーから距離2を保つ ── */
-    if (!_attackOnly && canSee && m.baseKind === "boss_darkbullet") {
+    if (!_attackOnly && !_movementLocked && canSee && m.baseKind === "boss_darkbullet") {
       const _dbDx = pl.x - m.x, _dbDy = pl.y - m.y;
       const _dbDist = Math.max(Math.abs(_dbDx), Math.abs(_dbDy));
 
@@ -11449,7 +11450,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── 術師：プレイヤーから距離3を保ち、それ以上近づかない ── */
-    if (!_attackOnly && canSee && m.randomStatusWands) {
+    if (!_attackOnly && !_movementLocked && canSee && m.randomStatusWands) {
       const _keep = 3;
       const _sdx = pl.x - m.x, _sdy = pl.y - m.y;
       const _sDist = Math.max(Math.abs(_sdx), Math.abs(_sdy));
@@ -11553,7 +11554,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    if (_attackOnly) return; /* attackOnlyフェーズ：移動しない */
+    if (_attackOnly || _movementLocked) return; /* attackOnlyフェーズ・移動封じ中：移動しない */
     if (isStationaryMonster(m)) return; /* 静止型は通常移動しない */
 
     /* move toward target */
@@ -11694,7 +11695,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       m.posHistory = [];
     }
-  } else if (!_attackOnly) {
+  } else if (!_attackOnly && !_movementLocked) {
     /* ===== 未覚醒：パトロール ===== */
     if (isStationaryMonster(m)) return;
     /* waterOnlyモンスターは水上のみ移動可能なため、未覚醒時はその場で待機 */

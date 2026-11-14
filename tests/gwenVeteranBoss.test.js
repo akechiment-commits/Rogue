@@ -202,4 +202,57 @@ describe("超上級B20Fボス：勤勉で勇敢なグウェン", () => {
       else delete customTileImages[256];
     }
   });
+
+  it("移動封じ状態でも隣接時の2フェーズ実行で1ターンに1回しか攻撃しない", () => {
+    const { dungeon, gwen, player } = makeGwenScene({ x: 5, y: 5, playerX: 6, playerY: 5 });
+    gwen.immobileTurns = 3;
+    const messages = [];
+    const hitRandom = vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+    try {
+      gwen.turnAttacks = 0;
+      delete gwen._movedThisTurn;
+      monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
+      if (!gwen._movedThisTurn) gwen.turnAttacks = 0;
+      monsterAI(gwen, dungeon, player, messages, { attackOnly: true });
+
+      const attackMsgs = messages.filter(message => message.includes("の攻撃！"));
+      expect(attackMsgs).toHaveLength(1);
+      expect(gwen.turnAttacks).toBe(1);
+      expect(gwen.immobileTurns).toBe(2);
+      expect({ x: gwen.x, y: gwen.y }).toEqual({ x: 5, y: 5 });
+    } finally {
+      hitRandom.mockRestore();
+    }
+  });
+
+  it("移動封じ状態の非隣接時は移動せず、直線上の矢も1ターンに1回だけ放つ", () => {
+    const { dungeon, gwen, player } = makeGwenScene({ x: 5, y: 5, playerX: 8, playerY: 6 });
+    gwen.immobileTurns = 3;
+    gwen.projectileAmmo = null;
+    gwen.gwenWandCharges = 0;
+    const messages = [];
+    monsterAI(gwen, dungeon, player, messages, { moveOnly: true });
+    monsterAI(gwen, dungeon, player, messages, { attackOnly: true });
+    expect({ x: gwen.x, y: gwen.y }).toEqual({ x: 5, y: 5 });
+    expect(gwen.immobileTurns).toBe(2);
+
+    const arrowScene = makeGwenScene({ x: 5, y: 5, playerX: 9, playerY: 5 });
+    arrowScene.gwen.immobileTurns = 3;
+    const arrowMessages = [];
+    const arrowRandom = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      arrowScene.gwen.turnAttacks = 0;
+      delete arrowScene.gwen._movedThisTurn;
+      monsterAI(arrowScene.gwen, arrowScene.dungeon, arrowScene.player, arrowMessages, { moveOnly: true });
+      if (!arrowScene.gwen._movedThisTurn) arrowScene.gwen.turnAttacks = 0;
+      monsterAI(arrowScene.gwen, arrowScene.dungeon, arrowScene.player, arrowMessages, { attackOnly: true });
+
+      expect(arrowScene.gwen.projectileAmmo.count).toBe(11);
+      expect(arrowMessages.filter(message => message.includes("貫きの矢を放った"))).toHaveLength(1);
+      expect({ x: arrowScene.gwen.x, y: arrowScene.gwen.y }).toEqual({ x: 5, y: 5 });
+    } finally {
+      arrowRandom.mockRestore();
+    }
+  });
 });
