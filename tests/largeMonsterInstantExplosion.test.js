@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MONS, makeMonsterFromBase, KING_BEHINMOS } from '../monsters.js';
-import { doExplosion, doGunpowderExplosion, doTimeBombExplosion, killMonster } from '../items.js';
+import { bossInstantDeathDamage, doExplosion, doGunpowderExplosion, doTimeBombExplosion, killMonster } from '../items.js';
 import { makeEmptyDg, makePlayer } from './helpers.js';
 
 afterEach(() => vi.restoreAllMocks());
@@ -50,12 +50,15 @@ describe('巨大雑魚の即死はダメージ回数制限で防がない', () =
     expect(dg.monsters).not.toContain(monster);
   });
 
-  it.each(explosions)('%s: ボスに変換された割合ダメージは回数制限を維持する', (_, explode) => {
+  it.each(explosions)('%s: ボスに変換された割合ダメージは1爆発1回に制限され、別爆発は通る', (_, explode) => {
     const { monster, dg, p, logs } = setup(true);
+    const initialHp = monster.hp;
     damageOnlyExplosion(dg, p, logs);
     const hpAfterFirst = monster.hp;
+    expect(hpAfterFirst).toBe(initialHp - 1);
+    const expectedSecondDamage = bossInstantDeathDamage(monster);
     explode(dg, p, logs);
-    expect(monster.hp).toBe(hpAfterFirst);
+    expect(monster.hp).toBe(hpAfterFirst - expectedSecondDamage);
     expect(dg.monsters).toContain(monster);
   });
 });
