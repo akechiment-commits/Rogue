@@ -522,7 +522,7 @@ export const ITEMS = [
   { name:"アサメ",           type:"weapon", atk:2,  ability:"magic_power",  rarity:"A", weight:1,  sellPrice:1800, desc:"魔法・杖・巻物で与えるダメージが1.5倍になる武器。", tile:20 },
   { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical_war_god_axe", rarity:"A", weight:1,  sellPrice:2500, desc:"会心の一撃が出やすい武器。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:4, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
-  { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を3ターン封じる。", tile:20 },
+  { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を5ターン封じる。", tile:20 },
   { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"C", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に1.5倍ダメージ。", tile:20 },
   { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"C", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"C", weight:4,  sellPrice:1500, desc:"雷属性の剣。雷弱点の敵に1.5倍ダメージ。",             tile:20 },
@@ -1444,11 +1444,11 @@ export function applyWeaponStatusInflictions(target, {
 } = {}) {
   if (!target || target.hp <= 0 || typeof abilityCheck !== "function") return;
   const ml = messages;
-  const applyTimed = (statusKey, cooldownKey, prop, turns, msg) => {
+  const applyTimed = (statusKey, cooldownKey, prop, msg) => {
     if (isStatusImmune(target, ml, target.name)) return;
     if (blockLargeMonsterStatus(target, cooldownKey, ml)) return;
     startLargeMonsterStatusCooldown(target, cooldownKey);
-    const resolvedTurns = turns ?? statusTurns(statusKey, { kind: "monster", target });
+    const resolvedTurns = statusTurns(statusKey, { kind: "monster", target });
     target[prop] = (target[prop] || 0) + resolvedTurns;
     ml?.push(`${target.name}${msg}(${resolvedTurns}ターン)`);
   };
@@ -1465,7 +1465,7 @@ export function applyWeaponStatusInflictions(target, {
       ml?.push(`${target.name}は鈍足になった！${target.isBoss ? `(${st}ターン)` : "(永続)"}`);
     }],
     ["inflict_paralyze", 0.1, () => applyMonsterParalyze(target, { ml })],
-    ["inflict_sleep", 0.1, () => applyTimed("sleep", "sleep", "sleepTurns", null, "は眠りに落ちた！")],
+    ["inflict_sleep", 0.1, () => applyTimed("sleep", "sleep", "sleepTurns", "は眠りに落ちた！")],
     ["inflict_darkness", 0.1, () => {
       if (target.type === "guard") {
         ml?.push(`${target.name}には暗闇が効かなかった！`);
@@ -1476,7 +1476,7 @@ export function applyWeaponStatusInflictions(target, {
         ml?.push(`${target.name}は暗闇になった！(${dt}ターン)`);
       }
     }],
-    ["inflict_confuse", 0.1, () => applyTimed("confuse", "confuse", "confusedTurns", null, "は混乱した！")],
+    ["inflict_confuse", 0.1, () => applyTimed("confuse", "confuse", "confusedTurns", "は混乱した！")],
     ["inflict_bewitch", 0.1, () => {
       const bt = statusTurns("bewitch", { kind: "monster", target });
       if (applyMonsterBewitch(target, bt, ml) > 0) {
@@ -1484,7 +1484,7 @@ export function applyWeaponStatusInflictions(target, {
       }
     }],
     ["inflict_seal", 0.1, () => applyMonsterSeal(target, dungeon, player, ml, luFn)],
-    ["inflict_immobile", 0.25, () => applyTimed("immobile", "immobile", "immobileTurns", monsterStatusTurns(3, target), "は影に縫い止められた！")],
+    ["inflict_immobile", 0.25, () => applyTimed("immobile", "immobile", "immobileTurns", "は影に縫い止められた！")],
   ];
 
   for (const [abId, chance, applyFn] of entries) {
@@ -2218,7 +2218,7 @@ export const WEAPON_ABILITIES = [
   { id:"inflict_confuse", name:"混乱付与",  desc:"攻撃時10%の確率で敵を混乱させる" },
   { id:"inflict_bewitch", name:"惑わし付与",desc:"攻撃時10%の確率で敵を幻惑にする" },
   { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
-  { id:"inflict_immobile",name:"影縫い",    desc:"攻撃時25%の確率で敵の移動を3ターン封じる" },
+  { id:"inflict_immobile",name:"影縫い",    desc:"攻撃時25%の確率で敵の移動を5ターン封じる" },
   { id:"fire_elem",       name:"炎属性",      desc:"油まみれ・炎弱点の敵に1.5倍ダメージ" },
   { id:"ice_elem",        name:"氷属性",      desc:"氷弱点の敵に1.5倍ダメージ" },
   { id:"thunder_elem",    name:"雷属性",      desc:"雷弱点の敵に1.5倍ダメージ" },

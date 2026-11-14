@@ -27,15 +27,15 @@ const ALL_INFLICT_ABILITIES = [
 ];
 
 describe("武器の攻撃時状態異常付与 (applyWeaponStatusInflictions)", () => {
-  it("影縫いの刃・inflict_immobile の説明文が 3ターン固定になっている", () => {
+  it("影縫いの刃・inflict_immobile の説明文が 5ターン固定になっている", () => {
     const shadowBlade = ITEMS.find((it) => it.name === "影縫いの刃");
     expect(shadowBlade).toBeDefined();
-    expect(shadowBlade.desc).toContain("3ターン");
+    expect(shadowBlade.desc).toContain("5ターン");
     expect(shadowBlade.desc).not.toContain("2〜3ターン");
 
     const ab = WEAPON_ABILITIES.find((a) => a.id === "inflict_immobile");
     expect(ab).toBeDefined();
-    expect(ab.desc).toContain("3ターン");
+    expect(ab.desc).toContain("5ターン");
     expect(ab.desc).not.toContain("2〜3ターン");
   });
 
@@ -62,7 +62,7 @@ describe("武器の攻撃時状態異常付与 (applyWeaponStatusInflictions)", 
     expect(mon.confusedTurns).toBe(20);
     expect(mon.fleeingTurns).toBe(50);
     expect(mon.sealedTurns).toBe(PERMANENT_TURNS);
-    expect(mon.immobileTurns).toBe(3);
+    expect(mon.immobileTurns).toBe(5);
   });
 
   it("ボスに対して全8種の状態異常が半減ルールどおりに付与される", () => {
@@ -88,7 +88,7 @@ describe("武器の攻撃時状態異常付与 (applyWeaponStatusInflictions)", 
     expect(boss.confusedTurns).toBe(10);
     expect(boss.fleeingTurns).toBe(25);
     expect(boss.sealedTurns).toBe(10);
-    expect(boss.immobileTurns).toBe(2);
+    expect(boss.immobileTurns).toBe(3);
   });
 
   it("状態異常防止 (statusImmune) 中は全8種を無効化し、店主・ガードには暗闇が無効", () => {
