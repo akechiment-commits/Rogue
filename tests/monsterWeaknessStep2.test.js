@@ -27,10 +27,10 @@ describe("敵弱点・種族見直し（オーク、料理人、ヘビ、ウィ�
     expect(windmage.float).toBe(true);
   });
 
-  it("ラクガキ魔系は undead である", () => {
+  it("ラクガキ魔系は humanoid である", () => {
     const rakugaki = MONS.find((m) => m.baseKind === "rakugakima");
     expect(rakugaki).toBeDefined();
-    expect(rakugaki.kind).toBe("undead");
+    expect(rakugaki.kind).toBe("humanoid");
   });
 
   it("おお木霊系（旧トロル）は beast かつ炎弱点である", () => {
