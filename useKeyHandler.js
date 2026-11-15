@@ -28,6 +28,7 @@ import { isDebugItemGetEffect } from "./debugSpellRules.js";
 import { cycleFaceAdjacentEnemy } from "./faceAdjacent.js";
 import { unlockAudio, triggerSE } from "./soundEvents.js";
 import { hasNearbyMonster, createWaitHoldState, stepContinuousWaitHold } from "./gamepadInput.js";
+import { getPotItemActions } from "./potActionRules.js";
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
 
@@ -595,6 +596,39 @@ export function useKeyHandler({
       }
       if (putMode) {
         e.preventDefault();
+        if (putMode.action === "take" && putMode.selectedIdx != null) {
+          const inv4 = sr.current?.player?.inventory || [];
+          const pot4 = putMode.floorPot || inv4[putMode.potIdx];
+          const takeItems4 = pot4?.contents || [];
+          const selectedItem4 = takeItems4[putMode.selectedIdx];
+          if (!selectedItem4) {
+            setPutMode({ ...putMode, selectedIdx: null, actSel: 0 });
+            return;
+          }
+          if (k === "escape" || k === "x") {
+            setPutMode({ ...putMode, selectedIdx: null, actSel: 0 });
+            return;
+          }
+          const isLeft4 = isKeyLeft(e);
+          const isRight4 = isKeyRight(e);
+          const acts4 = getPotItemActions(selectedItem4, {
+            ident: sr.current?.ident,
+            player: sr.current?.player,
+          });
+          if ((isLeft4 || isRight4) && acts4.length > 0) {
+            setPutMode({
+              ...putMode,
+              actSel: ((putMode.actSel ?? 0) + (isRight4 ? 1 : -1) + acts4.length) % acts4.length,
+            });
+            return;
+          }
+          if (k === "enter" || k === "z") {
+            const _actIdx4 = Math.min(putMode.actSel ?? 0, Math.max(0, acts4.length - 1));
+            const _act4 = acts4[_actIdx4];
+            if (_act4) invActRef.current?.execPotAction?.(putMode.selectedIdx, _act4.id);
+          }
+          return;
+        }
         if (k === "escape" || k === "x") {
           invActRef.current?.cancelPut?.();
           return;
@@ -629,7 +663,7 @@ export function useKeyHandler({
               invActRef.current?.cancelPut?.();
               return;
             }
-            invActRef.current?.takeFromPot?.(_curPg4 * _ps4 + _localSel);
+            setPutMode({ ...putMode, selectedIdx: _curPg4 * _ps4 + _localSel, actSel: 0 });
           }
           return;
         }

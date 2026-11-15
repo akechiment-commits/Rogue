@@ -33,6 +33,7 @@ import { GACHA_COST, GACHA_BOX_TOTAL, getGachaBoxRemaining, createGachaBox } fro
 import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 import { foodPotionEffectLabel } from "./foodData.js";
 import { createSpring } from "./springRules.js";
+import { getPotItemActions } from "./potActionRules.js";
 import { deleteImage } from "./imageStorage.js";
 import { ALTAR_PRIEST_SERVICES, altarPriestServicePrice, altarPriestServiceTargets } from "./priestServiceRules.js";
 
@@ -3595,7 +3596,42 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 }
 
 /* ===== Pot Put Modal ===== */
-export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, setPutPage, setPutMenuSel, doPutItem, doPutFloorItem, doTakeFromPot, onCancel, iLabel, dname, mobile }) {
+function renderItemDescCard(it, gs, mobile) {
+  const _kk = getIdentKey(it);
+  const _isUnident = it.type === "gold_nugget"
+    ? !it.fullIdent && !it.bcKnown
+    : !!(_kk && gs?.ident && !gs.ident.has(_kk));
+  return (
+    <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
+      <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>
+        {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}
+        {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
+        {it.type === "armor" && ` — 防具 (防+${it.def})`}
+        {it.type === "arrow" && ` — 飛び道具 (攻${it.atk}, ${it.count}${it.stone || it.magicStone || it.iceChunk || it.specialProjectile ? "個" : "本"})`}
+        {it.type === "wand" && it.fullIdent && gs?.ident?.has(_kk) && ` — 杖 [残${it.charges}回]`}
+        {it.type === "marker" && ` [残${it.charges}回]`}
+        {it.type === "potion" && " — 薬"}
+        {it.type === "bottle" && " — 瓶"}
+        {it.type === "scroll" && " — 巻物"}
+        {it.type === "food" && ` — 食料${it.cooked ? "(調理済)" : "(生)"}`}
+        {it.type === "pot" && ` — 壺 [${potOccupancyCount(it)}/${it.capacity}]`}
+        {it.type === "ring" && ` — 指輪${!_isUnident && ["power_ring","defense_ring","life_ring","niebelung_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
+      </div>
+      <div style={ITEM_DESC_TEXT_STYLE}>{_isUnident ? "未識別のためわからない。" : formatFoodItemDesc(it)}</div>
+      {(it.ability || it.abilities?.length > 0) && (() => {
+        const _defs = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES];
+        const _ids = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])];
+        const _labels = _ids.map((id) => _defs.find((a) => a.id === id)).filter(Boolean);
+        return _labels.length > 0 ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_labels.map(({ name, desc }) => `${name}：${desc}`).join("／")}</div> : null;
+      })()}
+      {it.potionEffects?.length > 0 && (
+        <div style={{ color: "#fc6", marginTop: 3 }}>薬効果：{it.potionEffects.map(foodPotionEffectLabel).join("・")}</div>
+      )}
+    </div>
+  );
+}
+
+export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, setPutPage, setPutMenuSel, doPutItem, doPutFloorItem, doTakeFromPot, execPotAction, canUse, useLabel, onCancel, iLabel, dname, mobile }) {
   if (!mode) return null;
   if (mode.floorItem) {
     const floorItem = mode.floorItem;
@@ -3704,7 +3740,9 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, setPutP
           中身: {pot.contents.map((c) => dname(c)).join(", ")}
         </div>
       )}{" "}
-      <div style={{ color: "#ca8", fontSize: 13, marginBottom: 6 }}>{_isTakeMode ? "取り出すアイテムを選んでください" : "入れるアイテムを選んでください"}</div>{" "}
+      <div style={{ color: "#ca8", fontSize: 13, marginBottom: 6 }}>
+        {_isTakeMode ? (mode.selectedIdx != null ? "行動を選んでください" : "中のアイテムを選んでください") : "入れるアイテムを選んでください"}
+      </div>{" "}
       {pItems.length === 0 ? (
         <div style={{ color: "#666", fontSize: 13 }}>{_isTakeMode ? "中身が空だ。" : "入れるアイテムがない。"}</div>
       ) : (
@@ -3724,34 +3762,77 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, setPutP
             const isSel = vi === putMenuSel;
             const isDisabled = isPot;
             const isEff = !_isTakeMode && _potKnown && isPotEffective(pot.potEffect, it2);
+            const isTakeExpanded = _isTakeMode && mode.selectedIdx === row.contentIdx;
+            const isTakeDescOpen = _isTakeMode && mode.descIdx === row.contentIdx;
+            const rowActs = isTakeExpanded
+              ? getPotItemActions(it2, { canUseFn: canUse, useLabelFn: useLabel, ident: gs?.ident, player: p })
+              : null;
+            const safeActSel = rowActs ? Math.min(mode.actSel ?? 0, Math.max(0, rowActs.length - 1)) : 0;
+            const execAction = (actId) => {
+              if (execPotAction) execPotAction(row.contentIdx, actId);
+              else if (actId === "take") doTakeFromPot?.(row.contentIdx);
+            };
             return (
-              <div key={_isTakeMode ? `take-${row.contentIdx}` : _floorItem ? `floor-${_floorItem.id ?? vi}` : i2} onClick={() => {
-                if (_isTakeMode) {
-                  doTakeFromPot?.(row.contentIdx);
-                  return;
-                }
-                if (isDisabled) return;
-                if (_floorItem) doPutFloorItem(_floorItem, _floorPutTarget);
-                else doPutItem(i2);
-              }}
-                style={{
-                  padding: "5px 8px", margin: "2px 0",
-                  background: isSel ? (isDisabled ? "#3a1a1a" : isEff ? "#1a3a1a" : "#28285a")
-                    : (isDisabled ? "#1a1a1a" : isEff ? "#0e2010" : "#18182a"),
-                  border: "1px solid " + (isDisabled ? "#333" : isSel ? (isEff ? "#6fa" : "#88c") : (isEff ? "#3a6a3a" : "#3a3a5a")),
-                  borderRadius: 4, cursor: isDisabled ? "not-allowed" : "pointer", fontSize: 13,
-                  color: isDisabled ? "#555" : isEff ? "#8fe870" : "#aab",
-                  opacity: isDisabled ? 0.5 : 1,
+              <div key={_isTakeMode ? `take-${row.contentIdx}` : _floorItem ? `floor-${_floorItem.id ?? vi}` : i2}>
+                <div onClick={() => {
+                  if (_isTakeMode) {
+                    setPutMenuSel?.(vi);
+                    setMode(isTakeExpanded
+                      ? { ...mode, selectedIdx: null, actSel: 0 }
+                      : { ...mode, selectedIdx: row.contentIdx, actSel: 0 });
+                    return;
+                  }
+                  if (isDisabled) return;
+                  if (_floorItem) doPutFloorItem(_floorItem, _floorPutTarget);
+                  else doPutItem(i2);
                 }}
-              >
-                {_isTakeMode ? iLabel(it2) : `${_floorItem ? `【足元】${iLabel(it2)}` : iLabel(it2)}${isDisabled ? " (入れられない)" : ""}`}
+                  style={{
+                    padding: "5px 8px", margin: "2px 0",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    background: (isSel || isTakeExpanded) ? (isDisabled ? "#3a1a1a" : isEff ? "#1a3a1a" : "#28285a")
+                      : (isDisabled ? "#1a1a1a" : isEff ? "#0e2010" : "#18182a"),
+                    border: "1px solid " + (isDisabled ? "#333" : (isSel || isTakeExpanded) ? (isEff ? "#6fa" : "#88c") : (isEff ? "#3a6a3a" : "#3a3a5a")),
+                    borderRadius: 4, cursor: isDisabled ? "not-allowed" : "pointer", fontSize: 13,
+                    color: isDisabled ? "#555" : isEff ? "#8fe870" : "#aab",
+                    opacity: isDisabled ? 0.5 : 1,
+                  }}
+                >
+                  <span>
+                    {_isTakeMode ? iLabel(it2) : `${_floorItem ? `【足元】${iLabel(it2)}` : iLabel(it2)}${isDisabled ? " (入れられない)" : ""}`}
+                  </span>
+                  {_isTakeMode && (
+                    <span style={{ color: "#555", fontSize: 12 }}>{isTakeExpanded ? "▶" : isSel ? "▲" : "▼"}</span>
+                  )}
+                </div>
+                {isTakeExpanded && rowActs && (
+                  <div style={{ padding: "4px 8px 6px 14px" }}>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {rowActs.map((act, ai) => (
+                        <button key={act.id} onClick={() => execAction(act.id)}
+                          style={{
+                            background: safeActSel === ai ? "#3a3a6a" : "#1a1a2a",
+                            color: safeActSel === ai ? "#fff" : "#aaa",
+                            border: safeActSel === ai ? "1px solid #88f" : "1px solid #333",
+                            borderRadius: 4, padding: "4px 10px", cursor: "pointer",
+                            fontSize: mobile ? 13 : 12, fontWeight: safeActSel === ai ? "bold" : "normal",
+                          }}>
+                          {act.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:戻る</div>
+                  </div>
+                )}
+                {isTakeDescOpen && renderItemDescCard(it2, gs, mobile)}
               </div>
             );
           })}
         </div>
       )}{" "}
       <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
-        {_tpp > 1 ? "↑↓:選択（やめる可） ←→:ページ Z:決定 X:戻る" : "↑↓:選択（やめる可） Z:決定 X:戻る"}
+        {_isTakeMode && mode.selectedIdx != null
+          ? "←→:行動選択 Z:決定 X:一覧へ戻る"
+          : _tpp > 1 ? "↑↓:選択（やめる可） ←→:ページ Z:決定 X:戻る" : "↑↓:選択（やめる可） Z:決定 X:戻る"}
       </div>{" "}
       <button onClick={_cancel}
         style={{
@@ -4358,34 +4439,7 @@ export function InventoryModal({
                     ))}
                   </div>
                   {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
-                  {showDesc === i && (
-                    <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
-                      <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>
-                        {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}
-                        {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
-                        {it.type === "armor" && ` — 防具 (防+${it.def})`}
-                        {it.type === "arrow" && ` — 飛び道具 (攻${it.atk}, ${it.count}${it.stone || it.magicStone || it.iceChunk || it.specialProjectile ? "個" : "本"})`}
-                        {it.type === "wand" && it.fullIdent && gs?.ident?.has(getIdentKey(it)) && ` — 杖 [残${it.charges}回]`}
-                        {it.type === "marker" && ` [残${it.charges}回]`}
-                        {it.type === "potion" && " — 薬"}
-                        {it.type === "bottle" && " — 瓶"}
-                        {it.type === "scroll" && " — 巻物"}
-                        {it.type === "food" && ` — 食料${it.cooked ? "(調理済)" : "(生)"}`}
-                        {it.type === "pot" && ` — 壺 [${potOccupancyCount(it)}/${it.capacity}]`}
-                        {it.type === "ring" && ` — 指輪${!_isUnidentInv && ["power_ring","defense_ring","life_ring","niebelung_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
-                      </div>
-                      <div style={ITEM_DESC_TEXT_STYLE}>{_isUnidentInv ? "未識別のためわからない。" : formatFoodItemDesc(it)}</div>
-                      {(it.ability || it.abilities?.length > 0) && (() => {
-                        const _defs = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES];
-                        const _ids = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])];
-                        const _labels = _ids.map((id) => _defs.find((a) => a.id === id)).filter(Boolean);
-                        return _labels.length > 0 ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_labels.map(({ name, desc }) => `${name}：${desc}`).join("／")}</div> : null;
-                      })()}
-                      {it.potionEffects?.length > 0 && (
-                        <div style={{ color: "#fc6", marginTop: 3 }}>薬効果：{it.potionEffects.map(foodPotionEffectLabel).join("・")}</div>
-                      )}
-                    </div>
-                  )}
+                  {showDesc === i && renderItemDescCard(it, gs, mobile)}
                   {mobile && it.type === "pot" && (
                     <div role="region" aria-label="壺の中身" style={{
                       marginTop: 6, maxHeight: "38dvh", display: "flex", flexDirection: "column",

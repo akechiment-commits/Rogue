@@ -8,13 +8,9 @@ vi.mock("react", async () => ({
   useLayoutEffect: fn => { effects.push(fn); },
 }));
 import * as React from "react";
-import {
-  isPreservationPot,
-  canTakeFromPot,
-  canShowPotTakeAction,
-  potOccupancyCount,
-  getIdentKey,
-} from "../items.js";
+import { isPreservationPot, canTakeFromPot, canShowPotTakeAction, potOccupancyCount, getIdentKey } from "../items.js";
+import { getPotItemActions, stagePotItemToInventory, restorePotReturnItem } from "../potActionRules.js";
+import { canUseInventoryItem, getInventoryUseLabel } from "../inventoryRules.js";
 import { useItemActions } from "../useItemActions.js";
 import { useKeyHandler } from "../useKeyHandler.js";
 import { PotPutModal, InventoryModal } from "../GameModals.jsx";
@@ -260,19 +256,19 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
     expect(findElements(treeGreed, n => n.type === "button" && collectText(n) === "出す")).toHaveLength(0);
   });
 
-  it("PotPutModal の取り出しモードで一覧表示・切替・クリック取り出しができる", () => {
+  it("PotPutModal の取り出しモードでアイテム選択→サブメニュー展開→行動実行・説明表示・切替ができる", () => {
     const items = [
-      { id: "i0", name: "おにぎり", type: "food", value: 30 },
-      { id: "i1", name: "回復薬", type: "potion", effect: "heal" },
+      { id: "i0", name: "おにぎり", type: "food", value: 30, desc: "満腹度が回復する" },
+      { id: "i1", name: "鉄の矢", type: "arrow", count: 5, atk: 4, desc: "まっすぐ飛ぶ矢" },
+      { id: "i2", name: "カタナ", type: "weapon", atk: 8, desc: "よく切れる刀" },
     ];
     const pot = { id: "p1", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: items };
     const player = makePlayer({ inventory: [pot] });
     const gs = { player, dungeon: makeEmptyDg(), ident: new Set(["o:none"]), fakeNames: {}, nicknames: {} };
-    const doTakeFromPot = vi.fn();
+    const execPotAction = vi.fn();
     const setMode = vi.fn();
 
-    const tree = PotPutModal({
-      mode: { action: "take", potIdx: 0 },
+    const baseProps = {
       setMode,
       p: player,
       gs,
@@ -282,17 +278,46 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
       setPutMenuSel: vi.fn(),
       doPutItem: vi.fn(),
       doPutFloorItem: vi.fn(),
-      doTakeFromPot,
+      doTakeFromPot: vi.fn(),
+      execPotAction,
+      canUse: canUseInventoryItem,
+      useLabel: (it) => getInventoryUseLabel(it, player),
       onCancel: vi.fn(),
       iLabel: it => it.name,
       dname: it => it.name,
       mobile: false,
+    };
+
+    const tree = PotPutModal({ ...baseProps, mode: { action: "take", potIdx: 0 } });
+    expect(collectText(tree)).toContain("中のアイテムを選んでください");
+    const rowBoxes = findElements(tree, n => n.type === "div" && typeof n.props?.onClick === "function");
+    expect(rowBoxes).toHaveLength(3);
+    rowBoxes[1].props.onClick();
+    expect(setMode).toHaveBeenCalledWith({ action: "take", potIdx: 0, selectedIdx: 1, actSel: 0 });
+
+    const expandedArrowTree = PotPutModal({
+      ...baseProps,
+      putMenuSel: 1,
+      mode: { action: "take", potIdx: 0, selectedIdx: 1, actSel: 0 },
     });
-    expect(collectText(tree)).toContain("取り出すアイテムを選んでください");
-    const rows = findElements(tree, n => n.type === "div" && typeof n.key === "string" && n.key.startsWith("take-"));
-    expect(rows).toHaveLength(2);
-    rows[1].props.onClick();
-    expect(doTakeFromPot).toHaveBeenCalledWith(1);
+    const arrowBtnLabels = findElements(expandedArrowTree, n => n.type === "button" && !["入れる", "✕", "やめる"].includes(collectText(n)))
+      .map(collectText);
+    expect(arrowBtnLabels).toEqual(["射る", "出す", "置く", "投げる(束)", "説明"]);
+    expect(arrowBtnLabels).not.toContain("装備");
+
+    const shootBtn = findElements(expandedArrowTree, n => n.type === "button" && collectText(n) === "射る")[0];
+    shootBtn.props.onClick();
+    expect(execPotAction).toHaveBeenCalledWith(1, "shoot");
+
+    const bundleThrowBtn = findElements(expandedArrowTree, n => n.type === "button" && collectText(n) === "投げる(束)")[0];
+    bundleThrowBtn.props.onClick();
+    expect(execPotAction).toHaveBeenCalledWith(1, "throw");
+
+    const descTree = PotPutModal({
+      ...baseProps,
+      mode: { action: "take", potIdx: 0, descIdx: 0 },
+    });
+    expect(collectText(descTree)).toContain("満腹度が回復する");
 
     const switchBtn = findElements(tree, n => n.type === "button" && collectText(n) === "入れる");
     expect(switchBtn).toHaveLength(1);
@@ -300,21 +325,8 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
     expect(setMode).toHaveBeenCalledWith({ potIdx: 0 });
 
     const putModeTree = PotPutModal({
+      ...baseProps,
       mode: { potIdx: 0 },
-      setMode,
-      p: player,
-      gs,
-      putPage: 0,
-      putMenuSel: 0,
-      setPutPage: vi.fn(),
-      setPutMenuSel: vi.fn(),
-      doPutItem: vi.fn(),
-      doPutFloorItem: vi.fn(),
-      doTakeFromPot,
-      onCancel: vi.fn(),
-      iLabel: it => it.name,
-      dname: it => it.name,
-      mobile: false,
     });
     const toTakeBtn = findElements(putModeTree, n => n.type === "button" && collectText(n) === "出す");
     expect(toTakeBtn).toHaveLength(1);
@@ -322,7 +334,7 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
     expect(setMode).toHaveBeenLastCalledWith({ potIdx: 0, action: "take" });
   });
 
-  it("useKeyHandler の取り出しモードで矢印・テンキー移動と決定が動く", () => {
+  it("useKeyHandler の取り出しモードで矢印・テンキー移動、サブメニュー開閉、キャンセル戻りが動く", () => {
     effects.length = 0;
     const items = Array.from({ length: 12 }, (_, idx) => ({ id: `i-${idx}`, name: `品${idx}`, type: "food", value: 10 }));
     const pot = { id: "p1", name: "保存の壺", type: "pot", potEffect: "none", capacity: 12, contents: items };
@@ -337,41 +349,217 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
       constructor(type, args) { Object.assign(this, { type }, args); }
       preventDefault() {}
     });
+    let putMode = { action: "take", potIdx: 0 };
     let putMenuSel = 0;
     let putPage = 0;
+    const setPutMode = vi.fn(v => { putMode = v; });
     const setPutMenuSel = vi.fn(v => { putMenuSel = typeof v === "function" ? v(putMenuSel) : v; });
     const setPutPage = vi.fn(v => { putPage = typeof v === "function" ? v(putPage) : v; });
-    const takeFromPot = vi.fn();
+    const execPotAction = vi.fn();
+    const cancelPut = vi.fn();
 
-    useKeyHandler({
-      sr,
-      gs: sr.current,
-      putMode: { action: "take", potIdx: 0 },
-      putMenuSel,
-      putPage,
-      setPutMenuSel,
-      setPutPage,
-      invActRef: { current: { takeFromPot, cancelPut: vi.fn() } },
-      shiftRef: { current: false },
-      aRef: { current: false },
-      arrowHeldRef: { current: {} },
-      execRef: { current: null },
-      setMsgs: vi.fn(),
-    });
-    effects.splice(0).forEach(fn => fn());
+    const mountKeys = () => {
+      effects.length = 0;
+      useKeyHandler({
+        sr,
+        gs: sr.current,
+        putMode,
+        putMenuSel,
+        putPage,
+        setPutMode,
+        setPutMenuSel,
+        setPutPage,
+        invActRef: { current: { execPotAction, cancelPut } },
+        shiftRef: { current: false },
+        aRef: { current: false },
+        arrowHeldRef: { current: {} },
+        execRef: { current: null },
+        setMsgs: vi.fn(),
+      });
+      effects.splice(0).forEach(fn => fn());
+    };
 
+    mountKeys();
     listeners.keydown(new KeyboardEvent("keydown", { key: "2", code: "Numpad2", location: 3 }));
     expect(putMenuSel).toBe(1);
 
+    mountKeys();
     listeners.keydown(new KeyboardEvent("keydown", { key: "6", code: "Numpad6", location: 3 }));
     expect(putPage).toBe(1);
     expect(putMenuSel).toBe(0);
 
+    mountKeys();
     listeners.keydown(new KeyboardEvent("keydown", { key: "z", code: "KeyZ" }));
-    expect(takeFromPot).toHaveBeenCalledWith(0);
+    expect(putMode).toEqual({ action: "take", potIdx: 0, selectedIdx: 10, actSel: 0 });
+    expect(execPotAction).not.toHaveBeenCalled();
+
+    /* サブメニュー展開中：Numpad6 / ArrowRight で「食べる」→「出す」へ移動して Z で決定 */
+    mountKeys();
+    listeners.keydown(new KeyboardEvent("keydown", { key: "6", code: "Numpad6", location: 3 }));
+    expect(putMode.actSel).toBe(1);
+
+    mountKeys();
+    listeners.keydown(new KeyboardEvent("keydown", { key: "z", code: "KeyZ" }));
+    expect(execPotAction).toHaveBeenCalledWith(10, "take");
+
+    /* サブメニュー展開中に X で一覧に戻る（壺モーダル自体は閉じない） */
+    mountKeys();
+    listeners.keydown(new KeyboardEvent("keydown", { key: "x", code: "KeyX" }));
+    expect(putMode).toEqual({ action: "take", potIdx: 0, selectedIdx: null, actSel: 0 });
+    expect(cancelPut).not.toHaveBeenCalled();
+
+    /* 一覧状態でもう一度 X を押すと壺モーダルを閉じる */
+    mountKeys();
+    listeners.keydown(new KeyboardEvent("keydown", { key: "Escape", code: "Escape" }));
+    expect(cancelPut).toHaveBeenCalledTimes(1);
   });
 
   it("msgToActionKey が保存の壺から取り出すログを act_pot として認識する", () => {
     expect(msgToActionKey("保存の壺から回復薬を取り出した。")).toBe("act_pot");
+  });
+});
+
+describe("保存の壺の中身コマンド規則と一時退避・復元", () => {
+  it("武器・防具・指輪・矢・壺の直接装備/入れ子は禁止し、矢束は射ると投げる(束)の両方を持つ", () => {
+    const sword = { id: "w1", name: "鉄の剣", type: "weapon", atk: 5 };
+    const armor = { id: "a1", name: "皮の盾", type: "armor", def: 4 };
+    const ring = { id: "r1", name: "謎の指輪", type: "ring", effect: "power_ring" };
+    const arrow = { id: "ar1", name: "鉄の矢", type: "arrow", count: 8, atk: 5 };
+    const wand = { id: "wa1", name: "吹き飛ばしの杖", type: "wand", effect: "knockback", charges: 4 };
+    const marker = { id: "m1", name: "マジックマーカー", type: "marker", charges: 3 };
+    const herb = { id: "p1", name: "回復薬", type: "potion", effect: "heal" };
+    const book = { id: "b1", name: "火球の魔法書", type: "spellbook", spell: "fireball" };
+
+    expect(getPotItemActions(sword).map(a => a.id)).toEqual(["take", "drop", "throw", "desc"]);
+    expect(getPotItemActions(armor).map(a => a.id)).toEqual(["take", "drop", "throw", "desc"]);
+    expect(getPotItemActions(ring, { ident: new Set() }).map(a => a.id)).toEqual(["take", "drop", "throw", "desc", "nickname"]);
+    expect(getPotItemActions(ring, { ident: new Set(["r:power_ring"]) }).map(a => a.id)).toEqual(["take", "drop", "throw", "desc"]);
+
+    const arrowActs = getPotItemActions(arrow);
+    expect(arrowActs.map(a => [a.id, a.label])).toEqual([
+      ["shoot", "射る"],
+      ["take", "出す"],
+      ["drop", "置く"],
+      ["throw", "投げる(束)"],
+      ["desc", "説明"],
+    ]);
+
+    expect(getPotItemActions(wand).map(a => [a.id, a.label])).toEqual([
+      ["wave", "振る"],
+      ["breakWand", "壊す"],
+      ["take", "出す"],
+      ["drop", "置く"],
+      ["throw", "投げる"],
+      ["desc", "説明"],
+    ]);
+    expect(getPotItemActions(marker).map(a => a.id)).toEqual(["marker", "take", "drop", "throw", "desc"]);
+    expect(getPotItemActions(herb).map(a => a.id)).toEqual(["use", "take", "drop", "throw", "desc"]);
+    expect(getPotItemActions(book).map(a => a.id)).toEqual(["readSpellbook", "take", "drop", "throw", "desc"]);
+  });
+
+  it("持ち物30個満杯状態からでも壺の中身を直接使え、残数・不発・キャンセル時は元の保存の壺へ戻る", () => {
+    const filler = Array.from({ length: 29 }, (_, i) => ({ id: `f-${i}`, name: `石${i}`, type: "food", value: 5 }));
+    const arrow = { id: "a1", name: "鉄の矢", type: "arrow", count: 5, atk: 5 };
+    const wand = { id: "w1", name: "火炎の杖", type: "wand", effect: "flame", charges: 3 };
+    const pot = { id: "pot", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: [arrow, wand] };
+    const player = makePlayer({ hp: 50, maxInventory: 30, inventory: [pot, ...filler] });
+    const dungeon = makeEmptyDg();
+    expect(player.inventory).toHaveLength(30);
+
+    /* 1. 矢束を取り出してから1本射った残り(count:4)が元の位置に戻る */
+    const stagedArrow = stagePotItemToInventory(player, pot, 0);
+    expect(stagedArrow.tmpIdx).toBe(30);
+    expect(pot.contents).toEqual([wand]);
+    arrow.count -= 1;
+    const arrowRestore = restorePotReturnItem({ player, dungeon, entry: stagedArrow });
+    expect(arrowRestore).toEqual({ returned: true, destination: "pot" });
+    expect(player.inventory).toHaveLength(30);
+    expect(pot.contents).toEqual([arrow, wand]);
+    expect(pot.contents[0].count).toBe(4);
+
+    /* 2. 消費されたアイテム（投擲・飲用など）は二重に戻されない */
+    const stagedWand = stagePotItemToInventory(player, pot, 1);
+    player.inventory.splice(stagedWand.tmpIdx, 1);
+    expect(restorePotReturnItem({ player, dungeon, entry: stagedWand })).toEqual({
+      returned: false,
+      reason: "already_removed",
+    });
+    expect(pot.contents).toEqual([arrow]);
+
+    /* 3. ターン経過等で壺が消滅していた場合でもアイテムは足元に落ちて消失しない */
+    pot.contents.push(wand);
+    const floorPot = { id: "fp", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: [wand], x: 5, y: 5 };
+    player.x = 7;
+    player.y = 8;
+    const stagedFloorWand = stagePotItemToInventory(player, floorPot, 0);
+    const msgs = [];
+    const fallbackRes = restorePotReturnItem({
+      player,
+      dungeon,
+      entry: stagedFloorWand,
+      msgs,
+      dnameFn: it => it.name,
+    });
+    expect(fallbackRes).toEqual({ returned: true, destination: "floor" });
+    expect(dungeon.items).toContain(wand);
+    expect(wand.x).toBe(7);
+    expect(wand.y).toBe(8);
+    expect(msgs.some(m => m.includes("足元に落ちた"))).toBe(true);
+  });
+
+  it("useItemActions 経由で保存の壺内の矢を「射る」と1本だけ消費して残りが壺に戻り、「投げる(束)」は束ごと消費される", () => {
+    const arrow = { id: "a1", name: "鉄の矢", type: "arrow", count: 5, atk: 5 };
+    const pot = { id: "pot", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: [arrow] };
+    const player = makePlayer({ hp: 50, x: 5, y: 5, inventory: [pot] });
+    const dungeon = makeEmptyDg();
+    const sr = { current: { player, dungeon, ident: new Set(["o:none"]), fakeNames: {}, nicknames: {} } };
+    let throwModeState = null;
+    const h = {
+      sr,
+      setGs: vi.fn(),
+      setMsgs: vi.fn(),
+      setShowInv: vi.fn(),
+      setSelIdx: vi.fn(),
+      setShowDesc: vi.fn(),
+      setPutMode: vi.fn(),
+      putMode: null,
+      setPutMenuSel: vi.fn(),
+      setPutPage: vi.fn(),
+      setThrowMode: vi.fn(v => { throwModeState = v; }),
+      throwMode: throwModeState,
+      setWishMode: vi.fn(),
+      lu: vi.fn(),
+      endTurn: vi.fn(),
+      withPitfallBag: fn => fn(),
+      bigboxAddItem: vi.fn(),
+      setIdentifyMode: vi.fn(),
+      dnameRef: it => it.name,
+    };
+
+    const actions = useItemActions(h);
+    const stagedShoot = stagePotItemToInventory(player, pot, 0);
+    actions.doShoot(stagedShoot.tmpIdx);
+    expect(throwModeState).toEqual({ idx: stagedShoot.tmpIdx, mode: "shoot" });
+
+    useItemActions({ ...h, throwMode: throwModeState }).execDirection(1, 0);
+    expect(arrow.count).toBe(4);
+    expect(restorePotReturnItem({ player, dungeon, entry: stagedShoot })).toEqual({
+      returned: true,
+      destination: "pot",
+    });
+    expect(pot.contents).toEqual([arrow]);
+    expect(pot.contents[0].count).toBe(4);
+    expect(player.inventory).toEqual([pot]);
+
+    const stagedThrow = stagePotItemToInventory(player, pot, 0);
+    useItemActions({ ...h, throwMode: throwModeState }).doThrow(stagedThrow.tmpIdx);
+    expect(throwModeState).toEqual({ idx: stagedThrow.tmpIdx, mode: "throw", bundle: true });
+    useItemActions({ ...h, throwMode: throwModeState }).execDirection(1, 0);
+    expect(restorePotReturnItem({ player, dungeon, entry: stagedThrow })).toEqual({
+      returned: false,
+      reason: "already_removed",
+    });
+    expect(pot.contents).toEqual([]);
+    expect(player.inventory).toEqual([pot]);
   });
 });
