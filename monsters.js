@@ -2338,8 +2338,8 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
 function isMonsterDefAllowedAtFloor(base, floor, dungeonType = null, { allowFloodedOnly = false } = {}) {
   if (!base || base.penaltyOnly || (base.floodedOnly && !allowFloodedOnly)) return false;
   if (base.dungeons && dungeonType && !base.dungeons.includes(dungeonType)) return false;
-  /* 水浸し専用敵は特殊フロア側の階別範囲だけで判定する。 */
-  if ((base.floodedOnly || base.floodedFallback) && allowFloodedOnly) {
+  /* 水浸し専用敵（および中級等の水浸しフォールバック）は特殊フロア側の階別範囲だけで判定する。 */
+  if ((base.floodedOnly || (base.floodedFallback && dungeonType !== "advanced" && dungeonType !== "legend")) && allowFloodedOnly) {
     const df = dungeonType ? base.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false;
     const minF = df?.min !== undefined ? df.min : base.minFloor;
@@ -2372,7 +2372,7 @@ function isMonsterDefAllowedAtFloor(base, floor, dungeonType = null, { allowFloo
 }
 
 function monsterSpawnLevelAtFloor(base, floor, dungeonType = null, { allowFloodedOnly = false } = {}) {
-  if ((base.floodedOnly || base.floodedFallback) && allowFloodedOnly) {
+  if ((base.floodedOnly || (base.floodedFallback && dungeonType !== "advanced" && dungeonType !== "legend")) && allowFloodedOnly) {
     if (base.levels?.length > 0) {
       for (let i = base.levels.length; i >= 1; i--) {
         const lv = base.levels[i - 1];
@@ -2452,31 +2452,41 @@ export function pickFloodedWaterMonsterDef(depth, dungeonType = null, { poolFloo
     return 0;
   };
 
-  /* 通常の階別プールを軸にしつつ、基礎出現帯が重なる水棲敵も混ぜる。 */
-  const regular = candidates.filter((m) => isMonsterDefAllowedAtFloor(m, floor, dungeonType, { allowFloodedOnly: true }));
-  const inBaseRange = candidates.filter((m) => distanceToBaseRange(m) === 0);
-  const regularWithNeighbors = regular.length > 0
-    ? [...regular, ...inBaseRange.filter((m) => !regular.includes(m))]
-    : [];
-  if (regularWithNeighbors.length > 0) {
+  /* 通常の階別プール（および水浸し用範囲）を軸に候補を決める。 */
+  const pickFromFloor = (targetFloor) => {
+    const regular = candidates.filter((m) => isMonsterDefAllowedAtFloor(m, targetFloor, dungeonType, { allowFloodedOnly: true }));
+    if (regular.length === 0) return null;
+    const pool = (dungeonType !== "advanced" && dungeonType !== "legend")
+      ? [...regular, ...candidates.filter((m) => distanceToBaseRange(m) === 0 && !regular.includes(m))]
+      : regular;
     const base = dungeonType === "legend"
-      ? pickWeightedMonster(regularWithNeighbors, (monster) => (
-        legendMonsterSpawnWeight(monster.baseKind, floor) *
-        legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
+      ? pickWeightedMonster(pool, (monster) => (
+        legendMonsterSpawnWeight(monster.baseKind, targetFloor) *
+        legendMonsterAffinityMultiplier(monster.baseKind, targetFloor, existingMonsters)
       ))
-      : pick(regularWithNeighbors);
-    return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
+      : dungeonType === "advanced"
+        ? pickWeightedMonster(pool, (monster) => (
+          advancedMonsterAffinityMultiplier(monster.baseKind, targetFloor, existingMonsters)
+        ))
+        : pick(pool);
+    return { base, spawnLevel: monsterSpawnLevelAtFloor(base, targetFloor, dungeonType, { allowFloodedOnly: true }) };
+  };
+
+  const direct = pickFromFloor(floor);
+  if (direct) return direct;
+
+  /* プールが空の階（B1F・B27F・B41Fなど）は、直近の前後階の水棲プールとレベルを借りる。 */
+  for (let delta = 1; delta <= 50; delta++) {
+    const prev = floor - delta >= 1 ? pickFromFloor(floor - delta) : null;
+    if (prev) return prev;
+    const next = pickFromFloor(floor + delta);
+    if (next) return next;
   }
 
-  /* 浅層など通常プールが空の階は、基礎出現帯が最も近い水棲敵を選ぶ。 */
+  /* それでも無い場合のみ基礎出現帯が最も近い水棲敵を選ぶ。 */
   const nearestDistance = Math.min(...candidates.map(distanceToBaseRange));
   const nearest = candidates.filter((m) => distanceToBaseRange(m) === nearestDistance);
-  const base = dungeonType === "legend"
-    ? pickWeightedMonster(nearest, (monster) => (
-      legendMonsterSpawnWeight(monster.baseKind, floor) *
-      legendMonsterAffinityMultiplier(monster.baseKind, floor, existingMonsters)
-    ))
-    : pick(nearest);
+  const base = pick(nearest);
   return { base, spawnLevel: monsterSpawnLevelAtFloor(base, floor, dungeonType, { allowFloodedOnly: true }) };
 }
 

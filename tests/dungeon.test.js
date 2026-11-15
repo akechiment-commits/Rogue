@@ -374,6 +374,12 @@ describe("genDungeon", () => {
     }
   });
 
+  it("超上級で通常水棲プールが空の階が水浸しになっても直近階相応のLvで出現する", () => {
+    expect(pickFloodedWaterMonsterDef(0, "legend")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 1 });
+    expect(pickFloodedWaterMonsterDef(26, "legend")).toMatchObject({ base: { baseKind: "badFish" }, spawnLevel: 3 });
+    expect(pickFloodedWaterMonsterDef(40, "legend")).toMatchObject({ base: { baseKind: "seaDevil" }, spawnLevel: 2 });
+  });
+
   it("初心者の通常特殊フロア抽選には水浸しを含めない", () => {
     for (let i = 0; i < 80; i++) {
       expect(genDungeon(1, "beginner").floorType).not.toBe("floodedFloor");
