@@ -1534,7 +1534,7 @@ export const MONS = [
       { name: "炎の中華体育料理人", hp: 104, atk: 74, def: 34, exp: 250, dungeonFloors: { intermediate: null, advanced: { min: 44, max: 47 }, legend: { min: 48, max: 50 } } },
     ],
   },
-  { name: "シルフ", hp: 54, atk: 30, def: 18, exp: 65, speed: 1, tile: 236, kind: "beast", baseKind: "sylph", monLevel: 1, minFloor: 11, maxFloor: 35, float: true, subtype: "windAura", desc: "常にランダムな方向への風をまとい、範囲内の矢・石・投擲・ブレスを風向きへ曲げる。Lv1は周囲3×3、Lv2は5×5、Lv3は7×7に広がる。", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 11, max: 13 }, legend: { min: 19, max: 22 } },
+  { name: "シルフ", hp: 54, atk: 30, def: 18, exp: 65, speed: 1, tile: 236, kind: "beast", baseKind: "sylph", monLevel: 1, minFloor: 11, maxFloor: 35, float: true, subtype: "windAura", desc: "常にランダムな方向への風をまとい、範囲内の矢・石・投擲・ブレスを風向きへ曲げる。Lv1は周囲3×3、Lv2は5×5、Lv3は7×7に広がる。", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 13 }, advanced: { min: 11, max: 13 }, legend: { min: 16, max: 18 } },
     levels: [
       { name: "ハイシルフ", hp: 74, atk: 54, def: 28, exp: 160, dungeonFloors: { intermediate: null, advanced: { min: 22, max: 24 }, legend: { min: 29, max: 32 } } },
       { name: "シルフィード", hp: 92, atk: 86, def: 36, exp: 450, dungeonFloors: { intermediate: null, advanced: null, legend: { min: 44, max: 47 } } },

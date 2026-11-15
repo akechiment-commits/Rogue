@@ -125,9 +125,12 @@ describe("超上級ダンジョンの敵分布", () => {
       const hasSleep = kinds.includes("dangerousPetal") || kinds.includes("dreamEater");
       expect(hasSleep && kinds.includes("hypnotist")).toBe(false);
       expect(kinds.includes("dragon") && kinds.includes("icedragon")).toBe(false);
+      expect(kinds.includes("sylph") && kinds.includes("potionthrower")).toBe(false);
       const water = ["waterFlower", "giantEel", "seaDevil"].filter((kind) => kinds.includes(kind));
       expect(water.length).toBeLessThanOrEqual(1);
     }
+    for (const floor of [16, 17, 18]) expect(legendMonsterAllowed("sylph", floor)).toBe(true);
+    for (const floor of [19, 20, 21]) expect(legendMonsterAllowed("sylph", floor)).toBe(false);
   });
 
   it("出る種族は最低3階に候補になる", () => {

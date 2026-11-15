@@ -151,6 +151,8 @@ describe("超上級B20Fボス：勤勉で勇敢なグウェン", () => {
     expect(dungeon.monsters).toHaveLength(2);
     const summoned = dungeon.monsters.find(monster => monster !== gwen);
     expect(legendMonsterAllowed(summoned.baseKind, 20)).toBe(true);
+    expect(legendMonsterAllowed("sylph", 20)).toBe(false);
+    expect(summoned.baseKind).not.toBe("sylph");
     expect(Math.max(Math.abs(summoned.x - gwen.x), Math.abs(summoned.y - gwen.y))).toBe(1);
     expect(messages.some(message => message.includes(`グウェンの隣に${summoned.name}が現れた`))).toBe(true);
   });
