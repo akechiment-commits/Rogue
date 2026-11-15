@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { WANDS } from "../items.js";
+import { ITEMS, WANDS } from "../items.js";
 import { altarPriestServiceTargets, altarPriestServicePrice } from "../priestServiceRules.js";
 import { formatEquipmentPlusChange, formatItemChargeChange } from "../inventoryLabel.js";
 
@@ -137,5 +137,15 @@ describe("祭壇の司祭モーダルと台詞", () => {
     doPriestService("refill_wand", knownWand);
     expect(knownWand.charges).toBe(6);
     expect(messages.at(-1)).toContain(`${knownWand.name}の回数が1回分補充された！(5→6回)`);
+  });
+
+  it("装備強化料金は最低1000Gをベースに対象装備の価格を上乗せする", () => {
+    const dagger = { ...ITEMS.find((item) => item.name === "短剣"), id: "w_dagger", plus: 0 };
+    const katana = { ...ITEMS.find((item) => item.name === "カタナ"), id: "w_katana", plus: 0 };
+    const katanaPlus2 = { ...katana, id: "w_katana2", plus: 2 };
+    expect(altarPriestServicePrice(dagger, "upgrade", 0)).toBe(1125);
+    expect(altarPriestServicePrice(katana, "upgrade", 0)).toBe(1750);
+    expect(altarPriestServicePrice(katanaPlus2, "upgrade", 0)).toBe(2750);
+    expect(altarPriestServicePrice(dagger, "upgrade", 1)).toBe(1350);
   });
 });

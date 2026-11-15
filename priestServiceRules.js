@@ -47,7 +47,7 @@ export function altarPriestServicePrice(item, service, completedRequests = 0) {
   }
   if (service === "upgrade" && altarPriestServiceTargets([item], service).length > 0) {
     const currentPlus = Math.max(0, Math.floor(item.plus || 0));
-    return Math.max(500, Math.ceil(itemValue * (2.5 + currentPlus * 0.5) * escalation));
+    return Math.ceil((1000 + itemValue * (2.5 + currentPlus * 0.5)) * escalation);
   }
   if (service === "remove_curse" && altarPriestServiceTargets([item], service).length > 0) {
     return Math.max(100, Math.ceil(itemValue * 0.5 * escalation));
