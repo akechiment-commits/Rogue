@@ -1776,7 +1776,7 @@ export const MONS = [
       { name: "わてさん",           hp: 76, atk: 46, def: 22, exp: 200 },
     ],
   },
-  { name: "まずい魚",     hp: 24, atk: 14, def: 3,  exp: 24, speed: 1,   tile: 223, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 15, waterOnly: true, floodedOnly: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 5 }, advanced: { min: 2, max: 5 }, legend: { min: 2, max: 5 } },
+  { name: "まずい魚",     hp: 24, atk: 14, def: 3,  exp: 24, speed: 1,   tile: 223, kind: "beast",    baseKind: "badFish",       monLevel: 1, minFloor: 2, maxFloor: 15, waterOnly: true, floodedFallback: true, dungeonFloors: { beginner: null, intermediate: { min: 2, max: 5 }, advanced: { min: 2, max: 5 }, legend: { min: 2, max: 5 } },
     levels: [
       { name: "古い魚",       hp: 44, atk: 26, def: 8, exp: 60, dungeonFloors: { intermediate: { min: 6, max: 10 }, advanced: { min: 6, max: 10 }, legend: { min: 6, max: 10 } } },
       { name: "かせきうお",       hp: 68, atk: 42, def: 14, exp: 180, dungeonFloors: { intermediate: { min: 11, max: 15 }, advanced: { min: 11, max: 15 }, legend: { min: 11, max: 15 } } },
@@ -2339,7 +2339,7 @@ function isMonsterDefAllowedAtFloor(base, floor, dungeonType = null, { allowFloo
   if (!base || base.penaltyOnly || (base.floodedOnly && !allowFloodedOnly)) return false;
   if (base.dungeons && dungeonType && !base.dungeons.includes(dungeonType)) return false;
   /* 水浸し専用敵は特殊フロア側の階別範囲だけで判定する。 */
-  if (base.floodedOnly && allowFloodedOnly) {
+  if ((base.floodedOnly || base.floodedFallback) && allowFloodedOnly) {
     const df = dungeonType ? base.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false;
     const minF = df?.min !== undefined ? df.min : base.minFloor;
@@ -2372,7 +2372,7 @@ function isMonsterDefAllowedAtFloor(base, floor, dungeonType = null, { allowFloo
 }
 
 function monsterSpawnLevelAtFloor(base, floor, dungeonType = null, { allowFloodedOnly = false } = {}) {
-  if (base.floodedOnly && allowFloodedOnly) {
+  if ((base.floodedOnly || base.floodedFallback) && allowFloodedOnly) {
     if (base.levels?.length > 0) {
       for (let i = base.levels.length; i >= 1; i--) {
         const lv = base.levels[i - 1];

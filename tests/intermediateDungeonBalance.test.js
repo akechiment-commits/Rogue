@@ -36,7 +36,7 @@ function intermediateMonsterKinds(floor) {
 /* データ側（dungeonFloors.intermediate）で中級に出られる種の一覧。プールとの drift 検出用。 */
 function intermediateDataKinds() {
   return MONS.filter((m) => {
-    if (m.penaltyOnly || m.floodedOnly) return false;
+    if (m.penaltyOnly || m.floodedOnly || m.floodedFallback) return false;
     if (m.dungeons && !m.dungeons.includes("intermediate")) return false;
     return intermediateMonsterFloors(m.baseKind).length > 0;
   }).map((m) => m.baseKind);

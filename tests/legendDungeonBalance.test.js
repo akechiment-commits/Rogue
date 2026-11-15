@@ -63,8 +63,8 @@ describe("超上級ダンジョンの敵分布", () => {
   it("各階の候補数を抑え、同じ種族のLv帯は空ける", () => {
     for (let floor = 1; floor <= 50; floor++) {
       expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeGreaterThanOrEqual(floor <= 4 ? 3 : 6);
-      const extraGiants = ['hauntedWillow', 'sleepingLion'].filter(kind => LEGEND_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
-      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraGiants);
+      const extraNonLand = ["hauntedWillow", "sleepingLion", "badFish", "wateri", "waterFlower", "giantEel", "seaDevil"].filter(kind => LEGEND_MONSTER_FLOOR_POOLS[floor].includes(kind)).length;
+      expect(LEGEND_MONSTER_FLOOR_POOLS[floor].length).toBeLessThanOrEqual(13 + extraNonLand);
     }
     const byKind = new Map();
     for (const band of LEGEND_MONSTER_BANDS) {
@@ -119,16 +119,16 @@ describe("超上級ダンジョンの敵分布", () => {
     expect(legendMonsterSpawnLevel(synth, 44)).toBe(3);
   });
 
-  it("睡眠コンボと催眠、火竜と氷竜、水中の脅威は同じ階に重ねない", () => {
+  it("睡眠コンボと催眠、火竜と氷竜は同じ階に重ねず、水中敵は複数種を混在させる", () => {
     for (let floor = 1; floor <= 50; floor++) {
       const kinds = LEGEND_MONSTER_FLOOR_POOLS[floor];
       const hasSleep = kinds.includes("dangerousPetal") || kinds.includes("dreamEater");
       expect(hasSleep && kinds.includes("hypnotist")).toBe(false);
       expect(kinds.includes("dragon") && kinds.includes("icedragon")).toBe(false);
       expect(kinds.includes("sylph") && kinds.includes("potionthrower")).toBe(false);
-      const water = ["waterFlower", "giantEel", "seaDevil"].filter((kind) => kinds.includes(kind));
-      expect(water.length).toBeLessThanOrEqual(1);
     }
+    const midWater = ["badFish", "wateri", "waterFlower", "giantEel", "seaDevil"].filter((kind) => LEGEND_MONSTER_FLOOR_POOLS[18].includes(kind));
+    expect(midWater.length).toBeGreaterThanOrEqual(3);
     for (const floor of [16, 17, 18]) expect(legendMonsterAllowed("sylph", floor)).toBe(true);
     for (const floor of [19, 20, 21]) expect(legendMonsterAllowed("sylph", floor)).toBe(false);
   });
