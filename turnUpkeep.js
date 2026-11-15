@@ -52,7 +52,7 @@ export function advancePlayerUpkeep(player, messages, {
     interruptPlayerSleep(player, messages, "空腹の苦しみで目が覚めた！");
     resolveParalysisHit(player, messages);
   } else if (!player.poisoned && player.hp > 0 && player.hp < player.maxHp) {
-    const baseRegen = Math.max(1, Math.floor(player.maxHp / 100))
+    const baseRegen = 1 + Math.floor(Math.max(0, Number(player.maxHp) || 0) / 100)
       + (hasAbility(player.armor, "regen") ? 1 : 0)
       + regenRingCount
       + (player.magicRegenBonus || 0);

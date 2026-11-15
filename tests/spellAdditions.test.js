@@ -93,9 +93,9 @@ describe("追加魔法", () => {
       hasRingEffect: () => false,
       calcHungerDrainRate: () => 0,
     });
-    expect(player.hp).toBe(94);
+    expect(player.hp).toBe(95);
     advanceConsumableBuffTimers(player, messages);
-    expect(player).toMatchObject({ hp: 94, magicRegenTurns: 39, magicRegenBonus: 3 });
+    expect(player).toMatchObject({ hp: 95, magicRegenTurns: 39, magicRegenBonus: 3 });
 
     applySpellEffect("time_stop_magic", "self", null, 0, 0, dungeon, player, messages, noop, 6);
     expect(dungeon).toMatchObject({ timeStopTurns: 7, _timeStopJustStarted: true });

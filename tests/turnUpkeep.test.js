@@ -37,8 +37,8 @@ describe("advancePlayerUpkeep", () => {
   it("後半の強化タイマーでは死亡したプレイヤーを蜂蜜で復活させない", () => {
     const player = makePlayer({ hp: 11, honeyRegenTurns: 5 });
     advance(player);
-    expect(player.hp).toBe(14); // 蜂蜜+2、通常の自然回復+1。
-    player.hp -= 15; // その後に受ける地形ダメージなど。
+    expect(player.hp).toBe(15); // 蜂蜜+2、通常の自然回復+2（maxHp 100）。
+    player.hp -= 16; // その後に受ける地形ダメージなど。
     advanceConsumableBuffTimers(player, []);
     expect(player.hp).toBe(-1);
   });
@@ -57,7 +57,7 @@ describe("advancePlayerUpkeep", () => {
     advance(player);
     expect(player.turns).toBe(1);
     expect(player.hunger).toBe(39);
-    expect(player.hp).toBe(51);
+    expect(player.hp).toBe(52);
   });
 
   it("空腹時は最初のダメージを通知し、以後もHPを減らす", () => {
@@ -84,7 +84,7 @@ describe("advancePlayerUpkeep", () => {
       random.mockRestore();
     }
     expect(player.hunger).toBe(29); // 通常の空腹減少1 + 嘔吐10
-    expect(player.hp).toBe(91); // 最大HP100の10%ダメージ + ターン自然回復1
+    expect(player.hp).toBe(92); // 最大HP100の10%ダメージ + ターン自然回復2
     expect(player.vomitStunTurns).toBe(1);
     expect(messages).toEqual([
       "酩酊して嘔吐した！満腹度が10減った！",
@@ -116,38 +116,46 @@ describe("advancePlayerUpkeep", () => {
   });
 
   it("再生防具と回復の指輪は自然回復量をそれぞれ+1する", () => {
-    /* base floor(100/100)=1 + 再生防具+1 + 回復指輪+1 = 3 */
+    /* base 1+floor(100/100)=2 + 再生防具+1 + 回復指輪+1 = 4 */
     const player = makePlayer({ hp: 70, armor: { ability: "regen" }, rings: [{ effect: "regen_ring" }] });
+    advance(player);
+    expect(player.hp).toBe(74);
+  });
+
+  it("回復の指輪だけなら自然回復が+1", () => {
+    /* base 2 + 指輪+1 = 3 */
+    const player = makePlayer({ hp: 70, rings: [{ effect: "regen_ring" }] });
     advance(player);
     expect(player.hp).toBe(73);
   });
 
-  it("回復の指輪だけなら自然回復が+1", () => {
-    /* base 1 + 指輪+1 = 2 */
-    const player = makePlayer({ hp: 70, rings: [{ effect: "regen_ring" }] });
-    advance(player);
-    expect(player.hp).toBe(72);
-  });
-
   it("回復の指輪2個なら自然回復が+2", () => {
-    /* base 1 + 指輪×2 = 3 */
+    /* base 2 + 指輪×2 = 4 */
     const player = makePlayer({
       hp: 70,
       rings: [{ effect: "regen_ring" }, { effect: "regen_ring" }],
     });
     advance(player);
-    expect(player.hp).toBe(73);
+    expect(player.hp).toBe(74);
   });
 
   it("再生防具と回復の指輪2個はすべて加算される", () => {
-    /* base 1 + 再生+1 + 指輪×2 = 4 */
+    /* base 2 + 再生+1 + 指輪×2 = 5 */
     const player = makePlayer({
       hp: 70,
       armor: { ability: "regen" },
       rings: [{ effect: "regen_ring" }, { effect: "regen_ring" }],
     });
     advance(player);
-    expect(player.hp).toBe(74);
+    expect(player.hp).toBe(75);
+  });
+
+  it("基礎自然回復は最大HP100ごとに1増える（1〜99で1、100〜199で2、200〜299で3）", () => {
+    for (const [maxHp, expectedGain] of [[10, 1], [99, 1], [100, 2], [199, 2], [200, 3], [299, 3]]) {
+      const player = makePlayer({ hp: 1, maxHp });
+      advance(player);
+      expect(player.hp).toBe(1 + expectedGain);
+    }
   });
 
   it("既に死亡したプレイヤーは空腹で死因を上書きされず、HPも減らない", () => {
