@@ -1163,7 +1163,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
 }
 
 export function randPotCapacity(potEffect) {
-  if (potEffect === "none") return rng(6, 9);
+  if (potEffect === "none") return rng(4, 6);
   if (potEffect === "greed" || potEffect === "weaken" || potEffect === "gunpowder") return rng(4, 6);
   if (potEffect === "enhance" || potEffect === "bless_pot" || potEffect === "curse_pot") return rng(1, 2);
   if (potEffect === "wish_pot") return rng(3, 5);

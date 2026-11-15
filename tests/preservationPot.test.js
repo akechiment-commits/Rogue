@@ -8,7 +8,7 @@ vi.mock("react", async () => ({
   useLayoutEffect: fn => { effects.push(fn); },
 }));
 import * as React from "react";
-import { isPreservationPot, canTakeFromPot, canShowPotTakeAction, potOccupancyCount, getIdentKey } from "../items.js";
+import { isPreservationPot, canTakeFromPot, canShowPotTakeAction, potOccupancyCount, getIdentKey, randPotCapacity } from "../items.js";
 import { getPotItemActions, stagePotItemToInventory, restorePotReturnItem } from "../potActionRules.js";
 import { canUseInventoryItem, getInventoryUseLabel } from "../inventoryRules.js";
 import { useItemActions } from "../useItemActions.js";
@@ -108,6 +108,17 @@ describe("保存の壺の純粋ルール", () => {
     expect(canTakeFromPot(greed)).toBe(false);
     expect(canTakeFromPot(imprison)).toBe(false);
     expect(canTakeFromPot(shopPreserve)).toBe(false);
+  });
+
+  it("保存の壺の初期容量 randPotCapacity('none') は 4〜6 を返す", () => {
+    const seen = new Set();
+    for (let i = 0; i < 120; i++) {
+      const cap = randPotCapacity("none");
+      expect(cap).toBeGreaterThanOrEqual(4);
+      expect(cap).toBeLessThanOrEqual(6);
+      seen.add(cap);
+    }
+    expect(seen).toEqual(new Set([4, 5, 6]));
   });
 
   it("未識別・識別済みを問わず、中身が入った保存の壺だけに「出す」候補を表示し、他の壺には表示しない", () => {
