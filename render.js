@@ -546,17 +546,18 @@ export const VW_M = 13,
 /* 拾い/置き/商品メッセージ用：杖・ペン・マーカーは残り回数、対象アイテムは祝呪を付加 */
 export function _itemPickupSuffix(it, ident) {
   if (!it) return "";
+  const _protectTag = it.protected ? "【加護】" : "";
   const _key = getIdentKey(it);
   const _isIdent = !_key || ident?.has(_key);
-  if (!_isIdent) return "";
-  if (it.type === "pot") return ` [${potOccupancyCount(it)}/${it.capacity}]`;
-  if (_key && !it.fullIdent) return "";
+  if (!_isIdent) return _protectTag ? ` ${_protectTag}` : "";
+  if (it.type === "pot") return ` [${potOccupancyCount(it)}/${it.capacity}]${_protectTag ? ` ${_protectTag}` : ""}`;
+  if (_key && !it.fullIdent) return _protectTag ? ` ${_protectTag}` : "";
   const _chgTypes = new Set(["wand", "pen", "marker"]);
   const _bcTypes  = new Set(["wand", "pen", "marker", "potion", "scroll", "bottle"]);
-  if (!_bcTypes.has(it.type)) return "";
+  if (!_bcTypes.has(it.type)) return _protectTag ? ` ${_protectTag}` : "";
   const charge = _chgTypes.has(it.type) && it.charges != null ? `[${it.charges}回]` : "";
   const state  = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
-  return (charge || state) ? ` ${charge}${state}` : "";
+  return (charge || state || _protectTag) ? ` ${charge}${state}${_protectTag}` : "";
 }
 
 /* 落とし穴バッグを処理して落下エンティティを次の階に配置する */

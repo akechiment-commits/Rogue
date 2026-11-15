@@ -68,7 +68,7 @@ export function formatInventoryItem(item, {
   const isIdentified = !identKey || identified?.has(identKey);
   const needsFullIdentification = !!identKey || ["weapon", "armor", "ring", "food", "gold_nugget"].includes(item.type);
   const showBlessCurse = needsFullIdentification ? (item.fullIdent || item.bcKnown) : true;
-  const blessCurse = showBlessCurse ? (item.blessed ? "【祝】" : item.cursed ? "【呪】" : "") : "";
+  const blessCurse = (showBlessCurse ? (item.blessed ? "【祝】" : item.cursed ? "【呪】" : "") : "") + (item.protected ? "【加護】" : "");
   let label = equipped + blessCurse + displayName(item);
 
   if (item.type === "arrow") {

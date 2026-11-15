@@ -4,7 +4,7 @@ import { monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
 import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { releaseInvalidCapture } from "./captureRules.js";
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
-import { reducePotCapacity, addFoodHunger } from "./items.js";
+import { reducePotCapacity, addFoodHunger, applyItemProtect } from "./items.js";
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { dungeonScoreLabel } from "./adventureScores.js";
@@ -5348,6 +5348,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           item.blessed = false;
           item.bcKnown = true;
           ml.push(`${_idn}が呪われた！【呪】`);
+        }
+      } else if (bb.kind === "protect") {
+        if (!applyItemProtect(item)) {
+          ml.push(item.protected ? `${_idn}はすでに加護を受けている。` : `${_idn}には効果がなかった。`);
+        } else {
+          ml.push(`${_idn}は加護を受けた！【加護】`);
         }
       } else if (bb.kind === "scatter") {
         /* アイテムをbox内から即削除（消滅） */

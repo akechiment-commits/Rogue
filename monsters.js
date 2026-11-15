@@ -65,7 +65,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, reduceWaterDamage, fireResistDamageLabel, iceResistDamageLabel, waterResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, reduceWaterDamage, fireResistDamageLabel, iceResistDamageLabel, waterResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox, isItemProtected } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -621,6 +621,12 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
   const _items = dg.items.filter(it => it.x === m.x && it.y === m.y);
   const _toRemove = new Set();
   for (const it of _items) {
+    if (isItemProtected(it)) {
+      if (it.type === "scroll" || it.type === "spellbook" || it.type === "potion" || it.type === "food") {
+        ml.push(`${m.name}が通ったが「${resolveItemName(it)}」は加護の力で守られた！`);
+      }
+      continue;
+    }
     if (it.type === "scroll" || it.type === "spellbook") {
       _toRemove.add(it);
       ml.push(`${m.name}が通った！「${resolveItemName(it)}」が燃えてなくなった！`);
@@ -2651,7 +2657,7 @@ function fireCookTargets(player) {
     ...(player?.rings || []),
   ].filter(Boolean));
   return (player?.inventory || []).filter(item =>
-    item && item.type !== "gold" && item.type !== "goal" && !equipped.has(item));
+    item && item.type !== "gold" && item.type !== "goal" && !isItemProtected(item) && !equipped.has(item));
 }
 
 function makeRandomBurntFood() {
@@ -4058,7 +4064,7 @@ export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride 
       /* Lv2以上：追加で食料腐敗 or 武器錆（耐水では防がない＝物理的劣化） */
       const _wLvl = m.monLevel || 1;
       if (_wLvl >= 2 && Math.random() < MONSTER_SPECIAL_RATE.ranged && !hasWaterProof(pl)) {
-        const _foods = pl.inventory.filter(i => i.type === "food" && !i.rotten);
+        const _foods = pl.inventory.filter(i => i.type === "food" && !i.rotten && !isItemProtected(i));
         const _canDegrade = pl.weapon && !hasAbility(pl.weapon, "no_degrade");
         if (_foods.length > 0 && (_canDegrade ? Math.random() < 0.6 : true)) {
           const _tf = pick(_foods);

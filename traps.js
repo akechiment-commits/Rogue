@@ -1,6 +1,6 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode, consumeBarrier, clampDmgFixed } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap, markShopkeeperHostileToPlayer } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap, markShopkeeperHostileToPlayer, isItemProtected } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns, resolveParalysisHit, applyPlayerConfusion } from "./statusDuration.js";
@@ -295,7 +295,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "rot_trap": {
-      const _rAllFoods = (p.inventory || []).filter(i => i.type === "food" && !i.yabai && !i.iceCream);
+      const _rAllFoods = (p.inventory || []).filter(i => i.type === "food" && !i.yabai && !i.iceCream && !isItemProtected(i));
       const _rTarget = _rAllFoods.length > 0 ? _rAllFoods[rng(0, _rAllFoods.length - 1)] : null;
       if (_rTarget) {
         const _rOrigName = _rTarget.name;

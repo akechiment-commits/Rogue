@@ -21,7 +21,7 @@ const BEGINNER_TRAP_EARLY = [
   "shadow_stitch", "poison_arrow", "trip_trap", "spin",
 ];
 const BEGINNER_BB_BAN = ["identify", "trash", "curse", "reverse", "greed", "nitro", "monster"];
-const BEGINNER_BB_ALLOW = ["synthesis", "change", "enhance", "satiety", "refill", "scatter", "split", "bless"];
+const BEGINNER_BB_ALLOW = ["synthesis", "change", "enhance", "satiety", "refill", "scatter", "split", "bless", "protect"];
 const BEGINNER_MONSTER_BAN = [
   "thief", "rustbug", "itemMimic", "charger", "itemblaster",
   "stealthrower", "wolf", "wateri", "tattoobird",

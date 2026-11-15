@@ -8,6 +8,7 @@ describe("追加大箱", () => {
     const expected = {
       synthesis: "D", change: "C", enhance: "C", satiety: "D", refill: "D", identify: "D",
       split: "B", bless: "B", curse: "B", scatter: "C", trash: "C", reverse: "C", greed: "C", nitro: "C", monster: "C",
+      protect: "C",
     };
     expect(BB_TYPES).toHaveLength(Object.keys(expected).length);
     for (const [kind, rarity] of Object.entries(expected)) {

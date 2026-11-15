@@ -943,6 +943,7 @@ export const BB_FAKE_NAMES = [
   "鍵付きの大箱", "蓋の重い大箱", "蓋の軽い大箱", "ひび割れた大箱", "傷だらけの大箱",
   "新品の大箱",
   "呪文刻印の大箱", "星模様の大箱", "月模様の大箱", "花模様の大箱", "蔦模様の大箱",
+  "紺色の大箱", "灰色の大箱", "厚手の大箱", "細工された大箱", "模様のない大箱",
 ];
 
 /* ===== POTS ===== */
@@ -1052,6 +1053,19 @@ export function consumeItemDegradeProtection(item) {
     delete item.oilProofUses;
   }
   return { kind: "oil", remaining };
+}
+
+/** アイテムが加護状態かどうかを返す（加護の大箱で付与）。 */
+export function isItemProtected(item) {
+  return !!(item && item.protected);
+}
+
+/** アイテムに加護状態を付与する。目標・金貨・金塊は対象外、付与済みは false。 */
+export function applyItemProtect(item) {
+  if (!item || item.type === "goal" || item.type === "gold" || item.type === "gold_nugget") return false;
+  if (item.protected) return false;
+  item.protected = true;
+  return true;
 }
 
 export function applyPotEffect(pot, item, ml, nameFn = null) {
@@ -1182,7 +1196,7 @@ export function makeFreshDuplicate(source) {
     GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T];
   const template = catalog.find(item => item.type === source.type && item.name === source.name);
   const copy = { ...structuredClone(template || source), id: uid() };
-  for (const key of ["blessed", "cursed", "bcKnown", "fullIdent", "plus", "_encyclopediaTracked",
+  for (const key of ["blessed", "cursed", "bcKnown", "fullIdent", "plus", "protected", "_encyclopediaTracked",
     "shopPrice", "_shopId", "_shopCharge", "_origCharges", "_origCount", "x", "y", "wallEmbedded"]) delete copy[key];
   if (template?.abilities) copy.abilities = [...template.abilities];
   else delete copy.abilities;
@@ -2361,6 +2375,10 @@ let _explosionChainDepth = 0;
 
 function fireBreakFloorPotion(item, x, y, dg, p, ml, luFn, nameFn = null, killerMon = null) {
   if (!item || !dg?.items?.includes(item)) return false;
+  if (isItemProtected(item)) {
+    ml.push(`薬「${resolveItemName(item, nameFn)}」は加護の力で炎から守られた！`);
+    return false;
+  }
   if (item.shopPrice) chargeShopItem(item, dg, ml, p);
   removeFloorItem(dg, item);
   ml.push(`薬「${resolveItemName(item, nameFn)}」が炎で割れた！`);
@@ -2619,6 +2637,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
       for (const it of [...dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)]) {
         if (floorChanged()) break;
         if (!dg.items.includes(it)) continue;
+        if (isItemProtected(it)) { ml.push(`${resolveItemName(it, nameFn)}は加護の力で爆発から守られた！`); continue; }
         if (it.shopPrice) chargeShopItem(it, dg, ml, p);
         if (it.type === "scroll") {
           blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
@@ -2829,6 +2848,7 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
       if (floorChanged()) break;
       if (!dg.items.includes(it)) continue;
       if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 2) continue;
+      if (isItemProtected(it)) { ml.push(`${resolveItemName(it)}は加護の力で爆発から守られた！`); continue; }
       if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 火薬壺は後で連鎖処理 */
       if (it.shopPrice) chargeShopItem(it, dg, ml, p);
       if (it.type === "scroll" || it.type === "spellbook") {
@@ -2876,7 +2896,7 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
     breakGachaMachinesInRadius(dg, cx, cy, 2, ml, p);
     /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
     const _chainPots = dg.items.filter(it =>
-      it.type === "pot" && it.potEffect === "gunpowder" &&
+      it.type === "pot" && it.potEffect === "gunpowder" && !isItemProtected(it) &&
       Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= 2
     );
     if (_chainPots.length > 0) {
@@ -3042,6 +3062,7 @@ function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, optio
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
         if (!dg.items.includes(it)) continue;
+        if (isItemProtected(it)) { ml.push(`${resolveItemName(it, nameFn)}は加護の力で爆発から守られた！`); continue; }
         if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 後で連鎖 */
         if (it.shopPrice) chargeShopItem(it, dg, ml, p);
         if (it.type === "scroll") {
@@ -3102,7 +3123,7 @@ function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, optio
   }
   /* 範囲内の火薬壺を連鎖爆発 */
   const _chainPots = dg.items.filter(it =>
-    it.type === "pot" && it.potEffect === "gunpowder" &&
+    it.type === "pot" && it.potEffect === "gunpowder" && !isItemProtected(it) &&
     Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= R
   );
   if (_chainPots.length > 0) {
@@ -3434,7 +3455,7 @@ export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
   }
   const items = (dg.items || []).filter((it) =>
     it && it.x != null && it.y != null &&
-    it.type !== "goal" && it.type !== "gold" && !it.shopPrice && !it.shopId && !it._shopId && !it.itemMimicId && !it.wallEmbedded &&
+    it.type !== "goal" && it.type !== "gold" && !it.shopPrice && !it.shopId && !it._shopId && !it.itemMimicId && !it.wallEmbedded && !isItemProtected(it) &&
     it.x >= room.x && it.x < room.x + room.w && it.y >= room.y && it.y < room.y + room.h);
   if (items.length === 0) {
     ml.push("しかし変化する道具がなかった。");
@@ -4400,7 +4421,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "rot_trap": {
       ml.push(`${trap.name}が発動！`);
       /* 踏んだアイテム自体が食料なら腐らせる（既に腐っていればヤバイに） */
-      if (item && item.type === "food" && !item.yabai && !item.iceCream) {
+      if (item && item.type === "food" && isItemProtected(item)) {
+        ml.push(`${item.name}は加護の力で腐敗から守られた！`);
+      } else if (item && item.type === "food" && !item.yabai && !item.iceCream) {
         const _itOrigName = item.name;
         const _itResult = rotFood(item);
         if (_itResult === "yabai") ml.push(`${_itOrigName}がヤバイことになった！`);
@@ -4439,7 +4462,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         }
       }
       if (p && p.x === tx && p.y === ty && p.inventory) {
-        const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai && !i.iceCream);
+        const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai && !i.iceCream && !isItemProtected(i));
         if (_rAllFoods.length > 0) {
           const _rTarget = _rAllFoods[rng(0, _rAllFoods.length - 1)];
           const _rOrigName = _rTarget.name;
@@ -6488,6 +6511,10 @@ export function burnFoodItem(item, ml) {
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null, blessed = false) {
   const _dn = dnFn ? dnFn(item) : resolveItemName(item);
+  if (isItemProtected(item)) {
+    ml.push(`${_dn}は加護の力で守られた！`);
+    return;
+  }
   if (item.iceCream && (eff === "water" || eff === "fire")) {
     ml.push(`${_dn}が${eff === "water" ? "水" : "炎"}の影響で溶けて消滅した！`);
     return "burn";
@@ -6725,6 +6752,8 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
   const it = itemAt(dg, cx, cy);
   if (!it) {
     if (!monsterAt(dg, cx, cy) && !(p && p.x === cx && p.y === cy)) ml.push("着弾点にアイテムがなかった…");
+  } else if (isItemProtected(it)) {
+    ml.push(`${resolveItemName(it, dnFn)}は加護の力で水から守られた！`);
   } else if (it.iceCream) {
     removeFloorItem(dg, it);
     chargeShopItem(it, dg, ml, p);
@@ -7616,6 +7645,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         /* アイテム破壊（巻物・薬・食料・壺） */
         for (const it of [...dg.items.filter(i => i.x === ax && i.y === ay)]) {
           if (!dg.items.includes(it)) continue;
+          if (isItemProtected(it)) { ml.push(`${resolveItemName(it)}は加護の力で爆発から守られた！`); continue; }
           if (it.shopPrice) chargeShopItem(it, dg, ml, p);
           if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が燃えてなくなった！`); }
           else if (it.type === "potion") fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, null, null);
@@ -9895,7 +9925,7 @@ export function applyGedoBook(player, { blessed = false, cursed = false } = {}, 
   return { requested, count: entries.length, entries, target: null, blessed, cursed };
 }
 
-export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
+export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&!isItemProtected(i)&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
 export function hasFireResist(p) {
@@ -10009,6 +10039,10 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
   const idx = Math.floor(Math.random() * p.inventory.length);
   const victim = p.inventory[idx];
   const _dn = resolveItemName(victim, nameFn);
+  if (isItemProtected(victim)) {
+    if (ml) ml.push(`水を浴びたが「${_dn}」は加護の力で守られた！`);
+    return false;
+  }
   const _safe = () => {
     if (ml) ml.push(`水を浴びて「${_dn}」は無事だった。`);
     return false;
@@ -10336,10 +10370,16 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
   if (p.inventory.length === 0) return;
   if (isFireContext ? hasFireResist(p) : hasLightningResist(p)) return;
   const dn = (it) => resolveItemName(it, nameFn);
-  const _iceChunkStacks = isFireContext ? p.inventory.filter((item) => item.iceChunk && (Number(item.count) || 0) > 0) : [];
+  const _iceChunkStacks = isFireContext ? p.inventory.filter((item) => item.iceChunk && !isItemProtected(item) && (Number(item.count) || 0) > 0) : [];
   const victim = _iceChunkStacks.length > 0
     ? _iceChunkStacks[Math.floor(Math.random() * _iceChunkStacks.length)]
     : p.inventory[Math.floor(Math.random() * p.inventory.length)];
+  if (isItemProtected(victim)) {
+    ml.push(isFireContext
+      ? `所持していた「${dn(victim)}」は加護の力で炎から守られた！`
+      : `所持していた「${dn(victim)}」は加護の力で雷から守られた！`);
+    return;
+  }
   const idx = p.inventory.indexOf(victim);
   const removeVictim = () => { p.inventory = p.inventory.filter((_, i) => i !== idx); };
   if (isFireContext && victim.iceChunk) {

@@ -14,7 +14,7 @@ import {
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, makeChangeBoxItem, makeIceChunk, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
-  setWandBreakEffectHandler, addPitfallBagEntry, reducePotCapacity, releaseConfinedMonstersFromPot,
+  setWandBreakEffectHandler, addPitfallBagEntry, reducePotCapacity, releaseConfinedMonstersFromPot, isItemProtected,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
@@ -834,6 +834,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
+        if (isItemProtected(target)) {
+          ml.push(`${_dname_item(target)}は加護の力で雷撃から守られた！`);
+          break;
+        }
         if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml, p);
@@ -997,6 +1001,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
+        if (isItemProtected(target)) {
+          ml.push(`${_dname_item(target)}は加護の力で崩れずに守られた！`);
+          break;
+        }
         if (target.type === "wand") {
           destroyFloorWand(dg, target, p, ml, luFn, `軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`,
             { killerMon, sourceIsPlayer, breaker, fireTrapFn, nameFn, bigboxNameFn });
@@ -1189,6 +1197,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`穴掘りの魔法弾が自分に命中！${dmg}ダメージ！`);
       }
       if (kind === "item") {
+        if (isItemProtected(target)) {
+          ml.push(`${_dname_item(target)}は加護の力で崩れずに守られた！`);
+          break;
+        }
         if (target.type === "wand") {
           destroyFloorWand(dg, target, p, ml, luFn, `${target.name}は破壊された！`,
             { killerMon, sourceIsPlayer, breaker, fireTrapFn, nameFn, bigboxNameFn });
@@ -1566,6 +1578,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         if (_bwCursed) {
           // 呪われた祝福の杖→落ちてるアイテムを呪う
+          if (isItemProtected(target)) {
+            ml.push(`${_dname_item(target)}は加護の力で呪いから守られた！`);
+            break;
+          }
           if (target.type === "pot") {
             if (!reducePotCapacity(target, 1, dg, p, ml, nameFn).broken) {
               ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-1 → ${target.capacity})【呪】`);
@@ -1614,7 +1630,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた祝福の杖→所持品を1つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _t = pick(_inv);
-          if (!changeInventoryPotCapacity(_t, -1, p, dg, ml, nameFn)) {
+          if (isItemProtected(_t)) {
+            ml.push(`${resolveItemName(_t, nameFn)}は加護の力で呪いから守られた！`);
+          } else if (!changeInventoryPotCapacity(_t, -1, p, dg, ml, nameFn)) {
             const _tName = resolveItemName(_t, nameFn);
             setPlayerItemProperties(p, _t, { cursed: true, blessed: false, bcKnown: true });
             ml.push(`${_tName}が呪われた！【呪】`);
@@ -1656,6 +1674,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             setPlayerItemProperties(p, target, { blessed: true, cursed: false, bcKnown: true });
             ml.push(`${_dname_item(target)}が祝福された！【呪→祝】`);
           }
+          break;
+        }
+        if (!_cwCursed && isItemProtected(target)) {
+          ml.push(`${_dname_item(target)}は加護の力で呪いから守られた！`);
           break;
         }
         if (target.type === "pot") {
@@ -1708,6 +1730,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _count = _cwBlessed ? 2 : 1;
           const _pool = shuffle([..._inv]).slice(0, _count);
           for (const _t of _pool) {
+            if (isItemProtected(_t)) {
+              ml.push(`${resolveItemName(_t, nameFn)}は加護の力で呪いから守られた！`);
+              continue;
+            }
             if (!changeInventoryPotCapacity(_t, -1, p, dg, ml, nameFn)) {
               const _tName = resolveItemName(_t, nameFn);
               setPlayerItemProperties(p, _t, { cursed: true, blessed: false, bcKnown: true });
@@ -1924,6 +1950,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
+        if (isItemProtected(target)) {
+          ml.push(`${_dname_item(target)}は加護の力で炎から守られた！`);
+          break;
+        }
         if (target.type === "potion") {
           const _potionName = _dname_item(target);
           const _px = target.x, _py = target.y;
@@ -1972,6 +2002,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _iwBlessed = blMult > 1, _iwCursed = blMult < 1;
       if (kind === "item") {
         if (target?.type === "potion") {
+          if (isItemProtected(target)) {
+            ml.push(`${resolveItemName(target, nameFn)}は加護の力で凍結から守られた！`);
+            break;
+          }
           const _potionName = resolveItemName(target, nameFn);
           const _px = target.x, _py = target.y;
           removeFloorItem(dg, target);
@@ -2085,6 +2119,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
+        if (isItemProtected(target)) {
+          ml.push(`${_dname_item(target)}は加護の力で雷撃から守られた！`);
+          break;
+        }
         if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml, p);

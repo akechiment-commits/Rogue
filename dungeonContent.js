@@ -103,7 +103,7 @@ const ADVANCED_TRAP_MID_BAN = new Set(["explode", "time_bomb"]);
 
 /** 上級の大箱は3段階で解禁する。 */
 const ADVANCED_BB_EARLY = new Set(["synthesis", "satiety", "refill", "identify"]);
-const ADVANCED_BB_MID = new Set(["change", "enhance", "scatter", "split", "bless"]);
+const ADVANCED_BB_MID = new Set(["change", "enhance", "scatter", "split", "bless", "protect"]);
 
 /** 中級で出さない道具。上級で初めて見る系統。 */
 const INTERMEDIATE_LOOT_BAN = new Set([
