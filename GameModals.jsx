@@ -8,7 +8,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { DESKTOP_VW_OPTIONS } from "./browserPreferences.js";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
-import { calcShopBuyPrice, makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, KATANA_T, MURAMASA_T, SILVER_AXE_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, clearShopItemTags, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
+import { calcShopBuyPrice, makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, isPreservationPot, canShowPotTakeAction, KATANA_T, MURAMASA_T, SILVER_AXE_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, clearShopItemTags, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
 import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T, releaseConfinedMonstersFromPot } from "./items.js";
 import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
@@ -3595,7 +3595,7 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 }
 
 /* ===== Pot Put Modal ===== */
-export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutItem, doPutFloorItem, onCancel, iLabel, dname, mobile }) {
+export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, setPutPage, setPutMenuSel, doPutItem, doPutFloorItem, doTakeFromPot, onCancel, iLabel, dname, mobile }) {
   if (!mode) return null;
   if (mode.floorItem) {
     const floorItem = mode.floorItem;
@@ -3647,22 +3647,29 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
   const pot = mode.floorPot || p.inventory[mode.potIdx];
   if (!pot) return null;
   const _cancel = onCancel || (() => setMode(null));
-  const _floorPotItems = listFloorInventoryEntries(gs?.dungeon, p.x, p.y).items
+  const _isTakeMode = mode.action === "take";
+  const _floorPotItems = _isTakeMode ? [] : listFloorInventoryEntries(gs?.dungeon, p.x, p.y).items
     .filter(isPotStorableItem)
     .map((it) => ({ it, i: null, floorItem: it }));
-  const pItems = [
-    ...p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx),
-    ..._floorPotItems,
-  ];
+  const pItems = _isTakeMode
+    ? (pot.contents || []).map((it, contentIdx) => ({ it, contentIdx }))
+    : [
+        ...p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx),
+        ..._floorPotItems,
+      ];
   const _psp = 10;
   const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
-  const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
+  const _curPg = Math.min(putPage, _tpp - 1);
+  const _pgp = pItems.slice(_curPg * _psp, (_curPg + 1) * _psp);
   const _potKey = getIdentKey(pot);
   const _potKnown = !!(gs?.allBcKnown || pot.fullIdent || (_potKey && gs?.ident?.has(_potKey)));
   const isCancelSel = putMenuSel >= _pgp.length;
   const _floorPutTarget = mode.floorPot
     ? { pot, floorPot: mode.floorPot, closeAfterPut: false }
     : { pot, potIdx: mode.potIdx, closeAfterPut: false };
+  const _baseModeTarget = mode.floorPot ? { floorPot: mode.floorPot } : { potIdx: mode.potIdx };
+  const _canSwitchToTake = !_isTakeMode && isPreservationPot(pot) && _potKnown && (pot.contents?.length || 0) > 0 && pot.shopPrice == null && pot._shopId == null;
+  const _canSwitchToPut = _isTakeMode && potOccupancyCount(pot) < pot.capacity && pot.shopPrice == null && pot._shopId == null;
   return (
     <div
       style={{
@@ -3675,37 +3682,54 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
       }}
     >
       {" "}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
         <span style={{ color: "#fc6", fontSize: 13, fontWeight: "bold" }}>
           {dname(pot)} ({potOccupancyCount(pot)}/{pot.capacity})
         </span>
-        <button onClick={_cancel}
-          style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {_canSwitchToTake && (
+            <button onClick={() => { setMode({ ..._baseModeTarget, action: "take" }); setPutPage?.(0); setPutMenuSel?.(0); }}
+              style={{ background: "#1a3028", color: "#8fe8c0", border: "1px solid #3a7a60", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 12 }}>出す</button>
+          )}
+          {_canSwitchToPut && (
+            <button onClick={() => { setMode(_baseModeTarget); setPutPage?.(0); setPutMenuSel?.(0); }}
+              style={{ background: "#1a2838", color: "#8cf", border: "1px solid #3a5a7a", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 12 }}>入れる</button>
+          )}
+          <button onClick={_cancel}
+            style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        </div>
       </div>{" "}
-      {pot.contents?.length > 0 && (
+      {!_isTakeMode && pot.contents?.length > 0 && (
         <div style={{ color: "#a86", fontSize: 12, marginBottom: 6, padding: "4px 6px", background: "#1a1a08", borderRadius: 3, border: "1px solid #3a3a1a" }}>
           中身: {pot.contents.map((c) => dname(c)).join(", ")}
         </div>
       )}{" "}
-      <div style={{ color: "#ca8", fontSize: 13, marginBottom: 6 }}>入れるアイテムを選んでください</div>{" "}
+      <div style={{ color: "#ca8", fontSize: 13, marginBottom: 6 }}>{_isTakeMode ? "取り出すアイテムを選んでください" : "入れるアイテムを選んでください"}</div>{" "}
       {pItems.length === 0 ? (
-        <div style={{ color: "#666", fontSize: 13 }}>入れるアイテムがない。</div>
+        <div style={{ color: "#666", fontSize: 13 }}>{_isTakeMode ? "中身が空だ。" : "入れるアイテムがない。"}</div>
       ) : (
         <div>
           {_tpp > 1 && (
             <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
               <span>←→でページ切替</span>
-              <span style={{ color: "#ccc" }}>{putPage + 1}/{_tpp}ページ</span>
-              <span>({putPage * _psp + 1}〜{Math.min((putPage + 1) * _psp, pItems.length)}件)</span>
+              <span style={{ color: "#ccc" }}>{_curPg + 1}/{_tpp}ページ</span>
+              <span>({_curPg * _psp + 1}〜{Math.min((_curPg + 1) * _psp, pItems.length)}件)</span>
             </div>
           )}
-          {_pgp.map(({ it: it2, i: i2, floorItem: _floorItem }, vi) => {
-            const isPot = it2.type === "pot";
+          {_pgp.map((row, vi) => {
+            const it2 = row.it;
+            const i2 = row.i;
+            const _floorItem = row.floorItem;
+            const isPot = !_isTakeMode && it2.type === "pot";
             const isSel = vi === putMenuSel;
             const isDisabled = isPot;
-            const isEff = _potKnown && isPotEffective(pot.potEffect, it2);
+            const isEff = !_isTakeMode && _potKnown && isPotEffective(pot.potEffect, it2);
             return (
-              <div key={_floorItem ? `floor-${_floorItem.id ?? vi}` : i2} onClick={() => {
+              <div key={_isTakeMode ? `take-${row.contentIdx}` : _floorItem ? `floor-${_floorItem.id ?? vi}` : i2} onClick={() => {
+                if (_isTakeMode) {
+                  doTakeFromPot?.(row.contentIdx);
+                  return;
+                }
                 if (isDisabled) return;
                 if (_floorItem) doPutFloorItem(_floorItem, _floorPutTarget);
                 else doPutItem(i2);
@@ -3720,7 +3744,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
                   opacity: isDisabled ? 0.5 : 1,
                 }}
               >
-                {_floorItem ? `【足元】${iLabel(it2)}` : iLabel(it2)}{isDisabled && " (入れられない)"}
+                {_isTakeMode ? iLabel(it2) : `${_floorItem ? `【足元】${iLabel(it2)}` : iLabel(it2)}${isDisabled ? " (入れられない)" : ""}`}
               </div>
             );
           })}
@@ -4022,7 +4046,7 @@ export function InventoryModal({
   setShowInv, setDropMode, setSelIdx, setShowDesc, setInvPage, setInvMenuSel,
   setNicknameMode, setNicknameInput,
   sortInventory, canUse, useLabel, iLabel,
-  doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doSwapItem, doThrow,
+  doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doOpenTakePot, doBreakPot, doDropItem, doSwapItem, doThrow,
   containerRef, penMergeMode,
   doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorAltar, doFloorItemAction, doFloorOpenPutMode, doFloorItemOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
@@ -4091,6 +4115,9 @@ export function InventoryModal({
     }
     if (entry.type === "pot") {
       a.push({ label: "入れる", fn: () => doFloorOpenPutMode?.(entry) });
+      if (canShowPotTakeAction(entry, gs?.ident, gs?.allBcKnown)) {
+        a.push({ label: "出す", fn: () => doOpenTakePot?.({ floorPot: entry }) });
+      }
     } else if (entry.type === "marker") {
       a.push({ label: "書く", fn: () => doFloorPen?.(entry) });
     } else if (canUse(entry)) {
@@ -4267,6 +4294,7 @@ export function InventoryModal({
           );
           const acts = [];
           if (canUse(it)) acts.push({ label: useLabel(it), fn: () => { doUseItem(i); setInvMenuSel(null); } });
+          if (canShowPotTakeAction(it, gs?.ident, gs?.allBcKnown)) acts.push({ label: "出す", fn: () => { doOpenTakePot?.({ potIdx: i }); setInvMenuSel(null); } });
           if (it.type === "spellbook") acts.push({ label: "読む", fn: () => { doReadSpellbook(i); setInvMenuSel(null); } });
           if (it.type === "arrow") acts.push({ label: "射る", fn: () => { doShoot(i); setInvMenuSel(null); } });
           if (it.type === "wand") acts.push({ label: "振る", fn: () => { doWaveWand(i); setInvMenuSel(null); } });

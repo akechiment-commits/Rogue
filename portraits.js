@@ -159,6 +159,7 @@ export function msgToActionKey(msg, recentMsgs = []) {
     /を割った！/.test(msg) && /壺/.test(msg) ||
     /壺に.+を(?:入れ|投じ)/.test(msg) ||
     /を.+壺に(?:入れ|投じ)/.test(msg) ||
+    /壺から.+を取り出/.test(msg) ||
     /加熱の壺で/.test(msg)
   ) {
     return "act_pot";

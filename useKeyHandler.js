@@ -14,7 +14,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, formatSoldItemMessage, bigboxSellBaseValue, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice,
-  extractPotContents, scatterPotContents, reducePotCapacity, isPotStorableItem, getPotInputTargets,
+  extractPotContents, scatterPotContents, reducePotCapacity, isPotStorableItem, getPotInputTargets, canShowPotTakeAction,
   declareFloorExitTheft, releaseConfinedMonstersFromPot,
 } from "./items.js";
 import { prepareLastFloor } from "./dungeon.js";
@@ -601,6 +601,38 @@ export function useKeyHandler({
         }
         if (!sr.current) return;
         const inv4 = sr.current.player.inventory;
+        if (putMode.action === "take") {
+          const pot4 = putMode.floorPot || inv4[putMode.potIdx];
+          const takeItems4 = pot4?.contents || [];
+          const _ps4 = 10;
+          const _tp4 = Math.max(1, Math.ceil(takeItems4.length / _ps4));
+          const _curPg4 = Math.min(putPage, _tp4 - 1);
+          const _pg4 = takeItems4.slice(_curPg4 * _ps4, (_curPg4 + 1) * _ps4);
+          const _plen4 = _pg4.length;
+          const _selCount4 = _plen4 + 1; /* 末尾が「やめる」 */
+          const isUp4 = isKeyUp(e);
+          const isDown4 = isKeyDown(e);
+          const isLeft4 = isKeyLeft(e);
+          const isRight4 = isKeyRight(e);
+          if ((isUp4 || isDown4) && _selCount4 > 0) {
+            setPutMenuSel((s) => (s + (isDown4 ? 1 : -1) + _selCount4) % _selCount4);
+            return;
+          }
+          if ((isLeft4 || isRight4) && _tp4 > 1) {
+            setPutPage((p) => (p + (isRight4 ? 1 : -1) + _tp4) % _tp4);
+            setPutMenuSel(0);
+            return;
+          }
+          if (k === "enter" || k === "z") {
+            const _localSel = Math.min(putMenuSel, _selCount4 - 1);
+            if (_localSel >= _plen4) {
+              invActRef.current?.cancelPut?.();
+              return;
+            }
+            invActRef.current?.takeFromPot?.(_curPg4 * _ps4 + _localSel);
+          }
+          return;
+        }
         const _floorPutTargets = putMode.floorItem
           ? getPotInputTargets(sr.current.player, sr.current.dungeon)
           : null;
@@ -1569,6 +1601,11 @@ export function useKeyHandler({
               label: useLabel(it),
               fn: () => invActRef.current?.use?.(ai),
             });
+          if (canShowPotTakeAction(it, gs?.ident, gs?.allBcKnown))
+            a.push({
+              label: "出す",
+              fn: () => invActRef.current?.openTakePot?.({ potIdx: ai }),
+            });
           if (it.type === "spellbook")
             a.push({ label: "読む", fn: () => invActRef.current?.readSpellbook?.(ai) });
           if (it.type === "arrow")
@@ -1671,6 +1708,9 @@ export function useKeyHandler({
           };
           if (entry.type === "pot") {
             acts2.push({ label: "入れる", fn: () => invActRef.current?.floorOpenPutMode?.(entry) });
+            if (canShowPotTakeAction(entry, gs?.ident, gs?.allBcKnown)) {
+              acts2.push({ label: "出す", fn: () => invActRef.current?.floorOpenTakeMode?.(entry) });
+            }
           } else if (entry.type === "marker") {
             acts2.push({ label: "書く", fn: () => invActRef.current?.floorPen?.(entry) });
           } else if (canUse(entry)) {

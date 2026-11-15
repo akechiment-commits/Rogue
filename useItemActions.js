@@ -17,7 +17,7 @@ import {
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect, applyFireSpellBlast,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone, absorbProjectileIntoMonster,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
-  imprisonPotRemainingCapacity, potOccupancyCount,
+  imprisonPotRemainingCapacity, potOccupancyCount, isPreservationPot,
   canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
@@ -3360,6 +3360,132 @@ export function useItemActions({
     },
     [putMode, endTurn, setWishMode, lu, chgFloor, onReturnToHub],
   );
+  const doOpenTakePot = useCallback(
+    (target = {}) => {
+      if (!sr.current) return;
+      const { player: p, dungeon: dg } = sr.current;
+      if (cannotActWithItems(p)) return;
+      const isFloorPot = !!target?.floorPot;
+      const pot = isFloorPot ? target.floorPot : p.inventory[target?.potIdx];
+      const potStillAvailable = isFloorPot
+        ? !!dg?.items?.includes(pot) && pot.x === p.x && pot.y === p.y
+        : !!pot && p.inventory.includes(pot);
+      if (!potStillAvailable || pot.type !== "pot") {
+        setMsgs((prev) => [...prev.slice(-80), "その壺はもう使える場所にない。"]);
+        return;
+      }
+      if (pot.shopPrice != null || pot._shopId != null) {
+        setMsgs((prev) => [...prev.slice(-80), "店の壺からは取り出せない！先に代金を払ってください。"]);
+        return;
+      }
+      if (!isPreservationPot(pot)) {
+        setMsgs((prev) => [...prev.slice(-80), `${dnameRef(pot)}からは中身を取り出せない！`]);
+        return;
+      }
+      if (!Array.isArray(pot.contents) || pot.contents.length === 0) {
+        setMsgs((prev) => [...prev.slice(-80), `${dnameRef(pot)}は空だ。`]);
+        return;
+      }
+      const potKey = getIdentKey(pot);
+      const wasUnknown = !!(potKey && sr.current.ident && !sr.current.ident.has(potKey));
+      const fakeName = wasUnknown ? dnameRef(pot) : null;
+      if (wasUnknown) {
+        sr.current.ident.add(potKey);
+        trackItem(pot);
+      }
+      const resolvedPotName = dnameRef(pot);
+      const openMsgs = [];
+      if (wasUnknown && fakeName && fakeName !== resolvedPotName) {
+        openMsgs.push(`${fakeName}は${resolvedPotName}だった！`);
+      }
+      openMsgs.push(`${resolvedPotName}から取り出すアイテムを選んでください...(${potOccupancyCount(pot)}/${pot.capacity})`);
+      setMsgs((prev) => [...prev.slice(-80), ...openMsgs]);
+      setPutMode(isFloorPot ? { action: "take", floorPot: pot } : { action: "take", potIdx: p.inventory.indexOf(pot) });
+      setPutMenuSel(0);
+      setPutPage(0);
+      setShowInv(false);
+      setSelIdx(null);
+      setShowDesc(null);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+    },
+    [],
+  );
+  const doTakeFromPot = useCallback(
+    (contentIdx, putModeOverride = null) => {
+      const activeMode = putModeOverride || putMode;
+      if (!sr.current || !activeMode || activeMode.action !== "take") return;
+      const { player: p } = sr.current;
+      if (cannotActWithItems(p)) return;
+      const pot = activeMode.floorPot || p.inventory[activeMode.potIdx];
+      if (!pot || pot.type !== "pot") {
+        setPutMode(null);
+        return;
+      }
+      const potStillAvailable = () => activeMode.floorPot
+        ? !!sr.current?.dungeon?.items?.includes(pot) &&
+          pot.x === sr.current.player.x && pot.y === sr.current.player.y
+        : !!sr.current?.player?.inventory?.includes(pot);
+      if (!potStillAvailable()) {
+        setPutMode(null);
+        setMsgs((prev) => [...prev.slice(-80), "その壺はもう使える場所にない。"]);
+        return;
+      }
+      if (!isPreservationPot(pot)) {
+        setPutMode(null);
+        setMsgs((prev) => [...prev.slice(-80), `${dnameRef(pot)}からは中身を取り出せない！`]);
+        return;
+      }
+      if (pot.shopPrice != null || pot._shopId != null) {
+        setPutMode(null);
+        setMsgs((prev) => [...prev.slice(-80), "店の壺からは取り出せない！先に代金を払ってください。"]);
+        return;
+      }
+      if (!Array.isArray(pot.contents) || contentIdx < 0 || contentIdx >= pot.contents.length) return;
+      if (p.inventory.length >= (p.maxInventory || 30)) {
+        setMsgs((prev) => [...prev.slice(-80), "持ち物がいっぱいで取り出せない！"]);
+        return;
+      }
+      const potKey = getIdentKey(pot);
+      const wasUnknown = !!(potKey && sr.current.ident && !sr.current.ident.has(potKey));
+      const fakeName = wasUnknown ? dnameRef(pot) : null;
+      if (wasUnknown) {
+        sr.current.ident.add(potKey);
+        trackItem(pot);
+      }
+      const [takenItem] = pot.contents.splice(contentIdx, 1);
+      p.inventory.push(takenItem);
+      const ml = installPlayerHpMessageHook([], p);
+      if (wasUnknown && fakeName && fakeName !== dnameRef(pot)) {
+        ml.push(`${fakeName}は${dnameRef(pot)}だった！`);
+      }
+      ml.push(`${dnameRef(pot)}から${dnameRef(takenItem)}を取り出した。`);
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      const nextPotIdx = activeMode.floorPot ? null : p.inventory.indexOf(pot);
+      const canContinue = potStillAvailable() &&
+        isPreservationPot(pot) &&
+        (activeMode.floorPot || nextPotIdx >= 0) &&
+        (pot.contents?.length || 0) > 0 &&
+        !activeMode.closeAfterTake;
+      if (canContinue) {
+        const totalPages = Math.max(1, Math.ceil(pot.contents.length / 10));
+        const nextPage = Math.min(Math.floor(contentIdx / 10), totalPages - 1);
+        const nextPageLen = Math.min(10, pot.contents.length - nextPage * 10);
+        const nextSel = Math.min(contentIdx % 10, Math.max(0, nextPageLen - 1));
+        setPutMode(activeMode.floorPot ? { action: "take", floorPot: activeMode.floorPot } : { action: "take", potIdx: nextPotIdx });
+        setPutPage(nextPage);
+        setPutMenuSel(nextSel);
+      } else {
+        setPutMode(null);
+        setPutPage(0);
+        setPutMenuSel(0);
+      }
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+    },
+    [putMode, endTurn],
+  );
   const doBreakPot = useCallback(
     (idx) => {
       if (!sr.current) return;
@@ -5188,7 +5314,7 @@ export function useItemActions({
   }, [throwMode, execDirection]);
   return {
     doUseItem, doHypnotizedAction, doDropItem, doSwapItem, doThrow, doShoot, doWaveWand, doBreakWand,
-    doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
+    doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doOpenTakePot, doTakeFromPot, doBreakPot,
     execDirection,
   };
 }

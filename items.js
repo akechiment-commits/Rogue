@@ -950,7 +950,7 @@ export const POTS = [
   { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"D", weight:8,  sellPrice:600,  desc:"食料を入れるとチョコがけになる。食べるとHP35回復＋状態異常回復。",  tile:32 },
   { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"C", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると直接攻撃・矢ダメージ1.5倍(100ターン)。容量が残って割れると周囲を暗闇にする。",     tile:32 },
   { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとはちみつ漬けになる。食べると毎ターンHP+2自然回復(100ターン)。",   tile:32 },
-  { name:"保存の壺",           type:"pot", potEffect:"none",      capacity:5, rarity:"C", weight:4,  sellPrice:1500, desc:"アイテムを安全に保管できる。",         tile:32 },
+  { name:"保存の壺",           type:"pot", potEffect:"none",      capacity:5, rarity:"C", weight:4,  sellPrice:1500, desc:"アイテムを自由に出し入れして安全に保管できる。", tile:32 },
   { name:"強化の壺",           type:"pot", potEffect:"enhance",   capacity:2, rarity:"B", weight:2,  sellPrice:4000, desc:"装備品の性能が上がる。",               tile:32 },
   { name:"弱化の壺",           type:"pot", potEffect:"weaken",    capacity:3, rarity:"D", weight:8,  sellPrice:150,  desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
   { name:"カレーの壺",         type:"pot", potEffect:"curry",     capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとカレー味になる。食べると炎ダメージ半減(100ターン)。",       tile:32 },
@@ -1255,6 +1255,31 @@ export function canAcceptPotItem(pot) {
   return !!pot && pot.type === "pot" && pot.potEffect !== "imprison" &&
     pot.shopPrice == null && pot._shopId == null &&
     potOccupancyCount(pot) < (pot.capacity ?? 3);
+}
+
+/** 保存の壺かどうか。壺の中で唯一、通常操作で出し入れできる。 */
+export function isPreservationPot(pot) {
+  return !!pot && pot.type === "pot" && pot.potEffect === "none";
+}
+
+/** 保存の壺から通常操作でアイテムを取り出せる状態か。 */
+export function canTakeFromPot(pot) {
+  return isPreservationPot(pot) && Array.isArray(pot.contents) && pot.contents.length > 0 &&
+    pot.shopPrice == null && pot._shopId == null;
+}
+
+/**
+ * UIに「出す」選択肢を表示するか。
+ * 中身があり、未払い商品・とじこめの壺でないとき、
+ * 識別済みなら保存の壺のみ、未識別なら種別を伏せるため全壺で表示する。
+ */
+export function canShowPotTakeAction(pot, ident = null, allBcKnown = false) {
+  if (!pot || pot.type !== "pot" || pot.potEffect === "imprison") return false;
+  if (pot.shopPrice != null || pot._shopId != null) return false;
+  if (!Array.isArray(pot.contents) || pot.contents.length === 0) return false;
+  const key = getIdentKey(pot);
+  const known = !!(allBcKnown || pot.fullIdent || (key && ident?.has(key)));
+  return known ? pot.potEffect === "none" : true;
 }
 
 /** 通常の壺へ入れられるアイテム（入れ子・キー品・店の商品を除く）。 */
