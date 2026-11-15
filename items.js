@@ -1270,16 +1270,10 @@ export function canTakeFromPot(pot) {
 
 /**
  * UIに「出す」選択肢を表示するか。
- * 中身があり、未払い商品・とじこめの壺でないとき、
- * 識別済みなら保存の壺のみ、未識別なら種別を伏せるため全壺で表示する。
+ * 識別・未識別にかかわらず、中身が入っている保存の壺（未払い店品を除く）のみ表示する。
  */
-export function canShowPotTakeAction(pot, ident = null, allBcKnown = false) {
-  if (!pot || pot.type !== "pot" || pot.potEffect === "imprison") return false;
-  if (pot.shopPrice != null || pot._shopId != null) return false;
-  if (!Array.isArray(pot.contents) || pot.contents.length === 0) return false;
-  const key = getIdentKey(pot);
-  const known = !!(allBcKnown || pot.fullIdent || (key && ident?.has(key)));
-  return known ? pot.potEffect === "none" : true;
+export function canShowPotTakeAction(pot) {
+  return canTakeFromPot(pot);
 }
 
 /** 通常の壺へ入れられるアイテム（入れ子・キー品・店の商品を除く）。 */

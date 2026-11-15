@@ -114,18 +114,20 @@ describe("保存の壺の純粋ルール", () => {
     expect(canTakeFromPot(shopPreserve)).toBe(false);
   });
 
-  it("未識別時は中身が入った壺全般に「出す」候補を表示してネタバレを防ぎ、識別後は保存の壺のみ表示する", () => {
+  it("未識別・識別済みを問わず、中身が入った保存の壺だけに「出す」候補を表示し、他の壺には表示しない", () => {
     const herb = { id: "herb", name: "回復薬", type: "potion", effect: "heal" };
     const preserve = { id: "p1", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: [herb] };
     const enhance = { id: "p2", name: "強化の壺", type: "pot", potEffect: "enhance", capacity: 2, contents: [herb] };
-    const emptyPreserve = { id: "p3", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: [] };
+    const greed = { id: "p3", name: "強欲な壺", type: "pot", potEffect: "greed", capacity: 4, contents: [herb] };
+    const emptyPreserve = { id: "p4", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: [] };
 
     const unknownIdent = new Set();
     expect(canShowPotTakeAction(preserve, unknownIdent, false)).toBe(true);
-    expect(canShowPotTakeAction(enhance, unknownIdent, false)).toBe(true);
+    expect(canShowPotTakeAction(enhance, unknownIdent, false)).toBe(false);
+    expect(canShowPotTakeAction(greed, unknownIdent, false)).toBe(false);
     expect(canShowPotTakeAction(emptyPreserve, unknownIdent, false)).toBe(false);
 
-    const knownIdent = new Set(["o:none", "o:enhance"]);
+    const knownIdent = new Set(["o:none", "o:enhance", "o:greed"]);
     expect(canShowPotTakeAction(preserve, knownIdent, false)).toBe(true);
     expect(canShowPotTakeAction(enhance, knownIdent, false)).toBe(false);
     expect(canShowPotTakeAction(enhance, new Set(), true)).toBe(false);
@@ -222,12 +224,12 @@ describe("保存の壺の出し入れアクション", () => {
 });
 
 describe("保存の壺のUI・キーボード（テンキー含む）・立ち絵", () => {
-  it("InventoryModal は識別済みの保存の壺と未識別の非空壺に「出す」を表示する", () => {
+  it("InventoryModal は未識別でも保存の壺（中身あり）にだけ「出す」を表示し、他の壺には表示しない", () => {
     const herb = { id: "herb", name: "回復薬", type: "potion", effect: "heal" };
     const preserve = { id: "p1", name: "保存の壺", type: "pot", potEffect: "none", capacity: 6, contents: [herb] };
     const greed = { id: "p2", name: "強欲な壺", type: "pot", potEffect: "greed", capacity: 4, contents: [herb] };
     const player = makePlayer({ inventory: [preserve, greed] });
-    const gs = { player, dungeon: makeEmptyDg(), ident: new Set(["o:none", "o:greed"]), fakeNames: {}, nicknames: {} };
+    const gs = { player, dungeon: makeEmptyDg(), ident: new Set(), fakeNames: { "o:none": "縞模様の壺", "o:greed": "赤い壺" }, nicknames: {} };
     const doOpenTakePot = vi.fn();
 
     const treePreserve = InventoryModal({
