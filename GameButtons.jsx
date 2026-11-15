@@ -8,10 +8,12 @@ const REPEAT_INTERVAL = 110;
 export function MobileBtn({ label, sub, onClick, w, h, fs, color, repeat = false, style: s = {} }) {
   const timers = useRef({ delay: null, interval: null });
   const activePointer = useRef(null);
+  const lastPress = useRef({ type: null, endedAt: 0 });
   const cbRef  = useRef(onClick);
   cbRef.current = onClick;
   const stop = useCallback((e) => {
     if (e && e.pointerId !== activePointer.current) return;
+    if (activePointer.current !== null) lastPress.current.endedAt = performance.now();
     clearTimeout(timers.current.delay);
     clearInterval(timers.current.interval);
     timers.current.delay = timers.current.interval = null;
@@ -23,6 +25,10 @@ export function MobileBtn({ label, sub, onClick, w, h, fs, color, repeat = false
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
     if (activePointer.current !== null) return;
+    /* タッチ直後に届く別種ポインタ（互換マウス等）による二重発火を無視する */
+    if (e.pointerType && lastPress.current.type && e.pointerType !== lastPress.current.type
+      && performance.now() - lastPress.current.endedAt < 300) return;
+    if (e.pointerType) lastPress.current.type = e.pointerType;
     activePointer.current = e.pointerId;
     cbRef.current();
     if (!repeat) return;
@@ -62,9 +68,10 @@ export function AB({ label, sub, onClick, color = "#8f8", small }) {
 }
 const TBS = { background: "#2a1a1a", border: "1px solid #5a3a3a", color: "#f88" };
 const DBS = { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" };
-export function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThrowMode, setDashMode, setMsgs }) {
+export function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThrowMode, setDashMode, setMsgs, onFaceCycle, faceCycle }) {
   const ds = throwMode ? TBS : dashMode ? DBS : {};
   const fs = facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds;
+  const lastCenterTap = useRef(0);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
       <div style={{ display: "flex", gap: 2 }}>
@@ -79,7 +86,15 @@ export function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, 
           fs={facingMode || throwMode || dashMode ? 18 : 13}
           repeat={false}
           onClick={() => {
-            if (facingMode) { setFacingMode(false); }
+            /* 二重発火で、押した直後にそのまま解除されるのを防ぐ */
+            const now = performance.now();
+            if (now - lastCenterTap.current < 200) return;
+            lastCenterTap.current = now;
+            if (facingMode) {
+              /* 周りに何かある間は、押すたびに順番に向き直ってモードを維持する */
+              if (onFaceCycle && onFaceCycle()) return;
+              setFacingMode(false);
+            }
             else if (throwMode) { setThrowMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
             else if (dashMode) { setDashMode(false); }
             else { setFacingMode(f => !f); }

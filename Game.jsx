@@ -1,4 +1,5 @@
 import { isStatusImmune, statusResultMessage } from "./statusDuration.js";
+import { cycleFaceAdjacentSomething, listAdjacentSomethingDirs } from "./faceAdjacent.js";
 import { monHasFlameMantle, monHasElementWeakness } from "./monTraits.js";
 import { monsterOccupiesCell, monsterBodyCells, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { releaseInvalidCapture } from "./captureRules.js";
@@ -7373,6 +7374,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             setThrowMode={setThrowMode}
             setDashMode={setDashMode}
             setMsgs={setMsgs}
+            faceCycle={!!(facingMode && gs?.player && gs?.dungeon && listAdjacentSomethingDirs(gs.player, gs.dungeon).length > 0)}
+            onFaceCycle={() => {
+              const s = sr.current;
+              if (s?.player && s?.dungeon && cycleFaceAdjacentSomething(s.player, s.dungeon)) {
+                setGs({ ...s });
+                return true;
+              }
+              return false;
+            }}
           />{" "}
           {!throwMode ? (
             <div
