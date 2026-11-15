@@ -76,7 +76,7 @@ describe("水鉄砲・耐水", () => {
       monsterAI(shooter, dungeon, player, messages, { moveOnly: true });
       monsterAI(shooter, dungeon, player, messages, { attackOnly: true });
 
-      expect(player.hp, messages.join(" | ")).toBe(194);
+      expect(player.hp, messages.join(" | ")).toBe(192);
       expect(messages.some(message => message.includes("耐水"))).toBe(true);
       expect(player.soakedTurns || 0).toBe(0);
     } finally {

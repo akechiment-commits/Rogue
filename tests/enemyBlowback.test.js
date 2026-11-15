@@ -201,7 +201,7 @@ describe("敵の吹き飛ばしによる衝突撃破", () => {
       expect(mage.monLevel).toBe(2);
     } else {
       expect(dungeon.monsters).toContain(victim);
-      expect(victim.hp).toBe(11);
+      expect(victim.hp).toBe(7);
       expect(victim._stealthrowerHeldItem).toBe(stolen);
       expect(dungeon.items).toEqual([]);
       expect(mage.monLevel).toBe(1);

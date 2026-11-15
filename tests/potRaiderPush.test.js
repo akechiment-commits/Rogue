@@ -42,7 +42,7 @@ describe("ヤドカリ壺荒らしの押し込み", () => {
     expect(confined.baseKind).toBe("potRaider");
     expect(confined.monLevel).toBe(1);
     expect(confined.name).toBe("ヤドカリ壺荒らし");
-    expect(confined.hp).toBe(45);
+    expect(confined.hp).toBe(58);
     expect(messages.some((m) => m.includes("ヤドカリ壺荒らしを壺に押し込んだ"))).toBe(true);
     /* 押し込んだ個体はフロアに残らない */
     expect(dg.monsters.filter((m) => m !== mon)).toHaveLength(0);
@@ -62,8 +62,8 @@ describe("ヤドカリ壺荒らしの押し込み", () => {
     expect(confined.baseKind).toBe("potRaider");
     expect(confined.monLevel).toBe(3);
     expect(confined.name).toBe("ヤドカリ壺大将");
-    expect(confined.hp).toBe(140);
-    expect(confined.atk).toBe(40);
+    expect(confined.hp).toBe(115);
+    expect(confined.atk).toBe(108);
   });
 
   it("Lv2は直線3マスから大ヤドカリ壺荒らしを投げ込む", () => {
@@ -81,7 +81,7 @@ describe("ヤドカリ壺荒らしの押し込み", () => {
     expect(confined.baseKind).toBe("potRaider");
     expect(confined.monLevel).toBe(2);
     expect(confined.name).toBe("大ヤドカリ壺荒らし");
-    expect(confined.hp).toBe(85);
+    expect(confined.hp).toBe(86);
   });
 
   it("Lv2は直線5マスからは届かない", () => {

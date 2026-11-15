@@ -75,7 +75,7 @@ describe("眠れる獅子系", () => {
 
     monsterAI(lion, dungeon, player, messages, { attackOnly: true });
     expect(dungeon.pendingMeteors).toHaveLength(1);
-    expect(dungeon.pendingMeteors[0]).toMatchObject({ x: 4, y: 10, turnsLeft: 2, damage: 80 });
+    expect(dungeon.pendingMeteors[0]).toMatchObject({ x: 4, y: 10, turnsLeft: 2, damage: 152 });
     expect(lion.meteorImmune).toBe(true);
   });
 
@@ -92,7 +92,7 @@ describe("眠れる獅子系", () => {
     monsterAI(lion, dungeon, player, [], { attackOnly: true });
     expect(lion.aware).toBe(true);
     expect(dungeon.pendingMeteors).toHaveLength(1);
-    expect(dungeon.pendingMeteors[0]).toMatchObject({ x: 12, y: 12, turnsLeft: 2, damage: 80 });
+    expect(dungeon.pendingMeteors[0]).toMatchObject({ x: 12, y: 12, turnsLeft: 2, damage: 152 });
     expect(player.hp).toBe(player.maxHp);
   });
 

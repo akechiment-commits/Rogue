@@ -65,15 +65,15 @@ describe("上級ダンジョンの敵分布", () => {
 
   it("序盤の単純敵と能力敵を中盤以降にLv2で再登場させる", () => {
     for (const [kind, floor, stats] of [
-      ["rat", 10, [28, 22, 2, 28]],
-      ["bat", 10, [28, 15, 3, 25]],
-      ["centipede", 10, [32, 13, 16, 35]],
-      ["kobold", 13, [38, 19, 6, 35]],
-      ["goblin", 13, [44, 21, 6, 45]],
-      ["skeleton", 13, [46, 27, 4, 60]],
-      ["imp", 16, [36, 17, 4, 55]],
-      ["zombie", 16, [135, 36, 7, 100]],
-      ["wolf", 16, [34, 22, 2, 75]],
+      ["rat", 10, [28, 30, 1, 28]],
+      ["bat", 10, [34, 18, 8, 25]],
+      ["centipede", 10, [32, 18, 24, 35]],
+      ["kobold", 13, [38, 22, 12, 35]],
+      ["goblin", 13, [48, 26, 9, 45]],
+      ["skeleton", 13, [46, 38, 5, 60]],
+      ["imp", 16, [42, 22, 13, 55]],
+      ["zombie", 16, [98, 44, 1, 100]],
+      ["wolf", 16, [54, 36, 9, 75]],
     ]) {
       expect(advancedMonsterAllowed(kind, floor)).toBe(true);
       const base = MONS.find((monster) => monster.baseKind === kind);

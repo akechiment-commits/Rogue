@@ -75,7 +75,8 @@ describe("超上級ダンジョンの敵分布", () => {
     }
     for (const [, bands] of byKind) {
       bands.sort((a, b) => a.min - b.min);
-      expect(bands[0].level).toBe(1);
+      expect(bands[0].level).toBeGreaterThanOrEqual(1);
+      expect(bands[0].level).toBeLessThanOrEqual(2);
       for (let i = 1; i < bands.length; i++) {
         expect(bands[i].min - bands[i - 1].max).toBeGreaterThanOrEqual(4);
         expect(bands[i].level).toBeGreaterThan(bands[i - 1].level);
@@ -83,16 +84,16 @@ describe("超上級ダンジョンの敵分布", () => {
     }
   });
 
-  it("ドラゴンとデーモンの初登場はLv1", () => {
+  it("ドラゴンの初登場はLv1、後半登場のデーモンはLv2からLv3へ進む", () => {
     const dragon = MONS.find((monster) => monster.baseKind === "dragon");
     const daemon = MONS.find((monster) => monster.baseKind === "daemon");
     expect(legendMonsterSpawnLevel(dragon, 28)).toBe(1);
     expect(legendMonsterSpawnLevel(dragon, 38)).toBe(2);
     expect(legendMonsterSpawnLevel(dragon, 48)).toBe(3);
-    expect(legendMonsterSpawnLevel(daemon, 40)).toBe(1);
-    // デーモンはLv2帯が廃止され、40〜42階のLv1のみ出現する
+    expect(legendMonsterSpawnLevel(daemon, 40)).toBe(2);
     expect(legendMonsterAllowed("daemon", 42)).toBe(true);
-    expect(legendMonsterAllowed("daemon", 48)).toBe(false);
+    expect(legendMonsterAllowed("daemon", 48)).toBe(true);
+    expect(legendMonsterSpawnLevel(daemon, 48)).toBe(3);
   });
 
   it("眠れる獅子系はレベル帯の間を空けて自然出現する", () => {
