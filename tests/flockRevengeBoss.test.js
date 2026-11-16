@@ -139,6 +139,11 @@ describe("超上級B25Fボス：逆襲のフロック", () => {
       // 眠りも祝福扱い（12ターン／強眠）にならない
       applyWandEffect("sleep", "player", player, 1, 0, dungeon, player, messages, () => {}, () => {}, 1, null, 0, flock, null, false);
       expect(player.sleepTurns).toBe(6);
+
+      // 反射時（killerMon=null）でも spellPowerMultiplier=2 が維持され、雷ダメージが半減しない（20*2=40）
+      const flockHpBefore = flock.hp;
+      applyWandEffect("lightning", "monster", flock, 0, 0, dungeon, player, messages, () => {}, () => {}, 1, null, 0, null, null, false, player, null, 2);
+      expect(flock.hp).toBe(flockHpBefore - 40);
     } finally {
       rand.mockRestore();
     }

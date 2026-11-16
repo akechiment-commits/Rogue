@@ -1514,7 +1514,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx,
           killerMon = m, sourceIsPlayer = false, breaker = killerMon || m) =>
           applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
-            _wandBlMult, _wbItemNameFn, m.atk, killerMon, _wbBbNameFn, sourceIsPlayer, breaker, opts.fireTrapFn);
+            _wandBlMult, _wbItemNameFn, m.atk, killerMon, _wbBbNameFn, sourceIsPlayer, breaker, opts.fireTrapFn,
+            Math.max(1, Number(m.flockMagicPowerMultiplier) || 1));
         if (_we === "lightning_magic" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           const room = findRoom(dg.rooms, m.x, m.y);
           if (!room || findRoom(dg.rooms, pl.x, pl.y) !== room) return;

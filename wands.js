@@ -80,7 +80,7 @@ function statueTeleportDest(dg, ox, oy, p) {
  *   2. この関数の switch(eff) に case "effect名": { ... } を追加
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
-export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null) {
+export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null, spellPowerMultiplier = 1) {
   if (p) installPlayerHpReverseHook(p);
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   // 敵行動中は Game の罠処理へ渡し、階移動と予約された地雷の即時解決まで行う。
@@ -88,8 +88,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     ? fireTrapFn(trap, p, dg, ml)
     : fireTrapPlayer(trap, p, dg, ml, nameFn, luFn);
   const _outgoingDamage = amount => sourceIsPlayer ? amount : monScaleOutgoingDamage(killerMon, amount);
-  const _flockPowerMult = !sourceIsPlayer && Number.isFinite(killerMon?.flockMagicPowerMultiplier) && killerMon.flockMagicPowerMultiplier > 1
-    ? killerMon.flockMagicPowerMultiplier
+  const _flockPowerMult = !sourceIsPlayer
+    ? Math.max(
+        1,
+        Number.isFinite(spellPowerMultiplier) ? spellPowerMultiplier : 1,
+        Number.isFinite(killerMon?.flockMagicPowerMultiplier) ? killerMon.flockMagicPowerMultiplier : 1,
+      )
     : 1;
   const _magicDamage = (amount, victim = target) => _outgoingDamage(
     kind === "monster" && sourceIsPlayer
