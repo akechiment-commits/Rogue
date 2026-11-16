@@ -88,10 +88,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     ? fireTrapFn(trap, p, dg, ml)
     : fireTrapPlayer(trap, p, dg, ml, nameFn, luFn);
   const _outgoingDamage = amount => sourceIsPlayer ? amount : monScaleOutgoingDamage(killerMon, amount);
+  const _flockPowerMult = !sourceIsPlayer && Number.isFinite(killerMon?.flockMagicPowerMultiplier) && killerMon.flockMagicPowerMultiplier > 1
+    ? killerMon.flockMagicPowerMultiplier
+    : 1;
   const _magicDamage = (amount, victim = target) => _outgoingDamage(
     kind === "monster" && sourceIsPlayer
       ? multiplyMagicDamage(amount, p?.weapon, victim, dg)
-      : multiplyCursedMagicDamage(amount, victim, dg),
+      : multiplyCursedMagicDamage(Math.round(amount * _flockPowerMult), victim, dg),
   );
   const _teleportPlayer = (toX, toY) => {
     const _fromX = p.x, _fromY = p.y;
@@ -125,9 +128,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     _angerShopkeeper(mon);
   };
   const _hitYou = (bolt) => sourceIsPlayer ? `${bolt}が自分に命中！` : `${bolt}が命中！`;
+  const _killerIsFlockSpell = killerMon?.baseKind === "boss_flock" ||
+    killerMon?.baseKind === "boss_flock_revenge" ||
+    killerMon?.baseKind === "boss_flock_stalker";
   const _wandDeath = (label) => sourceIsPlayer
     ? `${label}の魔法により`
-    : `${killerMon?.name || "モンスター"}の${label}により`;
+    : `${killerMon?.name || "モンスター"}の${_killerIsFlockSpell ? label.replace(/の杖$/, "の魔法") : label}により`;
   if (kind === "trap") trackTrap(target);
   if (kind === "bigbox") trackBigbox(target);
   /* 石像：位置系は壊さず効果発動。穴掘り・軟化は敵なし破壊。それ以外は有害なら破壊 */

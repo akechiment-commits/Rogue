@@ -1506,7 +1506,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       },
       monsterWandFn: (m, dx, dy) => {
         const _we = resolveMonsterWandEffect(m);
-        const _wandBlessed = (m.monLevel || 1) >= 3 || !!m.flockEmpowered;
+        const _isFlockSpellCaster = m.baseKind === "boss_flock" || m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker";
+        const _wandBlessed = !_isFlockSpellCaster && (m.monLevel || 1) >= 3;
         const _wandBlMult = _wandBlessed ? 2 : 1;
         const _wbItemNameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
@@ -1624,8 +1625,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const _wandLabel = _we === "fire_wand" ? "炎" : "氷";
           const _wandColor = _we === "fire_wand" ? "#ff6622" : "#80ddff";
           _resolveMonsterWandBolt(m, dg, pl, ml, {
-            dx, dy, boltColor: _we, reflectColor: _wandColor, wandLabel: _wandLabel,
-            fireMsg: m.baseKind === "boss_flock"
+            dx, dy, boltColor: _we, reflectColor: _wandColor,
+            wandLabel: _isFlockSpellCaster ? `${_wandLabel}の魔法` : _wandLabel,
+            fireMsg: _isFlockSpellCaster
               ? null
               : `${m.name}が${_wandBlessed ? "祝福された" : ""}${_wandLabel}の杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
@@ -1679,7 +1681,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           };
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, range: 10, boltColor: "poison_wand", reflectColor: "#70d050", wandLabel: "毒の魔法",
-            fireMsg: m.baseKind === "boss_flock" ? null : `${m.name}が毒の魔法を唱えた！`,
+            fireMsg: _isFlockSpellCaster ? null : `${m.name}が毒の魔法を唱えた！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => _applyPoisonBolt(pl, "player", mlx),
             onMonsterHit: (mon, mlx) => _applyPoisonBolt(mon, "monster", mlx),
@@ -1689,8 +1691,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           });
         } else if (_we === "curse_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
-            dx, dy, boltColor: "curse_wand", reflectColor: "#9020b0", wandLabel: "呪い",
-            fireMsg: m.baseKind === "boss_flock"
+            dx, dy, boltColor: "curse_wand", reflectColor: "#9020b0",
+            wandLabel: _isFlockSpellCaster ? "呪いの魔法" : "呪い",
+            fireMsg: _isFlockSpellCaster
               ? null
               : `${m.name}が${_wandBlessed ? "祝福された" : ""}呪いの杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,

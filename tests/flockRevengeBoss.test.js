@@ -118,4 +118,29 @@ describe("超上級B25Fボス：逆襲のフロック", () => {
     monsterDrop(clone, dungeon, dropMessages, player);
     expect(dungeon.items.some((it) => it.name === "ボスの財宝")).toBe(true);
   });
+
+  it("フロック系の魔法は祝福された杖扱いにならず、杖を振ったログを出さず威力倍率だけ反映する", () => {
+    const gameSource = fs.readFileSync("Game.jsx", "utf8");
+    expect(gameSource).not.toContain("|| !!m.flockEmpowered");
+    expect(gameSource).toContain("const _isFlockSpellCaster =");
+
+    const { dungeon, flock, player } = makeRevengeScene({ flockX: 8, flockY: 8, playerX: 11, playerY: 8 });
+    const ally = { id: "ally", name: "通常敵", x: 10, y: 8, hp: 200, maxHp: 200, def: 0 };
+    dungeon.monsters.push(ally);
+    const messages = [];
+    const rand = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      // blMult=1（非祝福）でも flockMagicPowerMultiplier=2 により基礎15の2倍=30ダメージになり、移動封じは通常5ターン（祝福10ターンではない）
+      applyWandEffect("ice_wand", "monster", ally, 1, 0, dungeon, player, messages, () => {}, () => {}, 1, null, 0, flock, null, false);
+      expect(ally.hp).toBe(170);
+      expect(ally.immobileTurns).toBe(5);
+      expect(messages.some((msg) => msg.includes("杖を振った"))).toBe(false);
+
+      // 眠りも祝福扱い（12ターン／強眠）にならない
+      applyWandEffect("sleep", "player", player, 1, 0, dungeon, player, messages, () => {}, () => {}, 1, null, 0, flock, null, false);
+      expect(player.sleepTurns).toBe(6);
+    } finally {
+      rand.mockRestore();
+    }
+  });
 });
