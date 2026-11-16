@@ -389,7 +389,7 @@ describe("genDungeon", () => {
 
   it("水浸しと二翼には開始時のフロア名がある", () => {
     expect(FLOOR_TITLES.floodedFloor).toContain("水浸し");
-    expect(FLOOR_TITLES.twinWingFloor).toContain("二翼");
+    expect(FLOOR_TITLES.twinWingFloor).toBe("二翼の間だ！");
   });
 
   it("二翼フロアは中央壁の1本でつながり、道具は右翼に多い", () => {

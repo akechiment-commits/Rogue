@@ -70,7 +70,7 @@ export const FLOOR_TITLES = {
   ringCorridorFloor: "環状回廊の間だ！",
   caveFloor:         "洞窟の間だ！",
   floodedFloor:      "水浸しの間だ！細い桟橋と島を回り込め。",
-  twinWingFloor:     "二翼の間だ！片側に宝物、片側に階段がある。",
+  twinWingFloor:     "二翼の間だ！",
   bossFloor:         "ボスフロアだ！強大な敵が待ち受けている！",
   tutorialFloor:     "チュートリアルの間へようこそ！看板を読んで進もう。",
 };
