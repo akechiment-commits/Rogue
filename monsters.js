@@ -11596,7 +11596,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── シオン・ザ・ダークブレット：プレイヤーから距離2を保つ ── */
-    if (!_attackOnly && !_movementLocked && canSee && m.baseKind === "boss_darkbullet") {
+    if (!_attackOnly && !_movementLocked && canSee && m.baseKind === "boss_darkbullet" && !m.sealed) {
       const _dbDx = pl.x - m.x, _dbDy = pl.y - m.y;
       const _dbDist = Math.max(Math.abs(_dbDx), Math.abs(_dbDy));
 

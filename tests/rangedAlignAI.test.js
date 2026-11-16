@@ -86,6 +86,32 @@ describe("遠距離敵の移動", () => {
     expect(Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y))).toBe(3);
   });
 
+  it("封印されたシオンは距離維持・後退をせず接近して通常攻撃する", () => {
+    const m = {
+      name: "シオン・ザ・ダークブレット",
+      subtype: null,
+      baseKind: "boss_darkbullet",
+      x: 10, y: 8,
+      hp: 300, maxHp: 300, atk: 35, def: 23, exp: 1200,
+      speed: 1, baseSpeed: 1,
+      aware: true, lastPx: 10, lastPy: 5,
+      turnAccum: 0, turnAttacks: 0, monLevel: 1,
+      sealed: true, dir: { x: 0, y: 0 }, isBoss: true,
+    };
+    const pl = makePlayer({ x: 10, y: 5 });
+    const dg = openBattlefield(m);
+    const ml = [];
+
+    monsterAI(m, dg, pl, ml, { moveOnly: true });
+    expect(Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y))).toBe(2);
+    monsterAI(m, dg, pl, ml, { moveOnly: true });
+    expect(Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y))).toBe(1);
+
+    m.turnAttacks = 0;
+    monsterAI(m, dg, pl, ml, { attackOnly: true });
+    expect(ml.some(msg => msg.includes("シオン・ザ・ダークブレットの攻撃！") || msg.includes("外れた"))).toBe(true);
+  });
+
   it("シオンは距離2を保とうとする", () => {
     const m = {
       name: "シオン・ザ・ダークブレット",
