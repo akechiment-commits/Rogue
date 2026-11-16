@@ -2087,17 +2087,16 @@ export function genTwinWingFloor(depth, dungeonType = null) {
   map[su.y][su.x] = T.SU;
   map[sd.y][sd.x] = T.SD;
   const rooms = [...leftRooms, ...rightRooms];
-  const leftTiles = [], rightTiles = [];
-  for (const r of leftRooms) {
-    for (let y = r.y; y < r.y + r.h; y++)
-      for (let x = r.x; x < r.x + r.w; x++)
-        if (map[y][x] === T.FLOOR && !(x === su.x && y === su.y)) leftTiles.push([x, y]);
-  }
-  for (const r of rightRooms) {
-    for (let y = r.y; y < r.y + r.h; y++)
-      for (let x = r.x; x < r.x + r.w; x++)
-        if (map[y][x] === T.FLOOR && !(x === sd.x && y === sd.y)) rightTiles.push([x, y]);
-  }
+  const roomFloorTiles = (room) => {
+    const tiles = [];
+    for (let y = room.y; y < room.y + room.h; y++)
+      for (let x = room.x; x < room.x + room.w; x++)
+        if (map[y][x] === T.FLOOR) tiles.push([x, y]);
+    return tiles;
+  };
+  /* 宝（アイテム・大箱）・泉・罠・敵は階段のない部屋（leftRooms[1], rightRooms[0]）にのみ配置する */
+  const leftTiles = roomFloorTiles(leftRooms[1]);
+  const rightTiles = roomFloorTiles(rightRooms[0]);
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rnd = (pool) => {
@@ -3638,9 +3637,15 @@ function attachDebugSpecialFixtures(dg, depth) {
 
 function legendOpenFloorTiles(dg) {
   const shopRooms = [dg.shop?.room, ...(dg.shops || []).map(shop => shop?.room)].filter(Boolean);
+  const twinStairRooms = dg.floorType === "twinWingFloor"
+    ? (dg.rooms || []).filter(room =>
+        (dg.stairUp && isInsideRoom(room, dg.stairUp.x, dg.stairUp.y)) ||
+        (dg.stairDown && isInsideRoom(room, dg.stairDown.x, dg.stairDown.y)))
+    : [];
   const reservedRooms = [
     ...(dg.hiddenRooms || []),
     ...(dg.dimensionalVaults || []).map(vault => vault?.room),
+    ...twinStairRooms,
   ].filter(Boolean);
   const blockers = [
     dg.items, dg.traps, dg.springs, dg.bigboxes, dg.pentacles, dg.statues,

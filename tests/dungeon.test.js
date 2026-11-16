@@ -425,6 +425,16 @@ describe("genDungeon", () => {
       const leftItems = dg.items.filter((it) => it.x < midX).length;
       const rightItems = dg.items.filter((it) => it.x > midX).length;
       expect(rightItems).toBeGreaterThan(leftItems);
+      const inRoom = (room, obj) => obj.x >= room.x && obj.x < room.x + room.w && obj.y >= room.y && obj.y < room.y + room.h;
+      const stairRooms = dg.rooms.filter((r) => inRoom(r, su) || inRoom(r, sd));
+      const noStairRooms = dg.rooms.filter((r) => !inRoom(r, su) && !inRoom(r, sd));
+      expect(stairRooms).toHaveLength(2);
+      expect(noStairRooms).toHaveLength(2);
+      for (const obj of [...dg.items, ...dg.springs, ...dg.bigboxes, ...dg.monsters, ...dg.traps]) {
+        expect(stairRooms.some((r) => inRoom(r, obj))).toBe(false);
+        expect(noStairRooms.some((r) => inRoom(r, obj))).toBe(true);
+      }
+      expect(dg.springs.length).toBe(1);
     }
   });
 
