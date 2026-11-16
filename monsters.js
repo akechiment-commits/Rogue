@@ -6700,11 +6700,12 @@ function moveFlockToFiringLine(monster, dungeon, player, { preferRange = null } 
     return a.distance - b.distance || a.range - b.range;
   });
 
+  const minStepDist = Math.min(3, flockDistance(monster.x, monster.y, player.x, player.y) + 1);
   for (const goal of goals) {
     if (goal.x === monster.x && goal.y === monster.y) return false;
     const next = bfsNext(dungeon.map, dungeon.monsters || [], monster.x, monster.y, goal.x, goal.y, monster,
       100, dungeon.pentacles, flockFloat,
-      (x, y) => tileCanEnter(x, y) && flockDistance(x, y, player.x, player.y) >= 3,
+      (x, y) => tileCanEnter(x, y) && flockDistance(x, y, player.x, player.y) >= minStepDist,
       false, dungeon.rooms, dungeon);
     if (!next || !tileCanEnter(next.x, next.y) || (next.x === player.x && next.y === player.y) ||
         dungeon.monsters?.some(other => other !== monster && monsterOccupiesCell(other, next.x, next.y))) continue;
@@ -6806,6 +6807,7 @@ function moveFlockExplore(monster, dungeon, player) {
 }
 
 function teleportFlockAway(monster, dungeon, player, messages) {
+  if (!monster || monster.sealed) return false;
   const cost = FLOCK_MAGIC_MP_COSTS.teleport_magic;
   if (ensureFlockMp(monster) < cost) return false;
   const destination = randomTeleportDest(dungeon, monster.x, monster.y, (x, y) =>
@@ -6923,7 +6925,9 @@ function flockSealedDialogue(monster, dungeon, messages, attackOnly = false) {
   }
   const visible = !!dungeon?.visible?.[monster.y]?.[monster.x];
   if (!attackOnly && visible) {
-    const lines = monster.baseKind === "boss_flock_revenge" ? FLOCK_REVENGE_SEALED_LINES : FLOCK_SEALED_LINES;
+    const lines = (monster.baseKind === "boss_flock_revenge" || monster.baseKind === "boss_flock_stalker")
+      ? FLOCK_REVENGE_SEALED_LINES
+      : FLOCK_SEALED_LINES;
     const firstSealedTurn = !monster._flockSealedDialogueShown;
     if (firstSealedTurn || Math.random() < 0.40) {
       messages.push(`${monster.name}「${pick(lines)}」`);
@@ -8587,7 +8591,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
     /* ── 執念のフロック：床の禁書拾得 ── */
     const _floorGoalItem = dg.items?.find(i => i.name === "深淵の禁書" || i.type === "goal");
-    if (_isFlockStalker && !m._hasStolenBook && _floorGoalItem) {
+    if (_isFlockStalker && !m.sealed && !m._hasStolenBook && _floorGoalItem) {
       const _fgDist = Math.max(Math.abs(m.x - _floorGoalItem.x), Math.abs(m.y - _floorGoalItem.y));
       if (_fgDist <= 1) {
         if (_moveOnly) return;
@@ -8622,7 +8626,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── 執念のフロック：隣接時に深淵の禁書を盗む（護盗で防げる） ── */
-    if (_isFlockStalker && !m._hasStolenBook && distance <= 1) {
+    if (_isFlockStalker && !m.sealed && !m._hasStolenBook && distance <= 1) {
       if (_moveOnly) return;
       if (m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
@@ -8729,7 +8733,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
     /* 執念のフロック（禁書未所持）は距離をとるのではなくプレイヤーへ接近する */
-    if (_isFlockStalker && !m._hasStolenBook) {
+    if (_isFlockStalker && !m.sealed && !m._hasStolenBook) {
       if (!_flockMovementLocked && !m._movedThisTurn) {
         const _ffFloat = monEffectiveFloat(m) && (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
         const _nextToPl = bfsNext(dg.map, dg.monsters || [], m.x, m.y, pl.x, pl.y, m,

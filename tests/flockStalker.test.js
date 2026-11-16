@@ -150,6 +150,42 @@ describe("超上級帰り道の追跡ボス：執念のフロック", () => {
     expect(floor25.monsters.some(m => m.baseKind === "skeleton")).toBe(true);
   });
 
+  it("封印中は所持品・床の禁書を盗まずテレポートもしない（歩いて逃げ回る）", () => {
+    const { dungeon, stalker, player } = makeStalkerScene({ flockX: 5, flockY: 5, playerX: 6, playerY: 5 });
+    stalker.sealed = true;
+    stalker.sealedTurns = 10;
+    const invBook = { id: "abyss_tome_inv", name: "深淵の禁書", type: "goal" };
+    const floorBook = { id: "abyss_tome_floor", name: "深淵の禁書", type: "goal", x: 5, y: 6 };
+    player.inventory = [invBook];
+    dungeon.items = [floorBook];
+
+    const messages = [];
+    monsterAI(stalker, dungeon, player, messages, { monsterWandFn: () => {} });
+
+    expect(player.inventory).toContain(invBook);
+    expect(dungeon.items).toContain(floorBook);
+    expect(stalker._hasStolenBook).toBeFalsy();
+    expect(messages.some(m => m.includes("奪い去った") || m.includes("拾い上げた") || m.includes("紫の閃光とともに消えた"))).toBe(false);
+    // テレポートせず1歩だけ徒歩で離れる
+    expect(Math.max(Math.abs(stalker.x - 5), Math.abs(stalker.y - 5))).toBeLessThanOrEqual(1);
+    expect(Math.max(Math.abs(stalker.x - player.x), Math.abs(stalker.y - player.y))).toBe(2);
+  });
+
+  it("禁書所持済みの執念のフロックも封印中はテレポートせず徒歩で逃げ回る", () => {
+    const { dungeon, stalker, player } = makeStalkerScene({ flockX: 5, flockY: 5, playerX: 6, playerY: 5 });
+    stalker.sealed = true;
+    stalker.sealedTurns = 10;
+    stalker._hasStolenBook = true;
+    stalker.stolenGoalItem = { name: "深淵の禁書", type: "goal" };
+
+    const messages = [];
+    monsterAI(stalker, dungeon, player, messages, { monsterWandFn: () => {} });
+
+    expect(messages.some(m => m.includes("紫の閃光とともに消えた"))).toBe(false);
+    expect(Math.max(Math.abs(stalker.x - 5), Math.abs(stalker.y - 5))).toBeLessThanOrEqual(1);
+    expect(Math.max(Math.abs(stalker.x - player.x), Math.abs(stalker.y - player.y))).toBe(2);
+  });
+
   it("セリフに直接的な階層数（40階など）が含まれず、死亡時は精魂尽き果てたセリフになる", () => {
     const allStalkerLines = [
       ...FLOCK_STALKER_SPAWN_LINES,
