@@ -64,6 +64,14 @@ describe("敵同士の撃破によるレベルアップ", () => {
     expect(dg.monsters).not.toContain(target);
     expect(charger.monLevel).toBe(2);
     expect(charger.name).toBe("激突角獣");
+    const rushIdx = ml.findIndex(m => m.includes("突進した！"));
+    const hitIdx = ml.findIndex(m => m.includes("に当たった！") && m.includes("ダメージ"));
+    const killIdx = ml.findIndex(m => m.includes("に倒された！"));
+    const lvIdx = ml.findIndex(m => m.includes("レベルアップ") || m.includes("さらに強化された"));
+    expect(rushIdx).toBeGreaterThanOrEqual(0);
+    expect(hitIdx).toBeGreaterThan(rushIdx);
+    expect(killIdx).toBeGreaterThan(hitIdx);
+    expect(lvIdx).toBeGreaterThan(killIdx);
   });
 
   it("ラクガキ魔の魔方陣撃破はプレイヤー経験値なしでラクガキ魔を強化し、骨を残さない", () => {

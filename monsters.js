@@ -5599,6 +5599,68 @@ export function tryReserveMimicSkill(m, dg, pl, opts = {}, ctx = {}) {
  * 宣言後に通常攻撃へフォールスルーしないよう、試行可能なものだけ選ぶ。
  * ctx.forceReady: moveOnly で予約済みなら再抽選せず実行する。
  */
+/** 突進（charger／ものまね師）を実行する共通処理 */
+function performMonsterChargeRush(m, dg, pl, ml, {
+  dx,
+  dy,
+  plOnSanc = false,
+  consumeTurnAttackOnEmpty = false,
+  playerHitMsg,
+  onHit,
+  onMiss,
+  luFn,
+} = {}) {
+  const level = m.monLevel || 1;
+  const range = level >= 3 ? 8 : level >= 2 ? 5 : 3;
+  const startX = m.x, startY = m.y;
+  let moved = 0;
+  let hitPlayer = false, hitMonster = null, hitMonsterDmg = 0;
+  for (let i = 0; i < range; i++) {
+    const nx = m.x + dx, ny = m.y + dy;
+    if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
+    if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) break;
+    if (nx === pl.x && ny === pl.y) {
+      hitPlayer = true;
+      break;
+    }
+    const other = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, nx, ny));
+    if (other) {
+      hitMonster = other;
+      hitMonsterDmg = monScaleOutgoingDamage(
+        m,
+        Math.max(1, calcAtkDefDmg(m.atk, other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)),
+      );
+      break;
+    }
+    m.x = nx; m.y = ny; moved++;
+  }
+  /* 突進移動のログを、衝突・ダメージ・撃破のログより先に出す。 */
+  if (moved > 0) {
+    m._chargerMoveAnimation = { fromX: startX, fromY: startY, toX: m.x, toY: m.y };
+    ml.push(`${m.name}が突進した！`);
+  }
+  if (hitPlayer) {
+    if (!plOnSanc) {
+      if (!consumeTurnAttackOnEmpty) m.turnAttacks++;
+      monsterAttackPlayer(m, dg, pl, ml, playerHitMsg, { onPlayerHit: onHit, onPlayerMiss: onMiss, luFn });
+    }
+  } else if (hitMonster) {
+    if (!consumeTurnAttackOnEmpty) m.turnAttacks++;
+    applyDamageToMonster(hitMonster, hitMonsterDmg, {
+      isPhysical: true,
+      attacker: m,
+      dungeon: dg,
+      player: pl,
+      messages: ml,
+      killIfDead: true,
+      luFn: luFn || null,
+      onDamage: (damage) => {
+        ml.push(`${m.name}が突進して${hitMonster.name}に当たった！${damage}ダメージ！`);
+      },
+    });
+  }
+}
+
 export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   if (!m || m.subtype !== "mimic" || m.sealed || isMonsterBerserk(m)) return false;
   if (ctx.moveOnly) return false;
@@ -5841,49 +5903,16 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     }
     if (m.subtype === "charger" && inLine && lineLen >= 2) {
       m.turnAttacks++;
-      const _chdx = Math.sign(adx), _chdy = Math.sign(ady);
-      const _chLvl = m.monLevel || 1;
-      const _chRange = _chLvl >= 3 ? 8 : _chLvl >= 2 ? 5 : 3;
-      const _chStartX = m.x, _chStartY = m.y;
-      let _chMoved = 0;
-      let _chHitPlayer = false, _chHitMonster = null, _chHitMonsterDmg = 0;
-      for (let _ci = 0; _ci < _chRange; _ci++) {
-        const _cnx = m.x + _chdx, _cny = m.y + _chdy;
-        if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
-        if (dg.map[_cny]?.[_cnx] === T.WALL || dg.map[_cny]?.[_cnx] === T.BWALL) break;
-        if (_cnx === pl.x && _cny === pl.y) {
-          _chHitPlayer = true;
-          break;
-        }
-        const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
-        if (_chOther) {
-          _chHitMonster = _chOther;
-        _chHitMonsterDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
-          break;
-        }
-        m.x = _cnx; m.y = _cny; _chMoved++;
-      }
-      /* 突進移動のログを、衝突・ダメージのログより先に出す。 */
-      if (_chMoved > 0) {
-        m._chargerMoveAnimation = { fromX: _chStartX, fromY: _chStartY, toX: m.x, toY: m.y };
-        ml.push(`${m.name}が突進した！`);
-      }
-      if (_chHitPlayer) {
-        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
-      } else if (_chHitMonster) {
-        const res = applyDamageToMonster(_chHitMonster, _chHitMonsterDmg, {
-          isPhysical: true,
-          attacker: m,
-          dungeon: dg,
-          player: pl,
-          messages: ml,
-          killIfDead: true,
-          luFn: _luFn || null,
-        });
-        if (!res.blocked) {
-          ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${res.damage}ダメージ！`);
-        }
-      }
+      performMonsterChargeRush(m, dg, pl, ml, {
+        dx: Math.sign(adx),
+        dy: Math.sign(ady),
+        plOnSanc: _plOnSanc,
+        consumeTurnAttackOnEmpty: true,
+        playerHitMsg: d => `${m.name}が突進して${d}ダメージ！`,
+        onHit: _onHit,
+        onMiss: _onMiss,
+        luFn: _luFn,
+      });
       return true;
     }
     if (m.type === "guard" && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8) {
@@ -10506,54 +10535,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _chAdx = pl.x - m.x, _chAdy = pl.y - m.y;
         const _chDist = Math.max(Math.abs(_chAdx), Math.abs(_chAdy));
         const _chLine = _chAdx === 0 || _chAdy === 0 || Math.abs(_chAdx) === Math.abs(_chAdy);
-        const _chLvl = m.monLevel || 1;
-        const _chRange = _chLvl >= 3 ? 8 : _chLvl >= 2 ? 5 : 3;
         if (_chLine && _chDist >= 2) {
-          const _chdx = Math.sign(_chAdx), _chdy = Math.sign(_chAdy);
-          const _chStartX = m.x, _chStartY = m.y;
-          let _chMoved = 0;
-          let _chHitPlayer = false, _chHitMonster = null, _chHitMonsterDmg = 0;
-          for (let _ci = 0; _ci < _chRange; _ci++) {
-            const _cnx = m.x + _chdx, _cny = m.y + _chdy;
-            if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
-            if (dg.map[_cny][_cnx] === T.WALL || dg.map[_cny][_cnx] === T.BWALL) break;
-            if (_cnx === pl.x && _cny === pl.y) {
-              _chHitPlayer = true;
-              break;
-            }
-            const _chOther = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _cnx, _cny));
-            if (_chOther) {
-              _chHitMonster = _chOther;
-              _chHitMonsterDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
-              break;
-            }
-            m.x = _cnx; m.y = _cny; _chMoved++;
-          }
-          /* 突進移動のログを、衝突・ダメージのログより先に出す。 */
-          if (_chMoved > 0) {
-            m._chargerMoveAnimation = { fromX: _chStartX, fromY: _chStartY, toX: m.x, toY: m.y };
-            ml.push(`${m.name}が突進した！`);
-          }
-          if (_chHitPlayer) {
-            if (!_plOnSanc) {
-              m.turnAttacks++;
-              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
-            }
-          } else if (_chHitMonster) {
-            m.turnAttacks++;
-            const res = applyDamageToMonster(_chHitMonster, _chHitMonsterDmg, {
-              isPhysical: true,
-              attacker: m,
-              dungeon: dg,
-              player: pl,
-              messages: ml,
-              killIfDead: true,
-              luFn: _luFn || null,
-            });
-            if (!res.blocked) {
-              ml.push(`${m.name}が突進して${_chHitMonster.name}に当たった！${res.damage}ダメージ！`);
-            }
-          }
+          performMonsterChargeRush(m, dg, pl, ml, {
+            dx: Math.sign(_chAdx),
+            dy: Math.sign(_chAdy),
+            plOnSanc: _plOnSanc,
+            consumeTurnAttackOnEmpty: false,
+            playerHitMsg: d => `${m.name}が突進して攻撃！${d}ダメージ！`,
+            onHit: _onHit,
+            onMiss: _onMiss,
+            luFn: _luFn,
+          });
           return;
         }
       }

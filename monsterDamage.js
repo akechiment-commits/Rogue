@@ -21,6 +21,7 @@ import { markShopkeeperHostileToPlayer, killMonster } from "./items.js";
  * @param {boolean} [options.killIfDead=true] - HP<=0のときkillMonsterを呼ぶか
  * @param {boolean} [options.awardExpToPlayer=false] - 撃破経験値をプレイヤーに付与するか
  * @param {function|null} [options.luFn=null] - レベルアップコールバック
+ * @param {function|null} [options.onDamage=null] - ダメージ確定直後（反撃・撃破前）のコールバック
  * @returns {{ damage: number, blocked: boolean, killed: boolean }}
  */
 export function applyDamageToMonster(target, rawDamage, {
@@ -34,6 +35,7 @@ export function applyDamageToMonster(target, rawDamage, {
   killIfDead = true,
   awardExpToPlayer = false,
   luFn = null,
+  onDamage = null,
 } = {}) {
   if (!target || target.hp <= 0) {
     return { damage: 0, blocked: false, killed: false };
@@ -57,6 +59,7 @@ export function applyDamageToMonster(target, rawDamage, {
 
   // 4. HP減少
   target.hp -= damage;
+  onDamage?.(damage, target);
 
   // 5. 麻痺解除・弱体化
   resolveParalysisHit(target, messages);
