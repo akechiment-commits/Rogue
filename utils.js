@@ -1174,3 +1174,21 @@ export function applyReverseStatus(p, turns = 20) {
   installPlayerHpReverseHook(p);
   p.reverseTurns = (p.reverseTurns || 0) + turns;
 }
+
+/** 到達レベルごとの必要経験値倍率（Lv1〜10は1.5倍、その後は緩やかに減衰） */
+export function expMultiplierForNewLevel(newLevel) {
+  if (newLevel <= 10) return 1.5;
+  if (newLevel <= 18) return 1.38;
+  if (newLevel <= 26) return 1.26;
+  return 1.16;
+}
+
+/** レベルアップ後の次レベル必要経験値を算出する */
+export function advanceNextExp(currentNextExp, newLevel) {
+  return Math.max(1, Math.floor((Number(currentNextExp) || 10) * expMultiplierForNewLevel(newLevel)));
+}
+
+/** レベルダウン時に直前のレベルの必要経験値へ戻す */
+export function rewindNextExp(currentNextExp, previousLevel) {
+  return Math.max(1, Math.floor((Number(currentNextExp) || 10) / expMultiplierForNewLevel(previousLevel)));
+}

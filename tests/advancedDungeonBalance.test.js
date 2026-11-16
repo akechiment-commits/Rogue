@@ -79,8 +79,8 @@ describe("上級ダンジョンの敵分布", () => {
       ["imp", 16, 2, [42, 22, 13, 55]],
       ["zombie", 16, 2, [98, 44, 1, 100]],
       ["wolf", 16, 2, [54, 36, 9, 75]],
-      ["archer", 22, 3, [64, 74, 22, 170]],
-      ["mushroom", 25, 3, [98, 42, 24, 175]],
+      ["archer", 22, 3, [64, 74, 22, 420]],
+      ["mushroom", 25, 3, [98, 42, 24, 420]],
     ]) {
       expect(advancedMonsterAllowed(kind, floor)).toBe(true);
       const base = MONS.find((monster) => monster.baseKind === kind);

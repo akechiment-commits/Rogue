@@ -6,6 +6,7 @@ import {
 import { MONS, makeMonsterFromBase, monLevelDown, monLevelUp } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { finishTrapActivationTurn } from "../trapActivationTurn.js";
+import { advanceNextExp, rewindNextExp } from "../utils.js";
 
 const levelDownTrap = TRAPS.find((trap) => trap.effect === "level_down_trap");
 
@@ -58,6 +59,17 @@ describe("レベルダウンの罠", () => {
     expect(p.atk).toBe(before.atk);
     expect(p.exp).toBe(before.exp);
     expect(ml.some((message) => message.includes("レベル1なので"))).toBe(true);
+  });
+
+  it("高レベル帯は段階減衰の経験値曲線を使い、レベルダウンでも同倍率で戻る", () => {
+    const lv10Next = 366;
+    const lv11Next = advanceNextExp(lv10Next, 11);
+    expect(lv11Next).toBe(Math.floor(366 * 1.38));
+
+    const p = makePlayer({ level: 28, maxHp: 165, hp: 165, atk: 46, def: 9, maxMp: 29, mp: 29, exp: 0, nextExp: 50000 });
+    expect(applyPlayerLevelDown(p, [])).toBe(true);
+    expect(p.level).toBe(27);
+    expect(p.nextExp).toBe(rewindNextExp(50000, 28));
   });
 
   it("敵が踏むと前の形態へ戻り、レベル1の敵は変化しない", () => {

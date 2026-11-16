@@ -15,7 +15,7 @@ import {
   getIdentKey, placeItemAt, killMonster, applyGeneratedRingPlus, revealAllFloorTraps,
 } from "./items.js";
 import { trackBigbox, trackItem, trackTrap } from "./DiscoveryTracker.js";
-import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
+import { uid, MW, MH, T, TI, DRO, rng, advanceNextExp } from "./utils.js";
 import { clearPlayerPoison } from "./statusDuration.js";
 import { markBigboxKindIdentified } from "./GameHelpers.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
@@ -434,7 +434,7 @@ function clearMajorDebuffs(p) {
 
 function forceLevelUp(p, ml) {
   p.level = (p.level || 1) + 1;
-  p.nextExp = Math.floor((p.nextExp || 20) * 1.5);
+  p.nextExp = advanceNextExp(p.nextExp || 20, p.level);
   adjustPlayerBaseMaxHp(p, 5);
   p.hp = Math.min(p.hp + 10, p.maxHp);
   p.atk = (p.atk || 1) + ((p.level % 2 === 0) ? 2 : 1);

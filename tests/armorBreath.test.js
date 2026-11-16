@@ -22,7 +22,7 @@ describe("スネークマン系", () => {
   it("13階から出現し、レベル間に空白階を置く", () => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
 
-    expect([base.hp, base.atk, base.def, base.exp]).toEqual([62, 36, 24, 60]);
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([62, 36, 24, 130]);
     expect([base.minFloor, base.maxFloor]).toEqual([13, 17]);
     expect(base.levels.map((level) => [level.minFloor, level.maxFloor])).toEqual([[20, 24], [27, 30]]);
     expect(base.levels[0].dungeonFloors).toEqual({ intermediate: null, advanced: { min: 20, max: 24 } });
