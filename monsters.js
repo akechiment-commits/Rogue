@@ -11727,7 +11727,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* オーク系の力溜め：隣接中に行動を消費して予約し、次の1ターンだけ防御無視で攻撃する。 */
-    if (m.baseKind === "orc" && m.powerChargeReady && !_moveOnly) {
+    if (m.baseKind === "orc" && m.powerChargeReady && m.sealed) {
+      delete m.powerChargeReady;
+    }
+    if (m.baseKind === "orc" && m.powerChargeReady && !_moveOnly && !m.sealed) {
       delete m.powerChargeReady;
       if (_adjPl && !_plInvis && !m.sealed && !_plOnBlessedSanc &&
           m.turnAttacks < monEffectiveMaxAttacks(m)) {

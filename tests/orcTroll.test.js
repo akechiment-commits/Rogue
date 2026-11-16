@@ -60,6 +60,32 @@ describe("オーク系・トロル系の痛恨", () => {
     }
   });
 
+  it("オークが力溜め後に封印されると溜めが解除され通常の殴りに戻る", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const base = MONS.find((monster) => monster.baseKind === "orc");
+      const orc = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+      orc.powerChargeReady = true;
+      orc.sealed = true;
+      orc.turnAttacks = 0;
+      const player = makePlayer({ x: 6, y: 5, def: 100 });
+      const dg = makeEmptyDg({
+        rooms: [{ x: 1, y: 1, w: 20, h: 10 }],
+        monsters: [orc],
+        visible: makeVisible(),
+      });
+      const messages = [];
+
+      monsterAI(orc, dg, player, messages, { attackOnly: true });
+      expect(orc.powerChargeReady).toBeUndefined();
+      expect(messages.some((m) => m.includes("痛恨の一撃"))).toBe(false);
+      expect(messages.some((m) => m.includes("ヤカン小僧の攻撃！") || m.includes("オークの攻撃！") || m.includes("の攻撃！"))).toBe(true);
+      expect(player.hp).toBe(99);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it("おお木霊系（旧トロル）は通常攻撃時に1.5倍の痛恨を出す", () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {
