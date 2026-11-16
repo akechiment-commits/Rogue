@@ -5609,7 +5609,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             applyDamagedFoodTrapReveal(dg, DAMAGED_FOOD_REVEAL_TURNS + 1);
             ml.push("かすかな看破の力で、フロア全体の罠が短時間見えた！【呪→罠看破】");
           } else {
-            dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
+            revealAllFloorTraps(dg);
             ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
           }
         } else {
@@ -6348,7 +6348,7 @@ export function applyInnateFoodEffectOnHit(item, kind, target, dg, p, ml, luFn, 
           for (let y = 0; y < (dg.explored || []).length; y++) {
             for (let x = 0; x < (dg.explored[y] || []).length; x++) dg.explored[y][x] = true;
           }
-          for (const trap of dg.traps || []) { trap.revealed = true; trackTrap(trap); }
+          revealAllFloorTraps(dg);
           ml.push("目が冴えてフロア全体が見えた！");
         }
       } else ml.push(`${target.name}にはフロアを見通す力が働かなかった。`);
@@ -10574,12 +10574,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "trap_detect_magic": {
       if (kind === "self") {
-        let _newTraps = 0;
-        for (const _trap of dg.traps || []) {
-          if (!_trap.revealed) _newTraps++;
-          _trap.revealed = true;
-          trackTrap(_trap);
-        }
+        const _newTraps = revealAllFloorTraps(dg);
         ml.push(_newTraps > 0
           ? `罠探知の魔法で罠が${_newTraps}個見えた！`
           : "罠探知の魔法を唱えたが、未発見の罠はない。");
@@ -11782,6 +11777,36 @@ export function foodHungerAmount(item, blessMultiplier = 1) {
 }
 
 export const DAMAGED_FOOD_REVEAL_TURNS = 5;
+
+/** プレイヤーがフロアの罠を見通せる状態（恒久）か判定する。 */
+export function isPlayerPermanentTrapVisible(dg, p = null) {
+  return !!(
+    dg?.trapsRevealed ||
+    (p?.trapSenseTurns || 0) > 0 ||
+    (p?.trapDetectTurns || 0) > 0 ||
+    p?.trapsRevealed ||
+    p?.rings?.some((r) => r.effect === "trap_sense_ring" || r.effect === "trap_see_ring")
+  );
+}
+
+/** プレイヤーがフロアの罠を見通せる状態（恒久または一時）か判定する。 */
+export function isPlayerTrapVisible(dg, p = null) {
+  return isPlayerPermanentTrapVisible(dg, p) || (dg?.foodTrapRevealTurns || 0) > 0;
+}
+
+/** フロアの罠をすべて発見済みにし、同フロアでの罠見え状態を有効化する。 */
+export function revealAllFloorTraps(dg) {
+  if (!dg) return 0;
+  let newlyRevealed = 0;
+  dg.trapsRevealed = true;
+  for (const trap of dg.traps || []) {
+    if (!trap.revealed) newlyRevealed++;
+    trap.revealed = true;
+    delete trap._foodTemporaryReveal;
+    trackTrap(trap);
+  }
+  return newlyRevealed;
+}
 
 /** 腐敗・焦げた食料の全体看破は一時表示だけにし、探索済み情報を変更しない。 */
 export function applyDamagedFoodMapReveal(dg, turns = DAMAGED_FOOD_REVEAL_TURNS) {

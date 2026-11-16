@@ -12,7 +12,7 @@ import {
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T,
   BOMB_ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
-  getIdentKey, placeItemAt, killMonster, applyGeneratedRingPlus,
+  getIdentKey, placeItemAt, killMonster, applyGeneratedRingPlus, revealAllFloorTraps,
 } from "./items.js";
 import { trackBigbox, trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
@@ -451,7 +451,7 @@ function revealFloor(dg) {
       if (dg.explored?.[y]) dg.explored[y][x] = true;
     }
   }
-  dg.traps?.forEach((t) => { t.revealed = true; trackTrap(t); });
+  revealAllFloorTraps(dg);
 }
 
 function uncurseAll(p) {

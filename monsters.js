@@ -65,7 +65,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, reduceWaterDamage, fireResistDamageLabel, iceResistDamageLabel, waterResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox, isItemProtected } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, reduceWaterDamage, fireResistDamageLabel, iceResistDamageLabel, waterResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox, isItemProtected, isPlayerPermanentTrapVisible, isPlayerTrapVisible } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -2739,6 +2739,35 @@ function consumePotRaiderStock(mon) {
   return true;
 }
 
+/* 仕掛け花火師系の在庫：1体が罠を仕掛けられるのは4回まで。
+   在庫は単なる残数であり、撃破時にドロップへ変わることはない。 */
+export const TRAPMASTER_STOCK_MAX = 4;
+export function trapmasterStockLeft(mon) {
+  if (!mon) return 0;
+  if (mon.trapmasterStock == null) mon.trapmasterStock = TRAPMASTER_STOCK_MAX;
+  return Math.max(0, mon.trapmasterStock);
+}
+function consumeTrapmasterStock(mon) {
+  if (trapmasterStockLeft(mon) <= 0) return false;
+  mon.trapmasterStock--;
+  return true;
+}
+function buildTrapmasterTrap(template, x, y, dg, pl) {
+  const permanentVision = isPlayerPermanentTrapVisible(dg, pl);
+  const visible = isPlayerTrapVisible(dg, pl);
+  const temporaryVision = visible && !permanentVision;
+  const trap = {
+    ...template,
+    id: uid(),
+    x,
+    y,
+    revealed: visible,
+    ...(temporaryVision ? { _foodTemporaryReveal: true } : {}),
+  };
+  if (permanentVision) trackTrap(trap);
+  return trap;
+}
+
 function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   if (potRaiderTargets(player).length === 0) return false;
   if (potRaiderStockLeft(mon) <= 0) return false;
@@ -3012,6 +3041,7 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
     ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(st.subtype === "sleepingLion" || dormant ? { dormant: true, _dormantHp: st.hp } : {}),
+    ...(st.subtype === "trapmaster" ? { trapmasterStock: TRAPMASTER_STOCK_MAX } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
   installMonsterHpHook(mon);
@@ -3030,6 +3060,7 @@ export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, las
     ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
+    ...(st.subtype === "trapmaster" ? { trapmasterStock: TRAPMASTER_STOCK_MAX } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
   installMonsterHpHook(mon);
@@ -5511,6 +5542,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   /* 隣接限定特技 */
   if (subtype && _MIMIC_ADJ_SUBTYPES.has(subtype)) {
     if (subtype === "itempusher") return adjPl && !plOnSanc && !plOnBlessedSanc && hasInventorySpaceForMonsterGift(pl);
+    if (subtype === "trapmaster") return adjPl && !plOnSanc && !plOnBlessedSanc && trapmasterStockLeft(m) > 0;
     return adjPl && !plOnSanc && !plOnBlessedSanc;
   }
 
@@ -5934,6 +5966,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     }
     /* 罠師：隣接に罠設置 */
     if (m.subtype === "trapmaster") {
+      if (trapmasterStockLeft(m) <= 0) return false;
       const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
       for (const [dx, dy] of dirs) {
         const nx = m.x + dx, ny = m.y + dy;
@@ -5943,7 +5976,9 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         if (nx === pl.x && ny === pl.y) continue;
         const tmpl = pick(trapPoolForDungeon(dg.dungeonType ?? null, Math.max(1, Math.floor(Number(pl?.depth) || 1))));
         if (!tmpl) break;
-        dg.traps.push({ ...tmpl, id: uid(), x: nx, y: ny, revealed: false });
+        dg.traps = dg.traps || [];
+        dg.traps.push(buildTrapmasterTrap(tmpl, nx, ny, dg, pl));
+        consumeTrapmasterStock(m);
         m.turnAttacks++;
         ml.push(`${m.name}が罠を仕掛けた！`);
         return true;
@@ -8924,8 +8959,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* ===== 罠師：部屋内（Lv3は廊下も可）で足元にランダムな罠を仕掛ける ===== */
-  if (m.subtype === "trapmaster" && !m.sealed && !_attackOnly) {
+  /* ===== 罠師：部屋内（Lv3は廊下も可）で足元にランダムな罠を仕掛ける（在庫制） ===== */
+  if (m.subtype === "trapmaster" && !m.sealed && !_attackOnly && trapmasterStockLeft(m) > 0) {
     const _tmLvl = m.monLevel || 1;
     /* Lv3は廊下も可、Lv1/2は部屋内のみ */
     const _tmRoom = findRoom(dg.rooms, m.x, m.y);
@@ -8957,9 +8992,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           /* 既存の罠を除去して新しい罠に置き換える（仕掛け直しなのでアイテムは出さない） */
           removeTrap(dg, _existTrap, ml, { skipLoot: true, p: pl });
         }
-        const _newTrap = { ...pickTrap(_candidates), id: uid(), x: m.x, y: m.y, revealed: true };
+        const _newTrap = buildTrapmasterTrap(pickTrap(_candidates), m.x, m.y, dg, pl);
         dg.traps = dg.traps || [];
         dg.traps.push(_newTrap);
+        consumeTrapmasterStock(m);
         ml.push(`${m.name}が罠を仕掛けた！`);
         return;
       }

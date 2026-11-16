@@ -15,6 +15,7 @@ import {
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, makeChangeBoxItem, makeIceChunk, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
   setWandBreakEffectHandler, addPitfallBagEntry, reducePotCapacity, releaseConfinedMonstersFromPot, isItemProtected,
+  revealAllFloorTraps,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
@@ -1842,7 +1843,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
+          revealAllFloorTraps(dg);
           ml.push("呪われた惑わしの杖！フロアの罠が全て見えた！【呪→罠看破】");
           break;
         }

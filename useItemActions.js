@@ -26,6 +26,7 @@ import {
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, breakAltar,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
   applyShopUnpaidCharge, shopPriceNote, hasLightningResist, reduceLightningDamage, lightningResistDamageLabel,
+  revealAllFloorTraps,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -516,7 +517,7 @@ export function useItemActions({
         }
       } else if (it.effect === "bewitch") {
         if (it.cursed) {
-          dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
+          revealAllFloorTraps(dg);
           ml.push(`${_useItemName}を飲んだ。フロアの罠が全て見えた！【呪→罠看破】`);
         } else if (hasAbility(p.armor, "bewitch_proof")) {
           ml.push(`${_useItemName}を飲んだ。しかし防具が幻惑を防いだ！(耐惑わし)`);
@@ -679,7 +680,7 @@ export function useItemActions({
       } else if (fe === "reveal_food") {
         for (let y2 = 0; y2 < MH; y2++)
           for (let x2 = 0; x2 < MW; x2++) dg.explored[y2][x2] = true;
-        dg.traps.forEach((t2) => { t2.revealed = true; trackTrap(t2); });
+        revealAllFloorTraps(dg);
         ml.push("目が冴えてフロア全体が見えた！");
       } else if (fe === "antidote_food") {
         const _acured = [];
@@ -802,7 +803,7 @@ export function useItemActions({
             p.monsterSenseTurns = (p.monsterSenseTurns || 0) + statusTurns("monsterSense", { kind: "player" });
             ml.push("感知成分が！フロアのモンスターが見えるようになった！(100ターン)");
           } else if (pe === "c_bewitch") {
-            dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
+            revealAllFloorTraps(dg);
             ml.push("看破成分が！フロアの罠が全て見えた！");
           } else if (pe === "c_paralyze") {
             p.statusImmune = (p.statusImmune || 0) + statusTurns("statusImmune", { kind: "player" });
@@ -1234,12 +1235,16 @@ export function useItemActions({
           // 呪い：マップも罠の位置も全て忘れる
           for (let y = 0; y < MH; y++)
             for (let x = 0; x < MW; x++) dg.explored[y][x] = false;
-          dg.traps.forEach((t) => (t.revealed = false));
+          dg.traps.forEach((t) => {
+            t.revealed = false;
+            delete t._foodTemporaryReveal;
+          });
+          delete dg.trapsRevealed;
           ml.push("記憶が消えた…マップと罠の位置を全て忘れてしまった！【呪】");
         } else {
           for (let y = 0; y < MH; y++)
             for (let x = 0; x < MW; x++) dg.explored[y][x] = true;
-          dg.traps.forEach((t) => { t.revealed = true; trackTrap(t); });
+          revealAllFloorTraps(dg);
           if (it.blessed) {
             // 祝福：全開示＋アイテム・敵の位置も地図に常時表示
             dg.itemsRevealed = true;
