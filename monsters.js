@@ -5524,9 +5524,10 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
     return canDangerousPetalUse(src, pl, { canSee, sameRoom, plOnSanc, plOnBlessedSanc, dg });
   }
 
-  /* 突進：一直線・距離2以上 */
+  /* 突進：一直線・距離2以上（最初の一歩が壁・水で塞がれていないこと） */
   if (subtype === "charger") {
-    return canSee && !plOnSanc && inLine && lineLen >= 2;
+    return canSee && !plOnSanc && inLine && lineLen >= 2 &&
+      canMonsterChargeFirstStep(m, dg, pl, Math.sign(adx), Math.sign(ady));
   }
 
   /* ドラゴン／氷竜：Lv1一直線 / Lv2同部屋 / Lv3同フロア（距離2以上） */
@@ -5599,6 +5600,15 @@ export function tryReserveMimicSkill(m, dg, pl, opts = {}, ctx = {}) {
  * 宣言後に通常攻撃へフォールスルーしないよう、試行可能なものだけ選ぶ。
  * ctx.forceReady: moveOnly で予約済みなら再抽選せず実行する。
  */
+function canMonsterChargeFirstStep(m, dg, pl, dx, dy) {
+  const nx = m.x + dx, ny = m.y + dy;
+  if (!inBounds(nx, ny)) return false;
+  if (nx === pl.x && ny === pl.y) return true;
+  if (dg.monsters?.some(o => o !== m && monsterOccupiesCell(o, nx, ny))) return true;
+  const float = monEffectiveFloat(m) && (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
+  return canEnter(dg.map, nx, ny, float, dg, monEffectiveWaterWalker(m));
+}
+
 /** 突進（charger／ものまね師）を実行する共通処理 */
 function performMonsterChargeRush(m, dg, pl, ml, {
   dx,
@@ -5612,6 +5622,8 @@ function performMonsterChargeRush(m, dg, pl, ml, {
 } = {}) {
   const level = m.monLevel || 1;
   const range = level >= 3 ? 8 : level >= 2 ? 5 : 3;
+  const float = monEffectiveFloat(m) && (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
+  const waterWalker = monEffectiveWaterWalker(m);
   const startX = m.x, startY = m.y;
   let moved = 0;
   let hitPlayer = false, hitMonster = null, hitMonsterDmg = 0;
@@ -5632,6 +5644,7 @@ function performMonsterChargeRush(m, dg, pl, ml, {
       );
       break;
     }
+    if (!canEnter(dg.map, nx, ny, float, dg, waterWalker)) break;
     m.x = nx; m.y = ny; moved++;
   }
   /* 突進移動のログを、衝突・ダメージ・撃破のログより先に出す。 */
@@ -10355,7 +10368,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _mtRange0 = _mtLvl0 >= 3 ? 10 : _mtLvl0 >= 2 ? 5 : 3;
       const _mtRdy0 = m.subtype === "monsterthrow" && !m.sealed && _rAtks &&
         Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _mtRange0;
-      const _chargerRdy = m.subtype === "charger" && !m.sealed && _rAtks && _rLine && _rLen >= 2;
+      const _chargerRdy = m.subtype === "charger" && !m.sealed && _rAtks && _rLine && _rLen >= 2 &&
+        canMonsterChargeFirstStep(m, dg, pl, Math.sign(_radx), Math.sign(_rady));
       /* わてり：水鉄砲 */
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
       const _ptRange0 = potionThrowRange(m, dg, pl);

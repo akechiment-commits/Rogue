@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { monsterAI } from "../monsters.js";
+import { T } from "../utils.js";
 
 describe("Monster special melee & rush attacks: charger, berserker, decoy clashes", () => {
   it("charger rush hitting mushroom triggers counter spore, wakes dormant, clamps fixed damage", () => {
@@ -190,5 +191,73 @@ describe("Monster special melee & rush attacks: charger, berserker, decoy clashe
 
     expect(clone.hp).toBe(50);
     expect(clone.barrier).toBe(0);
+  });
+
+  it("grounded charger stops before water tiles and does not charge onto water", () => {
+    const dg = makeEmptyDg();
+    dg.rooms = [{ x: 1, y: 1, w: 20, h: 10 }];
+    dg.map[5][4] = T.WATER;
+    dg.map[5][5] = T.WATER;
+    const p = makePlayer({ x: 6, y: 5 });
+    const ml = [];
+
+    const charger = {
+      id: "chg_water1",
+      name: "猪突角獣",
+      subtype: "charger",
+      x: 2,
+      y: 5,
+      atk: 50,
+      monLevel: 3,
+      speed: 1,
+      turnAttacks: 0,
+      aware: true,
+      _rangedAttackThisTurn: true,
+    };
+    dg.monsters = [charger];
+
+    // (2,5) -> (3,5) で水(4,5)の手前に止まり、水の上には乗らない
+    monsterAI(charger, dg, p, ml, { attackOnly: true });
+    expect(charger.x).toBe(3);
+    expect(charger.y).toBe(5);
+    expect(dg.map[charger.y][charger.x]).toBe(T.FLOOR);
+    expect(p.hp).toBe(100);
+
+    // 水の縁(3,5)で一直線上にいても、目の前が水なら無駄な突進予約をせず通常移動で迂回する
+    charger.turnAttacks = 0;
+    charger.alwaysUseSpecial = true;
+    monsterAI(charger, dg, p, ml, { moveOnly: true });
+    expect(charger._rangedAttackThisTurn).toBeFalsy();
+    expect(dg.map[charger.y][charger.x]).not.toBe(T.WATER);
+  });
+
+  it("floating charger can rush across water tiles", () => {
+    const dg = makeEmptyDg();
+    dg.rooms = [{ x: 1, y: 1, w: 20, h: 10 }];
+    dg.map[5][4] = T.WATER;
+    dg.map[5][5] = T.WATER;
+    const p = makePlayer({ x: 6, y: 5 });
+    const ml = [];
+
+    const charger = {
+      id: "chg_float",
+      name: "猪突角獣",
+      subtype: "charger",
+      x: 3,
+      y: 5,
+      atk: 50,
+      monLevel: 3,
+      floatTurns: 5,
+      speed: 1,
+      turnAttacks: 0,
+      aware: true,
+      _rangedAttackThisTurn: true,
+    };
+    dg.monsters = [charger];
+
+    monsterAI(charger, dg, p, ml, { attackOnly: true });
+    expect(charger.x).toBe(5);
+    expect(charger.y).toBe(5);
+    expect(p.hp).toBeLessThan(100);
   });
 });
