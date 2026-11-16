@@ -427,6 +427,35 @@ describe("Monster berserk state: specials disabled, passive traits preserved", (
     expect(ml.some(m => m.includes("攻撃が封印されていて殴れない"))).toBe(true);
   });
 
+  it("sealed guardian does not stay glued to allies and approaches player instead", () => {
+    const dg = makeEmptyDg();
+    dg.rooms = [{ x: 1, y: 1, w: 20, h: 12 }];
+    const p = makePlayer({ x: 8, y: 5 });
+    const ally = { id: "ally1", name: "スライム", x: 3, y: 5, hp: 20, maxHp: 20, speed: 1, turnAttacks: 0 };
+    const guardian = {
+      id: "guard1",
+      name: "ガーディアン",
+      baseKind: "guardian",
+      subtype: "guardian",
+      x: 4,
+      y: 5, // adjacent to ally on west, player is east at x=8
+      hp: 60,
+      maxHp: 60,
+      atk: 18,
+      def: 14,
+      speed: 1,
+      turnAttacks: 0,
+      aware: true,
+      sealed: true,
+    };
+    dg.monsters = [ally, guardian];
+    const ml = [];
+
+    monsterAI(guardian, dg, p, ml, { moveOnly: true });
+    expect(guardian.x).toBe(5);
+    expect(guardian.y).toBe(5);
+  });
+
   it("flock revenge boss in berserk state does not cast purify magic to clear berserk", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 5, y: 5 });

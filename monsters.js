@@ -11528,7 +11528,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── guardian（ガーディアン等）：仲間の隣に留まりかばう ── */
-    if (m.subtype === "guardian") {
+    if (m.subtype === "guardian" && !m.sealed) {
       /* 攻撃フェーズ：プレイヤーが隣接かつ聖域外なら攻撃 */
       if (!_moveOnly && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         m.turnAttacks++;
