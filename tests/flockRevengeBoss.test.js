@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import fs from "fs";
 import { FLOCK_REVENGE_BOSS, makeMonsterFromBase, monsterAI } from "../monsters.js";
+import { monsterDrop } from "../items.js";
+import { applyWandEffect } from "../wands.js";
 import { MH, MW, T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -23,7 +26,7 @@ describe("超上級B25Fボス：逆襲のフロック", () => {
     const used = new Set();
     const { dungeon, flock, player } = makeRevengeScene({ flockX: 8, flockY: 8, playerX: 11, playerY: 8 });
     const monsterWandFn = vi.fn((m) => { used.add(m.wandEffect); });
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 400; i++) {
       flock.mp = flock.maxMp;
       flock.turnAttacks = 0;
       flock.flockReflectTurns = 0;
@@ -85,5 +88,34 @@ describe("超上級B25Fボス：逆襲のフロック", () => {
     monsterAI(flock, dg, player, [], { moveOnly: true, monsterWandFn: vi.fn() });
     expect(flock.x).toBe(6);
     expect(flock.y).toBe(5);
+  });
+
+  it("フロックの分身はボス扱い（状態異常有限・鈍足5T）で生成され、ボス財宝は落とさない", () => {
+    const gameSource = fs.readFileSync("Game.jsx", "utf8");
+    const cloneSnippetMatch = gameSource.match(/name:\s*"フロックの分身"[\s\S]{0,160}/);
+    expect(cloneSnippetMatch?.[0]).toContain("isBoss: true");
+
+    const { dungeon, flock, player } = makeRevengeScene({ flockX: 8, flockY: 8, playerX: 11, playerY: 8 });
+    const clone = {
+      ...flock,
+      id: "flock-clone-1",
+      name: "フロックの分身",
+      hp: 640,
+      maxHp: 640,
+      isBoss: true,
+      bossTier: 0,
+      _flockRevengeClone: true,
+      _flockCloneSummoned: true,
+    };
+    dungeon.monsters.push(clone);
+    const messages = [];
+    applyWandEffect("slow", "monster", clone, 1, 0, dungeon, player, messages, () => {}, () => {});
+    expect(clone.bossSlowTurns).toBe(5);
+    expect(messages.some((msg) => msg.includes("(5ターン)"))).toBe(true);
+    expect(messages.some((msg) => msg.includes("(永続)"))).toBe(false);
+
+    const dropMessages = [];
+    monsterDrop(clone, dungeon, dropMessages, player);
+    expect(dungeon.items.some((it) => it.name === "ボスの財宝")).toBe(false);
   });
 });

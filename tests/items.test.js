@@ -27,7 +27,7 @@ describe("酒の薬効と食料への付与", () => {
 
     const monster = { name: "敵", hp: 100, maxHp: 100, isBoss: true };
     applyPotionEffect("sake", 0, "monster", monster, dg, player, [], () => {}, true, false);
-    expect(monster.drunkTurns).toBe(30);
+    expect(monster.drunkTurns).toBe(20);
   });
 
   it("呪われた酒は酔い・酩酊・混乱を治す", () => {

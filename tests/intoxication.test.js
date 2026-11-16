@@ -24,10 +24,10 @@ describe("酒による酔いと酩酊", () => {
     expect(player).toMatchObject({ sleepTurns: 20, drunkenTurns: 17, drunkTurns: 0 });
   });
 
-  it("ボスの酔いと酩酊は通常時間の半分になる", () => {
+  it("ボスの酔いと酩酊は通常上限10T・祝福上限20Tになる", () => {
     const boss = { isBoss: true };
-    expect(applySakeEffect(boss, { kind: "monster", target: boss })).toMatchObject({ status: "drunk", turns: 15 });
-    expect(applySakeEffect(boss, { kind: "monster", target: boss, blessed: true })).toMatchObject({ status: "drunken", turns: 30 });
+    expect(applySakeEffect(boss, { kind: "monster", target: boss })).toMatchObject({ status: "drunk", turns: 10 });
+    expect(applySakeEffect(boss, { kind: "monster", target: boss, blessed: true })).toMatchObject({ status: "drunken", turns: 20 });
   });
 
   it("呪われた酒は酔い・酩酊・混乱を解除する", () => {
