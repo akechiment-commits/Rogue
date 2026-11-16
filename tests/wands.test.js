@@ -777,4 +777,44 @@ describe("万能の杖", () => {
     expect(ml2.some(m => m.includes("目を覚ました"))).toBe(true);
     expect(ml2.some(m => m.includes("金縛りが解けた"))).toBe(true);
   });
+
+  it("大魔導士の祝福された雷の杖をプレイヤーが魔法反射したとき2倍ダメージになる", () => {
+    const rand = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const archmage = makeMonsterFromBase(MONS.find(m => m.baseKind === "wizard"), 3, 5, 5);
+      archmage.hp = 100;
+      archmage.maxHp = 100;
+      const dg = makeEmptyDg({ monsters: [archmage] });
+      const p = makePlayer({ x: 7, y: 5, armor: { name: "神盾の鎧", def: 12, ability: "thorn", abilities: ["thorn", "dodge", "wand_reflect"] } });
+      const ml = [];
+
+      monsterFireLightning(5, 5, dg, p, 1, 0, ml, noop, null, archmage.name, null, archmage, true);
+      // rng(15, 25) with 0.5 -> 20, blessed x2 -> 40
+      expect(archmage.hp).toBe(60);
+      expect(p.hp).toBe(100);
+      expect(ml.some(m => m.includes("40ダメージ"))).toBe(true);
+    } finally {
+      rand.mockRestore();
+    }
+  });
+
+  it("大魔導士の祝福された雷の杖を魔法反射モンスターが反射したときも2倍ダメージになる", () => {
+    const rand = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const archmage = makeMonsterFromBase(MONS.find(m => m.baseKind === "wizard"), 3, 4, 5);
+      archmage.hp = 100;
+      archmage.maxHp = 100;
+      const mirror = { id: "m1", name: "ミラーマン", x: 6, y: 5, hp: 60, maxHp: 60, magicReflect: true };
+      const dg = makeEmptyDg({ monsters: [archmage, mirror] });
+      const p = makePlayer({ x: 10, y: 5 });
+      const ml = [];
+
+      monsterFireLightning(4, 5, dg, p, 1, 0, ml, noop, null, archmage.name, null, archmage, true);
+      expect(archmage.hp).toBe(60);
+      expect(mirror.hp).toBe(60);
+      expect(ml.some(m => m.includes("40ダメージ"))).toBe(true);
+    } finally {
+      rand.mockRestore();
+    }
+  });
 });

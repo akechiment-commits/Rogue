@@ -2618,6 +2618,9 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null, blessed = false, fireTrapFn = null) {
   if (pl) installPlayerHpReverseHook(pl);
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, pl);
+  const _blessedMult = blessed ? 2 : 1;
+  const _lightningReflectDmg = (scaleMon, victim) =>
+    monScaleOutgoingDamage(scaleMon, multiplyCursedMagicDamage(Math.round(rng(15, 25) * _blessedMult), victim, dg));
   const applyEnemyEffect = (kind, target) =>
     applyWandEffect("lightning", kind, target, dx, dy, dg, pl, ml, luFn, bbFn,
       kind === "monster" && blessed ? 2 : 1, nameFn, 0, killerMon, null, false, killerMon, fireTrapFn);
@@ -2635,7 +2638,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         installMonsterHpHook(killerMon);
         wakeIfDormant(killerMon, ml);
         if (!consumeBarrier(killerMon, ml)) {
-          const _wdmg = monScaleOutgoingDamage(killerMon, multiplyCursedMagicDamage(Math.round(rng(15, 25) * (blessed ? 2 : 1)), killerMon, dg));
+          const _wdmg = _lightningReflectDmg(killerMon, killerMon);
           killerMon.hp -= _wdmg;
           resolveParalysisHit(killerMon, ml);
           ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
@@ -2661,7 +2664,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           installMonsterHpHook(_srcMon);
           wakeIfDormant(_srcMon, ml);
           if (!consumeBarrier(_srcMon, ml)) {
-            const _rdmg = monScaleOutgoingDamage(killerMon, multiplyCursedMagicDamage(rng(15, 25), _srcMon, dg));
+            const _rdmg = _lightningReflectDmg(killerMon || _srcMon, _srcMon);
             _srcMon.hp -= _rdmg;
             resolveParalysisHit(_srcMon, ml);
             ml.push(`跳ね返った雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
@@ -2675,7 +2678,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       if (consumeBarrier(pl, ml)) return;
       /* ゴムゴムの胴 / 万能耐性: 雷ダメージ半減・所持品破壊を防ぐ */
       const _hasLightRes = hasLightningResist(pl);
-      let dmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
+      let dmg = Math.round(rng(15, 25) * _blessedMult);
       dmg = multiplyCursedMagicDamage(dmg, pl, dg);
       dmg = monScaleOutgoingDamage(killerMon, reduceLightningDamage(dmg, pl));
       pl.deathCause = `${monName}の雷撃により`;
@@ -2698,7 +2701,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         installMonsterHpHook(killerMon);
         wakeIfDormant(killerMon, ml);
         if (!consumeBarrier(killerMon, ml)) {
-          const _rdmg = monScaleOutgoingDamage(mon, multiplyCursedMagicDamage(rng(15, 25), killerMon, dg));
+          const _rdmg = _lightningReflectDmg(mon, killerMon);
           killerMon.hp -= _rdmg;
           resolveParalysisHit(killerMon, ml);
           ml.push(`跳ね返った雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
