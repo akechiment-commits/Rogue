@@ -10254,11 +10254,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           }
         }
       }
-      if (!_moveOnly && _itAdj && !m.carriedItem && !itemThrowerTarget(m, dg) &&
-          m.turnAttacks < monEffectiveMaxAttacks(m)) {
-        consumeFailedMonsterSpecial(m, ml, "が床のアイテムを拾おうとしたが、見つからなかった！");
-        return;
-      }
     }
 
     if (_moveOnly && m.subtype === "hauntedWillow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {

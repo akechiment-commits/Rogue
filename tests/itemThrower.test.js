@@ -145,4 +145,24 @@ describe("拾い投げ", () => {
     expect(dg.items.some((item) => item.id === held.id)).toBe(true);
     expect(messages.join(" ")).toContain("遮られて地面に落ちた");
   });
+
+  it("アイテムを持たずに隣接している時は拾い失敗ログを出さず通常攻撃を行う", () => {
+    const base = MONS.find((m) => m.baseKind === "itemThrower");
+    const thrower = makeMonsterFromBase(base, 2, 9, 5, { aware: true });
+    thrower.turnAttacks = 0;
+    // 通路（rooms外）にいて部屋内のアイテムを取れない状況でも、隣接時は通常攻撃する
+    const dg = makeEmptyDg({
+      rooms: [{ x: 2, y: 2, w: 7, h: 7 }],
+      items: [{ id: "room-item", name: "石", type: "arrow", x: 4, y: 4 }],
+      monsters: [thrower],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    const player = makePlayer({ x: 8, y: 5, def: 0 });
+    const messages = [];
+
+    monsterAI(thrower, dg, player, messages, { attackOnly: true });
+
+    expect(messages.some((m) => m.includes("見つからなかった"))).toBe(false);
+    expect(messages.some((m) => m.includes("剛腕水虎の攻撃！") || m.includes("外れた"))).toBe(true);
+  });
 });
