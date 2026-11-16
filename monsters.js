@@ -7600,8 +7600,19 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     return;
   }
 
+  /* 封印中のピュロボロスは特技や骨への移動・蘇生を試みず、通常の封印された敵と同じAI（接近・殴り）へ落とす。 */
+  if (m.baseKind === "boss_pyrobolos" && m.sealed) {
+    delete m._pyrobolosPursuingBone;
+    delete m._pyrobolosSanctuaryBlocked;
+    delete m._pyrobolosSelfDestructReady;
+    delete m._pyrobolosBeamReady;
+    delete m._pyrobolosMeleeReady;
+    delete m._pyrobolosReviveBoneId;
+    delete m._rangedAttackThisTurn;
+  }
+
   /* ピュロボロス：同群の骨への復帰を優先し、隣接自爆・歩数光線を予約して行動する。 */
-  if (m.baseKind === "boss_pyrobolos") {
+  if (m.baseKind === "boss_pyrobolos" && !m.sealed) {
     const _pyroAdjPlayer = monsterCanInteractAtRange(m, dg, pl.x, pl.y, 1);
     const _pyroBones = () => (dg.traps || []).filter(trap =>
       trap.effect === "bone" && trap.pyrobolosGroupId === m.pyrobolosGroupId,
@@ -7650,11 +7661,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         });
         return true;
       }
-      if (m.sealed || isAttackSealed(m)) {
+      if (isAttackSealed(m)) {
         const turn = Number(dg.floorTurns) || 0;
         if (bone._pyrobolosSealMessageTurn !== turn) {
           bone._pyrobolosSealMessageTurn = turn;
-          ml.push(`${m.name}は封印されていて復活魔法を使えない！`);
+          ml.push(`${m.name}は攻撃が封印されていて復活魔法を使えない！`);
         }
         return true;
       }

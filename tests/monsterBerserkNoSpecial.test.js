@@ -327,6 +327,106 @@ describe("Monster berserk state: specials disabled, passive traits preserved", (
     expect(pyro.hp).toBe(100); // Did not explode!
   });
 
+  it("sealed pyrobolos ignores nearby bones, drops pending specials, and uses normal approach/melee without revival-seal spam", () => {
+    const dg = makeEmptyDg();
+    dg.rooms = [{ x: 1, y: 1, w: 20, h: 12 }];
+    dg.floorTurns = 12;
+    const p = makePlayer({ x: 8, y: 5 });
+    const bone = {
+      id: "bone1",
+      name: "ピュロボロスの骨",
+      effect: "bone",
+      x: 3,
+      y: 5,
+      pyrobolosGroupId: "grp1",
+      monData: { name: "ピュロボロス", hp: 400, maxHp: 400 },
+    };
+    dg.traps = [bone];
+    const pyro = {
+      id: "pyro_sealed",
+      name: "ピュロボロス",
+      baseKind: "boss_pyrobolos",
+      pyrobolosGroupId: "grp1",
+      monLevel: 1,
+      x: 4,
+      y: 5, // adjacent to bone, 4 tiles west of player
+      hp: 400,
+      maxHp: 400,
+      atk: 60,
+      def: 24,
+      speed: 1,
+      turnAttacks: 0,
+      aware: true,
+      sealed: true,
+      sealedTurns: 10,
+      _pyrobolosReviveBoneId: "bone1",
+      _pyrobolosPursuingBone: true,
+    };
+    dg.monsters = [pyro];
+    const ml = [];
+
+    // Move phase: moves east toward player instead of staying by bone
+    monsterAI(pyro, dg, p, ml, { moveOnly: true });
+    expect(pyro.x).toBe(5);
+    expect(pyro.y).toBe(5);
+    expect(pyro._pyrobolosReviveBoneId).toBeUndefined();
+    expect(pyro._pyrobolosPursuingBone).toBeUndefined();
+
+    // Attack phase while adjacent (also test blessed-seal combo with attackSealTurns):
+    // should never emit revival-seal log
+    pyro.x = 7;
+    pyro.y = 5;
+    pyro.turnAttacks = 0;
+    monsterAI(pyro, dg, p, ml, { attackOnly: true });
+    expect(ml.some(m => m.includes("復活魔法"))).toBe(false);
+    expect(ml.some(m => m.includes("ピュロボロスの攻撃！") || m.includes("外れた"))).toBe(true);
+    expect(dg.traps).toContain(bone);
+  });
+
+  it("sealed + attack-sealed pyrobolos does not attempt revival magic or emit revival-seal message", () => {
+    const dg = makeEmptyDg();
+    dg.floorTurns = 20;
+    const p = makePlayer({ x: 8, y: 5 });
+    const bone = {
+      id: "bone2",
+      name: "ピュロボロスの骨",
+      effect: "bone",
+      x: 6,
+      y: 5,
+      pyrobolosGroupId: "grp2",
+      monData: { name: "ピュロボロス", hp: 400, maxHp: 400 },
+    };
+    dg.traps = [bone];
+    const pyro = {
+      id: "pyro_both_sealed",
+      name: "ピュロボロス",
+      baseKind: "boss_pyrobolos",
+      pyrobolosGroupId: "grp2",
+      monLevel: 1,
+      x: 7,
+      y: 5,
+      hp: 400,
+      maxHp: 400,
+      atk: 60,
+      def: 24,
+      speed: 1,
+      turnAttacks: 0,
+      aware: true,
+      sealed: true,
+      sealedTurns: 10,
+      attackSealTurns: 5,
+    };
+    dg.monsters = [pyro];
+    const ml = [];
+
+    monsterAI(pyro, dg, p, ml, { moveOnly: true });
+    pyro.turnAttacks = 0;
+    monsterAI(pyro, dg, p, ml, { attackOnly: true });
+
+    expect(ml.some(m => m.includes("復活魔法"))).toBe(false);
+    expect(ml.some(m => m.includes("攻撃が封印されていて殴れない"))).toBe(true);
+  });
+
   it("flock revenge boss in berserk state does not cast purify magic to clear berserk", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 5, y: 5 });
