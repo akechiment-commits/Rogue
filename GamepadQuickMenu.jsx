@@ -6,13 +6,17 @@ export const QUICK_MENU_COLS = 2;
 /**
  * Yボタン/モバイル「メニュー」のクイックメニュー（2列グリッド、方向で選択、B/タップで決定）
  */
-export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose, dungeonLabel = "", noCarry = false }) {
+export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose, dungeonLabel = "", noCarry = false, exp = 0, nextExp = 10 }) {
   /* 開いた直後の閉じる/選択判定をブロックする。モバイルのボタンは pointerdown で即発火して
    * メニューを開くため、同じタップの click が背景に届いて開いた瞬間に閉じてしまうことがある。 */
   const openedAtRef = useRef(0);
   useEffect(() => { if (open) openedAtRef.current = Date.now(); }, [open ]);
   const justOpened = () => Date.now() - openedAtRef.current < 400;
   if (!open) return null;
+  const curExp = Math.max(0, Math.floor(Number(exp) || 0));
+  const reqExp = Math.max(1, Math.floor(Number(nextExp) || 10));
+  const remainExp = Math.max(0, reqExp - curExp);
+  const expPct = Math.min(100, Math.max(0, (curExp / reqExp) * 100));
   return (
     <div
       onClick={(e) => {
@@ -81,6 +85,25 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
         }}>
           <span>{dungeonLabel || "ダンジョン不明"}</span>
           {noCarry && <span style={{ color: "#ffd875", whiteSpace: "nowrap" }}>☆持ち込みなし</span>}
+        </div>
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          padding: "6px 9px",
+          borderRadius: 4,
+          border: "1px solid #2b2b3d",
+          background: "#171721",
+          color: "#cfd6ea",
+          fontSize: 12,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <span>現在EXP: <strong style={{ color: "#fff" }}>{curExp.toLocaleString()}</strong> / {reqExp.toLocaleString()}</span>
+            <span style={{ color: "#7fe0ff", whiteSpace: "nowrap" }}>次Lvまであと {remainExp.toLocaleString()}</span>
+          </div>
+          <div style={{ height: 4, borderRadius: 2, background: "#232638", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${expPct}%`, background: "#4fa8ff" }} />
+          </div>
         </div>
         <div style={{ color: "#777", fontSize: 11, textAlign: "right" }}>十字 / 左スティック:選択　B:決定　A/Y:閉じる</div>
         <div

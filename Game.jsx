@@ -8046,6 +8046,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         onClose={() => setGamepadQuickOpen(false)}
         dungeonLabel={dungeonScoreLabel(sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner")}
         noCarry={!isCarryInRun(dungeonConfig)}
+        exp={p.exp}
+        nextExp={p.nextExp}
       />
       <GamepadControlsGuide open={gamepadControlsOpen} onClose={() => setGamepadControlsOpen(false)} />
       <GamepadLtHint show={gamepadLtHeld} />
