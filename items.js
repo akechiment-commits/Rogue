@@ -7325,8 +7325,8 @@ export function monsterDrop(m, dg, ml, p = null) {
     ml.push(`${m.name}を倒した！金貨とアイテムが落ちた！`);
     return;
   }
-  /* ===== ボスドロップ（通常ドロップをスキップして専用報酬を散布。分身は通常ドロップ） ===== */
-  if (m.isBoss && !m._flockRevengeClone) {
+  /* ===== ボスドロップ（通常ドロップをスキップして専用報酬を散布） ===== */
+  if (m.isBoss) {
     const _tier = Math.max(1, Math.floor(Number(m.bossTier) || 1));
     const _ft = new Set();
     /* 金 */

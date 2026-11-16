@@ -90,10 +90,11 @@ describe("超上級B25Fボス：逆襲のフロック", () => {
     expect(flock.y).toBe(5);
   });
 
-  it("フロックの分身はボス扱い（状態異常有限・鈍足5T）で生成され、ボス財宝は落とさない", () => {
+  it("フロックの分身はボス扱い（状態異常有限・鈍足5T・bossTier継承）で生成され、ボス報酬を落とす", () => {
     const gameSource = fs.readFileSync("Game.jsx", "utf8");
     const cloneSnippetMatch = gameSource.match(/name:\s*"フロックの分身"[\s\S]{0,160}/);
     expect(cloneSnippetMatch?.[0]).toContain("isBoss: true");
+    expect(cloneSnippetMatch?.[0]).not.toContain("bossTier: 0");
 
     const { dungeon, flock, player } = makeRevengeScene({ flockX: 8, flockY: 8, playerX: 11, playerY: 8 });
     const clone = {
@@ -103,7 +104,6 @@ describe("超上級B25Fボス：逆襲のフロック", () => {
       hp: 640,
       maxHp: 640,
       isBoss: true,
-      bossTier: 0,
       _flockRevengeClone: true,
       _flockCloneSummoned: true,
     };
@@ -116,6 +116,6 @@ describe("超上級B25Fボス：逆襲のフロック", () => {
 
     const dropMessages = [];
     monsterDrop(clone, dungeon, dropMessages, player);
-    expect(dungeon.items.some((it) => it.name === "ボスの財宝")).toBe(false);
+    expect(dungeon.items.some((it) => it.name === "ボスの財宝")).toBe(true);
   });
 });
