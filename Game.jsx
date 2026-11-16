@@ -3210,6 +3210,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
                   pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
                 if (_kbPcP && !hasGravityPentacle(dg, attackMon.x, attackMon.y)) {
+                  if (attackMon.forcedMoveImmune) {
+                    ml.push(`${attackMon.name}は強制移動を受けない！`);
+                    return;
+                  }
                   const _kbDist = _kbPcP.cursed ? 1 : _kbPcP.blessed ? 99 : 5;
                   let _kbCx = attackMon.x, _kbCy = attackMon.y, _kbMoved = 0;
                   for (let _kbi = 0; _kbi < _kbDist; _kbi++) {
@@ -3781,6 +3785,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             for (const attackMon of _meleeKnockbackTargets) {
               if (attackMon.hp <= 0 || !dg.monsters.includes(attackMon)) continue;
               if (wabHas("knockback") && attackMon.hp > 0) {
+                if (attackMon.forcedMoveImmune) {
+                  ml.push(`${attackMon.name}は強制移動を受けない！`);
+                  continue;
+                }
                 const kx = attackMon.x + dx,
                   ky = attackMon.y + dy;
                 if (

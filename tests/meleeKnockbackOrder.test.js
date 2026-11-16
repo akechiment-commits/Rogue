@@ -21,10 +21,10 @@ const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonst
    }
    return {acted,animations:_ad};`);
 
-function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, others = [], walls = [] } = {}) {
+function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [] } = {}) {
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   const p = makePlayer({ atk: 10, weapon: { atk: 0, abilities } });
-  const mon = { id: "target", name: "対象", x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize };
+  const mon = { id: "target", name, x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize, ...(forcedMoveImmune ? { forcedMoveImmune: true } : {}) };
   const dg = makeEmptyDg({ monsters: [mon, ...others], rooms: [{ x: 1, y: 1, w: 40, h: 20 }],
     pentacles: pentacle ? [{ kind: "knockback_aura", name: "吹き飛ばしの魔方陣", x: 3, y: 3, ...pentacle }] : [] });
   for (const [x, y] of walls) dg.map[y][x] = utils.T.WALL;
@@ -131,5 +131,33 @@ describe("範囲近接攻撃後の吹き飛ばし", () => {
     expect(mon.hp).toBeLessThanOrEqual(0);
     expect(kill).toHaveBeenCalledTimes(1);
     expect(ml.some(m => m.startsWith("連撃！"))).toBe(false);
+  });
+  it("強制移動無効のお化け柳は吹き飛ばしの魔方陣でも吹き飛ばず壁衝突ダメージも受けない", () => {
+    const { mon, ml } = attack({
+      name: "お化け柳",
+      bodySize: 2,
+      forcedMoveImmune: true,
+      abilities: ["frontal_sweep"],
+      pentacle: {},
+      walls: [[8, 5]],
+    });
+    expect(mon.x).toBe(6);
+    expect(mon.y).toBe(5);
+    expect(ml.filter(m => m.startsWith("お化け柳に"))).toHaveLength(2);
+    expect(ml.some(m => m.includes("吹き飛んだ"))).toBe(false);
+    expect(ml.some(m => m.includes("壁に叩きつけられた"))).toBe(false);
+    expect(ml).toContain("お化け柳は強制移動を受けない！");
+  });
+  it("強制移動無効のお化け柳は武器の吹き飛ばし能力でも吹き飛ばない", () => {
+    const { mon, ml } = attack({
+      name: "お化け柳",
+      bodySize: 2,
+      forcedMoveImmune: true,
+      abilities: ["knockback"],
+    });
+    expect(mon.x).toBe(6);
+    expect(mon.y).toBe(5);
+    expect(ml.some(m => m.includes("吹き飛んだ"))).toBe(false);
+    expect(ml).toContain("お化け柳は強制移動を受けない！");
   });
 });
