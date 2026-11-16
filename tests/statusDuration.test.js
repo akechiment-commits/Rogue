@@ -24,7 +24,10 @@ describe("statusTurns", () => {
     expect(statusTurns("darkness", { kind: "monster", target })).toBe(10);
     expect(statusTurns("bewitch", { kind: "monster", target })).toBe(10);
     expect(statusTurns("oily", { kind: "monster", target })).toBe(10);
-    expect(statusTurns("confuse", { kind: "monster", blessed: true, target })).toBe(10);
+    expect(statusTurns("confuse", { kind: "monster", blessed: true, target })).toBe(20);
+    expect(statusTurns("darkness", { kind: "monster", blessed: true, target })).toBe(20);
+    expect(statusTurns("bewitch", { kind: "monster", blessed: true, target })).toBe(20);
+    expect(statusTurns("oily", { kind: "monster", blessed: true, target })).toBe(20);
     expect(statusTurns("caswack", { kind: "monster", target })).toBe(10);
     expect(statusTurns("berserker", { kind: "monster", target })).toBe(10);
     expect(statusTurns("drunk", { kind: "monster", target })).toBe(10);
@@ -112,15 +115,16 @@ describe("applyMonsterParalyze", () => {
     expect(mon2.paralyzeTurns || 0).toBe(0);
   });
 
-  it("ボスは付与時に上限10T、祝福でも10T、monsterStatusTurnsも上限10T", () => {
+  it("ボスは付与時に上限10T、祝福のみ例外で上限20T、monsterStatusTurnsも同様", () => {
     const boss = { name: "ボス", hp: 100, isBoss: true };
     expect(applyMonsterParalyze(boss)).toBe(BOSS_PARALYZE_TURNS / 2);
     expect(boss.paralyzeTurns).toBe(10);
 
     const boss2 = { name: "ボス", hp: 100, isBoss: true };
-    expect(applyMonsterParalyze(boss2, { blessed: true })).toBe(10);
-    expect(boss2.paralyzeTurns).toBe(10);
+    expect(applyMonsterParalyze(boss2, { blessed: true })).toBe(20);
+    expect(boss2.paralyzeTurns).toBe(20);
     expect(monsterStatusTurns(50, { isBoss: true })).toBe(10);
+    expect(monsterStatusTurns(50, { isBoss: true }, { blessed: true })).toBe(20);
     expect(monsterStatusTurns(10, { isBoss: true })).toBe(5);
   });
 });

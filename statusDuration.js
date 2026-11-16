@@ -14,13 +14,14 @@ import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./larg
  * 金縛りの特例:
  * - 通常の金縛り: 有効な攻撃・効果を受けると解除
  * - 祝福の強金縛り: 1回目で弱まり、2回目で解除
- * - 敵ボス: 有限 BOSS_PARALYZE_TURNS（20）の半分から開始（10T）。ボスは全状態異常とも上限 BOSS_MAX_STATUS_TURNS（10T）
+ * - 敵ボス: 有限 BOSS_PARALYZE_TURNS（20）の半分から開始（10T）。ボスは通常上限 BOSS_MAX_STATUS_TURNS（10T）、祝福由来のみ上限 BOSS_BLESSED_MAX_STATUS_TURNS（20T）
  */
 
 export const PERMANENT_TURNS = 9999;
 
-/** ボスへの状態異常持続ターン上限（10ターン以上になるものは10ターンにする） */
+/** ボスへの状態異常持続ターン上限（通常10ターン、祝福由来のみ例外で20ターン） */
 export const BOSS_MAX_STATUS_TURNS = 10;
+export const BOSS_BLESSED_MAX_STATUS_TURNS = 20;
 
 /** ボスへの「本来永続」系の基準有限ターン（封印など）。付与時に半分にする */
 export const BOSS_SEAL_TURNS = 20;
@@ -258,10 +259,11 @@ export function statusTurns(status, opts = {}) {
     return Math.min(BOSS_MAX_STATUS_TURNS, Math.max(1, Math.ceil(BOSS_SEAL_TURNS / 2)));
   }
 
-  // ボスは原則付与時点で半分から始め、10ターン以上になる場合は10ターンを上限とする。奇数は切り上げ、最低1ターンを保証する。
+  // ボスは原則付与時点で半分から始め、通常上限10ターン（祝福由来のみ例外で上限20ターン）とする。奇数は切り上げ、最低1ターンを保証する。
   if (kind === "monster" && target?.isBoss && turns < PERMANENT_TURNS) {
     const bossTurns = BOSS_FULL_DURATION.has(status) ? turns : Math.max(1, Math.ceil(turns / 2));
-    return Math.min(BOSS_MAX_STATUS_TURNS, bossTurns);
+    const maxBossTurns = blessed ? BOSS_BLESSED_MAX_STATUS_TURNS : BOSS_MAX_STATUS_TURNS;
+    return Math.min(maxBossTurns, bossTurns);
   }
 
   return turns;
@@ -271,10 +273,12 @@ export function isPermanentTurns(t) {
   return (t || 0) >= PERMANENT_TURNS;
 }
 
-/** STATUS_BASEにないモンスター専用の一時効果にも、ボス半減・上限10ターンを適用する。 */
-export function monsterStatusTurns(baseTurns, target) {
+/** STATUS_BASEにないモンスター専用の一時効果にも、ボス半減・上限10ターン（祝福時20ターン）を適用する。 */
+export function monsterStatusTurns(baseTurns, target, { blessed = false } = {}) {
   const turns = Math.max(1, Math.floor(Number(baseTurns) || 0));
-  return target?.isBoss ? Math.min(BOSS_MAX_STATUS_TURNS, Math.max(1, Math.ceil(turns / 2))) : turns;
+  if (!target?.isBoss) return turns;
+  const maxBossTurns = blessed ? BOSS_BLESSED_MAX_STATUS_TURNS : BOSS_MAX_STATUS_TURNS;
+  return Math.min(maxBossTurns, Math.max(1, Math.ceil(turns / 2)));
 }
 
 /** 状態付与に付随する毒の能力低下・ログも、防止結果と同じ判定に揃える。 */
@@ -559,7 +563,7 @@ export function applyAttackSeal(entity, opts = {}) {
 /**
  * モンスターに金縛りを付与。
  * - 通常敵: 永続（有効な攻撃・効果を受けると解除）。祝福時は paralyzeHits=2
- * - ボス: 有限 20T の半分（祝福含め上限10T）を付与。被ダメでも解除
+ * - ボス: 有限 20T の半分（通常上限10T、祝福時は上限20T）を付与。被ダメでも解除
  * @returns {number} 付与ターン（通常敵の永続は PERMANENT_TURNS）
  */
 export function applyMonsterParalyze(target, { blessed = false, ml = null, name = null } = {}) {
