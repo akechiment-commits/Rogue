@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { monsterDragonFire, monsterIceBreath } from "../monsters.js";
+import { MONS, makeMonsterFromBase, monsterAI, monsterDragonFire, monsterIceBreath } from "../monsters.js";
+import { MW, MH, T } from "../utils.js";
 
 describe("Dragon breath damage hooks: barrier, spore, dormant, paralysis, fixed damage", () => {
   it("dragon fire breath hitting mushroom triggers counter spore, wakes dormant, and clamps fixed damage", () => {
@@ -136,5 +137,73 @@ describe("Dragon breath damage hooks: barrier, spore, dormant, paralysis, fixed 
     expect(p.paralyzeTurns).toBe(0);
     expect(ml.some(m => m.includes("寒さで目が覚めた！"))).toBe(true);
     expect(ml.some(m => m.includes("金縛りが解けた！"))).toBe(true);
+  });
+});
+
+describe("Red Dragon & Blue Dragon two-phase room breath", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("レッドドラゴン（dragon Lv2）が moveOnly で同室ブレスを予約した後、attackOnly で確実に炎ブレスを吐く", () => {
+    const base = MONS.find(m => m.baseKind === "dragon");
+    const dragon = makeMonsterFromBase(base, 2, 4, 4, { aware: true });
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+    const room = { x: 2, y: 2, w: 10, h: 10 };
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) map[y][x] = T.FLOOR;
+    }
+    const dg = makeEmptyDg({
+      map,
+      rooms: [room],
+      visible: Array.from({ length: MH }, () => Array(MW).fill(true)),
+      monsters: [dragon],
+    });
+    // 直線上ではない同室座標（追尾ブレス対象）
+    const p = makePlayer({ x: 8, y: 6, hp: 300, maxHp: 300 });
+    const ml = [];
+
+    // 1回目の乱数(moveOnly予約時)は0.05で20%以内、2回目以降の乱数(attackOnly等)は0.99でブレス再抽選に頼らないことを検証
+    const spy = vi.spyOn(Math, "random");
+    spy.mockReturnValueOnce(0.05).mockReturnValue(0.99);
+
+    monsterAI(dragon, dg, p, ml, { moveOnly: true });
+    expect(dragon.x).toBe(4);
+    expect(dragon.y).toBe(4);
+    expect(dragon._rangedAttackThisTurn).toBe(true);
+
+    dragon.turnAttacks = 0;
+    monsterAI(dragon, dg, p, ml, { attackOnly: true });
+    expect(ml.some(m => m.includes("レッドドラゴンが炎ブレスを吐いた！"))).toBe(true);
+    expect(p.hp).toBeLessThan(300);
+  });
+
+  it("ブルードラゴン（icedragon Lv2）も moveOnly 予約後に attackOnly で確実に氷ブレスを吐く", () => {
+    const base = MONS.find(m => m.baseKind === "icedragon");
+    const dragon = makeMonsterFromBase(base, 2, 4, 4, { aware: true });
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+    const room = { x: 2, y: 2, w: 10, h: 10 };
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) map[y][x] = T.FLOOR;
+    }
+    const dg = makeEmptyDg({
+      map,
+      rooms: [room],
+      visible: Array.from({ length: MH }, () => Array(MW).fill(true)),
+      monsters: [dragon],
+    });
+    const p = makePlayer({ x: 8, y: 6, hp: 300, maxHp: 300 });
+    const ml = [];
+
+    const spy = vi.spyOn(Math, "random");
+    spy.mockReturnValueOnce(0.05).mockReturnValue(0.99);
+
+    monsterAI(dragon, dg, p, ml, { moveOnly: true });
+    expect(dragon._rangedAttackThisTurn).toBe(true);
+
+    dragon.turnAttacks = 0;
+    monsterAI(dragon, dg, p, ml, { attackOnly: true });
+    expect(ml.some(m => m.includes("ブルードラゴンが氷ブレスを吐いた！"))).toBe(true);
+    expect(p.hp).toBeLessThan(300);
   });
 });

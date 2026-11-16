@@ -10719,11 +10719,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
         }
       }
-      /* 共通の遠距離攻撃判定が予約フラグを先に消費するため、コルゴンは保持された判定結果も引き継ぐ。 */
-      const _dragonRdy = m.baseKind === "boss_korgon"
-        ? (_rangedAttackReady || m._rangedAttackThisTurn)
-        : m._rangedAttackThisTurn;
-      if (_dragonRdy) delete m._rangedAttackThisTurn;
+      /* 共通の遠距離攻撃判定が予約フラグを先に消費するため、保持された判定結果も引き継ぐ。 */
+      const _dragonRdy = _rangedAttackReady || m._rangedAttackThisTurn;
+      if (m._rangedAttackThisTurn) delete m._rangedAttackThisTurn;
       const _breathChosen = m.baseKind === "boss_korgon"
         ? _dragonRdy
         : (_dragonRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m));
@@ -10750,8 +10748,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         else if (_ibLvl >= 2) { _ibCanFire = canSee && _sameRoom; }
         else { _ibCanFire = canSee && (_ibAdx === 0 || _ibAdy === 0 || Math.abs(_ibAdx) === Math.abs(_ibAdy)); }
       }
-      const _ibRdy = m._rangedAttackThisTurn;
-      if (_ibRdy) delete m._rangedAttackThisTurn;
+      const _ibRdy = _rangedAttackReady || m._rangedAttackThisTurn;
+      if (m._rangedAttackThisTurn) delete m._rangedAttackThisTurn;
       if (_ibCanFire && !_plOnBlessedSanc && (_ibRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m))) {
         if (_ibLvl >= 3) {
           m.aware = true;
