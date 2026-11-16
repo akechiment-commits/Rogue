@@ -1192,3 +1192,24 @@ export function advanceNextExp(currentNextExp, newLevel) {
 export function rewindNextExp(currentNextExp, previousLevel) {
   return Math.max(1, Math.floor((Number(currentNextExp) || 10) / expMultiplierForNewLevel(previousLevel)));
 }
+
+/** 指定レベル到達時に設定される次レベル必要経験値を算出する */
+export function nextExpForLevel(level) {
+  const lv = Math.max(1, Math.floor(Number(level) || 1));
+  let req = 10;
+  for (let l = 2; l <= lv; l++) req = advanceNextExp(req, l);
+  return req;
+}
+
+/** プレイヤーの累計経験値（過去レベル分の合計 + 現在レベル内の蓄積値）を算出する */
+export function playerTotalExp(player) {
+  if (!player) return 0;
+  const level = Math.max(1, Math.floor(Number(player.level) || 1));
+  let total = Math.max(0, Math.floor(Number(player.exp) || 0));
+  let req = 10;
+  for (let lv = 1; lv < level; lv++) {
+    total += req;
+    req = advanceNextExp(req, lv + 1);
+  }
+  return total;
+}

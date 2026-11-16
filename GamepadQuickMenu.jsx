@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 import { QUICK_MENU_ITEMS } from "./gamepadInput.js";
+import { playerTotalExp } from "./utils.js";
 
 export const QUICK_MENU_COLS = 2;
 
 /**
  * Yボタン/モバイル「メニュー」のクイックメニュー（2列グリッド、方向で選択、B/タップで決定）
  */
-export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose, dungeonLabel = "", noCarry = false, exp = 0, nextExp = 10 }) {
+export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSelect, onClose, dungeonLabel = "", noCarry = false, level = 1, exp = 0, nextExp = 10, totalExp = null }) {
   /* 開いた直後の閉じる/選択判定をブロックする。モバイルのボタンは pointerdown で即発火して
    * メニューを開くため、同じタップの click が背景に届いて開いた瞬間に閉じてしまうことがある。 */
   const openedAtRef = useRef(0);
@@ -15,6 +16,9 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
   if (!open) return null;
   const curExp = Math.max(0, Math.floor(Number(exp) || 0));
   const reqExp = Math.max(1, Math.floor(Number(nextExp) || 10));
+  const displayTotalExp = totalExp == null
+    ? playerTotalExp({ level, exp: curExp })
+    : Math.max(0, Math.floor(Number(totalExp) || 0));
   const remainExp = Math.max(0, reqExp - curExp);
   const expPct = Math.min(100, Math.max(0, (curExp / reqExp) * 100));
   return (
@@ -98,7 +102,7 @@ export function GamepadQuickMenu({ open, sel = 0, items = QUICK_MENU_ITEMS, onSe
           fontSize: 12,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <span>現在EXP: <strong style={{ color: "#fff" }}>{curExp.toLocaleString()}</strong> / {reqExp.toLocaleString()}</span>
+            <span>現在EXP: <strong style={{ color: "#fff" }}>{displayTotalExp.toLocaleString()}</strong></span>
             <span style={{ color: "#7fe0ff", whiteSpace: "nowrap" }}>次Lvまであと {remainExp.toLocaleString()}</span>
           </div>
           <div style={{ height: 4, borderRadius: 2, background: "#232638", overflow: "hidden" }}>
