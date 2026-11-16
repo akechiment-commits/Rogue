@@ -63,6 +63,26 @@ describe("遠距離敵の移動", () => {
     expect({ x: m.x, y: m.y }).not.toEqual({ x: 7, y: 7 });
   });
 
+  it("封印された杖術師は距離3維持・後退をせず接近して通常攻撃する", () => {
+    const m = makeRanged("wanduser", 10, 8);
+    m.randomStatusWands = true;
+    m.baseKind = "witchdoc";
+    m.name = "杖術師";
+    m.sealed = true;
+    const pl = makePlayer({ x: 10, y: 5 });
+    const dg = openBattlefield(m);
+    const ml = [];
+
+    monsterAI(m, dg, pl, ml, { moveOnly: true });
+    expect(Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y))).toBe(2);
+    monsterAI(m, dg, pl, ml, { moveOnly: true });
+    expect(Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y))).toBe(1);
+
+    m.turnAttacks = 0;
+    monsterAI(m, dg, pl, ml, { attackOnly: true });
+    expect(ml.some(msg => msg.includes("杖術師の攻撃！") || msg.includes("外れた"))).toBe(true);
+  });
+
   it("杖術師は隣接すると離れる", () => {
     const m = makeRanged("wanduser", 10, 5);
     m.randomStatusWands = true;

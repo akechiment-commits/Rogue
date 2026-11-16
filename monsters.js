@@ -11669,7 +11669,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── 術師：プレイヤーから距離3を保ち、それ以上近づかない ── */
-    if (!_attackOnly && !_movementLocked && canSee && m.randomStatusWands) {
+    if (!_attackOnly && !_movementLocked && canSee && m.randomStatusWands && !m.sealed) {
       const _keep = 3;
       const _sdx = pl.x - m.x, _sdy = pl.y - m.y;
       const _sDist = Math.max(Math.abs(_sdx), Math.abs(_sdy));
