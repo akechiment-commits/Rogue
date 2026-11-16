@@ -41,7 +41,7 @@ export function classifySoundMessages(messages, { playerName = "" } = {}) {
     if (/を倒した[！!。]|を撃破|は消し飛んだ[！!]/.test(text)) add("defeat");
     if (/会心の一撃|痛恨の一撃|強烈な一撃/.test(text)) add("crit");
     if (/外れた|かわした|命中しなかった|攻撃.*空振り/.test(text)) add("miss");
-    if (/割れた|割れてしまった|粉々に|壊れた|壊れてしまった/.test(text)) add("shatter");
+    if (/(?<!ひび)(?:割れた|割れてしまった|壊れた|壊れてしまった)|粉々に/.test(text)) add("shatter");
     if (/爆発した|大爆発|誘爆した|爆破した|爆発を受けた/.test(text)) add("explosion");
     if (/罠.*(?:発動|作動)|(?:地雷|回転板|落とし穴).*発動/.test(text)) add("trap");
     if (/(?:G|ゴールド|金貨).*?(?:拾った|手に入れた)/.test(text)) add("gold");

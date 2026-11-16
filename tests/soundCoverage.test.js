@@ -82,6 +82,9 @@ describe("効果音の発火範囲", () => {
     const notices = classifySoundMessages(["祝福された雷の杖を振った！", "呪われた爆発の魔方陣が炎を打ち消した！"]);
     expect(notices).not.toContain("buff");
     expect(notices).not.toContain("curse");
+    expect(classifySoundMessages(["ひび割れた表紙の魔法書がある（商品：2000G） fキーで拾う", "ひび割れた大箱がある。"])).not.toContain("shatter");
+    expect(classifySoundMessages(["ひび割れた壺を拾った！"])).toEqual(["pickup"]);
+    expect(classifySoundMessages(["ひび割れた壺が割れた！"])).toContain("shatter");
   });
 
   it("回復と雷の描画を爆発音として扱わない", () => {
