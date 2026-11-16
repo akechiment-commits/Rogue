@@ -81,12 +81,12 @@ describe("武器の攻撃時状態異常付与 (applyWeaponStatusInflictions)", 
 
     expect(boss.speed).toBe(0.5);
     expect(boss.bossSlowTurns).toBe(5);
-    expect(boss.paralyzeTurns).toBe(25);
+    expect(boss.paralyzeTurns).toBe(10);
     expect(boss.sleepTurns).toBe(3);
-    expect(boss.darknessTurns).toBe(25);
+    expect(boss.darknessTurns).toBe(10);
     expect(boss.blind).toBeUndefined();
     expect(boss.confusedTurns).toBe(10);
-    expect(boss.fleeingTurns).toBe(25);
+    expect(boss.fleeingTurns).toBe(10);
     expect(boss.sealedTurns).toBe(10);
     expect(boss.immobileTurns).toBe(3);
   });

@@ -1686,7 +1686,7 @@ export function useItemActions({
               // 元から倍速なら等速に戻す
               if ((_m.speed || 1) > 1) { _m.speed = 1; _removed.push("倍速→等速"); }
               if (it.blessed) {
-                // 祝福：攻撃力・防御力を通常敵50行動、ボス25行動半減
+                // 祝福：攻撃力・防御力を通常敵50行動、ボス10行動半減
                 const _halfTurns = monsterStatusTurns(50, _m);
                 if (_m._debuffOrigAtk === undefined) { _m._debuffOrigAtk = _m.atk; _m.atk = Math.max(1, Math.floor(_m.atk / 2)); }
                 if (_m._debuffOrigDef === undefined) { _m._debuffOrigDef = _m.def; _m.def = Math.max(0, Math.floor(_m.def / 2)); }

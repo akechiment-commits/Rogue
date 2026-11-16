@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  statusTurns, STATUS_BASE, PERMANENT_TURNS, BOSS_PARALYZE_TURNS,
+  statusTurns, monsterStatusTurns, STATUS_BASE, PERMANENT_TURNS, BOSS_PARALYZE_TURNS,
   isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch,
   applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero,
 } from "../statusDuration.js";
@@ -21,9 +21,14 @@ describe("statusTurns", () => {
     const target = { isBoss: true };
     expect(statusTurns("sleep", { kind: "monster", target })).toBe(3);
     expect(statusTurns("confuse", { kind: "monster", target })).toBe(10);
-    expect(statusTurns("darkness", { kind: "monster", target })).toBe(25);
-    expect(statusTurns("bewitch", { kind: "monster", target })).toBe(25);
-    expect(statusTurns("oily", { kind: "monster", target })).toBe(50);
+    expect(statusTurns("darkness", { kind: "monster", target })).toBe(10);
+    expect(statusTurns("bewitch", { kind: "monster", target })).toBe(10);
+    expect(statusTurns("oily", { kind: "monster", target })).toBe(10);
+    expect(statusTurns("confuse", { kind: "monster", blessed: true, target })).toBe(10);
+    expect(statusTurns("caswack", { kind: "monster", target })).toBe(10);
+    expect(statusTurns("berserker", { kind: "monster", target })).toBe(10);
+    expect(statusTurns("drunk", { kind: "monster", target })).toBe(10);
+    expect(statusTurns("float", { kind: "monster", target })).toBe(10);
   });
 
   it("ボスへの永続封印は付与時に半分の10T", () => {
@@ -107,14 +112,16 @@ describe("applyMonsterParalyze", () => {
     expect(mon2.paralyzeTurns || 0).toBe(0);
   });
 
-  it("ボスは付与時に半分の25T、祝福は50T", () => {
+  it("ボスは付与時に上限10T、祝福でも10T、monsterStatusTurnsも上限10T", () => {
     const boss = { name: "ボス", hp: 100, isBoss: true };
     expect(applyMonsterParalyze(boss)).toBe(BOSS_PARALYZE_TURNS / 2);
-    expect(boss.paralyzeTurns).toBe(25);
+    expect(boss.paralyzeTurns).toBe(10);
 
     const boss2 = { name: "ボス", hp: 100, isBoss: true };
-    expect(applyMonsterParalyze(boss2, { blessed: true })).toBe(BOSS_PARALYZE_TURNS);
-    expect(boss2.paralyzeTurns).toBe(50);
+    expect(applyMonsterParalyze(boss2, { blessed: true })).toBe(10);
+    expect(boss2.paralyzeTurns).toBe(10);
+    expect(monsterStatusTurns(50, { isBoss: true })).toBe(10);
+    expect(monsterStatusTurns(10, { isBoss: true })).toBe(5);
   });
 });
 
