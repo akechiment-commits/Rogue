@@ -2195,7 +2195,7 @@ export const FLOCK_REVENGE_BOSS = {
   isBoss: true, bossTier: 5, monLevel: 1, maxAttacks: 1, float: true,
   mp: 1300, maxMp: 1300, flockEmpowered: true, flockMagicPowerMultiplier: 2,
   deathLines: FLOCK_REVENGE_DEATH_LINES,
-  desc: "超上級B25Fの浮遊ボス。最大MP1300（同室交戦で魔法約70回分）。B10F版の約2倍の威力の魔法をMP消費付きで使う。炎・氷・毒・呪いに加え、遠距離直線上でHP吸収と眠りの魔法を使い、隣接するとテレポート（稀に誤って自爆しHP1）する。同じ部屋で視認できるプレイヤーがいる時、MP18〜19なら雷の部屋攻撃（MP18）を使い、MP20以上なら雷の部屋攻撃（MP18）と召喚魔法（MP20）を50%ずつで選ぶ。雷は同室のプレイヤーだけを対象にし、他の敵には当たらない。プレイヤーの反射の鎧／魔法反射状態で術者へ跳ね返る。召喚はB25F通常敵候補から重み付きで1体を隣接空き床へ呼び、出現敵は次のプレイヤー行動から動く。空き床がなければ召喚MPを消費しない。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
+  desc: "超上級B25Fの浮遊ボス。最大MP1300。B10F版の約2倍の威力の魔法をMP消費付きで使う。プレイヤーとの距離3・一直線上を保つように移動し、見失えば歩いて探す。隣接するとテレポート（10%で誤って自爆しHP1）。射程内（直線距離2〜10マスまたは同室）にいる時は一定確率で魔法を使い、直線上の6種（炎・氷・毒・呪い・HP吸収・眠り）と、同室の雷の部屋攻撃・召喚魔法（空き床がある場合）・未発動バフ（魔法反射・守護・炎まとい）を混ぜて唱える。封印や行動不能以外の状態異常は浄化する。HPが半分未満になると1度だけHP半分の分身を作る。MPが0になると行動できず震える。",
 };
 
 export const FLOCK_STALKER_BOSS = {
@@ -6639,7 +6639,7 @@ function flockDistance(x1, y1, x2, y2) {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
 }
 
-function moveFlockToFiringLine(monster, dungeon, player) {
+function moveFlockToFiringLine(monster, dungeon, player, { preferRange = null } = {}) {
   const flockFloat = monEffectiveFloat(monster) &&
     (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, monster.x, monster.y));
   const tileCanEnter = (x, y) => canEnter(dungeon.map, x, y, flockFloat, dungeon, monEffectiveWaterWalker(monster));
@@ -6652,11 +6652,19 @@ function moveFlockToFiringLine(monster, dungeon, player) {
       goals.push({ x, y, distance: flockDistance(monster.x, monster.y, x, y), range });
     }
   }
-  goals.sort((a, b) => a.distance - b.distance || a.range - b.range);
+  goals.sort((a, b) => {
+    if (preferRange != null) {
+      const pa = a.range === preferRange ? 0 : 1;
+      const pb = b.range === preferRange ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+    }
+    return a.distance - b.distance || a.range - b.range;
+  });
 
   for (const goal of goals) {
+    if (goal.x === monster.x && goal.y === monster.y) return false;
     const next = bfsNext(dungeon.map, dungeon.monsters || [], monster.x, monster.y, goal.x, goal.y, monster,
-      60, dungeon.pentacles, flockFloat,
+      100, dungeon.pentacles, flockFloat,
       (x, y) => tileCanEnter(x, y) && flockDistance(x, y, player.x, player.y) >= 3,
       false, dungeon.rooms, dungeon);
     if (!next || !tileCanEnter(next.x, next.y) || (next.x === player.x && next.y === player.y) ||
@@ -6667,6 +6675,94 @@ function moveFlockToFiringLine(monster, dungeon, player) {
     monster._movedThisTurn = true;
     return true;
   }
+  return false;
+}
+
+/* プレイヤーを見失った／未視認のフロック系が歩いて探すための共通移動処理 */
+function moveFlockExplore(monster, dungeon, player) {
+  if (!dungeon?.map) return false;
+  const map = dungeon.map;
+  const rooms = dungeon.rooms || [];
+  const flockFloat = monEffectiveFloat(monster) &&
+    (monEffectiveMagicImmune(monster) || !hasGravityPentacle(dungeon, monster.x, monster.y));
+  const tileCanEnter = (x, y) => canEnter(map, x, y, flockFloat, dungeon, monEffectiveWaterWalker(monster));
+
+  const tryStepTo = (tx, ty) => {
+    const next = bfsNext(map, [], monster.x, monster.y, tx, ty, monster,
+      100, dungeon.pentacles, flockFloat, tileCanEnter, false, rooms, dungeon);
+    if (!next || (next.x === player.x && next.y === player.y)) return false;
+    if (!inMagicSealRoom(monster.x, monster.y, dungeon) &&
+        dungeon.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return false;
+    if (!dungeon.monsters?.some(o => o !== monster && monsterOccupiesCell(o, next.x, next.y))) {
+      monster.dir = { x: next.x - monster.x, y: next.y - monster.y };
+      monster.x = next.x;
+      monster.y = next.y;
+      monster._movedThisTurn = true;
+      return true;
+    }
+    return false;
+  };
+
+  if (monster.aware && Number.isFinite(monster.lastPx) && Number.isFinite(monster.lastPy)) {
+    if (monster.x === monster.lastPx && monster.y === monster.lastPy) {
+      monster.aware = false;
+    } else {
+      if (tryStepTo(monster.lastPx, monster.lastPy)) return true;
+      for (const [adx, ady] of shuffle([[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]])) {
+        const ax = monster.x + adx, ay = monster.y + ady;
+        if (!tileCanEnter(ax, ay) || (ax === player.x && ay === player.y)) continue;
+        if (dungeon.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === ax && pc.y === ay)) continue;
+        if (dungeon.monsters?.some(o => o !== monster && monsterOccupiesCell(o, ax, ay))) continue;
+        if (flockDistance(ax, ay, monster.lastPx, monster.lastPy) <= flockDistance(monster.x, monster.y, monster.lastPx, monster.lastPy)) {
+          monster.dir = { x: adx, y: ady };
+          monster.x = ax;
+          monster.y = ay;
+          monster._movedThisTurn = true;
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  if (isStationaryMonster(monster)) return false;
+  const room = findRoom(rooms, monster.x, monster.y);
+  const arrived = monster.patrolTarget && monster.x === monster.patrolTarget.x && monster.y === monster.patrolTarget.y;
+  if (arrived || !monster.patrolTarget || Math.random() < 0.02) {
+    if (arrived) monster.lastPatrolTarget = { x: monster.patrolTarget.x, y: monster.patrolTarget.y };
+    monster.patrolTarget = null;
+    if (room) {
+      const otherRooms = rooms.filter(r => r !== room);
+      if (otherRooms.length > 0) {
+        const prev = monster.lastPatrolTarget;
+        const destCands = prev
+          ? otherRooms.filter(r => !(r.x <= prev.x && prev.x < r.x + r.w && r.y <= prev.y && prev.y < r.y + r.h))
+          : otherRooms;
+        const destRoom = pick(destCands.length > 0 ? destCands : otherRooms);
+        for (let a = 0; a < 30; a++) {
+          const tx = rng(destRoom.x, destRoom.x + destRoom.w - 1);
+          const ty = rng(destRoom.y, destRoom.y + destRoom.h - 1);
+          if (tileCanEnter(tx, ty)) { monster.patrolTarget = { x: tx, y: ty }; break; }
+        }
+      }
+    } else {
+      const dirs4 = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+      const open = dirs4.filter(([dx, dy]) => tileCanEnter(monster.x + dx, monster.y + dy));
+      const notRev = monster.dir ? open.filter(([dx, dy]) => !(dx === -monster.dir.x && dy === -monster.dir.y)) : open;
+      const chosen = pick(notRev.length > 0 ? notRev : open);
+      if (chosen) {
+        let ptx = monster.x, pty = monster.y;
+        for (let s = 1; s <= 16; s++) {
+          const nx = monster.x + chosen[0] * s, ny = monster.y + chosen[1] * s;
+          if (!tileCanEnter(nx, ny)) break;
+          ptx = nx; pty = ny;
+        }
+        monster.patrolTarget = { x: ptx, y: pty };
+      }
+    }
+  }
+  if (monster.patrolTarget && tryStepTo(monster.patrolTarget.x, monster.patrolTarget.y)) return true;
+  monster.patrolTarget = null;
   return false;
 }
 
@@ -8361,12 +8457,22 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const dx = pl.x - m.x, dy = pl.y - m.y;
     const distance = flockDistance(m.x, m.y, pl.x, pl.y);
     const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+    const room = findRoom(dg.rooms, m.x, m.y);
+    const plRoom = findRoom(dg.rooms, pl.x, pl.y);
+    const sameRoom = !!room && !!plRoom && room.x === plRoom.x && room.y === plRoom.y;
     const playerHidden = _plPotHidden || (pl.invisibleTurns || 0) > 0;
-    const canSeePlayer = !!dg.visible?.[m.y]?.[m.x] && !playerHidden && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    const canSeePlayer = !playerHidden && hasLOS(dg.map, m.x, m.y, pl.x, pl.y) &&
+      (sameRoom || !!dg.visible?.[m.y]?.[m.x]);
+    if (canSeePlayer) {
+      m.aware = true;
+      m.lastPx = pl.x;
+      m.lastPy = pl.y;
+      m.patrolTarget = null;
+    } else if (_plPotHidden) {
+      m.aware = false;
+    }
     const canUseMagic = !!opts.monsterWandFn && !m.sealed && !isAttackSealed(m) &&
       !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc;
-    const room = findRoom(dg.rooms, m.x, m.y);
-    const sameRoom = !!room && findRoom(dg.rooms, pl.x, pl.y) === room;
     const availableAttacks = (_isFlockRevenge || _isFlockStalker ? FLOCK_REVENGE_ATTACK_EFFECTS : FLOCK_MAGIC_EFFECTS)
       .filter(effect => m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10));
     const canCast = canSeePlayer && canUseMagic && inLine && distance >= (_isFlockRevenge || _isFlockStalker ? 2 : 3) && distance <= 10 &&
@@ -8504,37 +8610,70 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
+    /* ── 逆襲のフロック／盗み済み執念のフロック：距離3・一直線を維持しつつ、一定確率で使える魔法（雷・召喚・バフ・直線6種）を使い、見失えば歩いて探す ── */
+    if (_isFlockRevenge || (_isFlockStalker && m._hasStolenBook)) {
+      if (!canSeePlayer) {
+        if (!_flockMovementLocked && !m._movedThisTurn) moveFlockExplore(m, dg, pl);
+        return;
+      }
+      const roomBuffEffects = sameRoom && canUseMagic ? FLOCK_REVENGE_ROOM_EFFECTS.filter(effect => effect !== "lightning_magic").filter(effect => {
+        if (effect === "reflect_magic" && (m.flockReflectTurns || 0) > 0) return false;
+        if (effect === "guard_magic" && (m.flockGuardTurns || 0) > 0) return false;
+        if (effect === "flame_mantle" && (m.flameMantleTurns || 0) > 0) return false;
+        return m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10);
+      }) : [];
+      const roomSpecials = sameRoom && canUseMagic ? [
+        ...(m.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic ? ["lightning_magic"] : []),
+        ...(m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster && pickFlockSummonPlacement(m, dg, pl) ? ["summon_monster"] : []),
+      ] : [];
+      const roomOnlyActions = [...roomBuffEffects, ...roomSpecials];
+      const hasAttackSlot = m.turnAttacks < monEffectiveMaxAttacks(m);
+      const lineAttacks = canCast ? availableAttacks : [];
+      const pickRevengeSpell = () => {
+        if (lineAttacks.length > 0 && roomOnlyActions.length > 0) {
+          return Math.random() < 0.60 ? pick(lineAttacks) : pick(roomOnlyActions);
+        }
+        if (lineAttacks.length > 0) return pick(lineAttacks);
+        if (roomOnlyActions.length > 0) return pick(roomOnlyActions);
+        return null;
+      };
+      const spellChance = (distance === 3 && inLine) ? 0.75
+        : (distance > 10) ? 0.30
+          : 0.55;
+      const chosenSpell = hasAttackSlot ? pickRevengeSpell() : null;
+      if (chosenSpell && Math.random() < spellChance) {
+        reserveOrCastSpell(chosenSpell);
+        return;
+      }
+      const needsReposition = distance !== 3 || !inLine;
+      const repositioned = (needsReposition && !_flockMovementLocked && !m._movedThisTurn)
+        ? moveFlockToFiringLine(m, dg, pl, { preferRange: 3 })
+        : false;
+      if (!repositioned && hasAttackSlot) {
+        const corneredLineSpell = (inLine && distance >= 1 && distance <= 3 && canUseMagic && availableAttacks.length > 0)
+          ? pick(availableAttacks) : null;
+        const fallbackSpell = chosenSpell || corneredLineSpell;
+        if (fallbackSpell) {
+          reserveOrCastSpell(fallbackSpell, !chosenSpell && !!corneredLineSpell);
+          return;
+        }
+      }
+      if (m.sealed) {
+        flockSealedDialogue(m, dg, ml, _attackOnly);
+      } else if (Math.random() < 0.30) {
+        ml.push(`${m.name}「${pick(FLOCK_IDLE_LINES)}」`);
+      }
+      return;
+    }
+
     const ordinaryMagicInRange = canSeePlayer && inLine && distance >= 3 && distance <= 10;
-    if (!_isFlockRevenge && canSeePlayer && canUseMagic && !ordinaryMagicInRange &&
+    if (_isFlockBoss && canSeePlayer && canUseMagic && !ordinaryMagicInRange &&
         m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster &&
         m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < 0.20) {
       reserveOrCastSpell("summon_monster");
       return;
     }
 
-    if ((_isFlockRevenge || _isFlockStalker) && sameRoom && canSeePlayer && canUseMagic) {
-      const canUseRoomLightning = m.mp >= FLOCK_MAGIC_MP_COSTS.lightning_magic;
-      const canUseSummon = m.mp >= FLOCK_MAGIC_MP_COSTS.summon_monster;
-      if (canUseRoomLightning && canUseSummon) {
-        reserveOrCastSpell(Math.random() < 0.50 ? "lightning_magic" : "summon_monster");
-        return;
-      }
-      if (canUseRoomLightning) {
-        reserveOrCastSpell("lightning_magic");
-        return;
-      }
-      const roomBuffEffects = FLOCK_REVENGE_ROOM_EFFECTS.filter(effect => effect !== "lightning_magic").filter(effect => {
-        if (effect === "reflect_magic" && (m.flockReflectTurns || 0) > 0) return false;
-        if (effect === "guard_magic" && (m.flockGuardTurns || 0) > 0) return false;
-        if (effect === "flame_mantle" && (m.flameMantleTurns || 0) > 0) return false;
-        return m.mp >= (FLOCK_MAGIC_MP_COSTS[effect] ?? 10);
-      });
-      const roomActions = [...roomBuffEffects, ...(canCast ? availableAttacks : [])];
-      if (roomActions.length > 0) {
-        reserveOrCastSpell(pick(roomActions));
-        return;
-      }
-    }
     if (canCast && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       reserveOrCastSpell(pick(availableAttacks));
       return;
@@ -8561,7 +8700,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    if (canSeePlayer && !(inLine && distance > 10)) {
+    if (canSeePlayer) {
       const repositioned = _flockMovementLocked ? false : moveFlockToFiringLine(m, dg, pl);
       const canCastWhileCornered = !repositioned && inLine && distance >= 1 && distance <= 3 &&
         canUseMagic && availableAttacks.length > 0 && m.turnAttacks < monEffectiveMaxAttacks(m);
@@ -8569,6 +8708,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         reserveOrCastSpell(pick(availableAttacks), true);
         return;
       }
+    } else if (!_flockMovementLocked && !m._movedThisTurn) {
+      moveFlockExplore(m, dg, pl);
+      return;
     }
     if (canSeePlayer) {
       if (m.sealed) {
