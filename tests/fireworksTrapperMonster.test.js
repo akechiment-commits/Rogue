@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { MONS, makeMonsterFromBase, monsterAI, TRAPMASTER_STOCK_MAX, trapmasterStockLeft } from "../monsters.js";
+import { MONS, makeMonsterFromBase, monsterAI, TRAPMASTER_STOCK_MIN, TRAPMASTER_STOCK_MAX, trapmasterStockLeft } from "../monsters.js";
 import { applySpellEffect, tickDamagedFoodReveals } from "../items.js";
 import { applyWandEffect } from "../wands.js";
 import { MW, MH, T } from "../utils.js";
@@ -67,7 +67,7 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
     expect(base.levels[1].name).toBe("煙火覇王");
   });
 
-  it("makeMonsterFromBase で各レベルが正しく生成され、初期罠在庫を持つ", () => {
+  it("makeMonsterFromBase で各レベルが正しく生成され、初期罠在庫（8〜12）を持つ", () => {
     const lv1 = makeMonsterFromBase(base, 1, 0, 0);
     expect(lv1.name).toBe("仕掛け花火師");
     expect(lv1.kind).toBe("humanoid");
@@ -75,8 +75,9 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
     expect(lv1.hp).toBe(32);
     expect(lv1.atk).toBe(16);
     expect(lv1.def).toBe(7);
-    expect(lv1.trapmasterStock).toBe(TRAPMASTER_STOCK_MAX);
-    expect(trapmasterStockLeft(lv1)).toBe(TRAPMASTER_STOCK_MAX);
+    expect(lv1.trapmasterStock).toBeGreaterThanOrEqual(TRAPMASTER_STOCK_MIN);
+    expect(lv1.trapmasterStock).toBeLessThanOrEqual(TRAPMASTER_STOCK_MAX);
+    expect(trapmasterStockLeft(lv1)).toBe(lv1.trapmasterStock);
 
     const lv2 = makeMonsterFromBase(base, 2, 0, 0);
     expect(lv2.name).toBe("爆導師");
@@ -85,7 +86,8 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
     expect(lv2.hp).toBe(54);
     expect(lv2.atk).toBe(34);
     expect(lv2.def).toBe(20);
-    expect(lv2.trapmasterStock).toBe(TRAPMASTER_STOCK_MAX);
+    expect(lv2.trapmasterStock).toBeGreaterThanOrEqual(TRAPMASTER_STOCK_MIN);
+    expect(lv2.trapmasterStock).toBeLessThanOrEqual(TRAPMASTER_STOCK_MAX);
 
     const lv3 = makeMonsterFromBase(base, 3, 0, 0);
     expect(lv3.name).toBe("煙火覇王");
@@ -94,11 +96,13 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
     expect(lv3.hp).toBe(78);
     expect(lv3.atk).toBe(58);
     expect(lv3.def).toBe(32);
-    expect(lv3.trapmasterStock).toBe(TRAPMASTER_STOCK_MAX);
+    expect(lv3.trapmasterStock).toBeGreaterThanOrEqual(TRAPMASTER_STOCK_MIN);
+    expect(lv3.trapmasterStock).toBeLessThanOrEqual(TRAPMASTER_STOCK_MAX);
   });
 
   it("通常時は未発見の罠（revealed: false）を作成する", () => {
     const mon = makeMonsterFromBase(base, 1, 8, 6);
+    const initialStock = mon.trapmasterStock;
     const dg = makeRoomDg({ monsters: [mon] });
     const pl = makePlayer();
     const ml = [];
@@ -108,7 +112,7 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
 
     expect(dg.traps).toHaveLength(1);
     expect(dg.traps[0].revealed).toBe(false);
-    expect(mon.trapmasterStock).toBe(TRAPMASTER_STOCK_MAX - 1);
+    expect(mon.trapmasterStock).toBe(initialStock - 1);
   });
 
   it("主人公が罠見え状態（罠探知の魔法・呪われた惑わしの杖・一時看破）のときは見える罠を作成する", () => {
@@ -148,6 +152,7 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
 
   it("罠づくりは在庫制で、失敗時は消費せず在庫0になると作成しない", () => {
     const mon = makeMonsterFromBase(base, 2, 8, 6);
+    const initialStock = mon.trapmasterStock;
     const dg = makeRoomDg({
       monsters: [mon],
       items: [{ id: "blocker", name: "石", type: "arrow", x: 8, y: 6 }],
@@ -159,25 +164,25 @@ describe("仕掛け花火師系（旧罠師系）のテスト", () => {
     // 足元が塞がっている失敗ターンは在庫を減らさない
     monsterAI(mon, dg, pl, ml, { moveOnly: true });
     expect(dg.traps).toHaveLength(0);
-    expect(mon.trapmasterStock).toBe(TRAPMASTER_STOCK_MAX);
+    expect(mon.trapmasterStock).toBe(initialStock);
     expect(ml.some((m) => m.includes("失敗した"))).toBe(true);
 
-    // 障害物を除いて別の空きマスへ移しながら在庫分（4回）まで作成し、5回目は作らない
+    // 障害物を除いて別の空きマスへ移しながら在庫分すべて作成し、在庫0後は作らない
     dg.items = [];
-    for (let i = 0; i < TRAPMASTER_STOCK_MAX; i++) {
-      mon.x = 6 + i;
-      mon.y = 6;
+    for (let i = 0; i < initialStock; i++) {
+      mon.x = 4 + (i % 8);
+      mon.y = 6 + Math.floor(i / 8);
       mon.turnAttacks = 0;
       monsterAI(mon, dg, pl, ml, { moveOnly: true });
     }
-    expect(dg.traps).toHaveLength(TRAPMASTER_STOCK_MAX);
+    expect(dg.traps).toHaveLength(initialStock);
     expect(mon.trapmasterStock).toBe(0);
 
-    mon.x = 11;
-    mon.y = 6;
+    mon.x = 12;
+    mon.y = 8;
     mon.turnAttacks = 0;
     monsterAI(mon, dg, pl, ml, { moveOnly: true });
-    expect(dg.traps).toHaveLength(TRAPMASTER_STOCK_MAX);
+    expect(dg.traps).toHaveLength(initialStock);
     expect(mon.trapmasterStock).toBe(0);
   });
 

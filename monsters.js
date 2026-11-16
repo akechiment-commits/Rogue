@@ -2739,12 +2739,16 @@ function consumePotRaiderStock(mon) {
   return true;
 }
 
-/* 仕掛け花火師系の在庫：1体が罠を仕掛けられるのは4回まで。
+/* 仕掛け花火師系の在庫：生成時に8〜12回分の罠在庫を持つ。
    在庫は単なる残数であり、撃破時にドロップへ変わることはない。 */
-export const TRAPMASTER_STOCK_MAX = 4;
+export const TRAPMASTER_STOCK_MIN = 8;
+export const TRAPMASTER_STOCK_MAX = 12;
+function createTrapmasterStock() {
+  return rng(TRAPMASTER_STOCK_MIN, TRAPMASTER_STOCK_MAX);
+}
 export function trapmasterStockLeft(mon) {
   if (!mon) return 0;
-  if (mon.trapmasterStock == null) mon.trapmasterStock = TRAPMASTER_STOCK_MAX;
+  if (mon.trapmasterStock == null) mon.trapmasterStock = createTrapmasterStock();
   return Math.max(0, mon.trapmasterStock);
 }
 function consumeTrapmasterStock(mon) {
@@ -3041,7 +3045,7 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
     ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(st.subtype === "sleepingLion" || dormant ? { dormant: true, _dormantHp: st.hp } : {}),
-    ...(st.subtype === "trapmaster" ? { trapmasterStock: TRAPMASTER_STOCK_MAX } : {}),
+    ...(st.subtype === "trapmaster" ? { trapmasterStock: createTrapmasterStock() } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
   installMonsterHpHook(mon);
@@ -3060,7 +3064,7 @@ export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, las
     ...(st.baseKind === "boss_darkbullet" ? { _sionHpDialogueSnapshot: st.hp } : {}),
     ...(wind ? { windDx: wind.dx, windDy: wind.dy } : {}),
     ...(isSleepingLion ? { _dormantHp: st.hp } : {}),
-    ...(st.subtype === "trapmaster" ? { trapmasterStock: TRAPMASTER_STOCK_MAX } : {}),
+    ...(st.subtype === "trapmaster" ? { trapmasterStock: createTrapmasterStock() } : {}),
     ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
   installMonsterHpHook(mon);
