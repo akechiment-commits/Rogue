@@ -3,7 +3,8 @@ import { monsterFireLightning } from "../wands.js";
 import { monScaleOutgoingDamage } from "../monTraits.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { MONS, makeMonsterFromBase } from "../monsters.js";
+import { MONS, makeMonsterFromBase, _resolveBolt } from "../monsters.js";
+import { reflectMagicStoneToPlayer, applyThrownItemToMonster, makeStone } from "../items.js";
 
 const noop = () => {};
 
@@ -52,5 +53,63 @@ describe("毒矢の半減は防御依存ダメージだけに効く", () => {
     }
     expect(dg.monsters).not.toContain(wizard);
     expect(ml.some((msg) => msg.includes("自滅"))).toBe(true);
+  });
+});
+
+describe("反射と投擲は攻撃の持ち主と受けた側を参照する", () => {
+  it("魔法の石の反射は反射者の毒で半減せず、受けたプレイヤーの防御で軽減される", () => {
+    const run = (playerDef, reflectorStacks) => {
+      const reflector = makeMonsterFromBase(MONS.find((m) => m.baseKind === "reflector"), 1, 3, 5);
+      if (reflectorStacks) reflector.poisonArrowDamageHalves = reflectorStacks;
+      const p = makePlayer({ x: 6, y: 5, hp: 500, maxHp: 500, atk: 30, def: playerDef });
+      const ml = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      try {
+        return reflectMagicStoneToPlayer(p, reflector, "魔法の石", 10, ml);
+      } finally {
+        vi.restoreAllMocks();
+      }
+    };
+    const noDef = run(0, 0);
+    expect(noDef).toBeGreaterThan(0);
+    expect(run(0, 2)).toBe(noDef);
+    expect(run(40, 0)).toBeLessThan(noDef);
+  });
+
+  it("投擲の毒半減は反射者でなく投げた側のスタックで決まる", () => {
+    const run = (opts) => {
+      const mon = { name: "スライム", hp: 500, maxHp: 500, x: 6, y: 5, atk: 3, def: 0 };
+      const dg = makeEmptyDg({ monsters: [mon] });
+      const p = makePlayer({ atk: 30 });
+      const ml = [];
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      try {
+        applyThrownItemToMonster(makeStone(), mon, dg, p, ml, noop, opts);
+      } finally {
+        vi.restoreAllMocks();
+      }
+      return 500 - mon.hp;
+    };
+    const clean = run({ killerMon: { name: "反射者", poisonArrowDamageHalves: 2 }, scaleSourceMon: null });
+    expect(clean).toBeGreaterThan(0);
+    const scaled = run({ killerMon: { name: "反射者" }, scaleSourceMon: { name: "投擲者", poisonArrowDamageHalves: 1 } });
+    expect(scaled).toBeLessThan(clean);
+  });
+
+  it("歩数光線（ignorePoisonScale）は射手の毒スタックでも半減しない", () => {
+    const run = (ignore) => {
+      const shooter = { name: "ピュロボロス", hp: 500, maxHp: 500, x: 5, y: 5, atk: 30, def: 0, poisonArrowDamageHalves: 2 };
+      const dg = makeEmptyDg({ monsters: [shooter] });
+      const p = makePlayer({ x: 8, y: 5, hp: 100, maxHp: 100 });
+      const ml = [];
+      _resolveBolt(shooter, dg, p, ml, noop, {
+        dx: 1, dy: 0, baseRange: 10, boltName: "歩数光線",
+        calcPlDmg: () => 20, calcMonDmg: () => 20,
+        ...(ignore ? { ignorePoisonScale: true } : {}),
+      });
+      return 100 - p.hp;
+    };
+    expect(run(true)).toBe(20);
+    expect(run(false)).toBe(5);
   });
 });

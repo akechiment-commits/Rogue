@@ -3710,7 +3710,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     boltName: _arName,
     deathCause: `${m.name}の${_arName}の攻撃で`,
     calcPlDmg: () => calcAtkDefDmg(m.atk + _arAtkBonus, calcPlayerDef(pl), { defWeight: 1.5 }),
-    calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
+    calcMonDmg: (mon) => Math.max(1, calcAtkDefDmg(m.atk + _arAtkBonus, mon.def || 0, { defWeight: 1 })),
     hitChance: 0.82,
     applyVulnPentacle: true,
     pierce: _isPierce,
@@ -3731,7 +3731,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       })) {
         return "consumed";
       }
-      const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk + rng(-2, 2)));
+      const rawDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk + _arAtkBonus, mon.def || 0, { defWeight: 1 })));
       const res = applyDamageToMonster(mon, rawDmg, {
         isPhysical: true,
         attacker: m,
@@ -4189,6 +4189,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     deathCause = null,
     calcPlDmg = () => Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3)),
     calcMonDmg = (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
+    ignorePoisonScale = false,
     onPlHit = null,
     onMonHit = null,
     onReflectedMonHit = null,
@@ -4259,7 +4260,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     if (onMonHit) {
       onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y, _homingMon.x, _homingMon.y);
     } else {
-      const rawDmg = monScaleOutgoingDamage(m, calcMonDmg(_homingMon));
+      const rawDmg = ignorePoisonScale ? calcMonDmg(_homingMon) : monScaleOutgoingDamage(m, calcMonDmg(_homingMon));
       const res = applyDamageToMonster(_homingMon, rawDmg, {
         isPhysical: true,
         attacker: _killerMon,
@@ -4338,7 +4339,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
 
     /* 風で曲がって射手（敵）自身に戻った */
     if (!isPlayerShooter && m.hp != null && _tx === m.x && _ty === m.y) {
-      const _selfDmg = monScaleOutgoingDamage(m, calcMonDmg(m));
+      const _selfDmg = ignorePoisonScale ? calcMonDmg(m) : monScaleOutgoingDamage(m, calcMonDmg(m));
       m.hp -= _selfDmg;
       ml.push(`風に煽られた${boltName}が${m.name}自身に当たった！${_selfDmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, m);
@@ -4411,7 +4412,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           const _vp = findVulnPentacle(dg, pl.x, pl.y);
           if (_vp) _dmg = _vp.cursed ? Math.max(1, Math.floor(_dmg / 2)) : _dmg * (_vp.blessed ? 4 : 2);
         }
-        _dmg = monScaleOutgoingDamage(m, _dmg);
+        if (!ignorePoisonScale) _dmg = monScaleOutgoingDamage(m, _dmg);
         pl.hp -= _dmg;
         pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
         ml.push(`${_shooterPrefix}${boltName}が命中！${playerHpEffectLabel(pl, _dmg)}！`);
@@ -4459,7 +4460,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
                 const _vp = findVulnPentacle(dg, pl.x, pl.y);
                 if (_vp) _rrdmg = _vp.cursed ? Math.max(1, Math.floor(_rrdmg / 2)) : _rrdmg * (_vp.blessed ? 4 : 2);
               }
-              _rrdmg = monScaleOutgoingDamage(_mon, _rrdmg);
+              if (!ignorePoisonScale) _rrdmg = monScaleOutgoingDamage(m, _rrdmg);
               pl.hp -= _rrdmg;
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
               ml.push(`跳ね返された${boltName}が${plName(pl)}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
@@ -4474,7 +4475,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               onReflectedMonHit(m, ml, _rnx, _rny, _mon, -dx, -dy);
               return;
             }
-            const _rawDmg = monScaleOutgoingDamage(_mon, calcMonDmg(m));
+            const _rawDmg = ignorePoisonScale ? calcMonDmg(m) : monScaleOutgoingDamage(m, calcMonDmg(m));
             const res = applyDamageToMonster(m, _rawDmg, {
               isPhysical: true,
               attacker: _mon,
@@ -4496,7 +4497,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               onReflectedMonHit(_rrMon, ml, _rnx, _rny, _mon, -dx, -dy);
               return;
             }
-            const _rawDmg = monScaleOutgoingDamage(_mon, calcMonDmg(_rrMon));
+            const _rawDmg = ignorePoisonScale ? calcMonDmg(_rrMon) : monScaleOutgoingDamage(m, calcMonDmg(_rrMon));
             const res = applyDamageToMonster(_rrMon, _rawDmg, {
               isPhysical: true,
               attacker: _mon,
@@ -4523,7 +4524,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
         return;
       }
-      const _rawDmg = monScaleOutgoingDamage(m, calcMonDmg(_mon));
+      const _rawDmg = ignorePoisonScale ? calcMonDmg(_mon) : monScaleOutgoingDamage(m, calcMonDmg(_mon));
       const res = applyDamageToMonster(_mon, _rawDmg, {
         isPhysical: true,
         attacker: _killerMon,
@@ -7683,6 +7684,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         deathCause: `${m.name}の歩数光線で`,
         calcPlDmg: () => damage,
         calcMonDmg: () => damage,
+        ignorePoisonScale: true,
       });
     };
     const _pyroSelfDestruct = () => {

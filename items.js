@@ -4816,7 +4816,7 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     return { blocked: true, killed: false };
   }
 
-  const dmg = monScaleOutgoingDamage(killerMon, clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true));
+  const dmg = monScaleOutgoingDamage(opts.scaleSourceMon !== undefined ? opts.scaleSourceMon : killerMon, clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true));
   mon.hp -= dmg;
   ml.push(hitMessage(mon, dmg));
   triggerMushroomCounterSpore(mon, dg, p, ml);
@@ -8155,7 +8155,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       return;
     }
     applyThrownItemToMonster(item, mon, dg, p, mlx, luFn, {
-      nameFn, killerMon, hitMessage: _isPot ? potHitMsg : monHitMsg,
+      nameFn, killerMon, scaleSourceMon: initialKillerMon, hitMessage: _isPot ? potHitMsg : monHitMsg,
     });
     res.consumed = true; res.x = hitX; res.y = hitY; res.hitMonster = mon;
   };
@@ -8193,9 +8193,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
         return;
       }
-      let dmg = _isPot ? _potDmg(0) : _projDmg(0);
+      let dmg = _isPot ? _potDmg(calcPlayerDefForProjectile(p)) : _projDmg(calcPlayerDefForProjectile(p));
       dmg = applyFrozenPhysicalMult(dmg, p);
-      if (!sourceIsPlayer()) dmg = monScaleOutgoingDamage(killerMon, dmg);
+      if (!sourceIsPlayer()) dmg = monScaleOutgoingDamage(initialKillerMon, dmg);
       p.deathCause = reflectedBy?.name
         ? `${reflectedBy.name}に跳ね返された${resolveItemName(item, nameFn)}に当たって`
         : killerMon?.name
@@ -8382,7 +8382,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 }
 
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0, killerMon = null) {
-  const _collisionAtk = monScaleOutgoingDamage(killerMon, collisionAtk);
+  const _collisionAtk = collisionAtk;
   const _damageMonsterOnCollision = (monster, damage) => {
     if (!monster || !(damage > 0) || consumeBarrier(monster, ml)) return 0;
     const finalDmg = clampDmgFixed(monster, damage, true);
@@ -8650,7 +8650,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   if (reflector.type === "shopkeeper") markShopkeeperHostileToPlayer(reflector, null, p, ml);
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
   if (consumeBarrier(p, ml)) return 0;
-  const dmg = monScaleOutgoingDamage(reflector, calcProjectileDmg(p, stoneAtk || 5, 0));
+  const dmg = calcProjectileDmg(p, stoneAtk || 5, calcPlayerDefForProjectile(p));
   p.hp -= dmg;
   p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
   ml.push(`跳ね返された${stoneName}が${pl()}にホーミング命中！${dmg}ダメージ！消滅した。`);
