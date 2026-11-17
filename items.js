@@ -1815,6 +1815,11 @@ function applyAltarPunishment(victim, dg, ml, p = null, luFn = null) {
   if (_allowSlow) {
     if (_monsterVictim) startLargeMonsterStatusCooldown(victim, "slow");
     victim.slowTurns = Math.max(victim.slowTurns || 0, slowTurns);
+    if (_monsterVictim) {
+      if (victim.isBoss && victim._preSlowSpeed === undefined) victim._preSlowSpeed = victim.speed;
+      victim.speed = Math.max(0.25, (victim.speed || 1) * 0.5);
+      if (victim.isBoss) victim.bossSlowTurns = Math.max(victim.bossSlowTurns || 0, statusTurns("bossSlow", { kind: "monster", target: victim }));
+    }
   }
   if (victim === p) {
     const paralyzeTurns = statusTurns("paralyze", { kind: "player" });

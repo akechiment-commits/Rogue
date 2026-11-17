@@ -456,6 +456,39 @@ describe("applyWandEffect", () => {
     expect(p.hp).toBe(100);
   });
 
+  it("祭壇の罰の鈍足はモンスターの速度も半減させる", () => {
+    const altar = makeAltar(8, 5);
+    const breaker = { name: "杖使い", hp: 100, maxHp: 100, x: 5, y: 5, atk: 3, speed: 2 };
+    const dg = makeEmptyDg({ altars: [altar], monsters: [breaker] });
+    const p = makePlayer({ x: 1, y: 1, hp: 100, maxHp: 100 });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      breakAltar(altar, dg, ml, p, breaker);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(breaker.slowTurns).toBe(10);
+    expect(breaker.speed).toBe(1);
+  });
+
+  it("祭壇の罰の鈍足はボスの元の速度を覚えてタイマーを立てる", () => {
+    const altar = makeAltar(8, 5);
+    const breaker = { name: "ボス", hp: 500, maxHp: 500, x: 5, y: 5, atk: 3, speed: 2, isBoss: true };
+    const dg = makeEmptyDg({ altars: [altar], monsters: [breaker] });
+    const p = makePlayer({ x: 1, y: 1, hp: 100, maxHp: 100 });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      breakAltar(altar, dg, ml, p, breaker);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(breaker.speed).toBe(1);
+    expect(breaker._preSlowSpeed).toBe(2);
+    expect(breaker.bossSlowTurns).toBeGreaterThan(0);
+  });
+
   it("祭壇の罰でプレイヤーのHPが0以下になった場合は状態異常を付与しない", () => {
     const altar = makeAltar(8, 5);
     const p = makePlayer({
