@@ -2078,7 +2078,8 @@ export function useItemActions({
             it.effect === "heal_aura"      ? "回復の魔方陣" :
             it.effect === "revival"        ? "復活の魔方陣" :
             it.effect === "decoy"          ? "囮の魔方陣" :
-            it.effect === "portal"         ? "ポータルの魔方陣" : "魔方陣";
+            it.effect === "portal"         ? "ポータルの魔方陣" :
+            it.effect === "gold"           ? "黄金の魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
