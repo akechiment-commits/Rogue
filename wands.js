@@ -24,7 +24,7 @@ import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectB
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
-import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness, monElementDamageMultiplier, monScaleOutgoingDamage } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles, monHasFlameMantle, monEffectiveWallWalker, monHasElementWeakness, monElementDamageMultiplier } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from './largeMonsterStatus.js';
@@ -88,7 +88,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   const _activatePlayerTrap = trap => fireTrapFn
     ? fireTrapFn(trap, p, dg, ml)
     : fireTrapPlayer(trap, p, dg, ml, nameFn, luFn);
-  const _outgoingDamage = amount => sourceIsPlayer ? amount : monScaleOutgoingDamage(killerMon, amount);
+  const _outgoingDamage = amount => amount; // 杖のダメージは固定系なので毒矢の半減はかけない
   const _flockPowerMult = !sourceIsPlayer
     ? Math.max(
         1,
@@ -2620,7 +2620,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, pl);
   const _blessedMult = blessed ? 2 : 1;
   const _lightningReflectDmg = (scaleMon, victim) =>
-    monScaleOutgoingDamage(scaleMon, multiplyCursedMagicDamage(Math.round(rng(15, 25) * _blessedMult), victim, dg));
+    multiplyCursedMagicDamage(Math.round(rng(15, 25) * _blessedMult), victim, dg);
   const applyEnemyEffect = (kind, target) =>
     applyWandEffect("lightning", kind, target, dx, dy, dg, pl, ml, luFn, bbFn,
       kind === "monster" && blessed ? 2 : 1, nameFn, 0, killerMon, null, false, killerMon, fireTrapFn);
@@ -2680,7 +2680,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       const _hasLightRes = hasLightningResist(pl);
       let dmg = Math.round(rng(15, 25) * _blessedMult);
       dmg = multiplyCursedMagicDamage(dmg, pl, dg);
-      dmg = monScaleOutgoingDamage(killerMon, reduceLightningDamage(dmg, pl));
+      dmg = reduceLightningDamage(dmg, pl);
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
       ml.push(`雷撃が命中！${dmg}ダメージ！${lightningResistDamageLabel(pl)}`);

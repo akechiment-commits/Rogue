@@ -154,7 +154,6 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     // 油まみれ判定（炎2倍）
     const oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (oilyMult > 1) dmg *= 2;
-    dmg = monScaleOutgoingDamage(m, dmg);
 
     pl.deathCause = `${m.name}のハイパーサーミックブレスで`;
     pl.hp -= dmg;
@@ -176,7 +175,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
     const baseDmg = 70;
     const oilyMult = (victim.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === victim.x && t.y === victim.y) ? 2 : 1;
     const weaknessMult = monHasElementWeakness(victim, "fire") ? 1.5 : 1;
-    const finalDmg = monScaleOutgoingDamage(m, scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult)));
+    const finalDmg = scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult));
     const res = applyDamageToMonster(victim, finalDmg, {
       isPhysical: true,
       attacker: m,

@@ -1109,14 +1109,14 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
           if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH ||
               dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
             pl.deathCause = "吹き飛ばされての壁への激突により";
-            const _impact = monScaleOutgoingDamage(m, 5);
+            const _impact = 5;
             pl.hp -= _impact;
             ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
             break;
           }
           if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _nx, _ny))) {
             pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
-            const _impact = monScaleOutgoingDamage(m, 5);
+            const _impact = 5;
             pl.hp -= _impact;
             ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
             break;
@@ -1164,12 +1164,12 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     }
     if (m.baseKind === "boss_skullking" && !m.sealed && Math.random() < 0.35) {
       const _drain = Math.min(20, pl.hp - 1);
-    if (_drain > 0) { const _actualDrain = monScaleOutgoingDamage(m, _drain); pl.hp -= _actualDrain; m.hp = Math.min(m.maxHp, m.hp + _actualDrain); ml.push(`骸骨王が命を吸い取った！${playerHpEffectLabel(pl, _actualDrain)}！`); }
+    if (_drain > 0) { const _actualDrain = _drain; pl.hp -= _actualDrain; m.hp = Math.min(m.maxHp, m.hp + _actualDrain); ml.push(`骸骨王が命を吸い取った！${playerHpEffectLabel(pl, _actualDrain)}！`); }
     }
     if (m.baseKind === "boss_flamedragon" && !m.sealed) {
       const _oily = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y);
       if (_oily) {
-        const _xdmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(dmg * 0.5)));
+        const _xdmg = Math.max(1, Math.floor(dmg * 0.5));
         pl.deathCause = `${m.name}の炎攻撃により`;
         pl.hp -= _xdmg;
         ml.push(`油が引火して追加炎ダメージ！${playerHpEffectLabel(pl, _xdmg)}！`);
@@ -1244,11 +1244,11 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
           for (let _ki = 0; _ki < _dist; _ki++) {
             const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-              const _impact = monScaleOutgoingDamage(m, 5); pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= _impact; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
+              const _impact = 5; pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= _impact; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
               break;
             }
             if (dg.monsters.some(mon2 => mon2 !== m && monsterOccupiesCell(mon2, _nx, _ny))) {
-              const _impact = monScaleOutgoingDamage(m, 5); pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= _impact; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
+              const _impact = 5; pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= _impact; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
               break;
             }
             _cx2 = _nx; _cy2 = _ny; _moved++;
@@ -4044,7 +4044,7 @@ export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride 
         hitMon.hp = Math.min(hitMon.maxHp, hitMon.hp + heal);
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${heal}HP回復した！`);
       } else {
-        const rawDmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1)));
+        const rawDmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
         const res = applyDamageToMonster(hitMon, rawDmg, {
           isPhysical: true,
           attacker: m,
@@ -4083,7 +4083,6 @@ export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride 
       let dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
       if (_wVulnPc) dmg = _wVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_wVulnPc.blessed ? 4 : 2);
       dmg = reduceWaterDamage(dmg, pl);
-      dmg = monScaleOutgoingDamage(m, dmg);
       pl.deathCause = `${m.name}の水鉄砲で`;
       pl.hp -= dmg;
       ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！${waterResistDamageLabel(pl)}`);

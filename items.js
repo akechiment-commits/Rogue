@@ -2487,14 +2487,14 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
       : _applySoakedFireReduction(rawDmg, p);
-    if (!_oilyMineSurvival && !_playerHpOne) dmg = monScaleOutgoingDamage(killerMon, dmg);
+    if (!_oilyMineSurvival && !_playerHpOne && _projectileDmg != null) dmg = monScaleOutgoingDamage(killerMon, dmg);
     p.deathCause = killerMon?.name ? `${killerMon.name}の${srcLabel}により` : `${srcLabel}により`;
     if (_oilyMineSurvival) {
       setPlayerHpForFixedEffect(p, 1);
       ml.push(`${srcLabel}！油まみれのためHPが1残った！`);
     } else if (_playerHpOne) {
       if (hasFireResist(p)) {
-        const dmg = monScaleOutgoingDamage(killerMon, reduceFireDamage(Math.max(1, _playerHpBefore - 1) * _oilyMult, p));
+        const dmg = reduceFireDamage(Math.max(1, _playerHpBefore - 1) * _oilyMult, p);
         p.hp -= dmg;
         ml.push(`${srcLabel}！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
       } else {
@@ -2607,7 +2607,6 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
             if (blockLargeMonsterDamage(m, p, ml)) continue;
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
             _bd = scaleMonFireDmg(m, _bd);
-            _bd = monScaleOutgoingDamage(killerMon, _bd);
             m.hp -= _bd;
             retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
@@ -2630,7 +2629,6 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
           md = scaleMonFireDmg(m, md);
-          md = monScaleOutgoingDamage(killerMon, md);
           m.hp -= md;
           retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
@@ -2832,7 +2830,6 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
               if (blockLargeMonsterDamage(m, p, ml)) continue;
               let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               _bd = scaleMonFireDmg(m, _bd);
-              _bd = monScaleOutgoingDamage(killerMon, _bd);
               m.hp -= _bd;
               retaliateAgainstExplosionSource(m);
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
@@ -3054,7 +3051,6 @@ function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, optio
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           _bd = scaleMonFireDmg(m, _bd);
-          _bd = monScaleOutgoingDamage(options.killerMon || null, _bd);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
           if (m.hp <= 0) { _killed.add(m); killMonsterByTrap(m, dg, p, ml, luFn, bombCause, options.killerMon || null); }
@@ -8211,7 +8207,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       interruptPlayerSleep(p, mlx);
       /* ヤバイ食料：追加ダメ+状態異常複合 */
       if (item.type === "food" && item.yabai) {
-        const _yDmg = !sourceIsPlayer() ? monScaleOutgoingDamage(killerMon, rng(15, 25)) : rng(15, 25);
+        const _yDmg = rng(15, 25);
         p.hp -= _yDmg;
         if (reflectedBy?.name) p.deathCause = "跳ね返されたヤバイ食料に当たって";
         else if (killerMon?.name) p.deathCause = `${killerMon.name}が投げたヤバイ食料に当たって`;
@@ -8426,12 +8422,12 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
       if (kind === "monster") {
-        const _impact = monScaleOutgoingDamage(killerMon, 5);
+        const _impact = 5;
         const _dealt = _damageMonsterOnCollision(entity, _impact);
         ml.push(`${entity.name}は壁に叩きつけられた！${_dealt > 0 ? `${_dealt}ダメージ！` : ""}`);
       }
       if (kind === "player")  {
-        const _impact = monScaleOutgoingDamage(killerMon, 5);
+        const _impact = 5;
         const _cause = killerMon?.name
           ? `${killerMon.name}に吹き飛ばされての壁への激突により`
           : "吹き飛ばされての壁への激突により";
@@ -8910,7 +8906,7 @@ function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
     ? dg.monsters?.find((candidate) => candidate.id === sp.sourceId && (candidate.hp ?? 1) > 0) || null
     : null;
   const _dmg = _enemyOwned
-    ? Math.max(1, calcAtkDefDmg(sp.atk || 1, monster.def || 0, { defWeight: 1.5 }))
+    ? monScaleOutgoingDamage(_source, Math.max(1, calcAtkDefDmg(sp.atk || 1, monster.def || 0, { defWeight: 1.5 })))
     : clampDmgFixed(monster, calcProjectileDmg(p, sp.atk || 1, monster.def), true);
   monster.hp -= _dmg;
   wakeIfDormant(monster, ml);
@@ -8955,7 +8951,8 @@ function enemyHomingProjectileHitPlayer(sp, dg, p, ml) {
     }
   }
   if (consumeBarrier(p, ml)) return;
-  const damage = calcAtkDefDmg(sp.atk || 1, calcPlayerDefForProjectile(p), { defWeight: 1.5 });
+  const _source = dg?.monsters?.find((candidate) => candidate.id === sp.sourceId && (candidate.hp ?? 1) > 0) || null;
+  const damage = monScaleOutgoingDamage(_source, calcAtkDefDmg(sp.atk || 1, calcPlayerDefForProjectile(p), { defWeight: 1.5 }));
   p.hp -= damage;
   p.deathCause = `${sp.sourceName || "敵"}の${sp.name || "誘導弾"}に当たって`;
   ml.push(`${sp.sourceName || "敵"}の${sp.name || "誘導弾"}が命中！${playerHpEffectLabel(p, damage)}！`);

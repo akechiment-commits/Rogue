@@ -96,7 +96,6 @@ function traceBreath(monster, dungeon, player, line, color) {
 }
 
 function applyBreathMonsterDamage(monster, victim, damage, dungeon, player, messages, opts, label) {
-  damage = monScaleOutgoingDamage(monster, damage);
   const res = applyDamageToMonster(victim, damage, {
     isPhysical: true,
     attacker: monster,
@@ -127,7 +126,6 @@ export function hexachromaticFireBreath(monster, dungeon, player, line, messages
     const oily = (player.oilyTurns || 0) > 0 || dungeon.oilyTiles?.some(tile => tile.x === player.x && tile.y === player.y);
     let damage = reduceFireDamage(80, player);
     if (oily) damage *= 2;
-    damage = monScaleOutgoingDamage(monster, damage);
     player.deathCause = `${monster.name}の火炎ブレスで`;
     player.hp -= damage;
     opts.onPlayerHit?.(damage, monster);
@@ -270,7 +268,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
       continue;
     }
     revealDisguisedItemMimic(dungeon, victim, messages);
-    const rawDamage = monScaleOutgoingDamage(monster, rng(15, 25));
+    const rawDamage = rng(15, 25);
     const res = applyDamageToMonster(victim, rawDamage, {
       isPhysical: true,
       attacker: monster,
@@ -292,7 +290,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
     return;
   }
   if (consumeBarrier(player, messages)) return;
-  const damage = monScaleOutgoingDamage(monster, rng(15, 25));
+  const damage = rng(15, 25);
   player.deathCause = `${monster.name}の地震で`;
   player.hp -= damage;
   opts.onPlayerHit?.(damage, monster);
@@ -304,7 +302,7 @@ export function hexachromaticEarthquake(monster, dungeon, player, room, messages
 export function hexachromaticLightning(monster, dungeon, player, messages, opts = {}) {
   if (consumeBarrier(player, messages)) return;
   const baseDamage = rng(22, 32);
-  const damage = monScaleOutgoingDamage(monster, reduceLightningDamage(baseDamage, player));
+  const damage = reduceLightningDamage(baseDamage, player);
   player.deathCause = `${monster.name}の電撃で`;
   player.hp -= damage;
   opts.onPlayerHit?.(damage, monster);

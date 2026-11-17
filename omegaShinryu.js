@@ -213,7 +213,7 @@ function targetHitCounts(dungeon, cells, source) {
 
 function applyFixedWaveDamage(source, target, amount, dungeon, player, messages, label) {
   if (target.hp <= 0 || !dungeon.monsters?.includes(target)) return;
-  const scaledAmount = monScaleOutgoingDamage(source, amount);
+  const scaledAmount = amount;
   const res = applyDamageToMonster(target, scaledAmount, {
     isPhysical: true,
     attacker: source,
@@ -266,7 +266,7 @@ function applyOmegaWave(attack, dungeon, player, messages, source) {
   if (player.hp > 0 && cells.has(`${player.x},${player.y}`)) {
     if (!consumeBarrier(player, messages)) {
       player.deathCause = `${attack.sourceName}の波動砲で`;
-      const damage = monScaleOutgoingDamage(source, 100);
+      const damage = 100;
       player.hp -= damage;
       messages.push(`波動砲が直撃！${playerHpEffectLabel(player, damage)}！`);
       combatDeps.interruptPlayerSleep?.(player, messages);
@@ -435,7 +435,7 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
   const inRoom = (x, y) => !!room && combatDeps.findRoom?.(dungeon.rooms, x, y) === room;
   if (player.hp > 0 && (!room || !combatDeps.findRoom || inRoom(player.x, player.y))) {
     if (!consumeBarrier(player, messages)) {
-      const damage = monScaleOutgoingDamage(monster, reduceLightningDamage(50, player));
+      const damage = reduceLightningDamage(50, player);
       player.deathCause = `${monster.name}の稲妻で`;
       player.hp -= damage;
       messages.push(`稲妻が落ちた！${playerHpEffectLabel(player, damage)}！${lightningResistDamageLabel(player)}`);
@@ -450,7 +450,7 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
     if (target === monster || target.hp <= 0 || !dungeon.monsters.includes(target) || !inRoom(target.x, target.y)) continue;
     const weakness = monHasElementWeakness(target, "thunder") ? 1.5 : 1;
     const resistance = monElementDamageMultiplier(target, "thunder");
-    const rawDamage = monScaleOutgoingDamage(monster, Math.max(1, Math.floor(50 * weakness * resistance)));
+    const rawDamage = Math.max(1, Math.floor(50 * weakness * resistance));
     const res = applyDamageToMonster(target, rawDamage, {
       isPhysical: true,
       attacker: monster,
