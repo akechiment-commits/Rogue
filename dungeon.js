@@ -3785,6 +3785,7 @@ function attachFloorGimmicks(dg, depth) {
     stairDown: dg.stairDown,
     dungeonType: dg.dungeonType,
     occ: (x, y) => (dg.monsters || []).some((m) => m.hp > 0 && monsterOccupiesCell(m, x, y)),
+    shopRooms: [dg.shop?.room, ...(dg.shops || []).map((s) => s?.room)].filter(Boolean),
   });
   if (g.traps?.length) dg.traps.push(...g.traps);
   if (g.vents?.length) dg.vents.push(...g.vents);

@@ -475,6 +475,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   stairDown = null,
   occ = null,
   dungeonType = null,
+  shopRooms = [],
 } = {}) {
   const vents = [];
   const statues = [];
@@ -518,6 +519,23 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     return null;
   };
 
+  /* 店部屋の中には偽階段だけ置ける（所有者決定）。それ以外は店内を避ける。 */
+  const inShop = (x, y) => (shopRooms || []).some((r) => r && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  const rndFloorNoShop = () => {
+    for (let a = 0; a < 80; a++) {
+      if (!rooms?.length) {
+        const x = rng(1, MW - 2), y = rng(1, MH - 2);
+        if (!blocked(x, y) && !inShop(x, y)) return [x, y];
+        continue;
+      }
+      const rm = pick(rooms);
+      const x = rng(rm.x, rm.x + rm.w - 1);
+      const y = rng(rm.y, rm.y + rm.h - 1);
+      if (!blocked(x, y) && !inShop(x, y)) return [x, y];
+    }
+    return null;
+  };
+
   /* 偽階段 0〜2（B16F相当のdepth=15から解禁） */
   const fakeN = depth >= 15
     ? (Math.random() < 0.35 ? rng(1, 2) : Math.random() < 0.5 ? 1 : 0)
@@ -533,7 +551,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   const ventN = dungeonType === "beginner" ? 0 : Math.random() < 0.30 ? rng(1, 2) : 0;
   const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
   for (let i = 0; i < ventN; i++) {
-    const p = rndFloor();
+    const p = rndFloorNoShop();
     if (!p) break;
     const [dx, dy] = pick(dirs);
     vents.push(makeVent(p[0], p[1], dx, dy));
@@ -542,7 +560,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   /* 石像 0〜2（約28%で1〜2体。初心者には出さない） */
   const stN = dungeonType === "beginner" ? 0 : Math.random() < 0.28 ? rng(1, 2) : 0;
   for (let i = 0; i < stN; i++) {
-    const p = rndFloor();
+    const p = rndFloorNoShop();
     if (!p) break;
     statues.push(makeStatue(p[0], p[1]));
   }
@@ -550,15 +568,15 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   /* 祭壇 0〜1（約6%。初心者には出さない） */
   const altarN = dungeonType === "beginner" ? 0 : Math.random() < altarRate ? 1 : 0;
   for (let i = 0; i < altarN; i++) {
-    const p = rndFloor();
+    const p = rndFloorNoShop();
     if (!p) break;
     addedAltars.push(makeAltar(p[0], p[1]));
   }
 
   /* 固定転送ペア 0〜1 */
   if (Math.random() < 0.22) {
-    const a = rndFloor();
-    const b = rndFloor();
+    const a = rndFloorNoShop();
+    const b = rndFloorNoShop();
     if (a && b && (a[0] !== b[0] || a[1] !== b[1])) {
       const pair = makeFixedPortalPair(a[0], a[1], b[0], b[1], depth + 1);
       addedPentacles.push(...pair);

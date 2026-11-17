@@ -8,7 +8,7 @@ import {
 import { doExplosion, getFixtureItemDeps, placeItemAt } from "../items.js";
 import { monsterAI, _resolveMonsterWandBolt } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { T } from "../utils.js";
+import { T, MW, MH } from "../utils.js";
 
 describe("敵の杖と石像", () => {
   it("魔法弾は石像を破壊して止まり、後ろのプレイヤーへは届かない", () => {
@@ -523,5 +523,23 @@ describe("石像", () => {
     displaceObjectsFromStatue(dg, 5, 5, ml, getFixtureItemDeps());
     expect(dg.items[0].x === 5 && dg.items[0].y === 5).toBe(false);
     expect(dg.traps[0].x === 5 && dg.traps[0].y === 5).toBe(false);
+  });
+});
+
+describe("散布の店内配置", () => {
+  it("店部屋には偽階段だけ入り、風穴・石像・祭壇・固定ポータルは入らない", () => {
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
+    const rooms = [{ x: 1, y: 1, w: MW - 2, h: MH - 2 }];
+    const shop = { x: 1, y: 1, w: Math.floor((MW - 2) / 2), h: MH - 2 };
+    const inShop = (x, y) => x >= shop.x && x < shop.x + shop.w && y >= shop.y && y < shop.y + shop.h;
+    let placedOutside = 0;
+    for (let i = 0; i < 300; i++) {
+      const g = scatterFloorGimmicks(map, rooms, 20, { dungeonType: "advanced", altarRate: 1, shopRooms: [shop] });
+      for (const v of g.vents) { expect(inShop(v.x, v.y)).toBe(false); placedOutside++; }
+      for (const s of g.statues) { expect(inShop(s.x, s.y)).toBe(false); placedOutside++; }
+      for (const a of g.altars) { expect(inShop(a.x, a.y)).toBe(false); placedOutside++; }
+      for (const pc of g.pentacles) { expect(inShop(pc.x, pc.y)).toBe(false); placedOutside++; }
+    }
+    expect(placedOutside).toBeGreaterThan(100);
   });
 });
