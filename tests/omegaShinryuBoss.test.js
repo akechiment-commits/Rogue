@@ -407,7 +407,7 @@ describe("超上級B45F オメガ・神竜", () => {
 
     expect(shinryu.hp).toBe(SHINRYU_BOSS.hp);
     expect(player.hp).toBe(450);
-    expect(omega.hp).toBe(OMEGA_BOSS.hp - 75);
+    expect(omega.hp).toBe(OMEGA_BOSS.hp - 100);
     expect(messages.some(message => message.includes("跳ね返した"))).toBe(false);
   });
 

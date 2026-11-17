@@ -825,7 +825,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _lBlessMult = blMult > 1 ? 2 : 1;
       let dmg = Math.max(1, Math.round(rng(20, 30) * _lBlessMult));
       if (kind === "monster") {
-        const _lWeakMult = monHasElementWeakness(target, "thunder") ? 1.5 : 1;
+        const _lWeakMult = monHasElementWeakness(target, "thunder") ? 2 : 1;
         const _lResist = monElementDamageMultiplier(target, "thunder");
         const _lFinalDmg = Math.max(1, Math.floor(_magicDamage(Math.round(dmg * _lWeakMult)) * _lResist));
         target.hp -= _lFinalDmg;
@@ -2620,7 +2620,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, pl);
   const _blessedMult = blessed ? 2 : 1;
   const _lightningReflectDmg = (scaleMon, victim) =>
-    multiplyCursedMagicDamage(Math.round(rng(15, 25) * _blessedMult), victim, dg);
+    multiplyCursedMagicDamage(Math.round(rng(20, 30) * _blessedMult), victim, dg);
   const applyEnemyEffect = (kind, target) =>
     applyWandEffect("lightning", kind, target, dx, dy, dg, pl, ml, luFn, bbFn,
       kind === "monster" && blessed ? 2 : 1, nameFn, 0, killerMon, null, false, killerMon, fireTrapFn);
@@ -2678,7 +2678,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       if (consumeBarrier(pl, ml)) return;
       /* ゴムゴムの胴 / 万能耐性: 雷ダメージ半減・所持品破壊を防ぐ */
       const _hasLightRes = hasLightningResist(pl);
-      let dmg = Math.round(rng(15, 25) * _blessedMult);
+      let dmg = Math.round(rng(20, 30) * _blessedMult);
       dmg = multiplyCursedMagicDamage(dmg, pl, dg);
       dmg = reduceLightningDamage(dmg, pl);
       pl.deathCause = `${monName}の雷撃により`;

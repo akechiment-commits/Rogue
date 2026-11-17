@@ -841,7 +841,7 @@ export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   const _hitIceMon = (_iBlock) => {
     let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
     const _iIsWeak = monHasElementWeakness(_iBlock, "ice");
-    if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
+    if (_iIsWeak) _iDmg = Math.floor(_iDmg * 2);
     const _iResist = monElementDamageMultiplier(_iBlock, "ice");
     _iDmg = Math.max(1, Math.floor(_iDmg * _iResist));
     const _rawDmg = monScaleOutgoingDamage(m, _iDmg);

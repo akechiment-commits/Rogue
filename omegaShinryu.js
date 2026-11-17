@@ -448,7 +448,7 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
   }
   for (const target of [...(dungeon.monsters || [])]) {
     if (target === monster || target.hp <= 0 || !dungeon.monsters.includes(target) || !inRoom(target.x, target.y)) continue;
-    const weakness = monHasElementWeakness(target, "thunder") ? 1.5 : 1;
+    const weakness = monHasElementWeakness(target, "thunder") ? 2 : 1;
     const resistance = monElementDamageMultiplier(target, "thunder");
     const rawDamage = Math.max(1, Math.floor(50 * weakness * resistance));
     const res = applyDamageToMonster(target, rawDamage, {

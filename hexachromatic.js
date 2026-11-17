@@ -139,7 +139,7 @@ export function hexachromaticFireBreath(monster, dungeon, player, line, messages
     return;
   }
   const victim = hit.target;
-  const weakMult = monHasElementWeakness(victim, "fire") ? 1.5 : 1;
+  const weakMult = monHasElementWeakness(victim, "fire") ? 2 : 1;
   const damage = combatDeps.scaleMonFireDmg?.(victim, Math.round(80 * weakMult)) ?? Math.round(80 * weakMult);
   applyBreathMonsterDamage(monster, victim, damage, dungeon, player, messages, opts, "火炎ブレス");
 }

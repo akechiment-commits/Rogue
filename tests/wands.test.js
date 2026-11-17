@@ -822,10 +822,10 @@ describe("万能の杖", () => {
       const ml = [];
 
       monsterFireLightning(5, 5, dg, p, 1, 0, ml, noop, null, archmage.name, null, archmage, true);
-      // rng(15, 25) with 0.5 -> 20, blessed x2 -> 40
-      expect(archmage.hp).toBe(60);
+      // rng(20, 30) with 0.5 -> 25, blessed x2 -> 50
+      expect(archmage.hp).toBe(50);
       expect(p.hp).toBe(100);
-      expect(ml.some(m => m.includes("40ダメージ"))).toBe(true);
+      expect(ml.some(m => m.includes("50ダメージ"))).toBe(true);
     } finally {
       rand.mockRestore();
     }
@@ -843,9 +843,9 @@ describe("万能の杖", () => {
       const ml = [];
 
       monsterFireLightning(4, 5, dg, p, 1, 0, ml, noop, null, archmage.name, null, archmage, true);
-      expect(archmage.hp).toBe(60);
+      expect(archmage.hp).toBe(50);
       expect(mirror.hp).toBe(60);
-      expect(ml.some(m => m.includes("40ダメージ"))).toBe(true);
+      expect(ml.some(m => m.includes("50ダメージ"))).toBe(true);
     } finally {
       rand.mockRestore();
     }

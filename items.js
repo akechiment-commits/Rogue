@@ -10719,7 +10719,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         const _iceStatusBlocked = isStatusImmune(target, ml, target.name) || (monsterBodySize(target) > 1 && blockLargeMonsterStatus(target, "immobile", ml));
         if (!_iceStatusBlocked && monsterBodySize(target) > 1) startLargeMonsterStatusCooldown(target, "immobile");
-        if (monHasElementWeakness(target, "ice")) dmg = Math.floor(dmg * 1.5);
+        if (monHasElementWeakness(target, "ice")) dmg = Math.floor(dmg * 2);
         dmg = _enemyMagicDamage(dmg);
         const iceResist = monElementDamageMultiplier(target, "ice");
         dmg = Math.max(1, Math.floor(dmg * iceResist));
@@ -10760,7 +10760,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
             continue;
           }
           if (consumeBarrier(_lm, ml)) continue;
-          const _lweak = monHasElementWeakness(_lm, "thunder") ? 1.5 : 1;
+          const _lweak = monHasElementWeakness(_lm, "thunder") ? 2 : 1;
           const _lresist = monElementDamageMultiplier(_lm, "thunder");
           const _ld = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(_baseDamage * _lweak), _lm) * _lresist));
           _lm.hp -= _ld;
