@@ -1,4 +1,4 @@
-import { uid } from './utils.js';
+import { uid, T } from './utils.js';
 import { inMagicSealRoom } from './items.js';
 import { monsterOccupiesCell, monsterBounds } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
@@ -32,28 +32,23 @@ export function getPetroBreathCells(monster, player, map) {
   const pdx = player.x - cx;
   const pdy = player.y - cy;
 
-  const rawCells = [];
+  // ブレスの通り道（レーン）ごとにセルを並べる。壁にぶつかったレーンはそこで止まる。
+  const lanes = [];
 
   // 1. 純粋な左右判定（プレイヤーのYがボスの高さ範囲内にある、または水平差が垂直差の1.5倍超）
   if (Math.abs(pdx) > Math.abs(pdy) * 1.5 || (player.y >= minY && player.y <= maxY)) {
     const dx = Math.sign(pdx) || 1;
     const startX = dx > 0 ? maxX + 1 : minX - 1;
-    for (let step = 0; step < 2; step++) {
-      const bx = startX + dx * step;
-      for (let by = minY; by <= maxY; by++) {
-        rawCells.push({ x: bx, y: by });
-      }
+    for (let by = minY; by <= maxY; by++) {
+      lanes.push([{ x: startX, y: by }, { x: startX + dx, y: by }]);
     }
   }
   // 2. 純粋な上下判定（プレイヤーのXがボスの幅範囲内にある、または垂直差が水平差の1.5倍超）
   else if (Math.abs(pdy) > Math.abs(pdx) * 1.5 || (player.x >= minX && player.x <= maxX)) {
     const dy = Math.sign(pdy) || 1;
     const startY = dy > 0 ? maxY + 1 : minY - 1;
-    for (let step = 0; step < 2; step++) {
-      const by = startY + dy * step;
-      for (let bx = minX; bx <= maxX; bx++) {
-        rawCells.push({ x: bx, y: by });
-      }
+    for (let bx = minX; bx <= maxX; bx++) {
+      lanes.push([{ x: bx, y: startY }, { x: bx, y: startY + dy }]);
     }
   }
   // 3. 斜め判定（プレイヤーのいる角から、前方2マス×幅2マスの扇状に広がる）
@@ -63,29 +58,35 @@ export function getPetroBreathCells(monster, player, map) {
     const cornerX = dx > 0 ? maxX : minX;
     const cornerY = dy > 0 ? maxY : minY;
 
-    // 1歩目（3マス：斜め直撃と両脇）
-    rawCells.push({ x: cornerX + dx, y: cornerY + dy });
-    rawCells.push({ x: cornerX + dx, y: cornerY });
-    rawCells.push({ x: cornerX, y: cornerY + dy });
-
-    // 2歩目（3マス：2マス斜めと外側）
-    rawCells.push({ x: cornerX + 2 * dx, y: cornerY + 2 * dy });
-    rawCells.push({ x: cornerX + 2 * dx, y: cornerY + dy });
-    rawCells.push({ x: cornerX + dx, y: cornerY + 2 * dy });
+    // 1歩目（3マス：斜め直撃と両脇）。2歩目は対角の1歩目から扇状に広がる。
+    const diag = { x: cornerX + dx, y: cornerY + dy };
+    lanes.push([diag, { x: cornerX + 2 * dx, y: cornerY + 2 * dy }]);
+    lanes.push([diag, { x: cornerX + 2 * dx, y: cornerY + dy }]);
+    lanes.push([diag, { x: cornerX + dx, y: cornerY + 2 * dy }]);
+    lanes.push([{ x: cornerX + dx, y: cornerY }]);
+    lanes.push([{ x: cornerX, y: cornerY + dy }]);
   }
 
-  // 重複除去およびマップ範囲内（壁以外）の抽出
+  // 重複除去およびマップ範囲内（壁以外）の抽出。壁のマスでレーンは止まり、向こう側には届かない。
   const mapW = map?.[0]?.length || 60;
   const mapH = map?.length || 30;
   const seen = new Set();
   const validCells = [];
 
-  for (const c of rawCells) {
-    if (c.x < 0 || c.x >= mapW || c.y < 0 || c.y >= mapH) continue;
-    const key = `${c.x},${c.y}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    validCells.push(c);
+  const isWallCell = (c) => {
+    const tile = map?.[c.y]?.[c.x];
+    return tile === T.WALL || tile === T.BWALL;
+  };
+
+  for (const lane of lanes) {
+    for (const c of lane) {
+      if (c.x < 0 || c.x >= mapW || c.y < 0 || c.y >= mapH) break;
+      if (isWallCell(c)) break;
+      const key = `${c.x},${c.y}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      validCells.push(c);
+    }
   }
 
   return validCells;

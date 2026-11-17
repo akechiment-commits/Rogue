@@ -140,6 +140,29 @@ describe("上級ダンジョン5階ボス：バタリングラム", () => {
       expect(cells).toContainEqual({ x: 12, y: 12 });
       expect(cells).toContainEqual({ x: 13, y: 13 });
     });
+    it("壁のマスは範囲に入らず、壁の向こうにも届かない", () => {
+      const wallMap = Array.from({ length: 30 }, () => Array(30).fill(T.FLOOR));
+      wallMap[10][12] = T.WALL;
+      const player = { x: 14, y: 10 };
+      const cells = getPetroBreathCells(boss, player, wallMap);
+      expect(cells).not.toContainEqual({ x: 12, y: 10 });
+      expect(cells).not.toContainEqual({ x: 13, y: 10 });
+      expect(cells).toContainEqual({ x: 12, y: 11 });
+      expect(cells).toContainEqual({ x: 13, y: 11 });
+    });
+
+    it("斜め方向は対角の1歩目が壁だと2歩目に届かない", () => {
+      const wallMap = Array.from({ length: 30 }, () => Array(30).fill(T.FLOOR));
+      wallMap[12][12] = T.WALL;
+      const player = { x: 14, y: 14 };
+      const cells = getPetroBreathCells(boss, player, wallMap);
+      expect(cells).not.toContainEqual({ x: 12, y: 12 });
+      expect(cells).not.toContainEqual({ x: 13, y: 13 });
+      expect(cells).not.toContainEqual({ x: 13, y: 12 });
+      expect(cells).not.toContainEqual({ x: 12, y: 13 });
+      expect(cells).toContainEqual({ x: 12, y: 11 });
+      expect(cells).toContainEqual({ x: 11, y: 12 });
+    });
   });
 
   it("ブレスを吐くターンはボスが移動せずブレス発射に専念する", () => {
