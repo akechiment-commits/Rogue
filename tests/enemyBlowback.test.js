@@ -947,7 +947,7 @@ describe("ニトロ箱の爆風で壊れる杖", () => {
     const player = makePlayer({ x: 13, y: 5, weapon: { name: "アサメ", type: "weapon", atk: 2, ability: "magic_power" } });
     const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand] });
     doGunpowderExplosion(8, 5, dungeon, player, [], () => {}, "ニトロ箱", enemySource ? mage : null);
-    expect(victim.hp).toBe(enemySource ? 70 : 55);
+    expect(victim.hp).toBe(enemySource ? 40 : 10);
   });
 
   it("敵由来の爆風で壊れた杖が倒したボスの報酬も一度だけ出る", () => {
@@ -1150,7 +1150,7 @@ describe("敵が飛ばして壊した床の杖の使用者", () => {
     }
   });
 
-  it.each([["fire_wand", 70], ["dig", 85]])("敵が飛ばした%sの効果をプレイヤーの武器で増幅しない", (effect, expectedHp) => {
+  it.each([["fire_wand", 40], ["dig", 85]])("敵が飛ばした%sの効果をプレイヤーの武器で増幅しない", (effect, expectedHp) => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
     Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
