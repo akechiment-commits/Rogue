@@ -498,7 +498,8 @@ export function installMonsterHpHook(monster) {
         currentHp = value;
         return;
       }
-      if (nextHp < currentHp && this.baseKind === "boss_shinryu" && (this.mightyGuardTurns || 0) > 0 && !this._bypassMightyGuard) {
+      if (nextHp > 0 && this._sealedAtDeath) delete this._sealedAtDeath;
+      if (nextHp < currentHp && this.baseKind === "boss_shinryu" && (this.mightyGuardTurns || 0) > 0 && !this.sealed && !this._bypassMightyGuard) {
         if (Number.isFinite(this.maxHp) && nextHp === this.maxHp && currentHp > this.maxHp) {
           currentHp = nextHp;
           return;
@@ -509,6 +510,7 @@ export function installMonsterHpHook(monster) {
         currentHp = nextHp;
       }
       if (currentHp <= 0) {
+        this._sealedAtDeath = !!this.sealed;
         this.dormant = false;
         this.dormantHouse = false;
         this._dormantTouched = false;

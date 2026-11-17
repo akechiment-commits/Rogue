@@ -7205,10 +7205,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m[key] = Math.max(0, m[key] - 1);
       if (m[key] <= 0) ml.push(`${m.name}の${label}が切れた！`);
     }
-    const heal = Math.min(20, Math.max(0, (m.maxHp || m.hp) - m.hp));
-    if (heal > 0) {
-      m.hp += heal;
-      ml.push(`${m.name}は自然回復した！(+${heal}HP)`);
+    if (!m.sealed) {
+      const heal = Math.min(20, Math.max(0, (m.maxHp || m.hp) - m.hp));
+      if (heal > 0) {
+        m.hp += heal;
+        ml.push(`${m.name}は自然回復した！(+${heal}HP)`);
+      }
     }
   }
   if (m.baseKind === "boss_hexachromatic") {

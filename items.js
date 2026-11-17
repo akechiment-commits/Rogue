@@ -7733,7 +7733,7 @@ export function applyFireInventoryDamage(p, ml, dg = null) {
 
 /** 危険な花びら：倒されたとき、確率で隣接する生物へ睡眠を広げる。 */
 function triggerPetalDeathSleep(mon, dg, p, ml) {
-  if (!mon.sleepOnDeath || mon.sealed || Math.random() >= 0.25) return;
+  if (!mon.sleepOnDeath || mon.sealed || mon._sealedAtDeath || Math.random() >= 0.25) return;
   ml.push(`${mon.name}が散り際に眠りの花粉をまき散らした！`);
   const targets = [p, ...(dg.monsters || [])].filter((target, index, all) =>
     target && target !== mon && (target.hp || 0) > 0 && all.indexOf(target) === index &&
@@ -7791,6 +7791,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     mon.hp = 0;
     delete mon._bypassMightyGuard;
   }
+  if (mon.sealed) mon._sealedAtDeath = true;
   clearStatusEffectsOnHpZero(mon);
   if (mon.isWanderingMerchant && p && !killerMon && !noExp) {
     const _alreadyThief = !!(dg.shopTheft || p.isThief);

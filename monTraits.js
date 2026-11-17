@@ -22,10 +22,10 @@ export function monHasElementWeakness(m, element) {
   return weaknesses.includes(element);
 }
 
-/** 属性耐性をダメージ倍率として返す。通常の敵定義では無指定なら等倍。 */
+/** 属性耐性をダメージ倍率として返す。通常の敵定義では無指定なら等倍。
+ * 属性耐性は体の性質として封印の対象外（封印中も有効）。 */
 export function monElementDamageMultiplier(m, element) {
   if (!m || !element) return 1;
-  if (m.sealed) return 1;
   const resistances = [m.elemResist, m.elemResist2].flatMap(value => Array.isArray(value) ? value : [value]);
   return m.elemResistAll || resistances.includes(element) ? 0.5 : 1;
 }
