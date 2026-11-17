@@ -82,6 +82,26 @@ describe("advanceMonsterUpkeep", () => {
     expect(messages).toEqual(["雷の魔方陣が鳥を打った！38ダメージ！雷弱点！", "呪われた雷の力が骸骨を傷つけた！25ダメージ！(アンデッド)"]);
   });
 
+  it("呪われた爆発の魔方陣は呪われていない雷だけを打ち消し、呪われた雷は敵にも効く", () => {
+    const weak = { name: "鳥", x: 0, y: 0, hp: 40, maxHp: 40, elemWeak: "thunder" };
+    const hurt = { name: "傷ついた敵", x: 1, y: 0, hp: 10, maxHp: 40 };
+    const dungeon = {
+      monsters: [weak, hurt],
+      map: [[T.FLOOR, T.FLOOR]],
+      pentacles: [
+        { name: "雷の魔方陣", kind: "thunder_trap", x: 0, y: 0 },
+        { name: "呪われた雷", kind: "thunder_trap", cursed: true, x: 1, y: 0 },
+      ],
+    };
+    const messages = [];
+    const defeated = advance(dungeon, undefined, messages, { hasCursedExplosionPentacle: () => true });
+
+    expect(weak.hp).toBe(40);
+    expect(hurt.hp).toBe(35);
+    expect(defeated).toEqual([]);
+    expect(messages).toEqual(["呪われた雷の力で傷ついた敵のHPが25回復した！"]);
+  });
+
   it("敵のドーピングは強化終了後に副作用へ移行し、50ターン後に元へ戻る", () => {
     const monster = {
       name: "敵", x: 0, y: 0, hp: 100, maxHp: 100,

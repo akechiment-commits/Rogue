@@ -167,13 +167,15 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     if (monster.hp <= 0) onMonsterDefeated(monster);
   }
 
-  if (!dungeon.pentacles?.some((pentacle) => pentacle.kind === "thunder_trap") || hasCursedExplosionPentacle(dungeon)) return;
+  if (!dungeon.pentacles?.some((pentacle) => pentacle.kind === "thunder_trap")) return;
+  const thunderNegated = hasCursedExplosionPentacle(dungeon);
   for (const monster of [...dungeon.monsters]) {
     if (monster.hp <= 0) continue;
     const pentacle = dungeon.pentacles.find((entry) =>
       entry.kind === "thunder_trap" && entry.x === monster.x && entry.y === monster.y
     );
     if (!pentacle || (monster.magicImmune && !monster.sealed) || inMagicSealRoom(pentacle.x, pentacle.y, dungeon)) continue;
+    if (thunderNegated && !pentacle.cursed) continue;
 
     if (pentacle.cursed) {
       if (monster.kind === "undead") {
