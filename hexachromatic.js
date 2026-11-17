@@ -124,7 +124,7 @@ export function hexachromaticFireBreath(monster, dungeon, player, line, messages
     if (consumeBarrier(player, messages)) return;
     const fireProtected = hasFireResist(player);
     const oily = (player.oilyTurns || 0) > 0 || dungeon.oilyTiles?.some(tile => tile.x === player.x && tile.y === player.y);
-    let damage = reduceFireDamage(80, player);
+    let damage = reduceFireDamage(80 + rng(-5, 5), player);
     if (oily) damage *= 2;
     player.deathCause = `${monster.name}の火炎ブレスで`;
     player.hp -= damage;
@@ -140,7 +140,8 @@ export function hexachromaticFireBreath(monster, dungeon, player, line, messages
   }
   const victim = hit.target;
   const weakMult = monHasElementWeakness(victim, "fire") ? 2 : 1;
-  const damage = combatDeps.scaleMonFireDmg?.(victim, Math.round(80 * weakMult)) ?? Math.round(80 * weakMult);
+  const _fBaseDmg = 80 + rng(-5, 5);
+  const damage = combatDeps.scaleMonFireDmg?.(victim, Math.round(_fBaseDmg * weakMult)) ?? Math.round(_fBaseDmg * weakMult);
   applyBreathMonsterDamage(monster, victim, damage, dungeon, player, messages, opts, "火炎ブレス");
 }
 

@@ -146,8 +146,8 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
 
   const applyFireToPlayer = () => {
     if (consumeBarrier(pl, ml)) return;
-    // 防御力無視の固定70ダメージ（耐性でのみ軽減）
-    const baseDmg = 70;
+    // 防御力無視の70±5ダメージ（耐性でのみ軽減）
+    const baseDmg = 70 + rng(-5, 5);
     const hasProt = hasFireResist(pl);
     let dmg = reduceFireDamage(baseDmg, pl);
 
@@ -172,7 +172,7 @@ export function mireuHyperthermicBreath(m, dg, pl, ml, opts = {}) {
   };
 
   const applyFireToMon = (victim) => {
-    const baseDmg = 70;
+    const baseDmg = 70 + rng(-5, 5);
     const oilyMult = (victim.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === victim.x && t.y === victim.y) ? 2 : 1;
     const weaknessMult = monHasElementWeakness(victim, "fire") ? 2 : 1;
     const finalDmg = scaleMonsterFireDamage(victim, Math.round(baseDmg * oilyMult * weaknessMult));

@@ -1,5 +1,5 @@
 import {
-  T, MW, MH, checkMonsterEvasion,
+  T, MW, MH, checkMonsterEvasion, rng,
   consumeBarrier, playerHpEffectLabel, withEnemyDamageContext,
 } from "./utils.js";
 import {
@@ -64,7 +64,7 @@ function firstAerogaTarget(monster, dungeon, player, line) {
 function hitAerogaTarget(monster, target, dungeon, player, messages, opts) {
   if (target === player) {
     if (consumeBarrier(player, messages)) return false;
-    const damage = multiplyCursedMagicDamage(80, player, dungeon);
+    const damage = multiplyCursedMagicDamage(80 + rng(-5, 5), player, dungeon);
     player.deathCause = `${monster.name}のエアロガで`;
     withEnemyDamageContext(player, () => { player.hp -= damage; });
     opts.onPlayerHit?.(damage, monster);
@@ -84,7 +84,7 @@ function hitAerogaTarget(monster, target, dungeon, player, messages, opts) {
     messages.push(`${target.name}はエアロガをかわした！`);
     return false;
   }
-  const damage = multiplyCursedMagicDamage(80, target, dungeon);
+  const damage = multiplyCursedMagicDamage(80 + rng(-5, 5), target, dungeon);
   target.hp -= damage;
   resolveParalysisHit(target, messages);
   messages.push(`${monster.name}のエアロガが${target.name}に命中！${damage}ダメージ！`);

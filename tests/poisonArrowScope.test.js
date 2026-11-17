@@ -3,7 +3,7 @@ import { monsterFireLightning } from "../wands.js";
 import { monScaleOutgoingDamage } from "../monTraits.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { MONS, makeMonsterFromBase, _resolveBolt } from "../monsters.js";
+import { MONS, makeMonsterFromBase, _resolveBolt, monsterDragonFire, monsterIceBreath } from "../monsters.js";
 import { reflectMagicStoneToPlayer, applyThrownItemToMonster, makeStone } from "../items.js";
 
 const noop = () => {};
@@ -94,6 +94,49 @@ describe("反射と投擲は攻撃の持ち主と受けた側を参照する", (
     expect(clean).toBeGreaterThan(0);
     const scaled = run({ killerMon: { name: "反射者" }, scaleSourceMon: { name: "投擲者", poisonArrowDamageHalves: 1 } });
     expect(scaled).toBeLessThan(clean);
+  });
+
+  it("ドラゴンの炎ブレスは防御無視の帯威力で、毒でも半減しない", () => {
+    const dragon = makeMonsterFromBase(MONS.find((m) => m.baseKind === "dragon"), 1, 5, 5);
+    dragon.poisonArrowDamageHalves = 2;
+    const dg = makeEmptyDg({ monsters: [dragon] });
+    const p = makePlayer({ x: 8, y: 5, hp: 500, maxHp: 500, armor: { name: "鉄壁の鎧", def: 100 } });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      monsterDragonFire(dragon, dg, p, ml, noop);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(p.hp).toBe(500 - 33);
+  });
+
+  it("氷ブレスも防御無視の帯威力（Lv1は30）", () => {
+    const ice = makeMonsterFromBase(MONS.find((m) => m.baseKind === "icedragon"), 1, 5, 5);
+    const dg = makeEmptyDg({ monsters: [ice] });
+    const p = makePlayer({ x: 8, y: 5, hp: 500, maxHp: 500, armor: { name: "鉄壁の鎧", def: 100 } });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      monsterIceBreath(ice, dg, p, ml, noop);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(p.hp).toBe(500 - 30);
+  });
+
+  it("サラマンダーの炎ブレスは17が基準", () => {
+    const sal = { name: "サラマンダー", baseKind: "im_boss_salamander", monLevel: 1, hp: 280, maxHp: 280, x: 5, y: 5, atk: 38, def: 20 };
+    const dg = makeEmptyDg({ monsters: [sal] });
+    const p = makePlayer({ x: 8, y: 5, hp: 500, maxHp: 500 });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      monsterDragonFire(sal, dg, p, ml, noop);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(p.hp).toBe(500 - 17);
   });
 
   it("歩数光線（ignorePoisonScale）は射手の毒スタックでも半減しない", () => {

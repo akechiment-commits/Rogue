@@ -720,6 +720,16 @@ function dragonBreathOrigin(monster, target) {
       Math.max(Math.abs(target.x - b.x), Math.abs(target.y - b.y)))[0] || null;
 }
 
+/* ブレス威力（防御無視）: 使用者の種別・Lv帯ごとの基準値に ±5 の乱数 */
+function fireBreathBase(m) {
+  if (m.baseKind === "im_boss_salamander") return 17;
+  if (m.baseKind === "boss_korgon") return 23;
+  return { 1: 33, 2: 46, 3: 58 }[m.monLevel || 1] ?? 33;
+}
+function iceBreathBase(m) {
+  return { 1: 30, 2: 40, 3: 48 }[m.monLevel || 1] ?? 30;
+}
+
 export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
   if (isFireExplosionNullified(dg, pl)) {
@@ -728,6 +738,7 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       : `呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
     return;
   }
+  const _fBase = fireBreathBase(m) + rng(-5, 5);
   const _fLvl = m.monLevel || 1;
   const _origin = m.baseKind === "boss_korgon" ? (dragonBreathOrigin(m, pl) || { x: m.x, y: m.y }) : { x: m.x, y: m.y };
   let _fdx = Math.sign(pl.x - _origin.x), _fdy = Math.sign(pl.y - _origin.y);
@@ -741,7 +752,7 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   let _cx = _origin.x, _cy = _origin.y, _windMsg = false;
   const _applyFireToMon = (_fBlock) => {
     wakeIfDormant(_fBlock, ml);
-    const _fDmgBase = calcAtkDefDmg(m.atk, _fBlock.def || 0, { defWeight: 1 });
+    const _fDmgBase = _fBase;
     if (monHasFlameMantle(_fBlock)) {
       const _fheal = Math.min(_fDmgBase, _fBlock.maxHp - _fBlock.hp);
       if (_fheal > 0) { _fBlock.hp += _fheal; ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
@@ -749,7 +760,8 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
-    const _fRawDmg = monScaleOutgoingDamage(m, scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult));
+    const _fWeakMult = monHasElementWeakness(_fBlock, "fire") ? 2 : 1;
+    const _fRawDmg = scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult * _fWeakMult);
     const res = applyDamageToMonster(_fBlock, _fRawDmg, {
       isPhysical: true,
       attacker: m,
@@ -764,15 +776,13 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   };
   const _applyFireToPlayer = () => {
     if (consumeBarrier(pl, ml)) return;
-    const pdef = calcPlayerDef(pl);
-    let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
+    let dmg = _fBase;
     const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
     const _hasFireProt = hasFireResist(pl);
     dmg = reduceFireDamage(dmg, pl);
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) dmg *= 2;
-    dmg = monScaleOutgoingDamage(m, dmg);
     pl.deathCause = `${m.name}の炎ブレスで`;
     pl.hp -= dmg;
     onPlayerHit?.(dmg, m);
@@ -828,6 +838,7 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
 
 /* ===== 氷竜ブレス（風で曲がる物理ブレス） ===== */
 export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
+  const _iBase = iceBreathBase(m) + rng(-5, 5);
   const _iLvl = m.monLevel || 1;
   let _idx = Math.sign(pl.x - m.x), _idy = Math.sign(pl.y - m.y);
   if (_idx === 0 && _idy === 0) _idy = 1;
@@ -839,13 +850,12 @@ export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   };
   let _cx = m.x, _cy = m.y, _windMsg = false;
   const _hitIceMon = (_iBlock) => {
-    let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
+    let _iDmg = _iBase;
     const _iIsWeak = monHasElementWeakness(_iBlock, "ice");
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 2);
     const _iResist = monElementDamageMultiplier(_iBlock, "ice");
     _iDmg = Math.max(1, Math.floor(_iDmg * _iResist));
-    const _rawDmg = monScaleOutgoingDamage(m, _iDmg);
-    const res = applyDamageToMonster(_iBlock, _rawDmg, {
+    const res = applyDamageToMonster(_iBlock, _iDmg, {
       isPhysical: true,
       attacker: m,
       dungeon: dg,
@@ -862,13 +872,11 @@ export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   };
   const _hitIcePl = () => {
     if (consumeBarrier(pl, ml)) return;
-    const pdef = calcPlayerDef(pl);
-    let _iDmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
+    let _iDmg = _iBase;
     const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
     const _hasIceR = hasIceResist(pl);
     _iDmg = reduceIceDamage(_iDmg, pl);
-    _iDmg = monScaleOutgoingDamage(m, _iDmg);
     pl.deathCause = `${m.name}の氷ブレスで`;
     pl.hp -= _iDmg;
     onPlayerHit?.(_iDmg, m);

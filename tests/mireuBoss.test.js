@@ -187,7 +187,8 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       s.player.hp = 200;
 
       mireuHyperthermicBreath(s.boss, s.dungeon, s.player, s.messages);
-      expect(s.player.hp).toBe(130); // 70ダメージ直撃
+      expect(s.player.hp).toBeGreaterThanOrEqual(125); // 70±5ダメージ直撃
+      expect(s.player.hp).toBeLessThanOrEqual(135);
       expect(s.messages.some(m => m.includes('ハイパーサーミックブレスが直撃'))).toBe(true);
     });
 
@@ -212,17 +213,19 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       s.messages.length = 0;
       expect(isMireuFarLine(s.boss, s.dungeon, s.player)).toBe(true);
       mireuHyperthermicBreath(s.boss, s.dungeon, s.player, s.messages);
-      expect(s.player.hp).toBe(130); // プレイヤーにブレスが直撃
+      expect(s.player.hp).toBeGreaterThanOrEqual(125); // プレイヤーにブレスが直撃（70±5）
+      expect(s.player.hp).toBeLessThanOrEqual(135);
       expect(s.messages.some(m => m.includes('ハイパーサーミックブレスが直撃'))).toBe(true);
     });
 
-    it('プレイヤーに防御力無視の固定70炎ダメージを与え、耐性でのみ軽減される', () => {
+    it('プレイヤーに防御力無視の70±5炎ダメージを与え、耐性でのみ軽減される', () => {
       // 1. 防具なし（防御0）: 70ダメージ
       const s1 = setup();
       s1.player.y = 4; // 遠距離
       s1.player.hp = 200;
       mireuHyperthermicBreath(s1.boss, s1.dungeon, s1.player, s1.messages);
-      expect(s1.player.hp).toBe(130); // 200 - 70 = 130
+      expect(s1.player.hp).toBeGreaterThanOrEqual(125); // 200 - (70±5)
+      expect(s1.player.hp).toBeLessThanOrEqual(135);
       expect(s1.messages.some(m => m.includes('ハイパーサーミックブレス'))).toBe(true);
 
       // 2. 超高防御（防具でdef: 100）: 防御力無視のため依然として70ダメージ
@@ -231,7 +234,8 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       s2.player.hp = 200;
       s2.player.armor = { name: '最強の盾', def: 100 };
       mireuHyperthermicBreath(s2.boss, s2.dungeon, s2.player, s2.messages);
-      expect(s2.player.hp).toBe(130); // 防御力無視で70ダメージ
+      expect(s2.player.hp).toBeGreaterThanOrEqual(125); // 防御力無視で70±5ダメージ
+      expect(s2.player.hp).toBeLessThanOrEqual(135);
 
       // 3. 炎耐性あり: 耐性により軽減される (70 * 2/3 = 46)
       const s3 = setup();
@@ -239,7 +243,8 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       s3.player.hp = 200;
       s3.player.armor = { name: '竜の盾', def: 10, ability: 'fire_resist' };
       mireuHyperthermicBreath(s3.boss, s3.dungeon, s3.player, s3.messages);
-      expect(s3.player.hp).toBe(154); // 200 - 46 = 154
+      expect(s3.player.hp).toBeGreaterThanOrEqual(150); // 200 - (70±5)*2/3
+      expect(s3.player.hp).toBeLessThanOrEqual(157);
       expect(s3.messages.some(m => m.includes('耐火'))).toBe(true);
 
       // 4. 油まみれの時はダメージが倍増する (70 * 2 = 140)
@@ -248,7 +253,8 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       s4.player.hp = 300;
       s4.player.oilyTurns = 10;
       mireuHyperthermicBreath(s4.boss, s4.dungeon, s4.player, s4.messages);
-      expect(s4.player.hp).toBe(160); // 300 - 140 = 160
+      expect(s4.player.hp).toBeGreaterThanOrEqual(150); // 300 - (70±5)*2
+      expect(s4.player.hp).toBeLessThanOrEqual(170);
       expect(s4.messages.some(m => m.includes('油まみれ×2'))).toBe(true);
     });
   });

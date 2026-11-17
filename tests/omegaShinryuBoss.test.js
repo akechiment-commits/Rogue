@@ -406,8 +406,8 @@ describe("超上級B45F オメガ・神竜", () => {
     monsterAI(shinryu, dungeon, player, messages, { attackOnly: true });
 
     expect(shinryu.hp).toBe(SHINRYU_BOSS.hp);
-    expect(player.hp).toBe(450);
-    expect(omega.hp).toBe(OMEGA_BOSS.hp - 100);
+    expect(player.hp).toBe(454);
+    expect(omega.hp).toBe(OMEGA_BOSS.hp - 92);
     expect(messages.some(message => message.includes("跳ね返した"))).toBe(false);
   });
 

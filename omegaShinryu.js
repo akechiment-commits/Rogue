@@ -432,10 +432,11 @@ export function castShinryuMightyGuard(monster, dungeon, player, messages, luFn 
 
 export function castShinryuLightning(monster, dungeon, player, room, messages, luFn = null) {
   messages.push(`${monster.name}が稲妻を呼び寄せた！`);
+  const baseDamage = 50 + rng(-5, 5);
   const inRoom = (x, y) => !!room && combatDeps.findRoom?.(dungeon.rooms, x, y) === room;
   if (player.hp > 0 && (!room || !combatDeps.findRoom || inRoom(player.x, player.y))) {
     if (!consumeBarrier(player, messages)) {
-      const damage = reduceLightningDamage(50, player);
+      const damage = reduceLightningDamage(baseDamage, player);
       player.deathCause = `${monster.name}の稲妻で`;
       player.hp -= damage;
       messages.push(`稲妻が落ちた！${playerHpEffectLabel(player, damage)}！${lightningResistDamageLabel(player)}`);
@@ -450,7 +451,7 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
     if (target === monster || target.hp <= 0 || !dungeon.monsters.includes(target) || !inRoom(target.x, target.y)) continue;
     const weakness = monHasElementWeakness(target, "thunder") ? 2 : 1;
     const resistance = monElementDamageMultiplier(target, "thunder");
-    const rawDamage = Math.max(1, Math.floor(50 * weakness * resistance));
+    const rawDamage = Math.max(1, Math.floor(baseDamage * weakness * resistance));
     const res = applyDamageToMonster(target, rawDamage, {
       isPhysical: true,
       attacker: monster,
