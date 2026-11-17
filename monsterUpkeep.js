@@ -193,7 +193,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
       continue;
     }
 
-    const weaknessMultiplier = monHasElementWeakness(monster, "thunder") ? 1.5 : 1;
+    const weaknessMultiplier = monHasElementWeakness(monster, "thunder") ? 2 : 1;
     const cursedSealMultiplier = inCursedMagicSealRoom(pentacle.x, pentacle.y, dungeon) ? 2 : 1;
     const damage = Math.round((pentacle.blessed ? 50 : 25) * weaknessMultiplier * cursedSealMultiplier);
     monster.hp -= damage;

@@ -64,7 +64,7 @@ describe("advanceMonsterUpkeep", () => {
   });
 
   it("雷弱点と呪われた雷のアンデッド撃破を処理する", () => {
-    const weak = { name: "鳥", x: 0, y: 0, hp: 40, maxHp: 40, elemWeak: "thunder" };
+    const weak = { name: "鳥", x: 0, y: 0, hp: 60, maxHp: 60, elemWeak: "thunder" };
     const undead = { name: "骸骨", kind: "undead", x: 1, y: 0, hp: 20, maxHp: 20 };
     const dungeon = {
       monsters: [weak, undead],
@@ -77,9 +77,9 @@ describe("advanceMonsterUpkeep", () => {
     const messages = [];
     const defeated = advance(dungeon, undefined, messages);
 
-    expect(weak.hp).toBe(2);
+    expect(weak.hp).toBe(10);
     expect(defeated).toEqual([undead]);
-    expect(messages).toEqual(["雷の魔方陣が鳥を打った！38ダメージ！雷弱点！", "呪われた雷の力が骸骨を傷つけた！25ダメージ！(アンデッド)"]);
+    expect(messages).toEqual(["雷の魔方陣が鳥を打った！50ダメージ！雷弱点！", "呪われた雷の力が骸骨を傷つけた！25ダメージ！(アンデッド)"]);
   });
 
   it("呪われた爆発の魔方陣は呪われていない雷だけを打ち消し、呪われた雷は敵にも効く", () => {

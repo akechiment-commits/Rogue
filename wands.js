@@ -1942,10 +1942,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         const _fwOily = _fwOilyCheck(target);
-        let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
+        const _fwWeakMult = monHasElementWeakness(target, "fire") ? 2 : 1;
+        let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1) * _fwWeakMult));
         _fwDmg = scaleMonFireDmg(target, _magicDamage(_fwDmg));
         target.hp -= _fwDmg;
-        ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}${monFireDmgLabel(target)}`);
+        ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwWeakMult > 1 ? "炎弱点特効！" : ""}${_fwOily ? "油まみれ×2！" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) _defeat(target);
         else _onMonsterDamaged(target);
         break;

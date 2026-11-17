@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { monsterFireLightning } from "../wands.js";
+import { monsterFireLightning, applyWandEffect } from "../wands.js";
 import { monScaleOutgoingDamage } from "../monTraits.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -137,6 +137,26 @@ describe("反射と投擲は攻撃の持ち主と受けた側を参照する", (
       vi.restoreAllMocks();
     }
     expect(p.hp).toBe(500 - 17);
+  });
+
+  it("炎の杖は炎弱点の敵に2倍ダメージ", () => {
+    const dg = makeEmptyDg();
+    const normal = { name: "スライム", hp: 200, maxHp: 200, x: 6, y: 5, atk: 3 };
+    const weak = { name: "つらら小僧", hp: 200, maxHp: 200, x: 7, y: 5, atk: 3, elemWeak: "fire" };
+    dg.monsters.push(normal, weak);
+    const p = makePlayer();
+    const ml1 = [];
+    const ml2 = [];
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      applyWandEffect("fire_wand", "monster", normal, 1, 0, dg, p, ml1, noop);
+      applyWandEffect("fire_wand", "monster", weak, 1, 0, dg, p, ml2, noop);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(200 - normal.hp).toBe(25);
+    expect(200 - weak.hp).toBe(50);
+    expect(ml2.some((m) => m.includes("炎弱点特効"))).toBe(true);
   });
 
   it("歩数光線（ignorePoisonScale）は射手の毒スタックでも半減しない", () => {

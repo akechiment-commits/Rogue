@@ -1432,7 +1432,7 @@ export function useKeyHandler({
           if (_floorChanged) declareFloorExitTheft(_fsp, sr.current.dungeon, _ml);
           delete sr.current.floors[_f];
           const _maxDTp = sr.current.maxDepth;
-          if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor) {
+          if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor && !_d.isTreasureRoom) {
             prepareLastFloor(_d, sr.current.dungeonType || "beginner");
           }
           _fsp.depth = _f;

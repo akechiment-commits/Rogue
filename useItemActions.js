@@ -1173,7 +1173,7 @@ export function useItemActions({
               if (_saved) {
                 delete sr.current.floors[_targetFloor];
                 const _maxDTp = sr.current.maxDepth;
-                if (_maxDTp !== null && _targetFloor >= _maxDTp && !_saved.isLastFloor) {
+                if (_maxDTp !== null && _targetFloor >= _maxDTp && !_saved.isLastFloor && !_saved.isTreasureRoom) {
                   prepareLastFloor(_saved, sr.current.dungeonType || "beginner");
                 }
                 p.depth = _targetFloor;
@@ -1289,7 +1289,7 @@ export function useItemActions({
             }
             if (consumeBarrier(_m, ml)) continue;
             let _dmg = rollElementScrollDamage(it);
-            if (monHasElementWeakness(_m, "thunder")) _dmg = Math.round(_dmg * 1.5);
+            if (monHasElementWeakness(_m, "thunder")) _dmg = Math.round(_dmg * 2);
             _dmg = multiplyMagicDamage(_dmg, p.weapon, _m, dg);
             const _thunderResist = monElementDamageMultiplier(_m, "thunder");
             _dmg = Math.max(1, Math.floor(_dmg * _thunderResist));
@@ -1559,7 +1559,7 @@ export function useItemActions({
               continue;
             }
             let _flDmg = rollElementScrollDamage(it);
-            if (monHasElementWeakness(_m, "fire")) _flDmg = Math.round(_flDmg * 1.5);
+            if (monHasElementWeakness(_m, "fire")) _flDmg = Math.round(_flDmg * 2);
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
             _flDmg = scaleMonFireDmg(_m, multiplyMagicDamage(_flDmg, p.weapon, _m, dg));

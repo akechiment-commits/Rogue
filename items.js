@@ -10701,10 +10701,11 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
           break;
         }
-        const _fbDmg = scaleMonFireDmg(target, _enemyMagicDamage(dmg));
+        const _fbWeakMult = monHasElementWeakness(target, "fire") ? 2 : 1;
+        const _fbDmg = scaleMonFireDmg(target, _enemyMagicDamage(dmg * _fbWeakMult));
         target.hp -= _fbDmg;
         resolveParalysisHit(target, ml);
-        ml.push(`炎の魔法が${target.name}に命中！${_fbDmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
+        ml.push(`炎の魔法が${target.name}に命中！${_fbDmg}ダメージ！${_fbWeakMult > 1 ? "炎弱点特効！" : ""}${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item" && target.type === "pot" && target.potEffect === "gunpowder") {
@@ -10773,10 +10774,11 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         /* 後方互換（他から直接呼ばれた場合） */
         const resist = monElementDamageMultiplier(target, "thunder");
-        const dmg = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF)) * resist));
+        const _lweakD = monHasElementWeakness(target, "thunder") ? 2 : 1;
+        const dmg = Math.max(1, Math.floor(_enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweakD)) * resist));
         target.hp -= dmg;
         resolveParalysisHit(target, ml);
-        ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！${resist < 1 ? "雷半減！" : ""}`);
+        ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！${_lweakD > 1 ? "雷弱点！" : ""}${resist < 1 ? "雷半減！" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item") {

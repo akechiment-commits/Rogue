@@ -4845,7 +4845,7 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
               if (_floorChanged) declareFloorExitTheft(_p, sr.current.dungeon, _ml);
               delete sr.current.floors[f];
               const _maxDFs = sr.current.maxDepth;
-              if (_maxDFs !== null && f >= _maxDFs && !_d.isLastFloor) {
+              if (_maxDFs !== null && f >= _maxDFs && !_d.isLastFloor && !_d.isTreasureRoom) {
                 prepareLastFloor(_d, sr.current.dungeonType || "beginner");
               }
               const _tpFromX = _p.x, _tpFromY = _p.y;

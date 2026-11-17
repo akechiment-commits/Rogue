@@ -2235,7 +2235,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     /* 最下層：isLastFloor 未設定なら必ずキーアイテムを配置
        （落とし穴プリキャッシュや呪いテレポで _saved が先行生成された場合も救済） */
-    if (!_isLastFloorPitfall && _maxD !== null && nd >= _maxD && !d.isLastFloor && sr.current.dungeonType !== "tutorial") {
+    if (!_isLastFloorPitfall && _maxD !== null && nd >= _maxD && !d.isLastFloor && !d.isTreasureRoom && sr.current.dungeonType !== "tutorial") {
       prepareLastFloor(d, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
