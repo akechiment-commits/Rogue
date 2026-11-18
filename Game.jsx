@@ -2408,7 +2408,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       placeFallenEntities(st.dungeon, [], { player: p, actionTime: p.actionTime || 0 });
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
-      const _etSourceDepth = p.depth;
+      let _etSourceDepth = p.depth;
       setPitfallBag(_etPfBag);
       const _etStartHp = p.hp;
       const _clock = beginPlayerTurnClock(p, { idleBeat: !!extraOpts.idleBeat });
@@ -2446,7 +2446,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           },
         });
         if (_terrainTrap === "pitfall" && p.hp > 0) {
+          /* プレイヤー自身がターン途中で落ちたら、落下物バッグの基準階を付け替える
+             （付け替えないと、この後に新しい階で落ちた敵が元の階基準で同じ階へ再配置される） */
+          if (_etPfBag.length > 0) {
+            processPitfallBag(_etPfBag, st.floors, _etSourceDepth, st);
+            _etPfBag.length = 0;
+          }
           const nextDungeon = chgFloor(p, 1, true);
+          _etSourceDepth = p.depth;
           if (nextDungeon) {
             st.dungeon = nextDungeon;
             ml.push(`地下${p.depth}階に落ちた！`);
