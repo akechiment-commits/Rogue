@@ -2637,8 +2637,11 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
   if (pl) installPlayerHpReverseHook(pl);
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, pl);
   const _blessedMult = blessed ? 2 : 1;
-  const _lightningReflectDmg = (scaleMon, victim) =>
-    multiplyCursedMagicDamage(Math.round(rng(20, 30) * _blessedMult), victim, dg);
+  const _lightningReflectDmg = (scaleMon, victim) => {
+    const _rWeakMult = monHasElementWeakness(victim, "thunder") ? 2 : 1;
+    const _rResist = monElementDamageMultiplier(victim, "thunder");
+    return Math.max(1, Math.floor(multiplyCursedMagicDamage(Math.round(rng(20, 30) * _blessedMult * _rWeakMult), victim, dg) * _rResist));
+  };
   const applyEnemyEffect = (kind, target) =>
     applyWandEffect("lightning", kind, target, dx, dy, dg, pl, ml, luFn, bbFn,
       kind === "monster" && blessed ? 2 : 1, nameFn, 0, killerMon, null, false, killerMon, fireTrapFn);
