@@ -1,4 +1,4 @@
-import { ITEMS, WANDS, POTS, RINGS } from "./items.js";
+import { ITEMS, WANDS, POTS, RINGS, penInitialCharges, rollGeneratedWandCharges, randPotCapacity } from "./items.js";
 
 /** 拠点ショップの抽選プール（金貨以外の全ITEMS + 杖・壺・指輪） */
 export const HUB_SHOP_POOL = [
@@ -32,6 +32,12 @@ export function rollHubShopStock(rng = Math.random) {
     const picked = pool.splice(idx, 1)[0];
     if (picked.type === "ring" && PLUS_RING_EFFECTS.has(picked.effect)) {
       stock.push({ ...picked, plus: Math.floor(rng() * 3) + 1 });
+    } else if (picked.type === "wand") {
+      stock.push({ ...picked, charges: rollGeneratedWandCharges(picked) });
+    } else if (picked.type === "pen") {
+      stock.push({ ...picked, charges: penInitialCharges(picked, rng) });
+    } else if (picked.type === "pot") {
+      stock.push({ ...picked, contents: [], capacity: randPotCapacity(picked.potEffect) });
     } else {
       stock.push({ ...picked });
     }

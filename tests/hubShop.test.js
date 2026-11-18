@@ -17,6 +17,30 @@ describe("rollHubShopStock", () => {
     expect(stock.every((item) => names.has(item.name))).toBe(true);
   });
 
+  it("杖・ペン・壺は生成時の回数／容量ロールを通る", () => {
+    const seen = { wand: 0, pen: 0, pot: 0 };
+    for (let n = 0; n < 300; n++) {
+      for (const item of rollHubShopStock()) {
+        if (item.type === "wand") {
+          seen.wand++;
+          expect(Number.isFinite(item.charges)).toBe(true);
+          expect(item.charges).toBeGreaterThanOrEqual(1);
+        } else if (item.type === "pen") {
+          seen.pen++;
+          expect(item.charges).toBeGreaterThanOrEqual(1);
+          expect(item.charges).toBeLessThanOrEqual(5);
+        } else if (item.type === "pot") {
+          seen.pot++;
+          expect(item.contents).toEqual([]);
+          expect(item.capacity).toBeGreaterThanOrEqual(1);
+        }
+      }
+    }
+    expect(seen.wand).toBeGreaterThan(0);
+    expect(seen.pen).toBeGreaterThan(0);
+    expect(seen.pot).toBeGreaterThan(0);
+  });
+
   it("決定論的RNGで同じ結果になる", () => {
     let i = 0;
     const seq = Array(32).fill(0);
