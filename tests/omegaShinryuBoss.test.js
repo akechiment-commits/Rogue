@@ -305,6 +305,19 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(player.petrifiedTurns).toBe(4);
   });
 
+  it("悪魔の瞳の石化はボスには半分の2ターン、通常敵には4ターン", () => {
+    const shinryu = { ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10, maxHp: SHINRYU_BOSS.hp };
+    const bossVictim = { name: "巻き添えボス", id: "bv", x: 8, y: 9, hp: 500, maxHp: 500, isBoss: true, bodySize: 2 };
+    const normalVictim = { name: "巻き添え", id: "nv", x: 12, y: 10, hp: 100, maxHp: 100 };
+    const player = makePlayer({ x: 8, y: 10 });
+    const dungeon = makeEmptyDg({ monsters: [shinryu, bossVictim, normalVictim], ...visibleRoom() });
+    const messages = [];
+    queueOmegaShinryuAttack(shinryu, dungeon, "evilEye", null, player, messages);
+    advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
+    expect(bossVictim.petrifiedTurns).toBe(2);
+    expect(normalVictim.petrifiedTurns).toBe(4);
+  });
+
   it("悪魔の瞳の構え中は移動せず、状態異常等で中断され、発射ターンに追撃の通常攻撃を行わない", () => {
     const shinryu = {
       ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10,

@@ -6,7 +6,7 @@ import {
   monsterBodyCells, monsterBounds, monsterOccupiesCell,
 } from "./monsterGeometry.js";
 import {
-  isAttackSealed, isStatusImmune, resolveParalysisHit,
+  isAttackSealed, isStatusImmune, resolveParalysisHit, monsterStatusTurns,
 } from "./statusDuration.js";
 import {
   killMonster, pushEntity,
@@ -354,9 +354,9 @@ function applyEvilEye(attack, dungeon, player, messages, source) {
     if (!monsterBodyCells(target).some(cell => affected.has(`${cell.x},${cell.y}`))) continue;
     if (blockLargeMonsterStatus(target, "petrify", messages)) continue;
     resolveParalysisHit(target, messages);
-    target.petrifiedTurns = 4;
+    target.petrifiedTurns = monsterStatusTurns(4, target);
     startLargeMonsterStatusCooldown(target, "petrify");
-    messages.push(`${target.name}は石化してしまった！(4ターン)`);
+    messages.push(`${target.name}は石化してしまった！(${target.petrifiedTurns}ターン)`);
   }
 }
 
