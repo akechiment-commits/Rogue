@@ -21,7 +21,7 @@ import { markBigboxKindIdentified } from "./GameHelpers.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { adjustPlayerBaseMaxHp } from "./equipmentEffects.js";
 
-/** 飲む／浸すで願いが発動する確率（各 0.5%） */
+/** 飲む／浸すで願いが発動する確率（各 0.1%） */
 export {
   WISH_CHANCE_DRINK, WISH_CHANCE_SOAK, WISH_CHANCE_GOLD_COIN, WISH_CHANCE_GOLD_NUGGET,
   goldCoinWishChance, goldCoinEjectChance, rollWishChance, SPRING_EJECT_CANDIDATES

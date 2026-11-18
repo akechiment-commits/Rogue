@@ -18,6 +18,7 @@ import { soakItemIntoSpring, makeSpringEjectedItem, SPRING_EJECT_CHANCE } from "
 import {
   rollWishChance,
   WISH_CHANCE_DRINK,
+  WISH_CHANCE_SOAK,
   WISH_CHANCE_GOLD_COIN,
   WISH_CHANCE_GOLD_NUGGET,
   goldCoinWishChance,
@@ -80,6 +81,7 @@ function fixture(inventory, overrides = {}, actionOptions = {}) {
 describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
   it("願い率の定数が仕様どおり調整されている", () => {
     expect(WISH_CHANCE_DRINK).toBe(0.001); // 飲水: 0.1% に低下
+    expect(WISH_CHANCE_SOAK).toBe(0.001); // 浸す: 0.1%（飲むと同率）
     expect(WISH_CHANCE_GOLD_COIN).toBe(0.015); // 金貨基準: 1.5%
     expect(WISH_CHANCE_GOLD_NUGGET).toBe(0.15); // 金塊: 15%
   });

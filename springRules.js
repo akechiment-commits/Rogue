@@ -28,7 +28,7 @@ export function createSpring(x, y, opts = {}) {
 
 /** 飲む／浸す／金貨／金塊投入で願いが発動する確率 */
 export const WISH_CHANCE_DRINK = 0.001;
-export const WISH_CHANCE_SOAK = 0.005;
+export const WISH_CHANCE_SOAK = 0.001;
 export const WISH_CHANCE_GOLD_COIN = 0.015;
 export const WISH_CHANCE_GOLD_NUGGET = 0.15;
 
