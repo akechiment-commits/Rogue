@@ -1,5 +1,5 @@
 import {
-  calcAtkDefDmg, calcPlayerDefense, rng, consumeBarrier,
+  calcAtkDefDmg, calcPlayerDefense, rng, consumeBarrier, clampDmgFixed,
   checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from './utils.js';
 import { inMagicSealRoom, isPlayerFloating, hasRingEffect, killMonster, applyPlayerTrip, blockPlayerStatus } from './items.js';
@@ -102,7 +102,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
     }
 
     const vDef = victim.def || 0;
-    const vDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, vDef, { defWeight: 1, variance: false }) + rng(-2, 2)));
+    const vDmg = clampDmgFixed(victim, monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, vDef, { defWeight: 1, variance: false }) + rng(-2, 2))), true);
     victim.hp -= vDmg;
     resolveParalysisHit(victim, ml);
     ml.push(`激しい地響きが${victim.name}に命中！${vDmg}ダメージ！`);
@@ -184,7 +184,7 @@ export function chiranikuttsunnokuVenomSting(m, dg, pl, ml, luFn, aim) {
       mlx.push(statusResultMessage(poison, "猛毒針が突き刺さった！毒を受けた！"));
     },
     onMonHit: (mon, mlx) => {
-      const damage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, mon.def || 0, { defWeight: 1, variance: false }) + rng(-2, 2)));
+      const damage = clampDmgFixed(mon, monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, mon.def || 0, { defWeight: 1, variance: false }) + rng(-2, 2))), true);
       mon.hp -= damage;
       mlx.push(`${m.name}の猛毒針が${mon.name}に命中！${damage}ダメージ！`);
       resolveParalysisHit(mon, mlx);

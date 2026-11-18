@@ -514,3 +514,20 @@ describe("上級ダンジョン15階ボス：ちらにくつんのく", () => {
   });
 
 });
+
+describe("ちらにくつんのくの対モンスター物理ダメージと固定ダメージ上限", () => {
+  it("アースブレイカーは物理ダメージ最大1の特性を持つ敵には1しか与えない", () => {
+    const boss = { ...CHIRANIKUTSUNNOKU, id: "boss", x: 10, y: 10, hp: 720, maxHp: 720 };
+    const slime = { name: "水晶スライム", baseKind: "crystalslime", x: 12, y: 10, hp: 100, maxHp: 100, def: 10, fixedDamageOnly: true };
+    const dg = makeEmptyDg({ monsters: [boss, slime] });
+    const pl = makePlayer({ x: 20, y: 20 });
+    const ml = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      chiranikuttsunnokuEarthbreaker(boss, dg, pl, ml);
+    } finally {
+      random.mockRestore();
+    }
+    expect(slime.hp).toBe(99);
+  });
+});
