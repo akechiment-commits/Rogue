@@ -182,6 +182,20 @@ describe("wish core", () => {
     expect(dg.traps[0].revealed).toBe(true);
   });
 
+  it("makeWishedItem の杖・ペンは生成時ロールで回数が決まる", () => {
+    const wandTmpl = { name: "テレポートの杖", type: "wand", effect: "warp", charges: 6, rarity: "C" };
+    const penTmpl = { name: "テレポートのペン", type: "pen", effect: "teleport_trap", charges: 2, rarity: "C" };
+    for (let i = 0; i < 30; i++) {
+      const wand = makeWishedItem(wandTmpl);
+      expect(wand.charges).toBeGreaterThanOrEqual(5);
+      expect(wand.charges).toBeLessThanOrEqual(7);
+      expect(wand._origCharges).toBe(wand.charges);
+      const pen = makeWishedItem(penTmpl);
+      expect(pen.charges).toBeGreaterThanOrEqual(2);
+      expect(pen.charges).toBeLessThanOrEqual(3);
+    }
+  });
+
   it("makeWishedItem が祝福を付けられる", () => {
     const tmpl = getWishItemCatalog().find((t) => t.name === "回復薬");
     const it = makeWishedItem(tmpl, { blessed: true });

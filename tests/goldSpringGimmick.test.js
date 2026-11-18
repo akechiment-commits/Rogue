@@ -158,6 +158,17 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
     expect(makeSpringEjectedItem(() => 0.99).name).toBe("テレポートの魔法書");
   });
 
+  it("makeSpringEjectedItem の杖・ペンは生成時ロールで回数が決まる", () => {
+    for (let i = 0; i < 30; i++) {
+      const pen = makeSpringEjectedItem(() => 0.5);
+      expect(pen.charges).toBeGreaterThanOrEqual(2);
+      expect(pen.charges).toBeLessThanOrEqual(3);
+      const wand = makeSpringEjectedItem(() => 0.7);
+      expect(wand.charges).toBeGreaterThanOrEqual(5);
+      expect(wand.charges).toBeLessThanOrEqual(7);
+    }
+  });
+
   it("soakItemIntoSpring: 金貨投入で願いが発動した場合（高額金貨で確率上昇）", () => {
     const spr = { x: 5, y: 5, contents: [] };
     const highGold = { name: "10000枚の金貨", type: "gold", value: 10000 };

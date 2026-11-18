@@ -13,6 +13,7 @@ import {
   BOMB_ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
   getIdentKey, placeItemAt, killMonster, applyGeneratedRingPlus, revealAllFloorTraps,
+  rollGeneratedWandCharges, penInitialCharges,
 } from "./items.js";
 import { trackBigbox, trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng, advanceNextExp } from "./utils.js";
@@ -344,6 +345,8 @@ export function makeWishedItem(tmpl, opts = {}) {
     it.capacity = it.capacity || 3;
   }
   applyGeneratedRingPlus(it);
+  if (it.type === "pen") it.charges = penInitialCharges(it);
+  else if (it.type === "wand") it.charges = rollGeneratedWandCharges(it);
   if (it.charges != null) it._origCharges = it.charges;
   it.fullIdent = true;
   it.bcKnown = true;

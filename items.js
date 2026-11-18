@@ -6797,7 +6797,10 @@ export function makeSpringEjectedItem(rngFn = Math.random) {
     ITEMS.find(i => i.name === chosenName) ||
     WANDS.find(w => w.name === chosenName) ||
     SPELLBOOKS.find(sb => sb.name === chosenName);
-  return { ...template, id: uid() };
+  const item = { ...template, id: uid() };
+  if (item.type === "pen") item.charges = penInitialCharges(item);
+  else if (item.type === "wand") item.charges = rollGeneratedWandCharges(item);
+  return item;
 }
 
 function _drySpring(spr, dg, ml, pl = null) {
