@@ -5663,6 +5663,7 @@ function performMonsterChargeRush(m, dg, pl, ml, {
       break;
     }
     if (!canEnter(dg.map, nx, ny, float, dg, waterWalker)) break;
+    if (monsterBodySize(m) > 1 && !inMagicSealRoom(m.x, m.y, dg) && monsterBodyOverlapsSanctuary(dg, m, nx, ny)) break;
     m.x = nx; m.y = ny; moved++;
   }
   /* 突進移動のログを、衝突・ダメージ・撃破のログより先に出す。 */

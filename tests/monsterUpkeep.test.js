@@ -50,6 +50,23 @@ describe("advanceMonsterUpkeep", () => {
     expect(monster.drunkenTurns).toBe(1); // 以後の状態解除は撃破コールバックが担当する
   });
 
+  it("ボスは基準マスが外れていても、体の一部が聖域に触れればダメージを受ける", () => {
+    const boss = { name: "巨人", x: 2, y: 2, hp: 100, maxHp: 100, isBoss: true, bodySize: 2 };
+    const dungeon = { monsters: [boss], map: [], pentacles: [{ kind: "sanctuary", name: "聖域の魔方陣", x: 3, y: 3 }] };
+    const messages = [];
+    advance(dungeon, { x: 0, y: 0, turns: 1 }, messages);
+    expect(boss.hp).toBe(75);
+    expect(messages.some((m) => m.includes("聖域の魔方陣"))).toBe(true);
+  });
+
+  it("大型は基準マスが外れていても、体の一部が雷の魔方陣に触れればダメージを受ける", () => {
+    const monster = { name: "大型ゴブリン", x: 2, y: 2, hp: 100, maxHp: 100, bodySize: 2 };
+    const dungeon = { monsters: [monster], map: [], pentacles: [{ kind: "thunder_trap", name: "雷の魔方陣", x: 3, y: 3 }] };
+    const messages = [];
+    advance(dungeon, { x: 0, y: 0, turns: 1 }, messages);
+    expect(monster.hp).toBe(75);
+  });
+
   it("ボスの自然回復と油・浮遊の終了を処理する", () => {
     const titan = { name: "巨人", baseKind: "im_boss_titan", x: 0, y: 0, hp: 90, maxHp: 100, oilyTurns: 2, isBoss: true };
     const kraken = { name: "海魔", baseKind: "im_boss_kraken", x: 1, y: 0, hp: 70, maxHp: 100, floatTurns: 1 };

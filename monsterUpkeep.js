@@ -5,6 +5,7 @@ import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
 import { monEffectiveFloat, monEffectiveWaterWalker, monEffectiveWallWalker, monHasElementWeakness } from "./monTraits.js";
+import { monsterBodyCells } from "./monsterGeometry.js";
 
 /** 攻撃後のモンスター回復・状態タイマー・地形と魔方陣の継続効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
@@ -106,7 +107,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
   for (const monster of [...dungeon.monsters]) {
     if (monster.hp <= 0 || !monster.isBoss) continue;
     const sanctuary = dungeon.pentacles?.find((pentacle) =>
-      pentacle.kind === "sanctuary" && pentacle.x === monster.x && pentacle.y === monster.y
+      pentacle.kind === "sanctuary" && monsterBodyCells(monster).some((cell) => cell.x === pentacle.x && cell.y === pentacle.y)
     );
     if (!sanctuary || inMagicSealRoom(sanctuary.x, sanctuary.y, dungeon)) continue;
 
@@ -172,7 +173,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
   for (const monster of [...dungeon.monsters]) {
     if (monster.hp <= 0) continue;
     const pentacle = dungeon.pentacles.find((entry) =>
-      entry.kind === "thunder_trap" && entry.x === monster.x && entry.y === monster.y
+      entry.kind === "thunder_trap" && monsterBodyCells(monster).some((cell) => cell.x === entry.x && cell.y === entry.y)
     );
     if (!pentacle || (monster.magicImmune && !monster.sealed) || inMagicSealRoom(pentacle.x, pentacle.y, dungeon)) continue;
     if (thunderNegated && !pentacle.cursed) continue;

@@ -36,4 +36,23 @@ describe("transitMonstersThroughPortals", () => {
     expect(monster).toMatchObject({ x: 7, y: 7 });
     expect(messages).toEqual(["ゴブリンが呪われたポータルに飲まれてランダムに飛んだ！【呪】"]);
   });
+
+  it("大型は体の一部が固定転送陣に触れても転送し、着地先では再転送しない", () => {
+    const monster = { id: "m2", name: "大型ゴブリン", x: 2, y: 2, bodySize: 2 };
+    const start = { kind: "fixed_portal", pairId: "p", x: 3, y: 3 };
+    const end = { kind: "fixed_portal", pairId: "p", x: 8, y: 8 };
+    const state = { dungeon: { monsters: [monster], pentacles: [start, end] } };
+    const player = { x: 5, y: 5, inventory: [] };
+    const messages = [];
+
+    // 基準マス (2,2) の体 (2,2)(3,2)(2,3)(3,3) が (3,3) の陣に触れる。前ターン (1,2) の体は触れない
+    transitMonstersThroughPortals(state, player, messages, snapshot(monster, 1, 2), { randomTeleportDest: () => null });
+    expect(monster).toMatchObject({ x: 8, y: 8 });
+    expect(messages).toHaveLength(1);
+
+    // 着地先の陣に体が触れたままでは再転送しない（無限ワープ防止）
+    transitMonstersThroughPortals(state, player, messages, snapshot(monster, 8, 8), { randomTeleportDest: () => null });
+    expect(monster).toMatchObject({ x: 8, y: 8 });
+    expect(messages).toHaveLength(1);
+  });
 });

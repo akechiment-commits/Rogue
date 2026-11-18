@@ -1,4 +1,13 @@
-import { canPlaceMonsterBody } from "./monsterGeometry.js";
+import { canPlaceMonsterBody, monsterBodyCells } from "./monsterGeometry.js";
+
+/** 大型モンスターは体のどのマスがポータルに触れても転送対象になる。 */
+function bodyOverlapsPortal(monster, x, y, pentacle) {
+  return monsterBodyCells(monster, x, y).some((cell) => cell.x === pentacle.x && cell.y === pentacle.y);
+}
+
+function touchedPortalBefore(monster, before, pentacle) {
+  return !!before && bodyOverlapsPortal(monster, before.x, before.y, pentacle);
+}
 /** 敵移動後、固定転送陣とポータルに乗ったモンスターを転送する。 */
 export function transitMonstersThroughPortals(state, player, messages, positionSnapshot, { randomTeleportDest }) {
   const dungeon = state.dungeon;
@@ -10,21 +19,21 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
     if (monster.isPlayerClone) {
       const portal = dungeon.pentacles.find((pentacle) =>
         (pentacle.kind === "portal" || pentacle.kind === "fixed_portal") &&
-        pentacle.x === monster.x && pentacle.y === monster.y
+        bodyOverlapsPortal(monster, monster.x, monster.y, pentacle)
       );
       const before = positionSnapshot.get(monster.id);
-      if (portal && (!before || before.x !== monster.x || before.y !== monster.y)) {
+      if (portal && !touchedPortalBefore(monster, before, portal)) {
         dungeon.monsters = dungeon.monsters.filter((entry) => entry !== monster);
         messages.push("分身は階層の境界を越えられず消滅した！");
       }
       continue;
     }
     const fixedPortal = dungeon.pentacles.find((pentacle) =>
-      pentacle.kind === "fixed_portal" && pentacle.x === monster.x && pentacle.y === monster.y
+      pentacle.kind === "fixed_portal" && bodyOverlapsPortal(monster, monster.x, monster.y, pentacle)
     );
     if (fixedPortal) {
       const before = positionSnapshot.get(monster.id);
-      if (before && before.x === fixedPortal.x && before.y === fixedPortal.y) continue;
+      if (touchedPortalBefore(monster, before, fixedPortal)) continue;
       const pair = dungeon.pentacles.find((pentacle) =>
         pentacle.kind === "fixed_portal" && pentacle.pairId === fixedPortal.pairId &&
         !(pentacle.x === fixedPortal.x && pentacle.y === fixedPortal.y)
@@ -38,11 +47,11 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
     }
 
     const portal = dungeon.pentacles.find((pentacle) =>
-      pentacle.kind === "portal" && pentacle.x === monster.x && pentacle.y === monster.y
+      pentacle.kind === "portal" && bodyOverlapsPortal(monster, monster.x, monster.y, pentacle)
     );
     if (!portal) continue;
     const before = positionSnapshot.get(monster.id);
-    if (before && before.x === portal.x && before.y === portal.y) continue;
+    if (touchedPortalBefore(monster, before, portal)) continue;
 
     if (portal.cursed) {
       const destination = randomTeleportDest(dungeon, monster.x, monster.y,
