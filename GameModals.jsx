@@ -13,7 +13,7 @@ import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC
 import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
 import { reducePotCapacity } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from "./monsters.js";
-import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
+import { T, TI, uid, rng, refreshFOV, getShops, playerFloorTeleportDest, resolveBlessedTeleportSelection, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor, createDimensionalVaultAt, DEBUG_SPECIAL_FLOORS, generateDebugSpecialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { makeVent, makeStatue, makeAltar, placeAltarPriest } from "./fixtures.js";
@@ -3565,10 +3565,9 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             const { cx: _tx, cy: _ty } = mode;
             const _tpFromX = _p.x, _tpFromY = _p.y;
             const _ml = [];
-            const _walk = _dg.map[_ty]?.[_tx] !== T.WALL && _dg.map[_ty]?.[_tx] !== T.BWALL && _dg.map[_ty]?.[_tx] !== undefined;
-            if (_walk) { _p.x = _tx; _p.y = _ty; if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); } _ml.push("テレポートした！（目的地指定）【祝】"); }
-            else { const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1); if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); } _ml.push("壁の中！ランダムにテレポートした。"); }
-            pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
+            if (resolveBlessedTeleportSelection(_dg, _p, _ml, _tx, _ty)) {
+              pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
+            }
             endTurn(sr.current, _p, _ml);
             setMode(null);
             setMsgs(prev => [...prev.slice(-80), ..._ml]);
@@ -3580,10 +3579,9 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             if (!_p || !_dg) return;
             const _tpFromX = _p.x, _tpFromY = _p.y;
             const _ml = [];
-            const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1);
-            pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
-            if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); }
-            _ml.push("テレポートした！");
+            if (resolveBlessedTeleportSelection(_dg, _p, _ml)) {
+              pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
+            }
             endTurn(sr.current, _p, _ml);
             setMode(null);
             setMsgs(prev => [...prev.slice(-80), ..._ml]);
@@ -4835,25 +4833,30 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
               const _ml = [];
               if (!sr.current.floors) sr.current.floors = {};
               const _floorChanged = f !== _p.depth;
-              if (_floorChanged) suspendFloor(sr.current.dungeon, _p);
-              sr.current.floors[_p.depth] = sr.current.dungeon;
-              const _saved = sr.current.floors[f];
+              const _saved = _floorChanged ? sr.current.floors[f] : sr.current.dungeon;
               if (!_saved) {
                 setMsgs(prev => [...prev.slice(-80), "その階層のデータがない！"]);
                 return;
               }
               const _d = _saved;
-              if (_floorChanged) declareFloorExitTheft(_p, sr.current.dungeon, _ml);
-              delete sr.current.floors[f];
               const _maxDFs = sr.current.maxDepth;
               if (_maxDFs !== null && f >= _maxDFs && !_d.isLastFloor && !_d.isTreasureRoom) {
                 prepareLastFloor(_d, sr.current.dungeonType || "beginner");
               }
               const _tpFromX = _p.x, _tpFromY = _p.y;
+              const _tpDst = playerFloorTeleportDest(_d);
+              if (!_tpDst) {
+                setMsgs(prev => [...prev, "テレポート先がなかった！【呪】"]);
+                return;
+              }
+              if (_floorChanged) {
+                declareFloorExitTheft(_p, sr.current.dungeon, _ml);
+                suspendFloor(sr.current.dungeon, _p);
+                sr.current.floors[_p.depth] = sr.current.dungeon;
+              }
+              delete sr.current.floors[f];
               _p.depth = f;
-              const _tpDst = randomTeleportDest(_d, -999, -999);
-              if (_tpDst) { _p.x = _tpDst.x; _p.y = _tpDst.y; }
-              else { _p.x = _d.stairUp.x; _p.y = _d.stairUp.y; }
+              _p.x = _tpDst.x; _p.y = _tpDst.y;
               pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
               if (_floorChanged) resumeFloor(_d, _p);
               refreshFOV(_d, _p);

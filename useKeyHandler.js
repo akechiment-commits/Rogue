@@ -7,7 +7,7 @@ import { getForgeAbilityIds } from "./forgeAbilityRules.js";
 import { useCallback, useEffect, useRef } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
-import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors, randomTeleportDest } from "./utils.js";
+import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors, playerFloorTeleportDest, resolveBlessedTeleportSelection } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
   makeFreshDuplicate, makeScrollTransformedItem, ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, BB_TYPES,
@@ -1421,24 +1421,29 @@ export function useKeyHandler({
           const _ml = [];
           if (!sr.current.floors) sr.current.floors = {};
           const _floorChanged = _f !== _fsp.depth;
-          if (_floorChanged) suspendFloor(sr.current.dungeon, _fsp);
-          sr.current.floors[_fsp.depth] = sr.current.dungeon;
-          const _saved = sr.current.floors[_f];
+          const _saved = _floorChanged ? sr.current.floors[_f] : sr.current.dungeon;
           if (!_saved) {
             setMsgs((prev) => [...prev.slice(-80), "その階層のデータがない！"]);
             return;
           }
           const _d = _saved;
-          if (_floorChanged) declareFloorExitTheft(_fsp, sr.current.dungeon, _ml);
-          delete sr.current.floors[_f];
           const _maxDTp = sr.current.maxDepth;
           if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor && !_d.isTreasureRoom) {
             prepareLastFloor(_d, sr.current.dungeonType || "beginner");
           }
+          const _tpDstK = playerFloorTeleportDest(_d);
+          if (!_tpDstK) {
+            setMsgs(prev => [...prev, "テレポート先がなかった！【呪】"]);
+            return;
+          }
+          if (_floorChanged) {
+            declareFloorExitTheft(_fsp, sr.current.dungeon, _ml);
+            suspendFloor(sr.current.dungeon, _fsp);
+            sr.current.floors[_fsp.depth] = sr.current.dungeon;
+          }
+          delete sr.current.floors[_f];
           _fsp.depth = _f;
-          const _tpDstK = randomTeleportDest(_d, -999, -999);
-          if (_tpDstK) { _fsp.x = _tpDstK.x; _fsp.y = _tpDstK.y; }
-          else { _fsp.x = _d.stairUp.x; _fsp.y = _d.stairUp.y; }
+          _fsp.x = _tpDstK.x; _fsp.y = _tpDstK.y;
           if (_floorChanged) resumeFloor(_d, _fsp);
           refreshFOV(_d, _fsp);
           synchronizeFloorArrival(sr.current, _d, { floorChanged: _floorChanged, spawnDelay: rng(10, 50) });
@@ -1478,19 +1483,9 @@ export function useKeyHandler({
         const doTpConfirm = (tx, ty) => {
           const ml = [];
           const _tpFromX = p.x, _tpFromY = p.y;
-          const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== T.BWALL && dg.map[ty]?.[tx] !== undefined;
-          if (isWalkable) {
-            p.x = tx; p.y = ty;
-            if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-            ml.push("テレポートした！（目的地指定）【祝】");
-          } else {
-            const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-            p.x = rng(rm.x, rm.x + rm.w - 1);
-            p.y = rng(rm.y, rm.y + rm.h - 1);
-            if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-            ml.push("壁の中！ランダムにテレポートした。");
+          if (resolveBlessedTeleportSelection(dg, p, ml, tx, ty)) {
+            pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
           }
-          pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
           endTurn(sr.current, p, ml);
           setTpSelectMode(null);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -1499,8 +1494,7 @@ export function useKeyHandler({
         };
         if (k === "z" || k === "enter") { doTpConfirm(cx, cy); return; }
         if (k === "x" || k === "escape") {
-          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          doTpConfirm(rng(rm.x, rm.x + rm.w - 1), rng(rm.y, rm.y + rm.h - 1));
+          doTpConfirm();
           return;
         }
         return;

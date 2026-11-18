@@ -1,6 +1,6 @@
 import { canPlaceMonsterBody, monsterOccupiesCell } from "./monsterGeometry.js";
 import { monEffectiveMagicImmune, monReflectsProjectiles, monSubmergesProjectiles } from "./monTraits.js";
-import { consumeBarrier, getDodgePentacleMode, isEvasionDisabledByStatus } from "./utils.js";
+import { consumeBarrier, getDodgePentacleMode, isEvasionDisabledByStatus, randomPlayerTeleportDest } from "./utils.js";
 /*
  * 毎ターン解決する、移動・罠に関する魔方陣効果。
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
@@ -27,7 +27,7 @@ export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messag
       other !== pc && other.kind === "teleport_trap" && other.cursed);
     if (!floorBlocked) {
       if (inRange && random() < 0.1) {
-        const destination = randomTeleportDest(dungeon, player.x, player.y, (x, y) => !dungeon.monsters.some(m => monsterOccupiesCell(m, x, y)));
+        const destination = randomPlayerTeleportDest(dungeon, player.x, player.y);
         if (destination) {
           player.x = destination.x;
           player.y = destination.y;

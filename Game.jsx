@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { dungeonScoreLabel } from "./adventureScores.js";
 import { isCarryInRun } from "./rankingClient.js";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -1890,7 +1890,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         } else if (_we === "teleport_wand") {
           const _tpRand = (exX, exY, targetMon = null) =>
             randomTeleportDest(dg, exX, exY, (x, y) =>
-              (targetMon ? canPlaceMonsterBody(dg, targetMon, x, y, pl) : !dg.monsters.some(o => monsterOccupiesCell(o, x, y))) &&
+              (targetMon ? canPlaceMonsterBody(dg, targetMon, x, y, pl) : isPlayerTeleportCellUnoccupied(dg, x, y)) &&
               !(x === pl.x && y === pl.y));
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
@@ -2109,14 +2109,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _ph = dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === p.x && pc.y === p.y);
     if (!_ph) return false;
     if (_ph.cursed) {
-      const _rd = randomTeleportDest(dg, p.x, p.y);
-      if (_rd) {
-        p.x = _rd.x; p.y = _rd.y;
-        delete p._portalRideKey;
-        pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
-        ml.push(`${_ph.name}に飲まれてランダムにテレポートした！【呪】`);
+      const _rd = randomPlayerTeleportDest(dg, p.x, p.y);
+      if (!_rd) {
+        ml.push(`${_ph.name}が反応したがテレポート先がない…【呪】`);
+        return false;
       }
-      else ml.push(`${_ph.name}が反応したがテレポート先がない…【呪】`);
+      p.x = _rd.x; p.y = _rd.y;
+      delete p._portalRideKey;
+      pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+      ml.push(`${_ph.name}に飲まれてランダムにテレポートした！【呪】`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
       if ((p.potConfinedTurns || 0) > 0) {
         p.potConfinedTurns = 0;

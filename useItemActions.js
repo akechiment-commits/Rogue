@@ -3,7 +3,7 @@ import { monsterOccupiesCell, monsterBodyCells, monsterAreaTargets } from "./mon
 import { adjustPlayerBaseMaxHp, setPlayerItemProperties, unequipPlayerItem } from "./equipmentEffects.js";
 import { useCallback, useEffect, useRef } from "react";
 import { hasForcedTurn, interruptPlayerSleep } from "./turnUpkeep.js";
-import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem, clearDimensionalVaultItemCounter } from "./utils.js";
+import { MW, MH, FARCAST_RANGE, T, TI, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomPlayerTeleportDest, playerFloorTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, checkMonsterEvasion, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath, removeFloorItem, clearDimensionalVaultItemCounter } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel, revealItemMimicAt, wakeIfDormant, triggerMushroomCounterSpore } from "./monsters.js";
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
@@ -1164,27 +1164,32 @@ export function useItemActions({
             const _targetFloor = _visited[Math.floor(Math.random() * _visited.length)];
             if (_targetFloor != null) {
               if (!sr.current.floors) sr.current.floors = {};
-              if (_targetFloor !== p.depth) {
-                declareFloorExitTheft(p, dg, ml);
-                suspendFloor(dg, p);
-              }
-              sr.current.floors[p.depth] = dg;
-              const _saved = sr.current.floors[_targetFloor];
+              const _floorChanged = _targetFloor !== p.depth;
+              const _saved = _floorChanged ? sr.current.floors[_targetFloor] : dg;
               if (_saved) {
-                delete sr.current.floors[_targetFloor];
                 const _maxDTp = sr.current.maxDepth;
                 if (_maxDTp !== null && _targetFloor >= _maxDTp && !_saved.isLastFloor && !_saved.isTreasureRoom) {
                   prepareLastFloor(_saved, sr.current.dungeonType || "beginner");
                 }
-                p.depth = _targetFloor;
-                const _rm = _saved.rooms[rng(0, _saved.rooms.length - 1)];
-                p.x = rng(_rm.x, _rm.x + _rm.w - 1);
-                p.y = rng(_rm.y, _rm.y + _rm.h - 1);
-                if (_saved !== dg) resumeFloor(_saved, p);
-                refreshFOV(_saved, p);
-                synchronizeFloorArrival(sr.current, _saved, { floorChanged: _saved !== dg, spawnDelay: rng(10, 50) });
-                sr.current.dungeon = _saved;
-                ml.push(`${_targetFloor}階へテレポートした！【呪】`);
+                const destination = playerFloorTeleportDest(_saved);
+                if (destination) {
+                  if (_floorChanged) {
+                    declareFloorExitTheft(p, dg, ml);
+                    suspendFloor(dg, p);
+                    sr.current.floors[p.depth] = dg;
+                  }
+                  delete sr.current.floors[_targetFloor];
+                  p.depth = _targetFloor;
+                  p.x = destination.x;
+                  p.y = destination.y;
+                  if (_floorChanged) resumeFloor(_saved, p);
+                  refreshFOV(_saved, p);
+                  synchronizeFloorArrival(sr.current, _saved, { floorChanged: _floorChanged, spawnDelay: rng(10, 50) });
+                  sr.current.dungeon = _saved;
+                  ml.push(`${_targetFloor}階へテレポートした！【呪】`);
+                } else {
+                  ml.push("テレポート先がなかった！【呪】");
+                }
               } else {
                 ml.push("その階層のデータがなく、テレポートできなかった！【呪】");
               }
@@ -1202,7 +1207,7 @@ export function useItemActions({
           }
         } else if (it.blessed) {
           if (_hypnosisAutoSelect) {
-            const _tpDst = randomTeleportDest(dg, p.x, p.y);
+            const _tpDst = randomPlayerTeleportDest(dg, p.x, p.y);
             if (_tpDst) {
               const _tpFromX = p.x, _tpFromY = p.y;
               p.x = _tpDst.x; p.y = _tpDst.y;
@@ -1221,14 +1226,16 @@ export function useItemActions({
           return;
           }
         } else {
-          const _tpDst = randomTeleportDest(dg, p.x, p.y);
+          const _tpDst = randomPlayerTeleportDest(dg, p.x, p.y);
           if (_tpDst) {
             const _tpFromX = p.x, _tpFromY = p.y;
             p.x = _tpDst.x; p.y = _tpDst.y;
             pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+            ml.push("テレポートした！");
+          } else {
+            ml.push("テレポート先がなかった！");
           }
-          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-          ml.push("テレポートした！");
         }
       } else if (it.effect === "reveal") {
         if (it.cursed) {
@@ -2143,14 +2150,16 @@ export function useItemActions({
         }
         /* テレポートの魔方陣：描いた瞬間に即テレポート（呪い以外） */
         if (it.effect === "teleport_trap" && !_isCursed) {
-          const _ptpDst = randomTeleportDest(dg, p.x, p.y);
+          const _ptpDst = randomPlayerTeleportDest(dg, p.x, p.y);
           if (_ptpDst) {
             const _tpFromX = p.x, _tpFromY = p.y;
             p.x = _ptpDst.x; p.y = _ptpDst.y;
             pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+            ml.push("魔方陣を描いた瞬間、テレポートした！");
+          } else {
+            ml.push("テレポート先がなかった！");
           }
-          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-          ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
         /* 重力の魔方陣：描いた瞬間の即時効果 */
         if (it.effect === "gravity") {

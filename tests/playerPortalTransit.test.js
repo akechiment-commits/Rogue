@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { monsterOccupiesCell } from '../monsterGeometry.js';
 import { describe, it, expect } from "vitest";
+import { randomPlayerTeleportDest, T } from "../utils.js";
 import { declareFloorExitTheft } from "../items.js";
 import { suspendFloor, resumeFloor } from "../floorAbsence.js";
 import { synchronizeFloorArrival } from "../floorArrival.js";
@@ -10,7 +11,7 @@ export function portalFor(state) {
   const source = fs.readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
   const start = source.indexOf("  const playerPortalWarp = useCallback(");
   const end = source.indexOf("  const chgFloor", start);
-  const deps = { sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor, monsterOccupiesCell,
+  const deps = { sr: { current: state }, useCallback: fn => fn, suspendFloor, resumeFloor, monsterOccupiesCell, randomPlayerTeleportDest,
     declareFloorExitTheft, synchronizeFloorArrival, refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, spawnFlockStalker: () => false };
   return new Function(...Object.keys(deps), `${source.slice(start, end)}; return playerPortalWarp;`)(...Object.values(deps));
 }
@@ -74,6 +75,33 @@ describe("プレイヤーの別階ポータル", () => {
     expect(warp(player, state, [])).toBe(true);
     expect(player).toMatchObject({ x: 5, y: 5 });
   });
+  it("呪いポータルは大型敵の体が占める床を飛ばして空き床に着地する", () => {
+    const portal = { kind: "portal", name: "ポータル", cursed: true, x: 5, y: 5 };
+    const dungeon = makeEmptyDg({
+      pentacles: [portal],
+      monsters: [{ x: 7, y: 7, bodySize: 2 }],
+    });
+    for (const row of dungeon.map) row.fill(T.WALL);
+    dungeon.map[8][8] = T.FLOOR;
+    dungeon.map[10][10] = T.FLOOR;
+    const player = makePlayer({ depth: 1 });
+    const state = { player, dungeon };
+    expect(portalFor(state)(player, state, [])).toBe(true);
+    expect(player).toMatchObject({ x: 10, y: 10 });
+  });
+
+  it("空き床がなければ呪いポータルは移動も移動封じ解除も行わない", () => {
+    const portal = { kind: "portal", name: "ポータル", cursed: true, x: 5, y: 5 };
+    const dungeon = makeEmptyDg({ pentacles: [portal], monsters: [{ x: 8, y: 8 }] });
+    for (const row of dungeon.map) row.fill(T.WALL);
+    dungeon.map[5][5] = T.FLOOR;
+    dungeon.map[8][8] = T.FLOOR;
+    const player = makePlayer({ depth: 1, immobileTurns: 3 });
+    const state = { player, dungeon };
+    expect(portalFor(state)(player, state, [])).toBe(false);
+    expect(player).toMatchObject({ x: 5, y: 5, immobileTurns: 3 });
+  });
+
   it("同じ階へのテレポートでは滞在ターンを消さない", () => {
     const { state } = fixture();
     synchronizeFloorArrival(state, state.dungeon, { floorChanged: false, spawnDelay: 10 });

@@ -1,5 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { clearDimensionalVaultItemCounter, createSeededRng, getShops, hasAbility, installPlayerHpReverseHook, isEvasionDisabledByStatus, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
+import { T, playerFloorTeleportDest, resolveBlessedTeleportSelection, clearDimensionalVaultItemCounter, createSeededRng, getShops, hasAbility, installPlayerHpReverseHook, isEvasionDisabledByStatus, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
+
+describe("プレイヤーのテレポート先", () => {
+  it.each([[2, 2], [undefined, undefined]])("祝福巻物の指定先が塞がっているかキャンセルなら空き床へ飛ぶ (%s, %s)", (x, y) => {
+    const dungeon = {
+      map: [[T.FLOOR, T.WALL, T.FLOOR], [], [T.WALL, T.WALL, T.FLOOR]],
+      monsters: [{ x: 1, y: 1, bodySize: 2 }],
+    };
+    const player = { x: 0, y: 0, immobileTurns: 3 };
+    expect(resolveBlessedTeleportSelection(dungeon, player, [], x, y)).toBe(true);
+    expect(player).toEqual({ x: 2, y: 0, immobileTurns: 0 });
+  });
+
+  it("別階への転送では空いている上り階段に着地でき、塞がっていれば失敗する", () => {
+    const stairs = { x: 1, y: 0 };
+    const dungeon = { map: [[T.FLOOR, T.SU]], stairUp: stairs, monsters: [{ x: 0, y: 0 }] };
+    expect(playerFloorTeleportDest(dungeon)).toEqual(stairs);
+    dungeon.monsters.push({ x: 1, y: 0 });
+    expect(playerFloorTeleportDest(dungeon)).toBeNull();
+  });
+});
 
 describe("sortWarehouseItems", () => {
   it("種別順→名前順でソートする", () => {

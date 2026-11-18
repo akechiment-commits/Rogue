@@ -507,6 +507,43 @@ export function randomTeleportDest(dg, cx, cy, filter = null) {
   return any.length > 0 ? pick(any) : null;
 }
 
+export function isPlayerTeleportCellUnoccupied(dungeon, x, y) {
+  return !dungeon.monsters?.some(monster => monsterOccupiesCell(monster, x, y));
+}
+
+export function randomPlayerTeleportDest(dungeon, x, y) {
+  return randomTeleportDest(dungeon, x, y, (tx, ty) =>
+    (tx !== x || ty !== y) && isPlayerTeleportCellUnoccupied(dungeon, tx, ty));
+}
+
+export function playerFloorTeleportDest(dungeon) {
+  const destination = randomPlayerTeleportDest(dungeon, -999, -999);
+  if (destination) return destination;
+  const stairs = dungeon.stairUp;
+  return stairs && isPlayerTeleportCellUnoccupied(dungeon, stairs.x, stairs.y) ? stairs : null;
+}
+
+export function resolveBlessedTeleportSelection(dungeon, player, messages, x, y) {
+  const tile = dungeon.map[y]?.[x];
+  const directed = tile != null && tile !== T.WALL && tile !== T.BWALL &&
+    isPlayerTeleportCellUnoccupied(dungeon, x, y);
+  const destination = directed ? { x, y } : randomPlayerTeleportDest(dungeon, player.x, player.y);
+  if (!destination) {
+    messages.push("テレポート先がなかった！【祝】");
+    return false;
+  }
+  player.x = destination.x;
+  player.y = destination.y;
+  if ((player.immobileTurns || 0) > 0) {
+    player.immobileTurns = 0;
+    messages.push("テレポートして移動封じが解けた！");
+  }
+  if (directed) messages.push("テレポートした！（目的地指定）【祝】");
+  else if (x != null) messages.push("指定先に入れず、ランダムにテレポートした。");
+  else messages.push("テレポートした！");
+  return true;
+}
+
 let _u = 0;
 export const uid = () => `u${++_u}_${Date.now()}`;
 

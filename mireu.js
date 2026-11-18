@@ -1,5 +1,5 @@
 import {
-  MW, MH, T, uid, calcAtkDefDmg, calcPlayerDefense, randomTeleportDest,
+  MW, MH, T, uid, calcAtkDefDmg, calcPlayerDefense, randomTeleportDest, randomPlayerTeleportDest,
   stepProjectile, playerHpEffectLabel, rng, consumeBarrier,
   checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from './utils.js';
@@ -281,7 +281,7 @@ export function mireuSpikeFlail(m, dg, pl, ml, opts = {}, onPlayerHit = null, on
         if (hasCursedTeleportPentacle(dg)) {
           ml.push("しかし呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！");
         } else {
-          const tpDst = randomTeleportDest(dg, pl.x, pl.y, (x, y) => !dg.monsters?.some(other => monsterOccupiesCell(other, x, y)));
+          const tpDst = randomPlayerTeleportDest(dg, pl.x, pl.y);
           if (tpDst) {
             const fromX = pl.x, fromY = pl.y;
             pl.x = tpDst.x;

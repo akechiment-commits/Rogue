@@ -78,6 +78,8 @@ describe("resolveTeleportAndTrapPentacleEffect", () => {
   it("通常の転送陣は範囲内のプレイヤーを独立抽選で転送する", () => {
     const pc = { kind: "teleport_trap", name: "転送の魔方陣", x: 2, y: 2 };
     const dg = dungeon({ pentacles: [pc] });
+    for (const row of dg.map) row.fill(T.WALL);
+    dg.map[4][4] = T.FLOOR;
     const player = { x: 2, y: 2 };
     const messages = [];
     resolveTeleportAndTrapPentacleEffect(pc, dg, player, messages, deps(() => 0));

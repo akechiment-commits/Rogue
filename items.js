@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
-import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense, rewindNextExp } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense, rewindNextExp } from './utils.js';
 import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } from './synthMonster.js';
 import { adjustMonsterPermanentStat } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
@@ -3946,8 +3946,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         } else if (_spm) ml.push(`${_spm.name}は強制移動を受けない！`);
         if (p && p.x === tx && p.y === ty) {
           const _spinFromX = p.x, _spinFromY = p.y;
-          const _spinDstP = randomTeleportDest(dg, p.x, p.y,
-            (x, y) => !dg.monsters.some(m => monsterOccupiesCell(m, x, y)));
+          const _spinDstP = randomPlayerTeleportDest(dg, p.x, p.y);
           if (_spinDstP) {
             p.x = _spinDstP.x;
             p.y = _spinDstP.y;
@@ -10863,7 +10862,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)
             if (dg.map[_ty][_tx] === T.FLOOR && !(p.x === _tx && p.y === _ty) &&
-                !dg.monsters.some(m => monsterOccupiesCell(m, _tx, _ty)))
+                isPlayerTeleportCellUnoccupied(dg, _tx, _ty))
               _tmf.push({ x: _tx, y: _ty });
         if (_tmf.length === 0) { ml.push("テレポートに失敗した。"); break; }
         const _tmd = pick(_tmf);
