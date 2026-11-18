@@ -2046,7 +2046,7 @@ export function genFloodedFloor(depth, dungeonType = null) {
       }
     }
     if (cells.some(([x, y]) => rewardAt(x, y))) continue;
-    const p = cells.find(([x, y]) => !occ(x, y)) || cells[0];
+    const p = cells.find(([x, y]) => !occ(x, y));
     if (!p) continue;
     items.push({ name: "金貨", type: "gold", value: rng(100, 220), tile: 22, id: uid(), x: p[0], y: p[1] });
   }
