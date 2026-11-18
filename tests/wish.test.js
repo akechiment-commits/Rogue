@@ -202,9 +202,9 @@ describe("wish core", () => {
     expect(rollWishChance("drink", () => 0)).toBe(true);
     expect(rollWishChance("drink", () => 0.0009)).toBe(true);
     expect(rollWishChance("drink", () => 0.001)).toBe(false);
-    // soak: 0.5%
-    expect(rollWishChance("soak", () => 0.004)).toBe(true);
-    expect(rollWishChance("soak", () => 0.005)).toBe(false);
+    // soak: 0.1%（drink と同率）
+    expect(rollWishChance("soak", () => 0.0009)).toBe(true);
+    expect(rollWishChance("soak", () => 0.001)).toBe(false);
     // gold_coin: 1.5%
     expect(rollWishChance("gold_coin", () => 0.014)).toBe(true);
     expect(rollWishChance("gold_coin", () => 0.015)).toBe(false);
