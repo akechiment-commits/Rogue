@@ -3883,7 +3883,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         hh = Math.floor(rh / 2);
       rcx = qx === 0 ? Math.floor(rx + (rw * 3) / 4) : Math.floor(rx + rw / 4);
       rcy = qy === 0 ? Math.floor(ry + (rh * 3) / 4) : Math.floor(ry + rh / 4);
-      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rcx, cy: rcy });
+      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rcx, cy: rcy, isL: true });
       for (let dy = 0; dy < rh; dy++)
         for (let dx = 0; dx < rw; dx++) {
           const inQX = qx === 0 ? dx < hw : dx >= rw - hw;
@@ -3893,7 +3893,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     } else {
       rcx = Math.floor(rx + rw / 2);
       rcy = Math.floor(ry + rh / 2);
-      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rcx, cy: rcy });
+      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rcx, cy: rcy, isL: false });
       for (let dy = 0; dy < rh; dy++)
         for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
     }

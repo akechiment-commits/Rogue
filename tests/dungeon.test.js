@@ -856,3 +856,23 @@ describe("legend synergy pair monster replacement", () => {
     }
   });
 });
+
+describe("浮島とL字部屋", () => {
+  it("L字部屋には浮島が生成されない（isLが部屋に保存される）", () => {
+    let lRooms = 0;
+    let islandFloors = 0;
+    for (let i = 0; i < 300; i++) {
+      const dg = genDungeon(5, "standard");
+      if (dg.floorType) continue;
+      if (dg.rooms.some((r) => r.hasFloatingIsland)) islandFloors++;
+      for (const r of dg.rooms) {
+        if (r.isL) {
+          lRooms++;
+          expect(r.hasFloatingIsland).toBeFalsy();
+        }
+      }
+    }
+    expect(lRooms).toBeGreaterThan(20);
+    expect(islandFloors).toBeGreaterThan(0);
+  });
+});
