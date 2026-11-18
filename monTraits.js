@@ -89,7 +89,7 @@ export function monReflectsMagic(m) {
 export function monSubmergesProjectiles(m) {
   const _incapacitated = (m?.sleepTurns || 0) > 0 || !!m?.paralyzed ||
     (m?.frozenTurns || 0) > 0 || (m?.immobileTurns || 0) > 0 ||
-    (m?.knockdownTurns || 0) > 0;
+    (m?.petrifiedTurns || 0) > 0 || (m?.knockdownTurns || 0) > 0;
   return !!(m && !_incapacitated && !m.sealed && m.baseKind === "dodgemole" && !m._wakkaRingHit);
 }
 
