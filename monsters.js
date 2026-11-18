@@ -3229,6 +3229,13 @@ export function monsterCanInteractAtRange(monster, dungeon, x, y, maxDistance = 
 }
 
 /* ===== BFS PATHFINDING ===== */
+/** 大型モンスターは基準マスだけでなく、体のどのマスも聖域に重ねない（移動可否の判定用）。 */
+export function monsterBodyOverlapsSanctuary(dg, m, x, y) {
+  if (!dg?.pentacles?.length || !m) return false;
+  const cells = monsterBodySize(m) > 1 ? monsterBodyCells(m, x, y) : [{ x, y }];
+  return dg.pentacles.some((pc) => pc.kind === "sanctuary" && cells.some((c) => c.x === pc.x && c.y === pc.y));
+}
+
 export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null, fallbackNearest = false, rooms = null, dg = null) {
   if (sx === tx && sy === ty) return null;
   /* モンスター位置と聖域位置をSetに変換 (O(1)ルックアップ) */
@@ -3250,6 +3257,7 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
   dirs.sort((a, b) =>
     ((a[0]-_sdx)**2 + (a[1]-_sdy)**2) - ((b[0]-_sdx)**2 + (b[1]-_sdy)**2)
   );
+  const _selfLargeSanct = !!self && monsterBodySize(self) > 1 && sanctSet.size > 0;
   const _canEnterFn = tileFilter
     ? (x, y) => tileFilter(x, y)
     : (x, y) => canEnter(map, x, y, float, dg);
@@ -3269,6 +3277,8 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
       if (!_canEnterFn(nx, ny)) continue;
       const nk = nx + ny * MW;
       if (sanctSet.has(nk) && !(nx === tx && ny === ty)) continue;
+      if (_selfLargeSanct && !(nx === tx && ny === ty) &&
+          monsterBodyCells(self, nx, ny).some((c) => sanctSet.has(c.x + c.y * MW) && !(c.x === tx && c.y === ty))) continue;
       if (visited.has(nk)) continue;
       visited.add(nk);
       const fx = cur.firstX !== null ? cur.firstX : nx;
@@ -3625,7 +3635,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false
       if (mode.avoidAdjacent && isThreatAdjacent(nx, ny)) continue;
       if (mode.avoidRecent && recent.has(nx + ny * MW)) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
-          dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
+          monsterBodyOverlapsSanctuary(dg, m, nx, ny)) continue;
       local.push({ x: nx, y: ny, score: threatDist2(nx, ny) });
     }
     local.sort((a, b) => b.score - a.score);
@@ -5118,7 +5128,7 @@ function tryUnstickMove(m, dg, pl, float = false) {
       if (nx === pl?.x && ny === pl?.y) continue;
       if (!canPlaceMonsterBody(dg, m, nx, ny, pl)) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
-          dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
+          monsterBodyOverlapsSanctuary(dg, m, nx, ny)) continue;
       if (preferNew && recent.has(nx + ny * MW)) continue;
       m.dir = { x: dx, y: dy };
       m.x = nx; m.y = ny;
