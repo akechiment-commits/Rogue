@@ -1092,7 +1092,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     return;
   }
   if (pe === "weaken") {
-    if (item.type === "weapon" || item.type === "armor") {
+    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring", "niebelung_ring"].includes(item.effect))) {
       const _d = rng(1, 2);
       const _before = item.plus || 0;
       item.plus = (item.plus || 0) - _d;
