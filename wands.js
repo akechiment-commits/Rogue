@@ -604,6 +604,23 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const [ox, oy] = [p.x, p.y];
       _swapPlayerTo(target.x, target.y);
       target.x = ox; target.y = oy;
+      /* 入れ替わり先に乗れない物がある場合は、近くの空きマスへ弾き出す（入れ替え自体は成立させる） */
+      if (isFloorOccupancyBlocked(dg, target.x, target.y, { ignore: target, allowPlayer: true, allowMonster: true })) {
+        let _eject = null;
+        for (let _r = 1; _r <= 3 && !_eject; _r++) {
+          const _cells = [];
+          for (let _dy = -_r; _dy <= _r; _dy++) for (let _dx = -_r; _dx <= _r; _dx++) {
+            if (Math.max(Math.abs(_dx), Math.abs(_dy)) !== _r) continue;
+            const _nx = ox + _dx, _ny = oy + _dy;
+            if (!isFloorOccupancyBlocked(dg, _nx, _ny, { ignore: target, p, allowMonster: true })) _cells.push({ x: _nx, y: _ny });
+          }
+          if (_cells.length) _eject = _cells[Math.floor(Math.random() * _cells.length)];
+        }
+        if (_eject) {
+          target.x = _eject.x; target.y = _eject.y;
+          ml.push(`${_fixtureName}は隣に弾き出された！`);
+        }
+      }
       if (_isAltar) placeAltarPriest(dg, target, Math.random, p);
       if (!_isAltar) checkGachaShopTheft(target, dg, p, ml);
       ml.push(`${_fixtureName}と位置が入れ替わった！`);

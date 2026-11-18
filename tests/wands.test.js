@@ -851,3 +851,36 @@ describe("万能の杖", () => {
     }
   });
 });
+
+describe("場所替えの杖と祭壇・ガチャの弾き出し", () => {
+  const noop = () => {};
+
+  it("階段の上で祭壇と入れ替わると、祭壇は隣の空きマスへ弾き出される", () => {
+    const altar = makeAltar(8, 5);
+    const dg = makeEmptyDg({ altars: [altar] });
+    dg.map[5][5] = T.SD;
+    dg.stairDown = { x: 5, y: 5 };
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100 });
+    const ml = [];
+    applyWandEffect("swap", "altar", altar, 1, 0, dg, p, ml, noop);
+    expect(p.x).toBe(8);
+    expect(p.y).toBe(5);
+    expect(altar.x === 5 && altar.y === 5).toBe(false);
+    expect(Math.max(Math.abs(altar.x - 5), Math.abs(altar.y - 5))).toBe(1);
+    expect(dg.map[altar.y][altar.x]).toBe(T.FLOOR);
+    expect(ml.some((m) => m.includes("弾き出された"))).toBe(true);
+  });
+
+  it("罠の上でガチャと入れ替わると、ガチャは隣の空きマスへ弾き出される", () => {
+    const machine = { id: "g1", x: 8, y: 5, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン", tile: 118, shopId: null, box: [] };
+    const trap = { x: 5, y: 5, name: "落とし穴", tile: 40 };
+    const dg = makeEmptyDg({ gachaMachines: [machine], traps: [trap] });
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100 });
+    const ml = [];
+    applyWandEffect("swap", "gacha", machine, 1, 0, dg, p, ml, noop);
+    expect(p.x).toBe(8);
+    expect(p.y).toBe(5);
+    expect(machine.x === 5 && machine.y === 5).toBe(false);
+    expect(Math.max(Math.abs(machine.x - 5), Math.abs(machine.y - 5))).toBe(1);
+  });
+});

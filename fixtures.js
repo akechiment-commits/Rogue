@@ -88,9 +88,10 @@ export function placeAltarPriest(dg, altar, randomFn = Math.random, player = nul
     const nearby = freeNeighbor(altar.x, altar.y, existing);
     if (nearby) {
       if (existing) {
-        existing.x = nearby.x;
-        existing.y = nearby.y;
+        /* 既存の司祭はワープさせず、祭壇の隣を帰還先に設定して歩いて移動させる。 */
         existing.homePos = { ...nearby };
+        existing._npcReturningHome = { ...nearby };
+        if (existing._npcRetaliationReturnPos) existing._npcRetaliationReturnPos = { ...nearby };
         altar.priestId = existing.id;
         existing.altarId = altar.id;
         return existing;

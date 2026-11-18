@@ -4,6 +4,7 @@ import {
   makeVent, makeStatue, makeFixedPortalPair, findFixedPortalPair,
   breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, wandEffectStatueLootOnly,
   throwItemBreaksStatue, hitStatueWithAction, displaceObjectsFromStatue, statueAt,
+  makeAltar, placeAltarPriest,
 } from "../fixtures.js";
 import { doExplosion, getFixtureItemDeps, placeItemAt } from "../items.js";
 import { monsterAI, _resolveMonsterWandBolt } from "../monsters.js";
@@ -541,5 +542,24 @@ describe("散布の店内配置", () => {
       for (const pc of g.pentacles) { expect(inShop(pc.x, pc.y)).toBe(false); placedOutside++; }
     }
     expect(placedOutside).toBeGreaterThan(100);
+  });
+});
+
+describe("祭壇の司祭の追随", () => {
+  it("祭壇が動いたら既存の司祭はワープせず、祭壇の隣へ歩く帰還先が設定される", () => {
+    const altar = makeAltar(8, 5);
+    const priest = {
+      id: "priest-1", name: "司祭", hp: 200, maxHp: 200, x: 20, y: 15,
+      isAltarPriest: true, altarId: altar.id, type: "shopkeeper", state: "friendly",
+    };
+    altar.priestId = priest.id;
+    const dg = makeEmptyDg({ altars: [altar], monsters: [priest] });
+    const p = makePlayer({ x: 1, y: 1 });
+    const result = placeAltarPriest(dg, altar, () => 0, p);
+    expect(result).toBe(priest);
+    expect(priest.x).toBe(20);
+    expect(priest.y).toBe(15);
+    expect(Math.max(Math.abs(priest.homePos.x - altar.x), Math.abs(priest.homePos.y - altar.y))).toBe(1);
+    expect(priest._npcReturningHome).toEqual(priest.homePos);
   });
 });
