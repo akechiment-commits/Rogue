@@ -3313,6 +3313,7 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
   }
   const p = gs.player;
   const serviceCount = Math.max(0, Math.floor(Number(priestRef.current.priestServiceCount) || 0));
+  const cureServiceCount = Math.max(0, Math.floor(Number(priestRef.current.priestCureServiceCount) || 0));
   const menuRows = ALTAR_PRIEST_SERVICES.map((service) => ({
     ...service,
     targetCount: altarPriestServiceTargets(p.inventory, service.id, p).length,
@@ -3330,7 +3331,7 @@ export function PriestModal({ mode, setMode, gs, priestRef, actionsRef, menuSel,
       ]
     : [
         ...targets.map(({ item }) => {
-          const price = altarPriestServicePrice(item, mode, serviceCount);
+          const price = altarPriestServicePrice(item, mode, mode === "cure_status" ? cureServiceCount : serviceCount);
           if (mode === "cure_status") {
             return {
               id: "cure_status",

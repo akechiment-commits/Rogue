@@ -41,7 +41,8 @@ describe("司祭による毒の後遺症の治療", () => {
     expect(player.atk).toBe(12);
     expect(player.poisonAtkLoss).toBe(0);
     expect(player.gold).toBe(10000 - price);
-    expect(priest.priestServiceCount).toBe(1);
+    expect(priest.priestCureServiceCount).toBe(1);
+    expect(priest.priestServiceCount).toBeUndefined();
     expect(messages.some(message => message.includes("全ての状態異常が治った"))).toBe(true);
     expect(altarPriestServiceTargets([], "cure_status", player)).toEqual([]);
   });

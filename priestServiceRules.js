@@ -1,4 +1,4 @@
-import { itemPrice, ITEMS, isNoChargeBoostWand } from "./items.js";
+import { itemPrice, isNoChargeBoostWand } from "./items.js";
 import { hasClearableStatusAilments } from "./statusDuration.js";
 
 export const ALTAR_PRIEST_SERVICES = Object.freeze([
@@ -33,24 +33,23 @@ export function altarPriestServiceTargets(inventory, service, player = null) {
     });
 }
 
-/** 同じ司祭への完了依頼1回ごとに20%ずつ加算。 */
+/** 同じ司祭への完了依頼1回ごとに20%ずつ加算。状態異常解除は専用カウンタで独立に数える（呼び出し側が渡す）。 */
 export function altarPriestServicePrice(item, service, completedRequests = 0) {
   const escalation = 1 + Math.max(0, Math.floor(Number(completedRequests) || 0)) * 0.2;
   if (service === "cure_status") {
-    const panacea = ITEMS.find((entry) => entry.type === "potion" && entry.effect === "panacea");
-    return Math.max(300, Math.ceil((panacea ? itemPrice(panacea) : 2500) * 0.3 * escalation));
+    return Math.ceil(1000 * escalation);
   }
   if (!item) return 0;
   const itemValue = Math.max(1, itemPrice(item));
   if (service === "refill_wand" || service === "refill_pen") {
-    return Math.max(300, Math.ceil(itemValue * 2 * escalation));
+    return Math.max(300, Math.ceil((1000 + itemValue * 2) * escalation));
   }
   if (service === "upgrade" && altarPriestServiceTargets([item], service).length > 0) {
     const currentPlus = Math.max(0, Math.floor(item.plus || 0));
     return Math.ceil((1000 + itemValue * (2.5 + currentPlus * 0.5)) * escalation);
   }
   if (service === "remove_curse" && altarPriestServiceTargets([item], service).length > 0) {
-    return Math.max(100, Math.ceil(itemValue * 0.5 * escalation));
+    return Math.max(100, Math.ceil((1000 + itemValue * 0.5) * escalation));
   }
   return 0;
 }

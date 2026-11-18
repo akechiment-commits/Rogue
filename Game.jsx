@@ -6401,7 +6401,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (altarPriestServiceTargets(p.inventory, service, p).length === 0) return;
     } else if (!item || altarPriestServiceTargets([item], service, p).length === 0) return;
     const requestCount = Math.max(0, Math.floor(Number(priest.priestServiceCount) || 0));
-    const price = altarPriestServicePrice(item, service, requestCount);
+    const cureCount = Math.max(0, Math.floor(Number(priest.priestCureServiceCount) || 0));
+    const price = altarPriestServicePrice(item, service, isStatusCure ? cureCount : requestCount);
     if (!price) return;
     if ((p.gold || 0) < price) {
       setMsgs((prev) => [...prev.slice(-80), `お金が足りない！(必要:${price}G)`]);
@@ -6432,7 +6433,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setPlayerItemProperties(p, item, { plus: before + 1 });
       result = `${name}が強化された！${formatEquipmentPlusChange(item, before, item.plus)}`;
     }
-    priest.priestServiceCount = requestCount + 1;
+    if (isStatusCure) priest.priestCureServiceCount = cureCount + 1;
+    else priest.priestServiceCount = requestCount + 1;
     setMsgs((prev) => [...prev.slice(-80), `司祭に${price}Gを渡した。${result}`]);
     setPriestMenuSel(0);
     sr.current = { ...s };
