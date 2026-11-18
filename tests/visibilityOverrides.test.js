@@ -21,6 +21,17 @@ describe("applyVisibilityOverrides", () => {
     expect(dg.explored[MH - 1][MW - 1]).toBe(true);
   });
 
+  it("呪いの明かりはスターライトの部屋公開より後に視界を隣接1マスへ制限する", () => {
+    const dg = dungeon({
+      pentacles: [{ kind: "light", cursed: true, x: 3, y: 3 }],
+      monsters: [{ baseKind: "starlight", hp: 10, x: 4, y: 3 }],
+    });
+    applyVisibilityOverrides(dg, { x: 3, y: 3, hp: 10 }, deps);
+    expect(dg.visible[3][3]).toBe(true);
+    expect(dg.visible[2][2]).toBe(true);
+    expect(dg.visible[2][5]).toBe(false);
+  });
+
   it("暗闇モンスターは同じ部屋で最後に視界を隣接1マスへ制限する", () => {
     const dg = dungeon({ monsters: [{ baseKind: "starlight", hp: 10, x: 3, y: 3 }, { baseKind: "darkness", hp: 10, x: 4, y: 3 }] });
     applyVisibilityOverrides(dg, { x: 3, y: 3, hp: 10 }, deps);

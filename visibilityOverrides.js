@@ -17,15 +17,17 @@ function restrictToAdjacent(dungeon, player) {
   }
 }
 
-/** refreshFOV 後に、明かりの魔方陣と視界操作モンスターの効果を上書きする。 */
+/** refreshFOV 後に、明かりの魔方陣と視界操作モンスターの効果を上書きする。
+    視界制限（呪いの明かり・暗闇）は部屋公開より後に適用し、制限が勝つ。 */
 export function applyVisibilityOverrides(dungeon, player, { findRoom, inMagicSealRoom }) {
+  let cursedLightRestrict = false;
   if (dungeon.pentacles?.length > 0 && player.hp > 0) {
     const playerRoom = findRoom(dungeon.rooms, player.x, player.y);
     for (const pentacle of dungeon.pentacles) {
       if (pentacle.kind !== "light" || inMagicSealRoom(pentacle.x, pentacle.y, dungeon)) continue;
       if (pentacle.cursed) {
         const room = findRoom(dungeon.rooms, pentacle.x, pentacle.y);
-        if (playerRoom && room && playerRoom === room) restrictToAdjacent(dungeon, player);
+        if (playerRoom && room && playerRoom === room) cursedLightRestrict = true;
       } else if (pentacle.blessed) {
         for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
           dungeon.visible[y][x] = true;
@@ -44,6 +46,7 @@ export function applyVisibilityOverrides(dungeon, player, { findRoom, inMagicSea
     const room = findRoom(dungeon.rooms, monster.x, monster.y);
     if (room) revealRoom(dungeon, room);
   }
+  if (cursedLightRestrict) restrictToAdjacent(dungeon, player);
   for (const monster of dungeon.monsters) {
     if (monster.baseKind !== "darkness" || monster.hp <= 0) continue;
     const room = findRoom(dungeon.rooms, monster.x, monster.y);
