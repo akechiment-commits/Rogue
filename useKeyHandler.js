@@ -1481,11 +1481,13 @@ export function useKeyHandler({
           const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== T.BWALL && dg.map[ty]?.[tx] !== undefined;
           if (isWalkable) {
             p.x = tx; p.y = ty;
+            if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
             ml.push("テレポートした！（目的地指定）【祝】");
           } else {
             const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
             p.x = rng(rm.x, rm.x + rm.w - 1);
             p.y = rng(rm.y, rm.y + rm.h - 1);
+            if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
             ml.push("壁の中！ランダムにテレポートした。");
           }
           pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
