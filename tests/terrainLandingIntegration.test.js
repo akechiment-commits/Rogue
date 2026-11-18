@@ -14,7 +14,8 @@ const end = source.indexOf("        resolvePlayerPentacleEffects(", start);
 if (start < 0 || end < 0) throw new Error("Terrain landing callback not found");
 function runTerrainLanding(st, p, ml, chgFloor) {
   const deps = { st, p, ml, chgFloor, advancePlayerTerrainEffects, fireTrapPlayer,
-    trackTrap: vi.fn(), showFirstEncounterTip: vi.fn(), itemDisplayName: item => item.name, lu: vi.fn(), bigboxAddItem: vi.fn(), spawnFlockStalker: vi.fn() };
+    trackTrap: vi.fn(), showFirstEncounterTip: vi.fn(), itemDisplayName: item => item.name, lu: vi.fn(), bigboxAddItem: vi.fn(), spawnFlockStalker: vi.fn(),
+    _etPfBag: [], _etSourceDepth: p.depth, processPitfallBag: vi.fn() };
   new Function(...Object.keys(deps), source.slice(start, end))(...Object.values(deps));
 }
 
