@@ -2075,6 +2075,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const playerPortalWarp = useCallback((p, st, ml) => {
     const dg = st.dungeon;
     const _tpFromX = p.x, _tpFromY = p.y;
+    /* 乗り直しガード：同じポータルに居続けるだけでは再発動しない（敵と同じ扱い） */
+    const _fpHere = dg.pentacles?.find(pc => pc.kind === "fixed_portal" && pc.x === p.x && pc.y === p.y);
+    const _phHere = _fpHere ? null : dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === p.x && pc.y === p.y);
+    const _herePc = _fpHere || _phHere;
+    if (!_herePc) { delete p._portalRideKey; return false; }
+    const _rideKey = `${p.depth}:${_herePc.x}:${_herePc.y}:${_herePc.kind}`;
+    if (p._portalRideKey === _rideKey) return false;
+    p._portalRideKey = _rideKey;
     /* 固定転送（ペアのみ・ペンポータルと非接続） */
     const _fp = dg.pentacles?.find(pc => pc.kind === "fixed_portal" && pc.x === p.x && pc.y === p.y);
     if (_fp) {
@@ -2087,6 +2095,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         return false;
       }
       p.x = _pair.x; p.y = _pair.y;
+      p._portalRideKey = `${p.depth}:${_pair.x}:${_pair.y}:fixed_portal`;
       pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
       ml.push(`${_fp.name}から対の陣へ抜けた！`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
@@ -2103,6 +2112,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _rd = randomTeleportDest(dg, p.x, p.y);
       if (_rd) {
         p.x = _rd.x; p.y = _rd.y;
+        delete p._portalRideKey;
         pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
         ml.push(`${_ph.name}に飲まれてランダムにテレポートした！【呪】`);
       }
@@ -2180,6 +2190,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       refreshFOV(_dest.dg, p);
       ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
     }
+    p._portalRideKey = `${p.depth}:${_dest.portal.x}:${_dest.portal.y}:portal`;
     pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
     if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
     if ((p.potConfinedTurns || 0) > 0) {
@@ -2481,7 +2492,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (!_skipMonAct || _worldTick) {
         withEnemyDamageContext(p, () => advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap, bigboxAddItem));
       }
-      /* プレイヤーがポータルの上で1ターン経過したらワープ（移動・ダッシュで既に転送済みならスキップ） */
+      /* テレポート等でポータルの上に着地していたらワープ（移動・ダッシュで既に転送済みならスキップ。居続けるだけでは乗り直しガードで発動しない） */
       if (_worldTick) {
         if (!st._portalWarpedThisTurn && p.hp > 0) {
           playerPortalWarp(p, st, ml);

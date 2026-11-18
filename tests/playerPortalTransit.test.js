@@ -55,6 +55,25 @@ describe("プレイヤーの別階ポータル", () => {
     expect(state.maxReachedFloor).toBe(2);
     expect(dest.maxFloors).toBe(30);
   });
+  it("同じポータルに居続けても再発動せず、乗り直すと発動する", () => {
+    const a = { kind: "portal", name: "ポータルA", x: 5, y: 5, drawOrder: 1 };
+    const b = { kind: "portal", name: "ポータルB", x: 8, y: 8, drawOrder: 2 };
+    const dg = makeEmptyDg({ pentacles: [a, b], monsters: [] });
+    const player = makePlayer({ depth: 1, inventory: [] });
+    const state = { player, dungeon: dg, floors: {}, dungeonType: "advanced", maxDepth: 30, floorTurns: 0 };
+    const warp = portalFor(state);
+    expect(warp(player, state, [])).toBe(true);
+    expect(player).toMatchObject({ x: 8, y: 8 });
+    // 着地したポータルの上に居続けても発動しない
+    expect(warp(player, state, [])).toBe(false);
+    expect(player).toMatchObject({ x: 8, y: 8 });
+    // 一度降りて乗り直すと発動する
+    player.x = 1; player.y = 1;
+    expect(warp(player, state, [])).toBe(false);
+    player.x = 8; player.y = 8;
+    expect(warp(player, state, [])).toBe(true);
+    expect(player).toMatchObject({ x: 5, y: 5 });
+  });
   it("同じ階へのテレポートでは滞在ターンを消さない", () => {
     const { state } = fixture();
     synchronizeFloorArrival(state, state.dungeon, { floorChanged: false, spawnDelay: 10 });
