@@ -4417,8 +4417,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || priestMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showSoundRef.current || showTileEditorRef.current || showScoresRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
-      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0 || (p.drunkenTurns || 0) > 0) return;
+      const isDashBlocked = () => p.hp <= 0 || hasForcedTurn(p) || p.hypnosisPending > 0 ||
+        p.immobileTurns > 0 || p.slowTurns > 0 || p.confusedTurns > 0 || p.drunkenTurns > 0;
+      if (isDashBlocked()) return;
       const ml = installPlayerHpMessageHook([], p);
+      releaseInvalidCapture(p, dg, ml);
+      if (p.capturedBy) return;
       if (isAlcoholDirectionRandomized(p)) {
         const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
         [dx, dy] = pick(_cdirs);
@@ -4680,10 +4684,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           dg.map[fny][fnx] === T.WALL || dg.map[fny][fnx] === T.BWALL ||
           !!monsterAt(dg, fnx, fny);
         const _hpBefore = p.hp;
-        const _confBefore    = p.confusedTurns   || 0;
-        const _slowBefore    = p.slowTurns        || 0;
         const _sealBefore    = p.sealedTurns      || 0;
-        const _immBefore     = p.immobileTurns    || 0;
         const _darkBefore    = p.darknessTurns    || 0;
         const _oilyBefore    = p.oilyTurns        || 0;
         const _bewBefore     = p.bewitchedTurns   || 0;
@@ -4701,9 +4702,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         animBusyRef.current = false;
         await waitForDashTrap();
         const _dashActivatedVault = [..._dashInactiveVaults].some((vault) => vault.active);
-        if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0 ||
-            (p.confusedTurns||0) > _confBefore || (p.slowTurns||0) > _slowBefore ||
-            (p.sealedTurns||0) > _sealBefore   || (p.immobileTurns||0) > _immBefore ||
+        if (isDashBlocked() || p.capturedBy || p.hp < _hpBefore ||
+            (p.sealedTurns||0) > _sealBefore ||
             (p.darknessTurns||0) > _darkBefore  || (p.oilyTurns||0) > _oilyBefore ||
             (p.bewitchedTurns||0) > _bewBefore  || (!!p.poisoned && !_poisBefore) ||
             p.inventory.length < _invLenBefore  || p.gold < _goldBefore ||
@@ -4733,7 +4733,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         sr.current = { ...st };
         setGs({ ...st });
       } else {
-        setMsgs((prev) => [...prev.slice(-80), "進めない。"]);
+        setMsgs((prev) => [...prev.slice(-80), ...ml, "進めない。"]);
         setDashMode(false);
       }
     },
