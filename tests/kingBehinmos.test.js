@@ -150,11 +150,11 @@ describe('上級20階のキングベヒんもス',()=>{
   it('敵の致死ダメージとして処理し、満タンからのメテオを1HPに保護しない',()=>{
     const s=setup(); s.player.hp=50; s.player.maxHp=50; attack(s); hazards(s,{worldTicks:2}); expect(s.player.hp).toBeLessThanOrEqual(0);
   });
-  it('セーブ後も体の大きさと予兆の残り1拍を保持する',()=>{
+  it('セーブ後も体の大きさと予兆の残り1拍を保持する',async ()=>{
     vi.stubGlobal('localStorage',{data:{},setItem(k,v){this.data[k]=v},getItem(k){return this.data[k]??null}});
     const s=setup(); attack(s); hazards(s);
-    expect(saveGameState({player:s.player,dungeon:s.dungeon,floors:{},dungeonType:'advanced'},[],{},null)).toBe(true);
-    const loaded=loadGameState(); expect(loaded.dungeon.monsters[0].bodySize).toBe(3);
+    expect(await saveGameState({player:s.player,dungeon:s.dungeon,floors:{},dungeonType:'advanced'},[],{},null)).toBe(true);
+    const loaded=await loadGameState(); expect(loaded.dungeon.monsters[0].bodySize).toBe(3);
     expect(loaded.dungeon.pendingMeteors[0]).toMatchObject({x:5,y:10,turnsLeft:1});
     advanceMeteors(loaded.dungeon,loaded.player,[],()=>{}); expect(loaded.player.hp).toBe(52);
   });

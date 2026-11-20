@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { loadSave, writeSave, clearSave, mergeDiscoveries } from "./SaveData.js";
 import { resetDiscoveries } from "./DiscoveryTracker.js";
-import { loadGameState, clearGameSave } from "./GameSave.js";
+import { loadGameState, clearGameSave, hasGameSave } from "./GameSave.js";
 import { clampCarryGold, depositDungeonGold, mergeReturnItemsToWarehouse } from "./hubWarehouse.js";
 import { rollHubShopStock } from "./hubShop.js";
 import { isCarryInRun, isRankableRun, submitRunResult, RANKING_DUNGEON_IDS } from "./rankingClient.js";
@@ -14,7 +14,17 @@ export default function App() {
   const [saveData, setSaveData] = useState(() => loadSave());
   const [dungeonConfig, setDungeonConfig] = useState(null);
   const [resumeState, setResumeState] = useState(null);
+  const [hasResumeSave, setHasResumeSave] = useState(null);
+  const [saveNotice, setSaveNotice] = useState("");
+  const hubActionRef = useRef(false);
   const returnedRef = useRef(false); /* guard: prevent double returnToHub */
+
+  useEffect(() => {
+    if (screen !== "hub") return;
+    let active = true;
+    hasGameSave().then(exists => { if (active) setHasResumeSave(exists); });
+    return () => { active = false; };
+  }, [screen]);
 
   /* Persist and update saveData */
   const updateSave = useCallback((updater) => {
@@ -26,31 +36,52 @@ export default function App() {
   }, []);
 
   /* Hub → Dungeon */
-  const startDungeon = useCallback((config) => {
-    resetDiscoveries();
-    clearGameSave();
-    returnedRef.current = false;
-    setResumeState(null);
-    const startGold = clampCarryGold(saveData.hubGold, config.startGold ?? saveData.carryGold);
-    setDungeonConfig({ ...config, startGold, _key: Date.now() });
-    /* 持参アイテムをダンジョンに移したのでhubInventoryをクリア */
-    updateSave(prev => ({
-      ...prev,
-      hubGold: Math.max(0, (prev.hubGold || 0) - startGold),
-      carryGold: 0,
-      hubInventory: [],
-    }));
-    setScreen("dungeon");
-  }, [saveData.carryGold, saveData.hubGold, updateSave]);
+  const startDungeon = useCallback(async (config) => {
+    if (hasResumeSave === null || hubActionRef.current) return;
+    hubActionRef.current = true;
+    try {
+      if (!(await clearGameSave()) && hasResumeSave) {
+        setSaveNotice("中断セーブを消去できませんでした。もう一度お試しください。");
+        return;
+      }
+      resetDiscoveries();
+      returnedRef.current = false;
+      setResumeState(null);
+      setSaveNotice("");
+      const startGold = clampCarryGold(saveData.hubGold, config.startGold ?? saveData.carryGold);
+      setDungeonConfig({ ...config, startGold, _key: Date.now() });
+      /* 持参アイテムをダンジョンに移したのでhubInventoryをクリア */
+      updateSave(prev => ({
+        ...prev,
+        hubGold: Math.max(0, (prev.hubGold || 0) - startGold),
+        carryGold: 0,
+        hubInventory: [],
+      }));
+      setScreen("dungeon");
+    } finally {
+      hubActionRef.current = false;
+    }
+  }, [hasResumeSave, saveData.carryGold, saveData.hubGold, updateSave]);
 
   /* Hub → Dungeon (resume from save) */
-  const resumeDungeon = useCallback(() => {
-    const saved = loadGameState();
-    if (!saved) return;
-    returnedRef.current = false;
-    setResumeState(saved);
-    setDungeonConfig({ ...(saved.dungeonConfig || {}), _key: Date.now() });
-    setScreen("dungeon");
+  const resumeDungeon = useCallback(async () => {
+    if (hubActionRef.current) return;
+    hubActionRef.current = true;
+    try {
+      const saved = await loadGameState();
+      if (!saved) {
+        setHasResumeSave(false);
+        setSaveNotice("中断セーブを読み込めませんでした。");
+        return;
+      }
+      returnedRef.current = false;
+      setResumeState(saved);
+      setSaveNotice("");
+      setDungeonConfig({ ...(saved.dungeonConfig || {}), _key: Date.now() });
+      setScreen("dungeon");
+    } finally {
+      hubActionRef.current = false;
+    }
   }, []);
 
   const submitRankingIfEligible = useCallback((result) => {
@@ -102,10 +133,11 @@ export default function App() {
   }, [submitRankingIfEligible, updateSave]);
 
   /* Dungeon → Hub (called on death OR voluntary exit) */
-  const returnToHub = useCallback((result) => {
+  const returnToHub = useCallback(async (result) => {
     /* 二重呼び出し防止 */
     if (returnedRef.current) return;
     returnedRef.current = true;
+    const clearedSave = await clearGameSave();
     const _alreadyRecorded = !!result.runRecorded;
     updateSave(prev => {
       const next = { ...prev };
@@ -145,13 +177,26 @@ export default function App() {
     });
     /* オンラインランキング投稿（失敗しても進行は止めない） */
     if (!_alreadyRecorded) submitRankingIfEligible(result);
+    setHasResumeSave(null);
+    setSaveNotice(clearedSave ? "" : "中断セーブを消去できませんでした。");
     setScreen("hub");
   }, [submitRankingIfEligible, updateSave]);
 
-  const handleClearSave = useCallback(() => {
-    clearSave();
-    clearGameSave();
-    setSaveData(loadSave());
+  const handleClearSave = useCallback(async () => {
+    if (hubActionRef.current) return;
+    hubActionRef.current = true;
+    try {
+      if (!(await clearGameSave())) {
+        setSaveNotice("中断セーブを消去できませんでした。もう一度お試しください。");
+        return;
+      }
+      clearSave();
+      setHasResumeSave(false);
+      setSaveNotice("");
+      setSaveData(loadSave());
+    } finally {
+      hubActionRef.current = false;
+    }
   }, []);
 
   const markMiniTipSeen = useCallback((key) => {
@@ -185,6 +230,8 @@ export default function App() {
   return (
     <HubScreen
       saveData={saveData}
+      hasResumeSave={hasResumeSave}
+      saveNotice={saveNotice}
       updateSave={updateSave}
       onStartDungeon={startDungeon}
       onResumeDungeon={resumeDungeon}

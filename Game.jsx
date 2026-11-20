@@ -189,6 +189,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
+  const saveStoppedRef = useRef(false);
+  const saveFailedRef = useRef(false);
+  const stopSavingRun = useCallback(() => {
+    if (saveStoppedRef.current) return;
+    saveStoppedRef.current = true;
+    void clearGameSave();
+  }, []);
   /* 持ち込み（開始金貨・開始所持品）はこの冒険への入場時に消費済み。
      ゲームオーバー後の再挑戦で再支給しないための消費フラグ。 */
   const carryInConsumedRef = useRef(false);
@@ -751,6 +758,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     });
   }, []);
   const init = useCallback(() => {
+    saveStoppedRef.current = false;
+    saveFailedRef.current = false;
     setDead(false);
     setGameOverResult(null);
     setGameOverView(null);
@@ -1035,14 +1044,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     };
   }, []);
 
-  /* ── 自動セーブ: ゲーム状態が変わるたびにlocalStorageに保存 ── */
+  /* ── 自動セーブ: ゲーム状態が変わるたびに中断セーブを更新 ── */
   useEffect(() => {
-    if (!gs || dead || showEnding) return;
+    if (!gs || dead || showEnding || saveStoppedRef.current) return;
     if (sr.current && runTimerRef.current) {
       sr.current.runActiveMs = runTimerRef.current.getElapsedMs();
     }
-    saveGameState(sr.current, msgsRef.current, dungeonConfig, getDiscoveries());
-  }, [gs, dead, showEnding]);
+    let active = true;
+    saveGameState(sr.current, msgsRef.current, dungeonConfig, getDiscoveries()).then(saved => {
+      if (!active || saveStoppedRef.current) return;
+      if (!saved && !saveFailedRef.current) {
+        setMsgs(prev => [...prev.slice(-80), "自動セーブに失敗しました。次の行動後に再試行します。"]);
+      }
+      saveFailedRef.current = !saved;
+    });
+    return () => { active = false; };
+  }, [gs, dead, showEnding, setMsgs]);
   useEffect(() => {
     if (msgRef.current) msgRef.current.scrollTop = msgRef.current.scrollHeight;
   }, [msgs]);
@@ -2734,7 +2751,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         } else {
           if (_reviveBlocked) ml.push(REVIVAL_SUPPRESS_MSG);
           ml.push("あなたは死んだ...ゲームオーバー。");
-          clearGameSave();
+          stopSavingRun();
           runTimerRef.current?.freeze();
           const _runExtras = buildRunResultExtras(p, runTimerRef.current);
           try {
@@ -2838,7 +2855,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       for (const floor of Object.values(st.floors || {})) checkPyrobolosBossReward(floor, ml, p);
       finishTrapActivationTurn(st);
     }),
-    [moveMons, lu, chgFloor, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
+    [moveMons, lu, chgFloor, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip, stopSavingRun],
   );
 
   /* auto-advance turns while player is sleeping, paralyzed, or slow-skipping */
@@ -2909,7 +2926,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const performExitToHub = useCallback(() => {
     if (!onReturnToHub || !sr.current) return;
     const p = sr.current.player;
-    clearGameSave();
+    stopSavingRun();
     runTimerRef.current?.freeze();
     const _runExtras = buildRunResultExtras(p, runTimerRef.current);
     commitPendingBigboxes();
@@ -2951,7 +2968,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     } else {
       onReturnToHub(payload);
     }
-  }, [onReturnToHub, dungeonConfig]);
+  }, [onReturnToHub, dungeonConfig, stopSavingRun]);
 
   const requestExitToHub = useCallback((ml) => {
     setExitHubSel(0);
@@ -2974,6 +2991,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* アイテム効果による強制帰還も、通常の帰還と同じくタイム・図鑑・スコアを確定する。 */
   const returnToHubFromItem = useCallback((result) => {
     if (!onReturnToHub || !result) return;
+    stopSavingRun();
     runTimerRef.current?.freeze();
     const p = sr.current?.player;
     const extras = p ? buildRunResultExtras(p, runTimerRef.current) : {};
@@ -2997,7 +3015,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } catch (_e) {}
     }
     onReturnToHub(merged);
-  }, [onReturnToHub, dungeonConfig]);
+  }, [onReturnToHub, dungeonConfig, stopSavingRun]);
 
   const lastMoveAtRef = useRef(0);
   const act = useCallback(
@@ -3053,7 +3071,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             ml.push("地下3階の「訓練の証」を持ち帰ろう。");
             return;
           }
-          clearGameSave();
+          stopSavingRun();
           setEndingSel(0);
           setEndingView(null);
           setShowScores(false);
@@ -4238,6 +4256,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       checkTrap,
       lu,
       endTurn,
+      stopSavingRun,
       lookMode,
       mapMode,
       spellListMode,

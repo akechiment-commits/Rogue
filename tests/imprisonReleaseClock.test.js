@@ -7,7 +7,7 @@ import { MW, MH } from "../utils.js";
 
 afterEach(() => vi.unstubAllGlobals());
 describe("とじこめの壺から放出した敵の行動時計", () => {
-  it.each([false, true])("長時間・別階へ持ち歩いても閉じ込め中の行動をまとめて実行しない（保存再開: %s）", reload => {
+  it.each([false, true])("長時間・別階へ持ち歩いても閉じ込め中の行動をまとめて実行しない（保存再開: %s）", async reload => {
     const pot = { id: "prison", name: "とじこめの壺", type: "pot", potEffect: "imprison", capacity: 3, confinedMonsters: [], contents: [] };
     const enemy = { id: "enemy", name: "敵", hp: 30, maxHp: 30, atk: 8, speed: 1, x: 6, y: 5, actionTime: 24,
       _phaseActionCount: 8, _movesMadeThisPhase: 4, _movedThisTurn: true, _defHalfMagicReady: true };
@@ -22,8 +22,8 @@ describe("とじこめの壺から放出した敵の行動時計", () => {
     if (reload) {
       const store = new Map();
       vi.stubGlobal("localStorage", { setItem: (key, value) => store.set(key, value), getItem: key => store.get(key) ?? null });
-      expect(saveGameState({ player, dungeon, floors: {}, ident: new Set() }, [], {}, {})).toBe(true);
-      const loaded = loadGameState();
+      expect(await saveGameState({ player, dungeon, floors: {}, ident: new Set() }, [], {}, {})).toBe(true);
+      const loaded = await loadGameState();
       player = loaded.player; dungeon = loaded.dungeon; carriedPot = player.inventory[0];
     }
     releaseConfinedMonstersFromPot(carriedPot, dungeon, player.x, player.y, player, []);

@@ -183,7 +183,7 @@ describe.each(["keyboard", "pointer"])("装備中の指輪更新: %s", control =
     ["sell_item", { name: "矢", type: "arrow", count: 10 }],
     ["duplicate", { name: "短剣", type: "weapon", atk: 3 }],
     ["duplicate", { name: "革の鎧", type: "armor", def: 2 }],
-  ])("%sで%sが消えると、装備参照と補正も解除する", (mode, template) => {
+  ])("%sで%sが消えると、装備参照と補正も解除する", async (mode, template) => {
     const item = { ...template }, scroll = { name: "巻物", type: "scroll", effect: mode, bcKnown: true };
     const f = fixture([item, scroll]);
     f.actions.doUseItem(0);
@@ -195,8 +195,8 @@ describe.each(["keyboard", "pointer"])("装備中の指輪更新: %s", control =
     expect(f.player.visionBonus || 0).toBe(0);
     const store = new Map();
     vi.stubGlobal("localStorage", { setItem: (key, value) => store.set(key, value), getItem: key => store.get(key) ?? null });
-    expect(saveGameState(f.sr.current, [], {}, {})).toBe(true);
-    const restored = loadGameState();
+    expect(await saveGameState(f.sr.current, [], {}, {})).toBe(true);
+    const restored = await loadGameState();
     expect(restored.player.maxHp).toBe(100);
     expect(restored.player.rings).toHaveLength(0);
   });
@@ -509,13 +509,13 @@ describe("装備解除と保存", () => {
     expect([f.player.hp, f.player.maxHp]).toEqual([100, 100]);
     expect(f.player.rings).toHaveLength(0);
   });
-  it("所持品から消えた旧状態の指輪補正を、新しくセーブする時に除く", () => {
+  it("所持品から消えた旧状態の指輪補正を、新しくセーブする時に除く", async () => {
     const ring = life(1, { blessed: true }), f = fixture([ring], { hp: 100 });
     f.actions.doUseItem(0); f.player.inventory = [];
     const store = new Map();
     vi.stubGlobal("localStorage", { setItem: (key, value) => store.set(key, value), getItem: key => store.get(key) ?? null });
-    expect(saveGameState(f.sr.current, [], {}, {})).toBe(true);
-    const restored = loadGameState();
+    expect(await saveGameState(f.sr.current, [], {}, {})).toBe(true);
+    const restored = await loadGameState();
     expect(restored.player.rings).toHaveLength(0);
     expect([restored.player.hp, restored.player.maxHp]).toEqual([100, 100]);
     expect(f.player.maxHp).toBe(115); // 保存用コピーだけを補正する。

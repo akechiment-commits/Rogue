@@ -352,7 +352,7 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(messages.some(m => m.includes("悪魔の瞳の構えは妨害され"))).toBe(true);
   });
 
-  it("マイティガードの全ダメージ半減はセーブ再開後も続く", () => {
+  it("マイティガードの全ダメージ半減はセーブ再開後も続く", async () => {
     const data = {};
     vi.stubGlobal("localStorage", {
       setItem(key, value) { data[key] = value; },
@@ -365,9 +365,9 @@ describe("超上級B45F オメガ・神竜", () => {
     installShinryuMightyGuardHpHook(shinryu);
     const player = makePlayer();
     const dungeon = makeEmptyDg({ monsters: [shinryu], ...visibleRoom() });
-    expect(saveGameState({ player, dungeon, floors: {}, dungeonType: "legend" }, [], {}, null)).toBe(true);
+    expect(await saveGameState({ player, dungeon, floors: {}, dungeonType: "legend" }, [], {}, null)).toBe(true);
 
-    const restored = loadGameState().dungeon.monsters[0];
+    const restored = (await loadGameState()).dungeon.monsters[0];
     restored.hp -= 40;
     expect(restored.hp).toBe(180);
     restored.mightyGuardTurns = 0;

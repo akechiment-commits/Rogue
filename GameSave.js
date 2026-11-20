@@ -1,5 +1,5 @@
 /* ===== MID-DUNGEON SAVE / LOAD =====
-   ダンジョン途中のゲーム状態をlocalStorageに保存・復元する。
+   ダンジョン途中のゲーム状態を保存・復元する。
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
 import { installPlayerHpReverseHook, MW, MH, TI, uid } from "./utils.js";
@@ -7,8 +7,8 @@ import { normalizeDiscoveryData, getPendingBigboxes } from "./DiscoveryTracker.j
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { installMonsterHpHook } from "./statusDuration.js";
 import { ensureFakeNames } from "./items.js";
+import { readStoredGameSave, writeStoredGameSave, discardStoredGameSave } from "./dungeonSaveStorage.js";
 
-const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 const GAME_SAVE_VERSION = 2;
 
 function isInternalGravityTrigger(item) {
@@ -97,18 +97,22 @@ function isSavedDungeon(dungeon) {
     Array.isArray(dungeon[key]) && dungeon[key].every(entry => entry && typeof entry === 'object'));
 }
 
-function normalizeSaveData(data) {
-  if (!data || typeof data !== 'object') return null;
-  const migrated = data.version === 1 ? migrateV1ToV2(data) : data;
-  if (migrated.version !== GAME_SAVE_VERSION) return null;
-  if (!migrated.player || !Array.isArray(migrated.player.inventory)) return null;
-  if (!isSavedDungeon(migrated.dungeon) ||
-      !Object.values(migrated.floors || {}).every(isSavedDungeon)) return null;
-  const player = migrated.player;
+function isValidSaveData(data) {
+  if (!data || (data.version !== 1 && data.version !== GAME_SAVE_VERSION)) return false;
+  if (!Array.isArray(data.player?.inventory)) return false;
+  if (!isSavedDungeon(data.dungeon) || !Object.values(data.floors || {}).every(isSavedDungeon)) return false;
+  const player = data.player;
   if (!Number.isFinite(player.hp) || !Number.isFinite(player.maxHp) || player.maxHp <= 0 ||
       !Number.isInteger(player.x) || !Number.isInteger(player.y) ||
       player.x < 0 || player.x >= MW || player.y < 0 || player.y >= MH ||
-      !player.inventory.every(item => item && typeof item === 'object')) return null;
+      !player.inventory.every(item => item && typeof item === 'object')) return false;
+  return [player._ringIdxs, data.ident, data.identifiedBigboxes, data.msgs]
+    .every(value => value == null || Array.isArray(value));
+}
+
+function normalizeSaveData(data) {
+  if (!isValidSaveData(data)) return null;
+  const migrated = data.version === 1 ? migrateV1ToV2(data) : data;
   const oldInventory = migrated.player.inventory;
   const remapIndex = (index) => {
     if (!Number.isInteger(index) || index < 0 || isInternalGravityTrigger(oldInventory[index])) return -1;
@@ -132,7 +136,7 @@ function normalizeSaveData(data) {
 
 /* ---------- public API ---------- */
 
-export function saveGameState(session, msgs, dungeonConfig, discoveries) {
+export async function saveGameState(session, msgs, dungeonConfig, discoveries) {
   try {
     const data = {
       version: GAME_SAVE_VERSION,
@@ -168,19 +172,17 @@ export function saveGameState(session, msgs, dungeonConfig, discoveries) {
       dungeonConfig: dungeonConfig || null,
       discoveries: discoveries ? { ...discoveries, pendingBigboxes: getPendingBigboxes() } : null,
     };
-    localStorage.setItem(GAME_SAVE_KEY, JSON.stringify(data));
-    return true;
+    return await writeStoredGameSave(data);
   } catch (e) {
     console.warn('GameSave: save failed', e);
     return false;
   }
 }
 
-export function loadGameState() {
+export async function loadGameState() {
   try {
-    const raw = localStorage.getItem(GAME_SAVE_KEY);
-    if (!raw) return null;
-    const data = normalizeSaveData(JSON.parse(raw));
+    const stored = await readStoredGameSave(isValidSaveData, { migrateLegacy: true });
+    const data = normalizeSaveData(stored);
     if (!data) return null;
     for (const dungeon of [data.dungeon, ...Object.values(data.floors || {})]) {
       for (const monster of dungeon.monsters || []) installMonsterHpHook(monster);
@@ -232,9 +234,10 @@ export function loadGameState() {
 }
 
 export function clearGameSave() {
-  try { localStorage.removeItem(GAME_SAVE_KEY); } catch { /* storage unavailable */ }
+  return discardStoredGameSave();
 }
 
-export function hasGameSave() {
-  try { return localStorage.getItem(GAME_SAVE_KEY) !== null; } catch { return false; }
+export async function hasGameSave() {
+  const stored = await readStoredGameSave(isValidSaveData);
+  return isValidSaveData(stored);
 }

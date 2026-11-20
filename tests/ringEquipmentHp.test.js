@@ -89,7 +89,7 @@ describe("指輪装備のHP補正", () => {
     const f = setup([life(-3)], { hp: 99 });
     f.use(0); expect([f.player.hp, f.player.maxHp]).toEqual([85, 85]);
   });
-  it.each([false, true])("最大HPの下限に達した命の指輪を外しても、最大HPが増殖しない（保存再開: %s）", reload => {
+  it.each([false, true])("最大HPの下限に達した命の指輪を外しても、最大HPが増殖しない（保存再開: %s）", async reload => {
     const ring = life(-10);
     const f = setup([ring], { hp: 30, maxHp: 30 });
     f.use(0);
@@ -100,8 +100,8 @@ describe("指輪装備のHP補正", () => {
       vi.stubGlobal("localStorage", { setItem: (key, value) => store.set(key, value), getItem: key => store.get(key) ?? null });
       const dungeon = makeEmptyDg({ visible: Array.from({ length: MH }, () => Array(MW).fill(false)),
         explored: Array.from({ length: MH }, () => Array(MW).fill(false)) });
-      expect(saveGameState({ player, dungeon, floors: {}, ident: new Set() }, [], {}, {})).toBe(true);
-      player = loadGameState().player;
+      expect(await saveGameState({ player, dungeon, floors: {}, ident: new Set() }, [], {}, {})).toBe(true);
+      player = (await loadGameState()).player;
       unequipPlayerItem(player, player.rings[0]);
     } else {
       f.use(0);

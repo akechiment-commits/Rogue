@@ -53,33 +53,33 @@ function makeSession() {
 }
 
 describe("GameSave", () => {
-  it("ブラウザがストレージへのアクセスを拒否しても拠点と初期化処理を落とさない", () => {
+  it("ブラウザがストレージへのアクセスを拒否しても拠点と初期化処理を落とさない", async () => {
     vi.stubGlobal("localStorage", {
       getItem() { throw new Error("storage denied"); },
       removeItem() { throw new Error("storage denied"); },
     });
-    expect(hasGameSave()).toBe(false);
-    expect(() => clearGameSave()).not.toThrow();
+    expect(await hasGameSave()).toBe(false);
+    await expect(clearGameSave()).resolves.toBe(false);
     expect(() => clearSave()).not.toThrow();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.stubGlobal("localStorage", {
       _data: {},
       getItem(k) { return this._data[k] ?? null; },
       setItem(k, v) { this._data[k] = v; },
       removeItem(k) { delete this._data[k]; },
     });
-    clearGameSave();
+    await clearGameSave();
   });
 
-  it("セッションを保存して復元できる", () => {
+  it("セッションを保存して復元できる", async () => {
     const session = makeSession();
     const msgs = ["テストメッセージ"];
-    expect(saveGameState(session, msgs, { type: "beginner" }, null)).toBe(true);
-    expect(hasGameSave()).toBe(true);
+    expect(await saveGameState(session, msgs, { type: "beginner" }, null)).toBe(true);
+    expect(await hasGameSave()).toBe(true);
 
-    const loaded = loadGameState();
+    const loaded = await loadGameState();
     expect(loaded.player.hp).toBe(80);
     expect(loaded.player.weapon).toBe(loaded.player.inventory[0]);
     expect(loaded.player.armor).toBe(loaded.player.inventory[1]);
@@ -95,8 +95,8 @@ describe("GameSave", () => {
     expect(JSON.parse(localStorage._data.roguelike_dungeon_save_v1).version).toBe(2);
   });
 
-  it("v1 の途中セーブを v2 として読み込める", () => {
-    saveGameState(makeSession(), ["以前のメッセージ"], null, null);
+  it("v1 の途中セーブを v2 として読み込める", async () => {
+    await saveGameState(makeSession(), ["以前のメッセージ"], null, null);
     const legacy = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);
     legacy.version = 1;
     delete legacy.nicknames;
@@ -106,7 +106,7 @@ describe("GameSave", () => {
     legacy.dungeon.bigboxes = [{ kind: "refill", name: "充填の大箱", revealed: true }];
     localStorage._data.roguelike_dungeon_save_v1 = JSON.stringify(legacy);
 
-    const loaded = loadGameState();
+    const loaded = await loadGameState();
     expect(loaded.player.weapon).toBe(loaded.player.inventory[0]);
     expect(loaded.nicknames).toEqual({});
     expect(loaded.identifiedBigboxes).toEqual(new Set(["refill"]));
@@ -114,7 +114,7 @@ describe("GameSave", () => {
     expect(loaded.potionSpriteMap).toEqual({});
   });
 
-  it("内部用の重力の力を途中セーブから除去する", () => {
+  it("内部用の重力の力を途中セーブから除去する", async () => {
     const session = makeSession();
     const gravityTrigger = { name: "重力の力", type: "misc" };
     const ring = { id: "r1", name: "力の指輪", type: "ring" };
@@ -125,8 +125,8 @@ describe("GameSave", () => {
     session.dungeon.items = [{ ...gravityTrigger, x: 5, y: 5 }];
     session.floors[2] = savedFloor({ depth: 2, items: [{ ...gravityTrigger, x: 3, y: 3 }] });
 
-    expect(saveGameState(session, [], null, null)).toBe(true);
-    const loaded = loadGameState();
+    expect(await saveGameState(session, [], null, null)).toBe(true);
+    const loaded = await loadGameState();
 
     expect(loaded.player.inventory.some(item => item.name === "重力の力")).toBe(false);
     expect(loaded.player.weapon?.name).toBe("短剣");
@@ -136,12 +136,13 @@ describe("GameSave", () => {
     expect(loaded.floors[2].items).toEqual([]);
   });
 
-  it("未知の版または壊れた途中セーブは読み込まない", () => {
+  it("未知の版または壊れた途中セーブは読み込まない", async () => {
     localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify({ version: 99 }));
-    expect(loadGameState()).toBeNull();
+    expect(await hasGameSave()).toBe(false);
+    expect(await loadGameState()).toBeNull();
 
     localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify({ version: 2, player: {} }));
-    expect(loadGameState()).toBeNull();
+    expect(await loadGameState()).toBeNull();
   });
 
   it.each([
@@ -152,31 +153,54 @@ describe("GameSave", () => {
     data => { data.floors[3] = null; },
     data => { data.player.x = MW; },
     data => { data.player.inventory.push(null); },
-  ])("復元後に描画や階移動を落とす構造のセーブを拒否する %#", corrupt => {
-    saveGameState(makeSession(), [], null, null);
+  ])("復元後に描画や階移動を落とす構造のセーブを拒否する %#", async corrupt => {
+    await saveGameState(makeSession(), [], null, null);
     const data = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);
     corrupt(data);
     localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify(data));
-    expect(loadGameState()).toBeNull();
+    expect(await loadGameState()).toBeNull();
   });
 
-  it("途中セーブ内の旧名モンスター図鑑も読み込み時に移行する", () => {
+  it("途中セーブ内の旧名モンスター図鑑も読み込み時に移行する", async () => {
     const discoveries = {
       monsters: {
         "解装士": { name: "解装士", tile: 156, count: 1 },
         "強引タヌキ": { name: "強引タヌキ", tile: 214, count: 2 },
       },
     };
-    expect(saveGameState(makeSession(), [], null, discoveries)).toBe(true);
-    const monsters = loadGameState().discoveries.monsters;
+    expect(await saveGameState(makeSession(), [], null, discoveries)).toBe(true);
+    const monsters = (await loadGameState()).discoveries.monsters;
     expect(monsters["強引タヌキ"].count).toBe(3);
     expect(monsters["解装士"]).toBeUndefined();
   });
 
-  it("clearGameSave で削除される", () => {
-    saveGameState(makeSession(), [], null, null);
-    clearGameSave();
-    expect(hasGameSave()).toBe(false);
-    expect(loadGameState()).toBeNull();
+  it("clearGameSave で削除される", async () => {
+    await saveGameState(makeSession(), [], null, null);
+    await clearGameSave();
+    expect(await hasGameSave()).toBe(false);
+    expect(await loadGameState()).toBeNull();
+  });
+
+  it("連続する保存は最後のターンのスナップショットを残す", async () => {
+    const session = makeSession();
+    session.player.turns = 10;
+    const first = saveGameState(session, [], null, null);
+    session.player.turns = 11;
+    const second = saveGameState(session, [], null, null);
+    session.player.turns = 12;
+    await Promise.all([first, second]);
+    expect((await loadGameState()).player.turns).toBe(11);
+  });
+
+  it("消去より前の保留中セーブを破棄し、消去後は新しい冒険を保存できる", async () => {
+    const prior = saveGameState(makeSession(), [], null, null);
+    const cleared = clearGameSave();
+    const afterClear = loadGameState();
+    const newRun = makeSession();
+    newRun.player.turns = 0;
+    const next = saveGameState(newRun, [], null, null);
+    await Promise.all([prior, cleared, next]);
+    expect(await afterClear).toBeNull();
+    expect((await loadGameState()).player.turns).toBe(0);
   });
 });

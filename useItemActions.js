@@ -33,7 +33,6 @@ import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { formatWandUseSuffix, isEquipmentPlusKnown } from "./inventoryLabel.js";
 import { bbDisplayName, isBigboxKindIdentified, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
-import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearPlayerPoison, applyAttackSeal, installMonsterHpHook } from "./statusDuration.js";
 import { applySakeEffect } from "./intoxication.js";
@@ -538,7 +537,6 @@ export function useItemActions({
                 ml.push(`${_useItemName}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
                 setMsgs((prev) => [...prev.slice(-80), ...ml]);
                 sr.current = { ...sr.current };
-                clearGameSave();
                 const _hasGoalP = p.inventory.some(i => i.type === "goal");
                 onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
                 return;
@@ -2724,7 +2722,6 @@ export function useItemActions({
             const _bwNd = chgFloor(p, -1);
             if (_bwNd) { sr.current.dungeon = _bwNd; spawnFlockStalker(sr.current, p, _bwNd, ml, -1); }
           } else if (onReturnToHub) {
-            clearGameSave();
             const _hasGoalBw = p.inventory.some(i => i.type === "goal");
             setMsgs((prev) => [...prev.slice(-80), ...ml]);
             sr.current = { ...sr.current };
@@ -3272,7 +3269,6 @@ export function useItemActions({
               const _boilWarpNd = chgFloor(p, -1, true);
               if (_boilWarpNd) { sr.current.dungeon = _boilWarpNd; spawnFlockStalker(sr.current, p, _boilWarpNd, ml, -1); }
             } else if (onReturnToHub) {
-              clearGameSave();
               const _hasGoalBoil = p.inventory.some(i => i.type === "goal");
               endTurn(sr.current, p, ml);
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -4173,7 +4169,6 @@ export function useItemActions({
               const _warpNd = chgFloor(p, -1, true);
               if (_warpNd) { sr.current.dungeon = _warpNd; spawnFlockStalker(sr.current, p, _warpNd, ml, -1); }
             } else if (onReturnToHub) {
-              clearGameSave();
               const _hasGoalWv = p.inventory.some(i => i.type === "goal");
               endTurn(sr.current, p, ml);
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -5099,7 +5094,6 @@ export function useItemActions({
                     delete p._pendingWarpUp;
                     if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) { sr.current.dungeon = _wn; spawnFlockStalker(sr.current, p, _wn, ml, -1); } }
                     else if (onReturnToHub) {
-                      clearGameSave();
                       const _hasGoalTw = p.inventory.some(i => i.type === "goal");
                       setMsgs((prev) => [...prev.slice(-80), ...ml]);
                       sr.current = { ...sr.current };

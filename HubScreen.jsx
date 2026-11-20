@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
-import { hasGameSave } from "./GameSave.js";
 import { itemPrice, gemSellPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES, potOccupancyCount } from "./items.js";
 import { clampCarryGold, validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
@@ -1090,7 +1089,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
 }
 
 /* ===== ダンジョン入口パネル ===== */
-function DungeonEntrancePanel({ onClose, onStart, saveData }) {
+function DungeonEntrancePanel({ onClose, onStart, saveData, hasResumeSave }) {
   const [startDepth, setStartDepth] = useState(1);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [confirmSel, setConfirmSel] = useState(0); // 0=出発する 1=キャンセル
@@ -1142,7 +1141,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   };
 
   const handleStart = () => {
-    if (hasGameSave()) { setConfirmOverwrite(true); setConfirmSel(0); }
+    if (hasResumeSave) { setConfirmOverwrite(true); setConfirmSel(0); }
     else { doStart(); }
   };
 
@@ -2171,7 +2170,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
 }
 
 /* ===== メインHUBスクリーン ===== */
-export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
+export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave, hasResumeSave, saveNotice }) {
   const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "bank" | "shop" | "encyclopedia" | "savedata" | "ranking" */
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
@@ -2220,14 +2219,15 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
     onStartDungeon(config);
   };
 
-  const resumeExists = hasGameSave() && !!onResumeDungeon;
+  const checkingSave = hasResumeSave === null;
+  const resumeExists = !!hasResumeSave && !!onResumeDungeon;
   const mainItems = [
     ...(resumeExists                  ? [{ id:"resume" }]       : []),
     { id:"dungeon" }, { id:"items" }, { id:"bank" }, { id:"shop" },
     { id:"encyclopedia" }, { id:"ranking" }, { id:"savedata" },
   ];
   const activateMain = (id) => {
-    if (needsSetup) return;
+    if (needsSetup || (id === "dungeon" && checkingSave)) return;
     if (id === "resume") onResumeDungeon?.();
     else setPanel(id);
   };
@@ -2349,6 +2349,8 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       </div>
 
       {/* 中断データがある場合：再開ボタン */}
+      {checkingSave && <div role="status" style={{ color: "#8a9ab0", marginBottom: 8 }}>中断セーブを確認しています…</div>}
+      {saveNotice && <div role="status" style={{ color: "#f84", marginBottom: 8 }}>{saveNotice}</div>}
       {resumeExists && (
         <button
           onClick={() => { if (!needsSetup) onResumeDungeon?.(); }}
@@ -2367,6 +2369,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       {/* メインボタン：ダンジョンへ */}
       <button
         onClick={() => { if (!needsSetup) setPanel("dungeon"); }}
+        disabled={checkingSave}
         style={{
           ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:16,
           background: focusedId === "dungeon" ? "#0c2240" : "#081828", color:"#4df",
@@ -2409,6 +2412,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       {panel === "dungeon" && (
         <DungeonEntrancePanel
           saveData={saveData}
+          hasResumeSave={hasResumeSave}
           onClose={() => setPanel(null)}
           onStart={handleStartDungeon}
         />
