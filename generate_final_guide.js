@@ -972,7 +972,7 @@ function monTraits(m) {
   st.trapthrower += ' 地雷へ投げた場合はその特技の処理中に即時爆発する。通常歩行用の遅延爆発として次のプレイヤー行動へ持ち越さない';
   st.reflector += ' ' + REFLECTED_ITEM_NOTE;
   for (const kind of ['thief', 'stealthrower', 'itemblast']) st[kind] += equipmentLossNote;
-  st.mimic += ' 盗みを模倣して装備品を盗んだ場合も、装備参照とHP・視界補正を解除する';
+  st.mimic += ' 盗みを模倣して装備品を盗んだ場合も、装備参照とHP・視界補正を解除する。仕掛け花火師の罠設置を模倣した場合は、壺から散らばった道具を含め、床に道具のあるマスを避ける。設置先がなければ行動を消費し、罠の在庫は減らさない';
   st.itemMimic += ' 見渡す中も化け先の名前だけを表示し、本体名とHPは表示しない';
   st.sporeCounter = '直接攻撃や矢・石などの物理攻撃を受けると、自身の周囲1マスに無差別に胞子を撒き散らす。Lv1は毒胞子、Lv2は睡眠胞子、Lv3は混乱胞子。炎が弱点。';
   if (st[m.subtype]) t.push(st[m.subtype]);

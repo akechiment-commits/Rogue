@@ -6037,6 +6037,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         const nx = m.x + dx, ny = m.y + dy;
         if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
         if (dg.map[ny]?.[nx] !== T.FLOOR) continue;
+        if (dg.items?.some((item) => item.x === nx && item.y === ny)) continue;
         if (dg.traps?.some((t) => t.x === nx && t.y === ny)) continue;
         if (nx === pl.x && ny === pl.y) continue;
         const tmpl = pick(trapPoolForDungeon(dg.dungeonType ?? null, Math.max(1, Math.floor(Number(pl?.depth) || 1))));

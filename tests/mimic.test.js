@@ -10,6 +10,7 @@ import {
 } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
+import { scatterPotContents } from "../items.js";
 
 function makeRoomMap() {
   const map = Array.from({ length: 15 }, () => Array(20).fill(T.FLOOR));
@@ -27,6 +28,32 @@ function makeMimic(x = 5, y = 5) {
 }
 
 describe("ものまね師", () => {
+  it.each([false, true])("壺から散らばった道具の下にものまねで罠を作らない（空き床あり: %s）", hasFreeCell => {
+    const mimic = { ...makeMimic(4, 4), trapmasterStock: 2 };
+    const source = { id: "trapmaster", name: "仕掛け花火師", baseKind: "trapmaster", subtype: "trapmaster", hp: 20, x: 3, y: 3 };
+    const player = makePlayer({ x: 5, y: 5, depth: 20 });
+    const dungeon = makeEmptyDg({ ...makeRoomMap(), monsters: [mimic, source], dungeonType: "advanced" });
+    dungeon.map[4][3] = T.WALL;
+    if (!hasFreeCell) dungeon.map[3][4] = T.WALL;
+    const contents = Array.from({ length: 4 }, (_, i) => ({ id: `sword-${i}`, name: "短剣", type: "weapon" }));
+    const messages = [];
+    scatterPotContents({ name: "保存の壺", potEffect: "none", contents }, dungeon, 5, 5, player, messages, () => {});
+
+    expect(tryMimicAdjacentSkill(mimic, dungeon, player, messages, {}, { canSee: true, forceReady: true })).toBe(true);
+    expect(dungeon.items).toContain(contents[3]);
+    expect(contents[3]).toMatchObject({ x: 5, y: 4 });
+    expect(mimic.turnAttacks).toBe(1);
+    if (hasFreeCell) {
+      expect(dungeon.traps).toHaveLength(1);
+      expect(dungeon.traps[0]).toMatchObject({ x: 4, y: 3, revealed: false });
+      expect(mimic.trapmasterStock).toBe(1);
+    } else {
+      expect(dungeon.traps).toHaveLength(0);
+      expect(messages.some(message => message.includes("罠を仕掛ける場所がなかった"))).toBe(true);
+      expect(mimic.trapmasterStock).toBe(2);
+    }
+  });
+
   it("MONS に subtype:mimic が登録されている", () => {
     const def = MONS.find((m) => m.baseKind === "mimic");
     expect(def).toBeTruthy();
