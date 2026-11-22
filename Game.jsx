@@ -138,7 +138,7 @@ import { createRunTimer } from "./runTimer.js";
 import { SPRING_CONFUSION_TURNS, springGoldRange } from "./springRules.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
-import { ensureStairsPresent, pickFreeFloorObjectCell } from "./floorObjectPlacement.js";
+import { ensureStairsPresent, isFloorOccupancyBlocked, pickFreeFloorObjectCell } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
 import { planConvenientDash } from "./convenientDash.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns, MP_REVIVAL_SEAL_TURNS } from "./mpRules.js";
@@ -1985,13 +1985,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
             onBigbox: (bb, mlx) => {
-              /* 大箱はランダム空マスへ（プレイヤー隣接除外なし、独自ロジック） */
+              /* 大箱はフロア全体の空き床から抽選する。 */
               const _bbPts = [];
               for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
-                if (dg.map[_fy][_fx] === T.FLOOR &&
-                    !dg.monsters.some(o => monsterOccupiesCell(o, _fx, _fy)) &&
-                    !dg.bigboxes.some(b => b !== bb && b.x === _fx && b.y === _fy) &&
-                    !(_fx === pl.x && _fy === pl.y) && !(_fx === bb.x && _fy === bb.y))
+                if (!isFloorOccupancyBlocked(dg, _fx, _fy, { p: pl }))
                   _bbPts.push({ x: _fx, y: _fy });
               }
               const _rp = _bbPts.length > 0 ? pick(_bbPts) : null;
