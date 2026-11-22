@@ -49,11 +49,14 @@ function floorActionFixture({ debt = 0, precharged = false, bargain = false, eff
     setIdentifyMode, setThrowMode, setInvMenuSel: noop };
   const actions = useItemActions({ sr, ...setters, endTurn, dnameRef: it => it.name });
   const start = source.indexOf("  const _chargeShopFloorItem =");
-  const end = source.indexOf("  const _doFloorWaveWand =", start);
+  const end = source.indexOf("  const _doFloorPen =", start);
   const deps = { sr, ...setters, hasForcedTurn, getShops, applyShopUnpaidCharge, shopPriceNote, itemDisplayName,
-    clearDimensionalVaultItemCounter, trackItem: noop, identifyCancelRef, modalTypeRef, throwModeRef, floorThrowReturnRef };
-  const floorItemAction = new Function(...Object.keys(deps), `${source.slice(start, end)}; return _doFloorItemAction;`)(...Object.values(deps));
-  const invActRef = { current: { use: actions.doUseItem, throw: actions.doThrow, floorItemAction } };
+    clearDimensionalVaultItemCounter, trackItem: noop, identifyCancelRef, modalTypeRef, throwModeRef, floorThrowReturnRef,
+    floorWandRef: { current: null }, doWaveWand: actions.doWaveWand };
+  const floorActions = new Function(...Object.keys(deps), `${source.slice(start, end)}; return {
+    floorItemAction: _doFloorItemAction, floorWaveWand: _doFloorWaveWand,
+  };`)(...Object.values(deps));
+  const invActRef = { current: { use: actions.doUseItem, throw: actions.doThrow, ...floorActions } };
   const listeners = {};
   vi.stubGlobal("window", { addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: noop });
   vi.spyOn(soundEngine, "unlock").mockImplementation(noop);
@@ -192,4 +195,18 @@ it("所持品が満杯で足元の道具の投擲をキャンセルすると棚�
   expect(shop.unpaidTotal).toBe(0);
   expect(keeper.state).toBe("friendly");
   expect(endTurn).not.toHaveBeenCalled();
+});
+
+it("店の足元の残り0回の杖はその場に残り、使えなかった分を請求しない", () => {
+  const { scroll: wand, dungeon, player, shop, keeper, floorMenu, throwModeRef, endTurn } = floorActionFixture({
+    floorItem: { id: "wand", type: "wand", name: "眠りの杖", effect: "sleep_wand", charges: 0 }, maxInventory: 1,
+  });
+  floorMenu(1);
+  expect(throwModeRef.current).toBeNull();
+  expect(dungeon.items).toEqual([wand]);
+  expect(player.inventory).toHaveLength(1);
+  expect(shop.unpaidTotal).toBe(0);
+  expect(wand._shopCharge).toBeUndefined();
+  expect(keeper.state).toBe("friendly");
+  expect(endTurn).toHaveBeenCalledOnce();
 });

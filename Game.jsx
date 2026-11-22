@@ -6805,6 +6805,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
     if (_p.hp <= 0 || hasForcedTurn(_p)) return;
+    if (item.charges <= 0) {
+      doWaveWand(null, item);
+      return;
+    }
     _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);

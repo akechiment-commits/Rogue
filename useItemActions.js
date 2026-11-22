@@ -2655,10 +2655,10 @@ export function useItemActions({
     setThrowMode({ idx, mode: "shoot" });
     setMsgs((prev) => [...prev.slice(-80), "矢を射る方向を選んでください..."]);
   }, []);
-  const doWaveWand = useCallback((idx) => {
+  const doWaveWand = useCallback((idx, exhaustedFloorWand = null) => {
     if (!sr.current) return;
     if (cannotActWithItems(sr.current.player)) return;
-    const it = sr.current.player.inventory[idx];
+    const it = exhaustedFloorWand ?? sr.current.player.inventory[idx];
     if (!it || it.type !== "wand") return;
     if (it.charges <= 0) {
       const ml = installPlayerHpMessageHook([], sr.current.player);
@@ -2672,6 +2672,7 @@ export function useItemActions({
       setGs({ ...sr.current });
       return;
     }
+    if (exhaustedFloorWand) return;
     setShowInv(false);
     setSelIdx(null);
     setShowDesc(null);
