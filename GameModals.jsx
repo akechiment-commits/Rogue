@@ -10,7 +10,7 @@ import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { calcShopBuyPrice, makeFreshDuplicate, makeScrollTransformedItem, ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, bigboxSellBaseValue, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, isPotStorableItem, getPotInputTargets, canTakeFromPot, canShowPotTakeAction, KATANA_T, MURAMASA_T, SILVER_AXE_T, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, clearShopItemTags, formatSoldItemMessage, declareFloorExitTheft } from "./items.js";
 import { CHARGED_FUZZBALL_T, FAKE_GOLD_NUGGET_T, GEM_TYPES, GOLD_NUGGET_T, MAGIC_BANE_T, releaseConfinedMonstersFromPot } from "./items.js";
-import { inMagicSealRoom, sellInventoryItemsToShop } from "./items.js";
+import { inMagicSealRoom, sellInventoryItemsToShop, shopResaleListPrice } from "./items.js";
 import { reducePotCapacity } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, SPECIAL_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, playerFloorTeleportDest, resolveBlessedTeleportSelection, getVisitedFloors } from "./utils.js";
@@ -1782,6 +1782,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
     const label = itemDisplayName(owned, s.fakeNames, s.ident, s.nicknames);
     p.gold -= price;
     shop.unpaidTotal = Math.max(0, (shop.unpaidTotal || 0) - price);
+    if (owned.type === "gem") owned._gemBuyPrice = owned.shopPrice;
     clearShopItemTags(owned);
     if (shop.unpaidTotal === 0) {
       const keeper = s.dungeon.monsters?.find(monster => monster.id === shop.shopkeeperId);
@@ -2188,7 +2189,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   /* it は gs 由来で sr.current と乖離している可能性があるため
                      dg3.items から同一IDのオブジェクトを取得して書き換える */
                   const _srItem = dg3.items.find(i2 => i2.id === it.id) || it;
-                  _srItem.shopPrice = _srItem.type === "gem" ? (_srItem._gemBuyPrice || bp) + bp : itemPrice(_srItem);
+                  _srItem.shopPrice = shopResaleListPrice(_srItem, p2.depth);
                   if (_curSellSh) _srItem._shopId = _curSellSh.id;
                   const _dispName = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                   setMsgs((prev) => [
@@ -3476,9 +3477,10 @@ export function MerchantModal({ mode, setMode, gs, merchantRef, menuSel, setMenu
     : [
       ...pageItems.map((entry) => {
         const item = mode === "buy" ? entry : entry.item;
-        return {
-          label: `${dname(item)}　${Math.max(1, mode === "buy" ? calcShopBuyPrice(p, itemPrice(item)) : (item.type === "gem" ? gemSellPrice(item, p.depth) : Math.ceil(itemPrice(item) * 0.5)))}G`,
-        };
+        const price = mode === "buy"
+          ? calcShopBuyPrice(p, shopResaleListPrice(item, p.depth), item)
+          : item.type === "gem" ? gemSellPrice(item, p.depth) : Math.max(1, Math.ceil(itemPrice(item) * 0.5));
+        return { label: `${dname(item)}　${price}G` };
       }),
       ...(currentPage === totalPages - 1 ? [{ label: "戻る" }] : []),
     ];

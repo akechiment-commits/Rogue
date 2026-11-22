@@ -43,7 +43,7 @@ import {
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyWeaponStatusInflictions, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES,
   applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, tickDamagedFoodReveals, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
-  itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
+  itemPrice, gemSellPrice, shopResaleListPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets, canShowPotTakeAction, isPreservationPot,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
 } from "./items.js";
@@ -4156,7 +4156,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
                   if (_sk2) _sk2.state = "blocking";
                   if (_actualPrice > 0) {
-                    ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
+                    ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p, _grIt)}) 店主が入り口をふさいだ。`);
                   } else {
                     ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！`);
                   }
@@ -6507,13 +6507,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs((prev) => [...prev.slice(-80), "持ち物がいっぱいだ！"]);
       return;
     }
-    const price = Math.max(1, calcShopBuyPrice(p, itemPrice(item)));
+    const listPrice = shopResaleListPrice(item, p.depth);
+    const price = calcShopBuyPrice(p, listPrice, item);
     if (p.gold < price) {
       setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
       return;
     }
     p.gold -= price;
     const bought = { ...item, id: uid() };
+    if (bought.type === "gem") bought._gemBuyPrice = listPrice;
     if (s.allBcKnown) { bought.fullIdent = true; bought.bcKnown = true; }
     /* 図鑑は個体単位で数える：売った個体の買い戻しで再カウントしないよう、追跡済み印は消さない */
     if (bought.contents) bought.contents = bought.contents.map((content) => ({ ...content }));
@@ -6600,7 +6602,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _ap = applyShopUnpaidCharge(item, _ps, _p);
         const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
         if (_sk) _sk.state = "blocking";
-        if (_ap > 0) ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`);
+        if (_ap > 0) ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p, item)}) 店主が入り口をふさいだ。`);
         else ml.push(`${dnameRef(item)}を取った！`);
       }
     } else {
@@ -6736,7 +6738,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (_sk) _sk.state = "blocking";
       /* 既請求済みなら二重メッセージ・二重加算しない（apply が 0） */
       if (_ap > 0) {
-        setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`]);
+        setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p, item)}) 店主が入り口をふさいだ。`]);
         return () => {
           if (item._shopCharge !== _ap) return;
           delete item._shopCharge;

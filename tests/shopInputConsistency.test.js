@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("react", async () => ({
   ...await vi.importActual("react"),
@@ -7,13 +8,14 @@ vi.mock("react", async () => ({
   useEffect: fn => fn(),
 }));
 import * as React from "react";
-import { ShopModal } from "../GameModals.jsx";
+import { MerchantModal, ShopModal } from "../GameModals.jsx";
 import { useKeyHandler } from "../useKeyHandler.js";
 import { useGamepad } from "../useGamepad.js";
 import { BTN } from "../gamepadInput.js";
 import { soundEngine } from "../soundEngine.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { placeItemAt } from "../items.js";
+import { applyShopUnpaidCharge, calcShopBuyPrice, gemSellPrice, itemPrice, placeItemAt, shopResaleListPrice } from "../items.js";
+import { uid } from "../utils.js";
 
 const textOf = node => node == null ? "" : Array.isArray(node) ? node.map(textOf).join("")
   : typeof node === "object" ? textOf(node.props?.children) : String(node);
@@ -70,6 +72,60 @@ function choose(state, input, label, selection) {
     tick(1000);
   }
 }
+
+it.each([false, true])("通常店の宝石は買い物上手でも同じ店で売買して増益しない（床から売却: %s）", floorSale => {
+  const state = setup({ rings: [{ effect: "bargain_ring" }] });
+  const { player, dungeon, shop, sr } = state;
+  const gem = { id: "gem", name: "トパーズ", type: "gem", basePrice: 500, originDepth: 2, _gemBuyPrice: 500, x: 5, y: 5 };
+  const renderShop = mode => ShopModal({ mode, gs: sr.current, sr, setMode: state.setMode,
+    setGs: state.setGs, setMsgs: state.setMsgs, menuSel: 0, setMenuSel: state.setMenuSel });
+  player.depth = 12;
+  player.inventory = floorSale ? [] : [gem];
+  if (floorSale) dungeon.items.push(gem);
+  buttonWith(renderShop(floorSale ? "sell" : "browseConfirm"), floorSale ? "トパーズ" : "はい、全て売る").props.onClick();
+  expect(player.gold).toBe(4250);
+  expect(gem.shopPrice).toBe(2750);
+  if (floorSale) {
+    dungeon.items = [];
+    player.inventory.push(gem);
+    applyShopUnpaidCharge(gem, shop, player);
+  }
+  buttonWith(renderShop("buy"), "トパーズ").props.onClick();
+  expect(player.gold).toBe(2000);
+  expect(shop.unpaidTotal).toBe(0);
+  expect(gem._gemBuyPrice).toBe(2750);
+});
+
+it.each([[[], 2750], [[{ effect: "bargain_ring" }], 2250], [[{ effect: "markup_ring" }], 4125]])(
+  "行商人の宝石の表示と実際の購入は通常店と同じ計算になる（指輪: %j）", (rings, price) => {
+    const state = setup({ rings, gold: 10000 });
+    const { player, dungeon, sr } = state;
+    player.depth = 12;
+    player.inventory = [{ id: "gem", name: "トパーズ", type: "gem", basePrice: 500, originDepth: 2, _gemBuyPrice: 500 }];
+    const merchant = { id: "merchant", isWanderingMerchant: true, state: "friendly", merchantShopId: "stock" };
+    const shop = { id: "stock", stock: [] };
+    dungeon.merchantShops = [shop];
+    const merchantRef = { current: merchant };
+    const name = item => item.name;
+    const deps = { sr, merchantRef, useCallback: fn => fn, uid, trackItem: vi.fn(), itemDisplayName: name,
+      calcShopBuyPrice, gemSellPrice, itemPrice, shopResaleListPrice, setGs: state.setGs, setMsgs: state.setMsgs, setMerchantMenuSel: state.setMenuSel };
+    const source = readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
+    const start = source.indexOf("  const doMerchantBuy =");
+    const end = source.indexOf("  doOfferFoodRef.current", start);
+    const { doMerchantBuy, doMerchantSell } = new Function(...Object.keys(deps),
+      source.slice(start, end) + ";return { doMerchantBuy, doMerchantSell };",
+    )(...Object.values(deps));
+    const modal = mode => MerchantModal({ mode, gs: sr.current, merchantRef, menuSel: 0,
+      setMode: state.setMode, setMenuSel: state.setMenuSel, onBuy: doMerchantBuy, onSell: doMerchantSell, dname: name });
+
+    buttonWith(modal("sell"), "1. トパーズ　2250G").props.onClick();
+    expect(player.gold).toBe(12250);
+    buttonWith(modal("buy"), `1. トパーズ　${price}G`).props.onClick();
+    expect(player.gold).toBe(12250 - price);
+    expect(shop.stock).toEqual([]);
+    expect(player.inventory[0]).toMatchObject({ name: "トパーズ", originDepth: 2, _gemBuyPrice: 2750 });
+  },
+);
 
 const inputs = ["click", "tap", "keyboard", "controller", "mobileConfirm"];
 describe.each(inputs)("店の入力一致: %s", input => {
