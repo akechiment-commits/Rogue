@@ -37,7 +37,7 @@ import {
   makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring, consumeSpringCapacity,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus, rollGeneratedWandCharges, penInitialCharges,
   setPitfallBag, clearPitfallBag,
-  checkShopTheft, declareShopTheft, declareFloorExitTheft, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
+  checkShopTheft, declareShopTheft, declareFloorExitTheft, chargeShopItem, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, weaponCriticalDamageMultiplier, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, checkPyrobolosBossReward, getIdentKey, generateFakeNames, ensureFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyWeaponStatusInflictions, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
@@ -323,7 +323,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setSpringMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spring', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setSpringMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { springMenuSel: typeof v === 'function' ? v(modal.springMenuSel) : v } });
   const setSpringPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { springPage: typeof v === 'function' ? v(modal.springPage) : v } });
-  const setWishMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'wish', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setWishMode = (v) => {
+    wishModeRef.current = v;
+    return v ? dispatchModal({ type: 'SET_MODAL', modal: 'wish', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  };
   const setBigboxMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'bigbox', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setBigboxMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxMenuSel: typeof v === 'function' ? v(modal.bigboxMenuSel) : v } });
   const setBigboxPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxPage: typeof v === 'function' ? v(modal.bigboxPage) : v } });
@@ -5738,9 +5741,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, []);
 
   const confirmWish = useCallback((wish) => {
-    if (!sr.current) return;
     const mode = wishModeRef.current;
+    if (!sr.current || !mode) return;
     const { player: p, dungeon: dg } = sr.current;
+    const wand = mode.source === "wand" ? mode.wand : null;
+    if (mode.source === "wand" && (!wand || !(wand.charges > 0) ||
+        (mode.wandOnFloor ? !dg.items.includes(wand) || wand.x !== p.x || wand.y !== p.y : !p.inventory.includes(wand)))) {
+      setWishMode(null);
+      setMsgs(prev => [...prev.slice(-80), "願いの杖はもう使える場所にない。"]);
+      return;
+    }
     const ml = ["願いが叶った！"];
     const res = grantWish(wish, {
       player: p,
@@ -5754,23 +5764,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs((prev) => [...prev.slice(-80), res.message || "願いが叶わなかった…"]);
       return;
     }
-    if (mode?.source === "spring") {
+    setWishMode(null);
+    if (mode.source === "spring") {
       drySpringAlways(dg, p, ml);
-    } else if (mode?.source === "wand" && mode.wandId) {
-      const wand = p.inventory.find((i) => i.id === mode.wandId);
-      if (wand && wand.type === "wand") {
-        wand.charges = Math.max(0, (wand.charges || 1) - 1);
-        if (wand.charges <= 0) {
-          const wi = p.inventory.indexOf(wand);
-          if (wi !== -1) p.inventory.splice(wi, 1);
-          ml.push("願いの杖は力を使い果たして消えた…");
+    } else if (wand) {
+      wand.charges--;
+      if (wand.charges === 0) {
+        if (mode.wandOnFloor) {
+          chargeShopItem(wand, dg, ml, p);
+          removeFloorItem(dg, wand);
+        } else {
+          const index = p.inventory.indexOf(wand);
+          if (index !== -1) p.inventory.splice(index, 1);
         }
+        ml.push("願いの杖は力を使い果たして消えた…");
       }
     }
     // pot: already consumed when opening wish
     endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
-    setWishMode(null);
     setSpringMode(null);
     setThrowMode(null);
     setPutMode(null);
@@ -6805,7 +6817,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
     if (_p.hp <= 0 || hasForcedTurn(_p)) return;
-    if (item.charges <= 0) {
+    if (item.effect === "wish" || item.charges <= 0) {
+      if (item.charges > 0) trackItem(item);
       doWaveWand(null, item);
       return;
     }
@@ -7114,7 +7127,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     throwMode &&
     (throwMode.mode === "shoot_equipped"
       ? p.arrow
-      : p.inventory[throwMode.idx]);
+      : throwMode.floorWand ?? p.inventory[throwMode.idx]);
   const tmL = throwMode
     ? {
         shoot_equipped: "矢を射る方向",

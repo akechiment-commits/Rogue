@@ -2655,10 +2655,10 @@ export function useItemActions({
     setThrowMode({ idx, mode: "shoot" });
     setMsgs((prev) => [...prev.slice(-80), "矢を射る方向を選んでください..."]);
   }, []);
-  const doWaveWand = useCallback((idx, exhaustedFloorWand = null) => {
+  const doWaveWand = useCallback((idx, floorWand = null) => {
     if (!sr.current) return;
     if (cannotActWithItems(sr.current.player)) return;
-    const it = exhaustedFloorWand ?? sr.current.player.inventory[idx];
+    const it = floorWand ?? sr.current.player.inventory[idx];
     if (!it || it.type !== "wand") return;
     if (it.charges <= 0) {
       const ml = installPlayerHpMessageHook([], sr.current.player);
@@ -2672,13 +2672,14 @@ export function useItemActions({
       setGs({ ...sr.current });
       return;
     }
-    if (exhaustedFloorWand) return;
+    if (floorWand && it.effect !== "wish") return;
     setShowInv(false);
     setSelIdx(null);
     setShowDesc(null);
     setThrowMode({
       idx,
       mode: "wand_wave",
+      floorWand,
       hypnosis: hypnosisAutoRef.current?.kind === "wand" && hypnosisAutoRef.current.idx === idx,
     });
     setMsgs((prev) => [
@@ -4031,8 +4032,9 @@ export function useItemActions({
           }
         }
       } else if (mode === "wand_wave") {
-        const it = p.inventory[idx];
-        if (!it || it.type !== "wand") {
+        const floorWand = throwMode.floorWand;
+        const it = floorWand ?? p.inventory[idx];
+        if (!it || it.type !== "wand" || (floorWand && (!dg.items.includes(it) || it.x !== p.x || it.y !== p.y))) {
           setThrowMode(null);
           return;
         }
@@ -4054,7 +4056,7 @@ export function useItemActions({
           setThrowMode(null);
           setShowInv(false);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setWishMode({ source: "wand", wandId: it.id, endTurnOnCancel: false, autoSelect: !!throwMode?.hypnosis });
+          setWishMode({ source: "wand", wandId: it.id, wand: it, wandOnFloor: !!floorWand, endTurnOnCancel: false, autoSelect: !!throwMode?.hypnosis });
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;
