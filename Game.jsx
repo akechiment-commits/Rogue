@@ -5722,12 +5722,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     [trySynthesize, breakBigbox, lu],
   );
   /** 願い成功時：泉を必ず干上がらせる */
-  const drySpringAlways = useCallback((dg, p, ml) => {
-    const sprTarget = springTargetRef.current;
-    springTargetRef.current = null;
-    const spr = (sprTarget && dg.springs?.includes(sprTarget) ? sprTarget : null) ||
-      dg.springs?.find((s) => s.x === p.x && s.y === p.y);
-    if (!spr) return;
+  const drySpringAlways = useCallback((spr, dg, p, ml) => {
+    if (springTargetRef.current === spr) springTargetRef.current = null;
+    if (!dg?.springs?.includes(spr)) return;
     dg.springs = dg.springs.filter((s) => s !== spr);
     if (spr.contents?.length > 0) {
       ml.push("泉が干上がり、中のアイテムが現れた！");
@@ -5766,7 +5763,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     setWishMode(null);
     if (mode.source === "spring") {
-      drySpringAlways(dg, p, ml);
+      drySpringAlways(mode.spring, mode.springDungeon, mode.springDungeon === dg ? p : null, ml);
     } else if (wand) {
       wand.charges--;
       if (wand.charges === 0) {
@@ -5815,11 +5812,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       return;
     }
     /* 超低確率で願い */
-    if (rollWishChance("drink")) {
+    const spring = resolveActiveSpring(dg, p);
+    if (spring && rollWishChance("drink")) {
       const ml = ["泉の底から声が聞こえる…", "「何を願う？」"];
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       setSpringMode(null);
-      setWishMode({ source: "spring", endTurnOnCancel: false });
+      setWishMode({ source: "spring", spring, springDungeon: dg, endTurnOnCancel: false });
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
       return;
@@ -5969,7 +5967,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setSpringMode(null);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
-  }, [endTurn, consumeActiveSpring]);
+  }, [endTurn, consumeActiveSpring, resolveActiveSpring]);
   const springDoSoak = useCallback(
     (idx) => {
       if (!sr.current) return;
@@ -6003,7 +6001,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (_res?.wish) {
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
           setSpringMode(null);
-          setWishMode({ source: "spring", endTurnOnCancel: true });
+          setWishMode({ source: "spring", spring: _targetSpring, springDungeon: dg, endTurnOnCancel: true });
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;
@@ -6061,12 +6059,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           : `${dnameRef(it)}を泉に浸した。何も起こらなかった。`);
       }
       /* 超低確率で願い（浸したあと、まだ泉が残っている場合のみ） */
-      if (!_springOverflowDried && rollWishChance("soak")) {
+      if (_targetSpring && !_springOverflowDried && rollWishChance("soak")) {
         ml.push("泉が静かに光り、願いを叶えてくれそうだ…");
         ml.push("「何を願う？」");
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSpringMode(null);
-        setWishMode({ source: "spring", endTurnOnCancel: true });
+        setWishMode({ source: "spring", spring: _targetSpring, springDungeon: dg, endTurnOnCancel: true });
         sr.current = { ...sr.current };
         setGs({ ...sr.current });
         return;

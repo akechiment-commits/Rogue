@@ -165,7 +165,7 @@ describe("泉の効果", () => {
 
   it("Game.jsx の泉飲用は満腹度限界超過時に飲めず、ランダム25%ではなく共通容量を消費する", () => {
     const gameSrc = readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
-    const drinkBlockMatch = gameSrc.match(/const springDrink = useCallback\(\(\) => \{[\s\S]*?\}, \[endTurn, consumeActiveSpring\]\);/);
+    const drinkBlockMatch = gameSrc.match(/const springDrink = useCallback\(\(\) => \{[\s\S]*?\}, \[endTurn, consumeActiveSpring, resolveActiveSpring\]\);/);
     expect(drinkBlockMatch).not.toBeNull();
     const drinkBlock = drinkBlockMatch[0];
     expect(drinkBlock).toContain("Number(p.hunger) || 0) > Number(p.maxHunger ?? 100)");
