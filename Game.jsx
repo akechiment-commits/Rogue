@@ -138,7 +138,7 @@ import { createRunTimer } from "./runTimer.js";
 import { SPRING_CONFUSION_TURNS, springGoldRange } from "./springRules.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
-import { ensureStairsPresent } from "./floorObjectPlacement.js";
+import { ensureStairsPresent, pickFreeFloorObjectCell } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
 import { planConvenientDash } from "./convenientDash.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns, MP_REVIVAL_SEAL_TURNS } from "./mpRules.js";
@@ -1909,6 +1909,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             randomTeleportDest(dg, exX, exY, (x, y) =>
               (targetMon ? canPlaceMonsterBody(dg, targetMon, x, y, pl) : isPlayerTeleportCellUnoccupied(dg, x, y)) &&
               !(x === pl.x && y === pl.y));
+          const _tpFloorObject = (target) =>
+            pickFreeFloorObjectCell(dg, target, pl, target.x, target.y, (x, y) => x !== target.x || y !== target.y);
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
             fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}テレポートの杖を振った！`,
@@ -1997,7 +1999,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               else mlx.push("テレポートに失敗した。");
             },
             onItem: (it, mlx) => {
-              const _rp = _tpRand(it.x, it.y);
+              const _rp = _tpFloorObject(it);
               if (_rp) { it.x = _rp.x; it.y = _rp.y; mlx.push(`テレポートの魔法弾が${_wbItemNameFn(it)}に命中！どこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");
             },
@@ -2006,7 +2008,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 mlx.push(`${trap.name}は地面に固定されていて動かせない！`);
                 return;
               }
-              const _rp = _tpRand(trap.x, trap.y);
+              const _rp = _tpFloorObject(trap);
               if (_rp) { trap.x = _rp.x; trap.y = _rp.y; trap.revealed = false; mlx.push(`テレポートの魔法弾が${trap.name}に命中！罠がどこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");
             },

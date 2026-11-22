@@ -5,7 +5,8 @@ import { fireTrapPlayer } from "../traps.js";
 import { takeDueActions } from "../actionClock.js";
 import { hasPlayerMagicReflect, playerMagicReflectLabel, inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag, doGunpowderExplosion, doExplosion, doTimeBombExplosion, applyPotionEffect } from "../items.js";
 import { itemDisplayName } from "../render.js";
-import { hasGravityPentacle, MH, MW, T } from "../utils.js";
+import { pickFreeFloorObjectCell } from "../floorObjectPlacement.js";
+import { hasGravityPentacle, isPlayerTeleportCellUnoccupied, randomTeleportDest, MH, MW, T } from "../utils.js";
 import { interruptPlayerSleep } from "../turnUpkeep.js";
 import { trackTrap } from "../DiscoveryTracker.js";
 import { applyWandEffect, fireWandBolt, monsterFireLightning } from "../wands.js";
@@ -24,12 +25,49 @@ function moveEnemiesFor(state) {
   const chgFloor = vi.fn(player => { player.depth++; player.x = 2; player.y = 2; return destination; });
   const deps = { sr: { current: state }, useCallback: fn => fn, monsterAI, fireTrapPlayer,
     runMineExplosion, takeDueActions, findRoom, inMagicSealRoom, applyWandEffect, monsterFireLightning,
-    resolveMonsterWandEffect, _resolveMonsterWandBolt, hasGravityPentacle,
+    resolveMonsterWandEffect, _resolveMonsterWandBolt, hasGravityPentacle, pickFreeFloorObjectCell,
+    isPlayerTeleportCellUnoccupied, randomTeleportDest,
     interruptPlayerSleep, itemDisplayName, killMonster, chgFloor, trackTrap, hasPlayerMagicReflect, playerMagicReflectLabel,
     bbDisplayName: box => box.name, bigboxAddItem: createGameBigboxHandlers(state).bigboxAddItem, lu: () => {}, spawnFlockStalker: () => false };
   const moveMons = new Function(...Object.keys(deps), `${source.slice(start, end)}; return moveMons;`)(...Object.values(deps));
   return { moveMons, chgFloor, destination };
 }
+
+describe("杖術師のテレポートの杖と床の道具・罠", () => {
+  it.each([
+    ["trap", true],
+    ["item", true],
+    ["trap", false],
+    ["item", false],
+  ])("%sに命中した時、空き床だけへ移す（空き床あり: %s）", (hit, hasFreeCell) => {
+    vi.spyOn(Math, "random").mockReturnValue(0.65);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "witchdoc"), 1, 5, 5);
+    Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
+    const player = makePlayer({ x: 9, y: 5, depth: 18, actionTime: 12 });
+    const trap = { id: "trap", name: "水鉄砲の罠", effect: "watergun_trap", x: 18, y: 5, revealed: false };
+    const food = { id: "food", name: "リンゴ", type: "food", x: 18, y: 5 };
+    const target = hit === "trap" ? trap : food;
+    const blocker = hit === "trap" ? food : trap;
+    target.x = 7;
+    trap.revealed = hit === "trap";
+    const dungeon = makeEmptyDg({ monsters: [mage], traps: [trap], items: [food],
+      rooms: [{ x: 4, y: 4, w: 7, h: 3 }] });
+    dungeon.map.forEach(row => row.fill(T.WALL));
+    for (const x of [5, 6, 7, 8, 9, 18]) dungeon.map[5][x] = T.FLOOR;
+    // 弾は通るが、魔方陣のマスには着地できない。
+    dungeon.pentacles = [{ kind: "light", x: 6, y: 5 }, { kind: "light", x: 8, y: 5 }];
+    if (hasFreeCell) dungeon.map[5][17] = T.FLOOR;
+    const messages = [];
+
+    moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
+
+    expect(messages).toContain("杖術師がテレポートの杖を振った！");
+    expect([target.x, target.y]).toEqual([hasFreeCell ? 17 : 7, 5]);
+    expect([blocker.x, blocker.y]).toEqual([18, 5]);
+    expect(trap.revealed).toBe(hit === "trap" && !hasFreeCell);
+    if (!hasFreeCell) expect(messages).toContain("テレポートに失敗した。");
+  });
+});
 
 function scenario(effect, movingTrap = false) {
   vi.spyOn(Math, "random").mockReturnValue(0.1);

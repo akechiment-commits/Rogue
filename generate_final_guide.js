@@ -930,6 +930,9 @@ function monTraits(m) {
   if (m.subtype === 'wanduser') {
     if (m.randomElementalWands) t.push('炎・雷・氷の杖をランダムに使用（25%）。Lv3は祝福された杖の効果。距離3を保つ');
     else t.push(`${m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect) ? '呪い・混乱・眠り・テレポート・鈍足の杖をランダムに使用（25%）。Lv3は祝福された杖の効果。距離3を保つ' : '遠距離系50%で杖を使う'}`);
+    if (m.randomStatusWands || m.wandEffect === 'teleport_wand') {
+      t.push('テレポートの杖が床の道具・罠に当たると、道具・未発見を含む罠などがない別の空き床へ移す。移動先がなければ元の場所に残る');
+    }
   }
   if (m.baseKind === 'barriermage') t.push('バリアの張り直し・味方へのバリア付与は50%');
   if (m.baseKind === 'boss_darkbullet') t.push('視界内の一直線上で射程内なら100%の銃撃。未封印時はプレイヤーと距離2を保ち、封印中は通常の接近・殴りへ戻る。行動時や銃撃時に中二病的な専用台詞を話し、キーアイテムを持ち去ろうとすると咎める台詞に変化する');
