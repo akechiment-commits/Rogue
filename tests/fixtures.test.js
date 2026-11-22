@@ -10,6 +10,32 @@ import { doExplosion, getFixtureItemDeps, placeItemAt } from "../items.js";
 import { monsterAI, _resolveMonsterWandBolt } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
+import { fireWandBolt } from "../wands.js";
+
+describe("テレポートの杖で床の道具を移動する時の着地", () => {
+  it.each([
+    [1, true], [1, false], [2, true], [2, false], [0.5, true], [0.5, false],
+  ])("倍率%s、空き床あり: %s", (multiplier, hasFreeCell) => {
+    const player = makePlayer({ x: 5, y: 5 });
+    const apple = { name: "リンゴ", type: "food", x: 6, y: 5 };
+    const trap = { name: "水鉄砲の罠", effect: "watergun_trap", x: multiplier > 1 ? 16 : 18, y: 5, revealed: false };
+    if (multiplier < 1 && !hasFreeCell) trap.x = 7;
+    const dungeon = makeEmptyDg({ items: [apple], traps: [trap],
+      rooms: [{ x: 4, y: 4, w: 6, h: 3 }] });
+    dungeon.map.forEach(row => row.fill(T.WALL));
+    for (const x of [5, 6, trap.x]) dungeon.map[5][x] = T.FLOOR;
+    if (multiplier > 1) dungeon.map[5][15] = T.SD;
+    const landingX = multiplier < 1 ? 7 : 17;
+    if (hasFreeCell) dungeon.map[5][landingX] = T.FLOOR;
+    const messages = [];
+
+    fireWandBolt(player, dungeon, "warp", 1, 0, messages, () => {}, () => {}, multiplier);
+
+    expect([apple.x, apple.y]).toEqual([hasFreeCell ? landingX : 6, 5]);
+    expect(trap.revealed).toBe(false);
+    expect(messages.includes("テレポートに失敗した。")).toBe(!hasFreeCell);
+  });
+});
 
 describe("敵の杖と石像", () => {
   it("魔法弾は石像を破壊して止まり、後ろのプレイヤーへは届かない", () => {
