@@ -1911,6 +1911,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               !(x === pl.x && y === pl.y));
           const _tpFloorObject = (target) =>
             pickFreeFloorObjectCell(dg, target, pl, target.x, target.y, (x, y) => x !== target.x || y !== target.y);
+          const _teleportBlocked = (messages) => {
+            if (!hasCursedTeleportPentacle(dg)) return false;
+            messages.push("呪われたテレポートの魔方陣がテレポートを阻んだ！");
+            return true;
+          };
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
             fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}テレポートの杖を振った！`,
@@ -1920,9 +1925,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "player", pl, dx, dy, mlx);
                 return;
               }
-              if (hasCursedTeleportPentacle(dg)) {
-                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
-              }
+              if (_teleportBlocked(mlx)) return;
               const _rp = _tpRand(pl.x, pl.y);
               if (_rp) {
                 const _tpFromX = pl.x, _tpFromY = pl.y;
@@ -1940,9 +1943,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "monster", mon, dx, dy, mlx);
                 return;
               }
-              if (hasCursedTeleportPentacle(dg)) {
-                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
-              }
+              if (_teleportBlocked(mlx)) return;
               const _rp = _tpRand(mon.x, mon.y, mon);
               if (_rp) { mon.x = _rp.x; mon.y = _rp.y; mlx.push(`テレポートの魔法弾が${mon.name}に命中！どこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");
@@ -1953,9 +1954,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              if (hasCursedTeleportPentacle(dg)) {
-                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
-              }
+              if (_teleportBlocked(mlx)) return;
               const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中！どこかへテレポートした！`); }
               else mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中したが失敗した！`);
@@ -1966,9 +1965,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              if (hasCursedTeleportPentacle(dg)) {
-                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
-              }
+              if (_teleportBlocked(mlx)) return;
               const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
@@ -1978,13 +1975,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
                 return;
               }
-              if (hasCursedTeleportPentacle(dg)) {
-                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
-              }
+              if (_teleportBlocked(mlx)) return;
               const _rp = _tpRand(m.x, m.y, m);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
             onBigbox: (bb, mlx) => {
+              if (_teleportBlocked(mlx)) return;
               /* 大箱はフロア全体の空き床から抽選する。 */
               const _bbPts = [];
               for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
@@ -1996,6 +1992,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               else mlx.push("テレポートに失敗した。");
             },
             onItem: (it, mlx) => {
+              if (_teleportBlocked(mlx)) return;
               const _rp = _tpFloorObject(it);
               if (_rp) { it.x = _rp.x; it.y = _rp.y; mlx.push(`テレポートの魔法弾が${_wbItemNameFn(it)}に命中！どこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");
@@ -2005,6 +2002,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 mlx.push(`${trap.name}は地面に固定されていて動かせない！`);
                 return;
               }
+              if (_teleportBlocked(mlx)) return;
               const _rp = _tpFloorObject(trap);
               if (_rp) { trap.x = _rp.x; trap.y = _rp.y; trap.revealed = false; mlx.push(`テレポートの魔法弾が${trap.name}に命中！罠がどこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");

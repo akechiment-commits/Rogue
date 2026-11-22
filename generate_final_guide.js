@@ -931,7 +931,7 @@ function monTraits(m) {
     if (m.randomElementalWands) t.push('炎・雷・氷の杖をランダムに使用（25%）。Lv3は祝福された杖の効果。距離3を保つ');
     else t.push(`${m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect) ? '呪い・混乱・眠り・テレポート・鈍足の杖をランダムに使用（25%）。Lv3は祝福された杖の効果。距離3を保つ' : '遠距離系50%で杖を使う'}`);
     if (m.randomStatusWands || m.wandEffect === 'teleport_wand') {
-      t.push('テレポートの杖が床の道具・罠・大箱に当たると、道具・未発見を含む罠などがない別の空き床へ移す。大箱の行き先はフロア全体の空き床から抽選する。移動先がなければ元の場所に残る');
+      t.push('テレポートの杖が床の道具・罠・大箱に当たると、道具・未発見を含む罠などがない別の空き床へ移す。大箱の行き先はフロア全体の空き床から抽選する。移動先がない場合や、フロアに呪われたテレポートの魔方陣がある場合は元の場所に残る。魔方陣はLv3の祝福された杖にも有効');
     }
   }
   if (m.baseKind === 'barriermage') t.push('バリアの張り直し・味方へのバリア付与は50%');

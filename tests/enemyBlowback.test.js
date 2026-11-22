@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FLOCK_REVENGE_BOSS, monsterAI, MONS, makeMonsterFromBase, findRoom, resolveMonsterWandEffect, _resolveMonsterWandBolt } from "../monsters.js";
 import { fireTrapPlayer } from "../traps.js";
 import { takeDueActions } from "../actionClock.js";
-import { hasPlayerMagicReflect, playerMagicReflectLabel, inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag, doGunpowderExplosion, doExplosion, doTimeBombExplosion, applyPotionEffect } from "../items.js";
+import { hasCursedTeleportPentacle, hasPlayerMagicReflect, playerMagicReflectLabel, inMagicSealRoom, runMineExplosion, killMonster, setPitfallBag, clearPitfallBag, doGunpowderExplosion, doExplosion, doTimeBombExplosion, applyPotionEffect } from "../items.js";
 import { itemDisplayName } from "../render.js";
 import { isFloorOccupancyBlocked, pickFreeFloorObjectCell } from "../floorObjectPlacement.js";
 import { hasGravityPentacle, isPlayerTeleportCellUnoccupied, pick, randomTeleportDest, MH, MW, T } from "../utils.js";
@@ -26,7 +26,7 @@ function moveEnemiesFor(state) {
   const deps = { sr: { current: state }, useCallback: fn => fn, monsterAI, fireTrapPlayer,
     runMineExplosion, takeDueActions, findRoom, inMagicSealRoom, applyWandEffect, monsterFireLightning,
     resolveMonsterWandEffect, _resolveMonsterWandBolt, hasGravityPentacle, pickFreeFloorObjectCell,
-    isFloorOccupancyBlocked, isPlayerTeleportCellUnoccupied, pick, randomTeleportDest, MH, MW, T,
+    isFloorOccupancyBlocked, isPlayerTeleportCellUnoccupied, pick, randomTeleportDest, hasCursedTeleportPentacle, MH, MW, T,
     interruptPlayerSleep, itemDisplayName, killMonster, chgFloor, trackTrap, hasPlayerMagicReflect, playerMagicReflectLabel,
     bbDisplayName: box => box.name, bigboxAddItem: createGameBigboxHandlers(state).bigboxAddItem, lu: () => {}, spawnFlockStalker: () => false };
   const moveMons = new Function(...Object.keys(deps), `${source.slice(start, end)}; return moveMons;`)(...Object.values(deps));
@@ -34,16 +34,15 @@ function moveEnemiesFor(state) {
 }
 
 describe("杖術師のテレポートの杖と床の道具・罠・大箱", () => {
-  it.each([
-    ["trap", true],
-    ["item", true],
-    ["trap", false],
-    ["item", false],
-    ["bigbox", true],
-    ["bigbox", false],
-  ])("%sに命中した時、空き床だけへ移す（空き床あり: %s）", (hit, hasFreeCell) => {
+  const cases = ["trap", "item", "bigbox"].flatMap(hit => [
+    { hit, hasFreeCell: true, cursedCircle: false, level: 1 },
+    { hit, hasFreeCell: false, cursedCircle: false, level: 1 },
+    { hit, hasFreeCell: true, cursedCircle: true, level: 1 },
+    { hit, hasFreeCell: true, cursedCircle: true, level: 3 },
+  ]);
+  it.each(cases)("$hitに命中（空き床: $hasFreeCell、呪いの魔方陣: $cursedCircle、Lv$level）", ({ hit, hasFreeCell, cursedCircle, level }) => {
     vi.spyOn(Math, "random").mockReturnValue(0.65);
-    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "witchdoc"), 1, 5, 5);
+    const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "witchdoc"), level, 5, 5);
     Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
     const player = makePlayer({ x: 9, y: 5, depth: 18, actionTime: 12 });
     const trap = { id: "trap", name: "水鉄砲の罠", effect: "watergun_trap", x: 18, y: 5, revealed: false };
@@ -60,16 +59,22 @@ describe("杖術師のテレポートの杖と床の道具・罠・大箱", () =
     for (const x of [5, 6, 7, 8, 9, 18]) dungeon.map[5][x] = T.FLOOR;
     // 弾は通るが、魔方陣のマスには着地できない。
     dungeon.pentacles = [{ kind: "light", x: 6, y: 5 }, { kind: "light", x: 8, y: 5 }];
+    if (cursedCircle) {
+      dungeon.map[4][5] = T.FLOOR;
+      dungeon.pentacles.push({ kind: "teleport_trap", cursed: true, x: 5, y: 4 });
+    }
     const freeX = hit === "bigbox" ? 19 : 17;
     if (hasFreeCell) dungeon.map[5][freeX] = T.FLOOR;
     const messages = [];
 
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
 
-    expect(messages).toContain("杖術師がテレポートの杖を振った！");
-    expect([target.x, target.y]).toEqual([hasFreeCell ? freeX : 7, 5]);
+    const moved = hasFreeCell && !cursedCircle;
+    expect(messages).toContain(`${mage.name}が${level === 3 ? "祝福された" : ""}テレポートの杖を振った！`);
+    expect([target.x, target.y]).toEqual([moved ? freeX : 7, 5]);
     expect([blocker.x, blocker.y]).toEqual([18, 5]);
-    expect(trap.revealed).toBe(hit === "trap" && !hasFreeCell);
+    expect(trap.revealed).toBe(hit === "trap" && !moved);
+    if (cursedCircle) expect(messages).toContain("呪われたテレポートの魔方陣がテレポートを阻んだ！");
     if (!hasFreeCell) expect(messages).toContain("テレポートに失敗した。");
   });
 });
