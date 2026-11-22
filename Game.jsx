@@ -6708,12 +6708,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _allS = getShops(_dg);
     const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
     if (_ps) {
+      const previousCharges = item._origCharges;
+      const previousCount = item._origCount;
       const _ap = applyShopUnpaidCharge(item, _ps, _p);
       const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
       if (_sk) _sk.state = "blocking";
       /* 既請求済みなら二重メッセージ・二重加算しない（apply が 0） */
       if (_ap > 0) {
         setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`]);
+        return () => {
+          if (item._shopCharge !== _ap) return;
+          delete item._shopCharge;
+          if (previousCharges == null) delete item._origCharges;
+          else item._origCharges = previousCharges;
+          if (previousCount == null) delete item._origCount;
+          else item._origCount = previousCount;
+          _ps.unpaidTotal = Math.max(0, _ps.unpaidTotal - _ap);
+          if (_sk?.state === "blocking" && _ps.unpaidTotal === 0) _sk.state = "friendly";
+          setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}の請求を取り消した。`]);
+        };
       }
     }
     /* shopPrice/_shopId/_shopCharge は拾った場合と同様に維持（未払い表示・店への返却・使用分請求に必要） */
@@ -6726,7 +6739,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _wasInvFull = _p.inventory.length >= (_p.maxInventory || 30);
     if (!skipCapCheck && _wasInvFull) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     /* 店のアイテムを床から直接使う場合は代金を請求 */
-    _chargeShopFloorItem(item, _p, _dg, s);
+    const cancelShopCharge = _chargeShopFloorItem(item, _p, _dg, s);
     const wasWallEmbedded = !!item.wallEmbedded;
     delete item.wallEmbedded;
     _dg.items = _dg.items.filter(i => i !== item);
@@ -6742,6 +6755,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           sr.current.player.inventory.splice(_si2, 1);
           if (wasWallEmbedded) item.wallEmbedded = true;
           sr.current.dungeon.items.push(item);
+          cancelShopCharge?.();
           sr.current = { ...sr.current }; setGs({ ...sr.current });
         }
         identifyCancelRef.current = null;

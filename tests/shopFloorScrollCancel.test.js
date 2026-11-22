@@ -1,0 +1,93 @@
+import { readFileSync } from "node:fs";
+import { afterEach, expect, it, vi } from "vitest";
+const effects = vi.hoisted(() => []);
+vi.mock("react", () => ({ useCallback: fn => fn, useRef: current => ({ current }), useEffect: fn => effects.push(fn) }));
+import { useItemActions } from "../useItemActions.js";
+import { useKeyHandler } from "../useKeyHandler.js";
+import { applyShopUnpaidCharge, checkShopTheft, shopPriceNote } from "../items.js";
+import { itemDisplayName } from "../render.js";
+import { hasForcedTurn } from "../turnUpkeep.js";
+import { getShops, clearDimensionalVaultItemCounter } from "../utils.js";
+import { soundEngine } from "../soundEngine.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+function openFloorScroll({ debt = 0, precharged = false, bargain = false } = {}) {
+  const room = { x: 4, y: 4, w: 3, h: 3 };
+  const shop = { id: "shop", shopkeeperId: "keeper", room, unpaidTotal: debt };
+  const keeper = { id: "keeper", type: "shopkeeper", state: debt ? "blocking" : "friendly", hp: 100, x: 6, y: 4 };
+  const scroll = { id: "scroll", name: "識別の巻物", type: "scroll", effect: "identify", x: 5, y: 5,
+    shopPrice: 250, _shopId: shop.id, ...(precharged ? { _shopCharge: debt } : {}) };
+  const gear = { id: "gear", name: "短剣", type: "weapon", atk: 4 };
+  const dungeon = makeEmptyDg({ shop, rooms: [room], items: [scroll], monsters: [keeper] });
+  const player = makePlayer({ x: 5, y: 5, inventory: [gear], gold: 1000,
+    rings: bargain ? [{ type: "ring", effect: "bargain_ring" }] : [] });
+  const sr = { current: { player, dungeon, ident: new Set(["s:identify"]), fakeNames: {} } };
+  let dialog = null;
+  const noop = () => {};
+  const setIdentifyMode = current => { dialog = current; };
+  const identifyCancelRef = { current: null };
+  const endTurn = vi.fn();
+  const setters = { setMsgs: vi.fn(), setGs: noop, setSelIdx: noop, setShowInv: noop, setShowDesc: noop, setIdentifyMode, setInvMenuSel: noop };
+  const actions = useItemActions({ sr, ...setters, endTurn, dnameRef: it => it.name });
+  const source = readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
+  const start = source.indexOf("  const _chargeShopFloorItem =");
+  const end = source.indexOf("  const _doFloorWaveWand =", start);
+  const deps = { sr, ...setters, hasForcedTurn, getShops, applyShopUnpaidCharge, shopPriceNote, itemDisplayName,
+    clearDimensionalVaultItemCounter, trackItem: noop, identifyCancelRef };
+  const floorItemAction = new Function(...Object.keys(deps), `${source.slice(start, end)}; return _doFloorItemAction;`)(...Object.values(deps));
+  const invActRef = { current: { use: actions.doUseItem, floorItemAction } };
+  const listeners = {};
+  vi.stubGlobal("window", { addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: noop });
+  vi.spyOn(soundEngine, "unlock").mockImplementation(noop);
+  const press = (key, options) => {
+    effects.length = 0;
+    useKeyHandler({ sr, gs: sr.current, ...setters, invActRef, identifyCancelRef, endTurn,
+      shiftRef: { current: false }, aRef: { current: false }, arrowHeldRef: { current: {} }, execRef: { current: null }, ...options });
+    effects.splice(0).forEach(effect => effect());
+    listeners.keydown({ key, code: key, preventDefault: noop });
+  };
+  press("Enter", { showInv: true, invPage: 1, selIdx: 0, invMenuSel: 1 });
+  expect(dialog?.mode).toBe("identify");
+  const choose = key => {
+    press(key, { identifyMode: dialog });
+    expect(dialog).toBeNull();
+  };
+  return { shop, keeper, scroll, gear, dungeon, player, endTurn, choose };
+}
+
+it("店の巻物を足元から読んでキャンセルすると商品が戻り、未払いや泥棒扱いが残らない", () => {
+  const { shop, keeper, scroll, gear, dungeon, player, endTurn, choose } = openFloorScroll({ bargain: true });
+  expect(shop.unpaidTotal).toBe(175);
+  choose("Escape");
+  expect(shop.unpaidTotal).toBe(0);
+  expect(scroll._shopCharge).toBeUndefined();
+  expect(scroll.shopPrice).toBe(250);
+  expect(keeper.state).toBe("friendly");
+  expect(dungeon.items).toEqual([scroll]);
+  expect(player.inventory).toEqual([gear]);
+  expect(endTurn).not.toHaveBeenCalled();
+  player.x = 7;
+  checkShopTheft(player, dungeon, []);
+  expect(player.isThief).toBeFalsy();
+});
+
+it.each([false, true])("キャンセルで元からある未払いは取り消さない（同じ商品: %s）", (precharged) => {
+  const { shop, keeper, scroll, choose } = openFloorScroll({ debt: 125, precharged });
+  choose("Escape");
+  expect(shop.unpaidTotal).toBe(125);
+  expect(scroll._shopCharge).toBe(precharged ? 125 : undefined);
+  expect(keeper.state).toBe("blocking");
+});
+
+it("効果の対象を確定した場合は巻物を消費し、代金を請求する", () => {
+  const { shop, keeper, gear, dungeon, player, endTurn, choose } = openFloorScroll();
+  choose("Enter");
+  expect(shop.unpaidTotal).toBe(250);
+  expect(keeper.state).toBe("blocking");
+  expect(dungeon.items).toEqual([]);
+  expect(player.inventory).toEqual([gear]);
+  expect(gear.fullIdent).toBe(true);
+  expect(endTurn).toHaveBeenCalledOnce();
+});
