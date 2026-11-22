@@ -73,8 +73,8 @@ function choose(state, input, label, selection) {
   }
 }
 
-it.each([false, true])("通常店の宝石は買い物上手でも同じ店で売買して増益しない（床から売却: %s）", floorSale => {
-  const state = setup({ rings: [{ effect: "bargain_ring" }] });
+it.each([[false, 1], [true, 1], [false, 2], [true, 2]])("通常店の宝石を売って買い戻しても増益しない（床から売却: %s、買い物上手: %d）", (floorSale, count) => {
+  const state = setup({ rings: Array.from({ length: count }, () => ({ effect: "bargain_ring" })) });
   const { player, dungeon, shop, sr } = state;
   const gem = { id: "gem", name: "トパーズ", type: "gem", basePrice: 500, originDepth: 2, _gemBuyPrice: 500, x: 5, y: 5 };
   const renderShop = mode => ShopModal({ mode, gs: sr.current, sr, setMode: state.setMode,
@@ -96,7 +96,13 @@ it.each([false, true])("通常店の宝石は買い物上手でも同じ店で�
   expect(gem._gemBuyPrice).toBe(2750);
 });
 
-it.each([[[], 2750], [[{ effect: "bargain_ring" }], 2250], [[{ effect: "markup_ring" }], 4125]])(
+it.each([
+  [[], 2750],
+  [[{ effect: "bargain_ring" }], 2250],
+  [[{ effect: "bargain_ring" }, { effect: "bargain_ring" }], 2250],
+  [[{ effect: "markup_ring" }], 4125],
+  [[{ effect: "markup_ring" }, { effect: "markup_ring" }], 6187],
+])(
   "行商人の宝石の表示と実際の購入は通常店と同じ計算になる（指輪: %j）", (rings, price) => {
     const state = setup({ rings, gold: 10000 });
     const { player, dungeon, sr } = state;

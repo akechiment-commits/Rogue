@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
-import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense, rewindNextExp } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense, countEquippedRings, rewindNextExp } from './utils.js';
 import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } from './synthMonster.js';
 import { adjustMonsterPermanentStat } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
@@ -2353,21 +2353,6 @@ function _explosionBreakPot(pot, x, y, dg, p, ml, luFn, nameFn, blasted) {
   }
 }
 
-function calcPlayerDefForProjectile(p) {
-  const _misoDef = (p?.misoDefTurns || 0) > 0 ? 8 : 0;
-  const _base = (p?.def || 0)
-    + (p?.armor?.def || 0)
-    + (p?.armor?.plus || 0)
-    + (p?.rings || []).reduce((s, r) => (r.effect === "defense_ring" || r.effect === "niebelung_ring") ? s + (r.plus || 0) : s, 0)
-    + (hasAbility(p?.weapon, "def_bonus") ? 5 : 0)
-    + _misoDef;
-  const _slowTurtleMult = (p?.rings || []).some((r) => r.effect === "slow_ring") ? 2 : 1;
-  return Math.floor(_base
-    * _slowTurtleMult
-    * ((p?.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
-    * ((p?.defDebuffTurns || 0) > 0 ? 0.5 : 1)
-    * playerDopingMultiplier(p));
-}
 
 /**
  * 爆発共通処理 (地雷・爆弾矢などから呼ぶ)
@@ -2471,7 +2456,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
     const _playerHpBefore = p.hp;
     const _playerHpOne = options.playerHpOne === true;
     const _projectileDmg = options.projectileAtk != null
-      ? calcProjectileDmg(p, options.projectileAtk, calcPlayerDefForProjectile(p))
+      ? calcProjectileDmg(p, options.projectileAtk, calcPlayerDefense(p))
       : null;
     const _fireCtx = ringExplosion || mineExplosion;
     const _hasFireProt = _fireCtx && hasFireResist(p);
@@ -8195,7 +8180,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
         return;
       }
-      let dmg = _isPot ? _potDmg(calcPlayerDefForProjectile(p)) : _projDmg(calcPlayerDefForProjectile(p));
+      let dmg = _isPot ? _potDmg(calcPlayerDefense(p)) : _projDmg(calcPlayerDefense(p));
       dmg = applyFrozenPhysicalMult(dmg, p);
       if (!sourceIsPlayer()) dmg = monScaleOutgoingDamage(initialKillerMon, dmg);
       p.deathCause = reflectedBy?.name
@@ -8652,7 +8637,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   if (reflector.type === "shopkeeper") markShopkeeperHostileToPlayer(reflector, null, p, ml);
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
   if (consumeBarrier(p, ml)) return 0;
-  const dmg = calcProjectileDmg(p, stoneAtk || 5, calcPlayerDefForProjectile(p));
+  const dmg = calcProjectileDmg(p, stoneAtk || 5, calcPlayerDefense(p));
   p.hp -= dmg;
   p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
   ml.push(`跳ね返された${stoneName}が${pl()}にホーミング命中！${dmg}ダメージ！消滅した。`);
@@ -8954,7 +8939,7 @@ function enemyHomingProjectileHitPlayer(sp, dg, p, ml) {
   }
   if (consumeBarrier(p, ml)) return;
   const _source = dg?.monsters?.find((candidate) => candidate.id === sp.sourceId && (candidate.hp ?? 1) > 0) || null;
-  const damage = monScaleOutgoingDamage(_source, calcAtkDefDmg(sp.atk || 1, calcPlayerDefForProjectile(p), { defWeight: 1.5 }));
+  const damage = monScaleOutgoingDamage(_source, calcAtkDefDmg(sp.atk || 1, calcPlayerDefense(p), { defWeight: 1.5 }));
   p.hp -= damage;
   p.deathCause = `${sp.sourceName || "敵"}の${sp.name || "誘導弾"}に当たって`;
   ml.push(`${sp.sourceName || "敵"}の${sp.name || "誘導弾"}が命中！${playerHpEffectLabel(p, damage)}！`);
@@ -11133,24 +11118,24 @@ export const RINGS = [
   { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げた物・通常飛び道具は10マス以内の最も近い敵へホーミング必中。敵がいない時は本来の軌道で飛ぶ。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
   { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備時に毒と毒による攻撃力低下を治す。装備中、毒が無効になる。" },
-  { name: "買い物上手の指輪", type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
+  { name: "買い物上手の指輪", type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"店のアイテムが1個で3割引、2個で5割引になる。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"D", weight:8, sellPrice:1000, tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
   { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、毎ターンのHP自然回復量が1増える。2つ装備すれば2増える。再生付き装備とも重複する。" },
-  { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"A", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。爆発範囲内の地雷・時限爆弾も誘爆する。" },
+  { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"A", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中は指輪1個ずつ、毎ターン5%で爆発する。周囲の地雷や時限爆弾も誘爆する。" },
   { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
   { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },
   { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
   { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
-  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、通常の敵への近接攻撃で与えたダメージの8分の1だけHPを吸収する。アンデッドへの攻撃では同量の反動ダメージを受ける。" },
-  { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
+  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"近接攻撃で指輪1個につき与ダメージの8分の1だけHPを吸収する。アンデッドには同量の反動を受ける。" },
+  { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"HPが低いほど会心率が上がる。2個で上昇量が2倍。必ず会心になるのは1個でHP20%以下、2個で47.5%以下。" },
   { name: "争いの指輪",     type:"ring", effect:"strife_ring",            rarity:"S", weight:0.05, sellPrice:20000, tile:60, desc:"装備中、プレイヤーから3マス以内の生物が、隣接する相手を無差別に攻撃する。プレイヤーと隣接していれば優先して狙う。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },
-  { name: "鈍亀の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、速度が半減する（2ターンに1回しか行動できない）が、防御力が2倍になる。" },
-  { name: "空腹の指輪",     type:"ring", effect:"hunger_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、空腹の進行が2倍になる。" },
+  { name: "鈍亀の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"1個で速度が半減し、防御力が2倍になる。2個で速度が1/4、防御力が4倍になる。" },
+  { name: "空腹の指輪",     type:"ring", effect:"hunger_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"空腹の進行が1個で2倍、2個で4倍になる。" },
   { name: "足音の指輪",     type:"ring", effect:"footstep_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、歩くたびに足音が響き近くの敵が目を覚ます。" },
-  { name: "観光客の指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },
+  { name: "観光客の指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"店の購入価格が1個で1.5倍、2個で2.25倍になる。" },
   { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:5000, tile:60, desc:"自慢げに輝いているが、特に効果はない。見た目だけで妙に高い。" },
   { name: "黄金の指輪",     type:"ring", effect:"gold_ring",              rarity:"B", weight:2,  sellPrice:10000, tile:60, desc:"純金で作られた指輪。特殊な効果はないが非常に高く売れる。" },
   { name: "ニーベルングの指輪", type:"ring", effect:"niebelung_ring", plus:0, rarity:"S", weight:0.05, sellPrice:15000, tile:60, desc:"力・守り・命を兼ね備えた黄金の魔環。強化可能。\n装備中はフロア中の全敵に常に感知され、全員が目覚める。" },
@@ -11470,22 +11455,26 @@ function gemResaleMinimum(item, listPrice) {
   return item?.type === "gem" && item._gemBuyPrice > 0 ? listPrice - item._gemBuyPrice : 0;
 }
 
-/** 観光客は×1.5、買い物上手は×0.7。買い取った宝石の割引は買取額が下限。 */
+/** 観光客は個数分×1.5。買い物上手は1個で3割引、2個で5割引。 */
 export function calcShopBuyPrice(p, shopPrice, item = null) {
-  let price = shopPrice || 0;
-  if (hasRingEffect(p, "markup_ring")) price = Math.floor(price * 1.5);
-  if (hasRingEffect(p, "bargain_ring")) price = Math.floor(price * 0.7);
+  let price = Math.floor((shopPrice || 0) * 1.5 ** countEquippedRings(p, "markup_ring"));
+  const bargainRings = countEquippedRings(p, "bargain_ring");
+  // 半額の端数は切り上げ、通常品の「半額切り上げ」の買取を下回らないようにする。
+  if (bargainRings >= 2) price = Math.ceil(price / 2);
+  else if (bargainRings === 1) price = Math.floor(price * 0.7);
   return Math.max(1, price, gemResaleMinimum(item, shopPrice || 0));
 }
 
 /** 店購入メッセージ用の価格注記（" 5割増！" など。無ければ空文字） */
 export function shopPriceNote(p, item = null) {
   const notes = [];
-  if (hasRingEffect(p, "markup_ring")) notes.push("5割増！");
-  if (hasRingEffect(p, "bargain_ring")) {
+  const markupRings = countEquippedRings(p, "markup_ring");
+  const bargainRings = countEquippedRings(p, "bargain_ring");
+  if (markupRings > 0) notes.push(markupRings >= 2 ? "2.25倍！" : "5割増！");
+  if (bargainRings > 0) {
     const listPrice = item?.shopPrice || 0;
     const atMinimum = gemResaleMinimum(item, listPrice) > calcShopBuyPrice(p, listPrice);
-    notes.push(atMinimum ? "割引は買取額まで" : "3割引！");
+    notes.push(atMinimum ? "割引は買取額まで" : bargainRings >= 2 ? "5割引！" : "3割引！");
   }
   return notes.length ? " " + notes.join("") : "";
 }
@@ -11597,7 +11586,7 @@ export function calcHungerDrainRate(p) {
   }
   let rate = Math.max(0, 4 - n) / 4;
   if ((p.butterHungerTurns || 0) > 0) rate *= 0.5;
-  if (hasRingEffect(p, "hunger_ring")) rate *= 2;
+  rate *= 2 ** countEquippedRings(p, "hunger_ring");
   /* 大食い武器：空腹の進みが2倍（他の倍率と同じ掛け算で扱う） */
   if (hasAbility(p.weapon, "gluttony")) rate *= 2;
   return rate;

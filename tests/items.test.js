@@ -1305,7 +1305,7 @@ describe("doExplosion", () => {
     vi.restoreAllMocks();
   });
 
-  it("鈍亀の指輪は自分が受ける飛び道具ダメージの防御計算を2倍にする", () => {
+  it("鈍亀の指輪は自分が受ける飛び道具に対する防御を1個で2倍、2個で4倍にする", () => {
     const makeDungeon = () => ({
       pentacles: [], monsters: [], items: [],
       map: Array.from({ length: 21 }, () => Array(33).fill(1)),
@@ -1317,9 +1317,12 @@ describe("doExplosion", () => {
     });
     const normal = makePlayer([]);
     const turtle = makePlayer([{ effect: "slow_ring" }]);
+    const doubleTurtle = makePlayer([{ effect: "slow_ring" }, { effect: "slow_ring" }]);
     doExplosion(5, 5, makeDungeon(), normal, [], null, "飛び道具", null, null, false, false, false, false, { projectileAtk: 70 });
     doExplosion(5, 5, makeDungeon(), turtle, [], null, "飛び道具", null, null, false, false, false, false, { projectileAtk: 70 });
+    doExplosion(5, 5, makeDungeon(), doubleTurtle, [], null, "飛び道具", null, null, false, false, false, false, { projectileAtk: 70 });
     expect(turtle.hp).toBeGreaterThan(normal.hp);
+    expect(doubleTurtle.hp).toBeGreaterThan(turtle.hp);
   });
 
   it("地雷爆発は耐火でダメージ軽減される", () => {

@@ -21,10 +21,10 @@ const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonst
    }
    return {acted,animations:_ad};`);
 
-function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [] } = {}) {
-  vi.spyOn(Math, "random").mockReturnValue(0.5);
-  const p = makePlayer({ atk: 10, weapon: { atk: 0, abilities } });
-  const mon = { id: "target", name, x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize, ...(forcedMoveImmune ? { forcedMoveImmune: true } : {}) };
+function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [], player = {}, kind, random = 0.5 } = {}) {
+  vi.spyOn(Math, "random").mockReturnValue(random);
+  const p = makePlayer({ atk: 10, weapon: { atk: 0, abilities }, ...player });
+  const mon = { id: "target", name, kind, x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize, ...(forcedMoveImmune ? { forcedMoveImmune: true } : {}) };
   const dg = makeEmptyDg({ monsters: [mon, ...others], rooms: [{ x: 1, y: 1, w: 40, h: 20 }],
     pentacles: pentacle ? [{ kind: "knockback_aura", name: "吹き飛ばしの魔方陣", x: 3, y: 3, ...pentacle }] : [] });
   for (const [x, y] of walls) dg.map[y][x] = utils.T.WALL;
@@ -34,6 +34,23 @@ function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 100
   return { p, mon, dg, ml, kill, ...result };
 }
 afterEach(() => vi.restoreAllMocks());
+
+it.each([["humanoid", 1], ["undead", -1]])("吸血の指輪2個は%sに対する回復・反動を2倍にする", (kind, sign) => {
+  const ring = { effect: "vampire_ring" };
+  const { p, mon } = attack({ abilities: [], bodySize: 1, kind, player: { atk: 38, hp: 40, rings: [{ ...ring }, { ...ring }] } });
+  expect(mon.hp).toBeLessThan(mon.maxHp);
+  const oneRing = Math.max(1, Math.floor((mon.maxHp - mon.hp) / 8));
+  expect(p.hp).toBe(40 + sign * 2 * oneRing);
+});
+
+it.each([[1, 120, 0.5, false], [2, 120, 0.5, true], [2, 95, 0.999, true], [2, 96, 0.999, false]])(
+  "背水%d個、HP%d/200、乱数%sで会心=%s", (ringCount, hp, random, critical) => {
+    const { ml } = attack({ abilities: [], bodySize: 1, random,
+      player: { maxHp: 200, hp, rings: Array.from({ length: ringCount }, () => ({ effect: "desperation_ring" })) } });
+    expect(ml.some(message => message.includes("対象に") && message.includes("ダメージ"))).toBe(true);
+    expect(ml.some(message => message.includes("会心！"))).toBe(critical);
+  },
+);
 
 describe("範囲近接攻撃後の吹き飛ばし", () => {
   it("大型敵へ3発すべて当ててから、武器で1マスだけ吹き飛ばす", () => {

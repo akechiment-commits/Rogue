@@ -8,7 +8,7 @@ import { statusTurns, resolveParalysisHit, withStatusMessageFlush } from "./stat
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { maintainPlayerHaste } from "./actionClock.js";
 import { DRUNK_VOMIT_HUNGER_LOSS, shouldVomit } from "./intoxication.js";
-import { consumeBarrier } from "./utils.js";
+import { consumeBarrier, countEquippedRings } from "./utils.js";
 
 export function advancePlayerUpkeep(player, messages, {
   hasAbility,
@@ -228,7 +228,9 @@ export function advanceForcedTurn(player, messages) {
     return { advanced: true, exitPotAfterTurn: false };
   }
   if (player.slowSkip) {
-    player.slowSkip = false;
+    player.slowSkip = (player.slowRingSkipsRemaining || 0) > 0;
+    if (player.slowSkip) player.slowRingSkipsRemaining--;
+    else delete player.slowRingSkipsRemaining;
     const isEqualSpeedSkip = player._eqSpeedSlowPending || false;
     delete player._eqSpeedSlowPending;
     if (isEqualSpeedSkip) {
@@ -306,13 +308,20 @@ export function advanceEarlyStatusTimers(player, messages) {
 }
 
 /** 行動速度と知覚系の基本状態タイマーを更新する。 */
-export function advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlowAutoAdvance = false }) {
+export function advanceCoreStatusTimers(player, messages, { isSlowAutoAdvance = false } = {}) {
   if ((player.slowTurns || 0) > 0) {
     player.slowTurns--;
     if (player.slowTurns <= 0) messages.push("鈍足が解けた！");
     else if (!isSlowAutoAdvance) player.slowSkip = true;
   }
-  if (hasRingEffect(player, "slow_ring") && !isSlowAutoAdvance) player.slowSkip = true;
+  if (!isSlowAutoAdvance) {
+    const slowRings = countEquippedRings(player, "slow_ring");
+    if (slowRings > 0) {
+      player.slowSkip = true;
+      // slowSkip 自体が最初の1拍を分担する。2個ならさらに2拍スキップする。
+      player.slowRingSkipsRemaining = 2 ** slowRings - 2;
+    }
+  }
   const timedMessages = [
     ["confusedTurns", "混乱が解けた！"],
     ["drunkTurns", "酔いが覚めた！"],
@@ -411,12 +420,11 @@ export function advanceConsumableBuffTimers(player, messages) {
 export function advancePlayerSpeedPhase(player, dungeon, messages, {
   findRoom,
   inMagicSealRoom,
-  hasRingEffect,
   tickBubbleGold,
 }) {
   const isEqualSpeedAutoAdvance = player._eqSpeedAutoAdv || false;
   delete player._eqSpeedAutoAdv;
-  const isSlowAutoAdvance = player._slowAutoAdv || false;
+  const isSlowAutoAdvance = player._slowAutoAdv || isEqualSpeedAutoAdvance;
   delete player._slowAutoAdv;
   const equalSpeedPentacle = !inMagicSealRoom(player.x, player.y, dungeon) && dungeon.pentacles?.find((pentacle) => {
     if (pentacle.kind !== "equal_speed") return false;
@@ -427,7 +435,7 @@ export function advancePlayerSpeedPhase(player, dungeon, messages, {
   if (equalSpeedPentacle?.blessed) {
     maintainPlayerHaste(player, 2);
   }
-  advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlowAutoAdvance });
+  advanceCoreStatusTimers(player, messages, { isSlowAutoAdvance });
   advanceConsumableBuffTimers(player, messages);
   tickBubbleGold(player, messages);
 
@@ -440,7 +448,7 @@ export function advancePlayerSpeedPhase(player, dungeon, messages, {
       if (!equalSpeedPentacle?.blessed) messages.push(wasTriple ? "3倍速が解けた！" : "2倍速が解けた！");
     }
   }
-  if (equalSpeedPentacle?.cursed && !isEqualSpeedAutoAdvance) {
+  if (equalSpeedPentacle?.cursed && !isSlowAutoAdvance) {
     player.slowSkip = true;
     player._eqSpeedSlowPending = true;
   }

@@ -431,6 +431,7 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.petrifiedTurns = 0;
   entity.slowTurns = 0;
   entity.slowSkip = false;
+  delete entity.slowRingSkipsRemaining;
   entity.confusedTurns = 0;
   entity.drunkTurns = 0;
   entity.drunkenTurns = 0;

@@ -1,12 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolveTurnHazards } from "../turnHazards.js";
-import { doTimeBombExplosion } from "../items.js";
+import { doExplosion, doTimeBombExplosion } from "../items.js";
 import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 function dependencies(overrides = {}) {
   return {
-    hasRingEffect: () => false,
     doExplosion: () => {},
     runMineExplosion: () => {},
     doTimeBombExplosion: () => {},
@@ -19,6 +18,18 @@ function dependencies(overrides = {}) {
 }
 
 describe("resolveTurnHazards", () => {
+  it.each([[[0.04, 0.03], 2, 7], [[0.05, 0.03], 1, 25], [[0.05, 0.9], 0, 100]])(
+    "爆発の指輪2個を同じターンに独立判定する（乱数%j）", (rolls, blasts, hp) => {
+      const dungeon = makeEmptyDg();
+      const player = makePlayer({ rings: [{ effect: "explode_ring" }, { effect: "explode_ring" }] });
+      const random = vi.fn().mockReturnValueOnce(rolls[0]).mockReturnValueOnce(rolls[1]);
+      const messages = [];
+      resolveTurnHazards({ dungeon }, player, messages, dependencies({ doExplosion, random }));
+      expect(random).toHaveBeenCalledTimes(2);
+      expect(messages.filter(message => message === "指輪が爆発した！")).toHaveLength(blasts);
+      expect(player.hp).toBe(hp);
+    },
+  );
   it("期限到達の爆弾と誘爆した爆弾を、それぞれ1回だけ爆発させる", () => {
     const first = { x: 5, y: 5, turnsLeft: 1 };
     const second = { x: 6, y: 5, turnsLeft: 1 };

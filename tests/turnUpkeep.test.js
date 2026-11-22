@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "../turnUpkeep.js";
 import { applyPlayerPoison } from "../statusDuration.js";
+import { beginPlayerTurnClock } from "../actionClock.js";
+import { calcPlayerDefense } from "../utils.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -371,6 +373,34 @@ describe("advancePlayerSpeedPhase", () => {
     });
     return messages;
   }
+
+  it.each([[0, 0], [1, 1], [2, 3]])("鈍亀%d個で、操作後に%d拍を消費して次の操作へ進む", (ringCount, skips) => {
+    const player = makePlayer({ def: 10, rings: Array.from({ length: ringCount }, () => ({ effect: "slow_ring" })) });
+    const messages = [];
+    beginPlayerTurnClock(player);
+    advanceSpeed(player, null, messages);
+    for (let i = 0; i < skips; i++) {
+      expect(hasForcedTurn(player)).toBe(true);
+      advanceForcedTurn(player, messages);
+      beginPlayerTurnClock(player, { idleBeat: true });
+      advanceSpeed(player, null, messages);
+    }
+    expect(hasForcedTurn(player)).toBe(false);
+    expect(player.actionTime).toBe(12 * (1 + skips));
+    expect(calcPlayerDefense(player)).toBe(10 * (1 + skips));
+  });
+
+  it("鈍亀2個と呪われた等速の魔方陣で、スキップが連鎖し続けない", () => {
+    const player = makePlayer({ rings: [{ effect: "slow_ring" }, { effect: "slow_ring" }] });
+    const pentacle = { kind: "equal_speed", cursed: true };
+    advanceSpeed(player, pentacle);
+    for (let i = 0; i < 3; i++) {
+      expect(hasForcedTurn(player)).toBe(true);
+      advanceForcedTurn(player, []);
+      advanceSpeed(player, pentacle);
+    }
+    expect(hasForcedTurn(player)).toBe(false);
+  });
 
   it("祝福された等速の魔方陣は倍速を毎ターン維持する", () => {
     const player = makePlayer({ x: 5, y: 5, hasteTurns: 0 });

@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { dungeonScoreLabel } from "./adventureScores.js";
 import { isCarryInRun } from "./rankingClient.js";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, calcPlayerDefense, countEquippedRings, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -2505,7 +2505,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         advancePlayerSpeedPhase(p, st.dungeon, ml, {
           findRoom,
           inMagicSealRoom,
-          hasRingEffect,
           tickBubbleGold,
         });
       }
@@ -2539,7 +2538,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const { spinFired: _spinFired } = _timeStopActive
         ? { spinFired: false }
         : resolveTurnHazards(st, p, ml, {
-            hasRingEffect,
             doExplosion,
             runMineExplosion,
             doTimeBombExplosion,
@@ -3382,10 +3380,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 d *= _criticalDamageMultiplier;
                 crit = true;
               }
-              /* 背水の指輪：HP低下で会心率上昇（HP20%以下で必ず会心、75%以下から発動） */
-              if (!crit && hasRingEffect(p, "desperation_ring")) {
-                const _despRatio = p.hp / p.maxHp;
-                const _despChance = _despRatio <= 0.2 ? 1.0 : Math.max(0, (0.75 - _despRatio) / 0.55);
+              const desperationRings = countEquippedRings(p, "desperation_ring");
+              if (!crit && desperationRings > 0) {
+                const hpPercent = 100 * p.hp / p.maxHp;
+                const _despChance = Math.max(0, Math.min(1, (75 - hpPercent) * desperationRings / 55));
                 if (Math.random() < _despChance) { d *= _criticalDamageMultiplier; crit = true; }
               }
               /* 炎属性武器：fire弱点×(1.5/2)、油まみれ×(1.5/2)、火ダルマ×0.5 */
@@ -3482,9 +3480,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               triggerMushroomCounterSpore(attackMon, dg, p, ml);
-              /* 吸血の指輪：通常の敵には与ダメの1/8を吸収し、アンデッドには反動を受ける */
-              if (hasRingEffect(p, "vampire_ring")) {
-                const _vamp = Math.max(1, Math.floor(d / 8));
+              const vampireRings = countEquippedRings(p, "vampire_ring");
+              if (vampireRings > 0) {
+                const _vamp = Math.max(1, Math.floor(d / 8)) * vampireRings;
                 if (attackMon.kind === "undead") {
                   p.deathCause = "吸血の指輪がアンデッドに反発したことにより";
                   p.hp -= _vamp;
@@ -7244,7 +7242,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         </span>{" "}
         <span>
           防:
-          <span style={{ color: "#08f" }}>{Math.floor((p.def + (p.armor?.def || 0) + (p.armor?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="defense_ring"?s+(r.plus||0):s,0) + (p.weapon?.ability==="def_bonus"||p.weapon?.abilities?.includes("def_bonus") ? 5 : 0) + ((p.misoDefTurns || 0) > 0 ? 8 : 0)) * ((p.rings || []).some(r => r.effect === "slow_ring") ? 2 : 1) * playerDopingMultiplier(p))}</span>
+          <span style={{ color: "#08f" }}>{calcPlayerDefense(p)}</span>
         </span>{" "}
         <span>
           食:

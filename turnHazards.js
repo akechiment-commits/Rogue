@@ -3,10 +3,10 @@ import { advanceMeteors } from './meteor.js';
 import { advancePetroBreaths } from './petroBreath.js';
 import { advanceCaswacks } from './ohplenty.js';
 import { advanceOmegaShinryuAttacks } from './omegaShinryu.js';
+import { countEquippedRings } from "./utils.js";
 
 /** 敵移動後・敵攻撃前に発火する罠、爆発、時限爆弾を解決する。 */
 export function resolveTurnHazards(state, player, messages, {
-  hasRingEffect,
   random = Math.random,
   doExplosion,
   runMineExplosion,
@@ -24,9 +24,16 @@ export function resolveTurnHazards(state, player, messages, {
   if (tickTimedEffects) advancePetroBreaths(dungeon, player, messages, lu, worldTicks);
   if (tickTimedEffects) advanceCaswacks(dungeon, player, messages, lu, worldTicks);
   if (tickTimedEffects) advanceOmegaShinryuAttacks(dungeon, player, messages, lu, worldTicks);
-  if (tickTimedEffects && player.hp > 0 && hasRingEffect(player, "explode_ring") && random() < 0.05) {
-    messages.push("指輪が爆発した！");
-    doExplosion(player.x, player.y, dungeon, player, messages, getItemName, "爆発の指輪", null, null, false, true);
+  if (tickTimedEffects && player.hp > 0) {
+    let blasts = 0;
+    const rings = countEquippedRings(player, "explode_ring");
+    for (let i = 0; i < rings; i++) {
+      if (random() < 0.05) blasts++;
+    }
+    for (let i = 0; i < blasts && player.hp > 0 && state.dungeon === dungeon; i++) {
+      messages.push("指輪が爆発した！");
+      doExplosion(player.x, player.y, dungeon, player, messages, getItemName, "爆発の指輪", null, null, false, true);
+    }
   }
 
   if (!state._pendingMineExplosion && dungeon._pendingMineExplosion) {

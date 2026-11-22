@@ -28,6 +28,16 @@ describe("junk rings helpers", () => {
     expect(calcShopBuyPrice({ rings: [{ effect: "markup_ring" }, { effect: "bargain_ring" }] }, 100)).toBe(105);
   });
 
+  it("同じ店用リングを2個装備すると半額または2.25倍で表示・請求される", () => {
+    const bargain = { rings: [{ effect: "bargain_ring" }, { effect: "bargain_ring" }] };
+    const markup = { rings: [{ effect: "markup_ring" }, { effect: "markup_ring" }] };
+    expect(calcShopBuyPrice(bargain, 1000)).toBe(500);
+    expect(calcShopBuyPrice(bargain, 501)).toBe(251);
+    expect(calcShopBuyPrice(markup, 1000)).toBe(2250);
+    expect(shopPriceNote(bargain)).toContain("5割引");
+    expect(shopPriceNote(markup)).toContain("2.25倍");
+  });
+
   it("shopPriceNote", () => {
     expect(shopPriceNote({ rings: [] })).toBe("");
     expect(shopPriceNote({ rings: [{ effect: "bargain_ring" }] })).toContain("3割引");

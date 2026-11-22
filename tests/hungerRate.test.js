@@ -67,4 +67,10 @@ describe("calcHungerDrainRate", () => {
       rings: [{ effect: "stomach_ring" }, { effect: "hunger_ring" }],
     })).toBeCloseTo(1.5);
   });
+
+  it("空腹の指輪2個は軽減後を4倍にする", () => {
+    const rings = [{ effect: "hunger_ring" }, { effect: "hunger_ring" }];
+    expect(calcHungerDrainRate({ rings })).toBe(4);
+    expect(calcHungerDrainRate({ rings, armor: { ability: "slow_hunger" }, butterHungerTurns: 10 })).toBe(1.5);
+  });
 });
