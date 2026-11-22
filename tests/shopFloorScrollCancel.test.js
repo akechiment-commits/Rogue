@@ -13,48 +13,68 @@ import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-function openFloorScroll({ debt = 0, precharged = false, bargain = false } = {}) {
+function floorActionFixture({ debt = 0, precharged = false, bargain = false, effect = "identify", floorItem, inventory, maxInventory } = {}) {
   const room = { x: 4, y: 4, w: 3, h: 3 };
   const shop = { id: "shop", shopkeeperId: "keeper", room, unpaidTotal: debt };
   const keeper = { id: "keeper", type: "shopkeeper", state: debt ? "blocking" : "friendly", hp: 100, x: 6, y: 4 };
-  const scroll = { id: "scroll", name: "識別の巻物", type: "scroll", effect: "identify", x: 5, y: 5,
-    shopPrice: 250, _shopId: shop.id, ...(precharged ? { _shopCharge: debt } : {}) };
+  const scroll = { id: "scroll", name: "巻物", type: "scroll", effect, x: 5, y: 5,
+    shopPrice: 250, _shopId: shop.id, ...(precharged ? { _shopCharge: debt } : {}), ...floorItem };
   const gear = { id: "gear", name: "短剣", type: "weapon", atk: 4 };
   const dungeon = makeEmptyDg({ shop, rooms: [room], items: [scroll], monsters: [keeper] });
-  const player = makePlayer({ x: 5, y: 5, inventory: [gear], gold: 1000,
+  const player = makePlayer({ x: 5, y: 5, inventory: inventory || [gear], maxInventory, gold: 1000,
     rings: bargain ? [{ type: "ring", effect: "bargain_ring" }] : [] });
   const sr = { current: { player, dungeon, ident: new Set(["s:identify"]), fakeNames: {} } };
   let dialog = null;
   const noop = () => {};
-  const setIdentifyMode = current => { dialog = current; };
   const identifyCancelRef = { current: null };
-  const endTurn = vi.fn();
-  const setters = { setMsgs: vi.fn(), setGs: noop, setSelIdx: noop, setShowInv: noop, setShowDesc: noop, setIdentifyMode, setInvMenuSel: noop };
-  const actions = useItemActions({ sr, ...setters, endTurn, dnameRef: it => it.name });
+  const modalTypeRef = { current: null }, throwModeRef = { current: null }, floorThrowReturnRef = { current: null };
   const source = readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
+  const stateStart = source.indexOf("  const setIdentifyMode =");
+  const stateEnd = source.indexOf("  const setNicknameMode", stateStart);
+  const throwStart = source.indexOf("  const setThrowMode =");
+  const throwEnd = source.indexOf("  /* ── modal state", throwStart);
+  const dispatchModal = action => {
+    modalTypeRef.current = action.modal ?? null;
+    dialog = action.data ?? null;
+  };
+  const { setIdentifyMode, setThrowMode } = new Function("identifyCancelRef", "modalTypeRef", "dispatchModal",
+    "throwModeRef", "floorThrowReturnRef", "_setThrowMode",
+    `${source.slice(stateStart, stateEnd)}\n${source.slice(throwStart, throwEnd)}\nreturn { setIdentifyMode, setThrowMode };`,
+  )(identifyCancelRef, modalTypeRef, dispatchModal, throwModeRef, floorThrowReturnRef, noop);
+  const endTurn = vi.fn();
+  const setters = { setMsgs: vi.fn(), setGs: vi.fn(), setSelIdx: noop, setShowInv: noop, setShowDesc: noop,
+    setIdentifyMode, setThrowMode, setInvMenuSel: noop };
+  const actions = useItemActions({ sr, ...setters, endTurn, dnameRef: it => it.name });
   const start = source.indexOf("  const _chargeShopFloorItem =");
   const end = source.indexOf("  const _doFloorWaveWand =", start);
   const deps = { sr, ...setters, hasForcedTurn, getShops, applyShopUnpaidCharge, shopPriceNote, itemDisplayName,
-    clearDimensionalVaultItemCounter, trackItem: noop, identifyCancelRef };
+    clearDimensionalVaultItemCounter, trackItem: noop, identifyCancelRef, modalTypeRef, throwModeRef, floorThrowReturnRef };
   const floorItemAction = new Function(...Object.keys(deps), `${source.slice(start, end)}; return _doFloorItemAction;`)(...Object.values(deps));
-  const invActRef = { current: { use: actions.doUseItem, floorItemAction } };
+  const invActRef = { current: { use: actions.doUseItem, throw: actions.doThrow, floorItemAction } };
   const listeners = {};
   vi.stubGlobal("window", { addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: noop });
   vi.spyOn(soundEngine, "unlock").mockImplementation(noop);
   const press = (key, options) => {
     effects.length = 0;
-    useKeyHandler({ sr, gs: sr.current, ...setters, invActRef, identifyCancelRef, endTurn,
+    useKeyHandler({ sr, gs: sr.current, ...setters, invActRef, identifyCancelRef, endTurn, identifyMode: dialog, throwMode: throwModeRef.current,
       shiftRef: { current: false }, aRef: { current: false }, arrowHeldRef: { current: {} }, execRef: { current: null }, ...options });
     effects.splice(0).forEach(effect => effect());
     listeners.keydown({ key, code: key, preventDefault: noop });
   };
-  press("Enter", { showInv: true, invPage: 1, selIdx: 0, invMenuSel: 1 });
-  expect(dialog?.mode).toBe("identify");
+  const floorMenu = invMenuSel => press("Enter", { showInv: true, invPage: 1, selIdx: 0, invMenuSel });
   const choose = key => {
     press(key, { identifyMode: dialog });
     expect(dialog).toBeNull();
   };
-  return { shop, keeper, scroll, gear, dungeon, player, endTurn, choose };
+  return { shop, keeper, scroll, gear, dungeon, player, endTurn, choose, floorMenu, press, getDialog: () => dialog,
+    throwModeRef, identifyCancelRef, floorThrowReturnRef, modalTypeRef, sr, setters };
+}
+
+function openFloorScroll(options) {
+  const fixture = floorActionFixture(options);
+  fixture.floorMenu(1);
+  expect(fixture.getDialog()?.mode).toBe(options?.mode || options?.effect || "identify");
+  return fixture;
 }
 
 it("店の巻物を足元から読んでキャンセルすると商品が戻り、未払いや泥棒扱いが残らない", () => {
@@ -90,4 +110,49 @@ it("効果の対象を確定した場合は巻物を消費し、代金を請求�
   expect(player.inventory).toEqual([gear]);
   expect(gear.fullIdent).toBe(true);
   expect(endTurn).toHaveBeenCalledOnce();
+});
+
+const targetedScrolls = ["duplicate", "sell_item", "transform_item", "forge_item", "pot_extract", "weapon_up", "armor_up"];
+const unknownWeapon = () => ({ id: "sword", type: "weapon", name: "短剣", atk: 4 });
+
+it.each(targetedScrolls)("%sの巻物もキャンセルで元の場所と価格に戻る", effect => {
+  const inventory = [unknownWeapon(), { type: "armor", name: "皮の服", def: 2 },
+    { type: "pot", name: "保存の壺", potEffect: "none", contents: [unknownWeapon()] }];
+  const { shop, keeper, scroll, choose, dungeon, player } = openFloorScroll({ effect, inventory });
+  choose("Escape");
+  expect(shop.unpaidTotal).toBe(0);
+  expect(keeper.state).toBe("friendly");
+  expect(dungeon.items).toEqual([scroll]);
+  expect(player.inventory).not.toContain(scroll);
+});
+
+it("別の巻物をキャンセルしても足元から装備した武器を床に戻さない", () => {
+  const inventory = [{ id: "owned", type: "scroll", name: "識別の巻物", effect: "identify" },
+    { id: "unknown", type: "ring", name: "力の指輪", effect: "power_ring" }];
+  const { scroll: weapon, choose, dungeon, player, floorMenu, press, identifyCancelRef } = floorActionFixture({
+    floorItem: { ...unknownWeapon(), shopPrice: null, _shopId: null }, inventory,
+  });
+  floorMenu(1);
+  expect(player.weapon).toBe(weapon);
+  expect(identifyCancelRef.current).toBeNull();
+  press("Enter", { showInv: true, invPage: 0, selIdx: 0, invMenuSel: 0 });
+  choose("Escape");
+  expect(player.weapon).toBe(weapon);
+  expect(player.inventory).toContain(weapon);
+  expect(dungeon.items).toEqual([]);
+});
+
+it("所持品が満杯で足元の道具の投擲をキャンセルすると棚に戻る", () => {
+  const { scroll: apple, dungeon, player, shop, keeper, floorMenu, press, throwModeRef, endTurn } = floorActionFixture({
+    floorItem: { id: "apple", type: "food", name: "リンゴ" }, maxInventory: 1,
+  });
+  floorMenu(2);
+  expect(throwModeRef.current?.mode).toBe("throw");
+  press("Escape");
+  expect(throwModeRef.current).toBeNull();
+  expect(dungeon.items).toEqual([apple]);
+  expect(player.inventory).toHaveLength(1);
+  expect(shop.unpaidTotal).toBe(0);
+  expect(keeper.state).toBe("friendly");
+  expect(endTurn).not.toHaveBeenCalled();
 });

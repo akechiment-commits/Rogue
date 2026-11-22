@@ -230,11 +230,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [showDesc, setShowDesc] = useState(null);
   const [throwMode, _setThrowMode] = useState(null);
   const throwModeRef = useRef(null);
+  const floorThrowReturnRef = useRef(null);
   throwModeRef.current = throwMode;
   const setThrowMode = (v) => {
     const next = typeof v === "function" ? v(throwModeRef.current) : v;
     throwModeRef.current = next;
     _setThrowMode(next);
+    if (next === null && floorThrowReturnRef.current) {
+      const restore = floorThrowReturnRef.current;
+      floorThrowReturnRef.current = null;
+      restore();
+    }
   };
   /* ── modal state (mutually exclusive) via useReducer ── */
   const [modal, _dispatchModal] = useReducer(modalReducer, MODAL_INIT);
@@ -377,7 +383,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setLookMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'look', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setMapMode       = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'map', data: true }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setFloorSelectMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'floorSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
-  const setIdentifyMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'identify', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setIdentifyMode = (v) => {
+    if (!v || modalTypeRef.current !== "identify") identifyCancelRef.current = null;
+    return v ? dispatchModal({ type: 'SET_MODAL', modal: 'identify', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  };
   const setNicknameMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'nickname', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const debugSpellMode   = modal.type === 'debugSpell'   ? modal.data : null;
   const setDebugSpellMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'debugSpell', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
@@ -6741,31 +6750,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     /* 店のアイテムを床から直接使う場合は代金を請求 */
     const cancelShopCharge = _chargeShopFloorItem(item, _p, _dg, s);
     const wasWallEmbedded = !!item.wallEmbedded;
+    const { vaultTurnsLeft, dimensionalVaultId } = item;
     delete item.wallEmbedded;
     _dg.items = _dg.items.filter(i => i !== item);
     clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
     trackItem(item);
     _p.inventory.push(item);
-    if (keepInInventory) {
-      /* 選択ダイアログがキャンセルされたとき巻物を床に返すクリーンアップ */
-      identifyCancelRef.current = () => {
-        const _si2 = sr.current.player.inventory.indexOf(item);
-        if (_si2 !== -1) {
-          sr.current.player.inventory.splice(_si2, 1);
-          if (wasWallEmbedded) item.wallEmbedded = true;
-          sr.current.dungeon.items.push(item);
-          cancelShopCharge?.();
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
-        }
-        identifyCancelRef.current = null;
-      };
-    }
     /* 足元の薬を使う場合は空き瓶を足元に置くフラグを立てる */
     if (item.type === 'potion') floorPotRef.current = true;
     /* 足元の矢/石を射る場合はフロア戻しrefにセット */
     if (item.type === 'arrow') floorArrowRef.current = item;
     actionFn(_idx);
+    const restoreFloorItem = () => {
+      const index = _p.inventory.indexOf(item);
+      if (index === -1) return;
+      _p.inventory.splice(index, 1);
+      if (wasWallEmbedded) item.wallEmbedded = true;
+      if (vaultTurnsLeft != null) item.vaultTurnsLeft = vaultTurnsLeft;
+      if (dimensionalVaultId != null) item.dimensionalVaultId = dimensionalVaultId;
+      _dg.items.push(item);
+      cancelShopCharge?.();
+      sr.current = { ...sr.current }; setGs({ ...sr.current });
+    };
     /* 足元薬の空き瓶を床に配置 */
     if (item.type === 'potion') {
       const _bottle = floorPotRef.current;
@@ -6781,10 +6788,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         placeItemAt(_dg, _p.x, _p.y, item, _ml2, _ft2, 0, _p);
         if (_ml2.length) setMsgs(prev => [...prev.slice(-80), ..._ml2]);
       }
-      identifyCancelRef.current = null;
-    } else if (_p.inventory.indexOf(item) === -1) {
-      /* actionFnが即時消費した場合（選択ダイアログなし）はキャンセル不要 */
-      identifyCancelRef.current = null;
+    } else if (_p.inventory.includes(item)) {
+      if (throwModeRef.current?.idx === _idx && throwModeRef.current.mode === "throw" && item.type !== "arrow") {
+        floorThrowReturnRef.current = restoreFloorItem;
+      } else if (item.type === "scroll" && modalTypeRef.current === "identify") {
+        identifyCancelRef.current = restoreFloorItem;
+      } else if (item.type === "scroll") {
+        // 暗闇や封印で読めなかった巻物は足元に残す。
+        restoreFloorItem();
+      }
     }
   };
   const _doFloorWaveWand = (item) => {
