@@ -7,9 +7,10 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { applyShopUnpaidCharge, checkShopTheft, shopPriceNote } from "../items.js";
 import { itemDisplayName } from "../render.js";
 import { hasForcedTurn } from "../turnUpkeep.js";
-import { getShops, clearDimensionalVaultItemCounter } from "../utils.js";
+import { getShops, clearDimensionalVaultItemCounter, MH, MW } from "../utils.js";
 import { soundEngine } from "../soundEngine.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { saveGameState, loadGameState } from "../GameSave.js";
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -20,7 +21,9 @@ function floorActionFixture({ debt = 0, precharged = false, bargain = false, eff
   const scroll = { id: "scroll", name: "巻物", type: "scroll", effect, x: 5, y: 5,
     shopPrice: 250, _shopId: shop.id, ...(precharged ? { _shopCharge: debt } : {}), ...floorItem };
   const gear = { id: "gear", name: "短剣", type: "weapon", atk: 4 };
-  const dungeon = makeEmptyDg({ shop, rooms: [room], items: [scroll], monsters: [keeper] });
+  const visibility = () => Array.from({ length: MH }, () => Array(MW).fill(false));
+  const dungeon = makeEmptyDg({ shop, rooms: [room], items: [scroll], monsters: [keeper],
+    visible: visibility(), explored: visibility() });
   const player = makePlayer({ x: 5, y: 5, inventory: inventory || [gear], maxInventory, gold: 1000,
     rings: bargain ? [{ type: "ring", effect: "bargain_ring" }] : [] });
   const sr = { current: { player, dungeon, ident: new Set(["s:identify"]), fakeNames: {} } };
@@ -66,8 +69,20 @@ function floorActionFixture({ debt = 0, precharged = false, bargain = false, eff
     press(key, { identifyMode: dialog });
     expect(dialog).toBeNull();
   };
+  const autosaveStart = source.indexOf("  useEffect(() => {", source.indexOf("/* ── 自動セーブ:"));
+  const autosaveEnd = source.indexOf("\n  useEffect(", autosaveStart + 1);
+  const autosave = async () => {
+    let pending;
+    const deps = { sr, gs: sr.current, dead: false, showEnding: false, saveStoppedRef: { current: false },
+      modalTypeRef, identifyCancelRef, floorThrowReturnRef, runTimerRef: { current: null },
+      msgsRef: { current: [] }, dungeonConfig: null, getDiscoveries: () => null, saveFailedRef: { current: false },
+      setMsgs: setters.setMsgs, useEffect: effect => effect(),
+      saveGameState: (...args) => { pending = saveGameState(...args); return pending; } };
+    new Function(...Object.keys(deps), source.slice(autosaveStart, autosaveEnd))(...Object.values(deps));
+    return pending;
+  };
   return { shop, keeper, scroll, gear, dungeon, player, endTurn, choose, floorMenu, press, getDialog: () => dialog,
-    throwModeRef, identifyCancelRef, floorThrowReturnRef, modalTypeRef, sr, setters };
+    throwModeRef, identifyCancelRef, autosave };
 }
 
 function openFloorScroll(options) {
@@ -114,16 +129,38 @@ it("効果の対象を確定した場合は巻物を消費し、代金を請求�
 
 const targetedScrolls = ["duplicate", "sell_item", "transform_item", "forge_item", "pot_extract", "weapon_up", "armor_up"];
 const unknownWeapon = () => ({ id: "sword", type: "weapon", name: "短剣", atk: 4 });
+const scrollTargets = () => [unknownWeapon(), { type: "armor", name: "皮の服", def: 2 },
+  { type: "pot", name: "保存の壺", potEffect: "none", contents: [{ type: "food", name: "リンゴ" }] }];
 
 it.each(targetedScrolls)("%sの巻物もキャンセルで元の場所と価格に戻る", effect => {
-  const inventory = [unknownWeapon(), { type: "armor", name: "皮の服", def: 2 },
-    { type: "pot", name: "保存の壺", potEffect: "none", contents: [unknownWeapon()] }];
-  const { shop, keeper, scroll, choose, dungeon, player } = openFloorScroll({ effect, inventory });
+  const { shop, keeper, scroll, choose, dungeon, player } = openFloorScroll({ effect, inventory: scrollTargets() });
   choose("Escape");
   expect(shop.unpaidTotal).toBe(0);
   expect(keeper.state).toBe("friendly");
   expect(dungeon.items).toEqual([scroll]);
   expect(player.inventory).not.toContain(scroll);
+});
+
+it.each(["identify", ...targetedScrolls])("%sの対象選択中は仮移動・請求を自動セーブしない", async effect => {
+  const storage = new Map();
+  vi.stubGlobal("localStorage", { getItem: key => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) });
+  const { scroll, autosave, floorMenu, choose, getDialog } = floorActionFixture({ effect, inventory: scrollTargets() });
+  expect(await autosave()).toBe(true);
+  floorMenu(1);
+  expect(getDialog()?.mode).toBe(effect);
+  expect(await autosave()).toBeUndefined();
+  const resumed = await loadGameState();
+  expect(resumed.dungeon.items.map(item => item.id)).toEqual([scroll.id]);
+  expect(resumed.dungeon.shop.unpaidTotal).toBe(0);
+  expect(resumed.player.inventory.map(item => item.id)).not.toContain(scroll.id);
+
+  choose("Enter");
+  expect(await autosave()).toBe(true);
+  const afterUse = await loadGameState();
+  expect(afterUse.dungeon.items.map(item => item.id)).not.toContain(scroll.id);
+  expect(afterUse.player.inventory.map(item => item.id)).not.toContain(scroll.id);
+  expect(afterUse.dungeon.shop.unpaidTotal).toBe(250);
 });
 
 it("別の巻物をキャンセルしても足元から装備した武器を床に戻さない", () => {

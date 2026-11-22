@@ -1056,6 +1056,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* ── 自動セーブ: ゲーム状態が変わるたびに中断セーブを更新 ── */
   useEffect(() => {
     if (!gs || dead || showEnding || saveStoppedRef.current) return;
+    // 対象・方向を選ぶ間だけ所持品へ移した道具は、中断セーブに書き込まない。
+    if ((modalTypeRef.current === "identify" && identifyCancelRef.current) || floorThrowReturnRef.current) return;
     if (sr.current && runTimerRef.current) {
       sr.current.runActiveMs = runTimerRef.current.getElapsedMs();
     }
@@ -7016,13 +7018,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     potReturnRef.current = staged;
     const tmpIdx = staged.tmpIdx;
     if (actionId === "use") {
-      identifyCancelRef.current = () => {
-        flushPotReturn();
-        identifyCancelRef.current = null;
-      };
       doUseItem(tmpIdx);
-      if (modalTypeRef.current !== "identify") {
-        identifyCancelRef.current = null;
+      if (modalTypeRef.current === "identify") {
+        identifyCancelRef.current = () => {
+          flushPotReturn();
+          identifyCancelRef.current = null;
+        };
       }
     } else if (actionId === "readSpellbook") {
       doReadSpellbook(tmpIdx);
