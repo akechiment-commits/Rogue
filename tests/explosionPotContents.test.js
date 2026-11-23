@@ -1,9 +1,52 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { doExplosion, doGunpowderExplosion, doTimeBombExplosion } from "../items.js";
+import { doExplosion, doGunpowderExplosion, doTimeBombExplosion, killMonster, runMineExplosion } from "../items.js";
 import "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => vi.restoreAllMocks());
+
+it.each(["mine", "gunpowder", "timebomb", "pentacle"])(
+  "%sは誘爆を終えてから撃破した敵の杖・薬・壺・火薬壺を落とす", route => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const loot = [
+      { id: "wand", name: "封印の杖", type: "wand", effect: "seal", charges: 2 },
+      { id: "potion", name: "回復薬", type: "potion", effect: "heal", value: 10 },
+      { id: "pot", name: "保存の壺", type: "pot", potEffect: "none", capacity: 1,
+        contents: [{ id: "food", type: "food", name: "パン" }] },
+      { id: "gunpowder", name: "戦利品の火薬壺", type: "pot", potEffect: "gunpowder", capacity: 1, contents: [] },
+    ];
+    const monsters = loot.map((item, index) => ({
+      id: `monster-${index}`, name: `敵${index}`, hp: 5, maxHp: 5, exp: 1,
+      x: 5 + [0, 1, 0, -1][index], y: 5 + [0, 0, 1, 0][index],
+      ...(index === 1 ? { baseKind: "gelcube", heldItems: [item] } : { carriedItem: item }),
+    }));
+    const floorScroll = { id: "floor-scroll", name: "地図の巻物", type: "scroll", x: 5, y: 4 };
+    const floorPowder = { id: "floor-powder", name: "床の火薬壺", type: "pot", potEffect: "gunpowder", x: 4, y: 4 };
+    const chainBomb = { id: "chain", name: "時限爆弾の罠", effect: "time_bomb", x: 6, y: 6 };
+    const dungeon = makeEmptyDg({ monsters: [...monsters], items: [floorScroll, floorPowder], traps: [chainBomb] });
+    const player = makePlayer({ x: 20, y: 20, depth: 1, exp: 0 });
+    const messages = [];
+
+    if (route === "mine") runMineExplosion(dungeon, { x: 5, y: 5, name: "地雷" }, player, messages, null);
+    else if (route === "gunpowder") doGunpowderExplosion(5, 5, dungeon, player, messages, null);
+    else if (route === "timebomb") doTimeBombExplosion(5, 5, dungeon, player, messages, null);
+    else {
+      dungeon.pentacles.push({ name: "爆発の魔方陣", kind: "explosion", x: 5, y: 5 });
+      killMonster(monsters[0], dungeon, player, messages, null);
+    }
+
+    expect(dungeon.monsters).toEqual([]);
+    expect(dungeon.items).toHaveLength(loot.length);
+    expect(dungeon.items).toEqual(expect.arrayContaining(loot));
+    expect(loot[2].contents).toMatchObject([{ id: "food" }]);
+    expect(messages).toContain("床の火薬壺が爆発した！5×5マスに爆風！");
+    expect(messages).toContain("時限爆弾の罠が誘爆した！");
+    expect(messages.some(message => message.includes("戦利品の火薬壺が爆発した"))).toBe(false);
+    expect(messages.indexOf("時限爆弾の罠が誘爆した！")).toBeLessThan(
+      messages.findIndex(message => message.includes("封印の杖を落とした！")),
+    );
+  },
+);
 
 function breakPotBesideMine(route, playerOverrides = {}, withSibling = false) {
   vi.spyOn(Math, "random").mockReturnValue(0.99);

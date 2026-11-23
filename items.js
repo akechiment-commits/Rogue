@@ -2363,6 +2363,33 @@ function _explosionBreakPot(pot, x, y, dg, p, ml, luFn, nameFn, blasted) {
  */
 let _explosionChainDepth = 0;
 
+const explosionLoot = new WeakMap();
+
+function withDeferredExplosionLoot(dungeon, explode) {
+  // Indirect explosions on the same floor share the parent explosion's drops.
+  if (explosionLoot.has(dungeon)) return explode();
+  const drops = [];
+  explosionLoot.set(dungeon, drops);
+  try {
+    return explode();
+  } finally {
+    explosionLoot.delete(dungeon);
+    for (const drop of drops) drop();
+  }
+}
+
+function placeMonsterLoot(dungeon, player, drop) {
+  const drops = explosionLoot.get(dungeon);
+  if (!drops) return drop(player, player);
+  const lootPlayer = player && {
+    depth: player.depth,
+    dungeonType: player.dungeonType,
+    luckTurns: player.luckTurns,
+    unluckTurns: player.unluckTurns,
+  };
+  drops.push(() => drop(player?.depth === lootPlayer?.depth ? player : null, lootPlayer));
+}
+
 function fireBreakFloorPotion(item, x, y, dg, p, ml, luFn, nameFn = null, killerMon = null) {
   if (!item || !dg?.items?.includes(item)) return false;
   if (isItemProtected(item)) {
@@ -2433,7 +2460,8 @@ export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = 
 }
 
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
-  return withLargeMonsterDamageEvent(newDamageEventToken("explosion"), () => _doExplosionInner(cx, cy, dg, p, ml, nameFn, srcLabel, excludeItem, luFn, proportional, ringExplosion, mineExplosion, noExpKills, options));
+  return withDeferredExplosionLoot(dg, () => withLargeMonsterDamageEvent(newDamageEventToken("explosion"),
+    () => _doExplosionInner(cx, cy, dg, p, ml, nameFn, srcLabel, excludeItem, luFn, proportional, ringExplosion, mineExplosion, noExpKills, options)));
 }
 
 function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
@@ -2721,7 +2749,8 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
 /** 火薬壺の爆発処理。中心から半径2マス（5×5=25マス）を対象にする。連鎖爆発あり。 */
 let _gunpowderDepth = 0;
 export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺", killerMon = null, context = {}) {
-  return withLargeMonsterDamageEvent(newDamageEventToken("gunpowder"), () => _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel, killerMon, context));
+  return withDeferredExplosionLoot(dg, () => withLargeMonsterDamageEvent(newDamageEventToken("gunpowder"),
+    () => _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel, killerMon, context)));
 }
 
 function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺", killerMon = null, context = {}) {
@@ -2940,7 +2969,8 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
  * 地雷・火薬壺を連鎖爆発させる。
  */
 export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null, options = {}) {
-  return withLargeMonsterDamageEvent(newDamageEventToken("timebomb"), () => _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn, options));
+  return withDeferredExplosionLoot(dg, () => withLargeMonsterDamageEvent(newDamageEventToken("timebomb"),
+    () => _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn, options)));
 }
 
 function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, options = {}) {
@@ -3247,8 +3277,10 @@ export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
     }
   }
   if (chainMsg) ml.push(chainMsg);
-  doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true, true);
-  if (trap) maybeBreakTrapAfterStep(trap, dg, ml, { p });
+  withDeferredExplosionLoot(dg, () => {
+    doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true, true);
+    if (trap) maybeBreakTrapAfterStep(trap, dg, ml, { p });
+  });
   return true;
 }
 
@@ -3801,13 +3833,15 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は爆発で消し飛んだ！`);
-      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true, true, { chainExcludeTrap: trap });
-      /* 地雷を直接起動したアイテムは爆発で消費する。
-         重力などの内部トリガーと、罠を別の罠へ移す処理では対象外にする。 */
-      if (item && item !== trap && !item._ephemeralTrapTrigger && Array.isArray(dg.items)) {
-        dg.items = dg.items.filter(it => it !== item);
-      }
-      maybeBreakTrapAfterStep(trap, dg, ml, { p });
+      withDeferredExplosionLoot(dg, () => {
+        doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true, true, { chainExcludeTrap: trap });
+        /* 地雷を直接起動したアイテムは爆発で消費する。
+           重力などの内部トリガーと、罠を別の罠へ移す処理では対象外にする。 */
+        if (item && item !== trap && !item._ephemeralTrapTrigger && Array.isArray(dg.items)) {
+          dg.items = dg.items.filter(it => it !== item);
+        }
+        maybeBreakTrapAfterStep(trap, dg, ml, { p });
+      });
       return "destroyed";
     }
     case "pitfall": {
@@ -7281,15 +7315,19 @@ export function checkPyrobolosBossReward(dg, ml, p = null, removedBone = null) {
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
+  placeMonsterLoot(dg, p, (landingPlayer, lootPlayer) => dropMonsterItems(m, dg, ml, landingPlayer, lootPlayer));
+}
+
+function dropMonsterItems(m, dg, ml, p, lootPlayer) {
   /* ピュロボロス個体は、群れ全体の討伐条件を満たすまで個別ドロップしない。 */
   if (m?.pyrobolosGroupId) return;
-  if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, p)) {
+  if (!m?.isWanderingAdventurer && monsterItemDropsSuppressed(m, lootPlayer)) {
     ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
     return;
   }
-  const _dropDungeonType = dg?.dungeonType ?? p?.dungeonType ?? null;
+  const _dropDungeonType = dg?.dungeonType ?? lootPlayer?.dungeonType ?? null;
   /* p.depth と rewardFloor は1始まり。階が不明な呼び出しでは1階として扱い、後半解禁品を先行させない。 */
-  const _dropFloor = Number.isFinite(m?.rewardFloor) ? m.rewardFloor : (Number.isFinite(p?.depth) ? p.depth : 1);
+  const _dropFloor = Number.isFinite(m?.rewardFloor) ? m.rewardFloor : (Number.isFinite(lootPlayer?.depth) ? lootPlayer.depth : 1);
   const _dropPool = (pool) => lootPoolForDungeon(pool, _dropDungeonType, _dropFloor);
   const _pickDrop = (pool) => pickLootFromPool(_dropPool(pool), "drop");
   /* 遺物の番人：ボス特性は維持し、戦利品だけ専用の通常枠に置き換える。 */
@@ -7485,7 +7523,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     }
   }
   /* 幸運：既存の通常ドロップ判定とは別に、もう1回だけ抽選する。 */
-  if (((p?.luckTurns || 0) > 0 || m.dropExtraItem || (m.dropLuckTurns || 0) > 0) &&
+  if (((lootPlayer?.luckTurns || 0) > 0 || m.dropExtraItem || (m.dropLuckTurns || 0) > 0) &&
       Math.random() < monsterRandomDropChance(m)) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
     const _t = _pickDrop(_pool);
@@ -7542,19 +7580,21 @@ export function hasCursedTeleportPentacle(dg) {
 
 /* 爆発の魔方陣：死亡したモンスターの位置で爆発を起こす */
 let _explosionDepth = 0;
+function explosionPentacleAt(mx, my, dg, p) {
+  if (_explosionDepth > 4 || !dg?.pentacles?.length || isFireExplosionNullified(dg, p)) return null;
+  const room = dg.rooms?.find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
+  return dg.pentacles.find(pc =>
+    pc.kind === "explosion" && !pc.cursed &&
+    (pc.blessed || dg.rooms?.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h) === room)
+  );
+}
+
 function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
-  if (_explosionDepth > 4 || !dg.pentacles?.length) return;
-  /* 呪われた爆発の魔方陣がある場合は爆発を起こさない */
-  if (isFireExplosionNullified(dg, p)) return;
+  const exPc = explosionPentacleAt(mx, my, dg, p);
+  if (!exPc) return;
   ensureItemMimicFloorItems(dg);
   _explosionDepth++;
   try {
-    const mRoom = dg.rooms?.find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
-    const exPc = dg.pentacles.find(pc =>
-      pc.kind === "explosion" && !pc.cursed &&
-      (pc.blessed || dg.rooms?.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h) === mRoom)
-    );
-    if (!exPc) return;
     ml.push(`${exPc.name}の力で爆発した！`);
     const blasted = new Set();
     const largeMonstersHit = new Set();
@@ -7764,7 +7804,79 @@ function goldenPentacleAt(dg, x, y) {
     pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h) || null;
 }
 
+function dropDefeatedMonsterItems(mon, dg, ml, p, lootPlayer, _goldPc) {
+  const mx = mon.x, my = mon.y;
+  /* 執念のフロック：奪った深淵の禁書を返す */
+  if (mon.baseKind === "boss_flock_stalker") {
+    if (mon.stolenGoalItem) {
+      const _ft = new Set();
+      placeItemAt(dg, mon.x, mon.y, mon.stolenGoalItem, ml, _ft);
+      ml.push(`${mon.name}は奪った【${mon.stolenGoalItem.name}】を取り落とした！`);
+      delete mon.stolenGoalItem;
+    }
+  }
+  /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
+  if (mon.carriedItem) {
+    const _held = mon.carriedItem;
+    delete mon.carriedItem;
+    if (!monsterItemDropsSuppressed(mon, lootPlayer)) {
+      const _ft = new Set();
+      placeItemAt(dg, mx, my, _held, ml, _ft, 0, p);
+      ml.push(`${mon.name}が持っていた${resolveItemName(_held)}を落とした！`);
+    }
+  }
+  if (_goldPc) {
+    const _beforeItems = new Set(dg.items || []);
+    /* 飲み込み・盗みで保持していた物は変換対象外（そのまま返し、金貨は追加で落ちる） */
+    const _exemptItems = new Set();
+    if (mon.baseKind === "gelcube" || mon.baseKind === "stealthrower") (mon.heldItems || []).forEach(i => _exemptItems.add(i));
+    if (mon._stealthrowerHeldItem) _exemptItems.add(mon._stealthrowerHeldItem);
+    if (mon.baseKind === "synthmonster") (mon.synthBox?.contents || []).forEach(i => _exemptItems.add(i));
+    dropMonsterItems(mon, dg, ml, p, lootPlayer);
+    const _convertItems = (dg.items || []).filter(i => !_beforeItems.has(i) && !_exemptItems.has(i));
+    if (_convertItems.length > 0) dg.items = dg.items.filter(i => !_convertItems.includes(i));
+    const _goldFt = new Set();
+    if (_goldPc.cursed) {
+      const _roll = Math.random();
+      const _stone = _roll < 0.01 ? { ...FAKE_GOLD_NUGGET_T, id: uid() }
+        : _roll < 0.045 ? { ...RIGHT_STONE_T, id: uid() }
+        : _roll < 0.08 ? { ...MAGIC_STONE_T, id: uid() }
+        : { ...STONE_T, id: uid() };
+      placeItemAt(dg, mx, my, _stone, ml, _goldFt, 0, p);
+      ml.push(`戦利品は黄金の魔方陣の呪いで${resolveItemName(_stone)}に変わった！`);
+    } else {
+      /* 金額はその階の床に落ちる金貨の金額範囲（通常フロア金貨）で決まる。
+         敵が落とした金貨そのものは額面どおり合算する。 */
+      const _goldFloor = Number.isFinite(mon.rewardFloor) ? mon.rewardFloor : (Number.isFinite(lootPlayer?.depth) ? lootPlayer.depth : 1);
+      const _goldRange = ordinaryFloorGoldRange(_goldFloor);
+      let _goldValue = rng(_goldRange.min, _goldRange.max)
+        + _convertItems.reduce((s, i) => s + (i.type === "gold" ? (i.value || 0) : 0), 0);
+      if (_goldPc.blessed) _goldValue *= 2;
+      placeItemAt(dg, mx, my, { name: "金貨", type: "gold", value: _goldValue, tile: 22, id: uid() }, ml, _goldFt, 0, p);
+      ml.push(_convertItems.length > 0
+        ? `戦利品は黄金の魔方陣で金貨${_goldValue}枚に変わった！`
+        : `${mon.name}は黄金の魔方陣で金貨${_goldValue}枚を落とした！`);
+      /* ごく稀に金塊も落ちる */
+      if (Math.random() < 0.02) {
+        placeItemAt(dg, mx, my, { ...GOLD_NUGGET_T, id: uid() }, ml, _goldFt, 0, p);
+        ml.push(`金塊も落ちた！`);
+      }
+    }
+  } else {
+    dropMonsterItems(mon, dg, ml, p, lootPlayer);
+  }
+}
+
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false, noBone = false, skipKillerLevelUp = false, noExpCause = null) {
+  const defeat = () => resolveMonsterDefeat(mon, dg, p, ml, luFn, noExp, killerMon, noRevive, noBone, skipKillerLevelUp, noExpCause);
+  // Preserve the triggering monster's loot as well as loot from follow-up kills.
+  if (!explosionLoot.has(dg) && explosionPentacleAt(mon.x, mon.y, dg, p)) {
+    return withDeferredExplosionLoot(dg, defeat);
+  }
+  return defeat();
+}
+
+function resolveMonsterDefeat(mon, dg, p, ml, luFn, noExp, killerMon, noRevive, noBone, skipKillerLevelUp, noExpCause) {
   const mx = mon.x, my = mon.y;
   if (mon.isPlayerClone) {
     if (dg?.monsters?.includes(mon)) {
@@ -7858,67 +7970,12 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       killMonster(clone, dg, p, ml, luFn, noExp, killerMon, false, false, false, noExpCause);
     }
   }
-  /* 執念のフロック：奪った深淵の禁書をドロップし、追跡撃破フラグを記録 */
   if (mon.baseKind === "boss_flock_stalker") {
-    if (mon.stolenGoalItem) {
-      const _ft = new Set();
-      placeItemAt(dg, mon.x, mon.y, mon.stolenGoalItem, ml, _ft);
-      ml.push(`${mon.name}は奪った【${mon.stolenGoalItem.name}】を取り落とした！`);
-      delete mon.stolenGoalItem;
-    }
     if (p) p.flockStalkerKilled = true;
-    if (dg) dg.flockStalkerKilled = true;
+    dg.flockStalkerKilled = true;
   }
-  /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
-  if (mon.carriedItem) {
-    const _held = mon.carriedItem;
-    delete mon.carriedItem;
-    if (!monsterItemDropsSuppressed(mon, p)) {
-      const _ft = new Set();
-      placeItemAt(dg, mx, my, _held, ml, _ft, 0, p);
-      ml.push(`${mon.name}が持っていた${resolveItemName(_held)}を落とした！`);
-    }
-  }
-  if (_goldPc) {
-    const _beforeItems = new Set(dg.items || []);
-    /* 飲み込み・盗みで保持していた物は変換対象外（そのまま返し、金貨は追加で落ちる） */
-    const _exemptItems = new Set();
-    if (mon.baseKind === "gelcube" || mon.baseKind === "stealthrower") (mon.heldItems || []).forEach(i => _exemptItems.add(i));
-    if (mon._stealthrowerHeldItem) _exemptItems.add(mon._stealthrowerHeldItem);
-    if (mon.baseKind === "synthmonster") (mon.synthBox?.contents || []).forEach(i => _exemptItems.add(i));
-    monsterDrop(mon, dg, ml, p);
-    const _convertItems = (dg.items || []).filter(i => !_beforeItems.has(i) && !_exemptItems.has(i));
-    if (_convertItems.length > 0) dg.items = dg.items.filter(i => !_convertItems.includes(i));
-    const _goldFt = new Set();
-    if (_goldPc.cursed) {
-      const _roll = Math.random();
-      const _stone = _roll < 0.01 ? { ...FAKE_GOLD_NUGGET_T, id: uid() }
-        : _roll < 0.045 ? { ...RIGHT_STONE_T, id: uid() }
-        : _roll < 0.08 ? { ...MAGIC_STONE_T, id: uid() }
-        : { ...STONE_T, id: uid() };
-      placeItemAt(dg, mx, my, _stone, ml, _goldFt, 0, p);
-      ml.push(`戦利品は黄金の魔方陣の呪いで${resolveItemName(_stone)}に変わった！`);
-    } else {
-      /* 金額はその階の床に落ちる金貨の金額範囲（通常フロア金貨）で決まる。
-         敵が落とした金貨そのものは額面どおり合算する。 */
-      const _goldFloor = Number.isFinite(mon.rewardFloor) ? mon.rewardFloor : (Number.isFinite(p?.depth) ? p.depth : 1);
-      const _goldRange = ordinaryFloorGoldRange(_goldFloor);
-      let _goldValue = rng(_goldRange.min, _goldRange.max)
-        + _convertItems.reduce((s, i) => s + (i.type === "gold" ? (i.value || 0) : 0), 0);
-      if (_goldPc.blessed) _goldValue *= 2;
-      placeItemAt(dg, mx, my, { name: "金貨", type: "gold", value: _goldValue, tile: 22, id: uid() }, ml, _goldFt, 0, p);
-      ml.push(_convertItems.length > 0
-        ? `戦利品は黄金の魔方陣で金貨${_goldValue}枚に変わった！`
-        : `${mon.name}は黄金の魔方陣で金貨${_goldValue}枚を落とした！`);
-      /* ごく稀に金塊も落ちる */
-      if (Math.random() < 0.02) {
-        placeItemAt(dg, mx, my, { ...GOLD_NUGGET_T, id: uid() }, ml, _goldFt, 0, p);
-        ml.push(`金塊も落ちた！`);
-      }
-    }
-  } else {
-    monsterDrop(mon, dg, ml, p);
-  }
+  placeMonsterLoot(dg, p, (landingPlayer, lootPlayer) =>
+    dropDefeatedMonsterItems(mon, dg, ml, landingPlayer, lootPlayer, _goldPc));
   /* ピュロボロスは撃破方法やnoBone指定に関係なく、群れIDと個体番号を持つ骨を必ず残す。 */
   if (mon.pyrobolosGroupId) {
     dg.traps ||= [];
