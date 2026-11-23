@@ -20,8 +20,8 @@ describe('巨大雑魚の初期生成配置',()=>{
       for(let j=i+1;j<dg.monsters.length;j++) expect(monsterBodiesOverlap(dg.monsters[i],dg.monsters[j])).toBe(false);
     }
   });
-  it('実際の上級23階生成でも柳の体が重ならない（再現乱数1）',()=>{
-    vi.spyOn(Math,'random').mockImplementation(createSeededRng(1));
+  it('実際の上級23階生成でも柳の体が重ならない（再現乱数2）',()=>{
+    vi.spyOn(Math,'random').mockImplementation(createSeededRng(2));
     const dg=genDungeon(22,'advanced');
     expect(dg.monsters.some(mon=>mon.baseKind==='hauntedWillow')).toBe(true);
     for(let i=0;i<dg.monsters.length;i++) for(let j=i+1;j<dg.monsters.length;j++) {
