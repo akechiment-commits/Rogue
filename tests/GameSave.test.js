@@ -95,6 +95,25 @@ describe("GameSave", () => {
     expect(JSON.parse(localStorage._data.roguelike_dungeon_save_v1).version).toBe(2);
   });
 
+  it("旧価格で店に並んでいる買い戻し用の宝石は、再開した階と訪問済みの階で新価格になる", async () => {
+    const session = makeSession();
+    session.player.depth = 12;
+    const gem = { type: "gem", name: "トパーズ", basePrice: 500, originDepth: 2, _gemBuyPrice: 500 };
+    session.dungeon.items = [
+      { ...gem, id: "current", shopPrice: 2750 },
+      { type: "gem", id: "fresh", basePrice: 500, originDepth: 12, shopPrice: 500 },
+    ];
+    session.floors = { 10: savedFloor({ items: [{ ...gem, id: "visited", shopPrice: 2400 }] }) };
+    session.player.inventory.push({ ...gem, id: "labeled", shopPrice: 2750, _shopCharge: 2250 });
+    await saveGameState(session, [], null, null);
+    const loaded = await loadGameState();
+    expect(loaded.dungeon.items.map(item => item.shopPrice)).toEqual([4500, 500]);
+    expect(loaded.floors[10].items[0].shopPrice).toBe(3800);
+    expect(loaded.player.inventory.find(item => item.id === "labeled")._shopCharge).toBe(2250);
+    await saveGameState(loaded, [], null, null);
+    expect((await loadGameState()).dungeon.items[0].shopPrice).toBe(4500);
+  });
+
   it("v1 の途中セーブを v2 として読み込める", async () => {
     await saveGameState(makeSession(), ["以前のメッセージ"], null, null);
     const legacy = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);

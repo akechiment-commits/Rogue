@@ -2596,7 +2596,7 @@ export function useItemActions({
         const _sk = dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
         if (_sk) _sk.state = "blocking";
         if (_ap > 0) {
-          ml.push(`${itNm}を置き、足元の${flNm}を取った！(${_ap}G${shopPriceNote(p, floorIt)}) 店主が入り口をふさいだ。`);
+          ml.push(`${itNm}を置き、足元の${flNm}を取った！(${_ap}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
         } else {
           ml.push(`${itNm}を置き、足元の${flNm}を取った！`);
         }

@@ -6,7 +6,7 @@ import { installPlayerHpReverseHook, MW, MH, TI, uid } from "./utils.js";
 import { normalizeDiscoveryData, getPendingBigboxes } from "./DiscoveryTracker.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { installMonsterHpHook } from "./statusDuration.js";
-import { ensureFakeNames } from "./items.js";
+import { ensureFakeNames, shopResaleListPrice } from "./items.js";
 import { readStoredGameSave, writeStoredGameSave, discardStoredGameSave } from "./dungeonSaveStorage.js";
 
 const GAME_SAVE_VERSION = 2;
@@ -21,6 +21,18 @@ function withoutInternalGravityTriggers(dungeon) {
     ...dungeon,
     items: dungeon.items.filter(item => !isInternalGravityTrigger(item)),
   };
+}
+
+function normalizeSavedFloor(dungeon, depth) {
+  const floor = withoutInternalGravityTriggers(dungeon);
+  if (!Number.isFinite(depth)) return floor;
+  // 以前のセーブで店頭に戻った宝石にも、新しい値札の下限を適用する。
+  for (const item of floor.items) {
+    if (item.type === "gem" && item.shopPrice > 0 && item._gemBuyPrice > 0 && item._shopCharge == null) {
+      item.shopPrice = Math.max(item.shopPrice, shopResaleListPrice(item, depth));
+    }
+  }
+  return floor;
 }
 
 /* 旧セーブの石弾・氷塊も専用タイルへ揃える。 */
@@ -123,11 +135,11 @@ function normalizeSaveData(data) {
   migrated.player._armorIdx = remapIndex(migrated.player._armorIdx);
   migrated.player._arrowIdx = remapIndex(migrated.player._arrowIdx);
   migrated.player._ringIdxs = (migrated.player._ringIdxs || []).map(remapIndex);
-  migrated.dungeon = withoutInternalGravityTriggers(migrated.dungeon);
+  migrated.dungeon = normalizeSavedFloor(migrated.dungeon, migrated.player.depth);
   migrated.floors = Object.fromEntries(
     Object.entries(migrated.floors || {}).map(([depth, dungeon]) => [
       depth,
-      withoutInternalGravityTriggers(dungeon),
+      normalizeSavedFloor(dungeon, Number(depth)),
     ]),
   );
   normalizeProjectileTiles(migrated);

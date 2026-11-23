@@ -84,24 +84,24 @@ it.each([[false, 1], [true, 1], [false, 2], [true, 2]])("通常店の宝石を�
   if (floorSale) dungeon.items.push(gem);
   buttonWith(renderShop(floorSale ? "sell" : "browseConfirm"), floorSale ? "トパーズ" : "はい、全て売る").props.onClick();
   expect(player.gold).toBe(4250);
-  expect(gem.shopPrice).toBe(2750);
+  expect(gem.shopPrice).toBe(4500);
   if (floorSale) {
     dungeon.items = [];
     player.inventory.push(gem);
     applyShopUnpaidCharge(gem, shop, player);
   }
   buttonWith(renderShop("buy"), "トパーズ").props.onClick();
-  expect(player.gold).toBe(2000);
+  expect(player.gold).toBe(count === 2 ? 2000 : 1100);
   expect(shop.unpaidTotal).toBe(0);
-  expect(gem._gemBuyPrice).toBe(2750);
+  expect(gem._gemBuyPrice).toBe(4500);
 });
 
 it.each([
-  [[], 2750],
-  [[{ effect: "bargain_ring" }], 2250],
+  [[], 4500],
+  [[{ effect: "bargain_ring" }], 3150],
   [[{ effect: "bargain_ring" }, { effect: "bargain_ring" }], 2250],
-  [[{ effect: "markup_ring" }], 4125],
-  [[{ effect: "markup_ring" }, { effect: "markup_ring" }], 6187],
+  [[{ effect: "markup_ring" }], 6750],
+  [[{ effect: "markup_ring" }, { effect: "markup_ring" }], 10125],
 ])(
   "行商人の宝石の表示と実際の購入は通常店と同じ計算になる（指輪: %j）", (rings, price) => {
     const state = setup({ rings, gold: 10000 });
@@ -129,7 +129,7 @@ it.each([
     buttonWith(modal("buy"), `1. トパーズ　${price}G`).props.onClick();
     expect(player.gold).toBe(12250 - price);
     expect(shop.stock).toEqual([]);
-    expect(player.inventory[0]).toMatchObject({ name: "トパーズ", originDepth: 2, _gemBuyPrice: 2750 });
+    expect(player.inventory[0]).toMatchObject({ name: "トパーズ", originDepth: 2, _gemBuyPrice: 4500 });
   },
 );
 

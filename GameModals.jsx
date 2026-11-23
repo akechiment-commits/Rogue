@@ -3478,7 +3478,7 @@ export function MerchantModal({ mode, setMode, gs, merchantRef, menuSel, setMenu
       ...pageItems.map((entry) => {
         const item = mode === "buy" ? entry : entry.item;
         const price = mode === "buy"
-          ? calcShopBuyPrice(p, shopResaleListPrice(item, p.depth), item)
+          ? calcShopBuyPrice(p, shopResaleListPrice(item, p.depth))
           : item.type === "gem" ? gemSellPrice(item, p.depth) : Math.max(1, Math.ceil(itemPrice(item) * 0.5));
         return { label: `${dname(item)}　${price}G` };
       }),

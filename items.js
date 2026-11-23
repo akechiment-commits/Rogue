@@ -11450,32 +11450,23 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
   return "tripped";
 }
 
-function gemResaleMinimum(item, listPrice) {
-  // 売却済みの宝石の値札は「前回の値札＋店が支払った買取額」。新規の陳列品には前回の値札がない。
-  return item?.type === "gem" && item._gemBuyPrice > 0 ? listPrice - item._gemBuyPrice : 0;
-}
-
 /** 観光客は個数分×1.5。買い物上手は1個で3割引、2個で5割引。 */
-export function calcShopBuyPrice(p, shopPrice, item = null) {
+export function calcShopBuyPrice(p, shopPrice) {
   let price = Math.floor((shopPrice || 0) * 1.5 ** countEquippedRings(p, "markup_ring"));
   const bargainRings = countEquippedRings(p, "bargain_ring");
   // 半額の端数は切り上げ、通常品の「半額切り上げ」の買取を下回らないようにする。
   if (bargainRings >= 2) price = Math.ceil(price / 2);
   else if (bargainRings === 1) price = Math.floor(price * 0.7);
-  return Math.max(1, price, gemResaleMinimum(item, shopPrice || 0));
+  return Math.max(1, price);
 }
 
 /** 店購入メッセージ用の価格注記（" 5割増！" など。無ければ空文字） */
-export function shopPriceNote(p, item = null) {
+export function shopPriceNote(p) {
   const notes = [];
   const markupRings = countEquippedRings(p, "markup_ring");
   const bargainRings = countEquippedRings(p, "bargain_ring");
   if (markupRings > 0) notes.push(markupRings >= 2 ? "2.25倍！" : "5割増！");
-  if (bargainRings > 0) {
-    const listPrice = item?.shopPrice || 0;
-    const atMinimum = gemResaleMinimum(item, listPrice) > calcShopBuyPrice(p, listPrice);
-    notes.push(atMinimum ? "割引は買取額まで" : bargainRings >= 2 ? "5割引！" : "3割引！");
-  }
+  if (bargainRings > 0) notes.push(bargainRings >= 2 ? "5割引！" : "3割引！");
   return notes.length ? " " + notes.join("") : "";
 }
 
@@ -11538,7 +11529,7 @@ export function applyShopUnpaidCharge(item, shop, p) {
   if (item.charges != null) item._origCharges = item._origCharges ?? item.charges;
   if (item.type === "arrow" && item.count != null) item._origCount = item._origCount ?? item.count;
   if (item._shopCharge != null) return 0; /* 既にこの請求サイクルで計上済み */
-  const charged = calcShopBuyPrice(p, item.shopPrice, item);
+  const charged = calcShopBuyPrice(p, item.shopPrice);
   item._shopCharge = charged;
   shop.unpaidTotal += charged;
   return charged;
@@ -11548,7 +11539,7 @@ export function applyShopUnpaidCharge(item, shop, p) {
 export function shopResaleListPrice(item, depth) {
   if (item.type !== "gem") return itemPrice(item);
   const sellPrice = gemSellPrice(item, depth);
-  return (item._gemBuyPrice || sellPrice) + sellPrice;
+  return Math.max(item._gemBuyPrice || 0, sellPrice) + sellPrice;
 }
 
 /**

@@ -4154,7 +4154,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
                   if (_sk2) _sk2.state = "blocking";
                   if (_actualPrice > 0) {
-                    ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p, _grIt)}) 店主が入り口をふさいだ。`);
+                    ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
                   } else {
                     ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！`);
                   }
@@ -6506,7 +6506,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       return;
     }
     const listPrice = shopResaleListPrice(item, p.depth);
-    const price = calcShopBuyPrice(p, listPrice, item);
+    const price = calcShopBuyPrice(p, listPrice);
     if (p.gold < price) {
       setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
       return;
@@ -6600,7 +6600,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _ap = applyShopUnpaidCharge(item, _ps, _p);
         const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
         if (_sk) _sk.state = "blocking";
-        if (_ap > 0) ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p, item)}) 店主が入り口をふさいだ。`);
+        if (_ap > 0) ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`);
         else ml.push(`${dnameRef(item)}を取った！`);
       }
     } else {
@@ -6736,7 +6736,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (_sk) _sk.state = "blocking";
       /* 既請求済みなら二重メッセージ・二重加算しない（apply が 0） */
       if (_ap > 0) {
-        setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p, item)}) 店主が入り口をふさいだ。`]);
+        setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`]);
         return () => {
           if (item._shopCharge !== _ap) return;
           delete item._shopCharge;
