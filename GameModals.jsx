@@ -1782,7 +1782,6 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
     const label = itemDisplayName(owned, s.fakeNames, s.ident, s.nicknames);
     p.gold -= price;
     shop.unpaidTotal = Math.max(0, (shop.unpaidTotal || 0) - price);
-    if (owned.type === "gem") owned._gemBuyPrice = owned.shopPrice;
     clearShopItemTags(owned);
     if (shop.unpaidTotal === 0) {
       const keeper = s.dungeon.monsters?.find(monster => monster.id === shop.shopkeeperId);
@@ -1948,7 +1947,6 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       /* この店のアイテムのみ shopPrice を解除 */
                       const _clearShopPrice = (it2) => {
                         if (it2.shopPrice && (!it2._shopId || it2._shopId === _curShop2.id)) {
-                          if (it2.type === "gem") it2._gemBuyPrice = it2.shopPrice;
                           delete it2.shopPrice; delete it2._shopId; delete it2._shopCharge;
                         }
                         if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice);

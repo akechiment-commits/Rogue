@@ -73,27 +73,28 @@ function choose(state, input, label, selection) {
   }
 }
 
-it.each([[false, 1], [true, 1], [false, 2], [true, 2]])("通常店の宝石を売って買い戻しても増益しない（床から売却: %s、買い物上手: %d）", (floorSale, count) => {
-  const state = setup({ rings: Array.from({ length: count }, () => ({ effect: "bargain_ring" })) });
+it.each([[false, 1], [true, 1], [false, 2], [true, 2]])("通常店で宝石を繰り返し売って買い戻しても価格が一定（床から売却: %s、買い物上手: %d）", (floorSale, count) => {
+  const state = setup({ gold: 10000, rings: Array.from({ length: count }, () => ({ effect: "bargain_ring" })) });
   const { player, dungeon, shop, sr } = state;
   const gem = { id: "gem", name: "トパーズ", type: "gem", basePrice: 500, originDepth: 2, _gemBuyPrice: 500, x: 5, y: 5 };
   const renderShop = mode => ShopModal({ mode, gs: sr.current, sr, setMode: state.setMode,
     setGs: state.setGs, setMsgs: state.setMsgs, menuSel: 0, setMenuSel: state.setMenuSel });
   player.depth = 12;
-  player.inventory = floorSale ? [] : [gem];
-  if (floorSale) dungeon.items.push(gem);
-  buttonWith(renderShop(floorSale ? "sell" : "browseConfirm"), floorSale ? "トパーズ" : "はい、全て売る").props.onClick();
-  expect(player.gold).toBe(4250);
-  expect(gem.shopPrice).toBe(4500);
-  if (floorSale) {
-    dungeon.items = [];
-    player.inventory.push(gem);
-    applyShopUnpaidCharge(gem, shop, player);
+  player.inventory = [gem];
+  for (let sale = 0; sale < 3; sale++) {
+    const startingGold = player.gold;
+    if (floorSale) dungeon.items.push(player.inventory.pop());
+    buttonWith(renderShop(floorSale ? "sell" : "browseConfirm"), floorSale ? "トパーズ" : "はい、全て売る").props.onClick();
+    expect(player.gold).toBe(startingGold + 2250);
+    expect(gem.shopPrice).toBe(4500);
+    if (floorSale) {
+      player.inventory.push(dungeon.items.pop());
+      applyShopUnpaidCharge(gem, shop, player);
+    }
+    buttonWith(renderShop("buy"), "トパーズ").props.onClick();
+    expect(player.gold).toBe(startingGold - (count === 2 ? 0 : 900));
+    expect(shop.unpaidTotal).toBe(0);
   }
-  buttonWith(renderShop("buy"), "トパーズ").props.onClick();
-  expect(player.gold).toBe(count === 2 ? 2000 : 1100);
-  expect(shop.unpaidTotal).toBe(0);
-  expect(gem._gemBuyPrice).toBe(4500);
 });
 
 it.each([
@@ -103,8 +104,8 @@ it.each([
   [[{ effect: "markup_ring" }], 6750],
   [[{ effect: "markup_ring" }, { effect: "markup_ring" }], 10125],
 ])(
-  "行商人の宝石の表示と実際の購入は通常店と同じ計算になる（指輪: %j）", (rings, price) => {
-    const state = setup({ rings, gold: 10000 });
+  "行商人も同じ価格で繰り返し宝石を売り直す（指輪: %j）", (rings, price) => {
+    const state = setup({ rings, gold: 30000 });
     const { player, dungeon, sr } = state;
     player.depth = 12;
     player.inventory = [{ id: "gem", name: "トパーズ", type: "gem", basePrice: 500, originDepth: 2, _gemBuyPrice: 500 }];
@@ -124,12 +125,15 @@ it.each([
     const modal = mode => MerchantModal({ mode, gs: sr.current, merchantRef, menuSel: 0,
       setMode: state.setMode, setMenuSel: state.setMenuSel, onBuy: doMerchantBuy, onSell: doMerchantSell, dname: name });
 
-    buttonWith(modal("sell"), "1. トパーズ　2250G").props.onClick();
-    expect(player.gold).toBe(12250);
-    buttonWith(modal("buy"), `1. トパーズ　${price}G`).props.onClick();
-    expect(player.gold).toBe(12250 - price);
-    expect(shop.stock).toEqual([]);
-    expect(player.inventory[0]).toMatchObject({ name: "トパーズ", originDepth: 2, _gemBuyPrice: 4500 });
+    for (let sale = 0; sale < 3; sale++) {
+      const startingGold = player.gold;
+      buttonWith(modal("sell"), "1. トパーズ　2250G").props.onClick();
+      expect(player.gold).toBe(startingGold + 2250);
+      buttonWith(modal("buy"), `1. トパーズ　${price}G`).props.onClick();
+      expect(player.gold).toBe(startingGold + 2250 - price);
+      expect(shop.stock).toEqual([]);
+      expect(player.inventory[0]).toMatchObject({ name: "トパーズ", originDepth: 2 });
+    }
   },
 );
 
@@ -175,8 +179,8 @@ describe.each(inputs)("店の入力一致: %s", input => {
     Object.assign(state.item, { type: "gem", basePrice: 500, originDepth: 1, _gemBuyPrice: 800 });
     choose(state, input, "はい、全て売る", 1);
     expect(state.player.gold).toBe(2500);
-    expect(state.item).toMatchObject({ shopPrice: 1300, _shopCharge: 1300 });
-    expect(state.shop.unpaidTotal).toBe(1300);
+    expect(state.item).toMatchObject({ shopPrice: 1000, _shopCharge: 1000 });
+    expect(state.shop.unpaidTotal).toBe(1000);
   });
 
   it("床の道具を売った後、残りがある間は選択を続けられる", () => {

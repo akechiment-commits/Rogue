@@ -11537,9 +11537,7 @@ export function applyShopUnpaidCharge(item, shop, p) {
 
 /** プレイヤーから買い取った品を店頭に出す時の値札。 */
 export function shopResaleListPrice(item, depth) {
-  if (item.type !== "gem") return itemPrice(item);
-  const sellPrice = gemSellPrice(item, depth);
-  return Math.max(item._gemBuyPrice || 0, sellPrice) + sellPrice;
+  return item.type === "gem" ? 2 * gemSellPrice(item, depth) : itemPrice(item);
 }
 
 /**

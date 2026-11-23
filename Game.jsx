@@ -6505,15 +6505,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setMsgs((prev) => [...prev.slice(-80), "持ち物がいっぱいだ！"]);
       return;
     }
-    const listPrice = shopResaleListPrice(item, p.depth);
-    const price = calcShopBuyPrice(p, listPrice);
+    const price = calcShopBuyPrice(p, shopResaleListPrice(item, p.depth));
     if (p.gold < price) {
       setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
       return;
     }
     p.gold -= price;
     const bought = { ...item, id: uid() };
-    if (bought.type === "gem") bought._gemBuyPrice = listPrice;
     if (s.allBcKnown) { bought.fullIdent = true; bought.bcKnown = true; }
     /* 図鑑は個体単位で数える：売った個体の買い戻しで再カウントしないよう、追跡済み印は消さない */
     if (bought.contents) bought.contents = bought.contents.map((content) => ({ ...content }));

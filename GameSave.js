@@ -26,10 +26,11 @@ function withoutInternalGravityTriggers(dungeon) {
 function normalizeSavedFloor(dungeon, depth) {
   const floor = withoutInternalGravityTriggers(dungeon);
   if (!Number.isFinite(depth)) return floor;
-  // 以前のセーブで店頭に戻った宝石にも、新しい値札の下限を適用する。
+  // 前の購入価格が記録されている旧セーブの店頭品を、現在の固定価格へ移す。
   for (const item of floor.items) {
     if (item.type === "gem" && item.shopPrice > 0 && item._gemBuyPrice > 0 && item._shopCharge == null) {
-      item.shopPrice = Math.max(item.shopPrice, shopResaleListPrice(item, depth));
+      item.shopPrice = shopResaleListPrice(item, depth);
+      delete item._gemBuyPrice;
     }
   }
   return floor;
