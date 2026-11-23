@@ -12,6 +12,29 @@ describe("applyWandEffect", () => {
   const dg = makeEmptyDg();
   const noop = () => {};
 
+  it.each(["item", "trap", "bigbox", "statue"].flatMap(kind =>
+    [0.5, 1, 2].map(multiplier => ({ kind, multiplier }))))(
+    "テレポートの杖は次元宝物庫の入口に$kindを移さない（倍率 $multiplier）", ({ kind, multiplier }) => {
+      const vault = { x: 8, y: 5 };
+      const target = { id: "target", name: "対象", x: 7, y: 5 };
+      const dungeon = makeEmptyDg({ dimensionalVaults: [vault], statues: [] });
+      const collections = { item: dungeon.items, trap: dungeon.traps, bigbox: dungeon.bigboxes, statue: dungeon.statues };
+      collections[kind].push(target);
+      dungeon.map.forEach(row => row.fill(T.WALL));
+      dungeon.map[5][5] = T.SU;
+      dungeon.map[5][7] = dungeon.map[5][8] = T.FLOOR;
+      dungeon.map[5][9] = T.SD;
+      const player = makePlayer();
+
+      applyWandEffect("warp", kind, target, 1, 0, dungeon, player, [], noop, null, multiplier);
+      expect(target).toMatchObject({ x: 7, y: 5 });
+
+      dungeon.dimensionalVaults = [];
+      applyWandEffect("warp", kind, target, 1, 0, dungeon, player, [], noop, null, multiplier);
+      expect(target).toMatchObject(vault);
+    },
+  );
+
   it("眠りの杖でモンスターを睡眠させる", () => {
     const mon = { name: "スライム", hp: 20, maxHp: 20, x: 6, y: 5, atk: 3 };
     const p = makePlayer();

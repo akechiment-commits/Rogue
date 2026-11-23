@@ -7,6 +7,10 @@ export function statueAt(dungeon, x, y) {
   return (dungeon.statues || []).find((statue) => statue.x === x && statue.y === y) || null;
 }
 
+export function dimensionalVaultEntranceAt(dungeon, x, y) {
+  return dungeon.dimensionalVaults?.find(vault => vault.x === x && vault.y === y) ?? null;
+}
+
 export function findFixedPortalPair(dungeon, portal) {
   if (!portal || portal.kind !== "fixed_portal") return null;
   return (dungeon.pentacles || []).find(

@@ -20,7 +20,7 @@ import {
 import { fireTrapPlayer } from './traps.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue, placeAltarPriest } from './fixtures.js';
-import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
+import { dimensionalVaultEntranceAt, statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, monsterStatusTurns, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
 import { worldTickDamageTurnForCurrentAction, grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
@@ -64,6 +64,7 @@ function statueTeleportDest(dg, ox, oy, p) {
     !dg.monsters.some(m => monsterOccupiesCell(m, x, y)) &&
     !(p && p.x === x && p.y === y) &&
     !dg.statues?.some(s => s.x === x && s.y === y) &&
+    !dimensionalVaultEntranceAt(dg, x, y) &&
     !dg.bigboxes?.some(b => b.x === x && b.y === y) &&
     !dg.items?.some(i => i.x === x && i.y === y) &&
     !dg.traps?.some(t => t.x === x && t.y === y) &&
@@ -212,6 +213,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !dg.monsters.some(m => monsterOccupiesCell(m, _w1x, _w1y)) &&
             !(p.x === _w1x && p.y === _w1y) &&
             !dg.statues?.some(s => s !== target && s.x === _w1x && s.y === _w1y) &&
+            !dimensionalVaultEntranceAt(dg, _w1x, _w1y) &&
             !dg.bigboxes?.some(b => b.x === _w1x && b.y === _w1y) &&
             !dg.items?.some(i => i.x === _w1x && i.y === _w1y) &&
             !dg.traps?.some(t => t.x === _w1x && t.y === _w1y)) {
@@ -237,6 +239,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 !dg.monsters.some(m => monsterOccupiesCell(m, _nx, _ny)) &&
                 !(p.x === _nx && p.y === _ny) &&
                 !dg.statues?.some(s => s !== target && s.x === _nx && s.y === _ny) &&
+                !dimensionalVaultEntranceAt(dg, _nx, _ny) &&
                 !dg.items?.some(i => i.x === _nx && i.y === _ny) &&
                 !dg.traps?.some(t => t.x === _nx && t.y === _ny))
               _wbAdj.push({ x: _nx, y: _ny });
@@ -333,6 +336,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_w1x >= 0 && _w1x < MW && _w1y >= 0 && _w1y < MH &&
             dg.map[_w1y][_w1x] !== T.WALL && dg.map[_w1y][_w1x] !== T.BWALL &&
             dg.map[_w1y][_w1x] !== T.SD && dg.map[_w1y][_w1x] !== T.SU &&
+            !dimensionalVaultEntranceAt(dg, _w1x, _w1y) &&
             !dg.bigboxes?.some(b => b !== target && b.x === _w1x && b.y === _w1y) &&
             !dg.monsters.some(m => monsterOccupiesCell(m, _w1x, _w1y)) &&
             !dg.items.some(i => i.x === _w1x && i.y === _w1y) &&
@@ -357,6 +361,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           for (const [_ax, _ay] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
             const _nx = _stx + _ax, _ny = _sty + _ay;
             if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH && dg.map[_ny][_nx] === T.FLOOR &&
+                !dimensionalVaultEntranceAt(dg, _nx, _ny) &&
                 !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
                 !dg.monsters.some(m => monsterOccupiesCell(m, _nx, _ny)) &&
                 !dg.items.some(i => i.x === _nx && i.y === _ny) &&
@@ -375,6 +380,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             for (let fy = 0; fy < MH; fy++)
               for (let fx = 0; fx < MW; fx++)
                 if (dg.map[fy][fx] === T.FLOOR &&
+                    !dimensionalVaultEntranceAt(dg, fx, fy) &&
                     !dg.bigboxes?.find(b => b.x === fx && b.y === fy) &&
                     !monsterAt(dg, fx, fy) &&
                     !dg.items.some(i => i.x === fx && i.y === fy) &&
@@ -399,6 +405,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       for (let fy = 0; fy < MH; fy++)
         for (let fx = 0; fx < MW; fx++)
           if (dg.map[fy][fx] === T.FLOOR &&
+              !dimensionalVaultEntranceAt(dg, fx, fy) &&
               !dg.bigboxes?.find(b => b.x === fx && b.y === fy) &&
               !monsterAt(dg, fx, fy) &&
               !dg.items.some(i => i.x === fx && i.y === fy) &&

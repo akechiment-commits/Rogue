@@ -3,7 +3,7 @@
  */
 import { T, MW, MH, randomTeleportDest, TI } from "./utils.js";
 import { monsterOccupiesCell } from './monsterGeometry.js';
-import { statueAt } from "./fixtureQueries.js";
+import { dimensionalVaultEntranceAt, statueAt } from "./fixtureQueries.js";
 
 export const STAIR_DOWN_DESC =
   "下り階段。足で降りると次のフロアへ進める。";
@@ -22,7 +22,7 @@ export function isFloorOccupancyBlocked(dg, x, y, opts = {}) {
   const tile = dg.map[y]?.[x];
   /* 階段タイル自体への着地は不可（階段を動かす先は FLOOR のみ） */
   if (tile !== T.FLOOR) return true;
-  if (statueAt(dg, x, y)) return true;
+  if (statueAt(dg, x, y) || dimensionalVaultEntranceAt(dg, x, y)) return true;
   const ignore = opts.ignore;
   if (!opts.allowPlayer && opts.p && opts.p.x === x && opts.p.y === y) return true;
   if (!opts.allowMonster && dg.monsters?.some((m) => monsterOccupiesCell(m, x, y))) return true;
@@ -276,7 +276,6 @@ export function findBigboxDuplicatePosition(dungeon, box, player) {
   for (const [dx, dy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
     const x = box.x + dx, y = box.y + dy;
     if (isFloorOccupancyBlocked(dungeon, x, y, { p: player })) continue;
-    if (dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y)) continue;
     return { x, y };
   }
   return null;

@@ -64,7 +64,8 @@ describe("杖術師のテレポートの杖と床の道具・罠・大箱", () =
       dungeon.pentacles.push({ kind: "teleport_trap", cursed: true, x: 5, y: 4 });
     }
     const freeX = hit === "bigbox" ? 19 : 17;
-    if (hasFreeCell) dungeon.map[5][freeX] = T.FLOOR;
+    dungeon.map[5][freeX] = T.FLOOR;
+    if (!hasFreeCell) dungeon.dimensionalVaults = [{ x: freeX, y: 5 }];
     const messages = [];
 
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
