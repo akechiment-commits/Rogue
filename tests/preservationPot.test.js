@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const effects = vi.hoisted(() => []);
 vi.mock("react", async () => ({
@@ -16,6 +17,8 @@ import { useKeyHandler } from "../useKeyHandler.js";
 import { PotPutModal, InventoryModal } from "../GameModals.jsx";
 import { msgToActionKey } from "../portraits.js";
 import { resetDiscoveries } from "../DiscoveryTracker.js";
+import { saveGameState, loadGameState } from "../GameSave.js";
+import { MH, MW } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 function findElements(node, predicate, out = []) {
@@ -431,6 +434,62 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
 });
 
 describe("保存の壺の中身コマンド規則と一時退避・復元", () => {
+  it.each([
+    { onFloor: false, result: "cancel", charges: 3 },
+    { onFloor: true, result: "wave", charges: 2 },
+    { onFloor: false, result: "consume", charges: null },
+  ])("保存の壺の仮移動を保存せず、操作後の結果は保存する ($result)", async ({ onFloor, result, charges }) => {
+    const storage = new Map();
+    vi.stubGlobal("localStorage", { getItem: key => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value) });
+    const wand = { id: "wand", type: "wand", name: "杖", charges: 3 };
+    const pot = { id: "pot", type: "pot", potEffect: "none", capacity: 4, x: 5, y: 5, contents: [wand] };
+    const player = makePlayer({ inventory: onFloor ? [] : [pot] });
+    const visibility = () => Array.from({ length: MH }, () => Array(MW).fill(false));
+    const dungeon = makeEmptyDg({ items: onFloor ? [pot] : [], visible: visibility(), explored: visibility() });
+    const sr = { current: { player, dungeon, floorTurns: 0 } };
+    const potReturnRef = { current: null };
+    const source = readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
+    const start = source.indexOf("  useEffect(() => {", source.indexOf("/* ── 自動セーブ:"));
+    const end = source.indexOf("\n  useEffect(", start + 1);
+    const save = vi.fn(saveGameState);
+    const deps = { sr, gs: sr.current, dead: false, showEnding: false, saveStoppedRef: { current: false },
+      modalTypeRef: { current: null }, identifyCancelRef: { current: null }, floorThrowReturnRef: { current: null },
+      potReturnRef, runTimerRef: { current: null }, msgsRef: { current: [] }, dungeonConfig: null,
+      getDiscoveries: () => null, saveFailedRef: { current: false }, setMsgs: vi.fn(),
+      useEffect: effect => effect(), saveGameState: save };
+    const autosave = new Function(...Object.keys(deps), source.slice(start, end));
+    const runAutosave = () => autosave(...Object.values(deps));
+    const readPot = state => (onFloor ? state.dungeon.items : state.player.inventory)[0];
+
+    runAutosave();
+    expect(await save.mock.results[0].value).toBe(true);
+    potReturnRef.current = stagePotItemToInventory(player, pot, 0);
+    expect(player.inventory).toContain(wand);
+    runAutosave();
+    expect(save).toHaveBeenCalledOnce();
+    const resumed = await loadGameState();
+    expect(resumed.player.inventory.map(item => item.id)).not.toContain(wand.id);
+    expect(readPot(resumed).contents).toMatchObject([{ id: wand.id, charges: 3 }]);
+
+    if (result === "consume") player.inventory.pop();
+    else {
+      if (result === "wave") wand.charges--;
+      runAutosave();
+      expect(save).toHaveBeenCalledOnce();
+      expect(restorePotReturnItem({ player, dungeon, entry: potReturnRef.current }).returned).toBe(true);
+      potReturnRef.current = null;
+    }
+    sr.current.floorTurns = result === "cancel" ? 0 : 1;
+    runAutosave();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(await save.mock.results[1].value).toBe(true);
+    const saved = await loadGameState();
+    expect(saved.floorTurns).toBe(sr.current.floorTurns);
+    expect(saved.player.inventory.map(item => item.id)).not.toContain(wand.id);
+    expect(readPot(saved).contents).toMatchObject(charges === null ? [] : [{ id: wand.id, charges }]);
+  });
+
   it("武器・防具・指輪・矢・壺の直接装備/入れ子は禁止し、矢束は射ると投げる(束)の両方を持つ", () => {
     const sword = { id: "w1", name: "鉄の剣", type: "weapon", atk: 5 };
     const armor = { id: "a1", name: "皮の盾", type: "armor", def: 4 };

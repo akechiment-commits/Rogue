@@ -231,6 +231,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [throwMode, _setThrowMode] = useState(null);
   const throwModeRef = useRef(null);
   const floorThrowReturnRef = useRef(null);
+  const potReturnRef = useRef(null);
   throwModeRef.current = throwMode;
   const setThrowMode = (v) => {
     const next = typeof v === "function" ? v(throwModeRef.current) : v;
@@ -1061,6 +1062,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (!gs || dead || showEnding || saveStoppedRef.current) return;
     // 対象・方向を選ぶ間だけ所持品へ移した道具は、中断セーブに書き込まない。
     if ((modalTypeRef.current === "identify" && identifyCancelRef.current) || floorThrowReturnRef.current) return;
+    if (potReturnRef.current && sr.current.player.inventory.includes(potReturnRef.current.item)) return;
     if (sr.current && runTimerRef.current) {
       sr.current.runActiveMs = runTimerRef.current.getElapsedMs();
     }
@@ -6962,7 +6964,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     doPutItem(itemIdx, _putOptions);
   };
   /* 保存の壺から直接アイテムを操作する際の一時退避・復元管理 */
-  const potReturnRef = useRef(null);
   const flushPotReturn = useCallback(() => {
     const entry = potReturnRef.current;
     if (!entry || !sr.current) return false;

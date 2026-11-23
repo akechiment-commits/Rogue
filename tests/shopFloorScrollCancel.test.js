@@ -77,7 +77,7 @@ function floorActionFixture({ debt = 0, precharged = false, bargain = false, eff
   const autosave = async () => {
     let pending;
     const deps = { sr, gs: sr.current, dead: false, showEnding: false, saveStoppedRef: { current: false },
-      modalTypeRef, identifyCancelRef, floorThrowReturnRef, runTimerRef: { current: null },
+      modalTypeRef, identifyCancelRef, floorThrowReturnRef, potReturnRef: { current: null }, runTimerRef: { current: null },
       msgsRef: { current: [] }, dungeonConfig: null, getDiscoveries: () => null, saveFailedRef: { current: false },
       setMsgs: setters.setMsgs, useEffect: effect => effect(),
       saveGameState: (...args) => { pending = saveGameState(...args); return pending; } };
