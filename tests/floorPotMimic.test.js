@@ -34,7 +34,7 @@ function setup(effect, floorPot) {
     floorEntryRole, revealItemMimicAt, clearDimensionalVaultItemCounter, trackItem, lu: vi.fn() };
   const source = fs.readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
   const start = source.indexOf("  const _doPutFloorItem = (item, target) => {");
-  const end = source.indexOf("  /* 壺入れをやめる", start);
+  const end = source.indexOf("  /* 保存の壺から直接アイテムを操作する際の一時退避・復元管理", start);
   if (start < 0 || end < 0) throw Error("Missing floor pot callback");
   const put = new Function(...Object.keys(deps), `${source.slice(start, end)}; return _doPutFloorItem;`)(...Object.values(deps));
   const target = floorPot ? { pot, floorPot: pot } : { pot, potIdx: 0 };
