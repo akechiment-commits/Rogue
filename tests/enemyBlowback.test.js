@@ -144,9 +144,10 @@ describe("敵の吹き飛ばしの杖の撃破処理", () => {
       maxHp: 100, x: 7, y: 5, subtype: "magicreflect", _phaseActionCount: 0 } : null;
     if (reflector) dungeon.monsters.push(reflector);
     const messages = [];
+    const expectedExp = reflection === "monster" ? 0 : mage.exp;
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, messages, "attackOnly");
     expect(dungeon.monsters).not.toContain(mage);
-    expect(player.exp).toBe(reflection === "monster" ? 0 : 45);
+    expect(player.exp).toBe(expectedExp);
     if (reflector) expect(messages.some(message => message.includes("反射役に倒された"))).toBe(true);
     expect(messages.filter(message => message.includes("ウィンドメイジ") &&
       (message.includes("倒した") || message.includes("倒された")))).toHaveLength(1);
