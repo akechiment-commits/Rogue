@@ -134,8 +134,8 @@ describe.each(inputs)("複製の新品生成: %s", input => {
   it("壺は新品の容量・空の中身になり、捕獲した敵を複製しない", () => {
     const source = POTS.find(p => p.potEffect === "none");
     const { copy } = choose(input, { ...source, capacity: 20, contents: [{ name: "中身" }], confinedMonsters: [{ name: "敵" }] });
-    expect(copy.capacity).toBeGreaterThanOrEqual(6);
-    expect(copy.capacity).toBeLessThanOrEqual(9);
+    expect(copy.capacity).toBeGreaterThanOrEqual(4);
+    expect(copy.capacity).toBeLessThanOrEqual(6);
     expect(copy.contents).toEqual([]);
     expect(copy.confinedMonsters).toEqual([]);
   });
