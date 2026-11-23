@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import {
   saveGameState,
   loadGameState,
@@ -8,6 +8,62 @@ import {
 import { clearSave } from "../SaveData.js";
 import { makeEmptyDg } from "./helpers.js";
 import { MW, MH } from "../utils.js";
+
+const LEGACY_KEY = "roguelike_dungeon_save_v1";
+
+function makeIndexedDb(initialSave) {
+  const saved = new Map([["current", initialSave]]);
+  const database = {
+    close() { this.onclose?.(); },
+    transaction() {
+      const requests = [];
+      const store = {
+        get(key) {
+          const request = {};
+          requests.push(() => {
+            request.result = structuredClone(saved.get(key));
+            request.onsuccess?.();
+          });
+          return request;
+        },
+        put(value, key) {
+          const snapshot = structuredClone(value);
+          requests.push(() => saved.set(key, snapshot));
+          return {};
+        },
+      };
+      const tx = { objectStore: () => store };
+      queueMicrotask(() => {
+        for (const request of requests) request();
+        tx.oncomplete?.();
+      });
+      return tx;
+    },
+  };
+  return {
+    failure: null,
+    close: () => database.close(),
+    open() {
+      const request = {};
+      queueMicrotask(() => {
+        if (this.failure === "blocked") {
+          request.onblocked();
+        } else if (this.failure === "denied") {
+          request.error = new DOMException("storage denied", "SecurityError");
+          request.onerror();
+        } else {
+          request.result = database;
+          request.onsuccess();
+        }
+      });
+      return request;
+    },
+  };
+}
+
+function readLocalSave() {
+  return JSON.parse(localStorage.getItem(LEGACY_KEY)).data;
+}
 
 function savedFloor(overrides = {}) {
   return makeEmptyDg({
@@ -53,24 +109,39 @@ function makeSession() {
 }
 
 describe("GameSave", () => {
+  let indexedDb;
+
+  afterEach(() => {
+    indexedDb?.close();
+    indexedDb = null;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("ブラウザがストレージへのアクセスを拒否しても拠点と初期化処理を落とさない", async () => {
+    indexedDb = makeIndexedDb();
+    indexedDb.failure = "denied";
+    vi.stubGlobal("indexedDB", indexedDb);
     vi.stubGlobal("localStorage", {
       getItem() { throw new Error("storage denied"); },
+      setItem() { throw new Error("storage denied"); },
       removeItem() { throw new Error("storage denied"); },
     });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(await hasGameSave()).toBe(false);
+    await expect(saveGameState(makeSession(), [], null, null)).resolves.toBe(false);
     await expect(clearGameSave()).resolves.toBe(false);
     expect(() => clearSave()).not.toThrow();
   });
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    vi.stubGlobal("indexedDB", undefined);
     vi.stubGlobal("localStorage", {
       _data: {},
       getItem(k) { return this._data[k] ?? null; },
       setItem(k, v) { this._data[k] = v; },
       removeItem(k) { delete this._data[k]; },
     });
-    await clearGameSave();
   });
 
   it("セッションを保存して復元できる", async () => {
@@ -92,7 +163,7 @@ describe("GameSave", () => {
     expect(loaded.potionSpriteMap).toEqual({ heal: 7 });
     expect(loaded.msgs).toEqual(["テストメッセージ"]);
     expect(loaded.dungeonConfig).toEqual({ type: "beginner" });
-    expect(JSON.parse(localStorage._data.roguelike_dungeon_save_v1).version).toBe(2);
+    expect(readLocalSave().version).toBe(2);
   });
 
   it("旧価格で店に並んでいる買い戻し用の宝石は、再開した階と訪問済みの階で新価格になる", async () => {
@@ -117,7 +188,7 @@ describe("GameSave", () => {
 
   it("v1 の途中セーブを v2 として読み込める", async () => {
     await saveGameState(makeSession(), ["以前のメッセージ"], null, null);
-    const legacy = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);
+    const legacy = readLocalSave();
     legacy.version = 1;
     delete legacy.nicknames;
     delete legacy.identifiedBigboxes;
@@ -175,7 +246,7 @@ describe("GameSave", () => {
     data => { data.player.inventory.push(null); },
   ])("復元後に描画や階移動を落とす構造のセーブを拒否する %#", async corrupt => {
     await saveGameState(makeSession(), [], null, null);
-    const data = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);
+    const data = readLocalSave();
     corrupt(data);
     localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify(data));
     expect(await loadGameState()).toBeNull();
@@ -199,6 +270,59 @@ describe("GameSave", () => {
     await clearGameSave();
     expect(await hasGameSave()).toBe(false);
     expect(await loadGameState()).toBeNull();
+  });
+
+  it("IndexedDB が開けない間は旧セーブを更新し、復旧時に新しい進行を移す", async () => {
+    const session = makeSession();
+    expect(await saveGameState(session, [], null, null)).toBe(true);
+    const legacy = readLocalSave();
+    localStorage.setItem(LEGACY_KEY, JSON.stringify(legacy));
+    indexedDb = makeIndexedDb(legacy);
+    indexedDb.failure = "denied";
+    vi.stubGlobal("indexedDB", indexedDb);
+
+    const loaded = await loadGameState();
+    expect(loaded.floorTurns).toBe(42);
+    loaded.floorTurns = 43;
+    expect(await saveGameState(loaded, [], null, null)).toBe(true);
+    expect((await loadGameState()).floorTurns).toBe(43);
+
+    indexedDb.failure = null;
+    expect(await hasGameSave()).toBe(true);
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+    expect((await loadGameState()).floorTurns).toBe(43);
+  });
+
+  it("IndexedDB が開けない間に削除したセーブは復旧後も再開できない", async () => {
+    indexedDb = makeIndexedDb();
+    vi.stubGlobal("indexedDB", indexedDb);
+    expect(await saveGameState(makeSession(), [], null, null)).toBe(true);
+    indexedDb.close();
+    indexedDb.failure = "blocked";
+
+    expect(await clearGameSave()).toBe(true);
+    expect(await hasGameSave()).toBe(false);
+
+    indexedDb.failure = null;
+    expect(await hasGameSave()).toBe(false);
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+    expect(await loadGameState()).toBeNull();
+  });
+
+  it("同期済みの代替セーブが残っても IndexedDB の新しい進行を巻き戻さない", async () => {
+    const session = makeSession();
+    expect(await saveGameState(session, [], null, null)).toBe(true);
+    indexedDb = makeIndexedDb();
+    vi.stubGlobal("indexedDB", indexedDb);
+    vi.spyOn(localStorage, "removeItem").mockImplementation(() => { throw new Error("storage denied"); });
+
+    expect((await loadGameState()).floorTurns).toBe(42);
+    expect(readLocalSave().floorTurns).toBe(42);
+    const blockedRead = vi.spyOn(localStorage, "getItem").mockImplementation(() => { throw new Error("storage denied"); });
+    session.floorTurns = 43;
+    expect(await saveGameState(session, [], null, null)).toBe(true);
+    blockedRead.mockRestore();
+    expect((await loadGameState()).floorTurns).toBe(43);
   });
 
   it("連続する保存は最後のターンのスナップショットを残す", async () => {

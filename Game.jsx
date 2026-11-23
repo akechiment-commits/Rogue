@@ -1068,7 +1068,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     saveGameState(sr.current, msgsRef.current, dungeonConfig, getDiscoveries()).then(saved => {
       if (!active || saveStoppedRef.current) return;
       if (!saved && !saveFailedRef.current) {
-        setMsgs(prev => [...prev.slice(-80), "自動セーブに失敗しました。次の行動後に再試行します。"]);
+        setMsgs(prev => [...prev.slice(-80), "自動セーブできません。次の行動後に再試行します。"]);
       }
       saveFailedRef.current = !saved;
     });
