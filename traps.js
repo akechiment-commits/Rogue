@@ -7,7 +7,7 @@ import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { wakeIfDormant, triggerMushroomCounterSpore } from "./monsterRuntime.js";
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
-import { claimTrapActivation } from "./trapActivationTurn.js";
+import { claimTrapActivation, trapHitsOccupantDirectly } from "./trapActivationTurn.js";
 import { formatEquipmentPlusChange } from "./inventoryLabel.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
@@ -34,7 +34,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
   let noBreak = false; /* trueのとき作動後の30%破壊チェックをスキップ */
   const identSet = ctx?.ident || null;
 
-  switch (trap.effect) {
+  if (trapHitsOccupantDirectly(trap.effect) && consumeBarrier(p, ml)) {
+    ml.push(`${trap.name}が発動！`);
+  } else switch (trap.effect) {
     case "explode": {
       /* 地雷は敵ターン後に爆発。破壊判定は爆発後（runMineExplosion） */
       noBreak = true;

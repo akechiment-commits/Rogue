@@ -84,7 +84,7 @@ describe("Monster special melee & rush attacks: charger, berserker, decoy clashe
     expect(ml.some(m => m.includes("毒胞子を撒き散らした"))).toBe(true);
   });
 
-  it("charger and berserker respect enemy barrier", () => {
+  it("berserker melee damage leaves enemy barrier intact", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 10, y: 10 });
     const ml = [];
@@ -115,8 +115,8 @@ describe("Monster special melee & rush attacks: charger, berserker, decoy clashe
 
     monsterAI(berserker, dg, p, ml, { attackOnly: true });
 
-    expect(defender.hp).toBe(100);
-    expect(defender.barrier).toBe(0);
+    expect(defender.hp).toBeLessThan(100);
+    expect(defender.barrier).toBe(1);
   });
 
   it("decoy pentacle contest between monsters triggers counter spore, wakes dormant, clamps fixed damage", () => {
@@ -159,7 +159,7 @@ describe("Monster special melee & rush attacks: charger, berserker, decoy clashe
     expect(ml.some(m => m.includes("毒胞子を撒き散らした"))).toBe(true);
   });
 
-  it("enemy attack against player clone respects clone barrier", () => {
+  it("enemy melee damage leaves the player clone barrier intact", () => {
     const dg = makeEmptyDg();
     dg.rooms = [{ x: 1, y: 1, w: 20, h: 10 }];
     const p = makePlayer({ x: 10, y: 10 });
@@ -189,8 +189,8 @@ describe("Monster special melee & rush attacks: charger, berserker, decoy clashe
 
     monsterAI(enemy, dg, p, ml, { attackOnly: true });
 
-    expect(clone.hp).toBe(50);
-    expect(clone.barrier).toBe(0);
+    expect(clone.hp).toBeLessThan(50);
+    expect(clone.barrier).toBe(1);
   });
 
   it("grounded charger stops before water tiles and does not charge onto water", () => {

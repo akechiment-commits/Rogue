@@ -1039,7 +1039,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
-export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null, attackName = "攻撃" } = {}) {
+export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, ranged = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null, attackName = "攻撃" } = {}) {
   if (isAttackSealed(m)) {
     ml.push(`${m.name}は攻撃が封印されていて殴れない！`);
     return;
@@ -1049,6 +1049,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
   if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName, onMiss: onPlayerMiss })) {
     return;
   }
+  if (ranged && consumeBarrier(pl, ml)) return;
   const pdef = ignoreDefense ? 0 : calcPlayerDef(pl);
   const _effAtk = monEffectiveAttack(m);
   let dmg = calcAtkDefDmg(_effAtk, pdef, { defWeight: 1.5 });
@@ -1084,7 +1085,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
   if (criticalLabel || _tbCrit || _trollCrit) _hitMsg = _hitMsg.replace(/(\d+)(ダメージ|回復)！/, "痛恨の一撃！$1$2！");
   if (_fzLbl && !_hitMsg.includes("凍結")) _hitMsg = _hitMsg.replace(/(\d+(?:ダメージ|回復)！)/, `$1${_fzLbl}`);
   ml.push(_hitMsg);
-  if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0) {
+  if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0 && !consumeBarrier(m, ml)) {
     const td = Math.max(1, Math.floor(dmg / 3));
     m.hp -= td;
     ml.push(`反射で${m.name}に${td}ダメージ！`);
@@ -1116,17 +1117,21 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
           const _nx = _knx + _kndx, _ny = _kny + _kndy;
           if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH ||
               dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-            pl.deathCause = "吹き飛ばされての壁への激突により";
-            const _impact = 5;
-            pl.hp -= _impact;
-            ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
+            if (!consumeBarrier(pl, ml)) {
+              pl.deathCause = "吹き飛ばされての壁への激突により";
+              const _impact = 5;
+              pl.hp -= _impact;
+              ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
+            }
             break;
           }
           if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _nx, _ny))) {
-            pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
-            const _impact = 5;
-            pl.hp -= _impact;
-            ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
+            if (!consumeBarrier(pl, ml)) {
+              pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
+              const _impact = 5;
+              pl.hp -= _impact;
+              ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
+            }
             break;
           }
           _knx = _nx; _kny = _ny; _knMoved++;
@@ -1311,6 +1316,7 @@ export function kingDustStorm(m, dg, pl, ml, onPlayerHit, onPlayerMiss, luFn) {
   if (inStorm(pl.x, pl.y) && !plOnSanc) {
     monsterAttackPlayer(m, dg, pl, ml, damage => `ダストストームが${plName(pl)}を襲う！${damage}ダメージ！`, {
       damageMultiplier: 0.5,
+      ranged: true,
       onPlayerHit: damage => {
         onPlayerHit?.(damage, m);
         if (!blockPlayerStatus(pl, ml, { proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)" })) {
@@ -3350,6 +3356,7 @@ function attackPlayerClone(m, clone, dg, pl, ml, luFn) {
   const rawDamage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk || 1, clone.def || 0, { defWeight: 1 })));
   const res = applyDamageToMonster(clone, rawDamage, {
     isPhysical: true,
+    skipBarrier: true,
     attacker: m,
     dungeon: dg,
     player: pl,
@@ -4057,6 +4064,7 @@ export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride 
       }
       const _wgWater = hitMon.waterOnly || monEffectiveWaterWalker(hitMon);
       if (_wgWater) {
+        if (consumeBarrier(hitMon, ml)) return;
         /* 水属性モンスターは回復 */
         const heal = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
         hitMon.hp = Math.min(hitMon.maxHp, hitMon.hp + heal);
@@ -4072,9 +4080,8 @@ export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride 
           killIfDead: true,
           luFn: luFn || null,
         });
-        if (!res.blocked) {
-          ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${res.damage}ダメージ！`);
-        }
+        if (res.blocked) return;
+        ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${res.damage}ダメージ！`);
       }
       if (hitMon.hp > 0) applySoakedStatusToMonster(hitMon, ml);
       return;
@@ -6170,6 +6177,7 @@ function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
             const rawDmg = monScaleOutgoingDamage(monster, Math.max(1, calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
             const res = applyDamageToMonster(target, rawDmg, {
               isPhysical: true,
+              skipBarrier: true,
               attacker: monster,
               dungeon,
               player,
@@ -6177,11 +6185,7 @@ function npcRetaliationAI(monster, dungeon, player, messages, opts, float) {
               killIfDead: true,
               luFn: opts.luFn || (() => {}),
             });
-            if (res.blocked) {
-              messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
-            } else {
-              messages.push(`${monster.name}が${target.name}を攻撃！${res.damage}ダメージ！`);
-            }
+            messages.push(`${monster.name}が${target.name}を攻撃！${res.damage}ダメージ！`);
           }
         }
       }
@@ -6332,6 +6336,7 @@ function performStrifeRingAttack(monster, target, dungeon, player, messages, opt
     calcAtkDefDmg(monster.atk || 1, target.def || 0, { defWeight: 1 }) + rng(-1, 1)));
   const res = applyDamageToMonster(target, rawDamage, {
     isPhysical: true,
+    skipBarrier: true,
     attacker: monster,
     dungeon,
     player,
@@ -6339,11 +6344,7 @@ function performStrifeRingAttack(monster, target, dungeon, player, messages, opt
     killIfDead: true,
     luFn: opts.luFn || (() => {}),
   });
-  if (res.blocked) {
-    messages.push(`${target.name}は${monster.name}の攻撃をバリアで防いだ！`);
-  } else {
-    messages.push(`${monster.name}は争いの指輪にあおられて${target.name}を攻撃！${res.damage}ダメージ！`);
-  }
+  messages.push(`${monster.name}は争いの指輪にあおられて${target.name}を攻撃！${res.damage}ダメージ！`);
   return true;
 }
 
@@ -6603,6 +6604,7 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
     const _rawDamage = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _adjTarget.def || 0, { defWeight: 1 })));
     const res = applyDamageToMonster(_adjTarget, _rawDamage, {
       isPhysical: true,
+      skipBarrier: true,
       attacker: m,
       dungeon: dg,
       player: pl,
@@ -7642,6 +7644,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const rawDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk || 1, _bTarget.def || 0, { defWeight: 1 }) + rng(-1, 1)));
         const res = applyDamageToMonster(_bTarget, rawDmg, {
           isPhysical: true,
+          skipBarrier: true,
           attacker: m,
           dungeon: dg,
           player: pl,
@@ -8454,6 +8457,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const rawDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
             const res = applyDamageToMonster(_other, rawDmg, {
               isPhysical: true,
+              skipBarrier: true,
               attacker: m,
               dungeon: dg,
               player: pl,
@@ -8461,11 +8465,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               killIfDead: true,
               luFn: _luFn || null,
             });
-            if (res.blocked) {
-              ml.push(`${_other.name}は${m.name}の攻撃をバリアで防いだ！`);
-            } else {
-              ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${res.damage}ダメージ！`);
-            }
+            ml.push(`${_disorientedLabel}${m.name}が${_other.name}を攻撃！${res.damage}ダメージ！`);
           }
         } else if (!_attackOnly && !_movementLocked && _canMoveTo(_cnx, _cny) && isWalkable(dg.map, _cnx, _cny, dg)) {
           m.x = _cnx; m.y = _cny;
@@ -8505,6 +8505,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const rawDmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1)));
         const res = applyDamageToMonster(_dother, rawDmg, {
           isPhysical: true,
+          skipBarrier: true,
           attacker: m,
           dungeon: dg,
           player: pl,
@@ -8512,11 +8513,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           killIfDead: true,
           luFn: _luFn || null,
         });
-        if (res.blocked) {
-          ml.push(`${_dother.name}は${m.name}の攻撃をバリアで防いだ！`);
-        } else {
-          ml.push(`暗闇の${m.name}が${_dother.name}に突進！${res.damage}ダメージ！`);
-        }
+        ml.push(`暗闇の${m.name}が${_dother.name}に突進！${res.damage}ダメージ！`);
       }
     } else if (_canMoveTo(_dnx, _dny)) {
       if (!_attackOnly && !_movementLocked) {
@@ -10195,6 +10192,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2)));
                 const res = applyDamageToMonster(_nearMon, rawDmg, {
                   isPhysical: true,
+                  skipBarrier: true,
                   attacker: m,
                   dungeon: dg,
                   player: pl,
@@ -10224,6 +10222,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                   const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2)));
                   const res = applyDamageToMonster(_adjOccup, rawDmg, {
                     isPhysical: true,
+                    skipBarrier: true,
                     attacker: m,
                     dungeon: dg,
                     player: pl,
@@ -10267,6 +10266,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               const rawDmg = monScaleOutgoingDamage(m, Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2)));
               const res = applyDamageToMonster(_occup, rawDmg, {
                 isPhysical: true,
+                skipBarrier: true,
                 attacker: m,
                 dungeon: dg,
                 player: pl,
@@ -10493,7 +10493,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_plOnBlessedSanc) {
           ml.push(`祝福された聖域の加護が${m.name}の烈風を防いだ！`);
         } else {
-          monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          monsterAttackPlayer(m, dg, pl, ml, d => `烈風が${plName(pl)}を襲う！${d}ダメージ！`, { ranged: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         }
         for (const victim of [...dg.monsters]) {
           if (victim === m || victim.hp <= 0 || victim.disguisedAsItem || !dg.monsters.includes(victim) || findRoom(dg.rooms, victim.x, victim.y) !== room) continue;

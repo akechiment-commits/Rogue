@@ -2,6 +2,18 @@
  * 一時情報なのでセーブ対象のダンジョンには書き込まない。 */
 const activations = new WeakMap();
 
+const directTrapEffects = new Set([
+  "pitfall", "rust", "spin", "sleep", "slow_trap", "level_down_trap",
+  "confuse_trap", "bewitch_trap", "darkness_trap", "seal_trap", "steal_trap",
+  "trip_trap", "hunger_trap", "shadow_stitch", "mp_absorb_trap", "float_trap",
+  "oil_trap", "unident_trap", "watergun_trap", "rot_trap", "blowback_trap",
+  "unequip_trap",
+]);
+
+export function trapHitsOccupantDirectly(effect) {
+  return directTrapEffects.has(effect);
+}
+
 function trapKey(trap) { return trap?.id ?? trap; }
 
 export function canActivateTrap(dungeon, trap, allowReserved = false) {

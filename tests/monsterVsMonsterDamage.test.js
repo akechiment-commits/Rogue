@@ -86,7 +86,7 @@ describe("Monster vs Monster combat: spore, dormant, paralysis, fixed damage", (
     expect(ml.some(m => m.includes("毒胞子を撒き散らした"))).toBe(true);
   });
 
-  it("clone attack respects enemy barrier", () => {
+  it("clone melee damage leaves the enemy barrier intact", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 2, y: 2 });
     const ml = [];
@@ -117,7 +117,7 @@ describe("Monster vs Monster combat: spore, dormant, paralysis, fixed damage", (
 
     monsterAI(clone, dg, p, ml, { attackOnly: true });
 
-    expect(target.hp).toBe(100);
-    expect(target.barrier).toBe(0);
+    expect(target.hp).toBeLessThan(100);
+    expect(target.barrier).toBe(1);
   });
 });

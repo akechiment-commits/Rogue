@@ -9,7 +9,7 @@ import * as status from "../statusDuration.js";
 import { pushAnim, pushBoltAnim, pushItemFlyAnim } from "../animEvents.js";
 import { statueAt } from "../fixtureQueries.js";
 import { pl } from "../playerLabel.js";
-import { processPitfallBag } from "../render.js";
+import { itemDisplayName, processPitfallBag } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 // 範囲選択から全攻撃・吹き飛ばし完了まで、Gameの実際の分岐を実行する。
@@ -23,8 +23,8 @@ if (pitfallStart < 0 || pitfallEnd < 0) throw new Error("Pitfall handler not fou
 const bindPitfallBag = new Function("sr", "useCallback", "setPitfallBag", "clearPitfallBag", "processPitfallBag",
   source.slice(pitfallStart, pitfallEnd) + "return withPitfallBag;");
 const deps = { ...utils, ...monsters, ...items, ...traits, ...geometry, ...status,
-  pushAnim, pushBoltAnim, pushItemFlyAnim, statueAt, pl, bigboxAddItem: vi.fn() };
-const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonster", "dx", "dy", "withPitfallBag",
+  pushAnim, pushBoltAnim, pushItemFlyAnim, statueAt, pl, itemDisplayName, bigboxAddItem: vi.fn() };
+const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonster", "dx", "dy", "withPitfallBag", "sr",
   `const nx=p.x+dx,ny=p.y+dy,_oldPx=p.x,_oldPy=p.y;
    const _ad={attacks:[],damages:[]};let acted=false;
    ${source.slice(start, end)}
@@ -44,13 +44,33 @@ function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 100
   for (const [x, y] of walls) dg.map[y][x] = utils.T.WALL;
   const ml = [];
   const kill = vi.fn(target => { dg.monsters = dg.monsters.filter(m => m !== target); });
-  const result = run(...Object.values(deps), p, dg, ml, () => {}, kill, ...direction, withPitfallBag);
+  const result = run(...Object.values(deps), p, dg, ml, () => {}, kill, ...direction, withPitfallBag, sr);
   return { p, mon, dg, below, ml, kill, ...result };
 }
 afterEach(() => vi.restoreAllMocks());
 
 describe("射撃の指輪と石", () => {
   const shootingRing = { effect: "shoot_ring" };
+
+  it("追加射撃した石が反射されるとプレイヤーのバリアを消費する", () => {
+    const stone = items.makeNormalStone(1);
+    const { p } = attack({ abilities: [], bodySize: 1, target: { subtype: "reflector" },
+      player: { rings: [shootingRing], arrow: stone, inventory: [stone], barrier: 1 } });
+    expect(p).toMatchObject({ hp: 100, barrier: 0 });
+    expect(p.arrow).toBeNull();
+  });
+
+  it("追加射撃した爆弾矢の直撃と爆風を別々に防ぐ", () => {
+    const arrow = items.makeBombArrow(1);
+    const { mon } = attack({ abilities: [], bodySize: 1, target: { barrier: 2 },
+      player: { rings: [shootingRing], arrow, inventory: [arrow] } });
+    expect(mon).toMatchObject({ hp: 990, barrier: 0 });
+  });
+
+  it("吹き飛ばしの魔方陣では壁への衝突だけを防ぐ", () => {
+    const { mon } = attack({ abilities: [], bodySize: 1, walls: [[7, 5]], pentacle: {}, target: { barrier: 1 } });
+    expect(mon).toMatchObject({ hp: 990, barrier: 0 });
+  });
 
   it.each([items.makeNormalStone, items.makeMagicStone, items.makeArrow])(
     "追加射撃の%pが地雷へ落ちるとプレイヤーにも爆風が届く",

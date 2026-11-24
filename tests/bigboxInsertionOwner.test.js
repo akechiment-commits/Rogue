@@ -6,6 +6,26 @@ import { createGameBigboxHandlers } from "./gameBigboxHarness.js";
 
 afterEach(() => vi.restoreAllMocks());
 
+it.each([
+  { name: "毒矢", type: "arrow", count: 1, atk: 10, poisonArrow: true },
+  { name: "眠り薬", type: "potion", effect: "sleep", value: 6 },
+  { name: "保存の壺", type: "pot", potEffect: "none", capacity: 1, contents: [] },
+])("拡散の大箱から飛んできた$nameをプレイヤーと敵のバリアで防ぐ", item => {
+  const box = { kind: "scatter", name: "拡散の大箱", x: 9, y: 5, capacity: 3, contents: [] };
+  const player = makePlayer({ x: 8, y: 5, barrier: 1 });
+  const target = { id: "target", name: "敵", x: 9, y: 6, hp: 100, maxHp: 100, barrier: 1 };
+  const dungeon = makeEmptyDg({ monsters: [target], bigboxes: [box], rooms: [{ x: 8, y: 4, w: 4, h: 4 }] });
+  const { bigboxAddItem } = createGameBigboxHandlers({ player, dungeon, ident: new Set() });
+
+  bigboxAddItem(box, { ...item }, dungeon, []);
+
+  for (const unit of [player, target]) {
+    expect(unit).toMatchObject({ hp: 100, barrier: 0 });
+    expect(unit.sleepTurns || 0).toBe(0);
+    expect(unit.poisonedTurns || 0).toBe(0);
+  }
+});
+
 function insertByBlowback(kind, item, { enemy = true, targetHp = 1, boss = false, casterInRange = false } = {}) {
   vi.spyOn(Math, "random").mockReturnValue(0.99);
   const caster = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, casterInRange ? 7 : 5, 5);

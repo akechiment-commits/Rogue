@@ -6,6 +6,32 @@ import { makeEmptyDg, makePlayer } from "./helpers.js";
 afterEach(() => vi.restoreAllMocks());
 
 it.each(["mine", "gunpowder", "timebomb", "pentacle"])(
+  "%sの即死は雑魚のバリアを通り、ボスとプレイヤーは爆風を防ぐ", route => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const enemy = { id: "enemy", name: "雑魚", x: 5, y: 5, hp: 100, maxHp: 100, barrier: 2 };
+    const boss = { ...enemy, id: "boss", name: "ボス", x: 6, y: route === "pentacle" ? 3 : 5, isBoss: true };
+    const player = makePlayer({ x: 5, y: route === "pentacle" ? 3 : 6, hp: 100, barrier: 2 });
+    const dungeon = makeEmptyDg({ monsters: [enemy, boss] });
+    const messages = [];
+
+    if (route === "mine") runMineExplosion(dungeon, { x: 5, y: 5, name: "地雷" }, player, messages, null);
+    else if (route === "gunpowder") doGunpowderExplosion(5, 5, dungeon, player, messages, null);
+    else if (route === "timebomb") doTimeBombExplosion(5, 5, dungeon, player, messages, null);
+    else {
+      dungeon.pentacles.push({ kind: "explosion", name: "爆発の魔方陣", x: 4, y: 5 });
+      const trigger = { id: "trigger", name: "起爆役", x: 5, y: 4, hp: 0 };
+      dungeon.monsters.push(trigger);
+      killMonster(trigger, dungeon, player, messages, null);
+    }
+
+    expect(dungeon.monsters).not.toContain(enemy);
+    expect(enemy.barrier).toBe(2);
+    expect(boss).toMatchObject({ hp: 100, barrier: 1 });
+    expect(player).toMatchObject({ hp: 100, barrier: 1 });
+  },
+);
+
+it.each(["mine", "gunpowder", "timebomb", "pentacle"])(
   "%sは誘爆を終えてから撃破した敵の杖・薬・壺・火薬壺を落とす", route => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const loot = [

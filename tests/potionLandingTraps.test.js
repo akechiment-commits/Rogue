@@ -1,10 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyWandEffect } from "../wands.js";
-import { clearPitfallBag, setPitfallBag, throwItemAlongLine } from "../items.js";
+import { clearPitfallBag, setPitfallBag, splashPotion, throwItemAlongLine } from "../items.js";
 import { placeFallenEntities } from "../pitfallPlacement.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => { clearPitfallBag(); vi.restoreAllMocks(); });
+
+it.each(["fire", "sleep", "poison", "water", "heal"])("薬液(%s)を対象ごとに1回分のバリアで防ぐ", effect => {
+  const player = makePlayer({ x: 5, y: 5, hp: 75, barrier: 2, oilyTurns: 3 });
+  const target = { id: "large", name: "巨大敵", x: 6, y: 5, bodySize: 2, hp: 75, maxHp: 100, barrier: 2, oilyTurns: 3 };
+  const dungeon = makeEmptyDg({ monsters: [target], oilyTiles: [{ x: 5, y: 5 }] });
+
+  splashPotion(dungeon, 5, 5, effect, 20, player, [], () => {});
+
+  for (const unit of [player, target]) {
+    expect(unit).toMatchObject({ hp: 75, barrier: 1, oilyTurns: 3 });
+    expect(unit.sleepTurns || 0).toBe(0);
+    expect(unit.poisonedTurns || 0).toBe(0);
+    expect(unit.soakedTurns || 0).toBe(0);
+  }
+  if (effect === "water") expect(dungeon.oilyTiles).toEqual([]);
+});
+
 function setup(effect, route) {
   const potion = { id: "potion", type: "potion", name: "回復薬", effect: "heal", value: 30, x: 5, y: 5 };
   const path = { id: "path", name: "途中の落とし穴", effect: "pitfall", x: 5, y: 8, permanent: true, revealed: false };

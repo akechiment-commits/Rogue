@@ -268,6 +268,26 @@ describe("fireTrapPlayer", () => {
     const result = fireTrapPlayer(trap, p, dg, ml);
     expect(result).toBe("pitfall");
   });
+
+  it("眠りの罠を踏むと起動するが、バリアで眠りを防げる", () => {
+    const p = makePlayer({ x: 5, y: 5, barrier: 1 });
+    const trap = { effect: "sleep", name: "眠りの罠", x: 5, y: 5, id: "sleep", permanent: true };
+    const dg = makeEmptyDg({ traps: [trap] });
+    fireTrapPlayer(trap, p, dg, []);
+    expect(trap.revealed).toBe(true);
+    expect(p.barrier).toBe(0);
+    expect(p.sleepTurns || 0).toBe(0);
+  });
+
+  it("道具で起動した落とし穴はバリア持ちの敵を落とさない", () => {
+    const enemy = { id: "enemy", name: "敵", x: 5, y: 5, hp: 100, barrier: 1 };
+    const trap = { effect: "pitfall", name: "落とし穴", x: 5, y: 5, id: "pitfall", permanent: true };
+    const dg = makeEmptyDg({ monsters: [enemy], traps: [trap] });
+    const item = { name: "杖", type: "wand" };
+    expect(fireTrapItem(trap, item, dg, 5, 5, [], new Set())).toBe("destroyed");
+    expect(dg.monsters).toContain(enemy);
+    expect(enemy.barrier).toBe(0);
+  });
 });
 
 describe("fireTrapItem mp_absorb_trap", () => {

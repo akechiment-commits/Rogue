@@ -29,7 +29,7 @@ import { lootAllowedInDungeon, lootPoolForDungeon, trapAllowedInDungeon } from "
 import { ordinaryFloorGoldRange } from "./springRules.js";
 import { BOSS_RANDOM_DROP_COUNT, BOSS_UNIQUE_DROP_RULES } from "./bossDropRules.js";
 import { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
-import { canActivateTrap, claimTrapActivation } from "./trapActivationTurn.js";
+import { canActivateTrap, claimTrapActivation, trapHitsOccupantDirectly } from "./trapActivationTurn.js";
 export { BB_TYPES, TRAPS } from "./dungeonCatalog.js";
 import { isStatusImmune, statusResultMessage, statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerParalyze, applyPlayerConfusion, resolveParalysisHit, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal, installMonsterHpHook } from './statusDuration.js';
 import { isYogurtImmune } from './statusImmunity.js';
@@ -2501,6 +2501,12 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     () => _doExplosionInner(cx, cy, dg, p, ml, nameFn, srcLabel, excludeItem, luFn, proportional, ringExplosion, mineExplosion, noExpKills, options)));
 }
 
+function barrierStopsExplosion(monster, ml, instantKill) {
+  const splits = monster.baseKind === "firedemon" && !monster.isBoss && !monster.sealed;
+  if (instantKill && !monster.isBoss && !splits && !monHasFlameMantle(monster)) return false;
+  return consumeBarrier(monster, ml);
+}
+
 function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
   const killerMon = options.killerMon || null;
   const initialDepth = p?.depth;
@@ -2604,6 +2610,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
       }
       /* モンスターダメージ */
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
+      const instantKill = _hasExPentacle || ringExplosion || mineExplosion || _instantMonsterKill;
       const _blastMonsters = dg.monsters.filter(m => m.id !== _excludeMonsterId && !m.disguisedAsItem && monsterOccupiesCell(m, ax, ay));
       if (ddx === 0 && ddy === 0) {
         for (const forcedMonster of options.forcedMonsters || []) {
@@ -2624,7 +2631,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           ml.push(`${m.name}は爆発を受け付けない！`);
           continue;
         }
-        if (consumeBarrier(m, ml)) {
+        if (barrierStopsExplosion(m, ml, instantKill)) {
           retaliateAgainstExplosionSource(m);
           continue;
         }
@@ -2651,7 +2658,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           ml.push(`${m.name}は爆風の炎を吸収した！`);
           continue;
         }
-        if (_hasExPentacle || ringExplosion || mineExplosion || _instantMonsterKill) {
+        if (instantKill) {
           /* 即死系爆発：炎無効でない通常敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (m.isBoss) {
             if (blockLargeMonsterDamage(m, p, ml)) continue;
@@ -2851,7 +2858,7 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
               ml.push(`${m.name}は爆発を受け付けない！`);
               continue;
             }
-            if (consumeBarrier(m, ml)) {
+            if (barrierStopsExplosion(m, ml, true)) {
               retaliateAgainstExplosionSource(m);
               continue;
             }
@@ -3076,7 +3083,7 @@ function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, optio
           ml.push(`${m.name}は爆発を受け付けない！`);
           continue;
         }
-        if (consumeBarrier(m, ml)) continue;
+        if (barrierStopsExplosion(m, ml, true)) continue;
         resolveParalysisHit(m, ml);
         if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
@@ -3571,21 +3578,21 @@ export function applyHasteTrap(dg, cx, cy, p, ml, stepper = "other") {
   let did = false;
   if (stepper === "player") {
     for (const m of monsters) {
-      if (raiseSpeedOneStage(m)) {
+      if (!consumeBarrier(m, ml) && raiseSpeedOneStage(m)) {
         ml.push(`${m.name}の速度が上がった！`);
         did = true;
       }
     }
   } else if (stepper === "monster") {
-    if (playerInRoom && raisePlayerSpeedOneStage(p, ml)) did = true;
+    if (playerInRoom && !consumeBarrier(p, ml) && raisePlayerSpeedOneStage(p, ml)) did = true;
   } else {
     for (const m of monsters) {
-      if (raiseSpeedOneStage(m)) {
+      if (!consumeBarrier(m, ml) && raiseSpeedOneStage(m)) {
         ml.push(`${m.name}の速度が上がった！`);
         did = true;
       }
     }
-    if (playerInRoom && raisePlayerSpeedOneStage(p, ml)) did = true;
+    if (playerInRoom && !consumeBarrier(p, ml) && raisePlayerSpeedOneStage(p, ml)) did = true;
   }
   if (!did) ml.push("しかし速度が上がる相手がいなかった。");
 }
@@ -3867,6 +3874,18 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   }
   if (!claimTrapActivation(dg, trap)) return "already_activated";
   trackTrap(trap);
+  const directHit = trapHitsOccupantDirectly(trap.effect);
+  let playerBlocked;
+  const canAffectPlayerOnTrap = () => {
+    if (!p || p.x !== tx || p.y !== ty) return false;
+    if (!directHit) return true;
+    playerBlocked ??= consumeBarrier(p, ml);
+    return !playerBlocked;
+  };
+  const monsterOnTrap = () => {
+    const mon = monsterAt(dg, tx, ty);
+    return mon && directHit && consumeBarrier(mon, ml) ? null : mon;
+  };
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は爆発で消し飛んだ！`);
@@ -3882,7 +3901,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       return "destroyed";
     }
     case "pitfall": {
-      const _pfm = monsterAt(dg, tx, ty);
+      const _pfm = monsterOnTrap();
       if (_pfm) {
         if (_pfm.isBoss) {
           /* ボス：落とし穴は無効、現在HPの4分の1ダメージ */
@@ -3913,7 +3932,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       } else if (item?._ephemeralTrapTrigger) {
         ml.push(`${trap.name}が発動！`);
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (isPlayerFloating(p, dg)) {
           ml.push(`浮遊しているので${trap.name}に落ちなかった！`);
           return "destroyed";
@@ -3938,13 +3957,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       } else {
         ml.push(`${trap.name}が発動！`);
       }
-      const _rm = monsterAt(dg, tx, ty);
+      const _rm = monsterOnTrap();
       if (_rm) {
         _rm.atk = Math.max(1, (_rm.atk || 1) - 1);
         if (_rm.def !== undefined) _rm.def = Math.max(0, _rm.def - 1);
         ml.push(`${_rm.name}が錆びて弱くなった！`);
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         const _peq = p.weapon || p.armor;
         if (_peq) {
           const _guard = consumeItemDegradeProtection(_peq);
@@ -3999,7 +4018,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const nx = rng(rm.x, rm.x + rm.w - 1);
         const ny = rng(rm.y, rm.y + rm.h - 1);
         placeItemAt(dg, nx, ny, item, ml, ft);
-        const _spm = monsterAt(dg, tx, ty);
+        const _spm = monsterOnTrap();
         if (_spm && !_spm.forcedMoveImmune) {
           /* 行き先は床マスだけから選ぶ（部屋の矩形そのままだと壁・水の中や他個体と重なる） */
           const _spDst = randomTeleportDest(dg, _spm.x, _spm.y,
@@ -4010,7 +4029,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             ml.push(`${_spm.name}も吹き飛ばされた！`);
           }
         } else if (_spm) ml.push(`${_spm.name}は強制移動を受けない！`);
-        if (p && p.x === tx && p.y === ty) {
+        if (canAffectPlayerOnTrap()) {
           const _spinFromX = p.x, _spinFromY = p.y;
           const _spinDstP = randomPlayerTeleportDest(dg, p.x, p.y);
           if (_spinDstP) {
@@ -4026,7 +4045,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "sleep": {
       ml.push(`${trap.name}が発動！`);
-      const _slm = monsterAt(dg, tx, ty);
+      const _slm = monsterOnTrap();
       if (_slm) {
         if (!blockLargeMonsterStatus(_slm, "sleep", ml)) {
           startLargeMonsterStatusCooldown(_slm, "sleep");
@@ -4035,7 +4054,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_slm.name}が眠りに落ちた！(${_mst}ターン)`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (blockPlayerStatus(p, ml, { proofAbility: "sleep_proof", proofMsg: "しかし眠れなかった！(耐眠)" })) {
           /* blocked */
         } else {
@@ -4067,7 +4086,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "slow_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _slwm = monsterAt(dg, tx, ty);
+      const _slwm = monsterOnTrap();
       if (_slwm) {
         if (!blockLargeMonsterStatus(_slwm, "slow", ml)) {
           startLargeMonsterStatusCooldown(_slwm, "slow");
@@ -4078,7 +4097,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_slwm.name}が鈍足になった！${_slwm.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
           const _st = statusTurns("slow", { kind: "player" });
           p.slowTurns = (p.slowTurns || 0) + _st;
@@ -4089,15 +4108,15 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "level_down_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _ldm = monsterAt(dg, tx, ty);
+      const _ldm = monsterOnTrap();
       if (_ldm) monLevelDown(_ldm, dg, ml);
-      if (p && p.x === tx && p.y === ty) applyPlayerLevelDown(p, ml);
+      if (canAffectPlayerOnTrap()) applyPlayerLevelDown(p, ml);
       if (!_ldm && !(p && p.x === tx && p.y === ty)) ml.push("しかし誰もいなかった。");
       return "restart";
     }
     case "seal_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _seam = monsterAt(dg, tx, ty);
+      const _seam = monsterOnTrap();
       if (_seam) {
         const _sealT = statusTurns("seal", { kind: "monster", target: _seam });
         applyMonsterSeal(_seam, dg, p, ml, luFn, {
@@ -4105,7 +4124,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           message: `${_seam.name}の特技が封印された！${isPermanentTurns(_sealT) ? "(永続)" : `(${_sealT}ターン)`}`,
         });
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "seal_proof", proofMsg: "しかし防具が封印を防いだ！(耐封印)" })) {
           const _st = statusTurns("seal", { kind: "player" });
           p.sealedTurns = (p.sealedTurns || 0) + _st;
@@ -4116,7 +4135,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "steal_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _stm = monsterAt(dg, tx, ty);
+      const _stm = monsterOnTrap();
       if (_stm) {
         /* 敵の一般ドロップと同系統の抽選 */
         const _stPool = lootPoolForDungeon(
@@ -4132,7 +4151,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         placeItemAt(dg, _stPosM.x, _stPosM.y, _stNewItem, ml, _stFtm, 0, p);
         ml.push(`フロアのどこかにアイテムが出現した！`);
       }
-      if (p && p.x === tx && p.y === ty && p.inventory && p.inventory.length > 0) {
+      if (canAffectPlayerOnTrap() && p.inventory && p.inventory.length > 0) {
         const _stCandidates = p.inventory.filter(canStealInventoryItem);
         if (_stCandidates.length > 0) {
           const _stItem = _stCandidates[rng(0, _stCandidates.length - 1)];
@@ -4162,7 +4181,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "trip_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _trm = monsterAt(dg, tx, ty);
+      const _trm = monsterOnTrap();
       if (_trm) {
         const _td = rng(3, 8);
         _trm.hp -= _td;
@@ -4177,7 +4196,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_trm.name}が転んだ！${_td}ダメージ！(2ターン行動不能)`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         applyPlayerTrip(p, dg, ml, {
           nameFn,
           trapId: trap.id,
@@ -4190,14 +4209,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "hunger_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _hngm = monsterAt(dg, tx, ty);
+      const _hngm = monsterOnTrap();
       if (_hngm) { _hngm.atk = Math.max(1, Math.floor((_hngm.atk || 1) / 2)); ml.push(`${_hngm.name}の攻撃力が半減した！`); }
-      if (p && p.x === tx && p.y === ty) { p.hunger = Math.max(0, p.hunger - Math.floor((p.maxHunger || 100) * 0.1)); ml.push(`急に空腹を感じた！満腹度が10%下がった。`); }
+      if (canAffectPlayerOnTrap()) { p.hunger = Math.max(0, p.hunger - Math.floor((p.maxHunger || 100) * 0.1)); ml.push(`急に空腹を感じた！満腹度が10%下がった。`); }
       return "restart";
     }
     case "shadow_stitch": {
       ml.push(`${trap.name}が発動！`);
-      const _ssm = monsterAt(dg, tx, ty);
+      const _ssm = monsterOnTrap();
       if (_ssm) {
         if (!blockLargeMonsterStatus(_ssm, "immobile", ml)) {
           startLargeMonsterStatusCooldown(_ssm, "immobile");
@@ -4206,7 +4225,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(${_it}ターン移動封じ)`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (!blockPlayerStatus(p, ml)) {
           const _it = statusTurns("immobile", { kind: "player" });
           p.immobileTurns = (p.immobileTurns || 0) + _it;
@@ -4230,7 +4249,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "blowback_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _bbm = monsterAt(dg, tx, ty);
+      const _bbm = monsterOnTrap();
       if (_bbm) {
         const _bbd = _bbm.dir || { x: 1, y: 0 };
         const _bbdx = -(_bbd.x || 0), _bbdy = -(_bbd.y || 0);
@@ -4279,7 +4298,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           if (_bbHitOther?.hp <= 0) killMonsterByTrap(_bbHitOther, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         const _pfd = p.facing || { dx: 0, dy: 1 };
         const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
         const _blowFromX = p.x, _blowFromY = p.y;
@@ -4337,7 +4356,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "confuse_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _cfm = monsterAt(dg, tx, ty);
+      const _cfm = monsterOnTrap();
       if (_cfm) {
         if (!blockLargeMonsterStatus(_cfm, "confuse", ml)) {
           startLargeMonsterStatusCooldown(_cfm, "confuse");
@@ -4346,7 +4365,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_cfm.name}は混乱した！(${_ct}ターン)`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) {
           const _ct = statusTurns("confuse", { kind: "player" });
           if (applyPlayerConfusion(p, _ct, ml)) ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
@@ -4356,12 +4375,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "bewitch_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _bwtm = monsterAt(dg, tx, ty);
+      const _bwtm = monsterOnTrap();
       if (_bwtm) {
         const _bt = statusTurns("bewitch", { kind: "monster", target: _bwtm });
         if (applyMonsterBewitch(_bwtm, _bt, ml) > 0) ml.push(`${_bwtm.name}が幻惑された！(${_bt}ターン)`);
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "しかし防具が幻惑を防いだ！(耐惑わし)" })) {
           const _bt = statusTurns("bewitch", { kind: "player" });
           p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
@@ -4372,7 +4391,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "darkness_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _dktm = monsterAt(dg, tx, ty);
+      const _dktm = monsterOnTrap();
       if (_dktm) {
         if (_dktm.type === "guard") {
           ml.push(`${_dktm.name}には暗闇が効かなかった！`);
@@ -4381,7 +4400,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           if (applyMonsterDarkness(_dktm, _dt, ml) > 0) ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)" })) {
           const _dt = statusTurns("darkness", { kind: "player" });
           p.darknessTurns = (p.darknessTurns || 0) + _dt;
@@ -4392,7 +4411,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "mp_absorb_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _mam = monsterAt(dg, tx, ty);
+      const _mam = monsterOnTrap();
       if (_mam) {
         const _sealT = statusTurns("seal", { kind: "monster", target: _mam });
         applyMonsterSeal(_mam, dg, p, ml, luFn, {
@@ -4400,7 +4419,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           message: `${_mam.name}の特技が封印された！${isPermanentTurns(_sealT) ? "(永続)" : `(${_sealT}ターン)`}`,
         });
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         const _mpBefore = p.mp || 0;
         p.mp = Math.max(0, _mpBefore - 5);
         const _mpLost = _mpBefore - (p.mp || 0);
@@ -4410,7 +4429,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "float_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _flm = monsterAt(dg, tx, ty);
+      const _flm = monsterOnTrap();
       if (_flm) {
         if (!blockLargeMonsterStatus(_flm, "float", ml)) {
           startLargeMonsterStatusCooldown(_flm, "float");
@@ -4419,7 +4438,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_flm.name}がふわっと浮いた！(浮遊${_ft}ターン)`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         const _ft = statusTurns("float", { kind: "player" });
         p.floatTurns = Math.max(p.floatTurns || 0, _ft);
         ml.push(`体がふわっと浮いた！(浮遊${_ft}ターン)`);
@@ -4428,7 +4447,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "oil_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _olm = monsterAt(dg, tx, ty);
+      const _olm = monsterOnTrap();
       if (_olm) {
         if (!blockLargeMonsterStatus(_olm, "oily", ml)) {
           startLargeMonsterStatusCooldown(_olm, "oily");
@@ -4437,7 +4456,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_olm.name}は油まみれになった！(${_ot}ターン)`);
         }
       }
-      if (p && p.x === tx && p.y === ty) {
+      if (canAffectPlayerOnTrap()) {
         if (!isStatusImmune(p, ml)) {
           const _ot = statusTurns("oily", { kind: "player" });
           p.oilyTurns = (p.oilyTurns || 0) + _ot;
@@ -4448,7 +4467,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "unident_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _uim = monsterAt(dg, tx, ty);
+      const _uim = monsterOnTrap();
       if (_uim) {
         if (!blockLargeMonsterStatus(_uim, "confuse", ml)) {
           startLargeMonsterStatusCooldown(_uim, "confuse");
@@ -4496,8 +4515,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         else if (_itResult === "restored") ml.push(`${_itOrigName}の焦げが取れて元に戻った！`);
         else ml.push(`${_itOrigName}が腐ってしまった！`);
       }
-      const _rtm = monsterAt(dg, tx, ty);
-      if (_rtm && !consumeBarrier(_rtm, ml)) {
+      const _rtm = monsterOnTrap();
+      if (_rtm) {
         if (_rtm.isBoss) {
           if (!blockLargeMonsterDamage(_rtm, p, ml)) {
             const _bd = bossInstantDeathDamage(_rtm);
@@ -4527,7 +4546,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
         }
       }
-      if (p && p.x === tx && p.y === ty && p.inventory) {
+      if (canAffectPlayerOnTrap() && p.inventory) {
         const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai && !i.iceCream && !isItemProtected(i));
         if (_rAllFoods.length > 0) {
           const _rTarget = _rAllFoods[rng(0, _rAllFoods.length - 1)];
@@ -4556,29 +4575,29 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "haste_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _hm = monsterAt(dg, tx, ty);
+      const _hm = monsterOnTrap();
       const stepper = _hm ? "monster" : (p && p.x === tx && p.y === ty ? "player" : "other");
       applyHasteTrap(dg, tx, ty, p, ml, stepper);
       return "restart";
     }
     case "unequip_trap": {
       ml.push(`${trap.name}が発動！`);
-      const _um = monsterAt(dg, tx, ty);
+      const _um = monsterOnTrap();
       if (_um) applyUnequipTrapToMonster(_um, ml);
-      if (p && p.x === tx && p.y === ty) applyUnequipTrapToPlayer(p, ml, nameFn);
-      if (!_um && !(p && p.x === tx && p.y === ty)) ml.push("しかし誰もいなかった。");
+      if (canAffectPlayerOnTrap()) applyUnequipTrapToPlayer(p, ml, nameFn);
+      if (!_um && !monsterAt(dg, tx, ty) && !(p && p.x === tx && p.y === ty)) ml.push("しかし誰もいなかった。");
       return "restart";
     }
     case "bone": {
       /* 吹き飛ばした骨が何かにぶつかった時のダメージ */
       if (item) ml.push(`${resolveItemName(item, nameFn)}は骨にぶつかって消えた。`);
-      const _boneM = monsterAt(dg, tx, ty);
-      if (_boneM) {
+      const _boneM = monsterOnTrap();
+      if (_boneM && !consumeBarrier(_boneM, ml)) {
         const _boneDmg = rng(5, 12);
         _boneM.hp -= _boneDmg;
         ml.push(`骨が${_boneM.name}に激突！${_boneDmg}ダメージ！`);
         if (_boneM.hp <= 0) killMonsterByTrap(_boneM, dg, p, ml, luFn, "飛んできた骨");
-      } else if (p && p.x === tx && p.y === ty) {
+      } else if (!_boneM && canAffectPlayerOnTrap() && !consumeBarrier(p, ml)) {
         const _boneDmg = rng(5, 12);
         p.deathCause = "飛んできた骨に激突して";
         p.hp -= _boneDmg;
@@ -6690,6 +6709,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   pushSplashAnim(cx, cy, "#88ccff");
   const _largeStatusTargets = new Set();
   const _largeSoakedTargets = new Set();
+  const shielded = new Set();
   const _largeStatusKey = (!cursed || eff === "sake") ? POTION_MONSTER_STATUS_KEYS[eff] : null;
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
@@ -6709,7 +6729,8 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       if (_gacha) breakGachaMachine(_gacha, dg, ml, p, dnFn);
     }
     const mon = monsterAt(dg, x, y);
-    if (mon) {
+    if (mon && !shielded.has(mon) && consumeBarrier(mon, ml)) shielded.add(mon);
+    if (mon && !shielded.has(mon)) {
       withParalysisHit(mon, ml, () => {
       const _duplicateLargeStatusTile = _largeStatusKey && monsterBodySize(mon) > 1 && _largeStatusTargets.has(mon);
       if (!_duplicateLargeStatusTile || eff === "poison") {
@@ -6726,10 +6747,16 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       });
     }
     if (p && x === p.x && y === p.y) {
-      applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed, killerMon);
-      if (eff === "water") applySoakedStatus(p, ml);
+      if (!shielded.has(p) && consumeBarrier(p, ml)) shielded.add(p);
+      if (!shielded.has(p)) {
+        applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed, killerMon);
+        if (eff === "water") applySoakedStatus(p, ml);
+      }
     }
-    if (eff === "water") washOilyFromWater(dg, x, y, mon || (p && x === p.x && y === p.y ? p : null), ml);
+    if (eff === "water") {
+      const entity = mon || (p && x === p.x && y === p.y ? p : null);
+      washOilyFromWater(dg, x, y, shielded.has(entity) ? null : entity, ml);
+    }
     const trap = dg.traps.find(t => t.x === x && t.y === y);
     if (trap) {
       if (!trap.permanent) {
@@ -6772,23 +6799,29 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
 }
 
 function applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn = null) {
+  const shielded = new Set();
   for (let dy2 = -1; dy2 <= 1; dy2++) {
     for (let dx2 = -1; dx2 <= 1; dx2++) {
       const tx = cx + dx2, ty = cy + dy2;
       if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
       if (dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) continue;
       const mon = monsterAt(dg, tx, ty);
-      if (mon) {
+      if (mon && !shielded.has(mon) && consumeBarrier(mon, ml)) shielded.add(mon);
+      if (mon && !shielded.has(mon)) {
         withParalysisHit(mon, ml, () => {
           applyPotionEffect("water", WATER_BOTTLE.value, "monster", mon, dg, p, ml, luFn, blessed, cursed);
           applySoakedStatusToMonster(mon, ml);
         });
       }
       if (p && tx === p.x && ty === p.y) {
-        applyPotionEffect("water", WATER_BOTTLE.value, "player", p, dg, p, ml, luFn, blessed, cursed);
-        applySoakedStatus(p, ml);
+        if (!shielded.has(p) && consumeBarrier(p, ml)) shielded.add(p);
+        if (!shielded.has(p)) {
+          applyPotionEffect("water", WATER_BOTTLE.value, "player", p, dg, p, ml, luFn, blessed, cursed);
+          applySoakedStatus(p, ml);
+        }
       }
-      washOilyFromWater(dg, tx, ty, mon || (p && tx === p.x && ty === p.y ? p : null), ml);
+      const entity = mon || (p && tx === p.x && ty === p.y ? p : null);
+      washOilyFromWater(dg, tx, ty, shielded.has(entity) ? null : entity, ml);
     }
   }
 }
@@ -7672,7 +7705,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
               ml.push(`${m.name}は爆発を受け付けない！`);
               continue;
             }
-            if (consumeBarrier(m, ml)) continue;
+            if (barrierStopsExplosion(m, ml, true)) continue;
             resolveParalysisHit(m, ml);
             if (m.baseKind === "firedemon" && !m.isBoss && !m.sealed) {
               ml.push(`${m.name}が爆発を受けて分裂した！`);

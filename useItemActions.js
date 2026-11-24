@@ -3228,7 +3228,7 @@ export function useItemActions({
           const _boilRoom = findRoom(dg.rooms, p.x, p.y);
           const _potClr = { heal:"#88ffaa", fire:"#ff8844", poison:"#88ff88", sleep:"#ddffaa", paralyze:"#ffffaa", water:"#88ccff", levelup:"#ffff88" }[it.effect] || "#cc88ff";
           if (_boilRoom) {
-            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+            if (!consumeBarrier(p, ml)) applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
             pushSplashAnim(p.x, p.y, _potClr);
             const _boilMons = dg.monsters.filter(
               (m) => !m.disguisedAsItem && monsterBodyCells(m).some(
@@ -3237,7 +3237,7 @@ export function useItemActions({
               ),
             );
             for (const _bm of _boilMons) {
-              applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+              if (!consumeBarrier(_bm, ml)) applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
               pushSplashAnim(_bm.x, _bm.y, _potClr);
             }
             for (const _bi of dg.items.filter(
@@ -3259,8 +3259,8 @@ export function useItemActions({
               }
             }
           } else {
-            ml.push("（回廊では薬効が拡散しにくい…自分にだけ効いた）");
-            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+            ml.push("（回廊では薬効が拡散しにくい…薬液は足元に落ちた）");
+            if (!consumeBarrier(p, ml)) applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
             pushSplashAnim(p.x, p.y, _potClr);
           }
           pot.capacity = Math.max(0, pot.capacity - 1);
@@ -4685,6 +4685,7 @@ export function useItemActions({
             /* 遠投：軌道上の全モンスターに個別に効果 */
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
+                if (consumeBarrier(_pm, ml)) continue;
                 applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
                 if (it.effect === "water" && _pm.hp > 0) applySoakedStatusToMonster(_pm, ml);
                 if (_pm.hp <= 0) { killMonster(_pm, dg, p, ml, lu); }

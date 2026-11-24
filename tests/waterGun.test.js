@@ -142,6 +142,7 @@ describe("水鉄砲・耐水", () => {
       expect(blocker.dormant).toBe(false);
       expect(blocker.barrier).toBe(0);
       expect(blocker.hp).toBe(30);
+      expect(blocker.soakedTurns || 0).toBe(0);
       expect(messages.some(message => message.includes("みかわしの魔方陣"))).toBe(false);
     } finally {
       random.mockRestore();

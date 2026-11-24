@@ -3267,11 +3267,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   for (let _kbi = 0; _kbi < _kbDist; _kbi++) {
                     const _knx = _kbCx + dx, _kny = _kbCy + dy;
                     if (_knx < 0 || _knx >= MW || _kny < 0 || _kny >= MH || dg.map[_kny][_knx] === T.WALL || dg.map[_kny][_knx] === T.BWALL) {
-                      attackMon.hp -= 5; ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
+                      if (!consumeBarrier(attackMon, ml)) {
+                        attackMon.hp -= 5;
+                        ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
+                      }
                       break;
                     }
                     if (!canPlaceMonsterBody(dg, attackMon, _knx, _kny, p)) {
-                      attackMon.hp -= 5; ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
+                      if (!consumeBarrier(attackMon, ml)) {
+                        attackMon.hp -= 5;
+                        ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
+                      }
                       break;
                     }
                     _kbCx = _knx; _kbCy = _kny; _kbMoved++;
@@ -3645,10 +3651,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         _stRx = _stNx; _stRy = _stNy;
                       }
                       if (_stRHit) {
-                        const _stRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
-                        p.hp -= _stRefDmg;
-                        p.deathCause = `${_stM.name}に跳ね返された${_arName}で`;
-                        ml.push(`跳ね返された${_arName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
+                        if (!consumeBarrier(p, ml)) {
+                          const _stRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
+                          p.hp -= _stRefDmg;
+                          p.deathCause = `${_stM.name}に跳ね返された${_arName}で`;
+                          ml.push(`跳ね返された${_arName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
+                        }
                         _srPeel();
                       } else {
                         landExtraShot(_stRx, _stRy, ml);
@@ -3752,11 +3760,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                             _baLx = _tx; _baLy = _ty;
                             break;
                           }
-                          const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
-                          _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                          if (_baM.type === "shopkeeper") markWanderingNpcHostile(_baM, dg, p, ml);
-                          _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
-                          if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
+                          if (!consumeBarrier(_baM, ml)) {
+                            const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
+                            _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
+                            if (_baM.type === "shopkeeper") markWanderingNpcHostile(_baM, dg, p, ml);
+                            _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
+                            if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
+                          }
                           _baLx = _tx; _baLy = _ty; break;
                         }
                         _baLx = _tx; _baLy = _ty;
@@ -5452,9 +5462,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             for (const m of [..._scMons]) {
               if (floorChanged()) break;
               if (!dg.monsters.includes(m) || m.hp <= 0) continue;
-              applyPotionEffect(item.effect, item.value || 0, "monster", m, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
+              if (!consumeBarrier(m, ml)) applyPotionEffect(item.effect, item.value || 0, "monster", m, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
             }
-            if (_scPInRoom && !floorChanged()) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
+            if (_scPInRoom && !floorChanged() && !consumeBarrier(p, ml)) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false, killerMon);
           } else if (item.type === "wand") {
             for (const m of [..._scMons]) {
               if (floorChanged()) break;
@@ -5527,7 +5537,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
               };
               for (const m of [..._scMons]) {
-                if (!isStatusImmune(m, ml, m.name)) {
+                if (!consumeBarrier(m, ml) && !isStatusImmune(m, ml, m.name)) {
                   const _oilT = statusTurns("oily", { kind: "monster", target: m });
                   m.oilyTurns = (m.oilyTurns || 0) + _oilT;
                   ml.push(`${m.name}は油まみれになった！(${_oilT}ターン)`);
@@ -5535,7 +5545,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 _addOilArea(m.x, m.y);
               }
               if (_scPInRoom && !floorChanged()) {
-                if (!isStatusImmune(p, ml)) {
+                if (!consumeBarrier(p, ml) && !isStatusImmune(p, ml)) {
                   const _oilT = statusTurns("oily", { kind: "player" });
                   p.oilyTurns = (p.oilyTurns || 0) + _oilT;
                   ml.push(`油を浴びた！炎ダメージが2倍になる！(${_oilT}ターン)`);
@@ -5578,7 +5588,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
                 if (m.hp <= 0) { killMonster(m, dg, p, ml, lu, false, killerMon); }
               }
-              if (_scPInRoom && !floorChanged()) {
+              if (_scPInRoom && !floorChanged() && !consumeBarrier(p, ml)) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPotPlayerDmg = _potDmg(0);
                 p.hp -= _scPotPlayerDmg;
@@ -5677,7 +5687,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
                 });
               }
-              if (_scPInRoom && !floorChanged()) {
+              if (_scPInRoom && !floorChanged() && !consumeBarrier(p, ml)) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPDmg = calcProjectileDmg(p, thrownItemAttack(item), 0);
                 p.hp -= _scPDmg;
