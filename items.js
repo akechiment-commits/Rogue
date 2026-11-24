@@ -6959,6 +6959,7 @@ export function consumeSpringCapacity(spr, dg, ml, pl = null) {
 export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = null, opts = {}) {
   const _dn = (it) => dnFn ? dnFn(it) : resolveItemName(it);
   const rngFn = opts.rngFn || Math.random;
+  const allowWish = opts.allowWish === true;
   spr.contents = spr.contents || [];
   if (spr.capacity == null) spr.capacity = DEFAULT_SPRING_CAPACITY;
   let consumedCapacity = false;
@@ -6971,7 +6972,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
   } else if (item.type === "gold") {
     const coinValue = Math.max(0, Number(item.value) || 0);
     consumedCapacity = true;
-    if (rollWishChance("gold_coin", rngFn, coinValue)) {
+    if (allowWish && rollWishChance("gold_coin", rngFn, coinValue)) {
       ml.push(`${_dn(item)}が泉の底へ吸い込まれると、泉が神秘的な光を放ち始めた！`);
       ml.push("「何を願う？」");
       wishTriggered = true;
@@ -6990,7 +6991,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
     }
   } else if (item.type === "gold_nugget") {
     consumedCapacity = true;
-    if (!item.isFake && rollWishChance("gold_nugget", rngFn)) {
+    if (allowWish && !item.isFake && rollWishChance("gold_nugget", rngFn)) {
       ml.push(`${_dn(item)}が泉の底へ吸い込まれると、眩い光が泉全体から溢れ出した！`);
       ml.push("「何を願う？」");
       wishTriggered = true;
@@ -7139,7 +7140,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
   }
   /* 消滅した投入物（金貨・金塊・アイス等）の分も容量を減らし、容量超過時に干上がらせる */
   if (wishTriggered) {
-    if (consumedCapacity) spr.capacity = Math.max(0, spr.capacity - 1);
+    /* 願い成功時は泉が干上がり、キャンセル時に通常の容量消費を適用する。 */
     return { wish: true, dried: false, itemEjected: null };
   }
   if (consumedCapacity) {
@@ -8482,7 +8483,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
   if (res.spring) {
-    soakItemIntoSpring(res.spring, item, ml, dg, nameFn, p);
+    const allowWish = sourceIsPlayer() && typeof opts.onSpringWish === "function";
+    const result = soakItemIntoSpring(res.spring, item, ml, dg, nameFn, p, { allowWish });
+    if (result.wish) opts.onSpringWish(res.spring);
   } else if (res.bigbox) {
     if (bbFn) bbFn(res.bigbox, item, dg, ml, {
       killerMon, sourceIsPlayer: sourceIsPlayer(), fireTrapFn: opts.fireTrapFn,

@@ -133,7 +133,7 @@ import { makeStarterFoodItem } from "./favoriteFood.js";
 import { buildRunResultExtras } from "./runScore.js";
 import { recordAdventureScore } from "./adventureScores.js";
 import { createRunTimer } from "./runTimer.js";
-import { SPRING_CONFUSION_TURNS, springGoldRange } from "./springRules.js";
+import { SPRING_CONFUSION_TURNS, makeSpringWishMode, springGoldRange } from "./springRules.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent, isFloorOccupancyBlocked, pickFreeFloorObjectCell } from "./floorObjectPlacement.js";
@@ -5469,10 +5469,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     ml.push("泉は干上がってしまった...");
   }, []);
 
+  const isWishSpringAvailable = (mode, dg) =>
+    mode.springDungeon === dg && !!dg?.springs?.includes(mode.spring);
+
   const confirmWish = useCallback((wish) => {
     const mode = wishModeRef.current;
     if (!sr.current || !mode) return;
     const { player: p, dungeon: dg } = sr.current;
+    if (mode.source === "spring" && !isWishSpringAvailable(mode, dg)) {
+      setWishMode(null);
+      setMsgs(prev => [...prev.slice(-80), "願いが出た泉はもう使える場所にない。"]);
+      return;
+    }
     const wand = mode.source === "wand" ? mode.wand : null;
     if (mode.source === "wand" && (!wand || !(wand.charges > 0) ||
         (mode.wandOnFloor ? !dg.items.includes(wand) || wand.x !== p.x || wand.y !== p.y : !p.inventory.includes(wand)))) {
@@ -5495,7 +5503,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     setWishMode(null);
     if (mode.source === "spring") {
-      drySpringAlways(mode.spring, mode.springDungeon, mode.springDungeon === dg ? p : null, ml);
+      drySpringAlways(mode.spring, dg, p, ml);
     } else if (wand) {
       wand.charges--;
       if (wand.charges === 0) {
@@ -5527,6 +5535,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (mode?.endTurnOnCancel) {
       const { player: p, dungeon: dg } = sr.current;
       const ml = ["願いをやめた。"];
+      if (mode.source === "spring" && mode.consumeCapacityOnCancel && isWishSpringAvailable(mode, dg)) {
+        const dried = consumeSpringCapacity(mode.spring, dg, ml, p);
+        if (dried && springTargetRef.current === mode.spring) springTargetRef.current = null;
+      }
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...sr.current };
@@ -5549,7 +5561,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const ml = ["泉の底から声が聞こえる…", "「何を願う？」"];
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       setSpringMode(null);
-      setWishMode({ source: "spring", spring, springDungeon: dg, endTurnOnCancel: false });
+      setWishMode(makeSpringWishMode(spring, dg));
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
       return;
@@ -5729,11 +5741,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (_springOverflowDried && springTargetRef.current === _targetSpring) springTargetRef.current = null;
       } else if (it.type === "gold" || it.type === "gold_nugget") {
         p.inventory.splice(idx, 1);
-        const _res = soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef, p);
+        const _res = soakItemIntoSpring(_targetSpring, it, ml, dg, dnameRef, p, { allowWish: true });
         if (_res?.wish) {
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
           setSpringMode(null);
-          setWishMode({ source: "spring", spring: _targetSpring, springDungeon: dg, endTurnOnCancel: true });
+          setWishMode(makeSpringWishMode(_targetSpring, dg));
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;
@@ -5796,7 +5808,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ml.push("「何を願う？」");
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSpringMode(null);
-        setWishMode({ source: "spring", spring: _targetSpring, springDungeon: dg, endTurnOnCancel: true });
+        setWishMode(makeSpringWishMode(_targetSpring, dg, !_isSpringGear));
         sr.current = { ...sr.current };
         setGs({ ...sr.current });
         return;

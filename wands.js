@@ -82,7 +82,7 @@ function statueTeleportDest(dg, ox, oy, p) {
  *   2. この関数の switch(eff) に case "effect名": { ... } を追加
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
-export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null, spellPowerMultiplier = 1) {
+export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null, fireTrapFn = null, spellPowerMultiplier = 1, { onSpringWish = null } = {}) {
   if (p) installPlayerHpReverseHook(p);
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   // 敵行動中は Game の罠処理へ渡し、階移動と予約された地雷の即時解決まで行う。
@@ -775,7 +775,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 仮想射手（押し出し起点：アイテムの元位置） */
         const _shooter = { x: target.x, y: target.y, name: target.name };
         const res = throwItemAlongLine(_shooter, dg, target, dx, dy, d, ml, p, luFn, {
-          bbFn, nameFn, applyWandFn: applyWandEffect, killerMon, sourceIsPlayer, fireTrapFn,
+          bbFn, nameFn, applyWandFn: applyWandEffect, killerMon, sourceIsPlayer, fireTrapFn, onSpringWish,
         });
         /* 店外へ出た／途中で消えた店商品は請求して値札を外す（placeItemAt でも処理されるが消費時の保険） */
         if (target.shopPrice) {
@@ -2227,7 +2227,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   });
 }
 
-export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null, bigboxNameFn = null) {
+export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null, bigboxNameFn = null, { onSpringWish = null } = {}) {
   if (p) installPlayerHpReverseHook(p);
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   /* 呪われた軟化：1マス先に壊せる壁を生成（穴掘り呪いと同一挙動） */
@@ -2526,7 +2526,8 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           return;
         }
       }
-      applyWandEffect(eff, "item", it, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, nameFn);
+      applyWandEffect(eff, "item", it, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, nameFn,
+        0, null, null, true, null, null, 1, { onSpringWish });
       return;
     }
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);

@@ -174,7 +174,7 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
     const highGold = { name: "10000枚の金貨", type: "gold", value: 10000 };
     const ml = [];
     // 10000Gの願い率は 5.5% (0.055)。0.04 で成功する
-    const res = soakItemIntoSpring(spr, highGold, ml, null, null, null, { rngFn: () => 0.04 });
+    const res = soakItemIntoSpring(spr, highGold, ml, null, null, null, { allowWish: true, rngFn: () => 0.04 });
 
     expect(res.wish).toBe(true);
     expect(ml.some((m) => m.includes("願"))).toBe(true);
@@ -187,7 +187,7 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
     const lowGold = { name: "100枚の金貨", type: "gold", value: 100 };
     const ml = [];
     // 100Gの願い率は 0.55%。0.02 では不発。射出率 15.5% で 0.30 では不発
-    const res = soakItemIntoSpring(spr, lowGold, ml, null, null, null, { rngFn: () => 0.30 });
+    const res = soakItemIntoSpring(spr, lowGold, ml, null, null, null, { allowWish: true, rngFn: () => 0.30 });
 
     expect(res.wish).toBe(false);
     expect(res.itemEjected).toBeNull();
@@ -210,7 +210,7 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
       return 0; // 候補1
     };
 
-    const res = soakItemIntoSpring(spr, gold, ml, dg, null, null, { rngFn });
+    const res = soakItemIntoSpring(spr, gold, ml, dg, null, null, { allowWish: true, rngFn });
 
     expect(res.wish).toBe(false);
     expect(res.itemEjected).toBeDefined();
@@ -225,7 +225,7 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
     const goldNugget = { name: "金塊", type: "gold_nugget", isFake: false };
     const ml = [];
 
-    const res = soakItemIntoSpring(spr, goldNugget, ml, null, null, null, { rngFn: () => 0.1 });
+    const res = soakItemIntoSpring(spr, goldNugget, ml, null, null, null, { allowWish: true, rngFn: () => 0.1 });
 
     expect(res.wish).toBe(true);
     expect(ml.some((m) => m.includes("眩い光"))).toBe(true);
@@ -237,7 +237,7 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
     const fakeNugget = { name: "金塊", type: "gold_nugget", isFake: true };
     const ml = [];
 
-    const res = soakItemIntoSpring(spr, fakeNugget, ml, null, null, null, { rngFn: () => 0 });
+    const res = soakItemIntoSpring(spr, fakeNugget, ml, null, null, null, { allowWish: true, rngFn: () => 0 });
 
     expect(res.wish).toBe(false);
     expect(ml.some((m) => m.includes("何も起こらなかった"))).toBe(true);

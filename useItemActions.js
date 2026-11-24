@@ -37,6 +37,7 @@ import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLigh
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearPlayerPoison, applyAttackSeal, installMonsterHpHook } from "./statusDuration.js";
 import { applySakeEffect } from "./intoxication.js";
 import { pl } from "./playerLabel.js";
+import { makeSpringWishMode } from "./springRules.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
 import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic, monHasFlameMantle, monHasElementWeakness, monElementDamageMultiplier, monEffectiveMagicImmune, monEffectiveFloat, monEffectiveWaterWalker } from "./monTraits.js";
@@ -2878,9 +2879,9 @@ export function useItemActions({
     const _chargeCost = getShopUsedCost(it);
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
+    let springWish = false;
     if (_dropSpr) {
-      const _dropSoakRes = soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
-      if (_dropSoakRes?.wish) setWishMode({ source: "spring", spring: _dropSpr, springDungeon: dg, endTurnOnCancel: true });
+      springWish = soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p, { allowWish: true }).wish;
     } else {
       let _dr;
       withPitfallBag(() => { _dr = placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p); });
@@ -2920,7 +2921,7 @@ export function useItemActions({
       }
       ml.push(`${_dropLbl}${_itemPickupSuffix(it, sr.current?.ident)}を置いた。`);
     }
-    endTurn(sr.current, p, ml);
+    if (!springWish) endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
     setSelIdx(null);
     setShowDesc(null);
@@ -2929,6 +2930,7 @@ export function useItemActions({
     }
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
+    if (springWish) setWishMode(makeSpringWishMode(_dropSpr, dg));
   }, [endTurn]);
   const doSwapItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -2985,9 +2987,9 @@ export function useItemActions({
     const _chargeCost = getShopUsedCost(it);
 
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
+    let springWish = false;
     if (_dropSpr) {
-      const _swapSoakRes = soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p);
-      if (_swapSoakRes?.wish) setWishMode({ source: "spring", spring: _dropSpr, springDungeon: dg, endTurnOnCancel: true });
+      springWish = soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef, p, { allowWish: true }).wish;
     } else {
       let _dr;
       const ft = new Set();
@@ -3032,13 +3034,14 @@ export function useItemActions({
       ml.push(`${itNm}を置き、足元の${flNm}を拾った。`);
     }
 
-    endTurn(sr.current, p, ml);
+    if (!springWish) endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
     setSelIdx(null);
     setShowDesc(null);
     setShowInv(false);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
+    if (springWish) setWishMode(makeSpringWishMode(_dropSpr, dg));
   }, [endTurn, chgFloor, dnameRef, lu, setGs, setMsgs, setSelIdx, setShowDesc, setShowInv, setWishMode, withPitfallBag]);
   const doThrow = useCallback((idx) => {
     if (cannotActWithItems(sr.current?.player)) return;
@@ -3960,6 +3963,7 @@ export function useItemActions({
       if (_selectedProjectile?.rightStone) { dx = 1; dy = 0; }
       const ml = installPlayerHpMessageHook([], p);
       const _skSnap = dg.monsters.filter(m => m.type === "shopkeeper").map(m => ({ m, hp: m.hp }));
+      let springWish = null;
       /* 遠投判定（投げ・射撃にのみ影響） */
       const _throwRelated = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode);
       const _rawFcMode = _throwRelated ? getFarcastMode(p.x, p.y, dg) : false;
@@ -4145,7 +4149,9 @@ export function useItemActions({
               }
             }
           } else {
-          fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName, _wandBigboxDName);
+            fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName, _wandBigboxDName, {
+              onSpringWish: spring => { springWish = spring; },
+            });
           }
           /* プレイヤー位置が変わった場合、ショップ離脱盗賊チェック */
           if (p.x !== _preWandPx || p.y !== _preWandPy) {
@@ -4481,8 +4487,7 @@ export function useItemActions({
                 }
               }
             } else if (_stSpr2) {
-              const _soakRes3 = soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null, p);
-              if (_soakRes3?.wish) setWishMode({ source: "spring", spring: _stSpr2, springDungeon: dg, endTurnOnCancel: true });
+              soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null, p);
             } else if (_stBB2) {
               bigboxAddItem(_stBB2, _invStDrop(), dg, ml);
             } else {
@@ -4697,8 +4702,7 @@ export function useItemActions({
           } else if (!_isCursedFc && sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (!_isCursedFc && sprHit) {
-            const _soakRes4 = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
-            if (_soakRes4?.wish) setWishMode({ source: "spring", spring: sprHit, springDungeon: dg, endTurnOnCancel: true });
+            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
           } else {
             withPitfallBag(() => {
               if (!brokeOnImpact && !sprHit && triggerLandingTrap(lx, ly)) return;
@@ -4844,8 +4848,7 @@ export function useItemActions({
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
-            const _potSoakRes = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
-            if (_potSoakRes?.wish) setWishMode({ source: "spring", spring: sprHit, springDungeon: dg, endTurnOnCancel: true });
+            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
           } else if (_potImprisoned) {
             const _impFt = new Set();
             placeItemAt(dg, lx, ly, it, ml, _impFt, 0, p);
@@ -5265,8 +5268,8 @@ export function useItemActions({
             } else if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);
             } else if (sprHit && !sprHit.kind) {
-              const _genSoakRes = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
-              if (_genSoakRes?.wish) setWishMode({ source: "spring", spring: sprHit, springDungeon: dg, endTurnOnCancel: true });
+              const result = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p, { allowWish: true });
+              if (result.wish) springWish = sprHit;
             } else if (it.type === "bottle") {
               ml.push(`${resolveItemName(it, dnameRef)}は割れてしまった！`);
             } else {
@@ -5283,7 +5286,7 @@ export function useItemActions({
           calmShopkeeperIfFullyHealed(m, dg, p, ml);
         }
       }
-      endTurn(sr.current, p, ml);
+      if (!springWish) endTurn(sr.current, p, ml);
       /* 床から使った杖はフロアに戻す */
       if (floorWandRef?.current) {
         const _fw = floorWandRef.current;
@@ -5301,6 +5304,7 @@ export function useItemActions({
       setThrowMode(null);
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
+      if (springWish) setWishMode({ ...makeSpringWishMode(springWish, dg), autoSelect: !!throwMode.hypnosis });
     },
     [throwMode, lu, endTurn, chgFloor],
   );

@@ -68,6 +68,10 @@ export function rollWishChance(kind = "drink", rngFn = Math.random, value = null
   return rngFn() < p;
 }
 
+export function makeSpringWishMode(spring, dungeon, consumeCapacityOnCancel = true) {
+  return { source: "spring", spring, springDungeon: dungeon, endTurnOnCancel: true, consumeCapacityOnCancel };
+}
+
 /** 通常フロアで床に出る金貨の範囲。floor は1始まり。 */
 export function ordinaryFloorGoldRange(floor = 1) {
   const normalizedFloor = Math.max(1, Math.floor(Number(floor) || 1));
