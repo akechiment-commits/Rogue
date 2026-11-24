@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { dungeonScoreLabel } from "./adventureScores.js";
 import { isCarryInRun } from "./rankingClient.js";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, calcPlayerDefense, countEquippedRings, isEvasionDisabledByStatus, checkMonsterEvasion, getDodgePentacleMode, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, calcPlayerDefense, countEquippedRings, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -22,9 +22,7 @@ import {
   wakeIfDormant,
   revealItemMimicAt,
   MONS,
-  _resolveBolt,
   _resolveMonsterWandBolt,
-  monReflectsProjectiles,
   resolveMonsterWandEffect,
   resolveFlockFireBolt,
   monsterCanInteractAtRange,
@@ -34,7 +32,7 @@ import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
-  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, detonateBombArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring, consumeSpringCapacity,
+  soakItemIntoSpring, consumeSpringCapacity,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus, rollGeneratedWandCharges, penInitialCharges,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, chargeShopItem, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
@@ -42,7 +40,7 @@ import {
   monsterDrop, killMonster, checkPyrobolosBossReward, getIdentKey, generateFakeNames, ensureFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasCursedTeleportPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, foodNameForSize, applyWeaponStatusInflictions, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, multiplyCursedMagicDamage, ELEM_RESIST_ABILITIES,
-  applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, tickDamagedFoodReveals, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
+  applyPotionEffect, applyThrownItemToMonster, absorbProjectileIntoMonster, applyFoodEffectsOnHit, tickDamagedFoodReveals, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, calcProjectileDmg,
   itemPrice, gemSellPrice, shopResaleListPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets, canShowPotTakeAction, isPreservationPot,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
@@ -92,11 +90,11 @@ setItemMimicDisguiseCatalog([
 ]);
 import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
-import { useItemActions } from './useItemActions.js';
+import { shootEquippedProjectile, useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { useGamepad, getGamepadArrow } from './useGamepad.js';
 import { GamepadQuickMenu, GamepadControlsGuide, GamepadLtHint } from './GamepadQuickMenu.jsx';
-import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushItemFlyAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
+import { drainAnims, pushAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, PriestModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
@@ -114,7 +112,7 @@ import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { generateSessionFloor } from "./floorGeneration.js";
 import { synchronizeFloorArrival } from "./floorArrival.js";
 import { placeFallenEntities } from "./pitfallPlacement.js";
-import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, applyPlayerPoison, applyPlayerConfusion, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { isAlcoholDirectionRandomized } from "./intoxication.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { withLargeMonsterDamageTurn } from "./largeMonsterDamage.js";
@@ -3548,311 +3546,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               } /* end guardian else */
               } /* end else (hit) */
             } /* end melee hit branches */
-            /* 射撃の指輪：命中/外れに関わらず発動（矢種別の本来の効果を再現） */
-            {
-              const _srCount = (p.rings || []).filter(r => r.effect === "shoot_ring").length;
-              if (_srCount > 0) {
-                /* 下手投げの指輪は射撃の指輪による追加発射にも適用する。 */
-                const _srForceMiss = hasRingEffect(p, "miss_throw_ring");
-                const _rawFc = getFarcastMode(p.x, p.y, dg);
-                const _fcMode = (hasRingEffect(p, "farcast_ring") && _rawFc !== "cursed") ? "farcast" : _rawFc;
-                const _srFarcast = _fcMode === "farcast";
-                const _srCursedFc = _fcMode === "cursed";
-                const _srNF = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) || "?";
-                for (let _si = 0; _si < _srCount; _si++) {
-                  if (!p.arrow || p.arrow.count <= 0) break;
-                  const _srAr = p.arrow;
-                  if (_srAr.specialProjectile || _srAr.rightStone) {
-                    withPitfallBag(() => shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
-                      forceMiss: _srForceMiss,
-                    }));
-                    if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
-                    continue;
-                  }
-                  if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile &&
-                      (dg.monsters || []).some(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
-                        Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)) {
-                    withPitfallBag(() => shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
-                      forceMiss: _srForceMiss,
-                      wakka: true,
-                    }));
-                    if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
-                    continue;
-                  }
-                  const _arName = _srAr.name || "矢";
-                  _srAr.count--;
-                  const usedLastAmmo = _srAr.count <= 0;
-                  if (usedLastAmmo) {
-                    p.inventory = p.inventory.filter(item => item !== _srAr);
-                    p.arrow = null;
-                  }
-                  let _srUnit = null;
-                  const _srDrop = () => {
-                    if (!_srUnit) _srUnit = makeArrowUnitFromStack(_srAr);
-                    return _srUnit;
-                  };
-                  const landExtraShot = (x, y, messages) => {
-                    withPitfallBag(() => placeItemAt(dg, x, y, _srDrop(), messages, new Set(), 0, p));
-                  };
-                  const stoneMisses = monster => {
-                    const dodgeMode = getDodgePentacleMode(dg, monster.x, monster.y);
-                    if (dodgeMode === "dodge") {
-                      ml.push(`みかわしの魔方陣の加護で${monster.name}に${_arName}が当たらなかった！`);
-                      return true;
-                    }
-                    return _srForceMiss || (dodgeMode !== "sure" &&
-                      checkMonsterEvasion(monster, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 }));
-                  };
-                  const _srPeel = () => { if (!_srUnit) peelShopArrowUnit(_srAr); };
-                  /* ── 石 ── */
-                  if (_srAr.stone || _srAr.iceChunk) {
-                    // 普通の石は、近接攻撃したセルに合わせて投げる。
-                    const stoneDx = _srAr.stone ? Math.sign(_hitX - _oldPx) : dx;
-                    const stoneDy = _srAr.stone ? Math.sign(_hitY - _oldPy) : dy;
-                    const _stRange = _srCursedFc ? 1 : _srAr.stone ? _attackSlot.range : 3;
-                    let _stLx = p.x, _stLy = p.y;
-                    let _stHitStatue = false;
-                    let _stHitEnemyProjectile = false;
-                    for (let _d = 1; _d <= _stRange; _d++) {
-                      const _tx = p.x + stoneDx * _d, _ty = p.y + stoneDy * _d;
-                      if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
-                      if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
-                      _stLx = _tx; _stLy = _ty;
-                    }
-                    if (_srAr.stone) {
-                      pushItemFlyAnim(p.x, p.y, _stLx, _stLy, _srAr.tile, null, { flightArc: true });
-                    } else {
-                      pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
-                    }
-                    if (_stLx !== p.x || _stLy !== p.y) {
-                      _stHitEnemyProjectile = destroyEnemyHomingProjectileAt(dg, _stLx, _stLy, ml, _arName);
-                      if (!_stHitEnemyProjectile && statueAt(dg, _stLx, _stLy)) _stHitStatue = true;
-                    }
-                    ml.push(`【射撃の指輪】${_arName}を投げた！`);
-                    if (_stHitEnemyProjectile) {
-                      _srPeel();
-                    } else if (_stHitStatue) {
-                      ml.push(`${_arName}が石像に命中！`);
-                      hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
-                        breaks: true,
-                        itemDeps: getFixtureItemDeps(),
-                      });
-                      _srPeel();
-                    } else {
-                    const _stM = monsterAt(dg, _stLx, _stLy);
-                    if (_stM && monReflectsProjectiles(_stM)) {
-                      ml.push(`${_arName}が${_stM.name}に弾き返された！`);
-                      const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
-                      let _stRx = _stLx, _stRy = _stLy, _stRHit = false;
-                      for (let _stri = 1; _stri <= 20; _stri++) {
-                        const _stNx = _stRx + _stRdx, _stNy = _stRy + _stRdy;
-                        if (_stNx < 0 || _stNx >= MW || _stNy < 0 || _stNy >= MH) break;
-                        if (dg.map[_stNy][_stNx] === T.WALL || dg.map[_stNy][_stNx] === T.BWALL) break;
-                        if (_stNx === p.x && _stNy === p.y) { _stRHit = true; break; }
-                        _stRx = _stNx; _stRy = _stNy;
-                      }
-                      if (_stRHit) {
-                        if (!consumeBarrier(p, ml)) {
-                          const _stRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
-                          p.hp -= _stRefDmg;
-                          p.deathCause = `${_stM.name}に跳ね返された${_arName}で`;
-                          ml.push(`跳ね返された${_arName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
-                        }
-                        _srPeel();
-                      } else {
-                        landExtraShot(_stRx, _stRy, ml);
-                      }
-                    } else if (_stM && !stoneMisses(_stM)) {
-                      if (!absorbProjectileIntoMonster(_stM, _srDrop(), dg, p, ml, lu, {
-                        bbFn: bigboxAddItem,
-                        sourceIsPlayer: true,
-                        nameFn: (it) => it.name || _arName,
-                        messagePrefix: "",
-                      }) && !consumeBarrier(_stM, ml)) {
-                        const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
-                        _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                        if (_stM.type === "shopkeeper") markWanderingNpcHostile(_stM, dg, p, ml);
-                        _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
-                        if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
-                      }
-                      _srPeel();
-                    } else {
-                      if (_stM) ml.push(`${_arName}は${_stM.name}に外れた！`);
-                      landExtraShot(_stLx, _stLy, ml);
-                    }
-                    }
-                  /* ── 魔法の石 ── */
-                  } else if (_srAr.magicStone) {
-                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#cc88ff", true);
-                    const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
-                    const _msTarget = [...dg.monsters].filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 && Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
-                    ml.push(`【射撃の指輪】${_arName}を投げた！`);
-                    if (!_msTarget) {
-                      ml.push(`近くに敵がいない！${_arName}は石と同じ距離を飛んだ。`);
-                      const _msRange = _srCursedFc ? 1 : 3;
-                      let _msLx = p.x, _msLy = p.y;
-                      for (let _d = 1; _d <= _msRange; _d++) {
-                        const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
-                        if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
-                        if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
-                        _msLx = _tx; _msLy = _ty;
-                      }
-                      const _msHitEnemyProjectile = (_msLx !== p.x || _msLy !== p.y)
-                        && destroyEnemyHomingProjectileAt(dg, _msLx, _msLy, ml, _arName);
-                      const _msHitStatue = !_msHitEnemyProjectile && statueAt(dg, _msLx, _msLy);
-                      if (_msHitEnemyProjectile) {
-                        _srPeel();
-                      } else if (_msHitStatue) {
-                        ml.push(`${_arName}が石像に命中！`);
-                        hitStatueWithAction(dg, _msLx, _msLy, p, ml, lu, p?.depth, {
-                          breaks: true,
-                          itemDeps: getFixtureItemDeps(),
-                        });
-                        _srPeel();
-                      } else {
-                        const _msSpring = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
-                        const _msBigbox = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
-                        if (_msSpring) soakItemIntoSpring(_msSpring, _srDrop(), ml, dg, null, p);
-                        else if (_msBigbox) bigboxAddItem(_msBigbox, _srDrop(), dg, ml);
-                        else {
-                          landExtraShot(_msLx, _msLy, ml);
-                        }
-                      }
-                    } else if (monReflectsProjectiles(_msTarget)) {
-                      pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
-                      reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
-                      _srPeel();
-                    } else if (stoneMisses(_msTarget)) {
-                      ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
-                      landExtraShot(_msTarget.x, _msTarget.y, ml);
-                    } else {
-                      if (!consumeBarrier(_msTarget, ml)) {
-                        const _msDmg = clampDmgFixed(_msTarget, calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def), true);
-                        _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
-                        _ad.damages.push({ type: "damage", x: _msTarget.x, y: _msTarget.y, value: _msDmg, color: "#cc88ff" });
-                        if (_msTarget.hp <= 0) { _ad.damages.push({ type: "flash", x: _msTarget.x, y: _msTarget.y, color: "#ff2200", duration: 150 }); killMonster(_msTarget, dg, p, ml, lu, false); }
-                      }
-                      _srPeel();
-                    }
-                  /* ── 爆弾矢 ── */
-                  } else if (_srAr.bombArrow) {
-                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622", true);
-                    peelShopArrowUnit(_srAr);
-                    ml.push(`【射撃の指輪】${_arName}を射った！`);
-                    if (_srFarcast) {
-                      ml.push(`${_arName}は消滅した。`);
-                    } else {
-                      const _baMaxR = _srCursedFc ? 1 : 10;
-                      let _baLx = p.x, _baLy = p.y;
-                      let _baSwallowed = false;
-                      for (let _d = 1; _d <= _baMaxR; _d++) {
-                        const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
-                        if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
-                        if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
-                        const _baM = monsterAt(dg, _tx, _ty);
-                        if (_baM && !_srForceMiss) {
-                          if (absorbProjectileIntoMonster(_baM, _srDrop(), dg, p, ml, lu, {
-                            bbFn: bigboxAddItem,
-                            sourceIsPlayer: true,
-                            nameFn: (it) => it.name || _arName,
-                            messagePrefix: "",
-                          })) {
-                            _baSwallowed = true;
-                            _baLx = _tx; _baLy = _ty;
-                            break;
-                          }
-                          if (!consumeBarrier(_baM, ml)) {
-                            const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
-                            _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                            if (_baM.type === "shopkeeper") markWanderingNpcHostile(_baM, dg, p, ml);
-                            _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
-                            if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
-                          }
-                          _baLx = _tx; _baLy = _ty; break;
-                        }
-                        _baLx = _tx; _baLy = _ty;
-                      }
-                      if (_baSwallowed) {
-                        _srPeel();
-                      } else {
-                        detonateBombArrow(_baLx, _baLy, _srAr, dg, p, ml, lu, _srAr.atk || 6, _srNF);
-                      }
-                    }
-                  /* ── 通常矢 / 毒矢 / 貫きの矢 ── */
-                  } else {
-                    const _isPierce = !!_srAr.pierce;
-                    const _isPoison = !!_srAr.poison;
-                    const _arColor = _isPoison ? "#60d060" : _isPierce ? "#ff8844" : "#d0a050";
-                    const _srBaseAtk = _srAr.atk || 3;
-                    const _arEndDrop = (lx, ly, mlx) => {
-                      if (_srFarcast || _srCursedFc) {
-                        mlx.push(`【射撃の指輪】${_arName}は消滅した。`);
-                        _srPeel();
-                        return;
-                      }
-                      mlx.push(`【射撃の指輪】${_arName}を発射した。`);
-                      landExtraShot(lx, ly, mlx);
-                    };
-                    _resolveBolt(p, dg, p, ml, lu, {
-                      isPlayerShooter: true,
-                      dx, dy,
-                      baseRange: 10,
-                      pierce: _isPierce,
-                      animColor: _arColor,
-                      boltName: _arName,
-                      calcMonDmg: (mon) => clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true),
-                      calcPlDmg: () => calcProjectileDmg(p, _srBaseAtk, 0),
-                      onPlHit: (mlx) => {
-                        if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
-                          const _poison = applyPlayerPoison(p);
-                          mlx.push(statusResultMessage(_poison, `毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`));
-                        }
-                        _srPeel();
-                      },
-                      onMonHit: (mon, mlx) => {
-                        if (!_srForceMiss && absorbProjectileIntoMonster(mon, _srDrop(), dg, p, mlx, lu, {
-                          bbFn: bigboxAddItem,
-                          sourceIsPlayer: true,
-                          messagePrefix: "",
-                        })) {
-                          _srPeel();
-                          return;
-                        }
-                        /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
-                        if (_srForceMiss || checkMonsterEvasion(mon, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.25 })) {
-                          if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
-                          mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
-                          landExtraShot(mon.x, mon.y, mlx);
-                          return;
-                        }
-                        const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
-                        mon.hp -= _srDmg;
-                        if (mon.type === "shopkeeper") markWanderingNpcHostile(mon, dg, p, mlx);
-                        let _poisonT = 0;
-                        const _poisonApplied = _isPoison && !isStatusImmune(mon, mlx, mon.name);
-                        if (_poisonApplied) {
-                          if (mon.isBoss) {
-                            _poisonT = mon.bossPoisonHalfAtk ? (mon.bossPoisonHalfAtkTurns || monsterStatusTurns(10, mon)) : monsterStatusTurns(10, mon);
-                            if (!mon.bossPoisonHalfAtk) { mon.bossPoisonOrigAtk = mon.atk; mon.bossPoisonHalfAtk = true; mon.bossPoisonHalfAtkTurns = _poisonT; }
-                            mon.atk = Math.max(1, Math.floor(mon.atk / 2));
-                          } else {
-                            mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
-                          }
-                        }
-                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_poisonApplied ? `攻撃力が半減した！${mon.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
-                        triggerMushroomCounterSpore(mon, dg, p, mlx);
-                        _ad.damages.push({ type: "damage", x: mon.x, y: mon.y, value: _srDmg, color: _arColor });
-                        if (mon.hp <= 0) { _ad.damages.push({ type: "flash", x: mon.x, y: mon.y, color: "#ff2200", duration: 150 }); killMonster(mon, dg, p, mlx, lu, false); }
-                        if (!_isPierce) _srPeel();
-                      },
-                      onWallStop: _arEndDrop,
-                      onFlyOff: _arEndDrop,
-                    });
-                    _srPeel();
-                  }
-                  if (usedLastAmmo) ml.push(`${_arName}を使い切った。`);
-                }
-              }
+            const shots = (p.rings || []).filter(ring => ring.effect === "shoot_ring").length;
+            for (let shot = 0; shot < shots && p.arrow?.count > 0 && p.hp > 0; shot++) {
+              ml.push("【射撃の指輪】追加射撃！");
+              shootEquippedProjectile(p, dg, dx, dy, ml, {
+                lu, bigboxAddItem, withPitfallBag,
+                nameFn: item => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+                stoneAim: { dx: Math.sign(_hitX - _oldPx), dy: Math.sign(_hitY - _oldPy), range: _attackSlot.range },
+                onMonsterDamage: (target, damage, color) => {
+                  _ad.damages.push({ type: "damage", x: target.x, y: target.y, value: damage, color });
+                  if (target.hp <= 0) _ad.damages.push({ type: "flash", x: target.x, y: target.y, color: "#ff2200", duration: 150 });
+                },
+              });
             }
             }
             /* 武器の吹き飛ばし能力は全攻撃セル・連撃の後に、1体につき1回だけ適用する。 */

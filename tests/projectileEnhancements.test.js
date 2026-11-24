@@ -11,6 +11,24 @@ import { MW, MH } from '../utils.js';
 afterEach(() => vi.restoreAllMocks());
 
 describe('飛び道具・投擲のバリア・状態解除・反射防具検証', () => {
+  it.each([false, true])('通常射撃の必中は通常回避を飛ばす（呪われたみかわし: %s）', cursedDodge => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const arrow = { id: 'arr', name: '木の矢', type: 'arrow', count: 1, atk: 5 };
+    const player = makePlayer({ atk: 10, depth: 1, arrow, inventory: [arrow], sureHitTurns: cursedDodge ? 0 : 5 });
+    const monster = { id: 'target', name: '敵', x: 6, y: 5, hp: 50, maxHp: 50, def: 0 };
+    const dungeon = makeEmptyDg({ monsters: [monster],
+      pentacles: cursedDodge ? [{ kind: 'dodge', cursed: true, x: 6, y: 5 }] : [] });
+    const actions = useItemActions({
+      sr: { current: { player, dungeon, ident: new Set() } }, throwMode: { mode: 'shoot_equipped' },
+      endTurn: vi.fn(), lu: () => {}, setGs: () => {}, setMsgs: () => {}, setThrowMode: () => {},
+      withPitfallBag: fn => fn(),
+    });
+    actions.execDirection(1, 0);
+    expect(monster.hp).toBeLessThan(50);
+    expect(dungeon.items).toEqual([]);
+    expect(player.arrow).toBeNull();
+  });
+
   it('装備矢の命中時、敵のバリアが消費されてダメージを受けない', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const arrow = { id: 'arr1', name: '木の矢', type: 'arrow', count: 10, atk: 5 };

@@ -10,6 +10,7 @@ import { pushAnim, pushBoltAnim, pushItemFlyAnim } from "../animEvents.js";
 import { statueAt } from "../fixtureQueries.js";
 import { pl } from "../playerLabel.js";
 import { itemDisplayName, processPitfallBag } from "../render.js";
+import { shootEquippedProjectile } from "../useItemActions.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 // 範囲選択から全攻撃・吹き飛ばし完了まで、Gameの実際の分岐を実行する。
@@ -23,7 +24,8 @@ if (pitfallStart < 0 || pitfallEnd < 0) throw new Error("Pitfall handler not fou
 const bindPitfallBag = new Function("sr", "useCallback", "setPitfallBag", "clearPitfallBag", "processPitfallBag",
   source.slice(pitfallStart, pitfallEnd) + "return withPitfallBag;");
 const deps = { ...utils, ...monsters, ...items, ...traits, ...geometry, ...status,
-  pushAnim, pushBoltAnim, pushItemFlyAnim, statueAt, pl, itemDisplayName, bigboxAddItem: vi.fn() };
+  pushAnim, pushBoltAnim, pushItemFlyAnim, statueAt, pl, itemDisplayName, shootEquippedProjectile,
+  bigboxAddItem: (box, item) => box.contents.push(item) };
 const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonster", "dx", "dy", "withPitfallBag", "sr",
   `const nx=p.x+dx,ny=p.y+dy,_oldPx=p.x,_oldPy=p.y;
    const _ad={attacks:[],damages:[]};let acted=false;
@@ -31,12 +33,12 @@ const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonst
    }
    return {acted,animations:_ad};`);
 
-function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [], traps = [], player = {}, kind, random = 0.5, direction = [1, 0], target = {} } = {}) {
+function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [], traps = [], bigboxes = [], player = {}, kind, random = 0.5, direction = [1, 0], target = {} } = {}) {
   vi.spyOn(Math, "random").mockReturnValue(random);
   const p = makePlayer({ atk: 10, depth: 10, weapon: { atk: 0, abilities }, ...player });
   const mon = { id: "target", name, kind, x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize, ...(forcedMoveImmune ? { forcedMoveImmune: true } : {}), ...target };
   const rooms = [{ x: 1, y: 1, w: 40, h: 20 }];
-  const dg = makeEmptyDg({ monsters: [mon, ...others], rooms, traps,
+  const dg = makeEmptyDg({ monsters: [mon, ...others], rooms, traps, bigboxes,
     pentacles: pentacle ? [{ kind: "knockback_aura", name: "吹き飛ばしの魔方陣", x: 3, y: 3, ...pentacle }] : [] });
   const below = makeEmptyDg({ rooms });
   const sr = { current: { player: p, dungeon: dg, floors: { [p.depth + 1]: below } } };
@@ -55,6 +57,48 @@ it("ガーディアンがかばった近接攻撃はバリアを通過する", (
   const { mon } = attack({ abilities: [], bodySize: 1, others: [guardian] });
   expect(guardian).toMatchObject({ hp: 90, barrier: 1 });
   expect(mon.hp).toBe(1000);
+});
+
+describe("射撃の指輪と矢", () => {
+  const shootingRing = { effect: "shoot_ring" };
+
+  it("みかわしの魔方陣で追加の矢が外れ、近接だけが当たる", () => {
+    const arrow = items.makeArrow(1);
+    const { mon, dg, ml } = attack({
+      abilities: [], bodySize: 1, pentacle: { kind: "dodge", x: 6, y: 5 },
+      player: { rings: [shootingRing], arrow, inventory: [arrow] },
+    });
+    expect(mon.hp).toBe(990);
+    expect(dg.items).toHaveLength(1);
+    expect(ml.some(message => message.includes("みかわしの魔方陣の加護で"))).toBe(true);
+  });
+
+  it("必中中の追加射撃に通常の外れ判定が入らない", () => {
+    const arrow = items.makeArrow(1);
+    const { ml } = attack({
+      abilities: [], bodySize: 1, random: 0.01,
+      player: { rings: [shootingRing], arrow, inventory: [arrow], sureHitTurns: 5 },
+    });
+    expect(ml.some(message => message.startsWith("矢が対象に命中！"))).toBe(true);
+  });
+
+  it("追加の矢は途中の大箱に入り、その先の敵に当たらない", () => {
+    const arrow = items.makeArrow(1);
+    const box = { id: "box", name: "大箱", kind: "normal", x: 7, y: 5, contents: [] };
+    const rear = { id: "rear", name: "奥の敵", x: 8, y: 5, hp: 100, maxHp: 100, def: 0 };
+    attack({ abilities: [], bodySize: 1, hp: 1, bigboxes: [box], others: [rear],
+      player: { rings: [shootingRing], arrow, inventory: [arrow] } });
+    expect(box.contents).toMatchObject([{ type: "arrow", count: 1 }]);
+    expect(rear.hp).toBe(100);
+  });
+
+  it("追加の毒矢は敵の攻撃力を変えずに与ダメージ半減を累積する", () => {
+    const arrow = items.makePoisonArrow(2);
+    const { mon } = attack({ abilities: [], bodySize: 1, target: { atk: 40 },
+      player: { rings: [shootingRing, { ...shootingRing }], arrow, inventory: [arrow] } });
+    expect(mon).toMatchObject({ atk: 40, poisonArrowDamageHalves: 2 });
+    expect(traits.monScaleOutgoingDamage(mon, 40)).toBe(10);
+  });
 });
 
 describe("射撃の指輪と石", () => {

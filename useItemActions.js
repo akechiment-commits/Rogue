@@ -163,6 +163,431 @@ function flushUseRevealMessages(setMsgs, setRevealMode, wasUnknown, revFake, rev
   if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
 }
 
+function hasWakkaTargetInRange(dg, p) {
+  return (dg.monsters || []).some(mon => !mon.disguisedAsItem && !mon.isPlayerClone &&
+    (mon.hp ?? 1) > 0 && Math.max(Math.abs(mon.x - p.x), Math.abs(mon.y - p.y)) <= 10);
+}
+
+/* 通常射撃と射撃の指輪で装備弾の処理を共有する。ターン進行は呼び出し元が行う。 */
+export function shootEquippedProjectile(p, dg, dx, dy, ml, {
+  lu, bigboxAddItem, withPitfallBag, nameFn = null, stoneAim = null, onMonsterDamage = null,
+}) {
+  const _arItem = p.arrow;
+  if (!_arItem || _arItem.count <= 0) return;
+  if (_arItem.rightStone) { dx = 1; dy = 0; }
+  const stoneTarget = _arItem.stone && !_arItem.rightStone ? stoneAim : null;
+  const floorFarcast = getFarcastMode(p.x, p.y, dg);
+  const farcastMode = hasRingEffect(p, "farcast_ring") && floorFarcast !== "cursed" ? "farcast" : floorFarcast;
+  const _isFarcast = farcastMode === "farcast";
+  const _isCursedFc = farcastMode === "cursed";
+  const _forceMiss = hasRingEffect(p, "miss_throw_ring");
+  const spendAmmo = () => {
+    _arItem.count--;
+    if (_arItem.count > 0) return false;
+    if (p.arrow === _arItem) p.arrow = null;
+    p.inventory = p.inventory.filter(item => item !== _arItem);
+    return true;
+  };
+  /* ワッカの指輪：装備中の通常飛び道具も魔法の石と同じ必中ホーミング。
+     這いずり爆弾・魚雷・誘導弾などの特殊飛び道具は従来どおり。 */
+  const wakka = !_arItem.specialProjectile && !_arItem.rightStone &&
+    hasRingEffect(p, "wakka_ring") && hasWakkaTargetInRange(dg, p);
+  if (wakka || _arItem.specialProjectile) {
+    withPitfallBag(() => shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+      forceMiss: _forceMiss, wakka,
+    }));
+    if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+    return;
+  }
+
+  /* ── 石 / 魔法の石 専用処理 ── */
+  if (_arItem.stone || _arItem.magicStone || _arItem.iceChunk) {
+    const _stName = _arItem.name;
+    const usedLastAmmo = spendAmmo();
+    let _stUnit = null;
+    const _stDrop = () => {
+      if (!_stUnit) _stUnit = makeArrowUnitFromStack(_arItem);
+      return _stUnit;
+    };
+    const _stPeelIfNeeded = () => { if (!_stUnit) peelShopArrowUnit(_arItem); };
+    if (_isFarcast && !_arItem.rightStone && !stoneTarget) {
+      /* 遠投：消滅 */
+      ml.push(`${_stName}を投げた。${_stName}は消滅した。`);
+      _stPeelIfNeeded();
+    } else if (_arItem.magicStone) {
+      /* 魔法の石：10マス以内の最近敵にホーミング */
+      const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
+      const _msTarget = [...dg.monsters]
+        .filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 && Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
+        .sort((a, b) => _msDist(a) - _msDist(b))[0];
+      if (_msTarget) {
+        pushItemFlyAnim(p.x, p.y, _msTarget.x, _msTarget.y, _arItem.tile, null, { flightArc: true });
+      }
+      ml.push(`${_stName}を投げた！`);
+      if (!_msTarget) {
+        ml.push(`近くに敵がいない！${_stName}は石と同じ距離を飛んだ。`);
+        const _msRange = _isCursedFc ? 1 : 3;
+        let _msLx = p.x, _msLy = p.y;
+        for (let d = 1; d <= _msRange; d++) {
+          const tx = p.x + dx * d, ty = p.y + dy * d;
+          if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+          if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+          _msLx = tx; _msLy = ty;
+        }
+        pushItemFlyAnim(p.x, p.y, _msLx, _msLy, _arItem.tile, null, { flightArc: true });
+        const _msHitEnemyProjectile = (_msLx !== p.x || _msLy !== p.y)
+          && destroyEnemyHomingProjectileAt(dg, _msLx, _msLy, ml, _stName);
+        const _msHitStatue = !_msHitEnemyProjectile && statueAt(dg, _msLx, _msLy);
+        if (_msHitEnemyProjectile) {
+          _stPeelIfNeeded();
+        } else if (_msHitStatue) {
+          ml.push(`${_stName}が石像に命中！`);
+          hitStatueWithAction(dg, _msLx, _msLy, p, ml, lu, p?.depth, {
+            breaks: true,
+            itemDeps: getFixtureItemDeps(),
+          });
+          _stPeelIfNeeded();
+        } else {
+          const _msSpr = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
+          const _msBB = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
+          if (_msSpr) soakItemIntoSpring(_msSpr, _stDrop(), ml, dg, null, p);
+          else if (_msBB) bigboxAddItem(_msBB, _stDrop(), dg, ml);
+          else {
+            const _msft = new Set();
+            withPitfallBag(() => placeItemAt(dg, _msLx, _msLy, _stDrop(), ml, _msft, 0, p));
+          }
+        }
+      } else if (monReflectsProjectiles(_msTarget)) {
+        markWanderingNpcHostile(_msTarget, dg, p, ml);
+        pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
+        reflectMagicStoneToPlayer(p, _msTarget, _stName, _arItem.atk || 5, ml);
+        _stPeelIfNeeded();
+      } else {
+        const _msSureHit = (p.sureHitTurns || 0) > 0;
+        const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
+        const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (_msDodgePcMode !== "sure" && checkMonsterEvasion(_msTarget, { sureHit: _msSureHit, baseMissRate: 0.10 })));
+        const _msDmg = _msMiss ? 0 : calcProjectileDmg(p, _arItem.atk || 5, _msTarget.def);
+        if (_msMiss) {
+          if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
+          ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
+          const _msft = new Set();
+          withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, _stDrop(), ml, _msft, 0, p));
+        } else if (absorbProjectileIntoMonster(_msTarget, _stDrop(), dg, p, ml, lu, {
+          bbFn: bigboxAddItem,
+          sourceIsPlayer: true,
+          nameFn: (it) => it.name || _stName,
+          messagePrefix: "",
+        })) {
+          _stPeelIfNeeded();
+        } else {
+          if (consumeBarrier(_msTarget, ml)) {
+            markWanderingNpcHostile(_msTarget, dg, p, ml);
+            _stPeelIfNeeded();
+          } else {
+            installMonsterHpHook(_msTarget);
+            const _actualDmg = clampDmgFixed(_msTarget, _msDmg, true);
+            _msTarget.hp -= _actualDmg;
+            wakeIfDormant(_msTarget, ml);
+            resolveParalysisHit(_msTarget, ml);
+            markWanderingNpcHostile(_msTarget, dg, p, ml);
+            ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_actualDmg}ダメージ！`);
+            triggerMushroomCounterSpore(_msTarget, dg, p, ml);
+          onMonsterDamage?.(_msTarget, _actualDmg, "#cc88ff");
+            if (_msTarget.hp <= 0) { killMonster(_msTarget, dg, p, ml, lu); }
+            _stPeelIfNeeded();
+          }
+        }
+      }
+    } else {
+      /* 普通の石の追加射撃は近接で狙ったマスまで飛ばす。 */
+      const _stRange = _arItem.rightStone ? 3 : _isCursedFc ? 1 : (stoneTarget?.range ?? 3);
+      const throwDx = stoneTarget?.dx ?? dx, throwDy = stoneTarget?.dy ?? dy;
+      let _stLx = p.x, _stLy = p.y;
+      let _stHitStatue = false;
+      let _stHitEnemyProjectile = false;
+      for (let d = 1; d <= _stRange; d++) {
+        const tx = p.x + throwDx * d, ty = p.y + throwDy * d;
+        if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+        if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+        _stLx = tx; _stLy = ty;
+      }
+      if (_stLx !== p.x || _stLy !== p.y) {
+        _stHitEnemyProjectile = destroyEnemyHomingProjectileAt(dg, _stLx, _stLy, ml, _stName);
+        if (!_stHitEnemyProjectile && statueAt(dg, _stLx, _stLy)) _stHitStatue = true;
+      }
+      pushItemFlyAnim(p.x, p.y, _stLx, _stLy, _arItem.tile, null, { flightArc: true });
+      const _stM = monsterAt(dg, _stLx, _stLy);
+      const _stBB = dg.bigboxes?.find(b => b.x === _stLx && b.y === _stLy);
+      const _stSpr = dg.springs?.find(s => s.x === _stLx && s.y === _stLy);
+      const _stSureHit = (p.sureHitTurns || 0) > 0;
+      const _stAtk = _arItem.atk || 3;
+      ml.push(`${_stName}を投げた！`);
+      if (_stHitEnemyProjectile) {
+        _stPeelIfNeeded();
+      } else if (_stHitStatue) {
+        ml.push(`${_stName}が石像に命中！`);
+        hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
+          breaks: true,
+          itemDeps: getFixtureItemDeps(),
+        });
+        _stPeelIfNeeded();
+      } else if (_stM) {
+        /* ── reflector：石をプレイヤーへ跳ね返す ── */
+        if (monReflectsProjectiles(_stM)) {
+          ml.push(`${_stName}が${_stM.name}に弾き返された！`);
+          const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
+          let _stRx = _stLx, _stRy = _stLy;
+          let _stRHit = false;
+          for (let _stri = 1; _stri <= 20; _stri++) {
+            const _stNx = _stRx + _stRdx, _stNy = _stRy + _stRdy;
+            if (_stNx < 0 || _stNx >= MW || _stNy < 0 || _stNy >= MH) break;
+            if (dg.map[_stNy][_stNx] === T.WALL || dg.map[_stNy][_stNx] === T.BWALL) break;
+            if (_stNx === p.x && _stNy === p.y) { _stRHit = true; break; }
+            _stRx = _stNx; _stRy = _stNy;
+          }
+          const _stRToX = _stRHit ? p.x : _stRx;
+          const _stRToY = _stRHit ? p.y : _stRy;
+          if (_stRToX !== _stLx || _stRToY !== _stLy) {
+            pushAnim({ type: "projectileReturn", fromX: _stLx, fromY: _stLy, toX: _stRToX, toY: _stRToY, color: "#aaaaaa" });
+          }
+          if (_stRHit) {
+            if (consumeBarrier(p, ml)) {
+              _stPeelIfNeeded();
+            } else {
+              const _stRefDmg = calcProjectileDmg(p, _stAtk, 0);
+              p.hp -= _stRefDmg;
+              p.deathCause = `${_stM.name}に跳ね返された${_stName}で`;
+              ml.push(`跳ね返された${_stName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
+              interruptPlayerSleep(p, ml);
+              resolveParalysisHit(p, ml);
+              _stPeelIfNeeded();
+            }
+          } else if (_stRx !== _stLx || _stRy !== _stLy) {
+            const _stRft = new Set();
+            withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, _stDrop(), ml, _stRft, 0, p));
+          } else {
+            _stPeelIfNeeded();
+          }
+        } else if (absorbProjectileIntoMonster(_stM, _stDrop(), dg, p, ml, lu, {
+          bbFn: bigboxAddItem,
+          sourceIsPlayer: true,
+          nameFn: (it) => it.name || _stName,
+          messagePrefix: "",
+        })) {
+          _stPeelIfNeeded();
+        } else {
+        const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
+        const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (_stDodgePcMode !== "sure" && checkMonsterEvasion(_stM, { sureHit: _stSureHit, baseMissRate: 0.10 })));
+        if (_stMiss) {
+          if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
+          ml.push(`${_stName}は${_stM.name}に外れた！`);
+          const _stft = new Set();
+          withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft, 0, p));
+        } else {
+          if (consumeBarrier(_stM, ml)) {
+            _stPeelIfNeeded();
+          } else {
+            const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _stAtk, _stM.def), true);
+            _stM.hp -= _stDmg;
+            wakeIfDormant(_stM, ml);
+            resolveParalysisHit(_stM, ml);
+            markWanderingNpcHostile(_stM, dg, p, ml);
+            ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
+            triggerMushroomCounterSpore(_stM, dg, p, ml);
+            onMonsterDamage?.(_stM, _stDmg, "#aaaaaa");
+            if (_stM.hp <= 0) { killMonster(_stM, dg, p, ml, lu); }
+            _stPeelIfNeeded();
+          }
+        }
+        }
+      } else if (_stSpr) {
+        soakItemIntoSpring(_stSpr, _stDrop(), ml, dg, null, p);
+      } else if (_stBB) {
+        bigboxAddItem(_stBB, _stDrop(), dg, ml);
+      } else {
+        /* 敵なし：着弾点に落ちる（罠も起動） */
+        const _stft = new Set();
+        withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft, 0, p));
+      }
+    }
+    if (usedLastAmmo) {
+      ml.push(`${_stName}を投げ尽くした。`);
+    }
+    return;
+  }
+
+  /* ── 爆弾矢 専用処理 ── */
+  if (_arItem.bombArrow) {
+    const _baName = _arItem.name;
+    const _baOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622", true);
+    const usedLastAmmo = spendAmmo();
+    peelShopArrowUnit(_arItem); /* 爆発で消えるので請求だけ1本分分離 */
+    ml.push(`${_baName}を射った！`);
+    if (_isFarcast) {
+      ml.push(`${_baName}は消滅した。`);
+    } else {
+      let _baLx = p.x, _baLy = p.y;
+      const _baMaxR = _isCursedFc ? 1 : 10;
+      for (let d = 1; d <= _baMaxR; d++) {
+        const tx = p.x + dx * d, ty = p.y + dy * d;
+        if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+        if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+        const _baM = monsterAt(dg, tx, ty);
+        if (_baM) {
+          if (monSubmergesProjectiles(_baM)) {
+            ml.push(_baM.name + "が潜って爆弾矢をかわした！");
+            _baLx = tx; _baLy = ty;
+            continue;
+          }
+          /* reflector：爆弾矢を跳ね返す（爆発はそのまま発生） */
+          if (monReflectsProjectiles(_baM)) {
+            ml.push(`${_baName}が${_baM.name}に弾き返された！`);
+            const _baRdx = Math.sign(p.x - tx), _baRdy = Math.sign(p.y - ty);
+            let _baRx = tx, _baRy = ty;
+            for (let _bari = 1; _bari <= 20; _bari++) {
+              const _barnx = _baRx + _baRdx, _barny = _baRy + _baRdy;
+              if (_barnx < 0 || _barnx >= MW || _barny < 0 || _barny >= MH) break;
+              if (dg.map[_barny][_barnx] === T.WALL || dg.map[_barny][_barnx] === T.BWALL) break;
+              _baRx = _barnx; _baRy = _barny;
+              if (_barnx === p.x && _barny === p.y) break;
+            }
+            const _baRetFrom = _baOutBolt ? { x: _baOutBolt.toX, y: _baOutBolt.toY } : { x: tx, y: ty };
+            const _baRetTo   = _baOutBolt ? { x: _baOutBolt.fromX, y: _baOutBolt.fromY } : { x: _baRx, y: _baRy };
+            pushAnim({ type: "projectileReturn", fromX: _baRetFrom.x, fromY: _baRetFrom.y, toX: _baRetTo.x, toY: _baRetTo.y, color: _baOutBolt?.color ?? "#ff6622" });
+            _baLx = _baRx; _baLy = _baRy;
+            break;
+          }
+          if (consumeBarrier(_baM, ml)) {
+            // 直撃ダメージをバリアで防ぐ（爆発は続く）
+          } else {
+            const _baDmg = clampDmgFixed(_baM, calcProjectileDmg(p, _arItem.atk || 6, _baM.def), true);
+            _baM.hp -= _baDmg;
+            wakeIfDormant(_baM, ml);
+            resolveParalysisHit(_baM, ml);
+            markWanderingNpcHostile(_baM, dg, p, ml);
+            ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
+            triggerMushroomCounterSpore(_baM, dg, p, ml);
+            onMonsterDamage?.(_baM, _baDmg, "#ff6622");
+            if (_baM.hp <= 0) { killMonster(_baM, dg, p, ml, lu); }
+          }
+          _baLx = tx; _baLy = ty;
+          break;
+        }
+        const _baBB = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
+        if (_baBB) {
+          ml.push(`${_baName}が${_baBB.name}に命中！`);
+          _baLx = tx; _baLy = ty;
+          break;
+        }
+        _baLx = tx; _baLy = ty;
+      }
+      detonateBombArrow(_baLx, _baLy, _arItem, dg, p, ml, lu, _arItem.atk || 6, nameFn);
+    }
+    if (usedLastAmmo) {
+      ml.push(`${_baName}を使い切った。`);
+    }
+    return;
+  }
+
+  const _arIsPoison = !!_arItem.poison;
+  const _arIsPierce = !!_arItem.pierce;
+  const _arName = _arItem.name || "矢";
+  const _arBaseAtk = _arItem.atk || 3;
+  const _arColor = _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050";
+  const usedLastAmmo = spendAmmo();
+  let _arUnit = null;
+  const _arDropItem = () => {
+    if (!_arUnit) _arUnit = makeArrowUnitFromStack(_arItem);
+    return _arUnit;
+  };
+  const _arPeelIfNeeded = () => { if (!_arUnit) peelShopArrowUnit(_arItem); };
+  const _arDropAt = (px, py, mlx) => {
+    const _ft = new Set();
+    withPitfallBag(() => placeItemAt(dg, px, py, _arDropItem(), mlx, _ft, 0, p));
+  };
+  const _arEndDrop = (px, py, mlx) => {
+    if (_arIsPierce || _isCursedFc || _isFarcast) {
+      mlx.push(`${_arName}を射った。${_arName}は消滅した。`);
+      _arPeelIfNeeded();
+      return;
+    }
+    mlx.push(`${_arName}を射った。`);
+    _arDropAt(px, py, mlx);
+  };
+  _resolveBolt(p, dg, p, ml, lu, {
+    isPlayerShooter: true,
+    farcastMode,
+    dx, dy,
+    baseRange: 10,
+    pierce: _arIsPierce,
+    animColor: _arColor,
+    boltName: _arName,
+    calcMonDmg: (mon) => calcProjectileDmg(p, _arBaseAtk, mon.def),
+    calcPlDmg: () => calcProjectileDmg(p, _arBaseAtk, 0),
+    onPlHit: (mlx) => {
+      /* reflector経由でプレイヤー命中時の毒処理 */
+      if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
+        const _poison = applyPlayerPoison(p);
+          mlx.push(statusResultMessage(_poison, _poison.atkLoss > 0 ? `毒を受けた！(${_poison.turns}ターン)攻撃力が下がった！` : `毒を受けた！(${_poison.turns}ターン)`));
+      } else if (_arIsPoison) {
+        mlx.push("しかし指輪が毒を消した！");
+      }
+      _arPeelIfNeeded();
+    },
+    monsterMissMessage: mon => {
+      const dodgeMode = getDodgePentacleMode(dg, mon.x, mon.y);
+      if (dodgeMode === "dodge") return `みかわしの魔方陣の加護で${mon.name}に矢が当たらなかった！`;
+      if (_forceMiss || (dodgeMode !== "sure" && checkMonsterEvasion(mon, {
+        sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10,
+      }))) return `${_arName}は${mon.name}に外れた！`;
+      return null;
+    },
+    onMonsterMiss: (mon, x, y, mlx) => {
+      if (_arIsPierce || _isFarcast) return false;
+      mlx.push(`${_arName}が${mon.name}の足元に落ちた！`);
+      _arDropAt(x, y, mlx);
+      return true;
+    },
+    onMonHit: (mon, mlx) => {
+      if (absorbProjectileIntoMonster(mon, _arDropItem(), dg, p, mlx, lu, {
+        bbFn: bigboxAddItem,
+        sourceIsPlayer: true,
+        nameFn: (it) => it.name || _arName,
+        messagePrefix: "",
+      })) {
+        return "consumed";
+      }
+      /* 命中 */
+      const _dmg = clampDmgFixed(mon, calcProjectileDmg(p, _arBaseAtk, mon.def), true);
+      mon.hp -= _dmg;
+      wakeIfDormant(mon, mlx);
+      resolveParalysisHit(mon, mlx);
+      markWanderingNpcHostile(mon, dg, p, mlx);
+      const _poisonStacks = _arIsPoison ? applyPoisonArrowDamageReduction(mon, mlx) : 0;
+      mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? (_poisonStacks > 0 ? "攻撃力が下がった！" : "毒矢の追加効果は効かなかった！") : ""}`);
+      triggerMushroomCounterSpore(mon, dg, p, mlx);
+      onMonsterDamage?.(mon, _dmg, _arColor);
+      if (mon.hp <= 0) { killMonster(mon, dg, p, mlx, lu); }
+      if (!_arIsPierce) _arPeelIfNeeded();
+    },
+    onBigbox: _arIsPierce ? null : (bb, lx, ly, mlx) => {
+      mlx.push(`${_arName}を射った。`);
+      bigboxAddItem(bb, _arDropItem(), dg, mlx);
+    },
+    onSpring: _arIsPierce ? null : (spr, lx, ly, mlx) => {
+      mlx.push(`${_arName}を射った。`);
+      soakItemIntoSpring(spr, _arDropItem(), mlx, dg, null, p);
+    },
+    onWallStop: _arEndDrop,
+    onFlyOff: _arEndDrop,
+  });
+  /* 貫通などで一度も着弾処理されなかった場合の店請求分離 */
+  _arPeelIfNeeded();
+  if (usedLastAmmo) {
+    ml.push(`${_arName}を撃ち尽くした。`);
+  }
+}
+
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
   setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
@@ -3534,8 +3959,6 @@ export function useItemActions({
       const _selectedProjectile = mode === "shoot_equipped" ? p.arrow : p.inventory[idx];
       if (_selectedProjectile?.rightStone) { dx = 1; dy = 0; }
       const ml = installPlayerHpMessageHook([], p);
-      const _hasWakkaTargetInRange = () => (dg.monsters || []).some(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
-        Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10);
       const _skSnap = dg.monsters.filter(m => m.type === "shopkeeper").map(m => ({ m, hp: m.hp }));
       /* 遠投判定（投げ・射撃にのみ影響） */
       const _throwRelated = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode);
@@ -3554,448 +3977,20 @@ export function useItemActions({
         if (!p.arrow || p.arrow.count <= 0) {
           ml.push("矢がない！");
           setThrowMode(null);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
           return;
         }
-        const _arItem = p.arrow;
-
-        /* ワッカの指輪：装備中の通常飛び道具も魔法の石と同じ必中ホーミング。
-           這いずり爆弾・魚雷・誘導弾などの特殊飛び道具は従来どおり。 */
-        if (hasRingEffect(p, "wakka_ring") && !_arItem.specialProjectile && !_arItem.rightStone && _hasWakkaTargetInRange()) {
-          shootWithPitfallBag(p.inventory.indexOf(_arItem), null, {
-            forceMiss: _forceMiss,
-            wakka: true,
-          });
-          if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-          }
-
-        /* ── 1マスずつ進む特殊飛び道具 ── */
-        if (_arItem.specialProjectile) {
-          shootWithPitfallBag(p.inventory.indexOf(_arItem), null, { forceMiss: _forceMiss });
-          if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        }
-
-        /* ── 石 / 魔法の石 専用処理 ── */
-        if (_arItem.stone || _arItem.magicStone || _arItem.iceChunk) {
-          const _stName = _arItem.name;
-          p.arrow.count--;
-          let _stUnit = null;
-          const _stDrop = () => {
-            if (!_stUnit) _stUnit = makeArrowUnitFromStack(_arItem);
-            return _stUnit;
-          };
-          const _stPeelIfNeeded = () => { if (!_stUnit) peelShopArrowUnit(_arItem); };
-          if (_isFarcast && !_arItem.rightStone) {
-            /* 遠投：消滅 */
-            ml.push(`${_stName}を投げた。${_stName}は消滅した。`);
-            _stPeelIfNeeded();
-          } else if (_arItem.magicStone) {
-            /* 魔法の石：10マス以内の最近敵にホーミング */
-            const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
-            const _msTarget = [...dg.monsters]
-              .filter(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 && Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
-              .sort((a, b) => _msDist(a) - _msDist(b))[0];
-            if (_msTarget) {
-              pushItemFlyAnim(p.x, p.y, _msTarget.x, _msTarget.y, _arItem.tile, null, { flightArc: true });
-            }
-            ml.push(`${_stName}を投げた！`);
-            if (!_msTarget) {
-              ml.push(`近くに敵がいない！${_stName}は石と同じ距離を飛んだ。`);
-              const _msRange = _isCursedFc ? 1 : 3;
-              let _msLx = p.x, _msLy = p.y;
-              for (let d = 1; d <= _msRange; d++) {
-                const tx = p.x + dx * d, ty = p.y + dy * d;
-                if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-                if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-                _msLx = tx; _msLy = ty;
-              }
-              pushItemFlyAnim(p.x, p.y, _msLx, _msLy, _arItem.tile, null, { flightArc: true });
-              const _msHitEnemyProjectile = (_msLx !== p.x || _msLy !== p.y)
-                && destroyEnemyHomingProjectileAt(dg, _msLx, _msLy, ml, _stName);
-              const _msHitStatue = !_msHitEnemyProjectile && statueAt(dg, _msLx, _msLy);
-              if (_msHitEnemyProjectile) {
-                _stPeelIfNeeded();
-              } else if (_msHitStatue) {
-                ml.push(`${_stName}が石像に命中！`);
-                hitStatueWithAction(dg, _msLx, _msLy, p, ml, lu, p?.depth, {
-                  breaks: true,
-                  itemDeps: getFixtureItemDeps(),
-                });
-                _stPeelIfNeeded();
-              } else {
-                const _msSpr = dg.springs?.find(s => s.x === _msLx && s.y === _msLy);
-                const _msBB = dg.bigboxes?.find(b => b.x === _msLx && b.y === _msLy);
-                if (_msSpr) soakItemIntoSpring(_msSpr, _stDrop(), ml, dg, null, p);
-                else if (_msBB) bigboxAddItem(_msBB, _stDrop(), dg, ml);
-                else {
-                  const _msft = new Set();
-                  withPitfallBag(() => placeItemAt(dg, _msLx, _msLy, _stDrop(), ml, _msft, 0, p));
-                }
-              }
-            } else if (monReflectsProjectiles(_msTarget)) {
-              markWanderingNpcHostile(_msTarget, dg, p, ml);
-              pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
-              reflectMagicStoneToPlayer(p, _msTarget, _stName, _arItem.atk || 5, ml);
-              _stPeelIfNeeded();
-            } else {
-              const _msSureHit = (p.sureHitTurns || 0) > 0;
-              const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
-              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (_msDodgePcMode !== "sure" && checkMonsterEvasion(_msTarget, { sureHit: _msSureHit, baseMissRate: 0.10 })));
-              const _msDmg = _msMiss ? 0 : calcProjectileDmg(p, _arItem.atk || 5, _msTarget.def);
-              if (_msMiss) {
-                if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
-                ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
-                const _msft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, _stDrop(), ml, _msft, 0, p));
-              } else if (absorbProjectileIntoMonster(_msTarget, _stDrop(), dg, p, ml, lu, {
-                bbFn: bigboxAddItem,
-                sourceIsPlayer: true,
-                nameFn: (it) => it.name || _stName,
-                messagePrefix: "",
-              })) {
-                _stPeelIfNeeded();
-              } else {
-                if (consumeBarrier(_msTarget, ml)) {
-                  markWanderingNpcHostile(_msTarget, dg, p, ml);
-                  _stPeelIfNeeded();
-                } else {
-                  installMonsterHpHook(_msTarget);
-                  const _actualDmg = clampDmgFixed(_msTarget, _msDmg, true);
-                  _msTarget.hp -= _actualDmg;
-                  wakeIfDormant(_msTarget, ml);
-                  resolveParalysisHit(_msTarget, ml);
-                  markWanderingNpcHostile(_msTarget, dg, p, ml);
-                  ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_actualDmg}ダメージ！`);
-                  triggerMushroomCounterSpore(_msTarget, dg, p, ml);
-                  if (_msTarget.hp <= 0) { killMonster(_msTarget, dg, p, ml, lu); }
-                  _stPeelIfNeeded();
-                }
-              }
-            }
-          } else {
-            /* 通常の石：必ず3マス先（呪い遠投は1マス先）に着弾 */
-            const _stRange = _arItem.rightStone ? 3 : _isCursedFc ? 1 : 3;
-            let _stLx = p.x, _stLy = p.y;
-            let _stHitStatue = false;
-            let _stHitEnemyProjectile = false;
-            for (let d = 1; d <= _stRange; d++) {
-              const tx = p.x + dx * d, ty = p.y + dy * d;
-              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-              _stLx = tx; _stLy = ty;
-            }
-            if (_stLx !== p.x || _stLy !== p.y) {
-              _stHitEnemyProjectile = destroyEnemyHomingProjectileAt(dg, _stLx, _stLy, ml, _stName);
-              if (!_stHitEnemyProjectile && statueAt(dg, _stLx, _stLy)) _stHitStatue = true;
-            }
-            pushItemFlyAnim(p.x, p.y, _stLx, _stLy, _arItem.tile, null, { flightArc: true });
-            const _stM = monsterAt(dg, _stLx, _stLy);
-            const _stBB = dg.bigboxes?.find(b => b.x === _stLx && b.y === _stLy);
-            const _stSpr = dg.springs?.find(s => s.x === _stLx && s.y === _stLy);
-            const _stSureHit = (p.sureHitTurns || 0) > 0;
-            const _stAtk = _arItem.atk || 3;
-            ml.push(`${_stName}を投げた！`);
-            if (_stHitEnemyProjectile) {
-              _stPeelIfNeeded();
-            } else if (_stHitStatue) {
-              ml.push(`${_stName}が石像に命中！`);
-              hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
-                breaks: true,
-                itemDeps: getFixtureItemDeps(),
-              });
-              _stPeelIfNeeded();
-            } else if (_stM) {
-              /* ── reflector：石をプレイヤーへ跳ね返す ── */
-              if (monReflectsProjectiles(_stM)) {
-                ml.push(`${_stName}が${_stM.name}に弾き返された！`);
-                const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
-                let _stRx = _stLx, _stRy = _stLy;
-                let _stRHit = false;
-                for (let _stri = 1; _stri <= 20; _stri++) {
-                  const _stNx = _stRx + _stRdx, _stNy = _stRy + _stRdy;
-                  if (_stNx < 0 || _stNx >= MW || _stNy < 0 || _stNy >= MH) break;
-                  if (dg.map[_stNy][_stNx] === T.WALL || dg.map[_stNy][_stNx] === T.BWALL) break;
-                  if (_stNx === p.x && _stNy === p.y) { _stRHit = true; break; }
-                  _stRx = _stNx; _stRy = _stNy;
-                }
-                const _stRToX = _stRHit ? p.x : _stRx;
-                const _stRToY = _stRHit ? p.y : _stRy;
-                if (_stRToX !== _stLx || _stRToY !== _stLy) {
-                  pushAnim({ type: "projectileReturn", fromX: _stLx, fromY: _stLy, toX: _stRToX, toY: _stRToY, color: "#aaaaaa" });
-                }
-                if (_stRHit) {
-                  if (consumeBarrier(p, ml)) {
-                    _stPeelIfNeeded();
-                  } else {
-                    const _stRefDmg = calcProjectileDmg(p, _stAtk, 0);
-                    p.hp -= _stRefDmg;
-                    p.deathCause = `${_stM.name}に跳ね返された${_stName}で`;
-                    ml.push(`跳ね返された${_stName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
-                    interruptPlayerSleep(p, ml);
-                    resolveParalysisHit(p, ml);
-                    _stPeelIfNeeded();
-                  }
-                } else if (_stRx !== _stLx || _stRy !== _stLy) {
-                  const _stRft = new Set();
-                  withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, _stDrop(), ml, _stRft, 0, p));
-                } else {
-                  _stPeelIfNeeded();
-                }
-              } else if (absorbProjectileIntoMonster(_stM, _stDrop(), dg, p, ml, lu, {
-                bbFn: bigboxAddItem,
-                sourceIsPlayer: true,
-                nameFn: (it) => it.name || _stName,
-                messagePrefix: "",
-              })) {
-                _stPeelIfNeeded();
-              } else {
-              const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
-              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (_stDodgePcMode !== "sure" && checkMonsterEvasion(_stM, { sureHit: _stSureHit, baseMissRate: 0.10 })));
-              if (_stMiss) {
-                if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
-                ml.push(`${_stName}は${_stM.name}に外れた！`);
-                const _stft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft, 0, p));
-              } else {
-                if (consumeBarrier(_stM, ml)) {
-                  _stPeelIfNeeded();
-                } else {
-                  const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _stAtk, _stM.def), true);
-                  _stM.hp -= _stDmg;
-                  wakeIfDormant(_stM, ml);
-                  resolveParalysisHit(_stM, ml);
-                  markWanderingNpcHostile(_stM, dg, p, ml);
-                  ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                  triggerMushroomCounterSpore(_stM, dg, p, ml);
-                  if (_stM.hp <= 0) { killMonster(_stM, dg, p, ml, lu); }
-                  _stPeelIfNeeded();
-                }
-              }
-              }
-            } else if (_stSpr) {
-              soakItemIntoSpring(_stSpr, _stDrop(), ml, dg, null, p);
-            } else if (_stBB) {
-              bigboxAddItem(_stBB, _stDrop(), dg, ml);
-            } else {
-              /* 敵なし：着弾点に落ちる（罠も起動） */
-              const _stft = new Set();
-              withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft, 0, p));
-            }
-          }
-          if (p.arrow.count <= 0) {
-            const _stEx = p.arrow;
-            p.arrow = null;
-            p.inventory = p.inventory.filter(i => i !== _stEx);
-            ml.push(`${_stName}を投げ尽くした。`);
-          }
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        }
-
-        /* ── 爆弾矢 専用処理 ── */
-        if (_arItem.bombArrow) {
-          const _baName = _arItem.name;
-          const _baNF = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          const _baOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622", true);
-          p.arrow.count--;
-          peelShopArrowUnit(_arItem); /* 爆発で消えるので請求だけ1本分分離 */
-          ml.push(`${_baName}を射った！`);
-          if (_isFarcast) {
-            ml.push(`${_baName}は消滅した。`);
-          } else {
-            let _baLx = p.x, _baLy = p.y;
-            const _baMaxR = _isCursedFc ? 1 : 10;
-            for (let d = 1; d <= _baMaxR; d++) {
-              const tx = p.x + dx * d, ty = p.y + dy * d;
-              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-              const _baM = monsterAt(dg, tx, ty);
-              if (_baM) {
-                if (monSubmergesProjectiles(_baM)) {
-                  ml.push(_baM.name + "が潜って爆弾矢をかわした！");
-                  _baLx = tx; _baLy = ty;
-                  continue;
-                }
-                /* reflector：爆弾矢を跳ね返す（爆発はそのまま発生） */
-                if (monReflectsProjectiles(_baM)) {
-                  ml.push(`${_baName}が${_baM.name}に弾き返された！`);
-                  const _baRdx = Math.sign(p.x - tx), _baRdy = Math.sign(p.y - ty);
-                  let _baRx = tx, _baRy = ty;
-                  for (let _bari = 1; _bari <= 20; _bari++) {
-                    const _barnx = _baRx + _baRdx, _barny = _baRy + _baRdy;
-                    if (_barnx < 0 || _barnx >= MW || _barny < 0 || _barny >= MH) break;
-                    if (dg.map[_barny][_barnx] === T.WALL || dg.map[_barny][_barnx] === T.BWALL) break;
-                    _baRx = _barnx; _baRy = _barny;
-                    if (_barnx === p.x && _barny === p.y) break;
-                  }
-                  const _baRetFrom = _baOutBolt ? { x: _baOutBolt.toX, y: _baOutBolt.toY } : { x: tx, y: ty };
-                  const _baRetTo   = _baOutBolt ? { x: _baOutBolt.fromX, y: _baOutBolt.fromY } : { x: _baRx, y: _baRy };
-                  pushAnim({ type: "projectileReturn", fromX: _baRetFrom.x, fromY: _baRetFrom.y, toX: _baRetTo.x, toY: _baRetTo.y, color: _baOutBolt?.color ?? "#ff6622" });
-                  _baLx = _baRx; _baLy = _baRy;
-                  break;
-                }
-                if (consumeBarrier(_baM, ml)) {
-                  // 直撃ダメージをバリアで防ぐ（爆発は続く）
-                } else {
-                  const _baDmg = clampDmgFixed(_baM, calcProjectileDmg(p, _arItem.atk || 6, _baM.def), true);
-                  _baM.hp -= _baDmg;
-                  wakeIfDormant(_baM, ml);
-                  resolveParalysisHit(_baM, ml);
-                  markWanderingNpcHostile(_baM, dg, p, ml);
-                  ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                  triggerMushroomCounterSpore(_baM, dg, p, ml);
-                  if (_baM.hp <= 0) { killMonster(_baM, dg, p, ml, lu); }
-                }
-                _baLx = tx; _baLy = ty;
-                break;
-              }
-              const _baBB = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
-              if (_baBB) {
-                ml.push(`${_baName}が${_baBB.name}に命中！`);
-                _baLx = tx; _baLy = ty;
-                break;
-              }
-              _baLx = tx; _baLy = ty;
-            }
-            detonateBombArrow(_baLx, _baLy, _arItem, dg, p, ml, lu, _arItem.atk || 6, _baNF);
-          }
-          if (p.arrow.count <= 0) {
-            const _baEx = p.arrow;
-            p.arrow = null;
-            p.inventory = p.inventory.filter(i => i !== _baEx);
-            ml.push(`${_baName}を使い切った。`);
-          }
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
-          return;
-        }
-
-        const _arIsPoison = !!_arItem.poison;
-        const _arIsPierce = !!_arItem.pierce;
-        const _arName = _arItem.name || "矢";
-        const _arBaseAtk = _arItem.atk || 3;
-        const _arColor = _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050";
-        p.arrow.count--;
-        let _arUnit = null;
-        const _arDropItem = () => {
-          if (!_arUnit) _arUnit = makeArrowUnitFromStack(_arItem);
-          return _arUnit;
-        };
-        const _arPeelIfNeeded = () => { if (!_arUnit) peelShopArrowUnit(_arItem); };
-        const _arDropAt = (px, py, mlx) => {
-          const _ft = new Set();
-          withPitfallBag(() => placeItemAt(dg, px, py, _arDropItem(), mlx, _ft, 0, p));
-        };
-        const _arEndDrop = (px, py, mlx) => {
-          if (_arIsPierce || _isCursedFc || _isFarcast) {
-            mlx.push(`${_arName}を射った。${_arName}は消滅した。`);
-            _arPeelIfNeeded();
-            return;
-          }
-          mlx.push(`${_arName}を射った。`);
-          _arDropAt(px, py, mlx);
-        };
-        _resolveBolt(p, dg, p, ml, lu, {
-          isPlayerShooter: true,
-          dx, dy,
-          baseRange: 10,
-          pierce: _arIsPierce,
-          animColor: _arColor,
-          boltName: _arName,
-          calcMonDmg: (mon) => calcProjectileDmg(p, _arBaseAtk, mon.def),
-          calcPlDmg: () => calcProjectileDmg(p, _arBaseAtk, 0),
-          onPlHit: (mlx) => {
-            /* reflector経由でプレイヤー命中時の毒処理 */
-            if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
-              const _poison = applyPlayerPoison(p);
-                mlx.push(statusResultMessage(_poison, _poison.atkLoss > 0 ? `毒を受けた！(${_poison.turns}ターン)攻撃力が下がった！` : `毒を受けた！(${_poison.turns}ターン)`));
-            } else if (_arIsPoison) {
-              mlx.push("しかし指輪が毒を消した！");
-            }
-            _arPeelIfNeeded();
-          },
-          onMonHit: (mon, mlx) => {
-            const _isFcM = getFarcastMode(p.x, p.y, dg) === "farcast";
-            if (!_forceMiss && absorbProjectileIntoMonster(mon, _arDropItem(), dg, p, mlx, lu, {
-              bbFn: bigboxAddItem,
-              sourceIsPlayer: true,
-              nameFn: (it) => it.name || _arName,
-              messagePrefix: "",
-            })) {
-              return;
-            }
-            /* 命中率: dodge魔方陣・必中状態を考慮 */
-            const _arSureHit = (p.sureHitTurns || 0) > 0;
-            const _arDodgePcMode = getDodgePentacleMode(dg, mon.x, mon.y);
-            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (_arDodgePcMode !== "sure" && checkMonsterEvasion(mon, { sureHit: _arSureHit, baseMissRate: 0.10 })));
-            if (_arMiss) {
-              if (_arDodgePcMode === "dodge") mlx.push(`みかわしの魔方陣の加護で${mon.name}に矢が当たらなかった！`);
-              if (_arIsPierce || _isFcM) {
-                mlx.push(`${_arName}は${mon.name}をすり抜けた！`);
-                return; /* 貫通・遠投：外れても落ちずに飛び続ける */
-              }
-              mlx.push(`${_arName}は${mon.name}に外れ、足元に落ちた！`);
-              const _arMissItem = _arDropItem();
-              const _arft = new Set();
-              withPitfallBag(() => placeItemAt(dg, mon.x, mon.y, _arMissItem, mlx, _arft, 0, p));
-              return;
-            }
-            /* 命中 */
-            const _dmg = clampDmgFixed(mon, calcProjectileDmg(p, _arBaseAtk, mon.def), true);
-            mon.hp -= _dmg;
-            wakeIfDormant(mon, mlx);
-            resolveParalysisHit(mon, mlx);
-            markWanderingNpcHostile(mon, dg, p, mlx);
-            const _poisonStacks = _arIsPoison ? applyPoisonArrowDamageReduction(mon, mlx) : 0;
-            mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? (_poisonStacks > 0 ? "攻撃力が下がった！" : "毒矢の追加効果は効かなかった！") : ""}`);
-            triggerMushroomCounterSpore(mon, dg, p, mlx);
-            if (mon.hp <= 0) { killMonster(mon, dg, p, mlx, lu); }
-            if (!_arIsPierce) _arPeelIfNeeded();
-          },
-          onBigbox: _arIsPierce ? null : (bb, lx, ly, mlx) => {
-            mlx.push(`${_arName}を射った。`);
-            bigboxAddItem(bb, _arDropItem(), dg, mlx);
-          },
-          onSpring: _arIsPierce ? null : (spr, lx, ly, mlx) => {
-            mlx.push(`${_arName}を射った。`);
-            soakItemIntoSpring(spr, _arDropItem(), mlx, dg, null, p);
-          },
-          onWallStop: _arEndDrop,
-          onFlyOff: _arEndDrop,
+        shootEquippedProjectile(p, dg, dx, dy, ml, {
+          lu, bigboxAddItem, withPitfallBag,
+          nameFn: item => itemDisplayName(item, sr.current.fakeNames, sr.current.ident, sr.current.nicknames),
         });
-        /* 貫通などで一度も着弾処理されなかった場合の店請求分離 */
-        _arPeelIfNeeded();
-        if (p.arrow.count <= 0) {
-          const _ex = p.arrow;
-          p.arrow = null;
-          p.inventory = p.inventory.filter(i => i !== _ex);
-          ml.push(`${_arName}を撃ち尽くした。`);
-        }
       } else if (mode === "shoot") {
         const it = p.inventory[idx];
         if (!it) {
           setThrowMode(null);
           return;
         }
-        if (hasRingEffect(p, "wakka_ring") && !it.specialProjectile && _hasWakkaTargetInRange()) {
+        if (hasRingEffect(p, "wakka_ring") && !it.specialProjectile && hasWakkaTargetInRange(dg, p)) {
           shootWithPitfallBag(idx, null, {
             forceMiss: _forceMiss,
             wakka: true,

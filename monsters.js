@@ -4187,6 +4187,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn, bbFn = null) {
  * onReflectedMonHit(mon, ml, x, y, reflector, dx, dy): 反射後の敵命中を専用処理へ渡す。
  *   指定時は通常弾ダメージとonFlyOffを適用しない（薬・杖・壺などの共通投擲用）。
  * monsterMissMessage(mon): 専用の敵回避判定。外れた場合はメッセージを返す。
+ * onMonsterMiss(mon, x, y, ml): 外れた矢をその場に落とした時は true を返して飛翔を止める。
  * onMonsterBarrier(mon, x, y): 敵のバリアで止まった弾を処理する。省略時はonFlyOffを使う。
  * customPlHit(ml, isReflected, reflectorMon): プレイヤー命中時のカスタム処理。指定するとデフォルトの
  *   ダメージ計算・deathCause・メッセージ・sleep解除をスキップして全てカスタム実装に委ねる。
@@ -4224,6 +4225,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onPlHit = null,
     onMonHit = null,
     monsterMissMessage = null,
+    onMonsterMiss = null,
     onMonsterBarrier = null,
     onReflectedMonHit = null,
     onMiss = null,
@@ -4242,6 +4244,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     pierce = false,
     terminalOnly = false,
     isPlayerShooter = false,
+    farcastMode = null,
     reflectorRange = 20,
     customPlHit = null,
     homingTarget = null,
@@ -4258,7 +4261,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   const _shooterPrefix = isPlayerShooter ? "" : `${m.name}の`;
   const _killerMon = isPlayerShooter ? null : m;
 
-  const _fcMode = getFarcastMode(pl.x, pl.y, dg);
+  const _fcMode = farcastMode ?? getFarcastMode(pl.x, pl.y, dg);
   const _isFc = !terminalOnly && _fcMode === "farcast";
   const _isCursedFc = !terminalOnly && _fcMode === "cursed";
   const _passthrough = !terminalOnly && (_isFc || pierce);
@@ -4472,6 +4475,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       }
       if (missMessage) {
         ml.push(missMessage);
+        if (onMonsterMiss?.(_mon, _tx, _ty, ml)) return;
         _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
         continue;
       }
