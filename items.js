@@ -1,7 +1,7 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
 import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, traceProjectilePath, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense, countEquippedRings, rewindNextExp } from './utils.js';
 import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } from './synthMonster.js';
-import { adjustMonsterPermanentStat } from './utils.js';
+import { adjustMonsterPermanentStat, checkMonsterEvasion } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -8267,6 +8267,17 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     onMiss: (lx, ly) => {
       res.x = lx; res.y = ly; res.missedPlayer = true;
     },
+    monsterMissMessage: item.rightStone ? mon => {
+      const dodgeMode = getDodgePentacleMode(dg, mon.x, mon.y);
+      if (dodgeMode === "dodge") return `みかわしの魔方陣の加護で${mon.name}に${_itemName}が当たらなかった！`;
+      if (forceMiss || (dodgeMode !== "sure" && checkMonsterEvasion(mon, { baseMissRate: 0.05, sureHit: shooter.subtype === "potionhealer" }))) {
+        return `${_itemName}は${mon.name}に当たらなかった！`;
+      }
+      return null;
+    } : null,
+    onMonsterBarrier: item.rightStone ? (mon, x, y) => {
+      Object.assign(res, { x, y, hitMonster: mon, consumed: true });
+    } : null,
     onMonHit: hitMonster,
     onReflectedMonHit: (mon, mlx, hitX, hitY, reflector, hitDx, hitDy) => {
       killerMon = reflectedBy = reflector;

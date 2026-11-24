@@ -133,6 +133,56 @@ describe("射撃の指輪と石", () => {
     expect(dg.items).toMatchObject([{ name: "石", x: 6, y: 5 }]);
   });
 
+  describe.each([
+    ["普通の石", items.makeNormalStone],
+    ["魔法の石", items.makeMagicStone],
+    ["氷塊", items.makeIceChunk],
+  ])("%sの追加射撃の防御判定", (_, makeAmmo) => {
+    const fire = (pentacle, extraRing = null, random = 0.5) => {
+      const ammo = makeAmmo(1);
+      const rings = extraRing ? [shootingRing, extraRing] : [shootingRing];
+      return attack({ abilities: [], bodySize: 1, walls: [[7, 5]], pentacle, random, target: { barrier: 1 },
+        player: { rings, arrow: ammo, inventory: [ammo] } });
+    };
+
+    it("みかわしの魔方陣があるとバリアを使わず足元に落ちる", () => {
+      const { mon, ml, dg } = fire({ kind: "dodge" });
+      expect(mon.hp).toBe(990);
+      expect(mon.barrier).toBe(1);
+      expect(ml.some(message => message.startsWith("みかわしの魔方陣の加護で"))).toBe(true);
+      expect(dg.items).toMatchObject([{ x: 6, y: 5 }]);
+    });
+
+    it("命中時はバリアを1回消費し、石は床に残らない", () => {
+      const { mon, ml, dg } = fire();
+      expect(mon.hp).toBe(990);
+      expect(mon.barrier).toBe(0);
+      expect(ml).toContain("対象のバリアが攻撃を弾いた！バリアが砕けた！");
+      expect(dg.items).toEqual([]);
+    });
+
+    it("呪われたみかわしは通常の外れを防ぎ、下手投げは外れる", () => {
+      const pentacle = { kind: "dodge", cursed: true };
+      expect(fire(pentacle, null, 0.07).mon.barrier).toBe(0);
+
+      const missed = fire(pentacle, { effect: "miss_throw_ring" }, 0.07);
+      expect(missed.mon.barrier).toBe(1);
+      expect(missed.dg.items).toMatchObject([{ x: 6, y: 5 }]);
+    });
+  });
+
+  it.each([true, false])("右は右の3マス目で回避・バリアを判定する（みかわしあり: %s）", dodge => {
+    const stone = items.makeRightStone(1);
+    const east = { id: "east", name: "右の敵", x: 8, y: 5, hp: 1000, def: 0, barrier: 1 };
+    const { dg } = attack({ direction: [-1, 0], target: { x: 4 }, abilities: [], bodySize: 1, others: [east],
+      pentacle: dodge ? { kind: "dodge" } : null,
+      player: { rings: [shootingRing], arrow: stone, inventory: [stone] } });
+
+    expect(east.hp).toBe(1000);
+    expect(east.barrier).toBe(dodge ? 1 : 0);
+    expect(dg.items).toMatchObject(dodge ? [{ name: "右", x: 8, y: 5 }] : []);
+  });
+
   it("近接相手が反射する場合は石が跳ね返る", () => {
     const stone = items.makeNormalStone(1);
     const { p, ml } = attack({ abilities: [], bodySize: 1, target: { subtype: "reflector" },

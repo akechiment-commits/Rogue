@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { dungeonScoreLabel } from "./adventureScores.js";
 import { isCarryInRun } from "./rankingClient.js";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, calcPlayerDefense, countEquippedRings, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, calcPlayerDefense, countEquippedRings, isEvasionDisabledByStatus, checkMonsterEvasion, getDodgePentacleMode, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -3587,6 +3587,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   const landExtraShot = (x, y, messages) => {
                     withPitfallBag(() => placeItemAt(dg, x, y, _srDrop(), messages, new Set(), 0, p));
                   };
+                  const stoneMisses = monster => {
+                    const dodgeMode = getDodgePentacleMode(dg, monster.x, monster.y);
+                    if (dodgeMode === "dodge") {
+                      ml.push(`みかわしの魔方陣の加護で${monster.name}に${_arName}が当たらなかった！`);
+                      return true;
+                    }
+                    return _srForceMiss || (dodgeMode !== "sure" &&
+                      checkMonsterEvasion(monster, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 }));
+                  };
                   const _srPeel = () => { if (!_srUnit) peelShopArrowUnit(_srAr); };
                   /* ── 石 ── */
                   if (_srAr.stone || _srAr.iceChunk) {
@@ -3644,22 +3653,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       } else {
                         landExtraShot(_stRx, _stRy, ml);
                       }
-                    } else if (_stM && !_srForceMiss && !checkMonsterEvasion(_stM, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 })) {
-                      if (absorbProjectileIntoMonster(_stM, _srDrop(), dg, p, ml, lu, {
+                    } else if (_stM && !stoneMisses(_stM)) {
+                      if (!absorbProjectileIntoMonster(_stM, _srDrop(), dg, p, ml, lu, {
                         bbFn: bigboxAddItem,
                         sourceIsPlayer: true,
                         nameFn: (it) => it.name || _arName,
                         messagePrefix: "",
-                      })) {
-                        _srPeel();
-                      } else {
+                      }) && !consumeBarrier(_stM, ml)) {
                         const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                         _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                         if (_stM.type === "shopkeeper") markWanderingNpcHostile(_stM, dg, p, ml);
                         _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                         if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
-                        _srPeel();
                       }
+                      _srPeel();
                     } else {
                       if (_stM) ml.push(`${_arName}は${_stM.name}に外れた！`);
                       landExtraShot(_stLx, _stLy, ml);
@@ -3706,17 +3713,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
                       _srPeel();
-                    } else if (_srForceMiss || checkMonsterEvasion(_msTarget, {
-                      sureHit: (p.sureHitTurns || 0) > 0,
-                      baseMissRate: 0.10,
-                    })) {
+                    } else if (stoneMisses(_msTarget)) {
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
                       landExtraShot(_msTarget.x, _msTarget.y, ml);
                     } else {
-                      const _msDmg = clampDmgFixed(_msTarget, calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def), true);
-                      _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
-                      _ad.damages.push({ type: "damage", x: _msTarget.x, y: _msTarget.y, value: _msDmg, color: "#cc88ff" });
-                      if (_msTarget.hp <= 0) { _ad.damages.push({ type: "flash", x: _msTarget.x, y: _msTarget.y, color: "#ff2200", duration: 150 }); killMonster(_msTarget, dg, p, ml, lu, false); }
+                      if (!consumeBarrier(_msTarget, ml)) {
+                        const _msDmg = clampDmgFixed(_msTarget, calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def), true);
+                        _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
+                        _ad.damages.push({ type: "damage", x: _msTarget.x, y: _msTarget.y, value: _msDmg, color: "#cc88ff" });
+                        if (_msTarget.hp <= 0) { _ad.damages.push({ type: "flash", x: _msTarget.x, y: _msTarget.y, color: "#ff2200", duration: 150 }); killMonster(_msTarget, dg, p, ml, lu, false); }
+                      }
                       _srPeel();
                     }
                   /* ── 爆弾矢 ── */

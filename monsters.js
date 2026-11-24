@@ -4175,6 +4175,8 @@ function _checkGravityTrap(m, dg, pl, ml, luFn, bbFn = null) {
  * reflectorRange: reflector反射時の最大飛距離（デフォルト20）
  * onReflectedMonHit(mon, ml, x, y, reflector, dx, dy): 反射後の敵命中を専用処理へ渡す。
  *   指定時は通常弾ダメージとonFlyOffを適用しない（薬・杖・壺などの共通投擲用）。
+ * monsterMissMessage(mon): 専用の敵回避判定。外れた場合はメッセージを返す。
+ * onMonsterBarrier(mon, x, y): 敵のバリアで止まった弾を処理する。省略時はonFlyOffを使う。
  * customPlHit(ml, isReflected, reflectorMon): プレイヤー命中時のカスタム処理。指定するとデフォルトの
  *   ダメージ計算・deathCause・メッセージ・sleep解除をスキップして全てカスタム実装に委ねる。
  *   壺投げで割れて中身散乱、杖の効果発動など、ダメージ以外の処理を行いたい場合に使う。
@@ -4210,6 +4212,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     ignorePoisonScale = false,
     onPlHit = null,
     onMonHit = null,
+    monsterMissMessage = null,
+    onMonsterBarrier = null,
     onReflectedMonHit = null,
     onMiss = null,
     onBigbox = null,
@@ -4447,15 +4451,22 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         continue;
       }
       /* 回復役（potionhealer）が味方へ投げる回復薬は必中：対象モンスターの回避で外れない */
-      if (checkMonsterEvasion(_mon, { baseMissRate: 0.05, sureHit: m.subtype === "potionhealer" })) {
-        ml.push(_mon.baseKind === "boss_mireu" ? `${_mon.name}は攻撃をかわした！` : `${_mon.name}への${boltName}は外れた！`);
+      let missMessage = null;
+      if (monsterMissMessage) {
+        missMessage = monsterMissMessage(_mon);
+      } else if (checkMonsterEvasion(_mon, { baseMissRate: 0.05, sureHit: m.subtype === "potionhealer" })) {
+        missMessage = _mon.baseKind === "boss_mireu" ? `${_mon.name}は攻撃をかわした！` : `${_mon.name}への${boltName}は外れた！`;
+      }
+      if (missMessage) {
+        ml.push(missMessage);
         _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
         continue;
       }
       if (consumeBarrier(_mon, ml)) {
         if (m && dg.monsters?.includes(m)) beginNpcRetaliation(_mon, m, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
-        if (onFlyOff) onFlyOff(_tx, _ty, ml);
+        if (onMonsterBarrier) onMonsterBarrier(_mon, _tx, _ty);
+        else if (onFlyOff) onFlyOff(_tx, _ty, ml);
         return;
       }
       /* reflector（ほっちもぺ等）：弾を射手方向へ跳ね返す（遠投貫通中は反射しない） */
