@@ -1,4 +1,4 @@
-import { setPlayerHpForFixedEffect } from "./utils.js";
+import { consumeBarrier, setPlayerHpForFixedEffect } from "./utils.js";
 
 /** 呪われた聖域と雷の魔方陣について、プレイヤー足元の毎ターン効果を解決する。 */
 export function resolvePlayerPentacleEffects(player, dungeon, messages, {
@@ -32,12 +32,13 @@ export function resolvePlayerPentacleEffects(player, dungeon, messages, {
   }
   if (thunderPentacle.cursed) {
     const heal = Math.min(25, player.maxHp - player.hp);
-    if (heal > 0) {
+    if (heal > 0 && !consumeBarrier(player, messages)) {
       player.hp += heal;
       messages.push(`${thunderPentacle.name}の力でHPが${heal}回復した！`);
     }
     return;
   }
+  if (consumeBarrier(player, messages)) return;
 
   const hasLightningResistance = hasLightningResist(player);
   const cursedSealMultiplier = inCursedMagicSealRoom(player.x, player.y, dungeon) ? 2 : 1;

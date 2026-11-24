@@ -67,6 +67,24 @@ describe("advanceMonsterUpkeep", () => {
     expect(monster.hp).toBe(75);
   });
 
+  it.each([
+    [{}, "beast", 40, 1],
+    [{ blessed: true }, "beast", 40, 1],
+    [{ cursed: true }, "undead", 40, 1],
+    [{ cursed: true }, "beast", 40, 1],
+    [{ cursed: true }, "beast", 58, 2],
+  ])("雷の魔方陣%sから%sを守る（開始HP %i）", (options, kind, hp, barrier) => {
+    const monster = { name: "大型の敵", kind, x: 2, y: 2, bodySize: 2,
+      hp, maxHp: 58, barrier: 2, elemWeak: "thunder" };
+    const dungeon = { monsters: [monster], map: [], pentacles: [
+      { kind: "thunder_trap", name: "雷の魔方陣", x: 3, y: 3, ...options },
+      { kind: "thunder_trap", name: "雷の魔方陣", x: 2, y: 3, ...options },
+    ] };
+    const defeated = advance(dungeon);
+    expect(monster).toMatchObject({ hp, barrier });
+    expect(defeated).toEqual([]);
+  });
+
   it("ボスの自然回復と油・浮遊の終了を処理する", () => {
     const titan = { name: "巨人", baseKind: "im_boss_titan", x: 0, y: 0, hp: 90, maxHp: 100, oilyTurns: 2, isBoss: true };
     const kraken = { name: "海魔", baseKind: "im_boss_kraken", x: 1, y: 0, hp: 70, maxHp: 100, floatTurns: 1 };

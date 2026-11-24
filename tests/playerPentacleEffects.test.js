@@ -19,7 +19,7 @@ function dependencies(overrides = {}) {
 
 describe("resolvePlayerPentacleEffects", () => {
   it("呪われた聖域を踏むと雷より先に即死する", () => {
-    const player = makePlayer({ x: 3, y: 3, hp: 40, maxHp: 40, armor: { ability: "dmg_reduce" } });
+    const player = makePlayer({ x: 3, y: 3, hp: 40, maxHp: 40, barrier: 1, armor: { ability: "dmg_reduce" } });
     const dungeon = { pentacles: [
       { name: "呪われた聖域", kind: "sanctuary", cursed: true, x: 3, y: 3 },
       { name: "雷の魔方陣", kind: "thunder_trap", x: 3, y: 3 },
@@ -28,7 +28,7 @@ describe("resolvePlayerPentacleEffects", () => {
 
     resolvePlayerPentacleEffects(player, dungeon, messages, dependencies());
 
-    expect(player).toMatchObject({ hp: 0, deathCause: "呪われた聖域により" });
+    expect(player).toMatchObject({ hp: 0, barrier: 1, deathCause: "呪われた聖域により" });
     expect(messages).toEqual(["呪われた聖域に触れた！呪いの力で即死した！"]);
   });
 
@@ -48,5 +48,32 @@ describe("resolvePlayerPentacleEffects", () => {
     }));
     expect(struck.hp).toBe(25);
     expect(inventoryHits).toBe(1);
+  });
+
+  it.each([
+    [{}, 60, 1],
+    [{ blessed: true }, 60, 1],
+    [{ cursed: true }, 60, 1],
+    [{ cursed: true }, 100, 2],
+  ])("雷の魔方陣%sの効果と所持品への雷を防ぐ（開始HP %i）", (options, hp, barrier) => {
+    const player = makePlayer({ hp, barrier: 2 });
+    const dungeon = { pentacles: [
+      { kind: "thunder_trap", name: "雷の魔方陣", x: player.x, y: player.y, ...options },
+    ] };
+    let inventoryHits = 0;
+    resolvePlayerPentacleEffects(player, dungeon, [], dependencies({
+      applyLightningToInventory: () => { inventoryHits++; },
+    }));
+    expect(player).toMatchObject({ hp, barrier });
+    expect(inventoryHits).toBe(0);
+  });
+
+  it("呪われた爆発の魔方陣に打ち消された雷ではバリアを消費しない", () => {
+    const player = makePlayer({ barrier: 1 });
+    const dungeon = { pentacles: [{ kind: "thunder_trap", x: player.x, y: player.y }] };
+    resolvePlayerPentacleEffects(player, dungeon, [], dependencies({
+      hasCursedExplosionPentacle: () => true,
+    }));
+    expect(player).toMatchObject({ hp: 100, barrier: 1 });
   });
 });

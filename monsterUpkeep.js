@@ -1,6 +1,6 @@
 import { isStatusImmune } from "./statusImmunity.js";
 import { resolveParalysisHit } from "./statusDuration.js";
-import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.js";
+import { T, applyMonsterDopingStats, consumeBarrier, restoreMonsterDopingStats } from "./utils.js";
 import { advanceLargeMonsterStatusCooldowns } from "./largeMonsterStatus.js";
 import { drunkenVomitDamage, shouldVomit } from "./intoxication.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -178,19 +178,21 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
     if (!pentacle || (monster.magicImmune && !monster.sealed) || inMagicSealRoom(pentacle.x, pentacle.y, dungeon)) continue;
     if (thunderNegated && !pentacle.cursed) continue;
 
-    if (pentacle.cursed) {
-      if (monster.kind === "undead") {
-        monster.hp -= 25;
-        messages.push(`${pentacle.name}の力が${monster.name}を傷つけた！25ダメージ！(アンデッド)`);
-        resolveParalysisHit(monster, messages);
-        if (monster.hp <= 0) onMonsterDefeated(monster);
-      } else {
-        const heal = Math.min(25, monster.maxHp - monster.hp);
-        if (heal > 0) {
-          monster.hp += heal;
-          messages.push(`${pentacle.name}の力で${monster.name}のHPが${heal}回復した！`);
-        }
+    if (pentacle.cursed && monster.kind !== "undead") {
+      const heal = Math.min(25, monster.maxHp - monster.hp);
+      if (heal > 0 && !consumeBarrier(monster, messages)) {
+        monster.hp += heal;
+        messages.push(`${pentacle.name}の力で${monster.name}のHPが${heal}回復した！`);
       }
+      continue;
+    }
+    if (consumeBarrier(monster, messages)) continue;
+
+    if (pentacle.cursed) {
+      monster.hp -= 25;
+      messages.push(`${pentacle.name}の力が${monster.name}を傷つけた！25ダメージ！(アンデッド)`);
+      resolveParalysisHit(monster, messages);
+      if (monster.hp <= 0) onMonsterDefeated(monster);
       continue;
     }
 
