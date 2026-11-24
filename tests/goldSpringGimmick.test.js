@@ -87,9 +87,8 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
   });
 
   it("金貨の金額に応じて願い率とアイテム射出率が正しくスケーリングする", () => {
-    // 0G〜100G: 願い約0.5%〜0.55%, 射出約15%〜15.5%
-    expect(goldCoinWishChance(0)).toBeCloseTo(0.005, 4);
-    expect(goldCoinWishChance(100)).toBeCloseTo(0.0055, 4);
+    for (const amount of [0, 100, 300, 500]) expect(goldCoinWishChance(amount)).toBe(0.005);
+    expect(goldCoinWishChance(750)).toBeCloseTo(0.0075, 4);
     expect(goldCoinEjectChance(0)).toBeCloseTo(0.15, 4);
     expect(goldCoinEjectChance(100)).toBeCloseTo(0.155, 4);
 
@@ -105,7 +104,7 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
     expect(goldCoinWishChance(10000)).toBeCloseTo(0.055, 4);
     expect(goldCoinEjectChance(10000)).toBe(0.50);
 
-    // 20000G以上: 願い上限8.0%, 射出上限50.0%
+    expect(goldCoinWishChance(15000)).toBe(0.08);
     expect(goldCoinWishChance(20000)).toBe(0.08);
     expect(goldCoinEjectChance(20000)).toBe(0.50);
   });
@@ -184,10 +183,10 @@ describe("泉への金貨・金塊投入ギミックと願い率調整", () => {
 
   it("soakItemIntoSpring: 少額金貨では低い願い率となり、不発時は消滅メッセージが出る", () => {
     const spr = { x: 5, y: 5, contents: [] };
-    const lowGold = { name: "100枚の金貨", type: "gold", value: 100 };
+    const lowGold = { name: "500枚の金貨", type: "gold", value: 500 };
     const ml = [];
-    // 100Gの願い率は 0.55%。0.02 では不発。射出率 15.5% で 0.30 では不発
-    const res = soakItemIntoSpring(spr, lowGold, ml, null, null, null, { allowWish: true, rngFn: () => 0.30 });
+    const rngFn = vi.fn().mockReturnValueOnce(0.006).mockReturnValue(0.30);
+    const res = soakItemIntoSpring(spr, lowGold, ml, null, null, null, { allowWish: true, rngFn });
 
     expect(res.wish).toBe(false);
     expect(res.itemEjected).toBeNull();
