@@ -3979,7 +3979,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${resolveItemName(item, nameFn)}は水を浴びて溶けた！`);
           return "destroyed";
         }
-        if (item.type === "pot" && item.potEffect === "gunpowder") soakGunpowderPot(item, ml);
+        if (item.type === "food") shrinkFoodOneStep(item, ml, nameFn);
+        else if (item.type === "pot" && item.potEffect === "gunpowder") soakGunpowderPot(item, ml);
+        else blankScrollOrSpellbook(item, ml, nameFn);
       }
       return "restart";
     }

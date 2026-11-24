@@ -335,6 +335,34 @@ describe("水鉄砲・耐水", () => {
     expect(dungeon.items).toEqual([pot]);
     expect(pot).toMatchObject({ name: "保存の壺", potEffect: "none", capacity: 4, contents });
   });
+
+  it.each([
+    {
+      item: { type: "scroll", name: "テレポートの巻物", effect: "teleport" },
+      wet: { name: "白紙の巻物", effect: "blank" },
+    },
+    {
+      item: { type: "spellbook", name: "火炎の魔法書", spell: "fire" },
+      wet: { name: "白紙の魔法書", spell: null },
+    },
+    {
+      item: { type: "food", name: "大きいリンゴ", sizeLabel: "大きい", value: 55 },
+      wet: { name: "リンゴ", sizeLabel: "普通の", value: 35 },
+    },
+    {
+      item: { type: "food", name: "特盛りカレー", sizeLabel: "特盛り", cooked: true, value: 80 },
+      wet: { name: "大盛りカレー", sizeLabel: "大盛り", value: 55 },
+    },
+  ])("水鉄砲に落ちた$item.nameは水の影響を受けて床に残る", ({ item, wet }) => {
+    const trap = { id: "trap", name: "水鉄砲の罠", effect: "watergun_trap", x: 4, y: 2, permanent: true };
+    const dungeon = makeEmptyDg({ traps: [trap] });
+    const dropped = { ...item, id: "dropped" };
+
+    expect(placeItemAt(dungeon, 4, 2, dropped, [], new Set())).toBe(true);
+    expect(trap.revealed).toBe(true);
+    expect(dungeon.items).toEqual([dropped]);
+    expect(dropped).toMatchObject(wet);
+  });
 });
 
 describe("ずぶ濡れ・凍結・氷", () => {
