@@ -2482,6 +2482,20 @@ export function chainExplosionHazards(cx, cy, radius, dg, p, ml, luFn, nameFn = 
   }
 }
 
+export function detonateBombArrow(x, y, item, dg, p, ml, luFn, projectileAtk = item.atk || 6, nameFn = null) {
+  const trap = dg.traps?.find(t => t.x === x && t.y === y && t.effect === "watergun_trap");
+  if (trap && !(dg.timeStopTurns > 0) && canActivateTrap(dg, trap)) {
+    trap.revealed = true;
+    const ft = new Set([trap.id]);
+    if (fireTrapItem(trap, item, dg, x, y, ml, ft, p, nameFn, luFn) === "destroyed") {
+      maybeBreakTrapAfterStep(trap, dg, ml, { ft, p });
+      return;
+    }
+  }
+  if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
+  doExplosion(x, y, dg, p, ml, nameFn, "爆弾矢の爆発", null, luFn, false, false, false, false, { projectileAtk });
+}
+
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
   return withDeferredExplosionLoot(dg, () => withLargeMonsterDamageEvent(newDamageEventToken("explosion"),
     () => _doExplosionInner(cx, cy, dg, p, ml, nameFn, srcLabel, excludeItem, luFn, proportional, ringExplosion, mineExplosion, noExpKills, options)));
@@ -3955,9 +3969,19 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "watergun_trap": {
       ml.push(`${trap.name}が発動！`);
-      /* 特殊飛び道具と同じく、通常の投擲物も水鉄砲で消火して消滅する。 */
-      if (!item?._ephemeralTrapTrigger) ml.push(`${resolveItemName(item, nameFn)}は水鉄砲で消えた！`);
-      return "destroyed";
+      if (!item || item._ephemeralTrapTrigger) return "restart";
+      if (item.bombArrow || item.specialProjectile === "crawling_bomb") {
+        ml.push(`${resolveItemName(item, nameFn)}は水鉄砲で消火された！`);
+        return "destroyed";
+      }
+      if (!isItemProtected(item)) {
+        if (item.iceCream) {
+          ml.push(`${resolveItemName(item, nameFn)}は水を浴びて溶けた！`);
+          return "destroyed";
+        }
+        if (item.type === "pot" && item.potEffect === "gunpowder") soakGunpowderPot(item, ml);
+      }
+      return "restart";
     }
     case "spin": {
       const _spinTpBlock = hasCursedTeleportPentacle(dg) && !trap.permanent;
@@ -8452,13 +8476,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       placeItemAt(dg, res.x, res.y, item, ml, _trapFt, 0, p);
     }
   } else if (_isBombArrow) {
-    /* 爆弾矢：着弾点で爆発（呪われた爆発の魔方陣でない場合） */
-    if (isFireExplosionNullified(dg, p)) {
-      announceFireExplosionNullified(dg, p, ml, "爆弾矢の爆発");
-    } else {
-      ml.push("爆発！");
-      doExplosion(res.x, res.y, dg, p, ml, nameFn, "爆弾矢の爆発", null, luFn, false, false, false, false, { projectileAtk: item.atk || 6 });
-    }
+    detonateBombArrow(res.x, res.y, item, dg, p, ml, luFn, item.atk || 6, nameFn);
   } else if (_isPierceArrow) {
     /* 貫きの矢：終端で消滅（床に置かない） */
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
@@ -9459,12 +9477,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       if (_wakkaTarget.type === "shopkeeper") markShopkeeperHostileToPlayer(_wakkaTarget, dg, p, ml);
     }
     if (st.bombArrow) {
-      if (isFireExplosionNullified(dg, p)) {
-        announceFireExplosionNullified(dg, p, ml, "爆弾矢の爆発");
-      } else {
-        ml.push("爆発！");
-        doExplosion(_wakkaTarget.x, _wakkaTarget.y, dg, p, ml, null, "爆弾矢の爆発", null, luFn, false, false, false, false, { projectileAtk: _arAtk });
-      }
+      detonateBombArrow(_wakkaTarget.x, _wakkaTarget.y, st, dg, p, ml, luFn, _arAtk);
     }
     _ensureShopPeeled();
     return;
@@ -10117,6 +10130,21 @@ export function blankScrollOrSpellbook(item, ml = null, nameFn = null) {
   return false;
 }
 
+function soakGunpowderPot(pot, ml) {
+  const contents = pot.contents || [];
+  const preservationPot = POTS.find(template => template.potEffect === "none");
+  Object.assign(pot, {
+    name: preservationPot.name,
+    potEffect: preservationPot.potEffect,
+    capacity: Math.max(pot.capacity ?? 0, contents.length),
+    desc: preservationPot.desc,
+    tile: preservationPot.tile,
+    sellPrice: preservationPot.sellPrice,
+    contents,
+  });
+  if (ml) ml.push("水を浴びて火薬壺が保存の壺に変化した！中身は保たれている。");
+}
+
 /**
  * 水鉄砲など：所持品に水の影響（炎・雷と同様にランダム1点）。
  * 巻物/魔法書→白紙、食料→サイズ-1、ペン→インク-1、帯電毛玉→消滅。耐水で無効。
@@ -10167,18 +10195,7 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
     return true;
   }
   if (victim.type === "pot" && victim.potEffect === "gunpowder") {
-    const _savedContents = victim.contents || [];
-    const _preserveTpl = POTS.find((pp) => pp.potEffect === "none");
-    Object.assign(victim, {
-      name: _preserveTpl.name,
-      potEffect: _preserveTpl.potEffect,
-      capacity: Math.max(victim.capacity ?? 0, _savedContents.length),
-      desc: _preserveTpl.desc,
-      tile: _preserveTpl.tile,
-      sellPrice: _preserveTpl.sellPrice,
-    });
-    victim.contents = _savedContents;
-    if (ml) ml.push(`水を浴びて火薬壺が保存の壺に変化した！中身は保たれている。`);
+    soakGunpowderPot(victim, ml);
     return true;
   }
   if (victim.type === "arrow" && (victim.bombArrow || victim.specialProjectile === "crawling_bomb")) {

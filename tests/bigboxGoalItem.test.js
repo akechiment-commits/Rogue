@@ -80,7 +80,6 @@ it("箱の周囲に空き床がなければ飛んできた軌道上の一番近�
 it.each([
   { effect: "explode", name: "地雷", hp: 50, falls: false },
   { effect: "pitfall", name: "落とし穴", hp: 100, falls: true },
-  { effect: "watergun_trap", name: "水鉄砲の罠", hp: 100, falls: false },
 ])("箱に弾かれたキーアイテムは$nameを起動し、通常どおり消費される", ({ effect, name, hp, falls }) => {
   const goal = { ...GOAL_ITEMS.legend, id: "goal", x: 6, y: 5 };
   const box = { kind: "protect", x: 8, y: 5, capacity: 1, contents: [] };
@@ -103,6 +102,23 @@ it.each([
   expect(player.hp).toBe(hp);
   expect(dungeon.items).not.toContain(goal);
   expect(bag).toEqual(falls ? [{ kind: "item", entity: goal }] : []);
+});
+
+it("箱に弾かれたキーアイテムは水鉄砲を起動しても床に残る", () => {
+  const goal = { ...GOAL_ITEMS.legend, id: "goal", x: 6, y: 5 };
+  const box = { kind: "protect", x: 8, y: 5, capacity: 1, contents: [] };
+  const trap = { id: "trap", effect: "watergun_trap", name: "水鉄砲の罠", x: 7, y: 5, permanent: true };
+  const player = makePlayer({ x: 5, y: 5 });
+  const dungeon = makeEmptyDg({ items: [goal], bigboxes: [box], traps: [trap] });
+  const messages = [];
+  const addItem = vi.fn();
+
+  applyWandEffect("knockback", "item", goal, 1, 0, dungeon, player, messages, vi.fn(), addItem);
+
+  expect(addItem).not.toHaveBeenCalled();
+  expect(trap.revealed).toBe(true);
+  expect(messages.filter(message => message === "水鉄砲の罠が発動！")).toHaveLength(1);
+  expect(dungeon.items).toEqual([goal]);
 });
 
 it("箱に弾かれたキーアイテムが道具魔物化の罠を起動する", () => {

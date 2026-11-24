@@ -73,9 +73,9 @@ describe("吹き飛ばされた大箱の通過と着地", () => {
     expect(logs.join(" ")).not.toContain("ニトロ箱が爆発");
   });
 
-  it("着地時の錆罠は1回だけ起動し、その後は隣の空き床へ大箱として置く", () => {
+  it.each(["rust", "watergun_trap"])("着地時の%sは1回だけ起動し、その後は隣の空き床へ大箱として置く", effect => {
     const box = makeBox();
-    const trap = makeTrap("rust");
+    const trap = makeTrap(effect);
     const dg = makeEmptyDg({ rooms: [], bigboxes: [box], traps: [trap] });
     const logs = [];
     blow(box, dg, makePlayer({ x: 5, y: 5 }), logs);
@@ -83,6 +83,7 @@ describe("吹き飛ばされた大箱の通過と着地", () => {
     expect(logs.filter(m => m.includes("が発動！"))).toHaveLength(1);
     expect(dg.bigboxes).toEqual([box]);
     expect([box.x, box.y]).not.toEqual([17, 5]);
+    expect(box.contents[0].id).toBe("stored");
     expect(dg.items).toEqual([]);
   });
 

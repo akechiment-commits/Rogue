@@ -13,7 +13,9 @@ import {
   reduceWaterDamage,
   waterResistDamageLabel,
   applyWaterGunToInventory,
+  makeBombArrow,
   makeNormalStone,
+  placeItemAt,
   applySoakedStatus,
   applySoakedFromWaterWalk,
   shrinkFoodOneStep,
@@ -33,16 +35,16 @@ import { PORTRAIT_CATEGORIES } from "../portraitCatalog.js";
 import { T, MW, MH } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
-function throwOrdinaryStoneAtWaterGun(trapX) {
+function launchAtWaterGun(trapX, item = makeNormalStone(1), mode = "throw") {
   const trap = { ...TRAPS.find(entry => entry.effect === "watergun_trap"),
-    x: trapX, y: 2, id: "watergun-path", revealed: false };
+    x: trapX, y: 2, id: "watergun-path", permanent: true, revealed: false };
   const dungeon = makeEmptyDg({ traps: [trap] });
-  const player = makePlayer({ x: 1, y: 2, inventory: [makeNormalStone(1)] });
+  const player = makePlayer({ x: 1, y: 2, inventory: [item], arrow: mode === "shoot_equipped" ? item : null });
   const sr = { current: { player, dungeon, ident: new Set() } };
   const messages = [];
   const noop = () => {};
   useItemActions({
-    sr, throwMode: { idx: 0, mode: "throw" }, dnameRef: item => item.name,
+    sr, throwMode: { idx: 0, mode }, dnameRef: item => item.name,
     setThrowMode: noop, setGs: noop, endTurn: noop, lu: noop,
     setMsgs: append => messages.push(...append([])), withPitfallBag: run => run(),
   }).execDirection(1, 0);
@@ -297,7 +299,7 @@ describe("水鉄砲・耐水", () => {
   });
 
   it("投げた石は途中の水鉄砲の罠を起動せず通過する", () => {
-    const { dungeon, player, trap, messages } = throwOrdinaryStoneAtWaterGun(3);
+    const { dungeon, player, trap, messages } = launchAtWaterGun(3);
 
     expect(player.inventory).toEqual([]);
     expect(dungeon.items).toMatchObject([{ name: "石", stone: true, count: 1, x: 4, y: 2 }]);
@@ -305,14 +307,33 @@ describe("水鉄砲・耐水", () => {
     expect(messages.some(message => message.includes("水鉄砲の罠が発動"))).toBe(false);
   });
 
-  it("投げた石が着地点の水鉄砲の罠を起動すると石も消える", () => {
-    const { dungeon, player, trap, messages } = throwOrdinaryStoneAtWaterGun(4);
+  it("投げた石は着地点の水鉄砲の罠を起動して床に残る", () => {
+    const { dungeon, player, trap, messages } = launchAtWaterGun(4);
 
+    expect(player.inventory).toEqual([]);
+    expect(dungeon.items).toMatchObject([{ name: "石", stone: true, count: 1, x: 3, y: 2 }]);
+    expect(trap.revealed).toBe(true);
+    expect(messages.filter(message => message.includes("水鉄砲の罠が発動"))).toHaveLength(1);
+  });
+
+  it.each(["throw", "shoot_equipped"])("%sで水鉄砲に着弾した爆弾矢は爆発せず消火される", mode => {
+    const { dungeon, player, trap, messages } = launchAtWaterGun(11, makeBombArrow(1), mode);
     expect(player.inventory).toEqual([]);
     expect(dungeon.items).toEqual([]);
     expect(trap.revealed).toBe(true);
-    expect(messages.some(message => message.includes("水鉄砲の罠が発動"))).toBe(true);
-    expect(messages.filter(message => message.includes("水鉄砲で消えた"))).toHaveLength(1);
+    expect(messages).toContain("爆弾矢は水鉄砲で消火された！");
+    expect(messages).not.toContain("爆発！");
+  });
+
+  it("水鉄砲に落ちた火薬壺は中身を保った保存の壺になる", () => {
+    const trap = { id: "trap", name: "水鉄砲の罠", effect: "watergun_trap", x: 4, y: 2, permanent: true };
+    const dungeon = makeEmptyDg({ traps: [trap] });
+    const contents = [makeNormalStone(1)];
+    const pot = { id: "pot", type: "pot", name: "火薬壺", potEffect: "gunpowder", capacity: 4, contents };
+
+    expect(placeItemAt(dungeon, 4, 2, pot, [], new Set())).toBe(true);
+    expect(dungeon.items).toEqual([pot]);
+    expect(pot).toMatchObject({ name: "保存の壺", potEffect: "none", capacity: 4, contents });
   });
 });
 

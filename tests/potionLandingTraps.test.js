@@ -19,7 +19,7 @@ function setup(effect, route) {
 }
 
 describe("薬瓶の着地罠を薬液より先に処理する", () => {
-  it.each(['pitfall', 'explode', 'watergun_trap'])('瓶が外れた着地点の%sで消費された薬は飛沫を出さない', effect => {
+  it.each(['pitfall', 'explode'])('瓶が外れた着地点の%sで消費された薬は飛沫を出さない', effect => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
     const potion = { id: 'missed-potion', name: '回復薬', type: 'potion', effect: 'heal', value: 30 };
     const player = makePlayer({ x: 5, y: 8, hp: 60, maxHp: 100 });
@@ -65,16 +65,7 @@ describe("薬瓶の着地罠を薬液より先に処理する", () => {
       expect(s.logs.join(" ")).not.toContain("瓶が割れて");
     });
 
-    it(`${route}: 水鉄砲で消費された薬も薬効を出さない`, () => {
-      const s = setup("watergun_trap", route);
-      s.run();
-      expect(s.player.hp).toBe(60);
-      expect(s.dg.items).toEqual([]);
-      expect(s.logs.join(" ")).toContain("水鉄砲で消えた");
-      expect(s.logs.join(" ")).not.toContain("瓶が割れて");
-    });
-
-    it.each(["rust", "time_bomb"])(`${route}: %sは先に起動し、消費されない薬の効果は継続する`, effect => {
+    it.each(["rust", "time_bomb", "watergun_trap"])(`${route}: %sは先に起動し、消費されない薬の効果は継続する`, effect => {
       const s = setup(effect, route);
       s.run();
       expect(s.player.hp).toBe(90);

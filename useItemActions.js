@@ -12,8 +12,8 @@ import {
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, applyInnateFoodEffectOnHit, foodEffectMultiplier, foodHungerAmount, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster, foodEffectTier, applyYogurtFoodEffect,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
-  castSpellBolt, doExplosion, doGunpowderExplosion, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
-  getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
+  castSpellBolt, doExplosion, doGunpowderExplosion, detonateBombArrow, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
+  getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect, applyFireSpellBlast,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone, absorbProjectileIntoMonster,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
@@ -3871,8 +3871,7 @@ export function useItemActions({
               }
               _baLx = tx; _baLy = ty;
             }
-            if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-            doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発", null, lu, false, false, false, false, { projectileAtk: _arItem.atk || 6 });
+            detonateBombArrow(_baLx, _baLy, _arItem, dg, p, ml, lu, _arItem.atk || 6, _baNF);
           }
           if (p.arrow.count <= 0) {
             const _baEx = p.arrow;
@@ -4582,23 +4581,7 @@ export function useItemActions({
               _baLx2 = tx; _baLy2 = ty;
             }
             if (!_baHitEnemyProjectile2) {
-              if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-              doExplosion(
-                _baLx2,
-                _baLy2,
-                dg,
-                p,
-                ml,
-                _baNF2,
-                "爆弾矢の爆発",
-                null,
-                lu,
-                false,
-                false,
-                false,
-                false,
-                { projectileAtk: _baAtk2 },
-              );
+              detonateBombArrow(_baLx2, _baLy2, it, dg, p, ml, lu, _baAtk2, _baNF2);
             }
           }
           endTurn(sr.current, p, ml);

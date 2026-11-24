@@ -34,7 +34,7 @@ import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
-  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring, consumeSpringCapacity,
+  makeArrowUnitFromStack, peelShopArrowUnit, shootArrow, detonateBombArrow, destroyEnemyHomingProjectileAt, soakItemIntoSpring, consumeSpringCapacity,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus, rollGeneratedWandCharges, penInitialCharges,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, chargeShopItem, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
@@ -3751,8 +3751,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       if (_baSwallowed) {
                         _srPeel();
                       } else {
-                        if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-                        doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu, false, false, false, false, { projectileAtk: _srAr.atk || 6 });
+                        detonateBombArrow(_baLx, _baLy, _srAr, dg, p, ml, lu, _srAr.atk || 6, _srNF);
                       }
                     }
                   /* ── 通常矢 / 毒矢 / 貫きの矢 ── */
