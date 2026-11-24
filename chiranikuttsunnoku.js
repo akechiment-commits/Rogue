@@ -62,7 +62,7 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
       ml.push(`聖域の加護が${m.name}のアースブレイカーを防いだ！`);
     } else if (checkPlayerPhysicalAttackEvasion(m, pl, ml, { attackName: "アースブレイカー", onMiss })) {
       // 回避成功：ダメージ・転倒なし
-    } else {
+    } else if (!consumeBarrier(pl, ml)) {
       const dmg = monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, calcPlayerDefense(pl)) + rng(-2, 2)));
       pl.hp -= dmg;
       pl.deathCause = `${m.name}のアースブレイカーで`;
@@ -94,12 +94,11 @@ export function chiranikuttsunnokuEarthbreaker(m, dg, pl, ml, opts = {}) {
       continue;
     }
 
-    if (consumeBarrier(victim, ml)) continue;
-
     if (checkMonsterEvasion(victim, { baseMissRate: 0.05 })) {
       ml.push(victim.baseKind === "boss_mireu" ? `${victim.name}は攻撃をかわした！` : `${victim.name}への攻撃は外れた！`);
       continue;
     }
+    if (consumeBarrier(victim, ml)) continue;
 
     const vDef = victim.def || 0;
     const vDmg = clampDmgFixed(victim, monScaleOutgoingDamage(m, Math.max(1, calcAtkDefDmg(effAtk, vDef, { defWeight: 1, variance: false }) + rng(-2, 2))), true);

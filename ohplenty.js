@@ -180,6 +180,10 @@ export function ohplentyPullPlayer(m, dg, pl, ml, luFn = null) {
       ml.push(`${target === pl ? "魔法反射" : target.name}が${m.name}の引き寄せの魔法を跳ね返したが、飛びつく場所がなかった！`);
       return;
     }
+    if (consumeBarrier(m, ml)) {
+      ml.push(`${target === pl ? "魔法反射" : target.name}が${m.name}の引き寄せの魔法を跳ね返した！`);
+      return;
+    }
     const fromX = m.x;
     const fromY = m.y;
     m.x = casterLanding.x;
@@ -214,6 +218,7 @@ export function ohplentyPullPlayer(m, dg, pl, ml, luFn = null) {
     ml.push(`${m.name}は引き寄せの魔法を唱えたが、引き寄せる場所がなかった！`);
     return;
   }
+  if (consumeBarrier(target, ml)) return;
 
   if (target === pl) {
     const fromX = pl.x;
@@ -354,9 +359,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
         messages?.push(`魔封じの魔方陣がカスワックの呪いを封じた！`);
       } else if (plOnBlessedSanc) {
         messages?.push(`祝福された聖域の加護がカスワックの呪いを防いだ！`);
-      } else if (isStatusImmune(player, messages, "自分")) {
-        // statusImmune で防がれた旨は isStatusImmune 内部で出力される
-      } else {
+      } else if (!isStatusImmune(player, messages, "自分") && !consumeBarrier(player, messages ?? [])) {
         if ((player.caswackTurns || 0) > 0) {
           // すでにカスワック状態なら即死！
           player.deathCause = `${caswack.sourceName}のカスワックで`;
@@ -382,6 +385,7 @@ export function advanceCaswacks(dungeon, player, messages, lu, worldTicks = 1) {
         continue;
       }
       if (isStatusImmune(mon, messages, mon.name)) continue;
+      if (consumeBarrier(mon, messages ?? [])) continue;
       const turns = statusTurns("caswack", { kind: "monster", target: mon });
       if ((mon.caswackTurns || 0) > 0) {
         mon.caswackTurns = 0;

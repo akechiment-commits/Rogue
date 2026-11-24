@@ -216,6 +216,10 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages,
       messages.push(`${target === player ? "魔法反射" : target.name}が${monster.name}の引き寄せの魔法を跳ね返したが、飛びつく場所がなかった！`);
       return false;
     }
+    if (consumeBarrier(monster, messages)) {
+      messages.push(`${target === player ? "魔法反射" : target.name}が${monster.name}の引き寄せの魔法を跳ね返した！`);
+      return false;
+    }
     const fromX = monster.x, fromY = monster.y;
     monster.x = casterLanding.x;
     monster.y = casterLanding.y;
@@ -249,6 +253,7 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages,
     messages.push(`${monster.name}は引き寄せの魔法を唱えたが、引き寄せる場所がなかった！`);
     return false;
   }
+  if (consumeBarrier(target, messages)) return false;
   if (target === player) {
     const fromX = player.x, fromY = player.y;
     player.x = landing.x;

@@ -343,7 +343,7 @@ function applyEvilEye(attack, dungeon, player, messages, source) {
         pentacle.x === player.x && pentacle.y === player.y);
     if (sanctuary) {
       messages.push(`祝福された聖域の加護が${attack.sourceName}の石化を防いだ！`);
-    } else if (!isStatusImmune(player, messages, "自分")) {
+    } else if (!isStatusImmune(player, messages, "自分") && !consumeBarrier(player, messages)) {
       resolveParalysisHit(player, messages);
       player.petrifiedTurns = 4;
       messages.push("悪魔の瞳に見つめられ、石化した！(4ターン)");
@@ -353,6 +353,7 @@ function applyEvilEye(attack, dungeon, player, messages, source) {
     if (target === source || target.hp <= 0 || !dungeon.monsters.includes(target) || target.disguisedAsItem) continue;
     if (!monsterBodyCells(target).some(cell => affected.has(`${cell.x},${cell.y}`))) continue;
     if (blockLargeMonsterStatus(target, "petrify", messages)) continue;
+    if (consumeBarrier(target, messages)) continue;
     resolveParalysisHit(target, messages);
     target.petrifiedTurns = monsterStatusTurns(4, target);
     startLargeMonsterStatusCooldown(target, "petrify");

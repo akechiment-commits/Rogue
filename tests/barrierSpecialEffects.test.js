@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { castAbsoluteVirtuePull, getAbsoluteVirtueLine } from "../absoluteVirtue.js";
+import { chiranikuttsunnokuEarthbreaker } from "../chiranikuttsunnoku.js";
 import { breakAltar, killMonster } from "../items.js";
-import { BOSSES, MONS, makeMonsterFromBase, monsterAI, monsterAttackPlayer } from "../monsters.js";
+import { ABSOLUTE_VIRTUE_BOSS, BATTERING_RAM, BOSSES, CHIRANIKUTSUNNOKU, MONS, OHPLENTY, SHINRYU_BOSS, makeMonsterFromBase, monsterAI, monsterAttackPlayer } from "../monsters.js";
+import { advanceCaswacks, castCaswack, ohplentyPullPlayer } from "../ohplenty.js";
+import { advanceOmegaShinryuAttacks, queueOmegaShinryuAttack } from "../omegaShinryu.js";
+import { advancePetroBreaths, castPetroBreath } from "../petroBreath.js";
 import { fireTrapPlayer } from "../traps.js";
 import { MH, MW, T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -34,6 +39,93 @@ function makePot() {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+describe("バリアとボス特技", () => {
+  function bossBattlefield(base, coordinates, target) {
+    const boss = { ...base, id: base.baseKind, x: 10, y: 10, aware: true, turnAttacks: 0 };
+    const p = makePlayer({ barrier: 2, ...coordinates });
+    const dungeon = makeEmptyDg({ monsters: target ? [boss, target] : [boss],
+      rooms: [{ x: 1, y: 1, w: 30, h: 20 }] });
+    return { boss, p, dungeon, messages: [] };
+  }
+
+  it.each([
+    ["ペトロブレス", BATTERING_RAM, 12, 13, (boss, dg, player, ml) => {
+      castPetroBreath(boss, dg, player, ml);
+      advancePetroBreaths(dg, player, ml);
+    }],
+    ["悪魔の瞳", SHINRYU_BOSS, 8, 12, (boss, dg, player, ml) => {
+      queueOmegaShinryuAttack(boss, dg, "evilEye", null, player, ml);
+      advanceOmegaShinryuAttacks(dg, player, ml);
+    }],
+  ])("%sによる石化はプレイヤーにも巻き添えの敵にもバリア1回分で防ぐ", (_name, base, playerX, monsterX, useSpecial) => {
+    const target = makeEnemy("barriermage", 2, monsterX, 10);
+    const { boss, p, dungeon, messages } = bossBattlefield(base, { x: playerX, y: 10, sleepTurns: 3 }, target);
+    useSpecial(boss, dungeon, p, messages);
+    for (const unit of [p, target]) {
+      expect(unit.barrier).toBe(1);
+      expect(unit.petrifiedTurns || 0).toBe(0);
+    }
+    expect(p.sleepTurns).toBe(3);
+  });
+
+  it.each([0, 30])("カスワックの初回と重複をバリアで防ぐ（残り%iターン）", caswackTurns => {
+    const target = makeEnemy("barriermage", 2, 9, 10);
+    target.caswackTurns = caswackTurns;
+    const { boss, p, dungeon, messages } = bossBattlefield(OHPLENTY, { x: 9, y: 9, caswackTurns }, target);
+    castCaswack(boss, dungeon, p, messages);
+    advanceCaswacks(dungeon, p, messages);
+    expect(p).toMatchObject({ hp: 100, barrier: 1, caswackTurns });
+    expect(target).toMatchObject({ hp: target.maxHp, barrier: 1, caswackTurns });
+    expect(dungeon.monsters).toContain(target);
+  });
+
+  const pullingSpells = [
+    [OHPLENTY.name, OHPLENTY, ohplentyPullPlayer],
+    [ABSOLUTE_VIRTUE_BOSS.name, ABSOLUTE_VIRTUE_BOSS, (boss, dg, player, messages) =>
+      castAbsoluteVirtuePull(boss, dg, player, getAbsoluteVirtueLine(boss, dg, player), messages)],
+  ];
+
+  it.each(pullingSpells)("%sの引き寄せを射線上の敵のバリアで防ぐ", (_name, base, pull) => {
+    const target = makeEnemy("barriermage", 2, 7, 10);
+    const { boss, p, dungeon, messages } = bossBattlefield(base, { x: 5, y: 10 }, target);
+    pull(boss, dungeon, p, messages);
+    expect(target).toMatchObject({ x: 7, y: 10, barrier: 1 });
+    expect(p).toMatchObject({ x: 5, barrier: 2 });
+  });
+
+  it.each(pullingSpells)("%sの引き寄せをプレイヤーのバリアで防ぐ", (_name, base, pull) => {
+    const { boss, p, dungeon, messages } = bossBattlefield(base, { x: 5, y: 10 });
+    pull(boss, dungeon, p, messages);
+    expect(p).toMatchObject({ x: 5, y: 10, barrier: 1 });
+  });
+
+  it.each(pullingSpells)("%sの引き寄せが反射されたら術者のバリアで防ぐ", (_name, base, pull) => {
+    const { boss, p, dungeon, messages } = bossBattlefield(base, { x: 5, y: 10, magicReflectTurns: 5 });
+    boss.barrier = 2;
+    pull(boss, dungeon, p, messages);
+    expect(boss).toMatchObject({ x: 10, y: 10, barrier: 1 });
+    expect(p).toMatchObject({ x: 5, barrier: 2 });
+  });
+
+  it("アースブレイカーのダメージと転倒をまとめて防ぐ", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const item = { name: "巻物", type: "scroll" };
+    const { boss, p, dungeon, messages } = bossBattlefield(CHIRANIKUTSUNNOKU, { x: 12, y: 10, inventory: [item] });
+    chiranikuttsunnokuEarthbreaker(boss, dungeon, p, messages);
+    expect(p).toMatchObject({ hp: 100, barrier: 1, inventory: [item] });
+    expect(dungeon.items).toEqual([]);
+  });
+
+  it("敵がアースブレイカーを回避したときはバリアを使わない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.01);
+    const target = makeEnemy("barriermage", 2, 12, 10);
+    const { boss, p, dungeon, messages } = bossBattlefield(CHIRANIKUTSUNNOKU, { x: 20, y: 15 }, target);
+    chiranikuttsunnokuEarthbreaker(boss, dungeon, p, messages);
+    expect(target).toMatchObject({ hp: target.maxHp, barrier: 2 });
+    expect(messages.some(message => message.includes("外れた"))).toBe(true);
+  });
+});
 
 describe("バリアと敵の特技", () => {
   it.each([

@@ -1,4 +1,4 @@
-import { uid, T } from './utils.js';
+import { consumeBarrier, uid, T } from './utils.js';
 import { inMagicSealRoom } from './items.js';
 import { monsterOccupiesCell, monsterBounds } from './monsterGeometry.js';
 import { isStatusImmune } from './statusImmunity.js';
@@ -171,9 +171,7 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
 
       if (onBlessedSanc) {
         messages?.push(`祝福された聖域の加護が${breath.sourceName}の石化ブレスを防いだ！`);
-      } else if (isStatusImmune(player, messages, "自分")) {
-        // isStatusImmune 内でメッセージ出力済み
-      } else {
+      } else if (!isStatusImmune(player, messages, "自分") && !consumeBarrier(player, messages ?? [])) {
         player.sleepTurns = 0;
         player.sleepInterruptedTurns = 0;
         delete player._pendingSleepWake;
@@ -189,6 +187,7 @@ export function advancePetroBreaths(dungeon, player, messages, lu, worldTicks = 
       if (!(breath.cells || []).some(cell => monsterOccupiesCell(monster, cell.x, cell.y))) continue;
       if (isStatusImmune(monster, messages, monster.name)) continue;
       if (blockLargeMonsterStatus(monster, "petrify", messages)) continue;
+      if (consumeBarrier(monster, messages ?? [])) continue;
 
       monster.sleepTurns = 0;
       resolveParalysisHit(monster, messages);
