@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, triggerMushroomCounterSpore } from "../monsters.js";
 import { applyThrownItemToMonster, shootArrow } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -132,6 +132,36 @@ describe("キノコ系モンスターのテスト", () => {
 
     expect(messages.some((m) => m.includes("毒胞子を撒き散らした"))).toBe(true);
     expect(player.poisoned).toBe(true);
+  });
+
+  it.each([
+    [1, "毒胞子", "poisonedTurns"],
+    [2, "睡眠胞子", "sleepTurns"],
+    [3, "混乱胞子", "confusedTurns"],
+  ])("Lv%iの%sは浴びた対象ごとにバリア1回分で防ぐ", (level, spore, status) => {
+    const base = MONS.find(monster => monster.baseKind === "mushroom");
+    const mushroom = makeMonsterFromBase(base, level, 5, 5);
+    const arrow = { type: "arrow", name: "木の矢", count: 2, atk: 5 };
+    const player = makePlayer({ x: 6, y: 5, atk: 10, barrier: 1, arrow, inventory: [arrow] });
+    const shielded = { id: "shielded", name: "ゴブリン", x: 5, y: 6, hp: 20, atk: 10, barrier: 2 };
+    const exposed = { id: "exposed", name: "ネズミ", x: 5, y: 4, hp: 20, atk: 10 };
+    const dungeon = makeEmptyDg({ monsters: [mushroom, shielded, exposed] });
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      shootArrow(player, dungeon, 0, -1, 0, messages, null, null);
+    } finally {
+      random.mockRestore();
+    }
+
+    expect(messages.some(message => message.includes(`${spore}を撒き散らした`))).toBe(true);
+    expect(player.barrier).toBe(0);
+    expect(shielded.barrier).toBe(1);
+    expect(player[status] || 0).toBe(0);
+    expect(shielded[status] || 0).toBe(0);
+    expect(player.atk).toBe(10);
+    expect(shielded.atk).toBe(10);
+    expect(exposed[status]).toBeGreaterThan(0);
   });
 
   it("shootArrow で矢が命中した時にカウンター胞子が発動する", () => {

@@ -5392,6 +5392,7 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
       ml.push(`${isPlayer ? "プレイヤー" : target.name}は魔封じの魔方陣に守られた！`);
       continue;
     }
+    if (consumeBarrier(target, ml)) continue;
 
     if (isPlayer) {
       if ((p.statusImmune || 0) > 0) {
