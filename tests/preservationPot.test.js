@@ -14,6 +14,7 @@ import { getPotItemActions, stagePotItemToInventory, restorePotReturnItem } from
 import { canUseInventoryItem, getInventoryUseLabel } from "../inventoryRules.js";
 import { useItemActions } from "../useItemActions.js";
 import { useKeyHandler } from "../useKeyHandler.js";
+import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { PotPutModal, InventoryModal } from "../GameModals.jsx";
 import { msgToActionKey } from "../portraits.js";
 import { resetDiscoveries } from "../DiscoveryTracker.js";
@@ -434,6 +435,37 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
 });
 
 describe("保存の壺の中身コマンド規則と一時退避・復元", () => {
+  it.each([4, 100])("容量%dの満杯の壺から杖を振ってもヤドカリは入れない", capacity => {
+    vi.spyOn(Math, "random").mockReturnValue(0.01);
+    const wand = { id: "wand", type: "wand", effect: "seal", name: "封印の杖", charges: 3 };
+    const filler = Array.from({ length: capacity - 1 }, (_, i) => ({ id: `food-${i}`, name: "パン", type: "food" }));
+    const pot = { id: "pot", name: "保存の壺", type: "pot", potEffect: "none", capacity,
+      contents: [...filler, wand], confinedMonsters: [] };
+    const player = makePlayer({ x: 6, y: 5, inventory: [pot] });
+    const raider = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "potRaider"), 1, 5, 5);
+    Object.assign(raider, { aware: true, alwaysUseSpecial: true, turnAttacks: 0 });
+    const dungeon = makeEmptyDg({ monsters: [raider] });
+    const h = makeActionsHarness({ player, dungeon });
+    let throwMode = null;
+    const props = {
+      ...h.props,
+      setThrowMode: mode => { throwMode = mode; },
+      endTurn: (state, p, messages) => monsterAI(raider, state.dungeon, p, messages, { attackOnly: true }),
+    };
+
+    const staged = stagePotItemToInventory(player, pot, filler.length);
+    expect(potOccupancyCount(pot)).toBe(capacity);
+    useItemActions(props).doWaveWand(staged.tmpIdx);
+    expect(throwMode?.mode).toBe("wand_wave");
+    useItemActions({ ...props, throwMode }).execDirection(1, 0);
+    expect(pot.confinedMonsters).toEqual([]);
+    expect(raider.potRaiderStock).toBe(4);
+    expect(restorePotReturnItem({ player, dungeon, entry: staged })).toEqual({ returned: true, destination: "pot" });
+    expect(pot.contents).toEqual([...filler, wand]);
+    expect(wand.charges).toBe(2);
+    expect(dungeon.items).toEqual([]);
+  });
+
   it.each([
     { onFloor: false, result: "cancel", charges: 3 },
     { onFloor: true, result: "wave", charges: 2 },
@@ -549,7 +581,9 @@ describe("保存の壺の中身コマンド規則と一時退避・復元", () =
 
     /* 2. 消費されたアイテム（投擲・飲用など）は二重に戻されない */
     const stagedWand = stagePotItemToInventory(player, pot, 1);
+    expect(potOccupancyCount(pot)).toBe(2);
     player.inventory.splice(stagedWand.tmpIdx, 1);
+    expect(potOccupancyCount(pot)).toBe(1);
     expect(restorePotReturnItem({ player, dungeon, entry: stagedWand })).toEqual({
       returned: false,
       reason: "already_removed",

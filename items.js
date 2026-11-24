@@ -1258,10 +1258,23 @@ export function rollGeneratedWandCharges(item, rngFn = rng) {
   return Math.max(1, (item.charges || 1) + rngFn(-1, 1));
 }
 
+/* 直接操作で所持品へ仮移動した道具も、操作中は元の壺の枠を使う。 */
+const potDirectUseSlots = new WeakMap();
+
+export function reservePotSlotForDirectUse(pot, player, item) {
+  potDirectUseSlots.set(pot, { player, item });
+}
+
+export function releasePotSlotForDirectUse(pot, item) {
+  if (potDirectUseSlots.get(pot)?.item === item) potDirectUseSlots.delete(pot);
+}
+
 export function potOccupancyCount(pot) {
   if (!pot || typeof pot !== "object") return 0;
   if (pot.type && pot.type !== "pot") return 0;
-  return (pot.contents?.length || 0) + (pot.confinedMonsters?.length || 0);
+  const staged = potDirectUseSlots.get(pot);
+  const reserved = staged?.player.inventory.includes(staged.item) ? 1 : 0;
+  return (pot.contents?.length || 0) + (pot.confinedMonsters?.length || 0) + reserved;
 }
 
 /** 壺がアイテムを受け入れられる状態か。 */

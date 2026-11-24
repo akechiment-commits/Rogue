@@ -1,4 +1,4 @@
-import { getIdentKey, isPreservationPot, potOccupancyCount } from "./items.js";
+import { getIdentKey, isPreservationPot, potOccupancyCount, reservePotSlotForDirectUse, releasePotSlotForDirectUse } from "./items.js";
 import { canUseInventoryItem, getInventoryUseLabel } from "./inventoryRules.js";
 
 /** 保存の壺の中身に対して直接実行できない種別（直接装備・壺の入れ子）。 */
@@ -51,6 +51,7 @@ export function stagePotItemToInventory(player, pot, contentIdx) {
   if (!item) return null;
   const tmpIdx = player.inventory.length;
   player.inventory.push(item);
+  reservePotSlotForDirectUse(pot, player, item);
   return { item, pot, contentIdx, tmpIdx };
 }
 
@@ -63,6 +64,7 @@ export function restorePotReturnItem({ player, dungeon, entry, placeItemFn, dnam
     return { returned: false, reason: "invalid" };
   }
   const { item, pot, contentIdx } = entry;
+  releasePotSlotForDirectUse(pot, item);
   const invIdx = player.inventory.indexOf(item);
   if (invIdx === -1) {
     return { returned: false, reason: "already_removed" };
