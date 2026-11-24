@@ -11200,7 +11200,7 @@ export const RINGS = [
   { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"近接攻撃で指輪1個につき与ダメージの8分の1だけHPを吸収する。アンデッドには同量の反動を受ける。" },
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"HPが低いほど会心率が上がる。2個で上昇量が2倍。必ず会心になるのは1個でHP20%以下、2個で47.5%以下。" },
   { name: "争いの指輪",     type:"ring", effect:"strife_ring",            rarity:"S", weight:0.05, sellPrice:20000, tile:60, desc:"装備中、プレイヤーから3マス以内の生物が、隣接する相手を無差別に攻撃する。プレイヤーと隣接していれば優先して狙う。" },
-  { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
+  { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"近接攻撃に合わせて装備中の飛び道具を追加で放つ。普通の石は攻撃したマスを狙う。\n2個装備で2発。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },
   { name: "鈍亀の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"1個で速度が半減し、防御力が2倍になる。2個で速度が1/4、防御力が4倍になる。" },
   { name: "空腹の指輪",     type:"ring", effect:"hunger_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"空腹の進行が1個で2倍、2個で4倍になる。" },

@@ -96,7 +96,7 @@ import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { useGamepad, getGamepadArrow } from './useGamepad.js';
 import { GamepadQuickMenu, GamepadControlsGuide, GamepadLtHint } from './GamepadQuickMenu.jsx';
-import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushItemFlyAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, PriestModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
@@ -3555,7 +3555,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 for (let _si = 0; _si < _srCount; _si++) {
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
-                  if (_srAr.specialProjectile) {
+                  if (_srAr.specialProjectile || _srAr.rightStone) {
                     shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
                       forceMiss: _srForceMiss,
                     });
@@ -3582,16 +3582,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   const _srPeel = () => { if (!_srUnit) peelShopArrowUnit(_srAr); };
                   /* ── 石 ── */
                   if (_srAr.stone || _srAr.iceChunk) {
-                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
-                    const _stRange = _srCursedFc ? 1 : 3;
+                    // 普通の石は、近接攻撃したセルに合わせて投げる。
+                    const stoneDx = _srAr.stone ? Math.sign(_hitX - _oldPx) : dx;
+                    const stoneDy = _srAr.stone ? Math.sign(_hitY - _oldPy) : dy;
+                    const _stRange = _srCursedFc ? 1 : _srAr.stone ? _attackSlot.range : 3;
                     let _stLx = p.x, _stLy = p.y;
                     let _stHitStatue = false;
                     let _stHitEnemyProjectile = false;
                     for (let _d = 1; _d <= _stRange; _d++) {
-                      const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
+                      const _tx = p.x + stoneDx * _d, _ty = p.y + stoneDy * _d;
                       if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
                       if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                       _stLx = _tx; _stLy = _ty;
+                    }
+                    if (_srAr.stone) {
+                      pushItemFlyAnim(p.x, p.y, _stLx, _stLy, _srAr.tile, null, { flightArc: true });
+                    } else {
+                      pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
                     }
                     if (_stLx !== p.x || _stLy !== p.y) {
                       _stHitEnemyProjectile = destroyEnemyHomingProjectileAt(dg, _stLx, _stLy, ml, _arName);

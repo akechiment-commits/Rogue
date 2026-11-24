@@ -6,6 +6,9 @@ import * as items from "../items.js";
 import * as traits from "../monTraits.js";
 import * as geometry from "../monsterGeometry.js";
 import * as status from "../statusDuration.js";
+import { pushAnim, pushBoltAnim, pushItemFlyAnim } from "../animEvents.js";
+import { statueAt } from "../fixtureQueries.js";
+import { pl } from "../playerLabel.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 // 範囲選択から全攻撃・吹き飛ばし完了まで、Gameの実際の分岐を実行する。
@@ -13,27 +16,75 @@ const source = fs.readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
 const start = source.indexOf("          const wab = p.weapon?.ability;");
 const end = source.indexOf("          } else if (dg.map[ny][nx] === T.WATER", start);
 if (start < 0 || end < 0) throw new Error("Melee action block not found");
-const deps = { ...utils, ...monsters, ...items, ...traits, ...geometry, ...status };
-const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonster",
-  `const dx=1,dy=0,nx=p.x+dx,ny=p.y+dy,_oldPx=p.x,_oldPy=p.y;
+const deps = { ...utils, ...monsters, ...items, ...traits, ...geometry, ...status,
+  pushAnim, pushBoltAnim, pushItemFlyAnim, statueAt, pl, bigboxAddItem: vi.fn() };
+const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonster", "dx", "dy",
+  `const nx=p.x+dx,ny=p.y+dy,_oldPx=p.x,_oldPy=p.y;
    const _ad={attacks:[],damages:[]};let acted=false;
    ${source.slice(start, end)}
    }
    return {acted,animations:_ad};`);
 
-function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [], player = {}, kind, random = 0.5 } = {}) {
+function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [], player = {}, kind, random = 0.5, direction = [1, 0], target = {} } = {}) {
   vi.spyOn(Math, "random").mockReturnValue(random);
   const p = makePlayer({ atk: 10, weapon: { atk: 0, abilities }, ...player });
-  const mon = { id: "target", name, kind, x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize, ...(forcedMoveImmune ? { forcedMoveImmune: true } : {}) };
+  const mon = { id: "target", name, kind, x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize, ...(forcedMoveImmune ? { forcedMoveImmune: true } : {}), ...target };
   const dg = makeEmptyDg({ monsters: [mon, ...others], rooms: [{ x: 1, y: 1, w: 40, h: 20 }],
     pentacles: pentacle ? [{ kind: "knockback_aura", name: "吹き飛ばしの魔方陣", x: 3, y: 3, ...pentacle }] : [] });
   for (const [x, y] of walls) dg.map[y][x] = utils.T.WALL;
   const ml = [];
   const kill = vi.fn(target => { dg.monsters = dg.monsters.filter(m => m !== target); });
-  const result = run(...Object.values(deps), p, dg, ml, () => {}, kill);
+  const result = run(...Object.values(deps), p, dg, ml, () => {}, kill, ...direction);
   return { p, mon, dg, ml, kill, ...result };
 }
 afterEach(() => vi.restoreAllMocks());
+
+describe("射撃の指輪と石", () => {
+  const shootingRing = { effect: "shoot_ring" };
+
+  it.each([
+    { label: "正面", abilities: [], target: { x: 6, y: 5 } },
+    { label: "長柄の2マス先", abilities: ["reach"], target: { x: 7, y: 5 } },
+    { label: "三方向攻撃の斜め前", abilities: ["frontal_sweep"], target: { x: 6, y: 4 } },
+  ])("追加発射した普通の石が$labelの近接相手に当たる", ({ abilities, target }) => {
+    const stone = items.makeNormalStone(1);
+    const { p, ml, dg } = attack({ abilities, target, bodySize: 1,
+      player: { rings: [shootingRing], arrow: stone, inventory: [stone] } });
+    expect(ml.some(message => message.startsWith("石が対象に命中！"))).toBe(true);
+    expect(p.arrow).toBeNull();
+    expect(dg.items).toEqual([]);
+  });
+
+  it("狙ったマスに投げても通常の回避が効く", () => {
+    const stone = items.makeNormalStone(1);
+    const { ml, dg } = attack({ abilities: [], bodySize: 1, random: 0.07,
+      player: { rings: [shootingRing], arrow: stone, inventory: [stone] } });
+    expect(ml.some(message => message.startsWith("対象に") && message.includes("ダメージ"))).toBe(true);
+    expect(ml).toContain("石は対象に外れた！");
+    expect(dg.items).toMatchObject([{ name: "石", x: 6, y: 5 }]);
+  });
+
+  it("近接相手が反射する場合は石が跳ね返る", () => {
+    const stone = items.makeNormalStone(1);
+    const { p, ml } = attack({ abilities: [], bodySize: 1, target: { subtype: "reflector" },
+      player: { rings: [shootingRing], arrow: stone, inventory: [stone] } });
+    expect(ml).toContain("石が対象に弾き返された！");
+    expect(p.hp).toBeLessThan(p.maxHp);
+  });
+
+  it("右は左を攻撃してもホーミングせず、呪いの遠投下でも画面右の3マス目に当たる", () => {
+    const stone = items.makeRightStone(1);
+    const east = { id: "east", name: "右の敵", x: 8, y: 5, hp: 1000, def: 0 };
+    const between = { id: "between", name: "途中の敵", x: 6, y: 5, hp: 1000, def: 0 };
+    const { p, ml } = attack({ direction: [-1, 0], target: { x: 4 }, abilities: [], bodySize: 1,
+      others: [east, between], pentacle: { kind: "farcast", cursed: true },
+      player: { rings: [shootingRing, { effect: "wakka_ring" }], arrow: stone, inventory: [stone] } });
+    expect(ml.some(message => message.startsWith("右が右の敵に命中！"))).toBe(true);
+    expect(east.hp).toBeLessThan(1000);
+    expect(between.hp).toBe(1000);
+    expect(p.arrow).toBeNull();
+  });
+});
 
 it.each([["humanoid", 1], ["undead", -1]])("吸血の指輪2個は%sに対する回復・反動を2倍にする", (kind, sign) => {
   const ring = { effect: "vampire_ring" };
