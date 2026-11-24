@@ -8176,6 +8176,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
      消えたように見える。 */
   let _terminalStop = null;
   let _destroyedByTrap = false;
+  let goalBoxLanding = null;
   const _trapFt = new Set();
   const _landOnTrap = (trap, lx, ly, mlx) => {
     trap.revealed = true;
@@ -8327,7 +8328,13 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (springLandMsg) { const _m = springLandMsg(spr, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
     },
-    onBigbox: (bb, lx, ly, mlx) => {
+    onBigbox: (bb, lx, ly, mlx, prevX, prevY) => {
+      if (item.type === "goal") {
+        const blocked = isFloorOccupancyBlocked(dg, prevX, prevY, { ignore: item, allowMonster: true, allowPlayer: true });
+        goalBoxLanding = blocked ? { x: shooter.x, y: shooter.y } : { x: prevX, y: prevY };
+        mlx.push(`${_itemName}は大箱に入らず床に落ちた。`);
+        return;
+      }
       if (bigboxLandMsg) { const _m = bigboxLandMsg(bb, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly;
     },
@@ -8353,6 +8360,13 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       _terminalStop = { x: lx, y: ly };
     },
   });
+
+  if (goalBoxLanding) {
+    Object.assign(item, goalBoxLanding);
+    markItemIdentifiedForDungeon(item, dg);
+    if (!dg.items.includes(item)) dg.items.push(item);
+    return { ...res, ...goalBoxLanding };
+  }
 
   if (_terminalStop) {
     res.x = _terminalStop.x;

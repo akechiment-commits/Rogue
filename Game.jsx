@@ -5202,12 +5202,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   );
   const bigboxAddItem = useCallback(
     (bb, item, dg, ml, context = {}) => {
+      const internalMonsterSynthesis = bb.internalMonsterSynthesis === true;
+      if (item.type === "goal" && !internalMonsterSynthesis) return;
       const killerMon = context.killerMon || null;
       const sourceIsPlayer = context.sourceIsPlayer ?? !killerMon;
       const effectContext = { ...context, killerMon, sourceIsPlayer };
       const initialDepth = sr.current.player.depth;
       const floorChanged = () => sr.current.player.depth !== initialDepth;
-      const internalMonsterSynthesis = bb.internalMonsterSynthesis === true;
       if (!internalMonsterSynthesis) trackBigbox(bb);
       const wasFull = bb.contents.length >= bb.capacity;
       bb.contents.push(item);
@@ -6107,6 +6108,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         return;
       }
       const ml = installPlayerHpMessageHook([], p);
+      if (it.type === "goal") {
+        ml.push("大事なものは大箱に入れられない！");
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        return;
+      }
       if (bb.contents.length >= bb.capacity) {
         ml.push(`${bbDisplayName(bb, sr.current)}はもういっぱいだ。`);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);

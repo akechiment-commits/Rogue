@@ -4178,7 +4178,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn, bbFn = null) {
  * customPlHit(ml, isReflected, reflectorMon): プレイヤー命中時のカスタム処理。指定するとデフォルトの
  *   ダメージ計算・deathCause・メッセージ・sleep解除をスキップして全てカスタム実装に委ねる。
  *   壺投げで割れて中身散乱、杖の効果発動など、ダメージ以外の処理を行いたい場合に使う。
- * onBigbox(bb, lx, ly, ml): 大箱命中時のコールバック（矢を大箱に入れる等）。
+ * onBigbox(bb, lx, ly, ml, prevX, prevY): 大箱命中時のコールバック。直前のマスも渡す。
  *   未指定なら大箱を素通り（シオン銃弾など、アイテムでない弾向け）。
  *   pierce/farcastでない場合はbigboxで弾道終了（onBigbox指定時のみ）。
  * onGacha(machine, lx, ly, ml): ガチャマシーン命中時のコールバック。
@@ -4561,7 +4561,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     if (onBigbox && !_isFc) {
       const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
       if (_bb) {
-        onBigbox(_bb, _tx, _ty, ml);
+        onBigbox(_bb, _tx, _ty, ml, _lx, _ly);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
     }
