@@ -9,12 +9,13 @@ vi.mock("react", async () => ({
   useLayoutEffect: fn => { effects.push(fn); },
 }));
 import * as React from "react";
-import { isPreservationPot, canTakeFromPot, canShowPotTakeAction, potOccupancyCount, getIdentKey, randPotCapacity } from "../items.js";
+import { isPreservationPot, canTakeFromPot, canShowPotTakeAction, potOccupancyCount, getIdentKey, randPotCapacity, fireTrapItem } from "../items.js";
 import { getPotItemActions, stagePotItemToInventory, restorePotReturnItem } from "../potActionRules.js";
 import { canUseInventoryItem, getInventoryUseLabel } from "../inventoryRules.js";
 import { useItemActions } from "../useItemActions.js";
 import { useKeyHandler } from "../useKeyHandler.js";
-import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
+import { MONS, makeMonsterFromBase, monsterAI, tryMimicAdjacentSkill } from "../monsters.js";
+import { fireTrapPlayer } from "../traps.js";
 import { PotPutModal, InventoryModal } from "../GameModals.jsx";
 import { msgToActionKey } from "../portraits.js";
 import { resetDiscoveries } from "../DiscoveryTracker.js";
@@ -435,6 +436,52 @@ describe("保存の壺のUI・キーボード（テンキー含む）・立ち�
 });
 
 describe("保存の壺の中身コマンド規則と一時退避・復元", () => {
+  it.each(["thief", "stealthrower", "mimic", "playerTrap", "itemTrap"])(
+    "%sの盗みは壺から振った杖を除外し、手持ちの道具を盗む",
+    route => {
+      vi.spyOn(Math, "random").mockReturnValue(0.99);
+      const wand = { id: "wand", type: "wand", effect: "plain", name: "ただの杖", charges: 3 };
+      const food = { id: "food", type: "food", name: "パン" };
+      const pot = { id: "pot", type: "pot", potEffect: "none", capacity: 1, contents: [wand] };
+      const player = makePlayer({ x: 6, y: 5, inventory: [pot, food] });
+      const dungeon = makeEmptyDg();
+      const h = makeActionsHarness({ player, dungeon });
+      let throwMode = null;
+      const props = {
+        ...h.props,
+        setThrowMode: mode => { throwMode = mode; },
+        endTurn: (state, p, messages) => {
+          if (route === "playerTrap" || route === "itemTrap") {
+            const trap = { id: "trap", name: "盗みの罠", effect: "steal_trap", x: p.x, y: p.y, permanent: true };
+            dungeon.traps.push(trap);
+            if (route === "playerTrap") fireTrapPlayer(trap, p, dungeon, messages);
+            else fireTrapItem(trap, { name: "石", type: "arrow" }, dungeon, p.x, p.y, messages, new Set(), p);
+          } else {
+            const thief = makeMonsterFromBase(MONS.find(mon => mon.subtype === route), 1, 5, 5);
+            Object.assign(thief, { aware: true, alwaysUseSpecial: true });
+            dungeon.monsters.push(thief);
+            if (route === "mimic") {
+              dungeon.monsters.push(makeMonsterFromBase(MONS.find(mon => mon.subtype === "thief"), 1, 4, 5));
+              expect(tryMimicAdjacentSkill(thief, dungeon, p, messages, {}, { canSee: true, forceReady: true })).toBe(true);
+            } else {
+              monsterAI(thief, dungeon, p, messages, { attackOnly: true });
+            }
+          }
+          expect(p.inventory).toEqual([pot, wand]);
+          expect(potOccupancyCount(pot)).toBe(1);
+        },
+      };
+
+      const staged = stagePotItemToInventory(player, pot, 0);
+      useItemActions(props).doWaveWand(staged.tmpIdx);
+      useItemActions({ ...props, throwMode }).execDirection(1, 0);
+
+      expect(wand.charges).toBe(2);
+      expect(restorePotReturnItem({ player, dungeon, entry: staged })).toMatchObject({ destination: "pot" });
+      expect(pot.contents).toEqual([wand]);
+    },
+  );
+
   it.each([4, 100])("容量%dの満杯の壺から杖を振ってもヤドカリは入れない", capacity => {
     vi.spyOn(Math, "random").mockReturnValue(0.01);
     const wand = { id: "wand", type: "wand", effect: "seal", name: "封印の杖", charges: 3 };

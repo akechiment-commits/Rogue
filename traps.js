@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomPlayerTeleportDest, getDodgePentacleMode, consumeBarrier, clampDmgFixed } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap, markShopkeeperHostileToPlayer, isItemProtected } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap, markShopkeeperHostileToPlayer, isItemProtected, canStealInventoryItem } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns, resolveParalysisHit, applyPlayerConfusion } from "./statusDuration.js";
@@ -180,7 +180,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (hasAbility(p.armor, "anti_steal")) {
         ml.push(`${trap.name}が発動！しかし防具が盗みを防いだ！(護盗)`);
       } else if (p.inventory && p.inventory.length > 0) {
-        const _stCandidates = p.inventory.filter(i => i.type !== "goal");
+        const _stCandidates = p.inventory.filter(canStealInventoryItem);
         if (_stCandidates.length === 0) { ml.push(`${trap.name}が発動！しかし大事なものは盗めなかった。`); break; }
         const _stItem = _stCandidates[rng(0, _stCandidates.length - 1)];
         const _stIdx = p.inventory.indexOf(_stItem);

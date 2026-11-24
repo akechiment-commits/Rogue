@@ -1260,13 +1260,23 @@ export function rollGeneratedWandCharges(item, rngFn = rng) {
 
 /* 直接操作で所持品へ仮移動した道具も、操作中は元の壺の枠を使う。 */
 const potDirectUseSlots = new WeakMap();
+const potDirectUseItems = new WeakSet();
 
 export function reservePotSlotForDirectUse(pot, player, item) {
+  const previous = potDirectUseSlots.get(pot);
+  if (previous) potDirectUseItems.delete(previous.item);
   potDirectUseSlots.set(pot, { player, item });
+  potDirectUseItems.add(item);
 }
 
 export function releasePotSlotForDirectUse(pot, item) {
-  if (potDirectUseSlots.get(pot)?.item === item) potDirectUseSlots.delete(pot);
+  if (potDirectUseSlots.get(pot)?.item !== item) return;
+  potDirectUseSlots.delete(pot);
+  potDirectUseItems.delete(item);
+}
+
+export function canStealInventoryItem(item) {
+  return item.type !== "goal" && !potDirectUseItems.has(item);
 }
 
 export function potOccupancyCount(pot) {
@@ -4099,7 +4109,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`フロアのどこかにアイテムが出現した！`);
       }
       if (p && p.x === tx && p.y === ty && p.inventory && p.inventory.length > 0) {
-        const _stCandidates = p.inventory.filter((i) => i.type !== "goal");
+        const _stCandidates = p.inventory.filter(canStealInventoryItem);
         if (_stCandidates.length > 0) {
           const _stItem = _stCandidates[rng(0, _stCandidates.length - 1)];
           const _stIdx = p.inventory.indexOf(_stItem);

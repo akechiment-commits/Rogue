@@ -65,7 +65,7 @@ import {
   calcPlayerDefense, stepProjectile, getWindAt, ensureMonsterWindDir, playerHpEffectLabel, playerDopingMultiplier,
   resolveRuntimeSpawnPoolFloor, checkPlayerPhysicalAttackEvasion, checkMonsterEvasion
 } from "./utils.js";
-import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, reduceWaterDamage, fireResistDamageLabel, iceResistDamageLabel, waterResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox, isItemProtected, isPlayerPermanentTrapVisible, isPlayerTrapVisible } from "./items.js";
+import { weakenOrClearParalysis, resolveItemName, getFarcastMode, absorbProjectileIntoMonster, placeItemAt, makeStone, makeRightStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, reduceWaterDamage, fireResistDamageLabel, iceResistDamageLabel, waterResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, genFood, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, recookYabaiFood, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, SOBURO_T, maybeKatanaToSoboro, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, applySoakedStatusToMonster, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt, pushEntity, blockPlayerStatus, applyPlayerSeal, imprisonPotRemainingCapacity, potOccupancyCount, potConsumesInsertedContent, canMonsterSurviveOnWater, detonateNitroBox, isItemProtected, isPlayerPermanentTrapVisible, isPlayerTrapVisible, canStealInventoryItem } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
@@ -5987,7 +5987,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       if (hasAbility(pl.armor, "anti_steal")) {
         ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
       } else if (pl.inventory?.length) {
-        const cands = pl.inventory.filter((i) => i.type !== "goal");
+        const cands = pl.inventory.filter(canStealInventoryItem);
         if (cands.length) {
           const stolen = cands[rng(0, cands.length - 1)];
           const idx = pl.inventory.indexOf(stolen);
@@ -10909,7 +10909,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
         }
-        const _stealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
+        const _stealable = pl.inventory.filter(i => i.type !== "gold" && canStealInventoryItem(i));
         if (_stealable.length > 0) {
           const _stolen = pick(_stealable);
           const _sidx = pl.inventory.indexOf(_stolen);
@@ -11222,7 +11222,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* 盗みフェーズ：隣接かつ手ぶら（moveOnlyはフォールスルー）。
        * 手持ち中はここへ絶対に入らず、投擲・死亡まで1個限定。 */
       if (!_moveOnly && _srAdj && !_srHeldItem) {
-        const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
+        const _srStealable = pl.inventory.filter(i => i.type !== "gold" && canStealInventoryItem(i));
         if (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal) {
           if (_srStealable.length === 0) {
             consumeFailedMonsterSpecial(m, ml, "が盗もうとしたが、盗める物がなかった！");
