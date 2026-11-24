@@ -9,6 +9,7 @@ import * as status from "../statusDuration.js";
 import { pushAnim, pushBoltAnim, pushItemFlyAnim } from "../animEvents.js";
 import { statueAt } from "../fixtureQueries.js";
 import { pl } from "../playerLabel.js";
+import { processPitfallBag } from "../render.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 // 範囲選択から全攻撃・吹き飛ばし完了まで、Gameの実際の分岐を実行する。
@@ -16,31 +17,99 @@ const source = fs.readFileSync(new URL("../Game.jsx", import.meta.url), "utf8");
 const start = source.indexOf("          const wab = p.weapon?.ability;");
 const end = source.indexOf("          } else if (dg.map[ny][nx] === T.WATER", start);
 if (start < 0 || end < 0) throw new Error("Melee action block not found");
+const pitfallStart = source.indexOf("  const withPitfallBag =");
+const pitfallEnd = source.indexOf("  /* プレイヤーが深淵", pitfallStart);
+if (pitfallStart < 0 || pitfallEnd < 0) throw new Error("Pitfall handler not found");
+const bindPitfallBag = new Function("sr", "useCallback", "setPitfallBag", "clearPitfallBag", "processPitfallBag",
+  source.slice(pitfallStart, pitfallEnd) + "return withPitfallBag;");
 const deps = { ...utils, ...monsters, ...items, ...traits, ...geometry, ...status,
   pushAnim, pushBoltAnim, pushItemFlyAnim, statueAt, pl, bigboxAddItem: vi.fn() };
-const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonster", "dx", "dy",
+const run = new Function(...Object.keys(deps), "p", "dg", "ml", "lu", "killMonster", "dx", "dy", "withPitfallBag",
   `const nx=p.x+dx,ny=p.y+dy,_oldPx=p.x,_oldPy=p.y;
    const _ad={attacks:[],damages:[]};let acted=false;
    ${source.slice(start, end)}
    }
    return {acted,animations:_ad};`);
 
-function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [], player = {}, kind, random = 0.5, direction = [1, 0], target = {} } = {}) {
+function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 1000, bodySize = 3, forcedMoveImmune = false, name = "対象", others = [], walls = [], traps = [], player = {}, kind, random = 0.5, direction = [1, 0], target = {} } = {}) {
   vi.spyOn(Math, "random").mockReturnValue(random);
-  const p = makePlayer({ atk: 10, weapon: { atk: 0, abilities }, ...player });
+  const p = makePlayer({ atk: 10, depth: 10, weapon: { atk: 0, abilities }, ...player });
   const mon = { id: "target", name, kind, x: bodySize === 3 ? 7 : 6, y: 5, hp, maxHp: hp, def: 0, bodySize, ...(forcedMoveImmune ? { forcedMoveImmune: true } : {}), ...target };
-  const dg = makeEmptyDg({ monsters: [mon, ...others], rooms: [{ x: 1, y: 1, w: 40, h: 20 }],
+  const rooms = [{ x: 1, y: 1, w: 40, h: 20 }];
+  const dg = makeEmptyDg({ monsters: [mon, ...others], rooms, traps,
     pentacles: pentacle ? [{ kind: "knockback_aura", name: "吹き飛ばしの魔方陣", x: 3, y: 3, ...pentacle }] : [] });
+  const below = makeEmptyDg({ rooms });
+  const sr = { current: { player: p, dungeon: dg, floors: { [p.depth + 1]: below } } };
+  const withPitfallBag = bindPitfallBag(sr, fn => fn, items.setPitfallBag, items.clearPitfallBag, processPitfallBag);
   for (const [x, y] of walls) dg.map[y][x] = utils.T.WALL;
   const ml = [];
   const kill = vi.fn(target => { dg.monsters = dg.monsters.filter(m => m !== target); });
-  const result = run(...Object.values(deps), p, dg, ml, () => {}, kill, ...direction);
-  return { p, mon, dg, ml, kill, ...result };
+  const result = run(...Object.values(deps), p, dg, ml, () => {}, kill, ...direction, withPitfallBag);
+  return { p, mon, dg, below, ml, kill, ...result };
 }
 afterEach(() => vi.restoreAllMocks());
 
 describe("射撃の指輪と石", () => {
   const shootingRing = { effect: "shoot_ring" };
+
+  it.each([items.makeNormalStone, items.makeMagicStone, items.makeArrow])(
+    "追加射撃の%pが地雷へ落ちるとプレイヤーにも爆風が届く",
+    makeAmmo => {
+      const ammo = makeAmmo(1);
+      const mine = { id: "mine", effect: "explode", name: "地雷", x: 6, y: 5, permanent: true };
+      const { p, ml } = attack({ abilities: [], bodySize: 1, random: 0.07, traps: [mine],
+        player: { rings: [shootingRing], arrow: ammo, inventory: [ammo] } });
+
+      expect(p.hp).toBe(50);
+      expect(ml.filter(message => message.startsWith("地雷が発動！"))).toHaveLength(1);
+    },
+  );
+
+  it("使い切った石の束は地雷の所持品損傷の候補に入らない", () => {
+    const stone = items.makeNormalStone(1);
+    const scroll = { id: "scroll", name: "混乱の巻物", type: "scroll", effect: "confusion" };
+    const mine = { id: "mine", effect: "explode", name: "地雷", x: 6, y: 5, permanent: true };
+    const { p, ml } = attack({ abilities: [], bodySize: 1, random: 0.07, traps: [mine],
+      player: { rings: [shootingRing], arrow: stone, inventory: [stone, scroll] } });
+
+    expect(p.inventory).toEqual([]);
+    expect(ml.some(message => message.includes("混乱の巻物") && message.includes("燃えて"))).toBe(true);
+  });
+
+  it.each([
+    { label: "普通の石", makeAmmo: items.makeNormalStone },
+    { label: "魔法の石", makeAmmo: items.makeMagicStone },
+    { label: "通常の矢", makeAmmo: items.makeArrow },
+    { label: "ワッカ併用", makeAmmo: items.makeNormalStone, wakka: true },
+    { label: "右", makeAmmo: items.makeRightStone, right: true },
+  ])("$labelの追加射撃は落とし穴から次の階へ移る", ({ makeAmmo, wakka, right }) => {
+    const ammo = makeAmmo(1);
+    const rings = wakka ? [shootingRing, { effect: "wakka_ring" }] : [shootingRing];
+    const pitfall = { id: "pitfall", effect: "pitfall", name: "落とし穴", x: right ? 8 : 6, y: 5, permanent: true };
+    const { dg, below, mon } = attack({
+      abilities: [], bodySize: 1, random: 0.07, traps: [pitfall],
+      ...(wakka ? { pentacle: { kind: "dodge" } } : {}),
+      ...(right ? { direction: [-1, 0], target: { x: 4 } } : {}),
+      player: { rings, arrow: ammo, inventory: [ammo] },
+    });
+
+    expect(dg.items).toEqual([]);
+    expect(below.items).toMatchObject([{ name: ammo.name, count: 1 }]);
+    expect(below.monsters).toEqual(right ? [] : [mon]);
+  });
+
+  it.each([["arrow_trap", 94], ["poison_arrow", 94], ["strong_arrow", 88]])(
+    "追加射撃が起動した%sはプレイヤーの向きに従って命中する",
+    (effect, expectedHp) => {
+      const stone = items.makeNormalStone(1);
+      const trap = { id: "arrow-trap", effect, name: "矢の罠", x: 6, y: 5, permanent: true };
+      const { p } = attack({ abilities: [], bodySize: 1, hp: 1, walls: [[7, 5]], traps: [trap],
+        player: { rings: [shootingRing], arrow: stone, inventory: [stone], facing: { dx: 1, dy: 0 } } });
+
+      expect(trap.revealed).toBe(true);
+      expect(p.hp).toBe(expectedHp);
+    },
+  );
 
   it.each([
     { label: "正面", abilities: [], target: { x: 6, y: 5 } },

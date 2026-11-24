@@ -3548,6 +3548,8 @@ export function useItemActions({
       const _maxRange = _isCursedFc ? 1 : _isFarcast ? FARCAST_RANGE : 10;
       /* 下手投げの指輪：命中率0%（方向はそのまま、敵に当たっても必ず外れる） */
       const _forceMiss = _throwRelated && hasRingEffect(p, "miss_throw_ring");
+      const shootWithPitfallBag = (itemIdx, outgoingBolt, options) =>
+        withPitfallBag(() => shootArrow(p, dg, itemIdx, dx, dy, ml, lu, bigboxAddItem, pushAnim, outgoingBolt, options));
       if (mode === "shoot_equipped") {
         if (!p.arrow || p.arrow.count <= 0) {
           ml.push("矢がない！");
@@ -3560,7 +3562,7 @@ export function useItemActions({
         /* ワッカの指輪：装備中の通常飛び道具も魔法の石と同じ必中ホーミング。
            這いずり爆弾・魚雷・誘導弾などの特殊飛び道具は従来どおり。 */
         if (hasRingEffect(p, "wakka_ring") && !_arItem.specialProjectile && !_arItem.rightStone && _hasWakkaTargetInRange()) {
-          shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+          shootWithPitfallBag(p.inventory.indexOf(_arItem), null, {
             forceMiss: _forceMiss,
             wakka: true,
           });
@@ -3575,7 +3577,7 @@ export function useItemActions({
 
         /* ── 1マスずつ進む特殊飛び道具 ── */
         if (_arItem.specialProjectile) {
-          shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, { forceMiss: _forceMiss });
+          shootWithPitfallBag(p.inventory.indexOf(_arItem), null, { forceMiss: _forceMiss });
           if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
           endTurn(sr.current, p, ml);
           if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -3994,7 +3996,7 @@ export function useItemActions({
           return;
         }
         if (hasRingEffect(p, "wakka_ring") && !it.specialProjectile && _hasWakkaTargetInRange()) {
-          shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+          shootWithPitfallBag(idx, null, {
             forceMiss: _forceMiss,
             wakka: true,
           });
@@ -4006,7 +4008,7 @@ export function useItemActions({
             const _faI = p.inventory.indexOf(_fa);
             if (_faI !== -1) {
               p.inventory.splice(_faI, 1);
-              placeItemAt(dg, p.x, p.y, _fa, ml, new Set(), 0, p);
+              withPitfallBag(() => placeItemAt(dg, p.x, p.y, _fa, ml, new Set(), 0, p));
             }
           }
           endTurn(sr.current, p, ml);
@@ -4018,7 +4020,7 @@ export function useItemActions({
         }
         const _shColor = it.specialProjectile ? "#d08cff" : it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";
         const _shOutBolt = it.specialProjectile ? null : pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor, true);
-        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt, { forceMiss: _forceMiss });
+        shootWithPitfallBag(idx, _shOutBolt, { forceMiss: _forceMiss });
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
         /* 床から射った矢/石は残量を床に戻す */
         if (floorArrowRef?.current) {
@@ -4027,7 +4029,7 @@ export function useItemActions({
           const _faI = p.inventory.indexOf(_fa);
           if (_faI !== -1) {
             p.inventory.splice(_faI, 1);
-            placeItemAt(dg, p.x, p.y, _fa, ml, new Set(), 0, p);
+            withPitfallBag(() => placeItemAt(dg, p.x, p.y, _fa, ml, new Set(), 0, p));
           }
         }
       } else if (mode === "wand_wave") {
@@ -4277,7 +4279,7 @@ export function useItemActions({
         /* ── インベントリから投げる特殊飛び道具 ── */
         if (it.type === "arrow" && it.specialProjectile) {
           /* 通常の矢と同じく「投げる」は束全体を1発にまとめる。 */
-          shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+          shootWithPitfallBag(idx, null, {
             forceMiss: _forceMiss,
             bundle: true,
           });

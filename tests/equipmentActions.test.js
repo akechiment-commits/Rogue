@@ -18,7 +18,7 @@ import { applyPlayerPoison, applyYabaiPoison } from "../statusDuration.js";
 import { advanceEarlyStatusTimers } from "../turnUpkeep.js";
 import { makePlayer, makeEmptyDg } from "./helpers.js";
 import { cancelModalConfirmation } from "../modalConfirmation.js";
-import { MW, MH } from "../utils.js";
+import { MW, MH, T } from "../utils.js";
 import { MONS, makeMonsterFromBase } from "../monsters.js";
 
 afterEach(() => { effects.length = 0; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -52,6 +52,37 @@ function choose(f, mode, control) {
 }
 
 describe("外れた飛び道具の着地で起動する罠", () => {
+  it.each(["shoot", "shoot_equipped"])("%sの共有射撃から着地した弾を落とし穴で次の階へ渡す", mode => {
+    const wakka = mode === "shoot_equipped";
+    const ammo = wakka
+      ? { id: "stone", name: "石", type: "arrow", stone: true, atk: 3, count: 1 }
+      : { id: "arrow", name: "矢", type: "arrow", atk: 3, count: 1 };
+    const below = makeEmptyDg({ rooms: [{ x: 1, y: 1, w: 12, h: 12 }] });
+    const f = fixture([ammo], wakka ? { arrow: ammo, rings: [{ effect: "wakka_ring" }] } : {}, {
+      throwMode: { mode, idx: 0 },
+      withPitfallBag: run => {
+        const bag = [];
+        setPitfallBag(bag);
+        try { run(); } finally { clearPitfallBag(); }
+        processPitfallBag(bag, f.sr.current.floors, 1, f.sr.current);
+      },
+    });
+    f.sr.current.floors[2] = below;
+    f.dungeon.map[5][7] = T.WALL;
+    f.dungeon.traps.push({ id: "pitfall", name: "落とし穴", effect: "pitfall", x: 6, y: 5, permanent: true });
+    if (wakka) {
+      f.dungeon.monsters.push(makeMonsterFromBase(MONS.find(mon => mon.baseKind === "kobold"), 1, 6, 5));
+      f.dungeon.pentacles.push({ kind: "dodge", blessed: true, x: 10, y: 10 });
+    }
+
+    f.actions.execDirection(1, 0);
+
+    expect(f.dungeon.items).toEqual([]);
+    expect(below.items).toMatchObject([{ name: ammo.name, count: 1 }]);
+    expect(below.monsters).toHaveLength(wakka ? 1 : 0);
+    expect(f.props.endTurn).toHaveBeenCalledOnce();
+  });
+
   it.each([
     ["throw", { name: "短剣", type: "weapon", atk: 3 }],
     ["throw", { name: "炎の杖", type: "wand", effect: "fire_wand", charges: 2 }],

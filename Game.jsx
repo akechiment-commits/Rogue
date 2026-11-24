@@ -3556,28 +3556,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
                   if (_srAr.specialProjectile || _srAr.rightStone) {
-                    shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+                    withPitfallBag(() => shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
                       forceMiss: _srForceMiss,
-                    });
+                    }));
                     if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
                     continue;
                   }
                   if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile &&
                       (dg.monsters || []).some(mn => !mn.disguisedAsItem && !mn.isPlayerClone && (mn.hp ?? 1) > 0 &&
                         Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)) {
-                    shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+                    withPitfallBag(() => shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
                       forceMiss: _srForceMiss,
                       wakka: true,
-                    });
+                    }));
                     if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
                     continue;
                   }
                   const _arName = _srAr.name || "矢";
-                  p.arrow.count--;
+                  _srAr.count--;
+                  const usedLastAmmo = _srAr.count <= 0;
+                  if (usedLastAmmo) {
+                    p.inventory = p.inventory.filter(item => item !== _srAr);
+                    p.arrow = null;
+                  }
                   let _srUnit = null;
                   const _srDrop = () => {
                     if (!_srUnit) _srUnit = makeArrowUnitFromStack(_srAr);
                     return _srUnit;
+                  };
+                  const landExtraShot = (x, y, messages) => {
+                    withPitfallBag(() => placeItemAt(dg, x, y, _srDrop(), messages, new Set(), 0, p));
                   };
                   const _srPeel = () => { if (!_srUnit) peelShopArrowUnit(_srAr); };
                   /* ── 石 ── */
@@ -3634,7 +3642,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         ml.push(`跳ね返された${_arName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
                         _srPeel();
                       } else {
-                        const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, _srDrop(), ml, _stRft);
+                        landExtraShot(_stRx, _stRy, ml);
                       }
                     } else if (_stM && !_srForceMiss && !checkMonsterEvasion(_stM, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.10 })) {
                       if (absorbProjectileIntoMonster(_stM, _srDrop(), dg, p, ml, lu, {
@@ -3654,7 +3662,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       }
                     } else {
                       if (_stM) ml.push(`${_arName}は${_stM.name}に外れた！`);
-                      const _stft = new Set(); placeItemAt(dg, _stLx, _stLy, _srDrop(), ml, _stft);
+                      landExtraShot(_stLx, _stLy, ml);
                     }
                     }
                   /* ── 魔法の石 ── */
@@ -3691,8 +3699,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         if (_msSpring) soakItemIntoSpring(_msSpring, _srDrop(), ml, dg, null, p);
                         else if (_msBigbox) bigboxAddItem(_msBigbox, _srDrop(), dg, ml);
                         else {
-                          const _msft = new Set();
-                          withPitfallBag(() => placeItemAt(dg, _msLx, _msLy, _srDrop(), ml, _msft, 0, p));
+                          landExtraShot(_msLx, _msLy, ml);
                         }
                       }
                     } else if (monReflectsProjectiles(_msTarget)) {
@@ -3704,7 +3711,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       baseMissRate: 0.10,
                     })) {
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
-                      const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, _srDrop(), ml, _msft);
+                      landExtraShot(_msTarget.x, _msTarget.y, ml);
                     } else {
                       const _msDmg = clampDmgFixed(_msTarget, calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def), true);
                       _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
@@ -3767,7 +3774,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         return;
                       }
                       mlx.push(`【射撃の指輪】${_arName}を発射した。`);
-                      const _ft = new Set(); placeItemAt(dg, lx, ly, _srDrop(), mlx, _ft);
+                      landExtraShot(lx, ly, mlx);
                     };
                     _resolveBolt(p, dg, p, ml, lu, {
                       isPlayerShooter: true,
@@ -3798,7 +3805,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         if (_srForceMiss || checkMonsterEvasion(mon, { sureHit: (p.sureHitTurns || 0) > 0, baseMissRate: 0.25 })) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
                           mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
-                          const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _srDrop(), mlx, _mft);
+                          landExtraShot(mon.x, mon.y, mlx);
                           return;
                         }
                         const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
@@ -3826,11 +3833,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     });
                     _srPeel();
                   }
-                  if (p.arrow && p.arrow.count <= 0) {
-                    p.inventory = p.inventory.filter(i => i !== _srAr);
-                    p.arrow = null;
-                    ml.push(`${_arName}を使い切った。`);
-                  }
+                  if (usedLastAmmo) ml.push(`${_arName}を使い切った。`);
                 }
               }
             }
