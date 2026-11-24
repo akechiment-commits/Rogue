@@ -122,7 +122,7 @@ describe("空中を飛ぶ道具と床の罠", () => {
     expect(s.player.hp).toBe(100);
   });
 
-  it("壁の手前へ落ちる壺は、その着地点の落とし穴で落ちる", () => {
+  it("壁に当たった壺は先に割れ、中身だけが落とし穴に落ちる", () => {
     const shooter = { x: 5, y: 5, name: "投げる敵", hp: 30, atk: 10 };
     const player = makePlayer({ x: 12, y: 12, atk: 10 });
     const trap = makeTrap("pitfall", 5, 10);
@@ -130,9 +130,11 @@ describe("空中を飛ぶ道具と床の罠", () => {
     dungeon.map[11][5] = "#";
     const held = structuredClone(pot);
     const bag = [];
+    const messages = [];
     setPitfallBag(bag);
-    throwItemAlongLine(shooter, dungeon, held, 0, 1, 10, [], player, null);
-    expect(bag).toEqual([{ kind: "item", entity: held }]);
+    throwItemAlongLine(shooter, dungeon, held, 0, 1, 10, messages, player, null);
+    expect(bag).toEqual([{ kind: "item", entity: held.contents[0] }]);
+    expect(messages[0]).toContain("保存の壺が割れて");
     expect(dungeon.items).toEqual([]);
   });
 

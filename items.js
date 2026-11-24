@@ -3861,6 +3861,20 @@ export function applyPoisonArrowDamageReduction(monster, messages = null) {
   return monster.poisonArrowDamageHalves;
 }
 
+export function triggerThrownItemLandingTrap(dg, x, y, item, p, ml, { nameFn = null, luFn = null, bbFn = null, ft = new Set() } = {}) {
+  const trap = dg.traps?.find(t => t.x === x && t.y === y);
+  if (!trap || (dg.timeStopTurns || 0) > 0 || !canActivateTrap(dg, trap)) return false;
+
+  trap.revealed = true;
+  ft.add(trap.id);
+  const result = fireTrapItem(trap, item, dg, x, y, ml, ft, p, nameFn, luFn, null, bbFn);
+  if (result !== "already_activated" && result !== "time_stopped" && trap.effect !== "explode" &&
+      !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
+    removeTrap(dg, trap, ml, { activated: true, message: `${trap.name}は壊れた。`, ft, p });
+  }
+  return result === "destroyed" || result === "pitfall_player";
+}
+
 let _fireTrapDepth = 0;
 export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null, identSet = null, bbFn = null) {
   if ((dg?.timeStopTurns || 0) > 0) return "time_stopped";
@@ -8234,18 +8248,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
      resへ引き継ぐ。これがないと投擲物が発射地点扱いになり、遮蔽物の裏で
      消えたように見える。 */
   let _terminalStop = null;
-  let _destroyedByTrap = false;
   const _trapFt = new Set();
-  const _landOnTrap = (trap, lx, ly, mlx) => {
-    trap.revealed = true;
-    _trapFt.add(trap.id);
-    const r = fireTrapItem(trap, item, dg, lx, ly, mlx, _trapFt, p, null, null, null, opts.bbFn);
-    if (r !== "already_activated" && r !== "time_stopped" && trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
-      removeTrap(dg, trap, mlx, { activated: true, message: `${trap.name}は壊れた。`, ft: _trapFt, p });
-    }
-    if (r === "destroyed" || r === "pitfall_player") { res.consumed = true; _destroyedByTrap = true; return "destroyed"; }
-    res.x = lx; res.y = ly; res.consumed = false;
-  };
 
   /* 通常投擲ダメージ計算（防具・指輪・巻物・壺・空き瓶も種別補正を反映） */
   const _projDmg = (def = 0) => calcProjectileDmg(p, thrownItemAttack(item), def);
@@ -8439,10 +8442,10 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       res.consumed = true; res.hitEnemyProjectile = projectile; res.x = lx; res.y = ly;
     },
     onWallStop: (lx, ly) => {
-      _terminalStop = { x: lx, y: ly };
+      _terminalStop = { x: lx, y: ly, hitWall: true };
     },
-    onFlyOff: (lx, ly) => {
-      _terminalStop = { x: lx, y: ly };
+    onFlyOff: (lx, ly, _mlx, { hitWall = false } = {}) => {
+      _terminalStop = { x: lx, y: ly, hitWall };
     },
   });
 
@@ -8451,13 +8454,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     res.y = _terminalStop.y;
   }
 
-  /* 空中で通過した罠は踏まず、壁・射程端で床に落ちる道具だけを判定する。
-     落とし穴などで消費された壺・杖を、破損処理や再配置へ回さない。 */
+  /* 薬瓶・壺は壁に当たると先に割れる。射程端や回避で床に落ちる時は罠が先。 */
   const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue && !res.hitEnemyProjectile;
-  if (_noHit && (!res.missedPlayer || _isPotion || _isPot)) {
-    const trap = dg.traps?.find(t => t.x === res.x && t.y === res.y);
-    if (trap && (dg.timeStopTurns || 0) <= 0 && canActivateTrap(dg, trap)) _landOnTrap(trap, res.x, res.y, ml);
-  }
+  const breaksOnWall = _terminalStop?.hitWall && (_isPotion || _isPot);
+  const caughtByTrap = _noHit && !breaksOnWall && (!res.missedPlayer || _isPotion || _isPot) &&
+    triggerThrownItemLandingTrap(dg, res.x, res.y, item, p, ml, { nameFn, luFn, bbFn, ft: _trapFt });
+  if (caughtByTrap) res.consumed = true;
 
   /* 偽アイテムが命中・泉・大箱などで消費された場合は、紐付いた本体も消す。
      何にも当たらず着地する場合だけ、偽アイテムとして床に残す。 */
@@ -8466,7 +8468,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     dg.items = dg.items.filter(i => i !== item);
   }
   /* 薬瓶も含め、着地罠で消費された道具に破損・薬液などを重ねない。 */
-  if (_destroyedByTrap) return res;
+  if (caughtByTrap) return res;
 
   /* 薬瓶・壺は外れても着地点で割れる。他の外れた投擲物は破損・爆発せず落とす。
      貫通中に別の対象へ命中した場合は、その着弾処理を優先する。 */

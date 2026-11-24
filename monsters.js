@@ -4204,7 +4204,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn, bbFn = null) {
   * onSelfHit(mon, lx, ly, ml): 風などで敵の飛び道具が射手自身に命中した時のコールバック。
   * onEnemyProjectileHit(projectile, lx, ly, ml): プレイヤーの弾が敵の誘導弾に命中した時のコールバック。
  * onWallStop(lx, ly, ml): pierce/farcast以外で壁にぶつかって止まった時のコールバック
- * onFlyOff(lx, ly, ml): 飛距離を使い切って何にも当たらず終了した時のコールバック
+ * onFlyOff(lx, ly, ml, details): 飛翔終了時のコールバック。反射後の壁衝突では details.hitWall を渡す。
  * isPlayerShooter: プレイヤーが射手の場合true（mにplを渡す）。dodge魔方陣の早期returnをスキップ、
  *   プレイヤー軌道アニメを使用、デフォルトメッセージから射手名プレフィクスを除去、
  *   モンスター撃破時のkillerMonをnullにして経験値加算する。
@@ -4490,7 +4490,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           const _rnx = _rrx - dx, _rny = _rry - dy;
           if (_rnx < 0 || _rnx >= MW || _rny < 0 || _rny >= MH) break;
           const _rtile = dg.map[_rny]?.[_rnx];
-          if (_rtile === T.WALL || _rtile === T.BWALL) break;
+          if (_rtile === T.WALL || _rtile === T.BWALL) {
+            onFlyOff?.(_rrx, _rry, ml, { hitWall: true });
+            return;
+          }
           if (_rnx === pl.x && _rny === pl.y) {
             if (!customPlHit && consumeBarrier(pl, ml)) return;
             weakenOrClearParalysis(pl, ml);

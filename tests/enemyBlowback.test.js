@@ -279,7 +279,7 @@ describe("敵の吹き飛ばしによる衝突撃破", () => {
 describe("敵の吹き飛ばしの杖が床の道具に当たる場合", () => {
   it.each([
     ["wand", "explode"], ["pot", "explode"], ["wand", "pitfall"], ["pot", "pitfall"],
-  ])("%sが%sで消費された後、元の階へ再配置しない", (type, effect) => {
+  ])("壁で止まった%sと%sの処理後に壺や杖を元の階へ再配置しない", (type, effect) => {
     vi.spyOn(Math, "random").mockReturnValue(0.99);
     const mage = makeMonsterFromBase(MONS.find(mon => mon.baseKind === "windmage"), 1, 5, 5);
     Object.assign(mage, { aware: true, alwaysUseSpecial: true, _phaseActionCount: 1, _movesMadeThisPhase: 0 });
@@ -292,7 +292,7 @@ describe("敵の吹き飛ばしの杖が床の道具に当たる場合", () => {
     const player = makePlayer({ x: 10, y: 5, exp: 0 });
     const dungeon = makeEmptyDg({ monsters: [mage], traps: [trap], items: [moved],
       rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
-    // 壁の手前の着地罠。飛翔中に罠を踏む設定にはしない。
+    // 壺は壁で割れてから中身が落ち、杖はそのまま床に落ちる。
     dungeon.map[5][9] = T.WALL;
     const bag = [];
     setPitfallBag(bag);
@@ -302,7 +302,7 @@ describe("敵の吹き飛ばしの杖が床の道具に当たる場合", () => {
     expect(dungeon.items).toEqual([]);
     expect(player.hp).toBe(100);
     expect(bag).toHaveLength(effect === "pitfall" ? 1 : 0);
-    if (effect === "pitfall") expect(bag[0].entity).toBe(moved);
+    if (effect === "pitfall") expect(bag[0].entity).toBe(type === "pot" ? moved.contents[0] : moved);
   });
 });
 

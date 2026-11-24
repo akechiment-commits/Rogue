@@ -12,7 +12,7 @@ import {
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, applyInnateFoodEffectOnHit, foodEffectMultiplier, foodHungerAmount, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster, foodEffectTier, applyYogurtFoodEffect,
   applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
-  castSpellBolt, doExplosion, doGunpowderExplosion, detonateBombArrow, chainExplosionHazards, fireTrapItem, trapStepBreakChance,
+  castSpellBolt, doExplosion, doGunpowderExplosion, detonateBombArrow, chainExplosionHazards, triggerThrownItemLandingTrap, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect, applyFireSpellBlast,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone, absorbProjectileIntoMonster,
@@ -4603,9 +4603,12 @@ export function useItemActions({
           });
           if (_trFly.bent) ml.push("風穴の風が飛び道具を曲げた！");
         }
+        const triggerLandingTrap = (x, y) =>
+          triggerThrownItemLandingTrap(dg, x, y, it, p, ml, { nameFn: dnameRef, luFn: lu, bbFn: bigboxAddItem });
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false, _hitSelf = false, _hitEnemyProjectile = false;
+          let brokeOnImpact = false;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           let _tFdx = dx, _tFdy = dy, _tCx = p.x, _tCy = p.y, _tWind = false;
           for (let d = 1; d <= _maxRange; d++) {
@@ -4615,7 +4618,10 @@ export function useItemActions({
             const tx = _ts.x, ty = _ts.y;
             _tCx = tx; _tCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) {
+              brokeOnImpact = true;
+              break;
+            }
             if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, dnameRef(it))) {
               lx = tx; ly = ty; _hitEnemyProjectile = true; break;
             }
@@ -4662,6 +4668,7 @@ export function useItemActions({
                 else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else {
+                brokeOnImpact = true;
                 lx = tx; ly = ty; break;
               }
             }
@@ -4692,22 +4699,23 @@ export function useItemActions({
               }
             }
             ml.push(`${dnameRef(it)}は消滅した。`);
-          } else if (_isCursedFc) {
-            /* 呪い遠投：1マスで落ちてsplash */
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
-            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
-          } else if (sprHit?.kind) {
+          } else if (!_isCursedFc && sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
-          } else if (sprHit && !sprHit.kind) {
+          } else if (!_isCursedFc && sprHit) {
             const _soakRes4 = soakItemIntoSpring(sprHit, it, ml, dg, dnameRef, p);
             if (_soakRes4?.wish) setWishMode({ source: "spring", spring: sprHit, springDungeon: dg, endTurnOnCancel: true });
-          } else if (!sprHit) {
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
-            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
+          } else {
+            withPitfallBag(() => {
+              if (!brokeOnImpact && !sprHit && triggerLandingTrap(lx, ly)) return;
+              if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
+              else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
+            });
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}${_itemPickupSuffix(it, sr.current?.ident)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false, _potHitSelf = false, _potHitEnemyProjectile = false, _potFellIntoPit = false;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false, _potHitSelf = false, _potHitEnemyProjectile = false;
+          let brokeOnImpact = false;
+          let landedAfterMiss = false;
           let _pFdx = dx, _pFdy = dy, _pCx = p.x, _pCy = p.y, _pWind = false;
           for (let d = 1; d <= _maxRange; d++) {
             const _ps = stepProjectile(dg, _pCx, _pCy, _pFdx, _pFdy);
@@ -4716,7 +4724,10 @@ export function useItemActions({
             const tx = _ps.x, ty = _ps.y;
             _pCx = tx; _pCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) {
+              brokeOnImpact = true;
+              break;
+            }
             if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, dnameRef(it))) {
               lx = tx; ly = ty; _potHitEnemyProjectile = true; break;
             }
@@ -4770,15 +4781,11 @@ export function useItemActions({
                 /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
                 if (_potDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に${dnameRef(it)}が当たらなかった！`);
                 lx = tx; ly = ty;
+                landedAfterMiss = true;
                 ml.push(`${dnameRef(it)}は${m.name}に外れ、足元に落ちた！`);
-                const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_ptTrap) {
-                  let _ptResult;
-                  withPitfallBag(() => { _ptResult = fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu, null, bigboxAddItem); });
-                  _potFellIntoPit = _ptTrap.effect === "pitfall" && (_ptResult === "destroyed" || _ptResult === "pitfall_player");
-                }
                 break;
               }
+              brokeOnImpact = true;
               if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; break; } }
               else if (it.potEffect === "imprison") {
                 const _impRem = imprisonPotRemainingCapacity(it);
@@ -4820,15 +4827,16 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_potFellIntoPit) {
-            /* 壺ごと次の階へ渡したので、元の階では割らず中身も撒かない。 */
-          } else if (_potHitEnemyProjectile) {
+          if (_potHitEnemyProjectile) {
             /* 敵の誘導弾に当たって、壺も誘導弾も消滅する。 */
           } else if (_potFdBurned) {
             /* 火ダルマに燃やされた：何もしない */
           } else if (_isFarcast) {
-            /* 遠投：壺は消滅（中身もろとも） */
-            ml.push(`${dnameRef(it)}は消滅した。`);
+            /* 遠投では、外れて床に落ちた時だけ罠を判定する。 */
+            withPitfallBag(() => {
+              if (landedAfterMiss && triggerLandingTrap(lx, ly)) return;
+              ml.push(`${dnameRef(it)}は消滅した。`);
+            });
           } else if (_potHitSelf) {
             ml.push(`風に煽られた${dnameRef(it)}が自分に当たった！`);
             if (it.potEffect === "imprison") {
@@ -4847,7 +4855,10 @@ export function useItemActions({
             const _impFt = new Set();
             placeItemAt(dg, lx, ly, it, ml, _impFt, 0, p);
           } else {
-            scatterPotContents(it, dg, lx, ly, p, ml, lu, dnameRef);
+            withPitfallBag(() => {
+              if (!brokeOnImpact && triggerLandingTrap(lx, ly)) return;
+              scatterPotContents(it, dg, lx, ly, p, ml, lu, dnameRef);
+            });
           }
         } else {
           const _tdBaseAtk = it.type === "arrow"
