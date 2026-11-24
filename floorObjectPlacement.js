@@ -15,7 +15,7 @@ export const STAIR_UP_DESC =
  * @param {object} dg
  * @param {number} x
  * @param {number} y
- * @param {{ ignore?: object, p?: object, allowPlayer?: boolean, allowMonster?: boolean, allowStairTile?: boolean }} [opts]
+ * @param {{ ignore?: object, p?: object, allowPlayer?: boolean, allowMonster?: boolean, allowStairTile?: boolean, allowTrap?: boolean }} [opts]
  */
 export function isFloorOccupancyBlocked(dg, x, y, opts = {}) {
   if (!dg?.map) return true;
@@ -27,7 +27,7 @@ export function isFloorOccupancyBlocked(dg, x, y, opts = {}) {
   if (!opts.allowPlayer && opts.p && opts.p.x === x && opts.p.y === y) return true;
   if (!opts.allowMonster && dg.monsters?.some((m) => monsterOccupiesCell(m, x, y))) return true;
   if (dg.items?.some((i) => i !== ignore && i.x === x && i.y === y && !i.wallEmbedded)) return true;
-  if (dg.traps?.some((t) => t !== ignore && t.x === x && t.y === y)) return true;
+  if (!opts.allowTrap && dg.traps?.some((t) => t !== ignore && t.x === x && t.y === y)) return true;
   if (dg.springs?.some((s) => s !== ignore && s.x === x && s.y === y)) return true;
   if (dg.bigboxes?.some((b) => b !== ignore && b.x === x && b.y === y)) return true;
   if (dg.gachaMachines?.some((g) => g !== ignore && g.x === x && g.y === y)) return true;

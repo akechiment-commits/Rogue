@@ -8176,7 +8176,6 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
      消えたように見える。 */
   let _terminalStop = null;
   let _destroyedByTrap = false;
-  let goalBoxLanding = null;
   const _trapFt = new Set();
   const _landOnTrap = (trap, lx, ly, mlx) => {
     trap.revealed = true;
@@ -8330,9 +8329,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     },
     onBigbox: (bb, lx, ly, mlx, prevX, prevY) => {
       if (item.type === "goal") {
-        const canLand = (x, y) => !isFloorOccupancyBlocked(dg, x, y, { ignore: item, allowMonster: true, allowPlayer: true });
+        const canLand = (x, y) => !isFloorOccupancyBlocked(dg, x, y, { ignore: item, allowMonster: true, allowPlayer: true, allowTrap: true });
         if (canLand(prevX, prevY)) {
-          goalBoxLanding = { x: prevX, y: prevY };
+          _terminalStop = { x: prevX, y: prevY };
         } else {
           const canLandByBox = ([ox, oy]) => canLand(lx + ox, ly + oy);
           const nearOffset = DRO.find(offset => {
@@ -8340,12 +8339,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
             return ox * (lx - prevX) + oy * (ly - prevY) <= 0 && canLandByBox(offset);
           }) ?? DRO.find(canLandByBox);
           if (nearOffset) {
-            goalBoxLanding = { x: lx + nearOffset[0], y: ly + nearOffset[1] };
+            _terminalStop = { x: lx + nearOffset[0], y: ly + nearOffset[1] };
           } else {
             const { path } = traceProjectilePath(dg, shooter.x, shooter.y, dx, dy, range, {
               wind, stopAtMon: false, stopAtContainers: true,
             });
-            goalBoxLanding = path.reverse().find(({ x, y }) => canLand(x, y)) ?? { x: shooter.x, y: shooter.y };
+            _terminalStop = path.reverse().find(({ x, y }) => canLand(x, y)) ?? { x: shooter.x, y: shooter.y };
           }
         }
         mlx.push(`${_itemName}は大箱に弾かれて床に落ちた。`);
@@ -8376,13 +8375,6 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       _terminalStop = { x: lx, y: ly };
     },
   });
-
-  if (goalBoxLanding) {
-    Object.assign(item, goalBoxLanding);
-    markItemIdentifiedForDungeon(item, dg);
-    if (!dg.items.includes(item)) dg.items.push(item);
-    return { ...res, ...goalBoxLanding };
-  }
 
   if (_terminalStop) {
     res.x = _terminalStop.x;

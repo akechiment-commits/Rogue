@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, it, vi } from "vitest";
-import { BB_TYPES } from "../items.js";
+import { BB_TYPES, clearPitfallBag, setPitfallBag } from "../items.js";
 import { GOAL_ITEMS } from "../dungeon.js";
 import { applyWandEffect } from "../wands.js";
 import { installPlayerHpMessageHook, T } from "../utils.js";
@@ -38,15 +38,16 @@ it.each(BB_TYPES)("手持ちのキーアイテムを$nameへ入れようとし�
 });
 
 it.each([
-  { kind: "greed", trapAhead: false, landing: { x: 7, y: 5 } },
-  { kind: "nitro", trapAhead: false, landing: { x: 7, y: 5 } },
-  { kind: "trash", trapAhead: true, landing: { x: 8, y: 4 } },
-])("吹き飛ばされたキーアイテムは$kindの箱に入らず床に残る", ({ kind, trapAhead, landing }) => {
+  { kind: "greed", itemAhead: false, landing: { x: 7, y: 5 } },
+  { kind: "nitro", itemAhead: false, landing: { x: 7, y: 5 } },
+  { kind: "trash", itemAhead: true, landing: { x: 8, y: 4 } },
+])("吹き飛ばされたキーアイテムは$kindの箱に入らず床に残る", ({ kind, itemAhead, landing }) => {
   const goal = { ...GOAL_ITEMS.legend, id: "goal", x: 6, y: 5 };
   const box = { kind, x: 8, y: 5, capacity: 1, contents: [] };
-  const trap = { id: "pitfall", name: "落とし穴", effect: "pitfall", x: 7, y: 5 };
+  const stone = { id: "stone", name: "石", type: "arrow", x: 7, y: 5 };
   const player = makePlayer({ x: 5, y: 5 });
-  const dungeon = makeEmptyDg({ items: [goal], bigboxes: [box], traps: trapAhead ? [trap] : [] });
+  const items = itemAhead ? [goal, stone] : [goal];
+  const dungeon = makeEmptyDg({ items, bigboxes: [box] });
   const addItem = vi.fn();
   const messages = [];
 
@@ -55,17 +56,16 @@ it.each([
   expect(addItem).not.toHaveBeenCalled();
   expect(dungeon.bigboxes).toEqual([box]);
   expect(box).toMatchObject({ capacity: 1, contents: [] });
-  expect(dungeon.items).toEqual([goal]);
+  expect(dungeon.items.filter(item => item.type === "goal")).toEqual([goal]);
   expect(goal).toMatchObject(landing);
-  expect(trap.revealed).toBeUndefined();
 });
 
 it("箱の周囲に空き床がなければ飛んできた軌道上の一番近い空き床へ落ちる", () => {
   const goal = { ...GOAL_ITEMS.legend, id: "goal", x: 6, y: 5 };
   const box = { kind: "trash", x: 12, y: 5, capacity: 1, contents: [] };
-  const traps = [10, 11].map(x => ({ id: `pitfall-${x}`, name: "落とし穴", effect: "pitfall", x, y: 5 }));
+  const items = [goal, ...[10, 11].map(x => ({ id: `stone-${x}`, name: "石", type: "arrow", x, y: 5 }))];
   const player = makePlayer({ x: 5, y: 5 });
-  const dungeon = makeEmptyDg({ items: [goal], bigboxes: [box], traps });
+  const dungeon = makeEmptyDg({ items, bigboxes: [box] });
   for (const row of dungeon.map) row.fill(T.WALL);
   dungeon.map[5].fill(T.FLOOR, 5, 13);
   const addItem = vi.fn();
@@ -73,7 +73,54 @@ it("箱の周囲に空き床がなければ飛んできた軌道上の一番近�
   applyWandEffect("knockback", "item", goal, 1, 0, dungeon, player, [], vi.fn(), addItem);
 
   expect(addItem).not.toHaveBeenCalled();
-  expect(dungeon.items).toEqual([goal]);
+  expect(dungeon.items.filter(item => item.type === "goal")).toEqual([goal]);
   expect(goal).toMatchObject({ x: 9, y: 5 });
-  expect(traps.every(trap => !trap.revealed)).toBe(true);
+});
+
+it.each([
+  { effect: "explode", name: "地雷", hp: 50, falls: false },
+  { effect: "pitfall", name: "落とし穴", hp: 100, falls: true },
+  { effect: "watergun_trap", name: "水鉄砲の罠", hp: 100, falls: false },
+])("箱に弾かれたキーアイテムは$nameを起動し、通常どおり消費される", ({ effect, name, hp, falls }) => {
+  const goal = { ...GOAL_ITEMS.legend, id: "goal", x: 6, y: 5 };
+  const box = { kind: "protect", x: 8, y: 5, capacity: 1, contents: [] };
+  const trap = { id: "trap", effect, name, x: 7, y: 5, permanent: true };
+  const player = makePlayer({ x: 6, y: 6 });
+  const dungeon = makeEmptyDg({ items: [goal], bigboxes: [box], traps: [trap] });
+  const messages = [];
+  const addItem = vi.fn();
+  const bag = [];
+  setPitfallBag(bag);
+  try {
+    applyWandEffect("knockback", "item", goal, 1, 0, dungeon, player, messages, vi.fn(), addItem);
+  } finally {
+    clearPitfallBag();
+  }
+
+  expect(addItem).not.toHaveBeenCalled();
+  expect(trap.revealed).toBe(true);
+  expect(messages.filter(message => message.startsWith(`${name}が発動！`))).toHaveLength(1);
+  expect(player.hp).toBe(hp);
+  expect(dungeon.items).not.toContain(goal);
+  expect(bag).toEqual(falls ? [{ kind: "item", entity: goal }] : []);
+});
+
+it("箱に弾かれたキーアイテムが道具魔物化の罠を起動する", () => {
+  const goal = { ...GOAL_ITEMS.legend, id: "goal", x: 6, y: 5 };
+  const bread = { id: "bread", name: "パン", type: "food", x: 10, y: 5 };
+  const box = { kind: "protect", x: 8, y: 5, capacity: 1, contents: [] };
+  const trap = { id: "trap", effect: "item_monster_trap", name: "道具魔物化の罠", x: 7, y: 5 };
+  const player = makePlayer({ x: 5, y: 5, depth: 4 });
+  const dungeon = makeEmptyDg({
+    items: [goal, bread], bigboxes: [box], traps: [trap],
+    rooms: [{ x: 3, y: 3, w: 10, h: 8 }], dungeonType: "beginner",
+  });
+
+  applyWandEffect("knockback", "item", goal, 1, 0, dungeon, player, [], vi.fn(), vi.fn());
+
+  expect(trap.revealed).toBe(true);
+  expect(dungeon.traps).not.toContain(trap);
+  expect(dungeon.monsters).toMatchObject([{ x: 10, y: 5 }]);
+  expect(dungeon.items).toEqual([goal]);
+  expect(goal).toMatchObject({ x: 7, y: 5 });
 });
