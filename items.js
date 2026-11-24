@@ -1,5 +1,5 @@
 import { monsterOccupiesCell, monsterBodySize, monsterBodyCells, monsterBodiesOverlap, monsterAreaTargets, canPlaceMonsterBody } from "./monsterGeometry.js";
-import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense, countEquippedRings, rewindNextExp } from './utils.js';
+import { setPlayerHpForFixedEffect, setPlayerHpForCapacityChange, rng, pick, uid, clamp, MW, MH, FARCAST_RANGE, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, revealDisguisedItemMimic, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, traceProjectilePath, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats, resolveRuntimeSpawnPoolFloor, calcPlayerDefense, countEquippedRings, rewindNextExp } from './utils.js';
 import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } from './synthMonster.js';
 import { adjustMonsterPermanentStat } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
@@ -8330,9 +8330,25 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     },
     onBigbox: (bb, lx, ly, mlx, prevX, prevY) => {
       if (item.type === "goal") {
-        const blocked = isFloorOccupancyBlocked(dg, prevX, prevY, { ignore: item, allowMonster: true, allowPlayer: true });
-        goalBoxLanding = blocked ? { x: shooter.x, y: shooter.y } : { x: prevX, y: prevY };
-        mlx.push(`${_itemName}は大箱に入らず床に落ちた。`);
+        const canLand = (x, y) => !isFloorOccupancyBlocked(dg, x, y, { ignore: item, allowMonster: true, allowPlayer: true });
+        if (canLand(prevX, prevY)) {
+          goalBoxLanding = { x: prevX, y: prevY };
+        } else {
+          const canLandByBox = ([ox, oy]) => canLand(lx + ox, ly + oy);
+          const nearOffset = DRO.find(offset => {
+            const [ox, oy] = offset;
+            return ox * (lx - prevX) + oy * (ly - prevY) <= 0 && canLandByBox(offset);
+          }) ?? DRO.find(canLandByBox);
+          if (nearOffset) {
+            goalBoxLanding = { x: lx + nearOffset[0], y: ly + nearOffset[1] };
+          } else {
+            const { path } = traceProjectilePath(dg, shooter.x, shooter.y, dx, dy, range, {
+              wind, stopAtMon: false, stopAtContainers: true,
+            });
+            goalBoxLanding = path.reverse().find(({ x, y }) => canLand(x, y)) ?? { x: shooter.x, y: shooter.y };
+          }
+        }
+        mlx.push(`${_itemName}は大箱に弾かれて床に落ちた。`);
         return;
       }
       if (bigboxLandMsg) { const _m = bigboxLandMsg(bb, lx, ly); if (_m) mlx.push(_m); }
