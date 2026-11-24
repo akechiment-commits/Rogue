@@ -1799,6 +1799,7 @@ export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
 
 function applyAltarPunishment(victim, dg, ml, p = null, luFn = null) {
   if (!victim) return false;
+  if (consumeBarrier(victim, ml)) return true;
   const victimName = victim.name || (victim === p ? "あなた" : "破壊者");
   const damage = rng(20, 30);
   if (victim === p) {
@@ -7852,6 +7853,7 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
       ml.push(`${target === p ? "眠りの花粉" : target.name}は魔封じの魔方陣に守られた！`);
       continue;
     }
+    if (consumeBarrier(target, ml)) continue;
     if (isStatusImmune(target, ml, target === p ? null : target.name)) continue;
     if (target !== p && blockLargeMonsterStatus(target, "sleep", ml)) continue;
     if (target === p && hasAbility(p.armor, "sleep_proof")) {

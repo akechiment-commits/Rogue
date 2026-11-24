@@ -1241,7 +1241,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     }
   }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
-  if (dg.pentacles?.length > 0 && dmg > 0 && !inMagicSealRoom(pl.x, pl.y, dg)) {
+  if (!ranged && dg.pentacles?.length > 0 && dmg > 0 && !inMagicSealRoom(pl.x, pl.y, dg)) {
     const _plRoom = findRoom(dg.rooms, pl.x, pl.y);
     const _kbPc = _plRoom && dg.pentacles.find(pc =>
       pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _plRoom);
@@ -1256,12 +1256,15 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
           let _moved = 0;
           for (let _ki = 0; _ki < _dist; _ki++) {
             const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
-            if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-              const _impact = 5; pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= _impact; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
-              break;
-            }
-            if (dg.monsters.some(mon2 => mon2 !== m && monsterOccupiesCell(mon2, _nx, _ny))) {
-              const _impact = 5; pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= _impact; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
+            const hitWall = !inBounds(_nx, _ny) || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL;
+            const hitMonster = !hitWall && dg.monsters.some(mon2 => mon2 !== m && monsterOccupiesCell(mon2, _nx, _ny));
+            if (hitWall || hitMonster) {
+              if (!consumeBarrier(pl, ml)) {
+                const impact = 5;
+                pl.deathCause = hitWall ? "吹き飛ばされての壁への激突により" : "吹き飛ばされてモンスターへの衝突により";
+                pl.hp -= impact;
+                ml.push(`${hitWall ? "壁に叩きつけられた" : "モンスターに激突した"}！${playerHpEffectLabel(pl, impact)}！`);
+              }
               break;
             }
             _cx2 = _nx; _cy2 = _ny; _moved++;
@@ -2692,13 +2695,14 @@ function useFireCookAbility(mon, dungeon, player, messages, luFn) {
   const target = pick(targets);
   const originalIndex = player.inventory.indexOf(target);
   if (originalIndex < 0) return false;
+  mon.turnAttacks++;
+  if (consumeBarrier(player, messages)) return true;
   const targetName = target.name || "道具";
 
   if (target.type === "food" && target.yabai) {
     recookYabaiFood(target);
     target.tile = 66;
     trackItem(target);
-    mon.turnAttacks++;
     messages.push(`${mon.name}が${targetName}を焦がし直し、焦げた料理に変えた！`);
     return true;
   }
@@ -2706,7 +2710,6 @@ function useFireCookAbility(mon, dungeon, player, messages, luFn) {
   if (target.type === "food" && target.rotten) {
     burnFoodItem(target, []);
     trackItem(target);
-    mon.turnAttacks++;
     messages.push(`${mon.name}が${targetName}を焼いて腐敗を取り除いた！`);
     return true;
   }
@@ -2714,7 +2717,6 @@ function useFireCookAbility(mon, dungeon, player, messages, luFn) {
   if (target.type === "food" && target.burnt) {
     burnFoodItem(target, []);
     trackItem(target);
-    mon.turnAttacks++;
     messages.push(`${mon.name}が${targetName}をさらに焦がし、ヤバイ料理に変えた！`);
     return true;
   }
@@ -2730,7 +2732,6 @@ function useFireCookAbility(mon, dungeon, player, messages, luFn) {
   if (currentIndex >= 0) player.inventory[currentIndex] = food;
   else player.inventory.splice(Math.min(originalIndex, player.inventory.length), 0, food);
   trackItem(food);
-  mon.turnAttacks++;
   messages.push(`${mon.name}が${targetName}を料理し、${food.name}に変えてしまった！`);
   return true;
 }
@@ -2790,6 +2791,7 @@ function usePotRaiderAbility(mon, dungeon, player, messages, luFn) {
   if (potRaiderTargets(player).length === 0) return false;
   if (potRaiderStockLeft(mon) <= 0) return false;
   mon.turnAttacks++;
+  if (consumeBarrier(player, messages)) return true;
   const spawned = makePotRaiderSpawn(mon, player);
   const ok = insertSpawnedPotRaider(mon, spawned, dungeon, player, messages, luFn);
   if (ok) consumePotRaiderStock(mon);
@@ -2875,12 +2877,13 @@ function enterBigboxWithPotRaider(mon, spawned, bb, dg, pl, ml, luFn) {
       ml.push(`${spawned.name}が部屋中に拡散した！`);
       for (const target of [...targets]) {
         if (!dg.monsters.includes(target) || target.hp <= 0) continue;
+        if (consumeBarrier(target, ml)) continue;
         const dmg = monScaleOutgoingDamage(spawned, Math.max(1, spawned.atk - Math.floor((target.def || 0) / 2) + rng(-2, 2)));
         target.hp -= dmg;
         ml.push(`${spawned.name}が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, pl, ml, luFn, false, spawned);
       }
-      if (pInRoom) {
+      if (pInRoom && !consumeBarrier(pl, ml)) {
         const dmg = monScaleOutgoingDamage(spawned, calcAtkDefDmg(spawned.atk, calcPlayerDef(pl), { defWeight: 1.5 }));
         pl.deathCause = `拡散した${spawned.name}に当たって`;
         pl.hp -= dmg;
@@ -2994,7 +2997,7 @@ function monsterThrowPotRaider(m, dg, pl, ml, luFn) {
         ml.push(`${m.name}の投げた${spawned.name}は外れた！`);
         missed = true;
       }
-      if (missed) {
+      if (missed || consumeBarrier(pl, ml)) {
         if (placeThrownPotRaider(spawned, pl.x, pl.y, dg, pl)) ml.push(`${spawned.name}が隣に現れた！`);
         else ml.push(`${spawned.name}は消えた…`);
       } else {
@@ -3963,12 +3966,13 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
 
     /* 自分に戻った */
     if (tx === m.x && ty === m.y) {
+      pushStoneArcAnim(tx, ty);
+      if (consumeBarrier(m, ml)) return;
       const _stBonus = isMagic ? 5 : 3;
       const dmg = monScaleOutgoingDamage(m, calcAtkDefDmg(m.atk + _stBonus, m.def || 0, { defWeight: 1 }));
       m.hp -= dmg;
       ml.push(`風に煽られた${stoneName}が${m.name}自身に当たった！${dmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, m);
-      pushStoneArcAnim(tx, ty);
       return;
     }
 
@@ -4368,11 +4372,13 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
 
     /* 風で曲がって射手（敵）自身に戻った */
     if (!isPlayerShooter && m.hp != null && _tx === m.x && _ty === m.y) {
-      const _selfDmg = ignorePoisonScale ? calcMonDmg(m) : monScaleOutgoingDamage(m, calcMonDmg(m));
-      m.hp -= _selfDmg;
-      ml.push(`風に煽られた${boltName}が${m.name}自身に当たった！${_selfDmg}ダメージ！`);
-      if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, m);
-      if (onSelfHit) onSelfHit(m, _tx, _ty, ml);
+      if (!consumeBarrier(m, ml)) {
+        const _selfDmg = ignorePoisonScale ? calcMonDmg(m) : monScaleOutgoingDamage(m, calcMonDmg(m));
+        m.hp -= _selfDmg;
+        ml.push(`風に煽られた${boltName}が${m.name}自身に当たった！${_selfDmg}ダメージ！`);
+        if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, m);
+        if (onSelfHit) onSelfHit(m, _tx, _ty, ml);
+      }
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
       return;
     }
@@ -5333,6 +5339,7 @@ function useDangerousPetalSleep(m, dg, pl, ml) {
     ml.push(`${m.name}が眠りの花粉をまこうとしたが、魔封じの魔方陣で封じられた！`);
     return true;
   }
+  if (consumeBarrier(pl, ml)) return true;
   if ((pl.statusImmune || 0) > 0) {
     ml.push(`${m.name}が眠りの花粉をまいた！しかし状態防止中のため眠らなかった！`);
     return true;
@@ -5350,6 +5357,41 @@ function useDangerousPetalSleep(m, dg, pl, ml) {
   weakenOrClearParalysis(pl, ml);
   pl.sleepTurns = turns;
   ml.push(`${m.name}が眠りの花粉をまいた！眠ってしまった！(${turns}ターン)`);
+  return true;
+}
+
+function useHypnosis(m, dg, pl, ml) {
+  m.turnAttacks++;
+  if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
+    ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
+  } else if (!consumeBarrier(pl, ml) && !isStatusImmune(pl, ml)) {
+    pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
+    ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+  }
+  return true;
+}
+
+function useDefenseHalvingMagic(m, dg, pl, ml, plOnBlessedSanc) {
+  m.turnAttacks++;
+  if (inMagicSealRoom(m.x, m.y, dg)) {
+    ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
+    return true;
+  }
+  if (hasPlayerMagicReflect(pl)) {
+    ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
+    if (monEffectiveMagicImmune(m)) {
+      ml.push(`魔法は${m.name}に効かない！`);
+    } else if (!consumeBarrier(m, ml) && !isStatusImmune(m, ml, m.name)) {
+      m.def = Math.floor((m.def || 0) / 2);
+      ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
+    }
+  } else if (plOnBlessedSanc) {
+    ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
+  } else if (!consumeBarrier(pl, ml) && !isStatusImmune(pl, ml)) {
+    const turns = statusTurns("defSoftened", { kind: "player" });
+    pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + turns;
+    ml.push(`${m.name}の魔法！防御力が${turns}ターン半減した！`);
+  }
   return true;
 }
 
@@ -5470,6 +5512,7 @@ export function useManaEaterDrain(m, pl, ml) {
   const healAmount = lvl >= 3 ? 50 : lvl === 2 ? 25 : 15;
   const curMp = pl.mp || 0;
   const actualDrain = Math.min(curMp, drainMax);
+  if (actualDrain > 0 && consumeBarrier(pl, ml)) return true;
   pl.mp = Math.max(0, curMp - drainMax);
 
   if (actualDrain > 0) {
@@ -5832,30 +5875,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
 
   /* ── ルカチュウ：同部屋で防御半減魔法 ── */
   if (m.subtype === "defhalf" && canSee && _sameRoom) {
-    m.turnAttacks++;
-    const _kpSeal = inMagicSealRoom(m.x, m.y, dg);
-    if (_kpSeal) {
-      ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
-      return true;
-    }
-    if (hasPlayerMagicReflect(pl)) {
-      ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
-      if (monEffectiveMagicImmune(m)) {
-        ml.push(`魔法は${m.name}に効かない！`);
-      } else if (!isStatusImmune(m, ml, m.name)) {
-        m.def = Math.floor((m.def || 0) / 2);
-        ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
-      }
-    } else if (_plOnBlessedSanc) {
-      ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
-    } else {
-      if (!isStatusImmune(pl, ml)) {
-        const _ds = statusTurns("defSoftened", { kind: "player" });
-        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
-        ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
-      }
-    }
-    return true;
+    return useDefenseHalvingMagic(m, dg, pl, ml, _plOnBlessedSanc);
   }
 
   /* ── armorbreath：自分または隣接する味方の防御力を上げる ── */
@@ -5870,16 +5890,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
 
   /* ── 催眠術使い：プレイヤーの次の行動を奪う ── */
   if (m.subtype === "hypnotist" && canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc })) {
-    m.turnAttacks++;
-    if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
-      ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
-    } else {
-      if (!isStatusImmune(pl, ml)) {
-        pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
-        ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
-      }
-    }
-    return true;
+    return useHypnosis(m, dg, pl, ml);
   }
 
   /* ── 危険な花びら：レベル別射程の眠りの花粉 ── */
@@ -6008,6 +6019,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       } else if (pl.inventory?.length) {
         const cands = pl.inventory.filter(canStealInventoryItem);
         if (cands.length) {
+          if (consumeBarrier(pl, ml)) return true;
           const stolen = cands[rng(0, cands.length - 1)];
           const idx = pl.inventory.indexOf(stolen);
           detachPlayerEquipment(pl, stolen);
@@ -6086,7 +6098,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     let buffed = 0;
     for (const o of dg.monsters) {
       if (o === m || o.hp <= 0) continue;
-      if (Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) <= 3) {
+      if (Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) <= 3 && !consumeBarrier(o, ml)) {
         o.atk = (o.atk || 0) + 3;
         buffed++;
       }
@@ -8120,7 +8132,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`祝福された聖域の加護が${m.name}の炎の息を防いだ！`);
         return;
       }
-      if (!isStatusImmune(pl, ml)) {
+      if (!consumeBarrier(pl, ml) && !isStatusImmune(pl, ml)) {
         const _oilT = statusTurns("oily", { kind: "player" });
         pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
         ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
@@ -8141,7 +8153,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`祝福された聖域の加護が${m.name}の呪いを防いだ！`);
         return;
       }
-      if (isStatusImmune(pl, ml)) return;
+      if (consumeBarrier(pl, ml) || isStatusImmune(pl, ml)) return;
       const _r = Math.random();
       if (_r < 0.33) {
         if (!blockPlayerStatus(pl, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
@@ -8331,7 +8343,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         if (_ktx === pl.x && _kty === pl.y) {
           if (consumeBarrier(pl, ml)) {
-            m.turnAttacks++;
             return;
           }
           const _kiDmg = monScaleOutgoingDamage(m, Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3)));
@@ -10116,7 +10127,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (isStationaryGrabber(m)) {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
         let _justCaptured = false;
-        if (!m.sealed && !pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
+        if (!m.sealed && !pl.capturedBy && !_plOnSanc && (_moveOnly || m.turnAttacks < monEffectiveMaxAttacks(m)) && !isStatusImmune(pl, ml)) {
+          if (consumeBarrier(pl, ml)) {
+            if (_moveOnly) opts.consumeMoveAction?.();
+            else m.turnAttacks++;
+            return;
+          }
           pl.capturedBy = m.id;
           _justCaptured = true;
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
@@ -10136,7 +10152,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* ── giantEel（巨大ウナギ等）：隣接時にプレイヤーを拘束する ── */
     if (m.subtype === "giantEel" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       let _justBound = false;
-      if (!m.sealed && !pl.capturedBy && !_plOnSanc && !isStatusImmune(pl, ml)) {
+      if (!m.sealed && !pl.capturedBy && !_plOnSanc && (_moveOnly || m.turnAttacks < monEffectiveMaxAttacks(m)) && !isStatusImmune(pl, ml)) {
+        if (consumeBarrier(pl, ml)) {
+          if (_moveOnly) opts.consumeMoveAction?.();
+          else m.turnAttacks++;
+          return;
+        }
         pl.capturedBy = m.id;
         _justBound = true;
         ml.push(`${m.name}に締め付けられた！倒さなければ逃げられない！`);
@@ -10647,6 +10668,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             ml.push(`${m.name}が${plName(pl)}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
             return;
           }
+          if (consumeBarrier(pl, ml)) return;
           const _throwFromX = pl.x, _throwFromY = pl.y;
           pl.x = _ttTrap.x; pl.y = _ttTrap.y;
           pushPlayerKnockbackAnim(_throwFromX, _throwFromY, pl.x, pl.y);
@@ -10723,15 +10745,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
 
       if (m.subtype === "hypnotist" && !m.sealed && canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
-        m.turnAttacks++;
-        if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
-          ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
-        } else {
-          if (!isStatusImmune(pl, ml)) {
-      pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
-          ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
-      }
-        }
+        useHypnosis(m, dg, pl, ml);
         return;
       }
 
@@ -10923,6 +10937,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         const _stealable = pl.inventory.filter(i => i.type !== "gold" && canStealInventoryItem(i));
         if (_stealable.length > 0) {
+          if (consumeBarrier(pl, ml)) {
+            m.turnAttacks++;
+            return;
+          }
           const _stolen = pick(_stealable);
           const _sidx = pl.inventory.indexOf(_stolen);
           detachPlayerEquipment(pl, _stolen);
@@ -11247,6 +11265,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
             return;
           }
+          if (consumeBarrier(pl, ml)) {
+            m.turnAttacks++;
+            return;
+          }
           const _stolen = pick(_srStealable);
           detachPlayerEquipment(pl, _stolen);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
@@ -11279,6 +11301,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _tryHeal = m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal;
       if (_healTarget && _hdist <= 1 && _tryHeal) {
         m.turnAttacks++;
+        if (consumeBarrier(_healTarget, ml)) return;
         /* 隣接：回復（アンデッドには逆にダメージ） */
         const _heal = rng(5, 12);
         if (_healTarget.kind === "undead") {
@@ -11322,6 +11345,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         } else {
           m.turnAttacks++;
           const _bt = _buffable[rng(0, _buffable.length - 1)];
+          if (consumeBarrier(_bt, ml)) return;
           const _buffAmt = rng(2, 4);
           _bt.atk += _buffAmt;
           _bt.atkBuffed = _buffAmt;
@@ -11440,6 +11464,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
           const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
           if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => !o.disguisedAsItem && monsterOccupiesCell(o, _pnx, _pny))) {
+            if (consumeBarrier(pl, ml)) {
+              if (_moveOnly) opts.consumeMoveAction?.();
+              else if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+              return;
+            }
             const _pullFromX = pl.x, _pullFromY = pl.y;
             pl.x = _pnx; pl.y = _pny;
             pushPlayerKnockbackAnim(_pullFromX, _pullFromY, pl.x, pl.y, _puldx, _puldy);
@@ -11464,31 +11493,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         if (canSee && m._defHalfMagicReady) {
           delete m._defHalfMagicReady;
-          /* 魔封じチェック */
-          const _kpSeal = inMagicSealRoom(m.x, m.y, dg);
-          if (!_kpSeal) {
-            m.turnAttacks++;
-            if (hasPlayerMagicReflect(pl)) {
-              /* 反射の鎧：魔法を跳ね返す */
-              ml.push(`${m.name}の防御半減魔法！${playerMagicReflectLabel(pl)}が弾き返した！`);
-              if (monEffectiveMagicImmune(m)) {
-                ml.push(`魔法は${m.name}に効かない！`);
-              } else if (!isStatusImmune(m, ml, m.name)) {
-                m.def = Math.floor((m.def || 0) / 2);
-                ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
-              }
-            } else if (_plOnBlessedSanc) {
-              ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
-            } else if (!isStatusImmune(pl, ml)) {
-              const _ds = statusTurns("defSoftened", { kind: "player" });
-              pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
-              ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
-            }
-            return;
-          }
-          /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
-          ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
-          m.turnAttacks++;
+          useDefenseHalvingMagic(m, dg, pl, ml, _plOnBlessedSanc);
           return;
         }
         /* 魔法不発時だけ通常行動へ進む。 */

@@ -2047,7 +2047,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (_phase === "attackOnly") {
         /* 移動した敵は攻撃フェーズをスキップ（speed<=1のみ。倍速敵は移動後も攻撃できる） */
         if (m._movedThisTurn) { delete m._movedThisTurn; return; }
-        /* 攻撃フェーズ：「総アクション数 - 移動に使ったアクション数」分だけ攻撃できる
+        /* 攻撃フェーズ：「総アクション数 - 移動フェーズで使ったアクション数」分だけ攻撃できる
            例：speed=2で1歩移動した場合 → 残り1アクション分だけ攻撃可能 */
         const _totalActions = m._phaseActionCount ?? 1;
         const _movesMade = m._movesMadeThisPhase ?? 0;
@@ -2075,7 +2075,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       m.turnAttacks = 0;
       const _due = takeDueActions(m, pl.actionTime || 0, _monsterTurnRate);
       let _actionCount = 0;
-      let _moveCount = 0; /* 実際に位置が変わったアクション数 */
+      let _moveCount = 0; /* 移動・移動フェーズの特技で使ったアクション数 */
       for (let _ai = 0; _ai < _due; _ai++) {
         if (sr.current?.dungeon !== dg) break;
         _actionCount++;
@@ -2083,8 +2083,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (_phase === "moveOnly") {
           const _bx = m.x, _by = m.y;
           const _wasSleeping = (m.sleepTurns || 0) > 0 || (m.subtype === "sleepingLion" && m.dormant);
-          monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
-          if (m.x !== _bx || m.y !== _by) _moveCount++;
+          let spentAction = false;
+          monsterAI(m, dg, pl, ml, {
+            ...opts, moveOnly: true, consumeMoveAction: () => { spentAction = true; },
+          });
+          if (spentAction || m.x !== _bx || m.y !== _by) _moveCount++;
           /* 等速の敵だけはプレイヤーと同時に目覚める扱いにして、
              目覚めたターンの先行行動を防ぐ。倍速敵は起床後に続けて行動できる。 */
           if (_wasSleeping && _monsterTurnRate === 1) {
@@ -3447,11 +3450,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               );
               if (_guardMon) {
                 ml.push(`ガーディアンが${attackMon.name}をかばった！`);
-                if (!consumeBarrier(_guardMon, ml)) {
-                  _guardMon.hp -= d;
-                  weakenOrClearParalysis(_guardMon, ml);
-                  ml.push(`ガーディアンに${d}ダメージ！`);
-                }
+                _guardMon.hp -= d;
+                weakenOrClearParalysis(_guardMon, ml);
+                ml.push(`ガーディアンに${d}ダメージ！`);
                 _ad.attacks.push({ type: "attack", x: _hitX, y: _hitY, dx, dy });
                 _ad.damages.push({ type: "damage", x: _guardMon.x, y: _guardMon.y, value: d, color: "#ff4444" });
                 if (_guardMon.hp <= 0) {

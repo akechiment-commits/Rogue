@@ -49,6 +49,14 @@ function attack({ abilities = ["frontal_sweep", "knockback"], pentacle, hp = 100
 }
 afterEach(() => vi.restoreAllMocks());
 
+it("ガーディアンがかばった近接攻撃はバリアを通過する", () => {
+  const guardian = { id: "guardian", name: "ガーディアン", subtype: "guardian", x: 6, y: 6,
+    hp: 100, maxHp: 100, barrier: 1 };
+  const { mon } = attack({ abilities: [], bodySize: 1, others: [guardian] });
+  expect(guardian).toMatchObject({ hp: 90, barrier: 1 });
+  expect(mon.hp).toBe(1000);
+});
+
 describe("射撃の指輪と石", () => {
   const shootingRing = { effect: "shoot_ring" };
 
