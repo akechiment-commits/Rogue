@@ -353,7 +353,15 @@ describe("水鉄砲・耐水", () => {
       item: { type: "food", name: "特盛りカレー", sizeLabel: "特盛り", cooked: true, value: 80 },
       wet: { name: "大盛りカレー", sizeLabel: "大盛り", value: 55 },
     },
-  ])("水鉄砲に落ちた$item.nameは水の影響を受けて床に残る", ({ item, wet }) => {
+    {
+      item: { type: "pen", name: "ただのペン", charges: 1 },
+      wet: { charges: 0 },
+    },
+    {
+      item: { type: "pen", name: "加護のペン", charges: 1, protected: true },
+      wet: { charges: 1 },
+    },
+  ])("水鉄砲に落ちた$item.nameの水濡れを処理して床に残す", ({ item, wet }) => {
     const trap = { id: "trap", name: "水鉄砲の罠", effect: "watergun_trap", x: 4, y: 2, permanent: true };
     const dungeon = makeEmptyDg({ traps: [trap] });
     const dropped = { ...item, id: "dropped" };

@@ -3979,9 +3979,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${resolveItemName(item, nameFn)}は水を浴びて溶けた！`);
           return "destroyed";
         }
-        if (item.type === "food") shrinkFoodOneStep(item, ml, nameFn);
-        else if (item.type === "pot" && item.potEffect === "gunpowder") soakGunpowderPot(item, ml);
-        else blankScrollOrSpellbook(item, ml, nameFn);
+        applyWaterGunToItem(item, ml, nameFn);
       }
       return "restart";
     }
@@ -10132,19 +10130,31 @@ export function blankScrollOrSpellbook(item, ml = null, nameFn = null) {
   return false;
 }
 
-function soakGunpowderPot(pot, ml) {
-  const contents = pot.contents || [];
-  const preservationPot = POTS.find(template => template.potEffect === "none");
-  Object.assign(pot, {
-    name: preservationPot.name,
-    potEffect: preservationPot.potEffect,
-    capacity: Math.max(pot.capacity ?? 0, contents.length),
-    desc: preservationPot.desc,
-    tile: preservationPot.tile,
-    sellPrice: preservationPot.sellPrice,
-    contents,
-  });
-  if (ml) ml.push("水を浴びて火薬壺が保存の壺に変化した！中身は保たれている。");
+/* 道具を消費しない水濡れ効果。床と所持品の両方で使う。 */
+function applyWaterGunToItem(item, ml, nameFn) {
+  if (item.type === "food") return shrinkFoodOneStep(item, ml, nameFn);
+  if (item.type === "pen" && (item.charges ?? 0) > 0) {
+    const name = resolveItemName(item, nameFn);
+    item.charges = Math.max(0, item.charges - 1);
+    ml?.push(`水を浴びて${name}のインクが1減った！(残${item.charges}回)`);
+    return true;
+  }
+  if (item.type === "pot" && item.potEffect === "gunpowder") {
+    const contents = item.contents || [];
+    const preservationPot = POTS.find(template => template.potEffect === "none");
+    Object.assign(item, {
+      name: preservationPot.name,
+      potEffect: preservationPot.potEffect,
+      capacity: Math.max(item.capacity ?? 0, contents.length),
+      desc: preservationPot.desc,
+      tile: preservationPot.tile,
+      sellPrice: preservationPot.sellPrice,
+      contents,
+    });
+    ml?.push("水を浴びて火薬壺が保存の壺に変化した！中身は保たれている。");
+    return true;
+  }
+  return blankScrollOrSpellbook(item, ml, nameFn);
 }
 
 /**
@@ -10165,39 +10175,14 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
     if (ml) ml.push(`水を浴びたが「${_dn}」は加護の力で守られた！`);
     return false;
   }
-  const _safe = () => {
-    if (ml) ml.push(`水を浴びて「${_dn}」は無事だった。`);
-    return false;
-  };
-  if ((victim.type === "scroll" && victim.effect !== "blank") || (victim.type === "spellbook" && victim.spell)) {
-    return blankScrollOrSpellbook(victim, ml, nameFn);
-  }
-  if (victim.type === "food") {
-    if (victim.iceCream) {
-      p.inventory = p.inventory.filter((it) => it !== victim);
-      if (ml) ml.push(`水を浴びて${_dn}が溶けて消滅した！`);
-      return true;
-    }
-    const _shrinkLog = [];
-    if (shrinkFoodOneStep(victim, _shrinkLog, nameFn)) {
-      if (ml) ml.push(..._shrinkLog);
-      return true;
-    }
-    return _safe();
+  if (victim.type === "food" && victim.iceCream) {
+    p.inventory = p.inventory.filter((it) => it !== victim);
+    if (ml) ml.push(`水を浴びて${_dn}が溶けて消滅した！`);
+    return true;
   }
   if (victim.type === "charged_fuzzball") {
     p.inventory = p.inventory.filter((it) => it !== victim);
     if (ml) ml.push(`水を浴びて${_dn}が消滅した！`);
-    return true;
-  }
-  if (victim.type === "pen" && (victim.charges ?? 0) > 0) {
-    const prev = victim.charges ?? 0;
-    victim.charges = Math.max(0, prev - 1);
-    if (ml) ml.push(`水を浴びて${_dn}のインクが1減った！(残${victim.charges}回)`);
-    return true;
-  }
-  if (victim.type === "pot" && victim.potEffect === "gunpowder") {
-    soakGunpowderPot(victim, ml);
     return true;
   }
   if (victim.type === "arrow" && (victim.bombArrow || victim.specialProjectile === "crawling_bomb")) {
@@ -10212,7 +10197,13 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
     }
     return true;
   }
-  return _safe();
+  const waterMessages = [];
+  if (applyWaterGunToItem(victim, waterMessages, nameFn)) {
+    ml?.push(...waterMessages);
+    return true;
+  }
+  ml?.push(`水を浴びて「${_dn}」は無事だった。`);
+  return false;
 }
 
 /** 油まみれ状態（ターン残り or 油タイル上） */
