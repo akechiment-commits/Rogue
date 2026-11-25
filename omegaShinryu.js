@@ -10,7 +10,7 @@ import {
 } from "./statusDuration.js";
 import {
   killMonster, pushEntity,
-  blankScrollOrSpellbook, reduceWaterDamage, waterResistDamageLabel,
+  blankScrollOrSpellbook, crumbleFloorYabaiFood, reduceWaterDamage, waterResistDamageLabel,
   reduceLightningDamage, hasLightningResist, lightningResistDamageLabel,
   applyLightningToInventory, wallBreakDrop,
 } from "./items.js";
@@ -301,6 +301,7 @@ function applyTidalWave(attack, dungeon, player, messages, source) {
   const cells = new Set((attack.cells || []).map(cell => `${cell.x},${cell.y}`));
   for (const item of [...(dungeon.items || [])]) {
     if (item.wallEmbedded || !cells.has(`${item.x},${item.y}`)) continue;
+    if (crumbleFloorYabaiFood(item, "水", dungeon, player, messages)) continue;
     blankScrollOrSpellbook(item, messages);
   }
   if (player.hp > 0 && cells.has(`${player.x},${player.y}`)) tidalWavePlayerDamage(attack, dungeon, player, messages, source);

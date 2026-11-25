@@ -2709,7 +2709,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, nameFn, killerMon);
         } else if (it.type === "food") {
           if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
-          else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+          else if (crumbleYabaiFood(it, "炎", ml, nameFn)) { removeFloorItem(dg, it); }
           else if (it.rotten) { burnFoodItem(it, ml); }
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
@@ -2919,7 +2919,7 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
         fireBreakFloorPotion(it, it.x, it.y, dg, p, ml, luFn, null, killerMon);
       } else if (it.type === "food") {
         if (it.iceCream) { _blasted.add(it); ml.push(`${resolveItemName(it)}が炎で溶けて消滅した！`); }
-        else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+        else if (crumbleYabaiFood(it, "炎", ml)) { removeFloorItem(dg, it); }
         else if (it.rotten) { burnFoodItem(it, ml); }
         else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); }
@@ -3135,7 +3135,7 @@ function _doTimeBombExplosionInner(cx, cy, dg, p, ml, luFn, nameFn = null, optio
           fireBreakFloorPotion(it, ax, ay, dg, p, ml, luFn, nameFn, options.killerMon || null);
         } else if (it.type === "food") {
           if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
-          else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+          else if (crumbleYabaiFood(it, "炎", ml, nameFn)) { removeFloorItem(dg, it); }
           else if (it.rotten) { burnFoodItem(it, ml); }
           else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
@@ -4010,6 +4010,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         return "destroyed";
       }
       if (!isItemProtected(item)) {
+        if (crumbleFloorYabaiFood(item, "水", dg, p, ml, nameFn)) return "destroyed";
         if (item.iceCream) {
           ml.push(`${resolveItemName(item, nameFn)}は水を浴びて溶けた！`);
           return "destroyed";
@@ -4522,9 +4523,10 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "rot_trap": {
       ml.push(`${trap.name}が発動！`);
       /* 踏んだアイテム自体が食料なら腐らせる（既に腐っていればヤバイに） */
-      if (item && item.type === "food" && isItemProtected(item)) {
+      const crumbled = crumbleFloorYabaiFood(item, "腐敗", dg, p, ml, nameFn);
+      if (item?.type === "food" && isItemProtected(item)) {
         ml.push(`${item.name}は加護の力で腐敗から守られた！`);
-      } else if (item && item.type === "food" && !item.yabai && !item.iceCream) {
+      } else if (!crumbled && item?.type === "food" && !item.iceCream) {
         const _itOrigName = item.name;
         const _itResult = rotFood(item);
         if (_itResult === "yabai") ml.push(`${_itOrigName}がヤバイことになった！`);
@@ -4562,20 +4564,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
         }
       }
-      if (canAffectPlayerOnTrap() && p.inventory) {
-        const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai && !i.iceCream && !isItemProtected(i));
-        if (_rAllFoods.length > 0) {
-          const _rTarget = _rAllFoods[rng(0, _rAllFoods.length - 1)];
-          const _rOrigName = _rTarget.name;
-          const _rRes = rotFood(_rTarget);
-          if (_rRes === "yabai") ml.push(`${_rOrigName}がヤバイことになった！`);
-          else if (_rRes === "restored") ml.push(`${_rOrigName}の焦げが取れて元に戻った！`);
-          else ml.push(`${_rOrigName}が腐ってしまった！`);
-        } else {
-          ml.push("腐らせるものがなかった。");
-        }
-      }
-      return "restart";
+      if (canAffectPlayerOnTrap() && p.inventory) applyRotTrapToInventory(p, ml);
+      return crumbled ? "destroyed" : "restart";
     }
     case "trap_trap": {
       ml.push(`${trap.name}が発動！`);
@@ -6610,12 +6600,26 @@ export function burnFoodItem(item, ml) {
   return true;
 }
 
+export function crumbleYabaiFood(item, cause, ml, nameFn = null) {
+  if (item?.type !== "food" || !item.yabai || isItemProtected(item)) return false;
+  ml?.push(`${resolveItemName(item, nameFn)}が${cause}で崩れて消滅した！`);
+  return true;
+}
+
+export function crumbleFloorYabaiFood(item, cause, dg, p, ml, nameFn = null) {
+  if (!crumbleYabaiFood(item, cause, ml, nameFn)) return false;
+  removeFloorItem(dg, item);
+  chargeShopItem(item, dg, ml, p);
+  return true;
+}
+
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null, blessed = false) {
   const _dn = dnFn ? dnFn(item) : resolveItemName(item);
   if (isItemProtected(item)) {
     ml.push(`${_dn}は加護の力で守られた！`);
     return;
   }
+  if ((eff === "water" || eff === "fire") && crumbleYabaiFood(item, eff === "water" ? "水" : "炎", ml, dnFn)) return "burn";
   if (item.iceCream && (eff === "water" || eff === "fire")) {
     ml.push(`${_dn}が${eff === "water" ? "水" : "炎"}の影響で溶けて消滅した！`);
     return "burn";
@@ -6663,7 +6667,6 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
   if (_foodEff !== eff) eff = _foodEff;
   if (eff === "fire") {
     // 呪いでも通常でも同じ（焼き調理）
-    if (item.yabai) return;
     if (item.rotten) {
       burnFoodItem(item, ml);
       return "changed";
@@ -6855,7 +6858,7 @@ function washOilyFromWater(dg, x, y, entity, ml) {
   if (washed) ml.push("水で油が流れた！");
 }
 
-/* 通常の水は薬と同じ3×3の共通飛散処理を行う。食料の腐敗・焦げ・ヤバイ状態は変えない。
+/* 通常の水は薬と同じ3×3の共通飛散処理を行う。ヤバイ食料は崩れ、腐敗・焦げ状態は維持する。
    祝福・呪いの水は着弾点のアイテム1つだけを祝呪し、生き物への水効果は3×3に飛散する。 */
 export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn = null, dnFn = null) {
   if (!blessed && !cursed) {
@@ -6869,6 +6872,8 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
     if (!monsterAt(dg, cx, cy) && !(p && p.x === cx && p.y === cy)) ml.push("着弾点にアイテムがなかった…");
   } else if (isItemProtected(it)) {
     ml.push(`${resolveItemName(it, dnFn)}は加護の力で水から守られた！`);
+  } else if (crumbleFloorYabaiFood(it, "水", dg, p, ml, dnFn)) {
+    /* 水の影響を受けた道具は消滅済み。 */
   } else if (it.iceCream) {
     removeFloorItem(dg, it);
     chargeShopItem(it, dg, ml, p);
@@ -6968,7 +6973,10 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null, pl = n
   let wishTriggered = false;
   let itemEjected = null;
 
-  if (item.iceCream) {
+  if (crumbleYabaiFood(item, "泉の水", ml, dnFn)) {
+    if (dg) chargeShopItem(item, dg, ml, pl);
+    consumedCapacity = true;
+  } else if (item.iceCream) {
     ml.push(`${_dn(item)}が泉に落ちて溶けて消滅した！`);
     consumedCapacity = true;
   } else if (item.type === "gold") {
@@ -7173,9 +7181,12 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     ml?.push(`${resolveItemName(item)}は床に落ちると消えてしまった！`);
     return false;
   }
-  if (item?.iceCream && dg.map[ty]?.[tx] === T.WATER) {
-    ml?.push(`${resolveItemName(item)}が水に落ちて溶けて消滅した！`);
-    return false;
+  if (dg.map[ty]?.[tx] === T.WATER) {
+    if (crumbleFloorYabaiFood(item, "水", dg, p, ml)) return false;
+    if (item?.iceCream) {
+      ml?.push(`${resolveItemName(item)}が水に落ちて溶けて消滅した！`);
+      return false;
+    }
   }
   if (dep > 30) { ml.push(`${resolveItemName(item)}は消えてしまった！`); return false; }
   /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ）
@@ -7210,6 +7221,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     /* 水タイルに落ちる場合：同マスに既に沈没アイテムがなければ沈没 */
     if (dg.map[cy][cx] === T.WATER) {
       if (_isBigbox) continue;
+      if (crumbleFloorYabaiFood(item, "水", dg, p, ml)) return false;
       if (item.iceCream) {
         ml?.push(`${resolveItemName(item)}が水に落ちて溶けて消滅した！`);
         return false;
@@ -7778,7 +7790,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${resolveItemName(it)}」が燃えてなくなった！`); }
           else if (it.type === "food") {
             if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it)}が炎で溶けて消滅した！`); }
-            else if (it.yabai) { /* ヤバイ食料は炎でも変化しない */ }
+            else if (crumbleYabaiFood(it, "炎", ml)) { removeFloorItem(dg, it); }
             else if (it.rotten) { burnFoodItem(it, ml); }
             else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
             else { burnFoodItem(it, ml); }
@@ -9873,6 +9885,10 @@ export function applyFireSpellBlast(dg, p, landing, ml, luFn, level = 1) {
   const multiplier = getSpellPowerMultiplier(level);
   pushExplosionAnim(landing.x, landing.y);
   if (landing.hitType !== "void") ml.push("爆発！");
+  for (const item of dg.items || []) {
+    if (item.wallEmbedded || Math.max(Math.abs(item.x - landing.x), Math.abs(item.y - landing.y)) > 1) continue;
+    crumbleFloorYabaiFood(item, "炎", dg, p, ml);
+  }
   if (Math.max(Math.abs(p.x - landing.x), Math.abs(p.y - landing.y)) <= 1) {
     if (!consumeBarrier(p, ml)) {
       const rawDamage = multiplyCursedMagicDamage(Math.round(rng(10, 15) * multiplier), p, dg);
@@ -10222,7 +10238,7 @@ function applyWaterGunToItem(item, ml, nameFn) {
 
 /**
  * 水鉄砲など：所持品に水の影響（炎・雷と同様にランダム1点）。
- * 巻物/魔法書→白紙、食料→サイズ-1、ペン→インク-1、帯電毛玉→消滅。耐水で無効。
+ * 巻物/魔法書→白紙、食料→サイズ-1（ヤバイは消滅）、ペン→インク-1、帯電毛玉→消滅。耐水で無効。
  * @returns {boolean} 何か影響が出たか
  */
 export function applyWaterGunToInventory(p, ml, nameFn = null) {
@@ -10237,6 +10253,10 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
   if (isItemProtected(victim)) {
     if (ml) ml.push(`水を浴びたが「${_dn}」は加護の力で守られた！`);
     return false;
+  }
+  if (crumbleYabaiFood(victim, "水", ml, nameFn)) {
+    p.inventory = p.inventory.filter(it => it !== victim);
+    return true;
   }
   if (victim.type === "food" && victim.iceCream) {
     p.inventory = p.inventory.filter((it) => it !== victim);
@@ -10584,11 +10604,11 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
     removeVictim();
     ml.push(`所持していた「${dn(victim)}」が炎で消滅した！`);
   } else if (isFireContext && victim.type === "food") {
-    if (victim.iceCream) {
+    if (crumbleYabaiFood(victim, "炎", ml, nameFn)) {
+      removeVictim();
+    } else if (victim.iceCream) {
       removeVictim();
       ml.push(`所持していた「${dn(victim)}」が炎で溶けて消滅した！`);
-    } else if (victim.yabai) {
-      ml.push(`所持していた「${dn(victim)}」は炎を受けても変化しなかった。`);
     } else if (victim.rotten) {
       const oldName = dn(victim);
       burnFoodItem(victim, []);
@@ -11905,6 +11925,26 @@ export function rotFood(item) {
   item.name = _foodStateName(item, "腐った");
   item.desc = "腐っている。食べるのは危険そうだ。";
   return true;
+}
+
+export function applyRotTrapToInventory(p, ml, prefix = "") {
+  const foods = (p.inventory || []).filter(item => item.type === "food" && !item.iceCream && !isItemProtected(item));
+  if (foods.length === 0) {
+    ml.push(`${prefix}腐らせるものがなかった。`);
+    return;
+  }
+  const target = pick(foods);
+  const messages = [];
+  if (crumbleYabaiFood(target, "腐敗", messages)) {
+    p.inventory = p.inventory.filter(item => item !== target);
+    ml.push(prefix + messages[0]);
+    return;
+  }
+  const name = target.name;
+  const result = rotFood(target);
+  if (result === "yabai") ml.push(`${prefix}${name}がヤバイことになった！`);
+  else if (result === "restored") ml.push(`${prefix}${name}の焦げが取れて元に戻った！`);
+  else ml.push(`${prefix}${name}が腐ってしまった！`);
 }
 
 /** 炎の料理人だけがヤバイ食料を焦げた状態へ再調理できる。 */

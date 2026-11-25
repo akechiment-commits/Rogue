@@ -20,6 +20,23 @@ describe("fireTrapPlayer mp_absorb_trap", () => {
 });
 
 describe("fireTrapPlayer", () => {
+  it.each([["rot_trap", "腐敗"], ["watergun_trap", "水"]])("%sで床・所持品のヤバイ食料が崩れる", (effect, cause) => {
+    const food = { type: "food", name: "ヤバイパン", yabai: true, rotten: true };
+    const floorTrap = { effect, name: "床への罠", x: 8, y: 5, id: "food-trap", permanent: true };
+    const playerTrap = { effect, name: "所持品への罠", x: 5, y: 5, id: "player-trap", permanent: true };
+    const held = { ...food };
+    const p = makePlayer({ x: 5, y: 5, inventory: [held] });
+    const dg = makeEmptyDg({ traps: [floorTrap, playerTrap] });
+    const ml = [];
+
+    placeItemAt(dg, 8, 5, food, ml, new Set(), 0, p);
+    fireTrapPlayer(playerTrap, p, dg, ml);
+
+    expect(dg.items).toEqual([]);
+    expect(p.inventory).toEqual([]);
+    expect(ml.filter(message => message.includes(`ヤバイパンが${cause}で崩れて消滅した`))).toHaveLength(2);
+  });
+
   it("腐敗の罠は焦げた食料を元の状態に戻す", () => {
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
     try {

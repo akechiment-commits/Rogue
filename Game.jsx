@@ -32,7 +32,7 @@ import {
   weakenOrClearParalysis, ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, makeWanderingAdventurerGift, addArrowsInv, addStonesInv, addIceChunksInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
-  soakItemIntoSpring, consumeSpringCapacity,
+  soakItemIntoSpring, consumeSpringCapacity, crumbleYabaiFood,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, convertGreedBoxItem, placeItemAt, pickLootFromPool, applyGeneratedRingPlus, rollGeneratedWandCharges, penInitialCharges,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, declareFloorExitTheft, chargeShopItem, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer, applyLightningToInventory,
@@ -5128,7 +5128,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           item.capacity = _newCap;
           ml.push(`${_idn}の容量が1減った！(${_newCap})`);
         } else if (item.type === "food") {
-          if (item.rotten) {
+          if (crumbleYabaiFood(item, "腐敗", ml)) {
+            bb.contents = bb.contents.filter(content => content !== item);
+            bb.capacity = Math.max(0, (bb.capacity ?? 1) - 1);
+          } else if (item.yabai || item.rotten) {
             ml.push(`${_idn}はすでに腐っている。`);
           } else {
             const _cOrigName = _idn;
@@ -5757,6 +5760,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         sr.current = { ...sr.current };
         setGs({ ...sr.current });
         return;
+      } else if (_targetSpring && crumbleYabaiFood(it, "泉の水", ml, dnameRef)) {
+        p.inventory.splice(idx, 1);
       } else if (it.type === "bottle") {
         p.inventory.splice(idx, 1);
         const wb = { ...WATER_BOTTLE, id: uid() };

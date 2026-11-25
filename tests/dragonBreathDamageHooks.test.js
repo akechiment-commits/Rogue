@@ -4,6 +4,18 @@ import { MONS, makeMonsterFromBase, monsterAI, monsterDragonFire, monsterIceBrea
 import { MW, MH, T } from "../utils.js";
 
 describe("Dragon breath damage hooks: barrier, spore, dormant, paralysis, fixed damage", () => {
+  it("炎ブレスは射線上のヤバイ食料を崩し、壁の向こうまでは届かない", () => {
+    const dragon = { id: "dragon", name: "ドラゴン", x: 2, y: 2, atk: 40, monLevel: 1 };
+    const food = { id: "food", name: "ヤバイパン", type: "food", yabai: true, x: 4, y: 2 };
+    const behindWall = { ...food, id: "behind-wall", x: 7 };
+    const dg = makeEmptyDg({ monsters: [dragon], items: [food, behindWall] });
+    dg.map[2][6] = T.WALL;
+
+    monsterDragonFire(dragon, dg, makePlayer({ x: 10, y: 2 }), []);
+
+    expect(dg.items).toEqual([behindWall]);
+  });
+
   it("dragon fire breath hitting mushroom triggers counter spore, wakes dormant, and clamps fixed damage", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 10, y: 2 });

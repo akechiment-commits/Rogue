@@ -11,7 +11,7 @@ import {
   gatherFloorItems, EMPTY_BOTTLE, ITEMS, SPELLS, SPELLBOOKS, applyGedoBook, TRAPS, pickTrap, makeRandomPotion, addFoodHunger, applyFallImpactDamage, applyPoisonArrowDamageReduction,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, applyFoodEffectsOnHit, applyInnateFoodEffectOnHit, foodEffectMultiplier, foodHungerAmount, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyFoodAttackHalfToMonster, applyRottenFoodPoisonToMonster, foodEffectTier, applyYogurtFoodEffect,
-  applyWaterSplash, applySoakedStatusToMonster, burnFoodItem,
+  applyWaterSplash, applySoakedStatusToMonster, burnFoodItem, crumbleYabaiFood,
   castSpellBolt, doExplosion, doGunpowderExplosion, detonateBombArrow, chainExplosionHazards, triggerThrownItemLandingTrap, trapStepBreakChance,
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect, applyFireSpellBlast,
@@ -3722,6 +3722,11 @@ export function useItemActions({
           ml.push(`${dnameRef(it)}は加熱の壺の熱で燃えてなくなった！`);
           pot.capacity = Math.max(0, pot.capacity - 1);
           /* 壺には残さない */
+        } else if (crumbleYabaiFood(it, "加熱の壺の熱", ml, dnameRef)) {
+          pot.capacity = Math.max(0, pot.capacity - 1);
+        } else if (it.type === "food" && it.yabai) {
+          ml.push(`${dnameRef(it)}は加護の力で熱から守られた！`);
+          pot.contents.push(it);
         } else if (it.type === "food" && !it.cooked) {
           it.value = it.value * 2;
           cookFoodMeta(it);

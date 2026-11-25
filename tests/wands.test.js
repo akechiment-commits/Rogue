@@ -758,7 +758,7 @@ describe("万能の杖", () => {
     expect(ml.some(m => m.includes("万能薬に変化した"))).toBe(true);
   });
 
-  it.each(["fire_wand", "lightning", "godsparkwand"])("%sが床の食料に当たったときアイス消滅・腐敗焦げ・ヤバイ維持を処理する", (eff) => {
+  it.each(["fire_wand", "lightning", "godsparkwand"])("%sは床のヤバイ食料とアイスを消滅させ、腐った食料を元に戻す", (eff) => {
     const ice = { id: "ice", type: "food", name: "ソフトクリーム", iceCream: true, value: 30, x: 6, y: 5 };
     const rotten = { id: "rot", type: "food", name: "腐ったパン", rotten: true, _preDamageFood: { name: "パン", value: 30, tile: 14 }, value: 30, x: 7, y: 5 };
     const yabai = { id: "yab", type: "food", name: "ヤバイ食料", yabai: true, value: 10, x: 8, y: 5 };
@@ -774,8 +774,7 @@ describe("万能の杖", () => {
     expect(rotten.name).toBe("パン");
 
     applyWandEffect(eff, "item", yabai, 1, 0, dg, p, ml, noop);
-    expect(yabai.cooked).toBeFalsy();
-    expect(yabai.name).toBe("ヤバイ食料");
+    expect(dg.items).not.toContain(yabai);
   });
 
   it("杖効果がプレイヤーに命中したとき、入口でバリアを消費して無効化する", () => {

@@ -7,7 +7,7 @@ import {
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed, markShopkeeperHostileToPlayer,
   soakItemIntoSpring, splashPotion, applyPotionEffect, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, withParalysisHit,
-  chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
+  chargeShopItem, claimShopItemIfOutside, burnFoodItem, crumbleFloorYabaiFood, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
   hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, hasPlayerMagicReflect, playerMagicReflectLabel, applyMonsterSeal, applyPlayerSeal,
   multiplyMagicDamage, multiplyCursedMagicDamage,
@@ -887,12 +887,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           chargeShopItem(target, dg, ml, p);
           ml.push(`${target.name}が雷撃で砕けた！`);
         } else if (target.type === "food") {
+          if (crumbleFloorYabaiFood(target, "雷の熱", dg, p, ml, nameFn)) break;
           if (target.iceCream) {
             removeFloorItem(dg, target);
             chargeShopItem(target, dg, ml, p);
             ml.push(`${_dname_item(target)}が雷の熱で溶けて消滅した！`);
-          } else if (target.yabai) {
-            /* ヤバイ食料は雷でも変化しない */
           } else if (target.rotten) {
             burnFoodItem(target, ml);
           } else if (!target.cooked) {
@@ -1970,12 +1969,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           chargeShopItem(target, dg, ml, p);
           ml.push(`炎で${_dname_item(target)}が燃えた！`);
         } else if (target.type === "food") {
+          if (crumbleFloorYabaiFood(target, "炎", dg, p, ml, nameFn)) break;
           if (target.iceCream) {
             removeFloorItem(dg, target);
             chargeShopItem(target, dg, ml, p);
             ml.push(`${_dname_item(target)}が炎で溶けて消滅した！`);
-          } else if (target.yabai) {
-            /* ヤバイ食料は炎でも変化しない */
           } else if (target.rotten) {
             burnFoodItem(target, ml);
           } else if (!target.cooked) {
@@ -2140,12 +2138,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           chargeShopItem(target, dg, ml, p);
           ml.push(`${target.name}が雷撃で砕けた！`);
         } else if (target.type === "food") {
+          if (crumbleFloorYabaiFood(target, "雷の熱", dg, p, ml, nameFn)) break;
           if (target.iceCream) {
             removeFloorItem(dg, target);
             chargeShopItem(target, dg, ml, p);
             ml.push(`${_dname_item(target)}が雷の熱で溶けて消滅した！`);
-          } else if (target.yabai) {
-            /* ヤバイ食料は雷でも変化しない */
           } else if (target.rotten) {
             burnFoodItem(target, ml);
           } else if (!target.cooked) {

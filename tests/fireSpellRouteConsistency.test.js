@@ -8,7 +8,7 @@ import { drainAnims } from "../animEvents.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => { vi.restoreAllMocks(); drainAnims(); });
-function cast(route, size, near = false, barrier = 0, level = 1) {
+function cast(route, size, near = false, barrier = 0, level = 1, items = []) {
   drainAnims();
   const book = { id: "book", name: "炎の魔法書", type: "spellbook", spell: "fire_bolt" };
   const player = makePlayer({ hp: 1000, maxHp: 1000, mp: 100, depth: 1,
@@ -17,7 +17,7 @@ function cast(route, size, near = false, barrier = 0, level = 1) {
     spellLevels: { fire_bolt: route === "book" ? Math.max(1, level - 1) : level } });
   const monster = { name: "敵", id: "enemy", x: (near ? 6 : 7) + (size === 3 ? 1 : 0), y: 5,
     bodySize: size, hp: 1000, maxHp: 1000, def: 0, barrier };
-  const dungeon = makeEmptyDg({ monsters: [monster], rooms: [] });
+  const dungeon = makeEmptyDg({ monsters: [monster], rooms: [], items });
   const sr = { current: { player, dungeon, ident: new Set(["b:fire_bolt"]), fakeNames: {}, nicknames: {} } };
   const setters = Object.fromEntries(["setGs", "setMsgs", "setShowInv", "setSelIdx", "setShowDesc", "setThrowMode", "setRevealMode"].map(k => [k, vi.fn()]));
   const props = { sr, ...setters, throwMode: { mode: "cast_spell", idx: "fire_bolt" }, endTurn: vi.fn(),
@@ -26,10 +26,17 @@ function cast(route, size, near = false, barrier = 0, level = 1) {
   if (route === "book") actions.doReadSpellbook(0);
   else actions.execDirection(1, 0);
   return { playerHp: player.hp, monsterHp: monster.hp, barrier: monster.barrier,
-    mp: player.mp, spellLevel: player.spellLevels.fire_bolt, animations: drainAnims(), endTurn: props.endTurn };
+    mp: player.mp, spellLevel: player.spellLevels.fire_bolt, animations: drainAnims(), endTurn: props.endTurn, items: dungeon.items };
 }
 
 describe("炎の魔法の通常詠唱と魔法書発動", () => {
+  it.each(["manual", "book"])("%sの爆風で範囲内のヤバイ食料が崩れる", route => {
+    const food = { id: "food", name: "ヤバイパン", type: "food", yabai: true, x: 7, y: 6 };
+    const outside = { ...food, id: "outside", y: 7 };
+
+    expect(cast(route, 1, false, 0, 1, [food, outside]).items).toEqual([outside]);
+  });
+
   it.each([1, 2, 3].flatMap(size => [1, 3, 6].map(level => [size, level])))("%sマス角の敵への魔法書動作をLv%sで確認する", (size, level) => {
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     const manual = cast("manual", size, false, 0, level);

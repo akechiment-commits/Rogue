@@ -70,6 +70,7 @@ import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayer
 import { unequipPlayerItem } from "./equipmentEffects.js";
 import { blockLargeMonsterDamage } from "./largeMonsterDamage.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
+import { crumbleYabaiFood, crumbleFloorYabaiFood } from "./items.js";
 import { statueAt } from "./fixtureQueries.js";
 import { blockLargeMonsterStatus, startLargeMonsterStatusCooldown } from "./largeMonsterStatus.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
@@ -621,12 +622,14 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
   const _items = dg.items.filter(it => it.x === m.x && it.y === m.y);
   const _toRemove = new Set();
   for (const it of _items) {
+    if (!dg.items.includes(it)) continue;
     if (isItemProtected(it)) {
       if (it.type === "scroll" || it.type === "spellbook" || it.type === "potion" || it.type === "food") {
         ml.push(`${m.name}が通ったが「${resolveItemName(it)}」は加護の力で守られた！`);
       }
       continue;
     }
+    if (crumbleFloorYabaiFood(it, "炎", dg, p, ml)) continue;
     if (it.type === "scroll" || it.type === "spellbook") {
       _toRemove.add(it);
       ml.push(`${m.name}が通った！「${resolveItemName(it)}」が燃えてなくなった！`);
@@ -636,9 +639,7 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
       splashPotion(dg, m.x, m.y, it.effect, it.value || 0, p, ml, null,
         !!it.blessed, !!it.cursed, null, m);
     } else if (it.type === "food") {
-      if (it.yabai) {
-        ml.push(`${m.name}が通った！ヤバイ食料「${resolveItemName(it)}」は炎でも変化しなかった。`);
-      } else if (it.rotten) {
+      if (it.rotten) {
         const _prevFoodName = it.name;
         burnFoodItem(it, []);
         ml.push(`${m.name}が通った！「${_prevFoodName}」を焼いて腐敗を取り除いた！`);
@@ -653,7 +654,6 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
         if (_burned === "yabai") ml.push(`${m.name}が通った！「${_prevFoodName}」がヤバイ食料になった！`);
         else if (_burned === "restored") ml.push(`${m.name}が通った！「${_prevFoodName}」の焦げが取れて元に戻った！`);
         else if (_burned) ml.push(`${m.name}が通った！「${_prevFoodName}」が焦げた！`);
-        else ml.push(`${m.name}が通った！ヤバイ食料「${_prevFoodName}」は炎でも変化しなかった。`);
       }
     }
   }
@@ -806,6 +806,9 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     if (_fx < 0 || _fx >= MW || _fy < 0 || _fy >= MH) { _emitBreathAnim(); return; }
     if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) { _emitBreathAnim(); return; }
     _breathPath.push({ x: _fx, y: _fy });
+    for (const item of dg.items || []) {
+      if (!item.wallEmbedded && item.x === _fx && item.y === _fy) crumbleFloorYabaiFood(item, "炎", dg, pl, ml);
+    }
     /* 風で自分に戻った */
     if (monsterOccupiesCell(m, _fx, _fy)) {
       _applyFireToMon(m);
@@ -4128,10 +4131,14 @@ export function monsterShootWaterGun(m, dg, pl, ml, luFn = null, originOverride 
       /* Lv2以上：追加で食料腐敗 or 武器錆（耐水では防がない＝物理的劣化） */
       const _wLvl = m.monLevel || 1;
       if (_wLvl >= 2 && Math.random() < MONSTER_SPECIAL_RATE.ranged && !hasWaterProof(pl)) {
-        const _foods = pl.inventory.filter(i => i.type === "food" && !i.rotten && !isItemProtected(i));
+        const _foods = pl.inventory.filter(i => i.type === "food" && (!i.rotten || i.yabai) && !isItemProtected(i));
         const _canDegrade = pl.weapon && !hasAbility(pl.weapon, "no_degrade");
         if (_foods.length > 0 && (_canDegrade ? Math.random() < 0.6 : true)) {
           const _tf = pick(_foods);
+          if (crumbleYabaiFood(_tf, "水", ml)) {
+            pl.inventory = pl.inventory.filter(item => item !== _tf);
+            return;
+          }
           const _rotResult = rotFood(_tf);
           if (_rotResult === "restored") ml.push(`水びたしになって${resolveItemName(_tf)}の焦げが取れた！`);
           else if (_rotResult === "yabai") ml.push(`水びたしになって${resolveItemName(_tf)}がヤバイことになった！`);

@@ -23,6 +23,18 @@ function setup(effect = "fire") {
 }
 const bomb = (x, id) => ({ id, name: "火薬壺", type: "pot", potEffect: "gunpowder", contents: [], capacity: 3, x, y: 5 });
 
+it("加熱の壺に入れたヤバイ食料は崩れて容量を1使う", () => {
+  const s = setup();
+  const food = { id: "food", name: "ヤバイパン", type: "food", yabai: true, rotten: true };
+  s.player.inventory[1] = food;
+
+  s.put();
+
+  expect(s.player.inventory).toEqual([s.pot]);
+  expect(s.pot.contents).toEqual([]);
+  expect(s.pot.capacity).toBe(2);
+});
+
 describe("加熱の壺から床アイテムへ広がる薬効", () => {
   it("炎で火薬壺が誘爆し、爆風で近くの敵を倒す", () => {
     const s = setup();

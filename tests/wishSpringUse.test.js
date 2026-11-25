@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 vi.mock("react", () => ({ useCallback: fn => fn, useRef: current => ({ current }), useEffect: () => {} }));
 import { useItemActions } from "../useItemActions.js";
 import { installPlayerHpMessageHook } from "../utils.js";
-import { consumeSpringCapacity, freezeWaterTile, placeItemAt, releaseConfinedMonstersFromPot, soakItemIntoSpring } from "../items.js";
+import { consumeSpringCapacity, crumbleYabaiFood, freezeWaterTile, placeItemAt, releaseConfinedMonstersFromPot, soakItemIntoSpring } from "../items.js";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { makeSpringWishMode } from "../springRules.js";
 import { grantWish, rollWishChance } from "../wish.js";
@@ -20,13 +20,14 @@ function openSpringWish(action, { hasOtherSpring = true, capacity = 5 } = {}) {
   vi.spyOn(Math, "random").mockReturnValue(0.0001);
   const coin = { id: "coin", type: "gold", name: "金貨", value: 100 };
   const scroll = { id: "scroll", type: "scroll", name: "識別の巻物", effect: "identify" };
+  const yabaiFood = { id: "yabai", type: "food", name: "ヤバイパン", yabai: true, rotten: true };
   const submergedItem = { id: "food", type: "food", name: "リンゴ" };
   const onPlayer = action === "drop" || action === "swap";
   const thrown = action === "throw" || action === "knockback";
   const spring = { x: thrown ? 8 : onPlayer ? 5 : 6, y: 5, capacity, contents: [submergedItem] };
   const otherSpring = { x: onPlayer ? 4 : 5, y: 5, capacity: 5, contents: [] };
   const wand = { id: "wand", type: "wand", name: "吹き飛ばしの杖", effect: "knockback", charges: 2 };
-  const player = makePlayer({ hp: 10, inventory: [action === "soak" ? scroll : action === "knockback" ? wand : coin] });
+  const player = makePlayer({ hp: 10, inventory: [action === "soak" ? scroll : action === "soakYabai" ? yabaiFood : action === "knockback" ? wand : coin] });
   const items = action === "knockback" ? [{ ...coin, x: 7, y: 5 }]
     : action === "swap" ? [{ id: "floor-item", name: "短剣", type: "weapon", x: 5, y: 5 }] : [];
   const dungeon = makeEmptyDg({ springs: hasOtherSpring ? [otherSpring, spring] : [spring], items });
@@ -40,7 +41,7 @@ function openSpringWish(action, { hasOtherSpring = true, capacity = 5 } = {}) {
     dropModeRef: { current: null },
     dnameRef: item => item.name, setWishMode: mode => { wishModeRef.current = mode; },
     setThrowMode: mode => { throwMode = mode; }, grantWish, rollWishChance, withPitfallBag: fn => fn,
-    installPlayerHpMessageHook, soakItemIntoSpring, placeItemAt, releaseConfinedMonstersFromPot,
+    installPlayerHpMessageHook, soakItemIntoSpring, placeItemAt, releaseConfinedMonstersFromPot, crumbleYabaiFood,
     makeSpringWishMode, consumeSpringCapacity,
     consumeActiveSpring: vi.fn(),
   };
@@ -66,6 +67,17 @@ function openSpringWish(action, { hasOtherSpring = true, capacity = 5 } = {}) {
   expect(deps.endTurn).not.toHaveBeenCalled();
   return { confirmWish, cancelWish, player, dungeon, spring, otherSpring, submergedItem, sr, endTurn: deps.endTurn, wand };
 }
+
+it("泉に手で浸したヤバイ食料は崩れ、願いをキャンセルしても所持品へ戻らない", () => {
+  const { cancelWish, player, spring } = openSpringWish("soakYabai");
+
+  expect(player.inventory).toEqual([]);
+  cancelWish();
+
+  expect(player.inventory).toEqual([]);
+  expect(spring.contents.some(item => item.yabai)).toBe(false);
+  expect(spring.capacity).toBe(4);
+});
 
 it.each([
   ["throw", false], ["throw", true], ["drink", true], ["soak", true], ["soakGold", true],

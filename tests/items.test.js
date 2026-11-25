@@ -1154,17 +1154,12 @@ describe("食料の腐敗・焦げ", () => {
     expect(rottenByPotion).toMatchObject({ name: "力の特盛りおにぎり", effect: "power_food", value: 80 });
   });
 
-  it("ヤバイ食料は水・炎・腐敗で変化せず、炎の料理人の再調理で焦げる", () => {
+  it("炎の料理人はヤバイ食料を焦げた食料に戻す", () => {
     const food = {
       type: "food", name: "ヤバイ力の特盛りおにぎり", _foodBase: "おにぎり",
       _foodEfLabel: "力の", effect: "power_food", cooked: true, sizeLabel: "特盛り", value: 80,
       yabai: true, rotten: true, burnt: true,
     };
-    const before = { ...food };
-
-    expect(rotFood(food)).toBe(false);
-    expect(burnFoodItem(food, [])).toBe(false);
-    expect(food).toEqual(before);
     expect(recookYabaiFood(food)).toBe(true);
     expect(food).toMatchObject({ name: "焦げた力の特盛りおにぎり", effect: "power_food", cooked: true, burnt: true, value: 48 });
     expect(food.yabai).toBeUndefined();
@@ -1180,7 +1175,7 @@ describe("食料の腐敗・焦げ", () => {
 });
 
 describe("水の飛散", () => {
-  it("通常の水は3×3内の腐敗・焦げ・ヤバイ状態を変えない", () => {
+  it("通常の水でヤバイ食料は崩れ、腐敗・焦げは維持する", () => {
     const rotten = { type: "food", name: "腐ったおにぎり", _foodBase: "おにぎり", rotten: true, value: 20, x: 4, y: 4 };
     const burnt = { type: "food", name: "焦げたパン", _foodBase: "パン", cooked: true, burnt: true, value: 12, x: 5, y: 5 };
     const yabai = { type: "food", name: "ヤバイ肉", _foodBase: "肉", rotten: true, burnt: true, yabai: true, value: 20, x: 6, y: 6 };
@@ -1193,8 +1188,36 @@ describe("水の飛散", () => {
 
     expect(rotten).toMatchObject({ name: "腐ったおにぎり", rotten: true });
     expect(burnt).toMatchObject({ name: "焦げたパン", burnt: true, value: 12 });
-    expect(yabai).toMatchObject({ name: "ヤバイ肉", yabai: true, rotten: true, burnt: true });
+    expect(dg.items).not.toContain(yabai);
+    expect(ml).toContain("ヤバイ肉が水で崩れて消滅した！");
     expect(dg.pentacles).toHaveLength(0);
+  });
+
+  it.each([true, false])("祝福・呪いの水が直接当たったヤバイ食料も崩れる（祝福%s）", blessed => {
+    const food = { type: "food", name: "ヤバイパン", yabai: true, x: 5, y: 5 };
+    const protectedFood = { ...food, protected: true, x: 8, y: 5 };
+    const dg = makeEmptyDg({ items: [food, protectedFood] });
+
+    applyWaterSplash(dg, 5, 5, blessed, !blessed, []);
+    applyWaterSplash(dg, 8, 5, blessed, !blessed, []);
+
+    expect(dg.items).toEqual([protectedFood]);
+  });
+
+  it("炎の薬と所持品への炎はヤバイ食料を崩す", () => {
+    const floor = { type: "food", name: "ヤバイ肉", yabai: true, x: 5, y: 5 };
+    const held = { type: "food", name: "ヤバイパン", yabai: true };
+    const dg = makeEmptyDg({ items: [floor] });
+    const p = makePlayer({ x: 8, y: 5, inventory: [held] });
+    const ml = [];
+
+    splashPotion(dg, 5, 5, "fire", 10, p, ml, () => {});
+    applyLightningToInventory(p, dg, ml, () => {}, null, true);
+
+    expect(dg.items).toEqual([]);
+    expect(p.inventory).toEqual([]);
+    expect(ml).toContain("ヤバイ肉が炎で崩れて消滅した！");
+    expect(ml).toContain("ヤバイパンが炎で崩れて消滅した！");
   });
 
   it("店の商品に水をかけて白紙化すると代金を請求する", () => {

@@ -20,6 +20,23 @@ describe("泉の効果", () => {
     expect(SPRING_CONFUSION_TURNS).toBe(5);
   });
 
+  it("ヤバイ食料は泉や深い水に落ちると崩れ、保存されない", () => {
+    const spring = createSpring(5, 5, { capacity: 3 });
+    const dg = makeEmptyDg({ springs: [spring] });
+    dg.map[5][8] = T.WATER;
+    const food = { type: "food", name: "ヤバイパン", yabai: true, rotten: true };
+    const ml = [];
+
+    placeItemAt(dg, 5, 5, { ...food, id: "spring-food" }, ml, new Set());
+    placeItemAt(dg, 8, 5, { ...food, id: "water-food" }, ml, new Set());
+
+    expect(dg.items).toEqual([]);
+    expect(dg.waterItems || []).toEqual([]);
+    expect(spring.contents).toEqual([]);
+    expect(spring.capacity).toBe(2);
+    expect(ml.filter(message => message.includes("崩れて消滅した"))).toHaveLength(2);
+  });
+
   it("泉の金貨は通常金貨の上限の約2倍まで", () => {
     expect(springGoldRange(0)).toEqual({ min: 100, max: 400 });
     expect(springGoldRange(5)).toEqual({ min: 100, max: 700 });
