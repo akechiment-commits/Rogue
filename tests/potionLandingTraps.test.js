@@ -104,6 +104,50 @@ describe("薬瓶の着地罠を薬液より先に処理する", () => {
   }
 });
 
+describe("ワッカの指輪で投げた薬瓶・壺がかわされた時の着地", () => {
+  it.each([
+    ["potion", null], ["pot", null],
+    ["potion", "rust"], ["pot", "rust"],
+    ["potion", "pitfall"], ["pot", "pitfall"],
+  ])("%s: 着地点の罠が %s の場合", (type, effect) => {
+    const content = { id: "scroll", name: "地図の巻物", type: "scroll" };
+    const item = type === "potion"
+      ? { id: "potion", name: "回復薬", type, effect: "heal", value: 30 }
+      : { id: "pot", name: "保存の壺", type, potEffect: "none", contents: [content] };
+    const trap = effect && { id: "landing", name: "着地罠", x: 8, y: 5, effect, permanent: true };
+    const monster = { id: "target", name: "ゴブリン", x: 8, y: 5, hp: 60, maxHp: 100 };
+    const dungeon = makeEmptyDg({ monsters: [monster], traps: trap ? [trap] : [],
+      pentacles: [{ kind: "dodge", name: "みかわしの魔方陣", x: 8, y: 7 }], rooms: [{ x: 1, y: 1, w: 13, h: 10 }] });
+    const player = makePlayer({ x: 5, y: 5, rings: [{ effect: "wakka_ring" }], inventory: [item] });
+    const messages = [];
+    const bag = [];
+    const noop = () => {};
+    setPitfallBag(bag);
+    useItemActions({
+      sr: { current: { player, dungeon, ident: new Set() } },
+      throwMode: { mode: "throw", idx: 0 },
+      endTurn: (_state, _p, logs) => { messages.push(...logs); },
+      dnameRef: it => it.name, lu: noop, setGs: noop, setMsgs: noop, setThrowMode: noop,
+      pushAnim: noop, withPitfallBag: fn => fn(),
+    }).execDirection(1, 0);
+
+    expect(messages.find(message => message.includes("当たらなかった"))).toBeTruthy();
+    expect(dungeon.items).not.toContain(item);
+    const breakIndex = messages.findIndex(message => /瓶が割れ|壺が割れ/.test(message));
+    if (effect === "pitfall") {
+      expect(bag).toContainEqual({ kind: "item", entity: item });
+      expect(dungeon.items).toEqual([]);
+      expect(breakIndex).toBe(-1);
+    } else {
+      const activationIndex = messages.findIndex(message => message.includes("着地罠が発動"));
+      if (effect) expect(activationIndex).toBeGreaterThanOrEqual(0);
+      expect(breakIndex).toBeGreaterThan(activationIndex);
+      if (type === "potion") expect(monster.hp).toBe(90);
+      else expect(dungeon.items).toContain(content);
+    }
+  });
+});
+
 function throwAtTrap(route, kind, effect, ending) {
   const landingY = ending === "wall" ? 6 : 15;
   const content = { id: "scroll", name: "地図の巻物", type: "scroll" };

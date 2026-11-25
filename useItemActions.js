@@ -4223,6 +4223,12 @@ export function useItemActions({
           return;
         }
         _forceUnequip(p, it);
+        const triggerLandingTrap = (x, y) =>
+          triggerThrownItemLandingTrap(dg, x, y, it, p, ml, { nameFn: dnameRef, luFn: lu, bbFn: bigboxAddItem });
+        const breakThrownPotionAt = (x, y) => {
+          if (it.effect === "water") applyWaterSplash(dg, x, y, !!it.blessed, !!it.cursed, ml, p, lu, dnameRef);
+          else splashPotion(dg, x, y, it.effect, it.value || 0, p, ml, lu, !!it.blessed, !!it.cursed, dnameRef);
+        };
 
         /* ── ワッカの指輪：特殊飛び道具以外を魔法の石のようにホーミング ── */
         const _wakkaRingThrow = mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile && !it.rightStone;
@@ -4245,8 +4251,16 @@ export function useItemActions({
             const _wakkaDodgeMode = getDodgePentacleMode(dg, _wakkaTarget.x, _wakkaTarget.y);
             if (_wakkaDodgeMode === "dodge") {
               ml.push("みかわしの魔方陣の加護で" + _wakkaTarget.name + "に" + _wakkaName + "が当たらなかった！");
-              const _wakkaFt = new Set();
-              withPitfallBag(() => placeItemAt(dg, _wakkaTarget.x, _wakkaTarget.y, it, ml, _wakkaFt, 0, p));
+              const { x, y } = _wakkaTarget;
+              withPitfallBag(() => {
+                if (it.type === "potion" || it.type === "pot") {
+                  if (triggerLandingTrap(x, y)) return;
+                  if (it.type === "potion") breakThrownPotionAt(x, y);
+                  else scatterPotContents(it, dg, x, y, p, ml, lu, dnameRef);
+                } else {
+                  placeItemAt(dg, x, y, it, ml, new Set(), 0, p);
+                }
+              });
             } else if (monReflectsProjectiles(_wakkaTarget)) {
               reflectMagicStoneToPlayer(p, _wakkaTarget, _wakkaName, it.atk || 5, ml);
             } else {
@@ -4603,8 +4617,6 @@ export function useItemActions({
           });
           if (_trFly.bent) ml.push("風穴の風が飛び道具を曲げた！");
         }
-        const triggerLandingTrap = (x, y) =>
-          triggerThrownItemLandingTrap(dg, x, y, it, p, ml, { nameFn: dnameRef, luFn: lu, bbFn: bigboxAddItem });
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false, _hitSelf = false, _hitEnemyProjectile = false;
@@ -4664,8 +4676,7 @@ export function useItemActions({
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
                 pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
-                if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
-                else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
+                breakThrownPotionAt(p.x, p.y);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else {
                 brokeOnImpact = true;
@@ -4684,8 +4695,7 @@ export function useItemActions({
             /* 敵の誘導弾に当たって、薬も誘導弾も消滅する。 */
           } else if (_hitSelf) {
             ml.push(`風に煽られた${dnameRef(it)}が自分に当たった！`);
-            if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
-            else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
+            breakThrownPotionAt(p.x, p.y);
           } else if (_fdBurned) {
             /* 火ダルマに燃やされた：何もしない */
           } else if (_isFarcast) {
@@ -4706,8 +4716,7 @@ export function useItemActions({
           } else {
             withPitfallBag(() => {
               if (!brokeOnImpact && !sprHit && triggerLandingTrap(lx, ly)) return;
-              if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
-              else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
+              breakThrownPotionAt(lx, ly);
             });
           }
         } else if (it.type === "pot") {
