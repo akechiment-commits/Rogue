@@ -18,7 +18,7 @@ export const BB_TYPES = [
   { kind: "greed",     name: "換金の大箱", cap: () => rng(3, 6),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムが売値相当の金貨になる。壊すと金貨が飛び出す。キーアイテムは入れられない。" },
   { kind: "nitro",     name: "ニトロ箱",   cap: () => 1,          rarity: "C", weight: RARITY_WEIGHT.C, desc: "道具が入ると中身が消滅し、半径2マスに即爆発する。" },
   { kind: "monster",   name: "魔物の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れている間は何も起こらない。壊れると中身がすべて敵になる。" },
-  { kind: "protect",   name: "加護の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを加護状態にする。\n加護状態のアイテムは炎・雷・爆発・水・氷・腐敗などの攻撃や罠の対象になっても変化・破壊されない。\n装備の錆と、自分で壺を割る・投げる操作は対象外。" },
+  { kind: "protect",   name: "加護の大箱", cap: () => rng(2, 4),  rarity: "C", weight: RARITY_WEIGHT.C, desc: "入れたアイテムを加護状態にする。矢・石・氷塊など、束にできる道具には効かない。\n加護状態のアイテムは炎・雷・爆発・水・氷・腐敗などの攻撃や罠の対象になっても変化・破壊されない。\n装備の錆と、自分で壺を割る・投げる操作は対象外。" },
 ];
 
 /* ===== TRAPS ===== */

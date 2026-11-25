@@ -8,6 +8,11 @@ import {
   SPELLBOOKS,
   EMPTY_BOTTLE,
   WATER_BOTTLE,
+  ARROW_T,
+  STONE_T,
+  RIGHT_STONE_T,
+  MAGIC_STONE_T,
+  ICE_CHUNK_T,
   applyItemProtect,
   isItemProtected,
   applyLightningToInventory,
@@ -64,6 +69,17 @@ describe("加護の大箱と加護状態", () => {
     expect(applyItemProtect({ id: "gn1", type: "gold_nugget", name: "金塊" })).toBe(false);
     expect(applyItemProtect({ id: "goal1", type: "goal", name: "イェンダーの魔除け" })).toBe(false);
   });
+
+  it.each([ARROW_T, STONE_T, RIGHT_STONE_T, MAGIC_STONE_T, ICE_CHUNK_T, ...ITEMS.filter(item => item.type === "arrow")])(
+    "$name は1個でも束でも加護が付かない",
+    (template) => {
+      for (const count of [1, 20]) {
+        const item = { ...template, count };
+        expect(applyItemProtect(item)).toBe(false);
+        expect(isItemProtected(item)).toBe(false);
+      }
+    },
+  );
 
   it("【加護】ラベルが表示され、複製の巻物では引き継がない", () => {
     const pot = { ...POTS.find((p) => p.potEffect === "none"), id: "pot-lbl", contents: [], protected: true };

@@ -1060,9 +1060,9 @@ export function isItemProtected(item) {
   return !!(item && item.protected);
 }
 
-/** アイテムに加護状態を付与する。目標・金貨・金塊は対象外、付与済みは false。 */
+/** アイテムに加護状態を付与する。目標・金貨・金塊・束にできる飛び道具は対象外。 */
 export function applyItemProtect(item) {
-  if (!item || item.type === "goal" || item.type === "gold" || item.type === "gold_nugget") return false;
+  if (!item || item.type === "goal" || item.type === "gold" || item.type === "gold_nugget" || item.type === "arrow") return false;
   if (item.protected) return false;
   item.protected = true;
   return true;
