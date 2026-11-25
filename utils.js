@@ -458,13 +458,13 @@ export function clearDimensionalVaultItemCounter(item) {
   delete item.dimensionalVaultId;
   return item;
 }
-export const monsterAt = (dg, x, y, exclude = null) => {
+export const monsterAt = (dg, x, y, exclude = null, excludedTargets = null) => {
   ensureItemMimicFloorItems(dg);
-  return dg.monsters.find(m => m !== exclude && !m.disguisedAsItem && monsterOccupiesCell(m, x, y));
+  return dg.monsters.find(m => m !== exclude && !m.disguisedAsItem && monsterOccupiesCell(m, x, y) && !excludedTargets?.has(m));
 };
-export const itemAt = (dg, x, y) => {
+export const itemAt = (dg, x, y, excludedTargets = null) => {
   ensureItemMimicFloorItems(dg);
-  return dg.items.find(i => i.x === x && i.y === y);
+  return dg.items.find(i => i.x === x && i.y === y && !excludedTargets?.has(i));
 };
 export const removeMonster = (dg, mon) => {
   dg.monsters = dg.monsters.filter(m => m !== mon);

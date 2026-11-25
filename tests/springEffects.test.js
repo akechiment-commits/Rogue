@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { consumeSpringCapacity, placeItemAt, soakItemIntoSpring } from "../items.js";
+import { GOAL_ITEMS } from "../dungeon.js";
+import { castSpellBolt, consumeSpringCapacity, placeItemAt, soakItemIntoSpring, SPELLS } from "../items.js";
+import { makeMonsterFromBase, MONS, monsterIceBreath } from "../monsters.js";
 import {
   SPRING_CONFUSION_TURNS,
   SPRING_CAPACITY_MIN,
@@ -10,6 +12,7 @@ import {
   springGoldRange,
 } from "../springRules.js";
 import { TI, T } from "../utils.js";
+import { fireWandBolt, triggerWandBreakEffect } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("泉の効果", () => {
@@ -20,6 +23,52 @@ describe("泉の効果", () => {
   it("泉の金貨は通常金貨の上限の約2倍まで", () => {
     expect(springGoldRange(0)).toEqual({ min: 100, max: 400 });
     expect(springGoldRange(5)).toEqual({ min: 100, max: 700 });
+  });
+
+  it.each(["氷の杖", "氷の魔法", "氷ブレス", "氷の杖の破壊"])("%sで凍った泉から道具と敵が無事に出る", (source) => {
+    const potion = { id: "spring-potion", name: "水", type: "potion", effect: "water", tile: 16 };
+    const goal = { ...GOAL_ITEMS.advanced, id: "spring-goal" };
+    const raider = MONS.find((m) => m.baseKind === "potRaider");
+    const held = makeMonsterFromBase(raider, 3, 0, 0);
+    const spring = createSpring(5, 5, { capacity: 3 });
+    spring.contents = [potion, goal];
+    spring.confinedMonsters = [held];
+    const target = makeMonsterFromBase(raider, 3, 6, 5);
+    const dg = makeEmptyDg({ springs: [spring], monsters: [target] });
+    const p = makePlayer({ x: source === "氷ブレス" ? 8 : 3, y: 5 });
+    const ml = [];
+    const noop = () => {};
+
+    switch (source) {
+      case "氷の杖":
+        fireWandBolt(p, dg, "ice_wand", 1, 0, ml, noop);
+        break;
+      case "氷の魔法":
+        castSpellBolt(p, dg, SPELLS.find((spell) => spell.id === "ice_bolt"), 1, 0, ml, noop);
+        break;
+      case "氷ブレス": {
+        const dragon = { id: "ice-dragon", name: "氷竜", x: 3, y: 5, atk: 40, monLevel: 1 };
+        dg.monsters.push(dragon);
+        monsterIceBreath(dragon, dg, p, ml);
+        break;
+      }
+      case "氷の杖の破壊":
+        triggerWandBreakEffect({ type: "wand", effect: "ice_wand", charges: 4 }, spring.x, spring.y, dg, p, ml, noop);
+        break;
+    }
+
+    expect(dg.springs).toHaveLength(0);
+    expect(dg.items).toContain(potion);
+    expect(potion).toMatchObject({ x: 5, y: 5, effect: "water" });
+    expect(dg.items).toContain(goal);
+    const ice = dg.items.filter((item) => item.iceChunk);
+    expect(ice).toHaveLength(1);
+    expect(ice[0].count).toBeGreaterThanOrEqual(5);
+    expect(ice[0].count).toBeLessThanOrEqual(8);
+    const released = dg.monsters.find((m) => m.baseKind === "potRaider" && m !== target);
+    expect(released).toMatchObject({ x: 5, y: 5, hp: held.hp, monLevel: 3 });
+    expect(target.hp).toBeLessThan(target.maxHp);
+    expect(ml).toContain(`${held.name}が現れた！`);
   });
 
   it("泉から飛び出すアイテムは泉の中心を避けて隣へ落とせる", () => {

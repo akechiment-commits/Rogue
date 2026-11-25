@@ -1603,7 +1603,7 @@ function _findConfinedMonsterReleaseTile(dg, cx, cy, p, used) {
   return randomTeleportDest(dg, cx, cy, (x, y) => !_isConfinedReleaseBlocked(dg, x, y, p, used));
 }
 
-export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
+export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml, releasedTargets) {
   const confined = pot.confinedMonsters || [];
   if (confined.length === 0) return;
   const used = new Set();
@@ -1634,6 +1634,7 @@ export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
     };
     for (const key of ["absentSince", "waitDuringAbsence", "_movedThisTurn", "_defHalfMagicReady", "_pentacleDrawReady", "_mimicReady", "_mimicSourceId", "_dreamEaterStrikeReady", "_krakInkReady"]) delete mon[key];
     dg.monsters.push(mon);
+    releasedTargets?.add(mon);
     wakeIfDormant(mon);
     ml.push(`${mon.name}が現れた！`);
   }
@@ -6917,20 +6918,21 @@ export function makeSpringEjectedItem(rngFn = Math.random) {
   return item;
 }
 
-function _drySpring(spr, dg, ml, pl = null) {
+function _drySpring(spr, dg, ml, pl = null, { frozen = false, releasedTargets } = {}) {
   if (!spr || !dg) return false;
   dg.springs = (dg.springs || []).filter(s => s !== spr);
   const items = spr.contents || [];
   if (items.length > 0) {
-    ml?.push("泉が干上がった！中のアイテムが飛び出した！");
+    ml?.push(frozen ? "泉から中のアイテムが飛び出した！" : "泉が干上がった！中のアイテムが飛び出した！");
     const _ft = new Set();
     for (const _ci of items) {
       placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
+      releasedTargets?.add(_ci);
     }
   }
   /* 保持されていたモンスターも、他の干上がり経路と同じく放出する */
-  releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, pl, ml);
-  if (items.length === 0) {
+  releaseConfinedMonstersFromPot(spr, dg, spr.x, spr.y, pl, ml, releasedTargets);
+  if (!frozen && items.length === 0) {
     ml?.push("泉は干上がってしまった...");
   }
   return true;
@@ -10454,17 +10456,18 @@ export function tickBubbleGold(p, ml) {
 }
 
 /**
- * 水タイル・泉を凍らせ、泉は干上がらせる。氷塊も凍結時に生成する。
+ * 水や泉を凍らせる。泉は中身を出してから氷塊を生成する。
+ * newTargets にはこの攻撃で新たに出現し、同じ攻撃の命中対象から外す道具と敵を記録する。
  * @returns {boolean} 凍らせたか
  */
-export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, options = {}) {
+export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, { avoidDirection, player, newTargets, summarize = false } = {}) {
   if (!dg?.map) return false;
   const _isWater = dg.map[y]?.[x] === T.WATER;
   const _spring = dg.springs?.find((spring) => spring.x === x && spring.y === y) || null;
   if (!_isWater && !_spring) return false;
   if (_isWater) dg.map[y][x] = T.FLOOR;
-  if (_spring) dg.springs = dg.springs.filter((spring) => spring !== _spring);
-  if (ml) ml.push(_spring ? "氷が泉を凍らせて干上がらせた！" : "氷が水を凍らせた！");
+  const freezeMessages = summarize ? null : ml;
+  freezeMessages?.push(_spring ? "氷が泉を凍らせて干上がらせた！" : "氷が水を凍らせた！");
   if (dg.waterItems) {
     const _frozen = dg.waterItems.filter((wi) => wi.x === x && wi.y === y);
     dg.waterItems = dg.waterItems.filter((wi) => !(wi.x === x && wi.y === y));
@@ -10474,17 +10477,20 @@ export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, options = {}
       if (!dg.items) dg.items = [];
       markItemIdentifiedForDungeon(wi.item, dg);
       dg.items.push(wi.item);
-      if (ml) ml.push(`凍った水から${resolveItemName(wi.item, nameFn)}が現れた！`);
+      freezeMessages?.push(`凍った水から${resolveItemName(wi.item, nameFn)}が現れた！`);
     }
+  }
+  if (_spring) {
+    dg.items ||= [];
+    _drySpring(_spring, dg, ml ?? [], player, { frozen: true, releasedTargets: newTargets });
   }
   const _iceCount = _spring ? rng(5, 8) : (Math.random() < 0.08 ? rng(1, 2) : 0);
   if (_iceCount > 0) {
     dg.items ||= [];
-    const _avoid = options.avoidDirection;
     const _dropCells = [[x, y], ...DRO.filter(([dx, dy]) => dx !== 0 || dy !== 0).map(([dx, dy]) => [x + dx, y + dy])];
     const _dropCell = _dropCells.find(([ix, iy]) =>
       ix >= 0 && ix < MW && iy >= 0 && iy < MH && iy < dg.map.length && ix < (dg.map[iy]?.length || 0) &&
-      ((ix === x && iy === y) || !(_avoid && (ix - x) * _avoid.dy === (iy - y) * _avoid.dx)) &&
+      ((ix === x && iy === y) || !(avoidDirection && (ix - x) * avoidDirection.dy === (iy - y) * avoidDirection.dx)) &&
       dg.map[iy]?.[ix] !== T.WALL && dg.map[iy]?.[ix] !== T.BWALL &&
       dg.map[iy]?.[ix] !== T.WATER && dg.map[iy]?.[ix] !== T.SD && dg.map[iy]?.[ix] !== T.SU &&
       !dg.items.some((item) => item.x === ix && item.y === iy) &&
@@ -10502,8 +10508,8 @@ export function freezeWaterTile(dg, x, y, ml = null, nameFn = null, options = {}
       _iceChunk.y = _dropCell[1];
       markItemIdentifiedForDungeon(_iceChunk, dg);
       dg.items.push(_iceChunk);
-      options.generatedIceChunks?.push(_iceChunk);
-      if (ml) ml.push(`${_spring ? "凍った泉" : "凍った水"}から氷塊が${_iceCount}個現れた！`);
+      newTargets?.add(_iceChunk);
+      freezeMessages?.push(`${_spring ? "凍った泉" : "凍った水"}から氷塊が${_iceCount}個現れた！`);
     }
   }
   return true;
@@ -11078,6 +11084,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
   let _lx = p.x, _ly = p.y;
   const _isLeapMagic = spell.effect === "leap_magic";
+  const newIceTargets = spell.effect === "ice_bolt" ? new Set() : null;
   const _landLeap = (message, hitType) => {
     const _fromX = p.x, _fromY = p.y;
     p.x = _lx; p.y = _ly;
@@ -11126,8 +11133,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       return { x: tx, y: ty, hitType: "sealed" };
     }
     /* 氷の魔法：通過した水を凍らせて床にする */
-    const _generatedIceChunks = [];
-    if (spell.effect === "ice_bolt") freezeWaterTile(dg, tx, ty, ml, null, { avoidDirection: { dx: _fdx, dy: _fdy }, generatedIceChunks: _generatedIceChunks });
+    if (newIceTargets) freezeWaterTile(dg, tx, ty, ml, null, { avoidDirection: { dx: _fdx, dy: _fdy }, player: p, newTargets: newIceTargets });
     /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
     if (statueAt(dg, tx, ty)) {
       if (_isLeapMagic) return _landLeap(`${statueAt(dg, tx, ty).name}の前に飛びついた！`, "statue");
@@ -11138,7 +11144,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       });
       return { x: tx, y: ty, hitType: _breaks ? "statue" : "statue_safe" };
     }
-    const mon = monsterAt(dg, tx, ty);
+    const mon = monsterAt(dg, tx, ty, null, newIceTargets);
     if (mon) {
       if (monSubmergesProjectiles(mon)) {
         ml.push(`${mon.name}が潜って魔法をかわした！`);
@@ -11258,9 +11264,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       return { x: tx, y: ty, hitType: "monster" };
     }
     if (tx === p.x && ty === p.y) continue;
-    const it = itemAt(dg, tx, ty);
+    const it = itemAt(dg, tx, ty, newIceTargets);
     if (it) {
-      if (_generatedIceChunks.includes(it)) { _lx = tx; _ly = ty; continue; }
       if (_isLeapMagic) return _landLeap(`${resolveItemName(it)}の前に飛びついた！`, "item");
       applySpellEffect(spell.effect, "item", it, _fdx, _fdy, dg, p, ml, luFn, lv);
       return { x: tx, y: ty, hitType: "item" };

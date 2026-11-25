@@ -838,6 +838,7 @@ export function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
 
 /* ===== 氷竜ブレス（風で曲がる物理ブレス） ===== */
 export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
+  const newIceTargets = new Set();
   const _iBase = iceBreathBase(m) + rng(-5, 5);
   const _iLvl = m.monLevel || 1;
   let _idx = Math.sign(pl.x - m.x), _idy = Math.sign(pl.y - m.y);
@@ -909,7 +910,7 @@ export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     _cx = _ix; _cy = _iy;
     if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) { _emitBreathAnim(); return; }
     /* 氷の杖と同様：射線上の水を凍らせる（止まらない） */
-    freezeWaterTile(dg, _ix, _iy, ml, null, { avoidDirection: { dx: _idx, dy: _idy } });
+    freezeWaterTile(dg, _ix, _iy, ml, null, { avoidDirection: { dx: _idx, dy: _idy }, player: pl, newTargets: newIceTargets });
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) { _emitBreathAnim(); return; }
     _breathPath.push({ x: _ix, y: _iy });
     if (_ix === m.x && _iy === m.y) { _hitIceMon(m); _emitBreathAnim(); return; }
@@ -923,7 +924,7 @@ export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); _emitBreathAnim(); return; }
-    const _iBlock = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _ix, _iy));
+    const _iBlock = dg.monsters.find(o => o !== m && monsterOccupiesCell(o, _ix, _iy) && !newIceTargets.has(o));
     if (_iBlock) {
       if (monSubmergesProjectiles(_iBlock) && _iLvl <= 1) {
         ml.push(`${_iBlock.name}が潜って氷ブレスをかわした！`);

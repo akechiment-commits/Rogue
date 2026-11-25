@@ -2228,6 +2228,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
 }
 
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null, bigboxNameFn = null, { onSpringWish = null } = {}) {
+  const newIceTargets = eff === "ice_wand" ? new Set() : null;
   if (p) installPlayerHpReverseHook(p);
   if (Array.isArray(ml)) installPlayerHpMessageHook(ml, p);
   /* 呪われた軟化：1マス先に壊せる壁を生成（穴掘り呪いと同一挙動） */
@@ -2480,9 +2481,8 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       return;
     }
     /* 氷の杖：射線上の水を凍らせる（通過・命中判定はその後） */
-    const _generatedIceChunks = [];
-    if (eff === "ice_wand") freezeWaterTile(dg, tx, ty, ml, nameFn, { avoidDirection: { dx: _fdx, dy: _fdy }, generatedIceChunks: _generatedIceChunks });
-    const mon = monsterAt(dg, tx, ty);
+    if (newIceTargets) freezeWaterTile(dg, tx, ty, ml, nameFn, { avoidDirection: { dx: _fdx, dy: _fdy }, player: p, newTargets: newIceTargets });
+    const mon = monsterAt(dg, tx, ty, null, newIceTargets);
     if (mon) {
       if (monSubmergesProjectiles(mon)) {
         ml.push(`${mon.name}が潜って杖の光弾をかわした！`);
@@ -2506,9 +2506,8 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       applyWandEffect(eff, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
-    const it = itemAt(dg, tx, ty);
+    const it = itemAt(dg, tx, ty, newIceTargets);
     if (it) {
-      if (_generatedIceChunks.includes(it)) { lastX = tx; lastY = ty; continue; }
       if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${resolveItemName(it, nameFn)}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
       if (it.effect === "water") {
@@ -2761,11 +2760,11 @@ function _wandBreakSnapshot(wand) {
   };
 }
 
-function _centerWandTarget(dg, cx, cy, p) {
+function _centerWandTarget(dg, cx, cy, p, excludedTargets = null) {
   if (p.x === cx && p.y === cy) return { kind: "player", t: p };
-  const mon = monsterAt(dg, cx, cy);
+  const mon = monsterAt(dg, cx, cy, null, excludedTargets);
   if (mon) return { kind: "monster", t: mon };
-  const it = itemAt(dg, cx, cy);
+  const it = itemAt(dg, cx, cy, excludedTargets);
   if (it) return { kind: "item", t: it };
   const trap = dg.traps?.find(t => t.x === cx && t.y === cy);
   if (trap) { trap.revealed = true; trackTrap(trap); return { kind: "trap", t: trap }; }
@@ -2780,27 +2779,27 @@ function _centerWandTarget(dg, cx, cy, p) {
   return null;
 }
 
-function _floorItemsAt(dg, x, y) {
+function _floorItemsAt(dg, x, y, excludedTargets = null) {
   itemAt(dg, x, y); /* materialize and synchronize item-mimic floor items */
-  return (dg.items || []).filter(item => item.x === x && item.y === y);
+  return (dg.items || []).filter(item => item.x === x && item.y === y && !excludedTargets?.has(item));
 }
 
 /** 壊し効果の中心から見た周囲8マスの対象（プレイヤー含む） */
-function _collectBreakAdjacentTargets(dg, cx, cy, p) {
+function _collectBreakAdjacentTargets(dg, cx, cy, p, excludedTargets = null) {
   const targets = [];
   for (const [adx, ady] of _BW_DIRS) {
     const ax = cx + adx, ay = cy + ady;
     if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
     if (p.x === ax && p.y === ay) {
       targets.push({ kind: "player", t: p, dx: adx, dy: ady });
-      for (const item of _floorItemsAt(dg, ax, ay)) {
+      for (const item of _floorItemsAt(dg, ax, ay, excludedTargets)) {
         targets.push({ kind: "item", t: item, dx: adx, dy: ady });
       }
       continue;
     }
-    const mon = monsterAt(dg, ax, ay);
+    const mon = monsterAt(dg, ax, ay, null, excludedTargets);
     if (mon) { targets.push({ kind: "monster", t: mon, dx: adx, dy: ady }); continue; }
-    const it = itemAt(dg, ax, ay);
+    const it = itemAt(dg, ax, ay, excludedTargets);
     if (it) { targets.push({ kind: "item", t: it, dx: adx, dy: ady }); continue; }
     const trap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
     if (trap) { trap.revealed = true; trackTrap(trap); targets.push({ kind: "trap", t: trap, dx: adx, dy: ady }); continue; }
@@ -2995,6 +2994,7 @@ function _triggerWandBreakEffectInner(wand, cx, cy, dg, p, ml, luFn, opts = {}) 
   const times = Math.max(1, Math.ceil((wand.charges ?? 0) / 2));
   const center = { x: cx, y: cy };
   const initialDepth = p.depth;
+  const newIceTargets = wand.effect === "ice_wand" ? new Set() : null;
   for (let t = 0; t < times && p.depth === initialDepth; t++) breakWandAoE(p, dg, wand.effect, ml, luFn, blMult, center, {
     identSet: opts.identSet,
     identState: opts.identState,
@@ -3008,6 +3008,7 @@ function _triggerWandBreakEffectInner(wand, cx, cy, dg, p, ml, luFn, opts = {}) 
     sourceIsPlayer: opts.sourceIsPlayer,
     breaker: opts.breaker,
     fireTrapFn: opts.fireTrapFn,
+    newIceTargets,
   });
   return { triggered: true };
 }
@@ -3216,12 +3217,13 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     }
     return;
   }
-  if (eff === "ice_wand") {
+  const newIceTargets = eff === "ice_wand" ? (sageContext.newIceTargets ?? new Set()) : null;
+  if (newIceTargets) {
     let frozenCount = 0;
     for (const [adx, ady] of [[0, 0], ..._BW_DIRS]) {
       const wx = cx + adx, wy = cy + ady;
       if (wx < 0 || wx >= MW || wy < 0 || wy >= MH) continue;
-      if (freezeWaterTile(dg, wx, wy, null)) frozenCount++;
+      if (freezeWaterTile(dg, wx, wy, ml, sageContext.nameFn, { player: p, newTargets: newIceTargets, summarize: true })) frozenCount++;
     }
     if (frozenCount > 0) ml.push(`周囲${frozenCount}マスの水や泉が凍りついた！`);
   }
@@ -3268,13 +3270,13 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     return;
   }
   const rd = pick(_BW_DIRS);
-  const _centerItems = _floorItemsAt(dg, cx, cy);
-  const _defCenter = _centerWandTarget(dg, cx, cy, p);
+  const _centerItems = _floorItemsAt(dg, cx, cy, newIceTargets);
+  const _defCenter = _centerWandTarget(dg, cx, cy, p, newIceTargets);
   if (_defCenter) _applyBreakEffect(eff, _defCenter.kind, _defCenter.t, rd[0], rd[1]);
   if (floorChanged()) return;
   _applyCenterFloorItems(eff, _centerItems, _defCenter?.kind === "item" ? _defCenter.t : null, rd[0], rd[1]);
   if (floorChanged()) return;
-  const targets = _collectBreakAdjacentTargets(dg, cx, cy, p);
+  const targets = _collectBreakAdjacentTargets(dg, cx, cy, p, newIceTargets);
   const _footBb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
   if (_footBb && !_defCenter) targets.push({ kind:"bigbox", t:_footBb, dx:rd[0], dy:rd[1] });
   for (const { kind, t, dx, dy } of targets) {
