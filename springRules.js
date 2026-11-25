@@ -32,12 +32,11 @@ export const WISH_CHANCE_SOAK = 0.001;
 export const WISH_CHANCE_GOLD_COIN = 0.015;
 export const WISH_CHANCE_GOLD_NUGGET = 0.15;
 
-/** 金貨の願い率。500Gまでは0.5%、1000Gで1%、15000Gで上限の8%。 */
+/** 金額に応じた金貨投入時の願い確率（100G: 約0.5% 〜 1000G: 約1.0% 〜 10000G以上: 最大8.0%） */
 export function goldCoinWishChance(value = null) {
   if (value == null) return WISH_CHANCE_GOLD_COIN;
-  const amount = Math.max(0, Number(value) || 0);
-  const increase = amount < 1000 ? Math.max(0, amount - 500) / 100000 : amount / 200000;
-  return Math.min(0.08, 0.005 + increase);
+  const v = Math.max(0, Number(value) || 0);
+  return Math.min(0.08, 0.005 + (v / 10000) * 0.05);
 }
 
 /** 金額に応じたアイテム射出確率（100G: 約15% 〜 1000G: 約20% 〜 5000G以上: 最大50%） */
