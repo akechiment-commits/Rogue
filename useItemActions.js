@@ -4641,14 +4641,14 @@ export function useItemActions({
             if (tx === p.x && ty === p.y) {
               lx = tx; ly = ty; _hitSelf = true; break;
             }
-            /* 石像：投擲で破壊 */
+            /* 石像を壊し、同じマスで薬瓶も割れる。 */
             if (!_isFarcast && statueAt(dg, tx, ty)) {
               lx = tx; ly = ty;
               hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, {
                 breaks: true,
                 itemDeps: getFixtureItemDeps(),
               });
-              _fdBurned = true; /* アイテム消費済みとして着地処理スキップ */
+              brokeOnImpact = true;
               break;
             }
             const m = monsterAt(dg, tx, ty);

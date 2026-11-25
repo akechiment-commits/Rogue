@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { makeStatue } from "../fixtures.js";
 import { applyWandEffect } from "../wands.js";
 import { clearPitfallBag, setPitfallBag, splashPotion, throwItemAlongLine } from "../items.js";
 import { placeFallenEntities } from "../pitfallPlacement.js";
@@ -11,6 +12,38 @@ vi.mock("react", () => ({
 }));
 
 afterEach(() => { clearPitfallBag(); vi.restoreAllMocks(); });
+
+function throwPotionByHand(player, dungeon) {
+  const messages = [];
+  const noop = () => {};
+  useItemActions({
+    sr: { current: { player, dungeon, ident: new Set() } },
+    throwMode: { mode: "throw", idx: 0 },
+    endTurn: (_state, _p, logs) => { messages.push(...logs); },
+    dnameRef: item => item.name, lu: noop, setGs: noop, setMsgs: noop, setThrowMode: noop,
+    pushAnim: noop, withPitfallBag: fn => fn(),
+  }).execDirection(1, 0);
+  return messages;
+}
+
+it("手投げした回復薬が石像に当たると石像の位置で割れて飛沫が出る", () => {
+  const potion = { id: "potion", name: "回復薬", type: "potion", effect: "heal", value: 30 };
+  const player = makePlayer({ x: 5, y: 5, hp: 60, depth: 1, inventory: [potion] });
+  const adjacent = { id: "near", name: "ゴブリン", x: 8, y: 6, hp: 60, maxHp: 100 };
+  const pastStatue = { id: "far", name: "スライム", x: 10, y: 5, hp: 60, maxHp: 100 };
+  const dungeon = makeEmptyDg({ statues: [makeStatue(8, 5)], monsters: [adjacent, pastStatue], rooms: [] });
+
+  const messages = throwPotionByHand(player, dungeon);
+
+  expect(dungeon.statues).toEqual([]);
+  expect(player.inventory).toEqual([]);
+  expect(dungeon.items).not.toContain(potion);
+  expect(adjacent.hp).toBe(90);
+  expect(pastStatue.hp).toBe(60);
+  const statueIndex = messages.findIndex(message => message.includes("石像が砕け散った"));
+  expect(statueIndex).toBeGreaterThanOrEqual(0);
+  expect(messages.findIndex(message => message.includes("瓶が割れて"))).toBeGreaterThan(statueIndex);
+});
 
 it.each(["fire", "sleep", "poison", "water", "heal"])("薬液(%s)を対象ごとに1回分のバリアで防ぐ", effect => {
   const player = makePlayer({ x: 5, y: 5, hp: 75, barrier: 2, oilyTurns: 3 });
