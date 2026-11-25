@@ -372,8 +372,12 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
   }
 
   /* 出現敵の選択は monsters.js 側で行う（循環 import を作らない）。 */
-  if (spawnMonster) {
-    statueSpawnHandler?.(statue, dg, p, ml, depth);
+  if (spawnMonster && statueSpawnHandler) {
+    if (opts.deferredStatueSpawns) {
+      opts.deferredStatueSpawns.push(() => statueSpawnHandler(statue, dg, p, ml, depth));
+    } else {
+      statueSpawnHandler(statue, dg, p, ml, depth);
+    }
   }
   return true;
 }
@@ -406,7 +410,7 @@ export function throwItemBreaksStatue(it) {
 
 /**
  * 石像タイルにダメージ行動が到達したら破壊を試す。
- * @param {{ breaks?: boolean, spawnItem?: boolean, spawnMonster?: boolean, breakMessage?: string }} opts
+ * @param {{ breaks?: boolean, spawnItem?: boolean, spawnMonster?: boolean, breakMessage?: string, deferredStatueSpawns?: Function[] }} opts
  * @returns {boolean} 壊した／石像があった
  */
 export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, {
@@ -415,6 +419,7 @@ export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, {
   spawnMonster = true,
   breakMessage,
   itemDeps,
+  deferredStatueSpawns,
 } = {}) {
   const st = statueAt(dg, x, y);
   if (!st) return false;
@@ -427,6 +432,7 @@ export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, {
     spawnMonster,
     breakMessage,
     itemDeps,
+    deferredStatueSpawns,
   });
 }
 

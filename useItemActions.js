@@ -4627,6 +4627,7 @@ export function useItemActions({
           ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false, _hitSelf = false, _hitEnemyProjectile = false;
           let brokeOnImpact = false;
+          const deferredStatueSpawns = [];
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           let _tFdx = dx, _tFdy = dy, _tCx = p.x, _tCy = p.y, _tWind = false;
           for (let d = 1; d <= _maxRange; d++) {
@@ -4653,6 +4654,7 @@ export function useItemActions({
               hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, {
                 breaks: true,
                 itemDeps: getFixtureItemDeps(),
+                deferredStatueSpawns,
               });
               brokeOnImpact = true;
               break;
@@ -4720,7 +4722,11 @@ export function useItemActions({
           } else {
             withPitfallBag(() => {
               if (!brokeOnImpact && !sprHit && triggerLandingTrap(lx, ly)) return;
-              breakThrownPotionAt(lx, ly);
+              try {
+                breakThrownPotionAt(lx, ly);
+              } finally {
+                deferredStatueSpawns.forEach(spawn => spawn());
+              }
             });
           }
         } else if (it.type === "pot") {

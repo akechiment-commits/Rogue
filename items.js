@@ -8192,6 +8192,15 @@ function resolveMonsterDefeat(mon, dg, p, ml, luFn, noExp, killerMon, noRevive, 
  *   - 将来: アイテム飛翔系の新規杖
  */
 export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts = {}) {
+  const deferredStatueSpawns = item.type === "potion" ? [] : null;
+  try {
+    return _throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts, deferredStatueSpawns);
+  } finally {
+    deferredStatueSpawns?.forEach(spawn => spawn());
+  }
+}
+
+function _throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts, deferredStatueSpawns) {
   if (item?.rightStone) {
     dx = 1;
     dy = 0;
@@ -8399,6 +8408,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     homingTarget,
     bypassDodgemole,
     skipProjectileAnim,
+    deferredStatueSpawns,
     onSpring: (spr, lx, ly, mlx) => {
       if (springLandMsg) { const _m = springLandMsg(spr, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;

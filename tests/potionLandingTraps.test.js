@@ -26,23 +26,33 @@ function throwPotionByHand(player, dungeon) {
   return messages;
 }
 
-it("手投げした回復薬が石像に当たると石像の位置で割れて飛沫が出る", () => {
-  const potion = { id: "potion", name: "回復薬", type: "potion", effect: "heal", value: 30 };
-  const player = makePlayer({ x: 5, y: 5, hp: 60, depth: 1, inventory: [potion] });
+it.each(["手投げ", "敵の投擲", "吹き飛ばしの杖"])("%sで薬瓶が石像に当たると、飛沫のあとに敵が出る", route => {
+  const potion = { id: "potion", name: "回復薬", type: "potion", effect: "heal", value: 30, x: 6, y: 5 };
+  const player = makePlayer({ x: 5, y: 5, hp: 60, depth: 1, inventory: route === "手投げ" ? [potion] : [] });
   const adjacent = { id: "near", name: "ゴブリン", x: 8, y: 6, hp: 60, maxHp: 100 };
   const pastStatue = { id: "far", name: "スライム", x: 10, y: 5, hp: 60, maxHp: 100 };
-  const dungeon = makeEmptyDg({ statues: [makeStatue(8, 5)], monsters: [adjacent, pastStatue], rooms: [] });
-
-  const messages = throwPotionByHand(player, dungeon);
+  const dungeon = makeEmptyDg({ statues: [makeStatue(8, 5)], monsters: [adjacent, pastStatue], rooms: [],
+    items: route === "吹き飛ばしの杖" ? [potion] : [] });
+  const messages = [];
+  const noop = () => {};
+  if (route === "手投げ") messages.push(...throwPotionByHand(player, dungeon));
+  else if (route === "敵の投擲") throwItemAlongLine({ x: 6, y: 5, name: "投げる敵", hp: 100 }, dungeon, potion, 1, 0, 5, messages, player, noop);
+  else applyWandEffect("knockback", "item", potion, 1, 0, dungeon, player, messages, noop);
 
   expect(dungeon.statues).toEqual([]);
   expect(player.inventory).toEqual([]);
   expect(dungeon.items).not.toContain(potion);
   expect(adjacent.hp).toBe(90);
   expect(pastStatue.hp).toBe(60);
+  const spawned = dungeon.monsters.find(m => m.x === 8 && m.y === 5);
+  expect(spawned).toBeDefined();
   const statueIndex = messages.findIndex(message => message.includes("石像が砕け散った"));
+  const splashIndex = messages.findIndex(message => message.includes("瓶が割れて"));
+  const spawnIndex = messages.indexOf(`${spawned.name}が現れた！`);
   expect(statueIndex).toBeGreaterThanOrEqual(0);
-  expect(messages.findIndex(message => message.includes("瓶が割れて"))).toBeGreaterThan(statueIndex);
+  expect(splashIndex).toBeGreaterThan(statueIndex);
+  expect(spawnIndex).toBeGreaterThan(splashIndex);
+  expect(messages.slice(spawnIndex + 1)).not.toContain(`${spawned.name}のHP最大値が1上昇した！`);
 });
 
 it.each([0, 2])("ワッカの指輪で投げた薬瓶を反射されるとプレイヤーの足元で割れる（バリア%s回）", barrier => {

@@ -4239,6 +4239,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onEnemyProjectileHit = null,
     onWallStop = null,
     onFlyOff = null,
+    deferredStatueSpawns = null,
     hitChance = 1.0,
     applyVulnPentacle = false,
     wind = true,
@@ -4369,6 +4370,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
         breaks: true,
         itemDeps: getFixtureItemDeps(),
+        deferredStatueSpawns,
       });
       if (onStatue) onStatue(_statue, _tx, _ty, ml);
       if (!_passthrough) return;
