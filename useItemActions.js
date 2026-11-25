@@ -4229,6 +4229,11 @@ export function useItemActions({
           if (it.effect === "water") applyWaterSplash(dg, x, y, !!it.blessed, !!it.cursed, ml, p, lu, dnameRef);
           else splashPotion(dg, x, y, it.effect, it.value || 0, p, ml, lu, !!it.blessed, !!it.cursed, dnameRef);
         };
+        const reflectThrownPotion = (reflector, x, y) => {
+          ml.push(`${dnameRef(it)}が${reflector.name}に弾き返された！`);
+          pushItemReturnAnim(x, y, p.x, p.y, it.tile);
+          breakThrownPotionAt(p.x, p.y);
+        };
 
         /* ── ワッカの指輪：特殊飛び道具以外を魔法の石のようにホーミング ── */
         const _wakkaRingThrow = mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile && !it.rightStone;
@@ -4262,7 +4267,8 @@ export function useItemActions({
                 }
               });
             } else if (monReflectsProjectiles(_wakkaTarget)) {
-              reflectMagicStoneToPlayer(p, _wakkaTarget, _wakkaName, it.atk || 5, ml);
+              if (it.type === "potion") reflectThrownPotion(_wakkaTarget, _wakkaTarget.x, _wakkaTarget.y);
+              else reflectMagicStoneToPlayer(p, _wakkaTarget, _wakkaName, it.atk || 5, ml);
             } else {
               const _wakkaWasMole = monSubmergesProjectiles(_wakkaTarget);
               if (_wakkaWasMole) _wakkaTarget._wakkaRingHit = true;
@@ -4674,9 +4680,7 @@ export function useItemActions({
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else if (monReflectsProjectiles(m)) {
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
-                ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
-                pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
-                breakThrownPotionAt(p.x, p.y);
+                reflectThrownPotion(m, tx, ty);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else {
                 brokeOnImpact = true;

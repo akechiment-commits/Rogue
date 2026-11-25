@@ -45,6 +45,25 @@ it("手投げした回復薬が石像に当たると石像の位置で割れて�
   expect(messages.findIndex(message => message.includes("瓶が割れて"))).toBeGreaterThan(statueIndex);
 });
 
+it.each([0, 2])("ワッカの指輪で投げた薬瓶を反射されるとプレイヤーの足元で割れる（バリア%s回）", barrier => {
+  const potion = { id: "potion", name: "回復薬", type: "potion", effect: "heal", value: 30 };
+  const player = makePlayer({ x: 5, y: 5, hp: 60, depth: 1, barrier,
+    inventory: [potion], rings: [{ effect: "wakka_ring" }] });
+  const reflector = { id: "reflector", name: "反射する敵", subtype: "reflector", x: 8, y: 5, hp: 60, maxHp: 100 };
+  const dungeon = makeEmptyDg({ monsters: [reflector] });
+
+  const messages = throwPotionByHand(player, dungeon);
+
+  expect(player.inventory).toEqual([]);
+  expect(dungeon.items).toEqual([]);
+  expect(player.hp).toBe(barrier ? 60 : 90);
+  expect(player.barrier).toBe(barrier ? 1 : 0);
+  expect(reflector.hp).toBe(60);
+  const reflectIndex = messages.findIndex(message => message.includes("弾き返された"));
+  expect(reflectIndex).toBeGreaterThanOrEqual(0);
+  expect(messages.findIndex(message => message.includes("瓶が割れて"))).toBeGreaterThan(reflectIndex);
+});
+
 it.each(["fire", "sleep", "poison", "water", "heal"])("薬液(%s)を対象ごとに1回分のバリアで防ぐ", effect => {
   const player = makePlayer({ x: 5, y: 5, hp: 75, barrier: 2, oilyTurns: 3 });
   const target = { id: "large", name: "巨大敵", x: 6, y: 5, bodySize: 2, hp: 75, maxHp: 100, barrier: 2, oilyTurns: 3 };
