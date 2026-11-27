@@ -175,6 +175,17 @@ describe("バリアと敵の特技", () => {
     expect(monster.turnAttacks).toBe(1);
   });
 
+  it.each(["goldthief", "disarmer", "itemblast"])("%sの特技をバリアで防ぐ", kind => {
+    const item = { id: "scroll", name: "巻物", type: "scroll", effect: "teleport" };
+    const { p, monster, attack } = battlefield(kind, { player: { x: 6, gold: 1000, inventory: [item], weapon: { type: "weapon", name: "剣" } } });
+    attack();
+    expect(p.barrier).toBe(1);
+    expect(p.gold).toBe(1000);
+    expect(p.inventory).toContain(item);
+    expect(p.weapon).toBeTruthy();
+    expect(monster.turnAttacks).toBe(1);
+  });
+
   it.each(["puller", "grabber", "giantEel"])("%sの強制移動や拘束を防ぐと移動フェーズの行動を消費する", kind => {
     const x = kind === "puller" ? 8 : 6;
     const { p, dungeon, move } = battlefield(kind, { player: { x } });

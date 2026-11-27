@@ -11026,6 +11026,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           return;
         }
         if (pl.gold > 0) {
+          if (consumeBarrier(pl, ml)) {
+            if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+            return;
+          }
           const _lv = m.monLevel || 1;
           const _stealMin = [200, 800, 1500][_lv - 1];
           const _stealMax = [600, 2000, 3000][_lv - 1];
@@ -11033,7 +11037,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           pl.gold -= _gtAmount;
           m.heldGold = (m.heldGold || 0) + _gtAmount;
           m._stolenFromPlayer = true;
-          const _gtTpDst = randomTeleportDest(dg, m.x, m.y, (x, y) =>
+          const _gtTpDst = hasCursedTeleportPentacle(dg) ? null : randomTeleportDest(dg, m.x, m.y, (x, y) =>
             !(x === m.x && y === m.y) && !(x === pl.x && y === pl.y) &&
             !dg.monsters.some(o => o !== m && monsterOccupiesCell(o, x, y)));
           if (_gtTpDst) {
@@ -11063,6 +11067,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (!ring.cursed) _ueSlots.push({ slot: "ring", it: ring });
         }
         if (_ueSlots.length > 0) {
+          if (consumeBarrier(pl, ml)) {
+            if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+            return;
+          }
           const _ueCount = m.monLevel || 1; /* Lv1:1個, Lv2:2個, Lv3:3個 */
           const _pool = [..._ueSlots];
           for (let i = 0; i < _ueCount && _pool.length > 0; i++) {
@@ -11094,8 +11102,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
         }
-        const _ibCands = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
+        const _ibCands = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal" && canStealInventoryItem(i));
         if (_ibCands.length > 0) {
+          if (consumeBarrier(pl, ml)) {
+            if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+            return;
+          }
           const _ibItem = pick(_ibCands);
           detachPlayerEquipment(pl, _ibItem);
           pl.inventory.splice(pl.inventory.indexOf(_ibItem), 1);
