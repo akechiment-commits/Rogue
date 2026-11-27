@@ -5173,16 +5173,44 @@ export function useItemActions({
                     ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yThrowDmg}ダメージ！`);
                     if (m.hp > 0 && !isStatusImmune(m, ml, m.name)) {
                       applyFoodAttackHalfToMonster(m, ml, "ヤバイ食料");
-                      const _yPoison = applyYabaiPoison(m, "monster");
-                      const _yConfuseT = statusTurns("confuse", { kind: "monster", target: m });
-                      const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
-                      m.confusedTurns = (m.confusedTurns || 0) + _yConfuseT;
-                      m.fleeingTurns = (m.fleeingTurns || 0) + _yBewitchT;
-                      if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
-                      m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-                      const _ySlowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
-                      if (m.isBoss) m.bossSlowTurns = (m.bossSlowTurns || 0) + _ySlowT;
-                      ml.push(`${m.name}は毒(${_yPoison.turns}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${m.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`);
+                      const _yApplied = [];
+                      let _yAtkLoss = 0;
+                      if (!blockLargeMonsterStatus(m, "poison", ml)) {
+                        const _yPoison = applyYabaiPoison(m, "monster");
+                        startLargeMonsterStatusCooldown(m, "poison");
+                        _yAtkLoss = _yPoison.atkLoss;
+                        _yApplied.push(`毒(${_yPoison.turns}ターン)`);
+                      }
+                      if (!blockLargeMonsterStatus(m, "confuse", ml)) {
+                        const _yConfuseT = statusTurns("confuse", { kind: "monster", target: m });
+                        m.confusedTurns = (m.confusedTurns || 0) + _yConfuseT;
+                        startLargeMonsterStatusCooldown(m, "confuse");
+                        _yApplied.push(`混乱(${_yConfuseT}ターン)`);
+                      }
+                      if (!blockLargeMonsterStatus(m, "bewitch", ml)) {
+                        const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
+                        m.fleeingTurns = (m.fleeingTurns || 0) + _yBewitchT;
+                        startLargeMonsterStatusCooldown(m, "bewitch");
+                        _yApplied.push(`幻惑(${_yBewitchT}ターン)`);
+                      }
+                      if (!blockLargeMonsterStatus(m, "slow", ml)) {
+                        if (m.isBoss) {
+                          if (m._preSlowSpeed === undefined) {
+                            m._preSlowSpeed = m.speed;
+                            m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
+                          }
+                          const _ySlowT = statusTurns("bossSlow", { kind: "monster", target: m });
+                          m.bossSlowTurns = (m.bossSlowTurns || 0) + _ySlowT;
+                          _yApplied.push(`鈍足(${_ySlowT}ターン)`);
+                        } else {
+                          m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
+                          _yApplied.push("鈍足(永続)");
+                        }
+                        startLargeMonsterStatusCooldown(m, "slow");
+                      }
+                      if (_yApplied.length > 0) {
+                        ml.push(`${m.name}は${_yApplied.join("・")}状態になった！${_yAtkLoss > 0 ? `攻撃力-${_yAtkLoss}！` : ""}`);
+                      }
                     }
                   }
                   if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt && m.hp > 0) {
