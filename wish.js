@@ -17,7 +17,8 @@ import {
 } from "./items.js";
 import { trackBigbox, trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng, advanceNextExp } from "./utils.js";
-import { clearPlayerPoison } from "./statusDuration.js";
+import { clearStatusEffectsOnHpZero } from "./statusDuration.js";
+import { monsterOccupiesCell } from "./monsterGeometry.js";
 import { markBigboxKindIdentified } from "./GameHelpers.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
 import { adjustPlayerBaseMaxHp } from "./equipmentEffects.js";
@@ -354,15 +355,15 @@ export function makeWishedItem(tmpl, opts = {}) {
 }
 
 function giveItemToPlayer(p, dg, it, ml) {
+  trackItem(it);
   const maxInv = p.maxInventory || 30;
   if (p.inventory.length < maxInv) {
-    trackItem(it);
     p.inventory.push(it);
     ml.push(`${it.name}を手に入れた！`);
     return;
   }
   const ft = new Set();
-  placeItemAt(dg, p.x, p.y, it, ml, ft);
+  placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p, null, null, false, true);
   ml.push(`${it.name}が足元に現れた！（荷物がいっぱい）`);
 }
 
@@ -385,10 +386,18 @@ function placeBigboxNearPlayer(dg, p, tmpl, ml) {
   for (const [dx, dy] of DRO) {
     const x = p.x + dx, y = p.y + dy;
     if (x < 0 || y < 0 || x >= MW || y >= MH) continue;
-    const tile = dg.map?.[y]?.[x];
-    if (!tile || tile === T.WALL || tile === T.BWALL || tile === T.SD || tile === T.SU) continue;
+    if (dg.map?.[y]?.[x] !== T.FLOOR) continue;
+    if (dg.monsters?.some((m) => !m.disguisedAsItem && (m.hp ?? 1) > 0 && monsterOccupiesCell(m, x, y))) continue;
+    if (dg.items?.some((it) => it.x === x && it.y === y)) continue;
+    if (dg.traps?.some((t) => t.x === x && t.y === y)) continue;
     if (dg.bigboxes.some((b) => b.x === x && b.y === y)) continue;
     if (dg.springs?.some((s) => s.x === x && s.y === y)) continue;
+    if (dg.gachaMachines?.some((g) => g.x === x && g.y === y)) continue;
+    if (dg.altars?.some((a) => a.x === x && a.y === y)) continue;
+    if (dg.dimensionalVaults?.some((v) => v.x === x && v.y === y)) continue;
+    if (dg.vents?.some((v) => v.x === x && v.y === y)) continue;
+    if (dg.statues?.some((s) => s.x === x && s.y === y)) continue;
+    if (dg.pentacles?.some((pc) => pc.x === x && pc.y === y)) continue;
     px = x; py = y;
     break;
   }
@@ -415,24 +424,18 @@ function placeBigboxNearPlayer(dg, p, tmpl, ml) {
 }
 
 function clearMajorDebuffs(p) {
-  clearPlayerPoison(p);
-  p.sleepTurns = 0;
-  p.paralyzeTurns = 0;
-  p.paralyzed = false;
-  p.paralyzeHits = 0;
-  p._paralyzeHp = null;
-  p.confusedTurns = 0;
-  p.slowTurns = 0;
-  p.darknessTurns = 0;
-  p.bewitchedTurns = 0;
-  p.oilyTurns = 0;
-  p.sealedTurns = 0;
-  p.attackSealTurns = 0;
+  const savedFoodHasteTurns = p.foodHasteTurns || 0;
+  const savedFoodHasteMult = p.foodHasteMultiplier;
+  const savedFlameMantleTurns = p.flameMantleTurns || 0;
+  p.reverseTurns = 0;
+  clearStatusEffectsOnHpZero(p);
+  if (savedFoodHasteTurns > 0) {
+    p.foodHasteTurns = savedFoodHasteTurns;
+    if (savedFoodHasteMult !== undefined) p.foodHasteMultiplier = savedFoodHasteMult;
+  }
+  if (savedFlameMantleTurns > 0) p.flameMantleTurns = savedFlameMantleTurns;
   p.mpSealTurns = 0;
-  p.immobileTurns = 0;
-  p.atkDebuffTurns = 0;
-  p.defDebuffTurns = 0;
-  p.defSoftenedTurns = 0;
+  p.dopingAftereffectTurns = 0;
 }
 
 function forceLevelUp(p, ml) {
@@ -502,11 +505,25 @@ export function grantWish(wish, ctx) {
       }
       case "ident_all": {
         const idSet = ident || ctx.identSet;
-        for (const it of p.inventory || []) {
-          it.fullIdent = true;
-          it.bcKnown = true;
-          const k = getIdentKey(it);
+        const targets = new Set([
+          ...(p.inventory || []),
+          p.weapon,
+          p.armor,
+          ...(p.rings || []),
+        ].filter(Boolean));
+        const identifyOne = (item) => {
+          if (!item) return;
+          item.fullIdent = true;
+          item.bcKnown = true;
+          const k = getIdentKey(item);
           if (k && idSet) idSet.add(k);
+          trackItem(item);
+        };
+        for (const it of targets) {
+          identifyOne(it);
+          if (Array.isArray(it.contents)) {
+            for (const sub of it.contents) identifyOne(sub);
+          }
         }
         ml.push("持ち物の全てが見通せるようになった！");
         return { ok: true };

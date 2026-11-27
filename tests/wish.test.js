@@ -13,7 +13,7 @@ import {
 } from "../wish.js";
 import { WANDS, POTS, isNoChargeBoostWand } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { MW, MH } from "../utils.js";
+import { MW, MH, T, applyReverseStatus } from "../utils.js";
 
 describe("wish core", () => {
   beforeEach(() => {
@@ -323,5 +323,69 @@ describe("wish core", () => {
     const survivors = dg.monsters.map((m) => m.name).sort();
     expect(survivors).toEqual(["分身", "店主"]);
     expect(p.exp).toBe(45);
+  });
+
+  it("grantWish full_restore は逆転状態中でも反転死せず、石化・凍結・転倒なども解除する", () => {
+    const p = makePlayer({ hp: 10, maxHp: 50, mp: 0, maxMp: 10, hunger: 5, maxHunger: 100 });
+    applyReverseStatus(p, 10);
+    p.frozenTurns = 4;
+    p.petrifiedTurns = 3;
+    p.knockdownTurns = 2;
+    p.drunkTurns = 5;
+    p.dopingAftereffectTurns = 10;
+    const dg = makeEmptyDg();
+    const ml = [];
+    const res = grantWish({ kind: "preset", id: "full_restore" }, { player: p, dungeon: dg, ml });
+    expect(res.ok).toBe(true);
+    expect(p.hp).toBe(50);
+    expect(p.reverseTurns).toBe(0);
+    expect(p.frozenTurns).toBe(0);
+    expect(p.petrifiedTurns).toBe(0);
+    expect(p.knockdownTurns).toBe(0);
+    expect(p.drunkTurns).toBe(0);
+    expect(p.dopingAftereffectTurns).toBe(0);
+  });
+
+  it("grantWish 大箱は水・石像・罠・モンスターを避けて近隣の空き床へ配置する", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg({
+      bigboxes: [],
+      statues: [{ x: 6, y: 5 }],
+      traps: [{ id: "t1", x: 4, y: 5 }],
+      monsters: [{ id: "m1", name: "敵", x: 5, y: 4, hp: 10, maxHp: 10 }],
+    });
+    dg.map[5][5] = T.WATER;
+    const ml = [];
+    const res = grantWish(
+      { kind: "item", template: { name: "合成の大箱", type: "bigbox", kind: "synthesis" } },
+      { player: p, dungeon: dg, ml },
+    );
+    expect(res.ok).toBe(true);
+    expect(dg.bigboxes).toHaveLength(1);
+    const { x, y } = dg.bigboxes[0];
+    expect(dg.map[y][x]).toBe(T.FLOOR);
+    expect([`${x},${y}`]).not.toContain("5,5");
+    expect([`${x},${y}`]).not.toContain("6,5");
+    expect([`${x},${y}`]).not.toContain("4,5");
+    expect([`${x},${y}`]).not.toContain("5,4");
+  });
+
+  it("grantWish ident_all は壺の中身も識別し、満杯時のアイテム願いは足元の泉を避ける", () => {
+    const innerPotion = { id: "in1", name: "回復薬", type: "potion", effect: "heal" };
+    const pot = { id: "pot1", name: "保存の壺", type: "pot", potEffect: "preserve", contents: [innerPotion] };
+    const p = makePlayer({ x: 5, y: 5, maxInventory: 1, inventory: [pot] });
+    const dg = makeEmptyDg({ springs: [{ id: "sp1", x: 5, y: 5, contents: [], capacity: 5 }] });
+    const ident = new Set();
+    const ml = [];
+
+    grantWish({ kind: "preset", id: "ident_all" }, { player: p, dungeon: dg, ml, ident });
+    expect(innerPotion.fullIdent).toBe(true);
+    expect(innerPotion.bcKnown).toBe(true);
+    expect(ident.size).toBeGreaterThan(0);
+
+    const tmpl = getWishItemCatalog().find((t) => t.name === "雷の杖");
+    grantWish({ kind: "item", template: tmpl }, { player: p, dungeon: dg, ml });
+    expect(dg.springs[0].contents).toHaveLength(0);
+    expect(dg.items.some((i) => i.name === "雷の杖")).toBe(true);
   });
 });
