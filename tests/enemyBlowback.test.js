@@ -203,7 +203,7 @@ describe("敵の吹き飛ばしの杖の防御と通常命中", () => {
     dungeon.map[5][12] = T.WALL;
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
     expect([player.x, player.y]).toEqual([11, 5]);
-    expect(player.hp).toBe(level === 3 ? 85 : 90);
+    expect(player.hp).toBe(level === 3 ? 80 : 90);
   });
 
   it.each(["core", "gravity", "sanctuary", "seal", "barrier", "magicImmune"])("%sで防がれた時はプレイヤーを動かさない", defense => {
@@ -251,7 +251,7 @@ describe("敵の吹き飛ばしによる衝突撃破", () => {
       expect(mage.monLevel).toBe(2);
     } else {
       expect(dungeon.monsters).toContain(victim);
-      expect(victim.hp).toBe(7);
+      expect(victim.hp).toBe(20);
       expect(victim._stealthrowerHeldItem).toBe(stolen);
       expect(dungeon.items).toEqual([]);
       expect(mage.monLevel).toBe(1);

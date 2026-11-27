@@ -44,6 +44,7 @@ import {
   itemPrice, gemSellPrice, shopResaleListPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion, detonateNitroBox,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount, canAcceptPotItem, isPotStorableItem, getPotInputTargets, canShowPotTakeAction, isPreservationPot,
   tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
+  applyMeleeKnockbackAura, applyWeaponKnockback,
 } from "./items.js";
 import { applyWandEffect, triggerWandBreakEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
@@ -1545,7 +1546,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx,
           killerMon = m, sourceIsPlayer = false, breaker = killerMon || m) =>
           applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
-            _wandBlMult, _wbItemNameFn, m.atk, killerMon, _wbBbNameFn, sourceIsPlayer, breaker, opts.fireTrapFn,
+            _wandBlMult, _wbItemNameFn, 5 * _wandBlMult, killerMon, _wbBbNameFn, sourceIsPlayer, breaker, opts.fireTrapFn,
             Math.max(1, Number(m.flockMagicPowerMultiplier) || 1));
         if (_we === "lightning_magic" && (m.baseKind === "boss_flock_revenge" || m.baseKind === "boss_flock_stalker")) {
           const room = findRoom(dg.rooms, m.x, m.y);
@@ -1797,22 +1798,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               if (hasGravityPentacle(dg, pl.x, pl.y)) { mlx.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); return; }
-              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, m, null, false, m, opts.fireTrapFn);
+              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, 5 * _wandBlMult, m, null, false, m, opts.fireTrapFn);
               interruptPlayerSleep(pl, mlx);
               if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; mlx.push("衝撃で金縛りが解けた！"); }
             },
             onMonsterHit: (mon, mlx) => {
-              applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, m, null, false);
+              applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, 5 * _wandBlMult, m, null, false);
             },
             onWallReflect: (mlx) => {
               mlx.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`);
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, 5 * _wandBlMult, null, null, false);
             },
             onMagicReflect: (refl, mlx) => {
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, refl, null, false, refl);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, 5 * _wandBlMult, refl, null, false, refl);
             },
             onPlayerReflect: (mlx) => {
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, pl.atk || 3, null, null, false);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, 5 * _wandBlMult, null, null, false);
             },
             onItem: (it, mlx) => {
               _applyMonsterWandEffect("knockback", "item", it, dx, dy, mlx);
@@ -1823,7 +1824,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onTrap: (trap, mlx) => {
               trap.revealed = true;
               trackTrap(trap);
-              applyWandEffect("knockback", "trap", trap, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false, m, opts.fireTrapFn);
+              applyWandEffect("knockback", "trap", trap, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, 5 * _wandBlMult, null, null, false, m, opts.fireTrapFn);
             },
           });
         } else if (_we === "confuse_wand") {
@@ -3260,41 +3261,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           } else if (_attackSlots.length) {
             const _meleeKnockbackTargets = new Set();
             const _applyMeleeKnockbackAura = (attackMon) => {
-              if (attackMon.hp <= 0 || !dg.monsters.includes(attackMon)) return;
-              /* 吹き飛ばしの魔方陣：プレイヤーが近接攻撃したモンスターを吹き飛ばす */
-              if (attackMon.hp > 0 && !(attackMon.magicImmune && !attackMon.sealed) && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
-                const _kbRoom = findRoom(dg.rooms, p.x, p.y);
-                const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
-                  pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
-                if (_kbPcP && !hasGravityPentacle(dg, attackMon.x, attackMon.y)) {
-                  if (attackMon.forcedMoveImmune) {
-                    ml.push(`${attackMon.name}は強制移動を受けない！`);
-                    return;
-                  }
-                  const _kbDist = _kbPcP.cursed ? 1 : _kbPcP.blessed ? 99 : 5;
-                  let _kbCx = attackMon.x, _kbCy = attackMon.y, _kbMoved = 0;
-                  for (let _kbi = 0; _kbi < _kbDist; _kbi++) {
-                    const _knx = _kbCx + dx, _kny = _kbCy + dy;
-                    if (_knx < 0 || _knx >= MW || _kny < 0 || _kny >= MH || dg.map[_kny][_knx] === T.WALL || dg.map[_kny][_knx] === T.BWALL) {
-                      if (!consumeBarrier(attackMon, ml)) {
-                        attackMon.hp -= 5;
-                        ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
-                      }
-                      break;
-                    }
-                    if (!canPlaceMonsterBody(dg, attackMon, _knx, _kny, p)) {
-                      if (!consumeBarrier(attackMon, ml)) {
-                        attackMon.hp -= 5;
-                        ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
-                      }
-                      break;
-                    }
-                    _kbCx = _knx; _kbCy = _kny; _kbMoved++;
-                  }
-                  if (_kbMoved > 0) { attackMon.x = _kbCx; attackMon.y = _kbCy; ml.push(`${_kbPcP.name}の力で${attackMon.name}が${_kbMoved}マス吹き飛んだ！`); }
-                  if (attackMon.hp <= 0) { killMonster(attackMon, dg, p, ml, lu); }
-                }
-              }
+              applyMeleeKnockbackAura(attackMon, dg, p, dx, dy, ml, lu, killMonster);
             };
             const _inMeleeRange = (target) => {
               const cells = [..._attackCells];
@@ -3570,28 +3537,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
             /* 武器の吹き飛ばし能力は全攻撃セル・連撃の後に、1体につき1回だけ適用する。 */
             for (const attackMon of _meleeKnockbackTargets) {
-              if (attackMon.hp <= 0 || !dg.monsters.includes(attackMon)) continue;
-              if (wabHas("knockback") && attackMon.hp > 0) {
-                if (attackMon.forcedMoveImmune) {
-                  ml.push(`${attackMon.name}は強制移動を受けない！`);
-                  continue;
-                }
-                const kx = attackMon.x + dx,
-                  ky = attackMon.y + dy;
-                if (
-                  kx >= 0 &&
-                  kx < MW &&
-                  ky >= 0 &&
-                  ky < MH &&
-                  dg.map[ky][kx] !== T.WALL && dg.map[ky][kx] !== T.BWALL &&
-                  canPlaceMonsterBody(dg, attackMon, kx, ky, p)
-                ) {
-                  attackMon.x = kx;
-                  attackMon.y = ky;
-                  ml.push(`${attackMon.name}は吹き飛んだ！`);
-                }
+              if (wabHas("knockback")) {
+                applyWeaponKnockback(attackMon, dg, p, dx, dy, ml, lu, killMonster);
               }
-
             }
           } else if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) {
             ml.push("水に阻まれた。");

@@ -1,7 +1,8 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomPlayerTeleportDest, getDodgePentacleMode, consumeBarrier, clampDmgFixed } from "./utils.js";
 import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, applyRotTrapToInventory, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap, markShopkeeperHostileToPlayer, canStealInventoryItem } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
-import { materializeFakeStair } from "./fixtures.js";
+import { materializeFakeStair, hitStatueWithAction } from "./fixtures.js";
+import { statueAt } from "./fixtureQueries.js";
 import { statusTurns, resolveParalysisHit, applyPlayerConfusion } from "./statusDuration.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { wakeIfDormant, triggerMushroomCounterSpore } from "./monsterRuntime.js";
@@ -305,13 +306,15 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       const _blowFromX = p.x, _blowFromY = p.y;
       ml.push(`${trap.name}が発動！向いていた方向と逆に吹き飛ばされた！`);
       if (_pbdx !== 0 || _pbdy !== 0) {
-        let _bbHitWall = false, _bbHitMon = null;
+        let _bbHitWall = false, _bbHitMon = null, _bbHitStatue = null;
         for (let i = 0; i < 10; i++) {
           const _pnx = p.x + _pbdx, _pny = p.y + _pbdy;
           if (_pnx < 0 || _pnx >= MW || _pny < 0 || _pny >= MH ||
               dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) {
             _bbHitWall = true; break;
           }
+          const _bs = statueAt(dg, _pnx, _pny);
+          if (_bs) { _bbHitStatue = _bs; break; }
           const _bm = monsterAt(dg, _pnx, _pny);
           if (_bm) { _bbHitMon = _bm; break; }
           p.x = _pnx; p.y = _pny;
@@ -324,6 +327,18 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
             interruptPlayerSleep(p, ml);
             resolveParalysisHit(p, ml);
           }
+        } else if (_bbHitStatue) {
+          if (!consumeBarrier(p, ml)) {
+            p.deathCause = `${trap.name}による${_bbHitStatue.name}への衝突により`;
+            p.hp -= 10;
+            ml.push(`${_bbHitStatue.name}に激突！10ダメージ！`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
+          }
+          hitStatueWithAction(dg, _bbHitStatue.x, _bbHitStatue.y, p, ml, luFn, p?.depth, {
+            breaks: true,
+            itemDeps: getFixtureItemDeps(),
+          });
         } else if (_bbHitMon) {
           wakeIfDormant(_bbHitMon, ml);
           const _playerBlocked = consumeBarrier(p, ml);

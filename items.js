@@ -4,6 +4,7 @@ import { ensureSynthMonsterBox, boostSynthMonster, absorbGelCubeProjectile } fro
 import { adjustMonsterPermanentStat, checkMonsterEvasion } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
+import { releaseInvalidCapture } from './captureRules.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import {
   findMonsterRoom as findRoom,
@@ -4271,11 +4272,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _bbd = _bbm.dir || { x: 1, y: 0 };
         const _bbdx = -(_bbd.x || 0), _bbdy = -(_bbd.y || 0);
         if (_bbdx !== 0 || _bbdy !== 0) {
-          let _bbHitWall = false, _bbHitOther = null;
+          let _bbHitWall = false, _bbHitOther = null, _bbHitStatue = null;
           for (let i = 0; i < 10; i++) {
             const _bnx = _bbm.x + _bbdx, _bny = _bbm.y + _bbdy;
             if (_bnx < 0 || _bnx >= MW || _bny < 0 || _bny >= MH || dg.map[_bny][_bnx] === T.WALL || dg.map[_bny][_bnx] === T.BWALL) { _bbHitWall = true; break; }
-            const _bom = dg.monsters.find(o => o !== _bbm && monsterOccupiesCell(o, _bnx, _bny));
+            const _bst = monsterBodyCells(_bbm, _bnx, _bny).map(c => statueAt(dg, c.x, c.y)).find(Boolean);
+            if (_bst) { _bbHitStatue = _bst; break; }
+            const _bom = dg.monsters.find(o => o !== _bbm && !o.disguisedAsItem && monsterBodiesOverlap(_bbm, o, _bnx, _bny));
             if (_bom) { _bbHitOther = _bom; break; }
             _bbm.x = _bnx; _bbm.y = _bny;
           }
@@ -4287,6 +4290,20 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             ml.push(`${_bbm.name}が壁に激突！${_wDmg}ダメージ！`);
             resolveParalysisHit(_bbm, ml);
             triggerMushroomCounterSpore(_bbm, dg, p, ml);
+          }
+          if (_bbHitStatue) {
+            if (!consumeBarrier(_bbm, ml)) {
+              wakeIfDormant(_bbm, ml);
+              const _sDmg = clampDmgFixed(_bbm, 10, true);
+              _bbm.hp -= _sDmg;
+              ml.push(`${_bbm.name}が${_bbHitStatue.name}に激突！${_sDmg}ダメージ！`);
+              resolveParalysisHit(_bbm, ml);
+              triggerMushroomCounterSpore(_bbm, dg, p, ml);
+            }
+            hitStatueWithAction(dg, _bbHitStatue.x, _bbHitStatue.y, p, ml, null, p?.depth, {
+              breaks: true,
+              itemDeps: getFixtureItemDeps(),
+            });
           }
           if (_bbHitOther) {
             wakeIfDormant(_bbm, ml);
@@ -4319,10 +4336,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _pfd = p.facing || { dx: 0, dy: 1 };
         const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
         const _blowFromX = p.x, _blowFromY = p.y;
-        let _pHitWall = false, _pHitMon = null;
+        let _pHitWall = false, _pHitMon = null, _pHitStatue = null;
         for (let i = 0; i < 10; i++) {
           const _pnx = p.x + _pbdx, _pny = p.y + _pbdy;
           if (_pnx < 0 || _pnx >= MW || _pny < 0 || _pny >= MH || dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) { _pHitWall = true; break; }
+          const _pst = statueAt(dg, _pnx, _pny);
+          if (_pst) { _pHitStatue = _pst; break; }
           const _pm = monsterAt(dg, _pnx, _pny);
           if (_pm) { _pHitMon = _pm; break; }
           p.x = _pnx; p.y = _pny;
@@ -4336,6 +4355,18 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             interruptPlayerSleep(p, ml);
             resolveParalysisHit(p, ml);
           }
+        } else if (_pHitStatue) {
+          if (!consumeBarrier(p, ml)) {
+            p.deathCause = `${trap.name}による${_pHitStatue.name}への衝突により`;
+            p.hp -= 10;
+            ml.push(`${_pHitStatue.name}に激突！10ダメージ！`);
+            interruptPlayerSleep(p, ml);
+            resolveParalysisHit(p, ml);
+          }
+          hitStatueWithAction(dg, _pHitStatue.x, _pHitStatue.y, p, ml, null, p?.depth, {
+            breaks: true,
+            itemDeps: getFixtureItemDeps(),
+          });
         } else if (_pHitMon) {
           wakeIfDormant(_pHitMon, ml);
           const _playerBlocked = consumeBarrier(p, ml);
@@ -8563,8 +8594,78 @@ function _throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts
   return res;
 }
 
-export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0, killerMon = null) {
-  const _collisionAtk = collisionAtk;
+export function resolveMonsterForcedMoveLanding(mon, dg, p, ml, luFn, killerMon = null, killFn = killMonster) {
+  if (!mon || !dg?.monsters?.includes(mon)) return false;
+  if (p?.capturedBy) releaseInvalidCapture(p, dg, ml);
+  if (!inMagicSealRoom(mon.x, mon.y, dg) &&
+      dg.pentacles?.some(pc => pc.kind === "sanctuary" && monsterBodyCells(mon).some(c => c.x === pc.x && c.y === pc.y))) {
+    if (mon.isBoss) {
+      mon._sanctuaryEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
+      if (!blockLargeMonsterDamage(mon, p, ml)) {
+        const _bd = bossInstantDeathDamage(mon);
+        mon.hp -= _bd;
+        ml.push(`${mon.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
+        if (mon.hp <= 0) killFn(mon, dg, p, ml, luFn, false, killerMon);
+      }
+      return !dg.monsters.includes(mon);
+    }
+    if (killerMon) {
+      ml.push(`${mon.name}は聖域に吹き飛ばされ消滅した！`);
+      trackMonster(mon);
+      monsterDrop(mon, dg, ml, p);
+      removeMonster(dg, mon);
+      monLevelUp(killerMon, dg, ml);
+    } else {
+      const _se = Math.floor((mon.exp || 0) * ((p?.soyExpTurns || 0) > 0 ? 1.3 : 1));
+      ml.push(`${mon.name}は聖域に吹き飛ばされ消滅した！(+${_se}exp${(p?.soyExpTurns || 0) > 0 ? " 醤油効果!" : ""})`);
+      if (p) p.exp = (p.exp || 0) + _se;
+      trackMonster(mon);
+      monsterDrop(mon, dg, ml, p);
+      removeMonster(dg, mon);
+      luFn?.(p, ml);
+    }
+    return true;
+  }
+  return drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon);
+}
+
+export function applyMeleeKnockbackAura(attackMon, dg, p, dx, dy, ml, luFn, killFn = killMonster) {
+  if (!attackMon || attackMon.hp <= 0 || !dg.monsters.includes(attackMon)) return;
+  if ((attackMon.magicImmune && !attackMon.sealed) || !dg.pentacles?.length || inMagicSealRoom(p.x, p.y, dg)) return;
+  const _kbRoom = findRoom(dg.rooms, p.x, p.y);
+  const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
+    pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
+  if (!_kbPcP || hasGravityPentacle(dg, attackMon.x, attackMon.y)) return;
+  const _kbDist = _kbPcP.cursed ? 1 : _kbPcP.blessed ? 99 : 5;
+  pushEntity(dg, attackMon.x, attackMon.y, dx, dy, _kbDist, ml, "monster", attackMon, p, luFn, 5, null, {
+    killFn,
+    onMoved: moved => ml.push(`${_kbPcP.name}の力で${attackMon.name}が${moved}マス吹き飛んだ！`),
+  });
+}
+
+export function applyWeaponKnockback(attackMon, dg, p, dx, dy, ml, luFn, killFn = killMonster) {
+  if (!attackMon || attackMon.hp <= 0 || !dg.monsters.includes(attackMon)) return;
+  if (attackMon.forcedMoveImmune) {
+    ml.push(`${attackMon.name}は強制移動を受けない！`);
+    return;
+  }
+  const kx = attackMon.x + dx, ky = attackMon.y + dy;
+  if (
+    kx >= 0 && kx < MW && ky >= 0 && ky < MH &&
+    dg.map[ky][kx] !== T.WALL && dg.map[ky][kx] !== T.BWALL &&
+    canPlaceMonsterBody(dg, attackMon, kx, ky, p) &&
+    !monsterBodyCells(attackMon, kx, ky).some(c => statueAt(dg, c.x, c.y))
+  ) {
+    attackMon.x = kx;
+    attackMon.y = ky;
+    ml.push(`${attackMon.name}は吹き飛んだ！`);
+    resolveMonsterForcedMoveLanding(attackMon, dg, p, ml, luFn, null, killFn);
+  }
+}
+
+export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 5, killerMon = null, opts = {}) {
+  const _impact = collisionAtk > 0 ? collisionAtk : 5;
+  const _killFn = opts?.killFn || killMonster;
   const _damageMonsterOnCollision = (monster, damage) => {
     if (!monster || !(damage > 0) || consumeBarrier(monster, ml)) return 0;
     const finalDmg = clampDmgFixed(monster, damage, true);
@@ -8598,18 +8699,18 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     return { x, y, consumed: false, blocked: true };
   }
   let cx = x, cy = y;
+  let moved = 0;
   let collisionVictim = null;
+  let hitStatue = null;
   const _isFloorObj = kind === "trap" || kind === "vent" || kind === "pentacle";
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
       if (kind === "monster") {
-        const _impact = 5;
         const _dealt = _damageMonsterOnCollision(entity, _impact);
         ml.push(`${entity.name}は壁に叩きつけられた！${_dealt > 0 ? `${_dealt}ダメージ！` : ""}`);
       }
       if (kind === "player")  {
-        const _impact = 5;
         const _cause = killerMon?.name
           ? `${killerMon.name}に吹き飛ばされての壁への激突により`
           : "吹き飛ばされての壁への激突により";
@@ -8646,65 +8747,90 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     }
     /* kind === "item" は throwItemAlongLine() に移行済み（呼び出し側で直接呼ぶ） */
     if (kind === "monster") {
+      const _st = monsterBodyCells(entity, nx, ny).map(c => statueAt(dg, c.x, c.y)).find(Boolean);
+      if (_st) {
+        hitStatue = _st;
+        const _dealt = _damageMonsterOnCollision(entity, _impact);
+        ml.push(`${entity.name}は${_st.name}に激突した！${_dealt > 0 ? `${_dealt}ダメージ！` : ""}`);
+        break;
+      }
       /* プレイヤーとの衝突 */
       if (p && monsterOccupiesCell({ ...entity, x: nx, y: ny }, p.x, p.y)) {
-        if (_collisionAtk > 0) {
-          const _entityDamage = _damageMonsterOnCollision(entity, _collisionAtk);
-          const _playerDamage = _damagePlayerOnCollision(_collisionAtk, `${entity.name}との衝突により`);
-          const _damageParts = [];
-          if (_entityDamage > 0) _damageParts.push(`${entity.name}に${_entityDamage}ダメージ`);
-          if (_playerDamage > 0) _damageParts.push(`${_playerDamage}ダメージ`);
-          ml.push(`${entity.name}が${pl()}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
-        }
+        const _entityDamage = _damageMonsterOnCollision(entity, _impact);
+        const _playerDamage = _damagePlayerOnCollision(_impact, `${entity.name}との衝突により`);
+        const _damageParts = [];
+        if (_entityDamage > 0) _damageParts.push(`${entity.name}に${_entityDamage}ダメージ`);
+        if (_playerDamage > 0) _damageParts.push(`${_playerDamage}ダメージ`);
+        ml.push(`${entity.name}が${pl()}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
         break;
       }
       /* 別モンスターとの衝突 */
-      const _colM = dg.monsters.find(m => m !== entity && monsterBodiesOverlap(entity, m, nx, ny));
+      const _colM = dg.monsters.find(m => m !== entity && !m.disguisedAsItem && monsterBodiesOverlap(entity, m, nx, ny));
       if (_colM) {
-        if (_collisionAtk > 0) {
-          const _entityDamage = _damageMonsterOnCollision(entity, _collisionAtk);
-          const _victimDamage = _damageMonsterOnCollision(_colM, _collisionAtk);
-          collisionVictim = _colM;
-          const _damageParts = [];
-          if (_entityDamage > 0) _damageParts.push(`${entity.name}に${_entityDamage}ダメージ`);
-          if (_victimDamage > 0) _damageParts.push(`${_colM.name}に${_victimDamage}ダメージ`);
-          ml.push(`${entity.name}が${_colM.name}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
-        }
+        const _entityDamage = _damageMonsterOnCollision(entity, _impact);
+        const _victimDamage = _damageMonsterOnCollision(_colM, _impact);
+        collisionVictim = _colM;
+        const _damageParts = [];
+        if (_entityDamage > 0) _damageParts.push(`${entity.name}に${_entityDamage}ダメージ`);
+        if (_victimDamage > 0) _damageParts.push(`${_colM.name}に${_victimDamage}ダメージ`);
+        ml.push(`${entity.name}が${_colM.name}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
         break;
       }
     }
     if (kind === "player") {
+      const _pst = statueAt(dg, nx, ny);
+      if (_pst) {
+        hitStatue = _pst;
+        const _cause = killerMon?.name
+          ? `${killerMon.name}に吹き飛ばされて${_pst.name}への激突により`
+          : `吹き飛ばされて${_pst.name}への激突により`;
+        const _dealt = _damagePlayerOnCollision(_impact, _cause);
+        ml.push(`${_pst.name}に激突した！${_dealt > 0 ? `${_dealt}ダメージ！` : ""}`);
+        break;
+      }
       /* モンスターとの衝突 */
       const _pColM = monsterAt(dg, nx, ny);
       if (_pColM) {
-        if (_collisionAtk > 0) {
-          const _playerDamage = _damagePlayerOnCollision(_collisionAtk, `${_pColM.name}との衝突により`);
-          const _monsterDamage = _damageMonsterOnCollision(_pColM, _collisionAtk);
-          collisionVictim = _pColM;
-          const _damageParts = [];
-          if (_playerDamage > 0) _damageParts.push(`${_playerDamage}ダメージ`);
-          if (_monsterDamage > 0) _damageParts.push(`${_pColM.name}に${_monsterDamage}ダメージ`);
-          ml.push(`${_pColM.name}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
-        }
+        const _playerDamage = _damagePlayerOnCollision(_impact, `${_pColM.name}との衝突により`);
+        const _monsterDamage = _damageMonsterOnCollision(_pColM, _impact);
+        collisionVictim = _pColM;
+        const _damageParts = [];
+        if (_playerDamage > 0) _damageParts.push(`${_playerDamage}ダメージ`);
+        if (_monsterDamage > 0) _damageParts.push(`${_pColM.name}に${_monsterDamage}ダメージ`);
+        ml.push(`${_pColM.name}に激突！${_damageParts.length ? `${_damageParts.join("・")}！` : ""}`);
         break;
       }
     }
-    cx = nx; cy = ny;
+    cx = nx; cy = ny; moved++;
   }
-  /* 着地座標を確定してから衝突相手の撃破・ドロップを処理する。
+  /* 着地座標を確定してから石像破壊・衝突相手の撃破・ドロップを処理する。
      ドロップ先の罠などにも、着地後のプレイヤー位置を使わせる。 */
   if (kind === "monster" || kind === "player") {
     entity.x = cx; entity.y = cy;
+    if (p?.capturedBy) releaseInvalidCapture(p, dg, ml);
+  }
+  if (moved > 0) {
+    opts?.onMoved?.(moved);
+  }
+  if (hitStatue) {
+    hitStatueWithAction(dg, hitStatue.x, hitStatue.y, p, ml, luFn, p?.depth, {
+      breaks: true,
+      itemDeps: getFixtureItemDeps(),
+    });
   }
   const _collisionDeaths = [...new Set([kind === "monster" ? entity : null, collisionVictim])];
   for (const _deadMonster of _collisionDeaths) {
     if (_deadMonster?.hp <= 0 && dg.monsters.includes(_deadMonster)) {
-      killMonster(_deadMonster, dg, p, ml, luFn, false, killerMon);
+      _killFn(_deadMonster, dg, p, ml, luFn, false, killerMon);
     }
   }
   if (kind === "monster") {
     if (!dg.monsters.includes(entity)) return { x: cx, y: cy, consumed: false, killed: true };
-    if (drownMonsterIfNeeded(entity, dg, p, ml, luFn, killerMon)) {
+    if (!opts?.skipSanctuary && moved > 0) {
+      if (resolveMonsterForcedMoveLanding(entity, dg, p, ml, luFn, killerMon, _killFn)) {
+        return { x: cx, y: cy, consumed: false, killed: true };
+      }
+    } else if (drownMonsterIfNeeded(entity, dg, p, ml, luFn, killerMon)) {
       return { x: cx, y: cy, consumed: false, killed: true };
     }
   }

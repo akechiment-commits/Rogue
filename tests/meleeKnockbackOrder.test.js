@@ -419,4 +419,49 @@ describe("範囲近接攻撃後の吹き飛ばし", () => {
     expect(ml.some(m => m.includes("吹き飛んだ"))).toBe(false);
     expect(ml).toContain("お化け柳は強制移動を受けない！");
   });
+
+  it("武器の吹き飛ばしは壁・別モンスター・石像で塞がっていると無傷で止まり石像も壊さない", () => {
+    const rear = { id: "rear", name: "奥の敵", x: 7, y: 5, hp: 100, maxHp: 100, def: 0 };
+    const hitMon = attack({ bodySize: 1, abilities: ["knockback"], others: [rear] });
+    expect(hitMon.mon.x).toBe(6);
+    expect(rear.hp).toBe(100);
+    expect(hitMon.ml.some(m => m.includes("吹き飛んだ") || m.includes("激突"))).toBe(false);
+
+    const p = makePlayer({ atk: 10, depth: 10, weapon: { atk: 0, abilities: ["knockback"] } });
+    const mon = { id: "target", name: "対象", x: 6, y: 5, hp: 100, maxHp: 100, def: 0, bodySize: 1 };
+    const dg = makeEmptyDg({ monsters: [mon], rooms: [{ x: 1, y: 1, w: 40, h: 20 }] });
+    dg.statues = [{ id: "st1", name: "戦士の石像", kind: "warrior", x: 7, y: 5 }];
+    const ml = [];
+    const sr = { current: { player: p, dungeon: dg, floors: {} } };
+    const withPitfallBag = bindPitfallBag(sr, fn => fn, items.setPitfallBag, items.clearPitfallBag, processPitfallBag);
+    run(...Object.values(deps), p, dg, ml, () => {}, () => {}, 1, 0, withPitfallBag, sr);
+    expect(mon.x).toBe(6);
+    expect(dg.statues).toHaveLength(1);
+    expect(ml.some(m => m.includes("吹き飛んだ") || m.includes("激突"))).toBe(false);
+  });
+
+  it("吹き飛ばしの魔方陣は別モンスターへの激突で双方に5ダメージを与え、石像激突では5ダメージ＋石像破壊する", () => {
+    const rear = { id: "rear", name: "奥の敵", x: 8, y: 5, hp: 100, maxHp: 100, def: 0 };
+    const { mon, ml } = attack({ bodySize: 1, abilities: [], pentacle: {}, others: [rear] });
+    expect(mon.x).toBe(7);
+    expect(mon.hp).toBe(985); // 10 melee + 5 collision
+    expect(rear.hp).toBe(95); // 5 collision
+    expect(ml.some(m => m.includes("奥の敵に激突"))).toBe(true);
+
+    const p = makePlayer({ atk: 10, depth: 10, weapon: { atk: 0, abilities: [] } });
+    const mon2 = { id: "target2", name: "対象", x: 6, y: 5, hp: 100, maxHp: 100, def: 0, bodySize: 1 };
+    const dg = makeEmptyDg({
+      monsters: [mon2],
+      rooms: [{ x: 1, y: 1, w: 40, h: 20 }],
+      pentacles: [{ kind: "knockback_aura", name: "吹き飛ばしの魔方陣", x: 3, y: 3 }],
+    });
+    dg.statues = [{ id: "st1", name: "戦士の石像", kind: "warrior", x: 8, y: 5 }];
+    const ml2 = [];
+    const sr = { current: { player: p, dungeon: dg, floors: {} } };
+    const withPitfallBag = bindPitfallBag(sr, fn => fn, items.setPitfallBag, items.clearPitfallBag, processPitfallBag);
+    run(...Object.values(deps), p, dg, ml2, () => {}, () => {}, 1, 0, withPitfallBag, sr);
+    expect(mon2.x).toBe(7);
+    expect(mon2.hp).toBe(85); // 10 melee + 5 statue collision
+    expect(dg.statues).toHaveLength(0);
+  });
 });

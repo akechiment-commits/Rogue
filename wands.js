@@ -726,7 +726,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _kbDmg = _magicDamage(_kbDmgBase);
         ml.push(`${target.name}は吹き飛ばされた！`);
         target.hp -= _kbDmg;
-        pushEntity(dg, target.x, target.y, dx, dy, d, ml, "monster", target, p, luFn, collisionAtk, killerMon);
+        pushEntity(dg, target.x, target.y, dx, dy, d, ml, "monster", target, p, luFn, _kbDmgBase, killerMon, { skipSanctuary: true });
         /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ（壁激突によるHP0チェックより先に判定） */
         if (dg.monsters.includes(target) && !inMagicSealRoom(target.x, target.y, dg) &&
             dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
@@ -764,7 +764,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (hasRingEffect(p, "core_ring")) { ml.push("体幹の指輪のおかげで踏ん張った！吹き飛ばされなかった！"); break; }
         ml.push("自分が吹き飛ばされた！");
         p.hp -= _magicDamage(_kbDmgBase, p);
-        pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, collisionAtk, killerMon);
+        pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, _kbDmgBase, killerMon);
         const _kbLandTrap = dg.traps.find(t => t.x === p.x && t.y === p.y);
         if (_kbLandTrap) _activatePlayerTrap(_kbLandTrap);
         break;

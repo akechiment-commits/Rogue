@@ -1043,7 +1043,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn, fireTrapFn = null, throwOptions
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
-export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, ranged = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null, attackName = "攻撃" } = {}) {
+export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, ranged = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null, fireTrapFn = null, attackName = "攻撃" } = {}) {
   if (isAttackSealed(m)) {
     ml.push(`${m.name}は攻撃が封印されていて殴れない！`);
     return;
@@ -1108,7 +1108,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     }
   }
   /* ノッカー：攻撃後にプレイヤーを2〜4マス吹き飛ばす */
-  if (m.subtype === "knocker" && !m.sealed && dmg > 0) {
+  if (m.subtype === "knocker" && !m.sealed && dmg > 0 && pl.hp > 0) {
     if (hasRingEffect(pl, "core_ring")) {
       ml.push("体幹の指輪のおかげで踏ん張った！吹き飛ばされなかった！");
     } else {
@@ -1116,35 +1116,13 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
       const _knDist = _knLvl >= 3 ? 4 : _knLvl >= 2 ? 3 : 2;
       const _kndx = Math.sign(pl.x - m.x), _kndy = Math.sign(pl.y - m.y);
       if (_kndx !== 0 || _kndy !== 0) {
-        let _knx = pl.x, _kny = pl.y, _knMoved = 0;
-        for (let _ki = 0; _ki < _knDist; _ki++) {
-          const _nx = _knx + _kndx, _ny = _kny + _kndy;
-          if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH ||
-              dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-            if (!consumeBarrier(pl, ml)) {
-              pl.deathCause = "吹き飛ばされての壁への激突により";
-              const _impact = 5;
-              pl.hp -= _impact;
-              ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, _impact)}！`);
-            }
-            break;
-          }
-          if (dg.monsters.some(mn => mn !== m && monsterOccupiesCell(mn, _nx, _ny))) {
-            if (!consumeBarrier(pl, ml)) {
-              pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
-              const _impact = 5;
-              pl.hp -= _impact;
-              ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, _impact)}！`);
-            }
-            break;
-          }
-          _knx = _nx; _kny = _ny; _knMoved++;
-        }
-        if (_knMoved > 0) {
-          const _knFromX = pl.x, _knFromY = pl.y;
-          pl.x = _knx; pl.y = _kny;
-          pushPlayerKnockbackAnim(_knFromX, _knFromY, pl.x, pl.y, _kndx, _kndy);
-          ml.push(`${m.name}の一撃で${_knMoved}マス吹き飛ばされた！`);
+        const _knFromX = pl.x, _knFromY = pl.y;
+        pushEntity(dg, pl.x, pl.y, _kndx, _kndy, _knDist, ml, "player", pl, pl, luFn, 5, m, {
+          onMoved: moved => ml.push(`${m.name}の一撃で${moved}マス吹き飛ばされた！`),
+        });
+        if (pl.x !== _knFromX || pl.y !== _knFromY) {
+          const _knTrap = (dg.traps || []).find(t => t.x === pl.x && t.y === pl.y);
+          if (_knTrap) fireTrapFn?.(_knTrap, pl, dg, ml);
         }
       }
     }
@@ -1245,7 +1223,7 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
     }
   }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
-  if (!ranged && dg.pentacles?.length > 0 && dmg > 0 && !inMagicSealRoom(pl.x, pl.y, dg)) {
+  if (!ranged && dg.pentacles?.length > 0 && dmg > 0 && pl.hp > 0 && !inMagicSealRoom(pl.x, pl.y, dg)) {
     const _plRoom = findRoom(dg.rooms, pl.x, pl.y);
     const _kbPc = _plRoom && dg.pentacles.find(pc =>
       pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _plRoom);
@@ -1256,29 +1234,9 @@ export function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, sk
         const _kdx = Math.sign(pl.x - m.x), _kdy = Math.sign(pl.y - m.y);
         if (_kdx !== 0 || _kdy !== 0) {
           const _dist = _kbPc.cursed ? 1 : _kbPc.blessed ? 99 : 5;
-          let _cx2 = pl.x, _cy2 = pl.y;
-          let _moved = 0;
-          for (let _ki = 0; _ki < _dist; _ki++) {
-            const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
-            const hitWall = !inBounds(_nx, _ny) || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL;
-            const hitMonster = !hitWall && dg.monsters.some(mon2 => mon2 !== m && monsterOccupiesCell(mon2, _nx, _ny));
-            if (hitWall || hitMonster) {
-              if (!consumeBarrier(pl, ml)) {
-                const impact = 5;
-                pl.deathCause = hitWall ? "吹き飛ばされての壁への激突により" : "吹き飛ばされてモンスターへの衝突により";
-                pl.hp -= impact;
-                ml.push(`${hitWall ? "壁に叩きつけられた" : "モンスターに激突した"}！${playerHpEffectLabel(pl, impact)}！`);
-              }
-              break;
-            }
-            _cx2 = _nx; _cy2 = _ny; _moved++;
-          }
-          if (_moved > 0) {
-            const _kbFromX = pl.x, _kbFromY = pl.y;
-            pl.x = _cx2; pl.y = _cy2;
-            pushPlayerKnockbackAnim(_kbFromX, _kbFromY, pl.x, pl.y, _kdx, _kdy);
-            ml.push(`${_kbPc.name}の力で${_moved}マス吹き飛ばされた！`);
-          }
+          pushEntity(dg, pl.x, pl.y, _kdx, _kdy, _dist, ml, "player", pl, pl, luFn, 5, m, {
+            onMoved: moved => ml.push(`${_kbPc.name}の力で${moved}マス吹き飛ばされた！`),
+          });
         }
       }
     }
@@ -6053,20 +6011,12 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     }
     if (m.subtype === "knocker" && !_plOnSanc && !_plOnBlessedSanc) {
       m.turnAttacks++;
-      const _kdx = Math.sign(pl.x - m.x) || (Math.random() < 0.5 ? -1 : 1);
-      const _kdy = Math.sign(pl.y - m.y);
-      let _kx = pl.x, _ky = pl.y;
-      for (let i = 0; i < 20; i++) {
-        const nx = _kx + _kdx, ny = _ky + _kdy;
-        if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
-        if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) break;
-        if (dg.monsters.some((o) => monsterOccupiesCell(o, nx, ny))) break;
-        _kx = nx; _ky = ny;
-      }
-      const _knockFromX = pl.x, _knockFromY = pl.y;
-      pl.x = _kx; pl.y = _ky;
-      pushPlayerKnockbackAnim(_knockFromX, _knockFromY, pl.x, pl.y, _kdx, _kdy);
-      ml.push(`${m.name}が${plName(pl)}を吹き飛ばした！`);
+      monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, {
+        onPlayerHit: _onHit,
+        onPlayerMiss: _onMiss,
+        luFn: _luFn,
+        fireTrapFn: opts.fireTrapFn,
+      });
       return true;
     }
     if (m.subtype === "berserker" && !_plOnSanc && !_plOnBlessedSanc) {
