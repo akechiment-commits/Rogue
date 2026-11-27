@@ -150,6 +150,26 @@ describe("Dragon breath damage hooks: barrier, spore, dormant, paralysis, fixed 
     expect(ml.some(m => m.includes("寒さで目が覚めた！"))).toBe(true);
     expect(ml.some(m => m.includes("金縛りが解けた！"))).toBe(true);
   });
+
+  it("氷ブレスで撃破した敵や状態防止中の敵には鈍足を付与しない", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 10, y: 2 });
+    const icedragon = { id: "icedrag3", name: "氷竜", x: 2, y: 2, atk: 40, monLevel: 1 };
+    const dyingMon = { id: "d1", name: "ゴブリン", x: 3, y: 2, hp: 1, maxHp: 10, speed: 1, def: 0 };
+    const immuneMon = { id: "im1", name: "耐性敵", x: 4, y: 2, hp: 200, maxHp: 200, speed: 1, def: 0, statusImmune: 10 };
+    dg.monsters = [icedragon, dyingMon];
+    const ml1 = [];
+    monsterIceBreath(icedragon, dg, p, ml1);
+    expect(dg.monsters).not.toContain(dyingMon);
+    expect(dyingMon.speed).toBe(1);
+    expect(ml1.some(m => m.includes("鈍足"))).toBe(false);
+
+    dg.monsters = [icedragon, immuneMon];
+    const ml2 = [];
+    monsterIceBreath(icedragon, dg, p, ml2);
+    expect(immuneMon.speed).toBe(1);
+    expect(immuneMon.slowTurns || 0).toBe(0);
+  });
 });
 
 describe("Red Dragon & Blue Dragon two-phase room breath", () => {

@@ -1,6 +1,6 @@
 import { canPlaceMonsterBody, monsterOccupiesCell } from "./monsterGeometry.js";
 import { monEffectiveMagicImmune, monReflectsProjectiles, monSubmergesProjectiles } from "./monTraits.js";
-import { consumeBarrier, getDodgePentacleMode, hasGravityPentacle, isEvasionDisabledByStatus, randomPlayerTeleportDest } from "./utils.js";
+import { clampDmgFixed, consumeBarrier, getDodgePentacleMode, hasGravityPentacle, isEvasionDisabledByStatus, randomPlayerTeleportDest } from "./utils.js";
 /*
  * 毎ターン解決する、移動・罠に関する魔方陣効果。
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
@@ -315,13 +315,14 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
     return;
   }
 
-  targetMonster.hp -= damage;
+  const actualDamage = clampDmgFixed(targetMonster, damage, true);
+  targetMonster.hp -= actualDamage;
   wakeIfDormant(targetMonster, messages);
   resolveParalysisHit(targetMonster, messages);
   if (pc.painterId == null && targetMonster.type === "shopkeeper") {
     markShopkeeperHostileToPlayer(targetMonster, dungeon, player, messages);
   }
-  messages.push(`${pc.name}の魔法の石が${targetMonster.name}に当たった！${damage}ダメージ！`);
+  messages.push(`${pc.name}の魔法の石が${targetMonster.name}に当たった！${actualDamage}ダメージ！`);
   triggerMushroomCounterSpore(targetMonster, dungeon, player, messages);
   if (targetMonster.hp <= 0) notifyMonsterDefeated(targetMonster);
 }

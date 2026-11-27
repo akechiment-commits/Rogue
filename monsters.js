@@ -868,10 +868,21 @@ export function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
       killIfDead: true,
     });
     if (res.blocked) return;
-    const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
-    if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
+    if (_iBlock.hp <= 0 || !dg.monsters?.includes(_iBlock)) {
+      ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${res.damage}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}${_iResist < 1 ? "氷半減！" : ""}`);
+      return;
+    }
+    const _iSlowImmune = isStatusImmune(_iBlock, ml, _iBlock.name) || blockLargeMonsterStatus(_iBlock, "slow", ml);
+    if (_iSlowImmune) {
+      ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${res.damage}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}${_iResist < 1 ? "氷半減！" : ""}`);
+      return;
+    }
+    startLargeMonsterStatusCooldown(_iBlock, "slow");
+    const _iSlow = statusTurns(_iBlock.isBoss ? "bossSlow" : "slow", { kind: "monster", target: _iBlock });
+    if (_iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
     _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
     if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow;
+    else _iBlock.slowTurns = (_iBlock.slowTurns || 0) + _iSlow;
     ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${res.damage}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}${_iResist < 1 ? "氷半減！" : ""}鈍足${_iSlow}ターン！`);
   };
   const _hitIcePl = () => {

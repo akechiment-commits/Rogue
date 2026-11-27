@@ -269,6 +269,24 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     expect(pc.stoneAmmo).toBe(1);
   });
 
+  it("石飛ばしの魔方陣は水晶スライム等の固定ダメージ制限を尊重し1ダメージにする", () => {
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", stoneAmmo: 5, x: 2, y: 2 };
+    const crystal = { name: "水晶スライム", x: 3, y: 2, hp: 5, maxHp: 5, fixedDamageOnly: true };
+    const player = { x: 10, y: 10, hp: 20, maxHp: 20 };
+    const messages = [];
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dungeon({ pentacles: [pc], monsters: [crystal] }),
+      player,
+      messages,
+      effectDeps({ random: () => 0, rng: () => 10 }),
+    );
+
+    expect(crystal.hp).toBe(4);
+    expect(messages).toContain("石飛ばしの魔方陣の魔法の石が水晶スライムに当たった！1ダメージ！");
+  });
+
   it("石を地面へ置けなかった場合も弾薬を消費しない", () => {
     const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", stoneAmmo: 1, x: 2, y: 2 };
     const dodge = { kind: "dodge", name: "みかわしの魔方陣", x: 3, y: 2 };
@@ -283,6 +301,24 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     );
 
     expect(pc.stoneAmmo).toBe(1);
+  });
+
+  it("石飛ばしの魔方陣は水晶スライム等の固定ダメージ制限を尊重し1ダメージにする", () => {
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", stoneAmmo: 5, x: 2, y: 2 };
+    const crystal = { name: "水晶スライム", x: 3, y: 2, hp: 5, maxHp: 5, fixedDamageOnly: true };
+    const player = { x: 10, y: 10, hp: 20, maxHp: 20 };
+    const messages = [];
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dungeon({ pentacles: [pc], monsters: [crystal] }),
+      player,
+      messages,
+      effectDeps({ random: () => 0, rng: () => 10 }),
+    );
+
+    expect(crystal.hp).toBe(4);
+    expect(messages).toContain("石飛ばしの魔方陣の魔法の石が水晶スライムに当たった！1ダメージ！");
   });
 
   it("弾薬が尽きた石飛ばしの魔方陣は発動しない", () => {
