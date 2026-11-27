@@ -2121,7 +2121,13 @@ export function useItemActions({
               if (_m.atkBuffed) { const _amt = typeof _m.atkBuffed === "number" ? _m.atkBuffed : 3; _m.atk = Math.max(1, _m.atk - _amt); _m.atkBuffed = false; _removed.push("攻撃バフ"); }
               if (clearArmorBreathBuff(_m) > 0) _removed.push("ロックアーマー");
               if (clearDiamondWeaponBuff(_m) > 0) _removed.push("ダイヤモンドウエポン");
-              if (_m._enraged) { _m._enraged = false; _removed.push("激昂"); }
+              if (_m._enraged) {
+                _m._enraged = false;
+                _m._enragedDispelled = true;
+                _m.maxAttacks = _m._preEnrageMaxAttacks ?? (_m.baseKind === "boss_infernoking" ? 2 : 1);
+                delete _m._preEnrageMaxAttacks;
+                _removed.push("激昂");
+              }
               if ((_m.hasteTurns || 0) > 0) { _m.hasteTurns = 0; _removed.push("加速"); }
               // overBoost強化を解除
               if (_m.overBoost) {
@@ -2132,13 +2138,14 @@ export function useItemActions({
               }
               // 元から倍速なら等速に戻す
               if ((_m.speed || 1) > 1) { _m.speed = 1; _removed.push("倍速→等速"); }
-              if (it.blessed) {
+              if (it.blessed && !isStatusImmune(_m, ml, _m.name) && !blockLargeMonsterStatus(_m, "debuff", ml)) {
                 // 祝福：攻撃力・防御力を通常敵50行動、ボス10行動半減
                 const _halfTurns = monsterStatusTurns(50, _m);
                 if (_m._debuffOrigAtk === undefined) { _m._debuffOrigAtk = _m.atk; _m.atk = Math.max(1, Math.floor(_m.atk / 2)); }
                 if (_m._debuffOrigDef === undefined) { _m._debuffOrigDef = _m.def; _m.def = Math.max(0, Math.floor(_m.def / 2)); }
                 _m.debuffAtkHalfTurns = _halfTurns;
                 _m.debuffDefHalfTurns = _halfTurns;
+                startLargeMonsterStatusCooldown(_m, "debuff");
                 _removed.push(`攻撃力・防御力半減${_halfTurns}T`);
               }
               if (_removed.length > 0) ml.push(`${_m.name}のバフが解除された！(${_removed.join("、")})${it.blessed ? "【祝】" : ""}`);

@@ -8195,8 +8195,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ikTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty && !t.permanent);
       if (_ikTrap) removeTrap(dg, _ikTrap, ml, { message: `油で${_ikTrap.name}が消えた！`, p: pl });
     }
-    if (!m._enraged && m.hp <= m.maxHp * 0.5) {
+    if (!m._enraged && !m._enragedDispelled && m.hp <= m.maxHp * 0.5) {
       m._enraged = true;
+      if (m._preEnrageMaxAttacks === undefined) m._preEnrageMaxAttacks = m.maxAttacks ?? 1;
       m.speed = 3;        /* speed=2 → 3：3アクション/ターンで手がつけられない */
       m.maxAttacks = 3;   /* 攻撃回数上限も解放 */
       ml.push(`${m.name}が激昂した！速度が跳ね上がった！`);
