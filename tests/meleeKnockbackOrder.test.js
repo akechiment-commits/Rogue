@@ -59,6 +59,14 @@ it("ガーディアンがかばった近接攻撃はバリアを通過する", (
   expect(mon.hp).toBe(1000);
 });
 
+it("眠っているガーディアンは近接攻撃をかばわない", () => {
+  const guardian = { id: "guardian", name: "ガーディアン", subtype: "guardian", x: 6, y: 6,
+    hp: 100, maxHp: 100, sleepTurns: 3 };
+  const { mon } = attack({ abilities: [], bodySize: 1, others: [guardian] });
+  expect(guardian.hp).toBe(100);
+  expect(mon.hp).toBeLessThan(1000);
+});
+
 describe("射撃の指輪と矢", () => {
   const shootingRing = { effect: "shoot_ring" };
 

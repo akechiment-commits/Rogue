@@ -3418,7 +3418,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               wakeIfDormant(attackMon, ml);
               /* ── ガーディアンチェック：隣接する guardian が肩代わり ── */
               const _guardMon = dg.monsters.find(gm =>
-                gm !== attackMon && gm.subtype === "guardian" && !gm.sealed &&
+                gm !== attackMon && gm.subtype === "guardian" && !gm.sealed && gm.hp > 0 &&
+                !gm.dormant && !gm.dormantHouse && !(gm.sleepTurns > 0) && !gm.paralyzed &&
+                !(gm.paralyzeTurns > 0) && !(gm.petrifiedTurns > 0) && !(gm.frozenTurns > 0) &&
+                !(gm.knockdownTurns > 0) &&
                 Math.abs(gm.x - attackMon.x) <= 1 && Math.abs(gm.y - attackMon.y) <= 1
               );
               if (_guardMon) {
