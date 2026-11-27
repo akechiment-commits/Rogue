@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, triggerMushroomCounterSpore } from "../monsters.js";
 import { applyThrownItemToMonster, shootArrow } from "../items.js";
+import { applyWandEffect } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("キノコ系モンスターのテスト", () => {
@@ -176,5 +177,27 @@ describe("キノコ系モンスターのテスト", () => {
 
     expect(messages.some((m) => m.includes("睡眠胞子を撒き散らした"))).toBe(true);
     expect(player.sleepTurns).toBeGreaterThan(0);
+  });
+
+  it("炎の杖などの魔法弾ではカウンター胞子が発動せず、状態防止中の敵と擬態中のアイテムモドキには胞子が効かない", () => {
+    const base = MONS.find((m) => m.baseKind === "mushroom");
+    const shroom = makeMonsterFromBase(base, 1, 5, 5);
+    shroom.hp = 200;
+    shroom.maxHp = 200;
+    const player = makePlayer({ x: 6, y: 5 });
+    const immuneMon = { id: "im1", name: "耐性敵", x: 5, y: 6, hp: 20, maxHp: 20, statusImmune: 10 };
+    const disguised = { id: "mim1", name: "アイテムモドキ", subtype: "itemMimic", disguisedAsItem: true, x: 4, y: 5, hp: 20, maxHp: 20 };
+    const dg = makeEmptyDg({ monsters: [shroom, immuneMon, disguised] });
+    const wandMsgs = [];
+
+    applyWandEffect("fire_wand", "monster", shroom, -1, 0, dg, player, wandMsgs, () => {});
+    expect(wandMsgs.some((m) => m.includes("胞子を撒き散らした"))).toBe(false);
+    expect(player.poisoned).toBeFalsy();
+
+    const sporeMsgs = [];
+    triggerMushroomCounterSpore(shroom, dg, player, sporeMsgs);
+    expect(immuneMon.poisoned).toBeFalsy();
+    expect(immuneMon.poisonedTurns || 0).toBe(0);
+    expect(disguised.poisonedTurns || 0).toBe(0);
   });
 });

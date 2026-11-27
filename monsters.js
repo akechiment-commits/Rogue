@@ -5407,9 +5407,9 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
     targets.push(p);
   }
 
-  // 周囲1マス（8マス）にいる他のモンスター（生存中、自身を除く）
+  // 周囲1マス（8マス）にいる他のモンスター（生存中、擬態中・自身を除く）
   for (const other of (dg.monsters || [])) {
-    if (other && other !== mon && (other.hp || 0) > 0 && Math.max(Math.abs(other.x - mx), Math.abs(other.y - my)) === 1) {
+    if (other && other !== mon && !other.disguisedAsItem && (other.hp || 0) > 0 && Math.max(Math.abs(other.x - mx), Math.abs(other.y - my)) === 1) {
       targets.push(other);
     }
   }
@@ -5454,10 +5454,12 @@ export function triggerMushroomCounterSpore(mon, dg, p, ml) {
       }
     } else {
       // モンスター対象
+      if (isStatusImmune(target, ml, target.name)) continue;
       if (sporeType === "poison") {
         if (blockLargeMonsterStatus(target, "poison", ml)) continue;
         startLargeMonsterStatusCooldown(target, "poison");
         const turns = statusTurns("poison", { kind: "monster", target });
+        target.poisoned = true;
         target.poisonedTurns = (target.poisonedTurns || 0) + turns;
         target.sporePoisonKillerId = mon.id;
         target.sporePoisonKillerName = mon.name;

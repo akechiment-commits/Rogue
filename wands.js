@@ -130,7 +130,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   };
   const _onMonsterDamaged = (mon) => {
     if (!mon || mon.hp <= 0) return;
-    triggerMushroomCounterSpore(mon, dg, p, ml);
     _angerShopkeeper(mon);
   };
   const _hitYou = (bolt) => sourceIsPlayer ? `${bolt}が自分に命中！` : `${bolt}が命中！`;
@@ -2283,7 +2282,6 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           if (_mon.hp <= 0) {
             killMonster(_mon, dg, p, ml, luFn);
           } else {
-            triggerMushroomCounterSpore(_mon, dg, p, ml);
             if (_mon.type === "shopkeeper" && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
           }
         }
@@ -2327,7 +2325,6 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           if (creature.hp <= 0) {
             killMonster(creature, dg, p, ml, luFn);
           } else {
-            triggerMushroomCounterSpore(creature, dg, p, ml);
             if (creature.type === "shopkeeper" && p) markShopkeeperHostileToPlayer(creature, dg, p, ml);
           }
         }
@@ -2673,7 +2670,6 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, killerMon);
-          else triggerMushroomCounterSpore(killerMon, dg, pl, ml);
         }
       } else {
         ml.push("魔法弾は壁に消えた。");
@@ -2699,7 +2695,6 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
             ml.push(`跳ね返った雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
             pushLightningAnim(_srcMon.x, _srcMon.y);
             if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
-            else triggerMushroomCounterSpore(_srcMon, dg, pl, ml);
           }
         }
         return;
@@ -2736,7 +2731,6 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           ml.push(`跳ね返った雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn, false, mon);
-          else triggerMushroomCounterSpore(killerMon, dg, pl, ml);
         }
       } else {
         applyEnemyEffect("monster", mon);
@@ -2984,14 +2978,11 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
     ml.push(`${label}爆発で${mon.name}に${dmg}ダメージ！`);
     if (mon.hp <= 0) {
       killMonster(mon, dg, p, ml, luFn, false, context.killerMon || null);
-    } else {
-      triggerMushroomCounterSpore(mon, dg, p, ml);
-      if (mon.type === "shopkeeper") {
-        if (context.killerMon) {
-          beginNpcRetaliation(mon, context.killerMon, ml);
-        } else if ((context.sourceIsPlayer ?? !context.killerMon) && p) {
-          markShopkeeperHostileToPlayer(mon, dg, p, ml);
-        }
+    } else if (mon.type === "shopkeeper") {
+      if (context.killerMon) {
+        beginNpcRetaliation(mon, context.killerMon, ml);
+      } else if ((context.sourceIsPlayer ?? !context.killerMon) && p) {
+        markShopkeeperHostileToPlayer(mon, dg, p, ml);
       }
     }
   }
@@ -3109,12 +3100,9 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
               if (_mon.hp <= 0) {
                 _defeat(_mon);
-              } else {
-                triggerMushroomCounterSpore(_mon, dg, p, ml);
-                if (_mon.type === "shopkeeper") {
-                  if (killerMon) beginNpcRetaliation(_mon, killerMon, ml);
-                  else if (sourceIsPlayer && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
-                }
+              } else if (_mon.type === "shopkeeper") {
+                if (killerMon) beginNpcRetaliation(_mon, killerMon, ml);
+                else if (sourceIsPlayer && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
               }
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {
@@ -3166,12 +3154,9 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
               ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
               if (_mon.hp <= 0) {
                 _defeat(_mon);
-              } else {
-                triggerMushroomCounterSpore(_mon, dg, p, ml);
-                if (_mon.type === "shopkeeper") {
-                  if (killerMon) beginNpcRetaliation(_mon, killerMon, ml);
-                  else if (sourceIsPlayer && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
-                }
+              } else if (_mon.type === "shopkeeper") {
+                if (killerMon) beginNpcRetaliation(_mon, killerMon, ml);
+                else if (sourceIsPlayer && p) markShopkeeperHostileToPlayer(_mon, dg, p, ml);
               }
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {

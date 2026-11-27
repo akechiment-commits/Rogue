@@ -64,8 +64,8 @@ export function applyDamageToMonster(target, rawDamage, {
   // 5. 麻痺解除・弱体化
   resolveParalysisHit(target, messages);
 
-  // 6. キノコ反撃毒胞子
-  if (dungeon && player) {
+  // 6. キノコ反撃胞子（物理攻撃のみ）
+  if (isPhysical && dungeon && player) {
     triggerMushroomCounterSpore(target, dungeon, player, messages);
   }
 

@@ -1743,7 +1743,6 @@ export function useItemActions({
             if (_m.hp <= 0) {
               killMonster(_m, dg, p, ml, lu);
             } else {
-              triggerMushroomCounterSpore(_m, dg, p, ml);
               if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
             }
           }
@@ -1799,7 +1798,6 @@ export function useItemActions({
             if (_m.hp <= 0) {
               killMonster(_m, dg, p, ml, lu);
             } else {
-              triggerMushroomCounterSpore(_m, dg, p, ml);
               if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
             }
           }
@@ -1829,7 +1827,6 @@ export function useItemActions({
               if (_m.hp <= 0) {
                 killMonster(_m, dg, p, ml, lu);
               } else {
-                triggerMushroomCounterSpore(_m, dg, p, ml);
                 if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
               }
               continue;
@@ -2013,7 +2010,6 @@ export function useItemActions({
             if (_m.hp <= 0) {
               killMonster(_m, dg, p, ml, lu);
             } else {
-              triggerMushroomCounterSpore(_m, dg, p, ml);
               if (_m.type === "shopkeeper") markWanderingNpcHostile(_m, dg, p, ml);
             }
           }
@@ -2170,7 +2166,6 @@ export function useItemActions({
                 if (_creature.hp <= 0) {
                   killMonster(_creature, dg, p, ml, lu);
                 } else {
-                  triggerMushroomCounterSpore(_creature, dg, p, ml);
                   if (_creature.type === "shopkeeper") markWanderingNpcHostile(_creature, dg, p, ml);
                 }
               }
@@ -2637,7 +2632,6 @@ export function useItemActions({
                 if (_gm.hp <= 0) {
                   killMonster(_gm, dg, p, ml, lu);
                 } else {
-                  triggerMushroomCounterSpore(_gm, dg, p, ml);
                   if (_gm.type === "shopkeeper") markWanderingNpcHostile(_gm, dg, p, ml);
                 }
               } else {

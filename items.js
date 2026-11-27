@@ -2703,7 +2703,6 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
             retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
             if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion); }
-            else triggerMushroomCounterSpore(m, dg, p, ml);
             continue;
           }
           m.hp = 0;
@@ -2716,7 +2715,6 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           retaliateAgainstExplosionSource(m);
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
           if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
-          else triggerMushroomCounterSpore(m, dg, p, ml);
         } else {
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
@@ -2725,7 +2723,6 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
           if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
-          else triggerMushroomCounterSpore(m, dg, p, ml);
         }
       }
       /* アイテム破壊 */
@@ -2927,7 +2924,6 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
               retaliateAgainstExplosionSource(m);
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn, false, killerMon);
-              else triggerMushroomCounterSpore(m, dg, p, ml);
               continue;
             }
             ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
@@ -5944,17 +5940,17 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           let _wasStatus = false;
           if (weakEffect) {
             const weakCures = [
-              ["poisoned", () => clearPlayerPoison(p), "毒"],
-              ["sleepTurns", () => { p.sleepTurns = 0; }, "眠り"],
-              ["confusedTurns", () => { p.confusedTurns = 0; }, "混乱"],
-              ["slowTurns", () => { p.slowTurns = 0; }, "鈍足"],
-              ["darknessTurns", () => { p.darknessTurns = 0; }, "暗闇"],
-              ["bewitchedTurns", () => { p.bewitchedTurns = 0; }, "幻惑"],
-              ["sealedTurns", () => { p.sealedTurns = 0; }, "封印"],
-              ["paralyzeTurns", () => { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; }, "金縛り"],
+              [() => !!(p.poisoned || (p.poisonAtkLoss || 0) > 0), () => clearPlayerPoison(p)],
+              [() => (p.sleepTurns || 0) > 0, () => { p.sleepTurns = 0; }],
+              [() => (p.confusedTurns || 0) > 0, () => { p.confusedTurns = 0; }],
+              [() => (p.slowTurns || 0) > 0, () => { p.slowTurns = 0; p.slowSkip = false; }],
+              [() => (p.darknessTurns || 0) > 0, () => { p.darknessTurns = 0; }],
+              [() => (p.bewitchedTurns || 0) > 0, () => { p.bewitchedTurns = 0; }],
+              [() => (p.sealedTurns || 0) > 0, () => { p.sealedTurns = 0; }],
+              [() => !!(p.paralyzed || (p.paralyzeTurns || 0) > 0), () => { p.paralyzeTurns = 0; p.paralyzed = false; p.paralyzeHits = 0; p._paralyzeHp = null; }],
             ];
-            const [key, clear, label] = weakCures.find(([field]) => (p[field] || 0) > 0) || [];
-            if (key) { clear(); _wasStatus = true; }
+            const found = weakCures.find(([active]) => active());
+            if (found) { found[1](); _wasStatus = true; }
           } else _wasStatus = clearStatusEffectsOnHpZero(p);
           const _dopingCuredMsg = _hadDopingAftereffect ? " ドーピングの副作用も消えた！" : "";
           if (blessed) {
@@ -6014,16 +6010,17 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           let _wasStatus = false;
           if (weakEffect) {
             const weakCures = [
-              ["poisoned", () => { target.poisoned = false; target.poisonedTurns = 0; if (target.poisonHalfAtk) { target.atk = target.poisonOrigAtk ?? target.atk; delete target.poisonHalfAtk; delete target.poisonOrigAtk; } }],
-              ["poisonArrowDamageHalves", () => { delete target.poisonArrowDamageHalves; delete target.poisonArrowDamageTurns; }],
-              ["sleepTurns", () => { target.sleepTurns = 0; }],
-              ["confusedTurns", () => { target.confusedTurns = 0; }],
-              ["slowTurns", () => { target.slowTurns = 0; target.bossSlowTurns = 0; }],
-              ["darknessTurns", () => { target.darknessTurns = 0; target.darkDir = null; }],
-              ["fleeingTurns", () => { target.fleeingTurns = 0; }],
-              ["sealedTurns", () => { target.sealedTurns = 0; }],
+              ["poisoned", () => !!(target.poisoned || (target.poisonedTurns || 0) > 0 || target.poisonHalfAtk), () => { target.poisoned = false; target.poisonedTurns = 0; delete target.sporePoisonKillerId; delete target.sporePoisonKillerName; if (target.poisonHalfAtk) { target.atk = target.poisonOrigAtk ?? target.atk; delete target.poisonHalfAtk; delete target.poisonOrigAtk; } }],
+              ["poisonArrowDamageHalves", () => (target.poisonArrowDamageHalves || 0) > 0, () => { delete target.poisonArrowDamageHalves; delete target.poisonArrowDamageTurns; }],
+              ["sleepTurns", () => (target.sleepTurns || 0) > 0, () => { target.sleepTurns = 0; }],
+              ["confusedTurns", () => (target.confusedTurns || 0) > 0, () => { target.confusedTurns = 0; }],
+              ["slowTurns", () => (target.slowTurns || 0) > 0 || (target.bossSlowTurns || 0) > 0, () => { target.slowTurns = 0; target.bossSlowTurns = 0; }],
+              ["darknessTurns", () => (target.darknessTurns || 0) > 0, () => { target.darknessTurns = 0; target.darkDir = null; }],
+              ["fleeingTurns", () => (target.fleeingTurns || 0) > 0, () => { target.fleeingTurns = 0; }],
+              ["sealedTurns", () => !!(target.sealed || (target.sealedTurns || 0) > 0), () => { target.sealed = false; target.sealedTurns = 0; }],
+              ["paralyzeTurns", () => !!(target.paralyzed || (target.paralyzeTurns || 0) > 0), () => { target.paralyzed = false; target.paralyzeTurns = 0; target.paralyzeHits = 0; target._paralyzeHp = null; }],
             ];
-            const [key, clear] = weakCures.find(([field]) => (target[field] || 0) > 0) || [];
+            const [key, , clear] = weakCures.find(([, active]) => active()) || [];
             if (key) {
               clear();
               if (key === "slowTurns") { target.speed = target._preSlowSpeed || target.baseSpeed || 1; delete target._preSlowSpeed; }
@@ -6125,7 +6122,6 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     if (Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
       calmShopkeeperIfFullyHealed(target, dg, p, ml);
     } else if (Number.isFinite(_beforeMonsterHp) && target.hp < _beforeMonsterHp && target.hp > 0) {
-      triggerMushroomCounterSpore(target, dg, p, ml);
       if (target.type === "shopkeeper") {
         if (killerMon) beginNpcRetaliation(target, killerMon, ml);
         else if (p) markShopkeeperHostileToPlayer(target, dg, p, ml);
@@ -11125,7 +11121,6 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           ml.push(`地震の魔法が${_monster.name}に命中！${_damage}ダメージ！`);
           resolveParalysisHit(_monster, ml);
           if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, luFn);
-          else triggerMushroomCounterSpore(_monster, dg, p, ml);
         }
       }
       break;
@@ -11221,7 +11216,6 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           resolveParalysisHit(_lm, ml);
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}${_lresist < 1 ? "雷半減！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
-          else triggerMushroomCounterSpore(_lm, dg, p, ml);
         }
       }
       if (kind === "monster") {
@@ -11373,7 +11367,6 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     if (Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
       calmShopkeeperIfFullyHealed(target, dg, p, ml);
     } else if (Number.isFinite(_beforeMonsterHp) && target.hp < _beforeMonsterHp && target.hp > 0) {
-      triggerMushroomCounterSpore(target, dg, p, ml);
       markShopkeeperHostileToPlayer(target, dg, p, ml);
     }
   }
