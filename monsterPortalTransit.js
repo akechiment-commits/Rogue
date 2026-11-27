@@ -16,18 +16,7 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
   const hasGoal = player.inventory?.some((item) => item.type === "goal");
   for (const monster of [...dungeon.monsters]) {
     if (monster.forcedMoveImmune) continue;
-    if (monster.isPlayerClone) {
-      const portal = dungeon.pentacles.find((pentacle) =>
-        (pentacle.kind === "portal" || pentacle.kind === "fixed_portal") &&
-        bodyOverlapsPortal(monster, monster.x, monster.y, pentacle)
-      );
-      const before = positionSnapshot.get(monster.id);
-      if (portal && !touchedPortalBefore(monster, before, portal)) {
-        dungeon.monsters = dungeon.monsters.filter((entry) => entry !== monster);
-        messages.push("分身は階層の境界を越えられず消滅した！");
-      }
-      continue;
-    }
+    const canCrossFloors = !monster.isBoss && !(monster.type === "shopkeeper" && monster.state !== "hostile");
     const fixedPortal = dungeon.pentacles.find((pentacle) =>
       pentacle.kind === "fixed_portal" && bodyOverlapsPortal(monster, monster.x, monster.y, pentacle)
     );
@@ -70,7 +59,7 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
         cycle.push({ portal: candidate, dungeon, depth: portal.floor });
       }
     }
-    if (!hasGoal && state.floors) {
+    if (!hasGoal && canCrossFloors && state.floors) {
       for (const [depth, floorDungeon] of Object.entries(state.floors)) {
         if (!floorDungeon.pentacles) continue;
         for (const candidate of floorDungeon.pentacles) {
@@ -97,6 +86,9 @@ export function transitMonstersThroughPortals(state, player, messages, positionS
       monster.x = destination.portal.x;
       monster.y = destination.portal.y;
       messages.push(`${monster.name}がポータルから${destination.portal.name}へ抜けた！`);
+    } else if (monster.isPlayerClone) {
+      dungeon.monsters = dungeon.monsters.filter((entry) => entry !== monster);
+      messages.push("分身は階層の境界を越えられず消滅した！");
     } else {
       dungeon.monsters = dungeon.monsters.filter((entry) => entry !== monster);
       monster.x = destination.portal.x;

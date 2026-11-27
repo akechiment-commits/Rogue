@@ -55,4 +55,43 @@ describe("transitMonstersThroughPortals", () => {
     expect(monster).toMatchObject({ x: 8, y: 8 });
     expect(messages).toHaveLength(1);
   });
+
+  function twoFloors(monster) {
+    const a = { kind: "portal", name: "ポータル", blessed: true, x: 2, y: 2, drawOrder: 1 };
+    const b = { kind: "portal", name: "ポータル", blessed: true, x: 6, y: 6, drawOrder: 2 };
+    const dungeon = { monsters: [monster], pentacles: [a] };
+    const other = { monsters: [], pentacles: [b], map: undefined };
+    return { state: { dungeon, floors: { 2: other } }, dungeon, other };
+  }
+  const noRand = { randomTeleportDest: () => null };
+
+  it("同じ階のポータルへ抜ける分身は消滅しない", () => {
+    const clone = { id: "c", name: "分身", isPlayerClone: true, x: 2, y: 2 };
+    const a = { kind: "portal", name: "ポータル", x: 2, y: 2, drawOrder: 1 };
+    const b = { kind: "portal", name: "ポータル", x: 6, y: 6, drawOrder: 2 };
+    const state = { dungeon: { monsters: [clone], pentacles: [a, b] } };
+    transitMonstersThroughPortals(state, { x: 5, y: 5, inventory: [] }, [], snapshot(clone, 1, 2), noRand);
+    expect(state.dungeon.monsters).toContain(clone);
+    expect(clone).toMatchObject({ x: 6, y: 6 });
+  });
+
+  it("分身は別階のポータルへ入ると消滅する", () => {
+    const clone = { id: "c", name: "分身", isPlayerClone: true, x: 2, y: 2 };
+    const { state, dungeon, other } = twoFloors(clone);
+    transitMonstersThroughPortals(state, { x: 5, y: 5, inventory: [] }, [], snapshot(clone, 1, 2), noRand);
+    expect(dungeon.monsters).not.toContain(clone);
+    expect(other.monsters).not.toContain(clone);
+  });
+
+  it("ボスと非敵対の店主は別階へ転送されない", () => {
+    for (const mon of [
+      { id: "b", name: "ボス", isBoss: true, x: 2, y: 2 },
+      { id: "s", name: "店主", type: "shopkeeper", state: "blocking", x: 2, y: 2 },
+    ]) {
+      const { state, dungeon, other } = twoFloors(mon);
+      transitMonstersThroughPortals(state, { x: 5, y: 5, inventory: [] }, [], snapshot(mon, 1, 2), noRand);
+      expect(dungeon.monsters).toContain(mon);
+      expect(other.monsters).toHaveLength(0);
+    }
+  });
 });
