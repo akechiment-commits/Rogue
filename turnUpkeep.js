@@ -295,7 +295,10 @@ export function advanceEarlyStatusTimers(player, messages) {
   if ((player.immobileTurns || 0) > 0) player.immobileTurns--;
   if ((player.floatTurns || 0) > 0) {
     player.floatTurns--;
-    if (player.floatTurns === 0) messages.push("浮遊が解けた！");
+    if (player.floatTurns === 0) {
+      player._floatJustExpired = true;
+      messages.push("浮遊が解けた！");
+    }
   }
   if ((player.invisibleTurns || 0) > 0) {
     player.invisibleTurns--;

@@ -152,4 +152,28 @@ describe("advancePlayerTerrainEffects", () => {
     expect(player).toMatchObject({ x: 5, y: 5, hp: -5, deathCause: "水没により", _waterSuffocationDamage: true });
     expect(messages).toEqual(["水中の壺の中で息ができない！15ダメージ！"]);
   });
+
+  it("非浮遊時の水上押し出しは自然なメッセージを出し、重力下では弾き出されずそのまま溺れる", () => {
+    const map1 = makeMap();
+    map1[5][5] = T.WATER;
+    const player1 = makePlayer({ x: 5, y: 5, hp: 50 });
+    const msgs1 = [];
+    advancePlayerTerrainEffects(player1, makeDungeon(map1), msgs1);
+    expect(player1.x).not.toBe(5);
+    expect(msgs1).toContain("水から弾き出された！");
+    expect(msgs1.some(m => m.includes("浮遊が解けて"))).toBe(false);
+
+    const map2 = makeMap();
+    map2[5][5] = T.WATER;
+    const player2 = makePlayer({ x: 5, y: 5, hp: 50 });
+    const msgs2 = [];
+    const gravDg = makeDungeon(map2, {
+      rooms: [{ x: 1, y: 1, w: 10, h: 10 }],
+      pentacles: [{ kind: "gravity", name: "重力の魔方陣", x: 3, y: 3 }],
+    });
+    advancePlayerTerrainEffects(player2, gravDg, msgs2);
+    expect([player2.x, player2.y]).toEqual([5, 5]);
+    expect(player2.hp).toBe(35);
+    expect(msgs2).toContain("溺れて苦しい！15ダメージ！");
+  });
 });

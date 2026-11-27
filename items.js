@@ -1396,14 +1396,45 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
   const onSpring = dg.springs?.some((s) => s.x === x && s.y === y);
   const onWater = tile === T.WATER || onSpring;
   if (!onWater) return true;
-  /* 実効浮遊（封印で固有floatは無効）・水生・水中歩行のみ生存 */
-  return !!(mon.waterOnly || monEffectiveWaterWalker(mon) || monEffectiveFloat(mon));
+  /* 実効浮遊（封印・重力で無効、呪い重力で付与）・水生・水中歩行のみ生存 */
+  const magicImmune = !!(mon.magicImmune && !mon.sealed);
+  const effFloat = (monEffectiveFloat(mon) && (magicImmune || !hasGravityPentacle(dg, x, y))) ||
+    (!magicImmune && !mon.sealed && hasCursedGravityPentacle(dg, x, y));
+  return !!(mon.waterOnly || monEffectiveWaterWalker(mon) || effFloat);
 }
 
-/** 強制移動の着地点が水上なら、水に適応できない敵を撃破する。 */
+function canEjectMonsterFromWaterTo(mon, dg, nx, ny, p) {
+  if (!canPlaceMonsterBody(dg, mon, nx, ny, p)) return false;
+  for (const c of monsterBodyCells(mon, nx, ny)) {
+    if (c.x < 0 || c.x >= MW || c.y < 0 || c.y >= MH) return false;
+    const tile = dg.map[c.y]?.[c.x];
+    if (tile === T.WALL || tile === T.BWALL || tile === T.WATER) return false;
+    if (dg.springs?.some((s) => s.x === c.x && s.y === c.y)) return false;
+    if (statueAt(dg, c.x, c.y)) return false;
+  }
+  return true;
+}
+
+/** 強制移動等の着地点が水上なら、周囲1マスに陸地があれば弾き出し（重力下を除く）、逃げ場がなければ撃破／割合ダメージを与える。 */
 export function drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon = null) {
   if (!mon || !dg?.map || !dg.monsters?.includes(mon)) return false;
-  if (canMonsterSurviveOnWater(mon, dg, mon.x, mon.y)) return false;
+  const cells = monsterBodyCells(mon);
+  if (cells.every((c) => canMonsterSurviveOnWater(mon, dg, c.x, c.y))) return false;
+  const magicImmune = !!(mon.magicImmune && !mon.sealed);
+  const underGravity = !magicImmune && cells.some((c) => hasGravityPentacle(dg, c.x, c.y));
+  if (!underGravity) {
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+    for (const [dx, dy] of dirs) {
+      const nx = mon.x + dx, ny = mon.y + dy;
+      if (canEjectMonsterFromWaterTo(mon, dg, nx, ny, p)) {
+        mon.x = nx;
+        mon.y = ny;
+        if (p?.capturedBy) releaseInvalidCapture(p, dg, ml);
+        ml.push(`${mon.name}は水から弾き出された！`);
+        return false;
+      }
+    }
+  }
   if (mon.isBoss) {
     mon._waterEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
     if (blockLargeMonsterDamage(mon, p, ml)) return true;
@@ -1420,7 +1451,7 @@ export function drownMonsterIfNeeded(mon, dg, p, ml, luFn, killerMon = null) {
 }
 
 /**
- * 封印などで浮遊が落ち、深い水上に残った敵を重力と同様に陸へ弾き出す。
+ * 封印などで浮遊が落ち、深い水上に残った敵を周囲1マスの陸へ弾き出す（重力下では弾き出さず沈む）。
  * 逃げ場がなければ通常敵は即死、ボスは現在HPの1/4ダメージ。
  * @returns {"ejected"|"damaged"|"killed"|"ok"|null}
  */
@@ -1430,20 +1461,21 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
   /* まだ浮遊できている（一時floatTurns等）なら何もしない */
   if (monEffectiveFloat(m)) return "ok";
   if (m.waterOnly || monEffectiveWaterWalker(m)) return "ok";
-  if (dg.map[m.y]?.[m.x] !== T.WATER) return "ok";
+  const cells = monsterBodyCells(m);
+  if (!cells.some((c) => dg.map[c.y]?.[c.x] === T.WATER)) return "ok";
 
-  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
-  for (const [dx, dy] of dirs) {
-    const nx = m.x + dx, ny = m.y + dy;
-    if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
-    const tile = dg.map[ny]?.[nx];
-    if (tile === T.WALL || tile === T.BWALL || tile === T.WATER) continue;
-    if (dg.monsters.some((o) => o !== m && monsterOccupiesCell(o, nx, ny))) continue;
-    if (p && p.x === nx && p.y === ny) continue;
-    m.x = nx;
-    m.y = ny;
-    ml.push(`封印で浮遊が解け、${m.name}が水上から弾き出された！`);
-    return "ejected";
+  const underGravity = !(m.magicImmune && !m.sealed) && cells.some((c) => hasGravityPentacle(dg, c.x, c.y));
+  if (!underGravity) {
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+    for (const [dx, dy] of dirs) {
+      const nx = m.x + dx, ny = m.y + dy;
+      if (canEjectMonsterFromWaterTo(m, dg, nx, ny, p)) {
+        m.x = nx;
+        m.y = ny;
+        ml.push(`封印で浮遊が解け、${m.name}が水上から弾き出された！`);
+        return "ejected";
+      }
+    }
   }
   if (m.isBoss) {
     m._waterEntryDamageTurn = worldTickDamageTurnForCurrentAction(p);
@@ -4269,6 +4301,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _bbm = monsterOnTrap();
       if (_bbm) {
+        if (!(_bbm.magicImmune && !_bbm.sealed) && hasGravityPentacle(dg, _bbm.x, _bbm.y)) {
+          ml.push(`重力の魔方陣の力で${_bbm.name}は吹き飛ばされなかった！`);
+        } else {
         const _bbd = _bbm.dir || { x: 1, y: 0 };
         const _bbdx = -(_bbd.x || 0), _bbdy = -(_bbd.y || 0);
         if (_bbdx !== 0 || _bbdy !== 0) {
@@ -4331,8 +4366,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           if (_bbm.hp <= 0) killMonsterByTrap(_bbm, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
           if (_bbHitOther?.hp <= 0) killMonsterByTrap(_bbHitOther, dg, p, ml, null, `${trap?.name || "吹き飛ばしの罠"}の衝突`);
         }
+        }
       }
       if (canAffectPlayerOnTrap()) {
+        if (hasGravityPentacle(dg, p.x, p.y)) {
+          ml.push("重力の魔方陣の力で吹き飛ばされなかった！");
+          return "restart";
+        }
         const _pfd = p.facing || { dx: 0, dy: 1 };
         const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
         const _blowFromX = p.x, _blowFromY = p.y;
@@ -8234,6 +8274,57 @@ function resolveMonsterDefeat(mon, dg, p, ml, luFn, noExp, killerMon, noRevive, 
  *   - 将来: 落ちているアイテムを投げてくる敵
  *   - 将来: アイテム飛翔系の新規杖
  */
+export function dropProjectileAtFeetByGravity(shooter, dg, item, ml, p, luFn = null, opts = {}) {
+  const {
+    bbFn = null,
+    nameFn = null,
+    verb = "投げた",
+    label = null,
+    killerMon = null,
+    sourceIsPlayer = !killerMon,
+    alreadyAnnounced = false,
+  } = opts;
+  const gx = shooter.x, gy = shooter.y;
+  const itemLabel = label || (nameFn ? nameFn(item) : resolveItemName(item));
+  if (alreadyAnnounced) {
+    ml.push(`しかし重力の魔方陣の力で${itemLabel}はそのまま足元に落ちた！`);
+  } else {
+    ml.push(`${itemLabel}を${verb}！しかし重力の魔方陣の力でそのまま足元に落ちた！`);
+  }
+  const spr = dg.springs?.find((s) => s.x === gx && s.y === gy);
+  if (spr) {
+    soakItemIntoSpring(spr, item, ml, dg, nameFn, p);
+    return { x: gx, y: gy, consumed: true, spring: spr };
+  }
+  const bb = dg.bigboxes?.find((b) => b.x === gx && b.y === gy);
+  if (bb && bbFn) {
+    bbFn(bb, item, dg, ml);
+    return { x: gx, y: gy, consumed: true, bigbox: bb };
+  }
+  if (item.type === "potion") {
+    if (triggerThrownItemLandingTrap(dg, gx, gy, item, p, ml, { nameFn, luFn, bbFn, killerMon, sourceIsPlayer })) {
+      return { x: gx, y: gy, consumed: true };
+    }
+    if (item.effect === "water") applyWaterSplash(dg, gx, gy, !!item.blessed, !!item.cursed, ml, p, luFn, nameFn);
+    else splashPotion(dg, gx, gy, item.effect, item.value || 0, p, ml, luFn, !!item.blessed, !!item.cursed, nameFn, { killerMon, sourceIsPlayer });
+    return { x: gx, y: gy, consumed: true, splash: true };
+  }
+  if (item.type === "pot") {
+    if (triggerThrownItemLandingTrap(dg, gx, gy, item, p, ml, { nameFn, luFn, bbFn, killerMon, sourceIsPlayer })) {
+      return { x: gx, y: gy, consumed: true };
+    }
+    scatterPotContents(item, dg, gx, gy, p, ml, luFn, nameFn, { killerMon, sourceIsPlayer });
+    return { x: gx, y: gy, consumed: true };
+  }
+  if (item.type === "arrow" && item.bombArrow) {
+    const atk = (item.atk || 6) + ((item.count || 1) > 1 ? item.count : 0);
+    detonateBombArrow(gx, gy, item, dg, p, ml, luFn, atk, nameFn);
+    return { x: gx, y: gy, consumed: true };
+  }
+  const placed = placeItemAt(dg, gx, gy, item, ml, new Set(), 0, p);
+  return { x: item.x ?? gx, y: item.y ?? gy, consumed: !placed };
+}
+
 export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts = {}) {
   const deferredStatueSpawns = item.type === "potion" ? [] : null;
   try {
@@ -8244,6 +8335,15 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 }
 
 function _throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts, deferredStatueSpawns) {
+  if (shooter && !(shooter.magicImmune && !shooter.sealed) && hasGravityPentacle(dg, shooter.x, shooter.y)) {
+    return dropProjectileAtFeetByGravity(shooter, dg, item, ml, p, luFn, {
+      bbFn: opts.bbFn || null,
+      nameFn: opts.nameFn || null,
+      killerMon: opts.killerMon || null,
+      sourceIsPlayer: opts.sourceIsPlayer ?? !opts.killerMon,
+      alreadyAnnounced: true,
+    });
+  }
   if (item?.rightStone) {
     dx = 1;
     dy = 0;
@@ -8645,6 +8745,10 @@ export function applyMeleeKnockbackAura(attackMon, dg, p, dx, dy, ml, luFn, kill
 
 export function applyWeaponKnockback(attackMon, dg, p, dx, dy, ml, luFn, killFn = killMonster) {
   if (!attackMon || attackMon.hp <= 0 || !dg.monsters.includes(attackMon)) return;
+  if (!(attackMon.magicImmune && !attackMon.sealed) && hasGravityPentacle(dg, attackMon.x, attackMon.y)) {
+    ml.push(`重力の魔方陣の力で${attackMon.name}への吹き飛ばしが無効になった！`);
+    return;
+  }
   if (attackMon.forcedMoveImmune) {
     ml.push(`${attackMon.name}は強制移動を受けない！`);
     return;
@@ -8690,6 +8794,19 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     resolveParalysisHit(p, ml);
     return damage;
   };
+  const _isFloorObj = kind === "trap" || kind === "vent" || kind === "pentacle";
+  if (kind === "monster" && !(entity?.magicImmune && !entity?.sealed) && hasGravityPentacle(dg, x, y)) {
+    if (ml) ml.push(`重力の魔方陣の力で${entity.name}への強制移動が無効になった！`);
+    return { x, y, consumed: false, blocked: true };
+  }
+  if (kind === "player" && hasGravityPentacle(dg, x, y)) {
+    if (ml) ml.push("重力の魔方陣の力で強制移動が無効になった！");
+    return { x, y, consumed: false, blocked: true };
+  }
+  if (_isFloorObj && hasGravityPentacle(dg, x, y)) {
+    if (ml) ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！");
+    return { x, y, consumed: false, blocked: true };
+  }
   if (kind === "monster" && entity?.forcedMoveImmune) {
     if (ml) ml.push(`${entity.name}は強制移動を受けない！`);
     return { x, y, consumed: false, blocked: true };
@@ -8702,7 +8819,6 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
   let moved = 0;
   let collisionVictim = null;
   let hitStatue = null;
-  const _isFloorObj = kind === "trap" || kind === "vent" || kind === "pentacle";
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
@@ -9587,6 +9703,31 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
 export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null, { forceMiss = false, bundle = false, wakka = false } = {}) {
   const st = p.inventory[idx];
   if (!st || st.type !== "arrow") return;
+  if (hasGravityPentacle(dg, p.x, p.y)) {
+    let dropped;
+    let label = null;
+    if (bundle) {
+      const cnt = Number(st.count) || 1;
+      if (cnt > 1) {
+        label = (st.stone || st.magicStone || st.iceChunk || st.specialProjectile)
+          ? `${st.name}(${cnt}個)`
+          : `${st.name}(${cnt}本)`;
+      }
+      p.inventory.splice(idx, 1);
+      if (p.arrow === st) p.arrow = null;
+      dropped = st;
+    } else {
+      st.count--;
+      if (st.count <= 0) {
+        p.inventory.splice(idx, 1);
+        if (p.arrow === st) p.arrow = null;
+      }
+      dropped = makeArrowUnitFromStack(st);
+    }
+    const verb = bundle || st.stone || st.magicStone || st.iceChunk || st.specialProjectile ? "投げた" : "射った";
+    dropProjectileAtFeetByGravity(p, dg, dropped, ml, p, luFn, { bbFn, verb, label });
+    return;
+  }
   if (st.specialProjectile) {
     launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss, luFn, bundle });
     return;

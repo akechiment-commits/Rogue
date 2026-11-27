@@ -3684,6 +3684,11 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   const _arName = _isPierce ? "貫きの矢" : _isStrong ? "強矢" : "矢";
   const _arColor = _isPierce ? "#ff8844" : _isStrong ? "#ffcc44" : "#d0a050";
   const _arAtkBonus = _isPierce ? 5 : _isStrong ? 8 : 3;
+  if (!monEffectiveMagicImmune(m) && hasGravityPentacle(dg, m.x, m.y)) {
+    ml.push(`${m.name}が${_arName}を放った！しかし重力の魔方陣の力でそのまま足元に落ちた！`);
+    if (!_isPierce) placeItemAt(dg, m.x, m.y, _makeAr(), ml, new Set(), 0, pl);
+    return true;
+  }
   /* 矢落下：pierceなら消滅、それ以外は地面/泉に落とす */
   const _dropAr = (px, py, mlx) => {
     if (_isPierce) return;
@@ -3774,6 +3779,12 @@ function monsterThrowStone(m, dg, pl, ml, opts = {}) {
   if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
   ammo.count--;
   const isMagic = !!ammo.magicStone;
+  if (!monEffectiveMagicImmune(m) && hasGravityPentacle(dg, m.x, m.y)) {
+    const _stItem = ammo.rightStone ? makeRightStone(1) : isMagic ? makeMagicStone(1) : makeStone(1);
+    ml.push(`${m.name}が${_stItem.name}を投げた！しかし重力の魔方陣の力でそのまま足元に落ちた！`);
+    placeItemAt(dg, m.x, m.y, _stItem, ml, new Set(), 0, pl);
+    return true;
+  }
   if (ammo.rightStone) {
     ml.push(`${m.name}が右を投げた！`);
     throwItemAlongLine(m, dg, makeRightStone(1), 1, 0, 3, ml, pl, null, {
@@ -10629,6 +10640,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             return;
           }
           m.turnAttacks++;
+          if (hasGravityPentacle(dg, pl.x, pl.y)) {
+            ml.push("重力の魔方陣の力で投げ飛ばしが無効になった！");
+            return;
+          }
           if (hasRingEffect(pl, "core_ring")) {
             ml.push(`${m.name}が${plName(pl)}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
             return;
@@ -10672,6 +10687,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _mtDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         if (_mtDist <= _mtRange) {
           const _adjMons = dg.monsters.filter(o => o !== m && !o.forcedMoveImmune && !o.disguisedAsItem && monsterBodySize(o) <= 1 &&
+            !(!monEffectiveMagicImmune(o) && hasGravityPentacle(dg, o.x, o.y)) &&
             Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
           const _adjPl = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
@@ -11419,6 +11435,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_plOnBlessedSanc) {
           if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           ml.push(`祝福された聖域の加護が${m.name}の引き寄せを防いだ！`);
+          return;
+        }
+        if (hasGravityPentacle(dg, pl.x, pl.y)) {
+          ml.push("重力の魔方陣の力で引き寄せが無効になった！");
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
         }
         if (hasRingEffect(pl, "core_ring")) {

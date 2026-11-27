@@ -305,6 +305,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   if (kind === "bigbox") {
     if (eff === "swap") {
       if (blMult < 1) {
+        if (hasGravityPentacle(dg, p.x, p.y)) {
+          ml.push("重力の魔方陣の力で引き寄せが無効になった！【呪】");
+          return;
+        }
         // 呪い：プレイヤーが大箱の1マス手前に引き寄せられる
         const _lpx = target.x - dx, _lpy = target.y - dy;
         if (_lpx >= 0 && _lpx < MW && _lpy >= 0 && _lpy < MH &&
@@ -423,6 +427,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     if (eff === "knockback") {
+      if (hasGravityPentacle(dg, target.x, target.y)) {
+        ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！");
+        return;
+      }
       const _bbBlessed = blMult > 1;
       const _bbMaxDist = _bbBlessed ? 100 : 10; /* 通常10マス、祝福は実質無限（壁/敵まで飛ぶ） */
       let bbx = target.x, bby = target.y, bbroke = false;
@@ -513,6 +521,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push("テレポートに失敗した。");
         }
       } else {
+        if (hasGravityPentacle(dg, p.x, p.y)) {
+          ml.push("重力の魔方陣の力で飛びつきが無効になった！");
+          return;
+        }
         // 通常/祝福：大箱の1マス手前に飛びつく
         const _lpx = target.x - dx, _lpy = target.y - dy;
         if ((dx !== 0 || dy !== 0) && _lpx >= 0 && _lpx < MW && _lpy >= 0 && _lpy < MH &&
@@ -643,6 +655,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     if (eff === "knockback") {
+      if (hasGravityPentacle(dg, target.x, target.y)) {
+        ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！");
+        return;
+      }
       const _maxDist = blMult > 1 ? 100 : 10;
       let _gx = target.x, _gy = target.y;
       for (let i = 0; i < _maxDist; i++) {
@@ -683,6 +699,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (_cursed) {
         /* 呪い：引き寄せ（方向を逆にして目の前まで引っ張る） */
         if (kind === "monster") {
+          if (!(target.magicImmune && !target.sealed) && hasGravityPentacle(dg, target.x, target.y)) {
+            ml.push(`重力の魔方陣の力で${target.name}への引き寄せが無効になった！【呪】`);
+            break;
+          }
           if (target.forcedMoveImmune) { ml.push(`${target.name}は強制移動を受けない！【呪】`); break; }
           /* 基準マスではなく体の端を隣接させる（2×2は左上、3×3は中心基準）。 */
           const _pullBounds = monsterBounds(target);
@@ -707,6 +727,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "item") {
+          if (hasGravityPentacle(dg, target.x, target.y)) {
+            ml.push("重力の魔方陣の力で引き寄せが無効になった！【呪】");
+            break;
+          }
           /* アイテムを目の前に引き寄せる */
           const _pullIx = p.x + dx, _pullIy = p.y + dy;
           if (_pullIx >= 0 && _pullIx < MW && _pullIy >= 0 && _pullIy < MH && dg.map[_pullIy][_pullIx] !== T.WALL && dg.map[_pullIy][_pullIx] !== T.BWALL) {
@@ -770,6 +794,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
+        if (hasGravityPentacle(dg, target.x, target.y)) { ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); break; }
         ml.push(`${target.name}が吹き飛んだ！`);
         removeFloorItem(dg, target, { preserveItemMimic: true });
         /* 仮想射手（押し出し起点：アイテムの元位置） */
@@ -785,6 +810,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
+        if (hasGravityPentacle(dg, target.x, target.y)) { ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); break; }
         if (target.permanent) { ml.push(`${target.name}は吹き飛ばせない！`); break; }
         ml.push(`${target.name}が吹き飛んだ！`);
         const _trapRes = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "trap", target, p, luFn);
@@ -804,12 +830,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "vent" || kind === "pentacle") {
+        if (hasGravityPentacle(dg, target.x, target.y)) { ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); break; }
         const _flName = floorMoveLabel(kind, target);
         ml.push(`${_flName}が吹き飛んだ！`);
         pushEntity(dg, target.x, target.y, dx, dy, d, ml, kind, target, p, luFn);
         break;
       }
       if (kind === "stair") {
+        if (hasGravityPentacle(dg, target.x, target.y)) { ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); break; }
         const _flName = floorMoveLabel(kind, target);
         ml.push(`${_flName}が吹き飛んだ！`);
         const _pushResult = pushStair(dg, target, dx, dy, d);
@@ -1078,6 +1106,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       const _swBless = blMult > 1, _swCurse = blMult < 1;
       if (_swCurse) {
+        if (hasGravityPentacle(dg, p.x, p.y)) {
+          ml.push("重力の魔方陣の力で飛びつきが無効になった！【呪】");
+          break;
+        }
         /* 呪い：飛びつきの杖と同じ効果（fireWandBolt内のleap処理で対応不可なのでここで実装） */
         /* 対象の1マス手前に移動 */
         if (kind === "monster") {
@@ -1327,7 +1359,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             dg.map[_w1y][_w1x] !== T.WALL && dg.map[_w1y][_w1x] !== T.BWALL &&
             (kind === "monster" ? canPlaceMonsterBody(dg, target, _w1x, _w1y, p) : !monsterAt(dg, _w1x, _w1y)) &&
             !(kind === "monster" && p.x === _w1x && p.y === _w1y)) {
-          if (kind === "monster") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少しだけテレポートした。`); _angerShopkeeper(target); }
+          if (kind === "monster") {
+            target.x = _w1x; target.y = _w1y;
+            ml.push(`${target.name}が少しだけテレポートした。`);
+            _angerShopkeeper(target);
+            drownMonsterIfNeeded(target, dg, p, ml, luFn, killerMon);
+          }
           else if (kind === "player") { _teleportPlayer(_w1x, _w1y); ml.push("少しだけテレポートした。"); }
         } else {
           ml.push("テレポートに失敗した。");

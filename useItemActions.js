@@ -16,7 +16,7 @@ import {
   getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem, applySpellEffect, applyFireSpellBlast,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone, absorbProjectileIntoMonster,
-  placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
+  placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, dropProjectileAtFeetByGravity, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, potOccupancyCount, isPreservationPot,
   canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
@@ -189,6 +189,17 @@ export function shootEquippedProjectile(p, dg, dx, dy, ml, {
     p.inventory = p.inventory.filter(item => item !== _arItem);
     return true;
   };
+  if (hasGravityPentacle(dg, p.x, p.y)) {
+    spendAmmo();
+    const _gUnit = makeArrowUnitFromStack(_arItem);
+    const _gVerb = (_arItem.stone || _arItem.magicStone || _arItem.iceChunk || _arItem.specialProjectile) ? "投げた" : "射った";
+    withPitfallBag(() => dropProjectileAtFeetByGravity(p, dg, _gUnit, ml, p, lu, {
+      bbFn: bigboxAddItem,
+      nameFn,
+      verb: _gVerb,
+    }));
+    return;
+  }
   /* ワッカの指輪：装備中の通常飛び道具も魔法の石と同じ必中ホーミング。
      這いずり爆弾・魚雷・誘導弾などの特殊飛び道具は従来どおり。 */
   const wakka = !_arItem.specialProjectile && !_arItem.rightStone &&
@@ -2616,36 +2627,23 @@ export function useItemActions({
             };
             for (const _gm of [..._gravMons]) {
               if (_gm.floatTurns) _gm.floatTurns = 0;
-              const _gdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
-              let _gpushed = false;
-              for (const [_gdx, _gdy] of _gdirs) {
-                const _gx = _gm.x + _gdx, _gy = _gm.y + _gdy;
-                if (_canLandSafely(_gm, _gx, _gy)) {
-                  _gm.x = _gx; _gm.y = _gy;
-                  ml.push(`重力の力で${_gm.name}が水上から弾き出された！`);
-                  _gpushed = true;
-                  break;
-                }
-              }
-              if (!_gpushed) {
-                if (_gm.isBoss) {
-                  if (blockLargeMonsterDamage(_gm, p, ml)) continue;
-                  const _bd = bossInstantDeathDamage(_gm);
-                  _gm.hp -= _bd;
-                  wakeIfDormant(_gm, ml);
-                  resolveParalysisHit(_gm, ml);
-                  ml.push(`重力の力で${_gm.name}は水没に耐えたが${_bd}ダメージを受けた！`);
-                  if (_gm.hp <= 0) {
-                    killMonster(_gm, dg, p, ml, lu);
-                  } else {
-                    triggerMushroomCounterSpore(_gm, dg, p, ml);
-                    if (_gm.type === "shopkeeper") markWanderingNpcHostile(_gm, dg, p, ml);
-                  }
-                } else {
-                  ml.push(`重力の力で${_gm.name}は逃げ場がなく即死した！`);
-                  _gm.hp = 0;
+              if (_gm.isBoss) {
+                if (blockLargeMonsterDamage(_gm, p, ml)) continue;
+                const _bd = bossInstantDeathDamage(_gm);
+                _gm.hp -= _bd;
+                wakeIfDormant(_gm, ml);
+                resolveParalysisHit(_gm, ml);
+                ml.push(`重力の力で${_gm.name}は水没に耐えたが${_bd}ダメージを受けた！`);
+                if (_gm.hp <= 0) {
                   killMonster(_gm, dg, p, ml, lu);
+                } else {
+                  triggerMushroomCounterSpore(_gm, dg, p, ml);
+                  if (_gm.type === "shopkeeper") markWanderingNpcHostile(_gm, dg, p, ml);
                 }
+              } else {
+                ml.push(`重力の力で${_gm.name}は水没した！`);
+                _gm.hp = 0;
+                killMonster(_gm, dg, p, ml, lu);
               }
             }
           }
@@ -4228,6 +4226,40 @@ export function useItemActions({
           return;
         }
         _forceUnequip(p, it);
+        if (hasGravityPentacle(dg, p.x, p.y)) {
+          const _isPartialStack = it.type === "arrow" && !it.specialProjectile && throwMode.bundle !== true;
+          let _dropped = it;
+          let _label = null;
+          if (_isPartialStack) {
+            it.count--;
+            if (it.count <= 0) {
+              p.inventory.splice(idx, 1);
+              if (p.arrow === it) p.arrow = null;
+            }
+            _dropped = makeArrowUnitFromStack(it);
+          } else {
+            const _cnt = Number(it.count) || 1;
+            if (it.type === "arrow" && _cnt > 1) {
+              _label = (it.stone || it.magicStone || it.iceChunk || it.specialProjectile)
+                ? `${dnameRef(it)}(${_cnt}個)`
+                : `${dnameRef(it)}(${_cnt}本)`;
+            }
+            p.inventory.splice(idx, 1);
+            if (p.arrow === it) p.arrow = null;
+          }
+          withPitfallBag(() => dropProjectileAtFeetByGravity(p, dg, _dropped, ml, p, lu, {
+            bbFn: bigboxAddItem,
+            nameFn: dnameRef,
+            verb: "投げた",
+            label: _label,
+          }));
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
         const triggerLandingTrap = (x, y) =>
           triggerThrownItemLandingTrap(dg, x, y, it, p, ml, { nameFn: dnameRef, luFn: lu, bbFn: bigboxAddItem });
         const breakThrownPotionAt = (x, y) => {

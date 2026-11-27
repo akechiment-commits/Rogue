@@ -1,5 +1,5 @@
 import {
-  T, MW, MH, checkMonsterEvasion, rng,
+  T, MW, MH, checkMonsterEvasion, rng, hasGravityPentacle,
   consumeBarrier, playerHpEffectLabel, withEnemyDamageContext,
 } from "./utils.js";
 import {
@@ -191,6 +191,10 @@ export function castAbsoluteVirtuePull(monster, dungeon, player, line, messages,
   }
   if (inMagicSealRoom(target.x, target.y, dungeon)) {
     messages.push(`魔封じの魔方陣が${target === player ? plName(player) : target.name}への引き寄せを防いだ！`);
+    return false;
+  }
+  if ((target === player || !monEffectiveMagicImmune(target)) && hasGravityPentacle(dungeon, target.x, target.y)) {
+    messages.push(`重力の魔方陣の力で${target === player ? plName(player) : target.name}への引き寄せが無効になった！`);
     return false;
   }
   if (target === player) {

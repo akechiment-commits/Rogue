@@ -267,7 +267,9 @@ describe("敵の吹き飛ばしによる衝突撃破", () => {
     Object.assign(victim, { hp: 100, maxHp: 100, _phaseActionCount: 0 });
     const player = makePlayer({ x: 13, y: 5, depth: 1, exp: 0 });
     const dungeon = makeEmptyDg({ monsters: [mage, victim], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
-    dungeon.map[5][10] = T.WATER;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) dungeon.map[5 + dy][10 + dx] = T.WATER;
+    }
     dungeon.map[5][11] = T.WALL;
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
     expect(dungeon.monsters).not.toContain(victim);
@@ -1152,7 +1154,11 @@ describe("敵が飛ばして壊した床の杖の使用者", () => {
     const wand = { id: "flying-wand", type: "wand", name: "場所替えの杖", effect: "swap", charges, x: 7, y: 5 };
     const player = makePlayer({ x: 12, y: 5, depth: 1, exp: 0 });
     const dungeon = makeEmptyDg({ monsters: [mage, victim], items: [wand], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
-    if (terrain === "water") dungeon.map[5][12] = T.WATER;
+    if (terrain === "water") {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) dungeon.map[5 + dy][12 + dx] = T.WATER;
+      }
+    }
     else dungeon.pentacles.push({ kind: "sanctuary", x: 12, y: 5 });
     moveEnemiesFor({ player, dungeon, ident: new Set() }).moveMons(dungeon, player, [], "attackOnly");
     expect(dungeon.monsters).not.toContain(victim);

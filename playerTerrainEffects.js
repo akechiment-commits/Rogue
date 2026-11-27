@@ -1,5 +1,5 @@
 import { monsterOccupiesCell } from "./monsterGeometry.js";
-import { MH, MW, T } from "./utils.js";
+import { MH, MW, T, hasGravityPentacle } from "./utils.js";
 import { canPlayerWalkOnWater, hasWaterBreathRing, isPlayerFloating } from "./items.js";
 import { releaseInvalidCapture } from "./captureRules.js";
 import { statueAt } from "./fixtureQueries.js";
@@ -17,6 +17,8 @@ function hasMonsterAt(dungeon, x, y) {
 /** 壁抜け解除、壁埋まり、深水・泉での地形ダメージをターンごとに解決する。 */
 export function advancePlayerTerrainEffects(player, dungeon, messages, { fireTrapFn } = {}) {
   const fromX = player.x, fromY = player.y;
+  const floatJustExpired = !!player._floatJustExpired;
+  delete player._floatJustExpired;
   /* 壁埋まり窒息立ち絵は、このターンに実際の壁ダメージが発生した時だけ有効。 */
   player._wallSuffocationDamage = false;
   /* 水没立ち絵も、このターンに実際の水中窒息ダメージが発生した時だけ有効。 */
@@ -74,15 +76,17 @@ export function advancePlayerTerrainEffects(player, dungeon, messages, { fireTra
     if (player.hp <= 0) player.deathCause = "水没により";
   }
   if (onDeepWater && !canWalkWater && player.hp > 0) {
-    if (!confinedInPot) {
+    if (!confinedInPot && !hasGravityPentacle(dungeon, player.x, player.y)) {
       for (const [dx, dy] of ADJACENT_DIRS) {
         const x = player.x + dx;
         const y = player.y + dy;
         if (x >= 0 && x < MW && y >= 0 && y < MH &&
-            !isWall(dungeon.map[y][x]) && dungeon.map[y][x] !== T.WATER && !hasMonsterAt(dungeon, x, y) && !statueAt(dungeon, x, y)) {
+            !isWall(dungeon.map[y][x]) && dungeon.map[y][x] !== T.WATER &&
+            !dungeon.springs?.some((spring) => spring.x === x && spring.y === y) &&
+            !hasMonsterAt(dungeon, x, y) && !statueAt(dungeon, x, y)) {
           player.x = x;
           player.y = y;
-          messages.push("浮遊が解けて水から弾き出された！");
+          messages.push(floatJustExpired ? "浮遊が解けて水から弾き出された！" : "水から弾き出された！");
           break;
         }
       }

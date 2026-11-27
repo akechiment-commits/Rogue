@@ -1,6 +1,6 @@
 import { canPlaceMonsterBody, monsterOccupiesCell } from "./monsterGeometry.js";
 import { monEffectiveMagicImmune, monReflectsProjectiles, monSubmergesProjectiles } from "./monTraits.js";
-import { consumeBarrier, getDodgePentacleMode, isEvasionDisabledByStatus, randomPlayerTeleportDest } from "./utils.js";
+import { consumeBarrier, getDodgePentacleMode, hasGravityPentacle, isEvasionDisabledByStatus, randomPlayerTeleportDest } from "./utils.js";
 /*
  * 毎ターン解決する、移動・罠に関する魔方陣効果。
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
@@ -197,10 +197,15 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   const targetY = target.kind === "player" ? player.y : targetMonster.y;
   const baseAmount = rng(5, 10);
   const dropStoneAt = (x = targetX, y = targetY) => {
-    const _placed = placeItemAt(dungeon, x, y, makeMagicStone(1), messages, new Set());
+    const _placed = placeItemAt(dungeon, x, y, makeMagicStone(1), messages, new Set(), 0, player);
     if (_placed === true) pc.stoneAmmo--;
     return _placed;
   };
+  if (hasGravityPentacle(dungeon, pc.x, pc.y)) {
+    messages.push(`${pc.name}が魔法の石を飛ばそうとしたが、重力の魔方陣の力でその場に落ちた！`);
+    dropStoneAt(pc.x, pc.y);
+    return;
+  }
 
   let dodged = false;
   const dodgeMode = getDodgePentacleMode(dungeon, targetX, targetY);

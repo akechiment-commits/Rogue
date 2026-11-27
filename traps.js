@@ -1,4 +1,4 @@
-import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomPlayerTeleportDest, getDodgePentacleMode, consumeBarrier, clampDmgFixed } from "./utils.js";
+import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, hasGravityPentacle, randomPlayerTeleportDest, getDodgePentacleMode, consumeBarrier, clampDmgFixed } from "./utils.js";
 import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasCursedTeleportPentacle, hasRingEffect, isPlayerFloating, applyFallImpactDamage, doTimeBombExplosion, applyRotTrapToInventory, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeKatanaToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop, killMonsterByTrap, markShopkeeperHostileToPlayer, canStealInventoryItem } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair, hitStatueWithAction } from "./fixtures.js";
@@ -301,6 +301,10 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "blowback_trap": {
+      if (hasGravityPentacle(dg, p.x, p.y)) {
+        ml.push(`${trap.name}が発動！しかし重力の魔方陣の力で吹き飛ばされなかった！`);
+        break;
+      }
       const _pfd = p.facing || { dx: 0, dy: 1 };
       const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
       const _blowFromX = p.x, _blowFromY = p.y;

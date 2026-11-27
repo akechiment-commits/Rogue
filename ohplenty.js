@@ -3,7 +3,7 @@ import { isStatusImmune } from './statusImmunity.js';
 import { plName } from './playerLabel.js';
 import {
   MW, MH, uid, T, calcAtkDefDmg, calcPlayerDefense, setPlayerHpForFixedEffect,
-  checkPlayerPhysicalAttackEvasion, checkMonsterEvasion, consumeBarrier
+  checkPlayerPhysicalAttackEvasion, checkMonsterEvasion, consumeBarrier, hasGravityPentacle
 } from './utils.js';
 import {
   canPlaceMonsterBody,
@@ -108,6 +108,10 @@ export function ohplentyPullPlayer(m, dg, pl, ml, luFn = null) {
     ml.push(`${m.name}は引き寄せの魔法を唱えようとしたが、魔封じの魔方陣で封じられた！`);
     return;
   }
+  if (!monEffectiveMagicImmune(m) && hasGravityPentacle(dg, m.x, m.y)) {
+    ml.push(`重力の魔方陣の力で${m.name}の引き寄せが無効になった！`);
+    return;
+  }
   const sgnX = Math.sign(pl.x - m.x);
   const sgnY = Math.sign(pl.y - m.y);
   const dist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
@@ -156,6 +160,10 @@ export function ohplentyPullPlayer(m, dg, pl, ml, luFn = null) {
 
   if (inMagicSealRoom(target.x, target.y, dg)) {
     ml.push(`魔封じの魔方陣が${target === pl ? plName(pl) : target.name}への引き寄せを防いだ！`);
+    return;
+  }
+  if ((target === pl || !monEffectiveMagicImmune(target)) && hasGravityPentacle(dg, target.x, target.y)) {
+    ml.push(`重力の魔方陣の力で${target === pl ? plName(pl) : target.name}への引き寄せが無効になった！`);
     return;
   }
   if (target === pl) {
