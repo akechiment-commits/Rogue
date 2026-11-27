@@ -7113,9 +7113,9 @@ function castFlockSpell(monster, opts, dx, dy, effect, messages, { invoke = true
 
 function hasFlockPurgeableStatus(monster) {
   return !!(
-    (monster.poisonedTurns || 0) > 0 || monster.poisonHalfAtk || (monster.poisonArrowDamageHalves || 0) > 0 ||
+    (monster.poisonedTurns || 0) > 0 || monster.poisoned || monster.poisonHalfAtk || (monster.poisonArrowDamageHalves || 0) > 0 ||
     (monster.slowTurns || 0) > 0 || (monster.bossSlowTurns || 0) > 0 || monster._preSlowSpeed !== undefined ||
-    (monster.confusedTurns || 0) > 0 || (monster.drunkenTurns || 0) > 0 ||
+    (monster.confusedTurns || 0) > 0 || (monster.drunkTurns || 0) > 0 || (monster.drunkenTurns || 0) > 0 ||
     (monster.darknessTurns || 0) > 0 || (monster.fleeingTurns || 0) > 0 ||
     monster.blind || (monster.blindTurns || 0) > 0 || monster.bewitched || (monster.bewitchedTurns || 0) > 0 ||
     (monster.immobileTurns || 0) > 0 || (monster.pacifistTurns || 0) > 0 ||
@@ -7145,7 +7145,11 @@ function purifyFlockStatus(monster, messages) {
       },
     },
     { label: "混乱", active: () => (monster.confusedTurns || 0) > 0, clear: () => { delete monster.confusedTurns; } },
-    { label: "酩酊", active: () => (monster.drunkenTurns || 0) > 0, clear: () => { delete monster.drunkenTurns; } },
+    {
+      label: "酩酊",
+      active: () => (monster.drunkTurns || 0) > 0 || (monster.drunkenTurns || 0) > 0,
+      clear: () => { delete monster.drunkTurns; delete monster.drunkenTurns; },
+    },
     { label: "暗闇", active: () => (monster.darknessTurns || 0) > 0, clear: () => { delete monster.darknessTurns; delete monster.darkDir; } },
     {
       label: "幻惑",
@@ -7475,7 +7479,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((_isFlockRevenge || _isFlockStalker) && hasFlockPurgeableStatus(m) &&
       !(m.sleepTurns > 0 || m.paralyzed || (m.petrifiedTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || (m.frozenTurns || 0) > 0) &&
       !!opts.monsterWandFn && !m.sealed && !isMonsterBerserk(m) &&
-      !inMagicSealRoom(m.x, m.y, dg) && !_plOnBlessedSanc &&
+      !inMagicSealRoom(m.x, m.y, dg) &&
       ensureFlockMp(m) >= FLOCK_MAGIC_MP_COSTS.purify_magic) {
     if (_moveOnly && !_attackOnly) {
       m._flockEarlySpellPending = "purify_magic";

@@ -322,6 +322,21 @@ describe("超上級B45F オメガ・神竜", () => {
     expect(normalVictim.petrifiedTurns).toBe(4);
   });
 
+  it("悪魔の瞳は状態異常防止中の敵には効かず、仮眠中の敵は石化しつつ目覚める", () => {
+    const shinryu = { ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10, maxHp: SHINRYU_BOSS.hp };
+    const immuneMon = { name: "状態防止敵", id: "im", x: 8, y: 9, hp: 100, maxHp: 100, statusImmune: 5 };
+    const dormantMon = { name: "仮眠敵", id: "dm", x: 12, y: 10, hp: 100, maxHp: 100, dormant: true, sleepTurns: 3 };
+    const player = makePlayer({ x: 20, y: 20 });
+    const dungeon = makeEmptyDg({ monsters: [shinryu, immuneMon, dormantMon], ...visibleRoom() });
+    const messages = [];
+    queueOmegaShinryuAttack(shinryu, dungeon, "evilEye", null, player, messages);
+    advanceOmegaShinryuAttacks(dungeon, player, messages, () => {}, 1);
+    expect(immuneMon.petrifiedTurns || 0).toBe(0);
+    expect(dormantMon.dormant).toBe(false);
+    expect(dormantMon.sleepTurns).toBe(0);
+    expect(dormantMon.petrifiedTurns).toBe(4);
+  });
+
   it("悪魔の瞳の構え中は移動せず、状態異常等で中断され、発射ターンに追撃の通常攻撃を行わない", () => {
     const shinryu = {
       ...SHINRYU_BOSS, id: "shinryu", x: 10, y: 10,

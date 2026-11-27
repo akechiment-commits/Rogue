@@ -2,6 +2,7 @@
 let _combatDeps = null;
 export function setTaisaijinCombatDeps(deps) { _combatDeps = deps; }
 function hasLOS(...args) { return _combatDeps.hasLOS(...args); }
+import { consumeBarrier } from './utils.js';
 import { inMagicSealRoom } from './items.js';
 import { applyMonsterFlameMantle, resolveParalysisHit } from './statusDuration.js';
 import { isStatusImmune } from './statusImmunity.js';
@@ -54,7 +55,7 @@ export function taisaijinHypnosis(m, dg, pl, ml) {
     ml.push(`祝福された聖域の加護が${m.name}の催眠術を防いだ！`);
     return;
   }
-  if (!isStatusImmune(pl, ml, "自分")) {
+  if (!isStatusImmune(pl, ml, "自分") && !consumeBarrier(pl, ml)) {
     resolveParalysisHit(pl, ml);
     pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
     ml.push(`${m.name}の無数の目が怪しく光り、催眠術をかけた！次の行動を勝手に行ってしまう！`);

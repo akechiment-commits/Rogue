@@ -6,7 +6,7 @@ import {
 import { monsterPointDistance, monsterBodyCells, canPlaceMonsterBody, monsterOccupiesCell } from './monsterGeometry.js';
 import { pushAnim, pushPlayerTeleportAnim, pushSplashAnim } from './animEvents.js';
 import { plName } from './playerLabel.js';
-import { statusTurns, resolveParalysisHit } from './statusDuration.js';
+import { statusTurns, resolveParalysisHit, isStatusImmune } from './statusDuration.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { releaseInvalidCapture } from './captureRules.js';
 import { scaleMonsterFireDamage, monsterFireDamageLabel } from './monsterRuntime.js';
@@ -354,6 +354,7 @@ export function mireuAbsoluteTerror(m, dg, pl, ml, opts = {}) {
     ml.push(`聖域の加護が${m.name}のアブソルートテラーを遮った！`);
     return;
   }
+  if (isStatusImmune(pl, ml, "自分") || consumeBarrier(pl, ml)) return;
 
   // 1. 鈍足付与（耐鈍足で防御可能）
   let appliedStatus = false;

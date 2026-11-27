@@ -418,6 +418,30 @@ describe('上級30階ボス ミレウ (MIREU)', () => {
       expect(s.player.immobileTurns || 0).toBe(0);
       expect(s.messages.some(m => m.includes('体幹の指輪の力で恐怖の重圧に耐え切った'))).toBe(true);
     });
+
+    it('状態異常防止中はメッセージを重複させず、バリアも消費しない', () => {
+      const s = setup();
+      s.player.statusImmune = 5;
+      s.player.barrier = 2;
+
+      mireuAbsoluteTerror(s.boss, s.dungeon, s.player, s.messages);
+
+      expect(s.player.slowTurns || 0).toBe(0);
+      expect(s.player.immobileTurns || 0).toBe(0);
+      expect(s.player.barrier).toBe(2);
+      expect(s.messages.filter(m => m.includes('状態防止')).length).toBe(1);
+    });
+
+    it('バリア1回分で鈍足と移動封じをまとめて防ぐ', () => {
+      const s = setup();
+      s.player.barrier = 2;
+
+      mireuAbsoluteTerror(s.boss, s.dungeon, s.player, s.messages);
+
+      expect(s.player.slowTurns || 0).toBe(0);
+      expect(s.player.immobileTurns || 0).toBe(0);
+      expect(s.player.barrier).toBe(1);
+    });
   });
 
   describe('特技4: メテオ', () => {

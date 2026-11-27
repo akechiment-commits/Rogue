@@ -1,6 +1,6 @@
 import {
   T, MW, MH, uid, rng, calcAtkDefDmg, calcPlayerDefense, playerHpEffectLabel,
-  checkMonsterEvasion, consumeBarrier,
+  checkMonsterEvasion, consumeBarrier, withEnemyDamageContext, installPlayerHpReverseHook,
 } from "./utils.js";
 import {
   monsterBodyCells, monsterBounds, monsterOccupiesCell,
@@ -8,6 +8,7 @@ import {
 import {
   isAttackSealed, isStatusImmune, resolveParalysisHit, monsterStatusTurns,
 } from "./statusDuration.js";
+import { wakeIfDormant } from "./monsterRuntime.js";
 import {
   killMonster, pushEntity,
   blankScrollOrSpellbook, crumbleFloorYabaiFood, reduceWaterDamage, waterResistDamageLabel,
@@ -267,7 +268,9 @@ function applyOmegaWave(attack, dungeon, player, messages, source) {
     if (!consumeBarrier(player, messages)) {
       player.deathCause = `${attack.sourceName}の波動砲で`;
       const damage = 100;
-      player.hp -= damage;
+      withEnemyDamageContext(player, () => {
+        player.hp -= damage;
+      });
       messages.push(`波動砲が直撃！${playerHpEffectLabel(player, damage)}！`);
       combatDeps.interruptPlayerSleep?.(player, messages);
       combatDeps.weakenOrClearParalysis?.(player, messages);
@@ -286,7 +289,9 @@ function tidalWavePlayerDamage(attack, dungeon, player, messages, source) {
   const base = calcAtkDefDmg(attack.sourceAtk, calcPlayerDefense(player), { defWeight: 1.5 });
   const damage = monScaleOutgoingDamage(source, reduceWaterDamage(Math.max(1, base * 2), player));
   player.deathCause = `${attack.sourceName}のタイダルウエイブで`;
-  player.hp -= damage;
+  withEnemyDamageContext(player, () => {
+    player.hp -= damage;
+  });
   messages.push(`タイダルウエイブが直撃！水属性の${damage}ダメージ！${waterResistDamageLabel(player)}`);
   combatDeps.interruptPlayerSleep?.(player, messages);
   combatDeps.weakenOrClearParalysis?.(player, messages);
@@ -353,8 +358,11 @@ function applyEvilEye(attack, dungeon, player, messages, source) {
   for (const target of [...(dungeon.monsters || [])]) {
     if (target === source || target.hp <= 0 || !dungeon.monsters.includes(target) || target.disguisedAsItem) continue;
     if (!monsterBodyCells(target).some(cell => affected.has(`${cell.x},${cell.y}`))) continue;
+    if (isStatusImmune(target, messages, target.name)) continue;
     if (blockLargeMonsterStatus(target, "petrify", messages)) continue;
     if (consumeBarrier(target, messages)) continue;
+    wakeIfDormant(target, messages);
+    target.sleepTurns = 0;
     resolveParalysisHit(target, messages);
     target.petrifiedTurns = monsterStatusTurns(4, target);
     startLargeMonsterStatusCooldown(target, "petrify");
@@ -364,6 +372,7 @@ function applyEvilEye(attack, dungeon, player, messages, source) {
 
 export function advanceOmegaShinryuAttacks(dungeon, player, messages, luFn = null, worldTicks = 1) {
   if (!dungeon || worldTicks <= 0 || (dungeon.timeStopTurns || 0) > 0) return;
+  if (player) installPlayerHpReverseHook(player);
   combatDeps.luFn = luFn;
   for (const attack of [...(dungeon.pendingOmegaShinryuAttacks || [])]) {
     if (player.hp <= 0) break;
@@ -433,6 +442,7 @@ export function castShinryuMightyGuard(monster, dungeon, player, messages, luFn 
 }
 
 export function castShinryuLightning(monster, dungeon, player, room, messages, luFn = null) {
+  if (player) installPlayerHpReverseHook(player);
   messages.push(`${monster.name}が稲妻を呼び寄せた！`);
   const baseDamage = 50 + rng(-5, 5);
   const inRoom = (x, y) => !!room && combatDeps.findRoom?.(dungeon.rooms, x, y) === room;
@@ -440,7 +450,9 @@ export function castShinryuLightning(monster, dungeon, player, room, messages, l
     if (!consumeBarrier(player, messages)) {
       const damage = reduceLightningDamage(baseDamage, player);
       player.deathCause = `${monster.name}の稲妻で`;
-      player.hp -= damage;
+      withEnemyDamageContext(player, () => {
+        player.hp -= damage;
+      });
       messages.push(`稲妻が落ちた！${playerHpEffectLabel(player, damage)}！${lightningResistDamageLabel(player)}`);
       combatDeps.interruptPlayerSleep?.(player, messages);
       combatDeps.weakenOrClearParalysis?.(player, messages);

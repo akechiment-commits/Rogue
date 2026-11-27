@@ -130,6 +130,19 @@ describe("上級ダンジョン10階ボス：タイサイジン", () => {
       expect(pl.hypnosisPending).toBeFalsy();
       expect(ml.some(m => m.includes("祝福された聖域の加護がタイサイジンの催眠術を防いだ！"))).toBe(true);
     });
+
+    it("バリアを張っているプレイヤーは催眠をバリア1回分で防ぐ", () => {
+      const dg = makeEmptyDg();
+      const boss = { ...TAISAIJIN, x: 5, y: 5 };
+      const pl = makePlayer({ x: 9, y: 5, barrier: 2 });
+      dg.monsters = [boss];
+
+      const ml = [];
+      taisaijinHypnosis(boss, dg, pl, ml);
+
+      expect(pl.hypnosisPending).toBeFalsy();
+      expect(pl.barrier).toBe(1);
+    });
   });
 
   describe("特技2: ブレイズスパイク（炎まとい状態）", () => {
