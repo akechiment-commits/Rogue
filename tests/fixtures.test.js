@@ -589,3 +589,15 @@ describe("祭壇の司祭の追随", () => {
     expect(priest._npcReturningHome).toEqual(priest.homePos);
   });
 });
+
+import { lootAllowedInDungeon } from "../dungeonContent.js";
+describe("石像のレア落ち", () => {
+  it("初心者ダンジョンでは許可されない品が床に落ちない", () => {
+    for (let n = 0; n < 60; n++) {
+      const st = makeStatue(5, 5);      const dg = makeEmptyDg({ dungeonType: "beginner", statues: [st], items: [] });
+      const p = makePlayer({ x: 1, y: 1, depth: 3 });
+      breakStatue(st, dg, p, [], null, 3, { itemDeps: getFixtureItemDeps(), spawnMonster: false });
+      for (const it of dg.items) expect(lootAllowedInDungeon(it, "beginner", 3)).toBe(true);
+    }
+  });
+});

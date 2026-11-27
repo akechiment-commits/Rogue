@@ -3,6 +3,7 @@
  */
 import { rng, pick, uid, MW, MH, T, TI, getShops } from "./utils.js";
 import { monsterOccupiesCell } from "./monsterGeometry.js";
+import { lootPoolForDungeon } from "./dungeonContent.js";
 import {
   findFixedPortalPair,
   statueAt,
@@ -350,13 +351,14 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
 
   /* ややレア寄りの床落ち */
   if (spawnItem) {
-    const rarePool = [
+    const rarePool = lootPoolForDungeon([
       ...items.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
       ...wands.filter((w) => w.rarity === "C" || w.rarity === "B" || w.rarity === "A" || w.rarity === "S"),
-    ];
+    ], dg.dungeonType ?? p?.dungeonType ?? null, depth);
     const tmpl = (rarePool.length ? chooseLoot(rarePool, "drop") : null) || pick(items);
     if (tmpl && tmpl.type !== "goal") {
       const it = { ...tmpl, id: uid(), x: statue.x, y: statue.y };
+      if (Array.isArray(tmpl.abilities)) it.abilities = tmpl.abilities.map((a) => (a && typeof a === "object" ? { ...a } : a));
       if (it.type === "wand" && it.charges != null
         && it.effect !== "wish" && !it.noChargeBoost
         && it.effect !== "curse_wand" && it.effect !== "bless_wand") {
