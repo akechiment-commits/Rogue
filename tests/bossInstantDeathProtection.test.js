@@ -52,7 +52,7 @@ describe("ボスの即死系効果保護", () => {
   it("水への強制着地ではボスを即死させず割合ダメージにする", () => {
     const boss = makeBoss();
     const dg = makeEmptyDg({ monsters: [boss] });
-    dg.map[5][5] = T.WATER;
+    for (let wy = 4; wy <= 6; wy++) for (let wx = 4; wx <= 6; wx++) dg.map[wy][wx] = T.WATER;
     const messages = [];
 
     expect(drownMonsterIfNeeded(boss, dg, makePlayer(), messages, noop)).toBe(true);

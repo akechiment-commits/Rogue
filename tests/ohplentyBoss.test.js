@@ -131,7 +131,7 @@ describe('上級25階ボス オープレンティ', () => {
       const mimic = { id: 'mimic', name: 'アイテムモドキ', subtype: 'itemMimic', disguisedAsItem: true, x: 8, y: 10, hp: 30, maxHp: 30 };
       const blocker = { id: 'goblin', name: 'ゴブリン', x: 7, y: 10, hp: 30, maxHp: 30, immobileTurns: 4 };
       s3.dungeon.monsters.push(mimic, blocker);
-      s3.dungeon.map[10][9] = T.WATER;
+      for (let wy = 9; wy <= 11; wy++) for (let wx = 8; wx <= 10; wx++) s3.dungeon.map[wy][wx] = T.WATER;
       ohplentyPullPlayer(s3.boss, s3.dungeon, s3.player, s3.messages);
       expect(blocker.immobileTurns).toBe(0);
       expect(blocker.hp).toBe(0);

@@ -2703,6 +2703,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
             retaliateAgainstExplosionSource(m);
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
             if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills || ringExplosion); }
+            else triggerMushroomCounterSpore(m, dg, p, ml);
             continue;
           }
           m.hp = 0;
@@ -2715,6 +2716,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           retaliateAgainstExplosionSource(m);
           ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
           if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
+          else triggerMushroomCounterSpore(m, dg, p, ml);
         } else {
           if (blockLargeMonsterDamage(m, p, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m) * _damageMultiplier;
@@ -2723,6 +2725,7 @@ function _doExplosionInner(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発"
           retaliateAgainstExplosionSource(m);
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
           if (m.hp <= 0) { _killed.add(m); killBlastedMonster(m, noExpKills); }
+          else triggerMushroomCounterSpore(m, dg, p, ml);
         }
       }
       /* アイテム破壊 */
@@ -2924,6 +2927,7 @@ function _doGunpowderExplosionInner(cx, cy, dg, p, ml, luFn, srcLabel = "火薬�
               retaliateAgainstExplosionSource(m);
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn, false, killerMon);
+              else triggerMushroomCounterSpore(m, dg, p, ml);
               continue;
             }
             ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
@@ -6122,6 +6126,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     if (Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
       calmShopkeeperIfFullyHealed(target, dg, p, ml);
     } else if (Number.isFinite(_beforeMonsterHp) && target.hp < _beforeMonsterHp && target.hp > 0) {
+      triggerMushroomCounterSpore(target, dg, p, ml);
       if (target.type === "shopkeeper") {
         if (killerMon) beginNpcRetaliation(target, killerMon, ml);
         else if (p) markShopkeeperHostileToPlayer(target, dg, p, ml);
@@ -11121,6 +11126,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           ml.push(`地震の魔法が${_monster.name}に命中！${_damage}ダメージ！`);
           resolveParalysisHit(_monster, ml);
           if (_monster.hp <= 0) killMonster(_monster, dg, p, ml, luFn);
+          else triggerMushroomCounterSpore(_monster, dg, p, ml);
         }
       }
       break;
@@ -11216,6 +11222,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           resolveParalysisHit(_lm, ml);
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}${_lresist < 1 ? "雷半減！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
+          else triggerMushroomCounterSpore(_lm, dg, p, ml);
         }
       }
       if (kind === "monster") {
@@ -11367,6 +11374,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     if (Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
       calmShopkeeperIfFullyHealed(target, dg, p, ml);
     } else if (Number.isFinite(_beforeMonsterHp) && target.hp < _beforeMonsterHp && target.hp > 0) {
+      triggerMushroomCounterSpore(target, dg, p, ml);
       markShopkeeperHostileToPlayer(target, dg, p, ml);
     }
   }

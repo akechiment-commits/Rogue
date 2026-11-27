@@ -9,6 +9,7 @@ import { suspendFloor, resumeFloor } from "../floorAbsence.js";
 import { synchronizeFloorArrival } from "../floorArrival.js";
 import { generateSessionFloor } from "../floorGeneration.js";
 import { markBigboxKindIdentified } from "../GameHelpers.js";
+import { pickPitfallLandingCell } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 afterEach(() => vi.restoreAllMocks());
@@ -23,7 +24,7 @@ function callbacksFor(state, overrides = {}) {
   const deps = {
     sr: { current: state }, useCallback: fn => fn, monsterAI, fireTrapPlayer,
     bigboxAddItem: () => {}, lu: () => {}, applyWandEffect, inMagicSealRoom, findRoom, takeDueActions,
-    suspendFloor, resumeFloor, generateSessionFloor, synchronizeFloorArrival, declareFloorExitTheft,
+    suspendFloor, resumeFloor, pickPitfallLandingCell, generateSessionFloor, synchronizeFloorArrival, declareFloorExitTheft,
     setDungeonAllBcKnown: () => {}, ensureStairsPresent: () => {}, markBigboxKindIdentified,
     refreshFOV: () => {}, pushPlayerTeleportAnim: () => {}, rng: low => low, spawnFlockStalker: () => false, ...overrides,
   };
