@@ -161,7 +161,7 @@ describe("applyWandEffect", () => {
 
   it("吹き飛ばされた非水棲敵が水に入ると水没して撃破される", () => {
     const localDg = makeEmptyDg();
-    localDg.map[5][7] = T.WATER;
+    for (let wy = 4; wy <= 6; wy++) for (let wx = 6; wx <= 8; wx++) localDg.map[wy][wx] = T.WATER;
     localDg.map[5][8] = T.WALL;
     const p = makePlayer({ x: 5, y: 5 });
     const mon = { name: "スライム", hp: 20, maxHp: 20, exp: 5, x: 6, y: 5, atk: 3 };
@@ -187,7 +187,7 @@ describe("applyWandEffect", () => {
 
   it("場所替えで水に移った非水棲敵が水没して撃破される", () => {
     const localDg = makeEmptyDg();
-    localDg.map[5][5] = T.WATER;
+    for (let wy = 4; wy <= 6; wy++) for (let wx = 4; wx <= 6; wx++) localDg.map[wy][wx] = T.WATER;
     const p = makePlayer({ x: 5, y: 5 });
     const mon = { name: "スライム", hp: 20, maxHp: 20, exp: 5, x: 8, y: 5, atk: 3 };
     localDg.monsters.push(mon);

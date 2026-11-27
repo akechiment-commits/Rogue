@@ -18,6 +18,7 @@ import {
   revealAllFloorTraps,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
+import { bbAllowedInDungeon } from './dungeonContent.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue, placeAltarPriest } from './fixtures.js';
 import { dimensionalVaultEntranceAt, statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
@@ -539,8 +540,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     if (eff === "soften") {
       /* 大箱を破壊して中身を散乱 */
+      const _sfHadContents = (target.contents?.length || 0) > 0;
+      const _sfLabel = bigboxNameFn ? bigboxNameFn(target) : (target.revealed ? target.name : "謎の大箱");
       breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn, killerMon, fireTrapFn, sourceIsPlayer, breaker });
-      ml.push(`軟化の魔法弾で${resolveItemName(target, nameFn)}が崩れ落ちた！${(target.contents?.length||0) > 0 ? "中身が飛び出した！" : ""}`);
+      ml.push(`軟化の魔法弾で${_sfLabel}が崩れ落ちた！${_sfHadContents ? "中身が飛び出した！" : ""}`);
       return;
     }
     if (eff === "slow" || eff === "paralyze" || eff === "sleep" ||
@@ -550,8 +553,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     if (eff === "transform") {
-      const others = BB_TYPES.filter(t => t.kind !== target.kind);
-      const nt = pick(others);
+      const _dtype = dg?.dungeonType ?? p?.dungeonType ?? null;
+      const _dfloor = Number.isFinite(p?.depth) ? p.depth : 99;
+      const _allowedBb = BB_TYPES.filter(t => t.kind !== target.kind && bbAllowedInDungeon(t, _dtype, _dfloor));
+      const nt = pick(_allowedBb.length ? _allowedBb : BB_TYPES.filter(t => t.kind !== target.kind));
       const oldName = bigboxNameFn ? bigboxNameFn(target) : target.name;
       const transformed = { ...target, kind: nt.kind, name: nt.name, capacity: nt.cap(), revealed: false };
       const newName = bigboxNameFn ? bigboxNameFn(transformed) : transformed.name;
@@ -596,11 +601,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     /* default: break and scatter (dig, lightning, etc.) */
+    const _dfHadContents = (target.contents?.length || 0) > 0;
+    const _dfLabel = bigboxNameFn ? bigboxNameFn(target) : (target.revealed ? target.name : "謎の大箱");
     breakBigboxContents(target, dg, ml, nameFn, null, null, { player: p, luFn, killerMon, fireTrapFn, sourceIsPlayer, breaker });
-    if (target.contents?.length > 0) {
-      ml.push(`${resolveItemName(target, nameFn)}が壊れて中身が飛び出した！`);
+    if (_dfHadContents) {
+      ml.push(`${_dfLabel}が壊れて中身が飛び出した！`);
     } else {
-      ml.push(`${resolveItemName(target, nameFn)}が壊れた！`);
+      ml.push(`${_dfLabel}が壊れた！`);
     }
     return;
   }
