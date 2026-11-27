@@ -47,8 +47,12 @@ export function applyEquipmentForgeScroll(item, mode, displayName = item.name, r
       "inflict_immobile", "inflict_bewitch", "bane_undead", "bane_humanoid", "lifesteal", "double_strike"]
     : ["regen", "thorn", "dodge", "wand_reflect", "fire_resist", "lightning_resist", "ice_resist",
       "water_proof", "oil_proof", "all_resist", "aura"]);
-  const available = allAbilities.filter(ability => !owned.has(ability.id) && !ability.specialOnly);
-  const candidates = available.filter(ability => mode.blessed ? strong.has(ability.id) : !ability.curseOnly && !ability.blessedOnly);
+  const available = allAbilities.filter(ability =>
+    !owned.has(ability.id) &&
+    !ability.specialOnly &&
+    !ability.curseOnly &&
+    (mode.blessed || !ability.blessedOnly));
+  const candidates = mode.blessed ? available.filter(ability => strong.has(ability.id)) : available;
   const pool = candidates.length ? candidates : available;
   if (!pool.length) return `${displayName}はもうこれ以上能力を宿せない。`;
   const ability = pool[Math.floor(random() * pool.length)];
