@@ -2016,6 +2016,7 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
   const _label = pot.potEffect === "pepper" ? "胡椒" : "唐辛子";
   ml.push(`${resolveItemName(pot, nameFn)}が割れて${_label}の粉が舞い、周囲が暗闇に包まれた！`);
   pushSplashAnim(px, py, "#6666aa");
+  const seenMonsters = new Set();
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       const tx = px + dx, ty = py + dy;
@@ -2024,9 +2025,7 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "darkness_proof")) {
           ml.push("防具が粉を防いだ！暗闇にならなかった。(耐暗闇)");
-        } else if ((p.statusImmune || 0) > 0) {
-          ml.push("状態防止の力で暗闇にならなかった！");
-        } else {
+        } else if (!isStatusImmune(p, ml) && !consumeBarrier(p, ml)) {
           const _dt = statusTurns("darkness", { kind: "player" });
           p.darknessTurns = (p.darknessTurns || 0) + _dt;
           ml.push(`粉を浴びて暗闇になった！視界が1マスになる！(${_dt}ターン)`);
@@ -2034,10 +2033,10 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
       }
 
       const mon = monsterAt(dg, tx, ty);
-      if (mon) {
-        if ((mon.statusImmune || 0) > 0) {
-          ml.push(`${mon.name}には暗闇が効かなかった！(状態防止中)`);
-        } else {
+      if (mon && !seenMonsters.has(mon)) {
+        seenMonsters.add(mon);
+        wakeIfDormant(mon, ml);
+        if (!consumeBarrier(mon, ml)) {
           const _dt = statusTurns("darkness", { kind: "monster", target: mon });
           if (applyMonsterDarkness(mon, _dt, ml) > 0) ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
         }
