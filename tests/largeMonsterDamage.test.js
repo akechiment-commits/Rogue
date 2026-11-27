@@ -5,6 +5,8 @@ import {
   withLargeMonsterDamageEvent,
   newDamageEventToken,
 } from "../largeMonsterDamage.js";
+import { monsterAI } from "../monsters.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("blockLargeMonsterDamage", () => {
   it("通常サイズの非ボス敵はブロックしない", () => {
@@ -55,5 +57,34 @@ describe("blockLargeMonsterDamage", () => {
     expect(blockLargeMonsterDamage(largeMob, player, messages)).toBe(false);
     expect(blockLargeMonsterDamage(largeMob, player, messages)).toBe(true);
     expect(messages).toContain("キングベヒんもスはこのターン、爆発・割合ダメージの追加分を防いだ！");
+  });
+
+  it("大型ボスの毒ダメージは割合被弾保護トークンを消費せず、同ターンの爆発・地形割合ダメージを妨げない", () => {
+    const dg = makeEmptyDg();
+    const player = makePlayer({ x: 5, y: 5, turns: 10 });
+    const boss = {
+      id: "boss-1",
+      name: "キングベヒんもス",
+      x: 15,
+      y: 15,
+      hp: 1000,
+      maxHp: 1000,
+      atk: 30,
+      def: 10,
+      speed: 1,
+      bodySize: 3,
+      isBoss: true,
+      poisoned: true,
+      poisonedTurns: 3,
+      immobileTurns: 2,
+    };
+    dg.monsters.push(boss);
+    const messages = [];
+
+    withLargeMonsterDamageTurn(player, () => {
+      monsterAI(boss, dg, player, messages);
+      expect(boss.hp).toBe(1000 - (Math.floor(1000 * 0.06) + 6));
+      expect(blockLargeMonsterDamage(boss, player, messages)).toBe(false);
+    });
   });
 });

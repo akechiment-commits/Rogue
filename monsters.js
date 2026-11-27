@@ -7476,20 +7476,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* 毒状態：毎行動、現HP×6%+6ダメージ */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
     m.poisonedTurns = Math.max(0, m.poisonedTurns - 1);
-    if (!blockLargeMonsterDamage(m, pl, ml)) {
-      const _pdmg = Math.floor(m.hp * 0.06) + 6;
-      m.hp -= _pdmg;
-      ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
-      resolveParalysisHit(m, ml);
-      if (m.hp <= 0) {
-        const _sporeKiller = m.sporePoisonKillerId
-          ? (dg.monsters.find(other => other.id === m.sporePoisonKillerId) || {
-              id: m.sporePoisonKillerId, name: m.sporePoisonKillerName || "毒キノコ", hp: 0,
-            })
-          : null;
-        killMonster(m, dg, pl, ml, _luFn, false, _sporeKiller);
-        return;
-      }
+    const _pdmg = Math.floor(m.hp * 0.06) + 6;
+    m.hp -= _pdmg;
+    ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
+    resolveParalysisHit(m, ml);
+    if (m.hp <= 0) {
+      const _sporeKiller = m.sporePoisonKillerId
+        ? (dg.monsters.find(other => other.id === m.sporePoisonKillerId) || {
+            id: m.sporePoisonKillerId, name: m.sporePoisonKillerName || "毒キノコ", hp: 0,
+          })
+        : null;
+      killMonster(m, dg, pl, ml, _luFn, false, _sporeKiller);
+      return;
     }
     if (m.poisonedTurns <= 0) {
       ml.push(`${m.name}の毒が切れた。`);
