@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { T, playerFloorTeleportDest, resolveBlessedTeleportSelection, clearDimensionalVaultItemCounter, createSeededRng, getShops, hasAbility, installPlayerHpReverseHook, isEvasionDisabledByStatus, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
+import { T, playerFloorTeleportDest, pickPitfallLandingCell, resolveBlessedTeleportSelection, clearDimensionalVaultItemCounter, createSeededRng, getShops, hasAbility, installPlayerHpReverseHook, isEvasionDisabledByStatus, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
 
 describe("プレイヤーのテレポート先", () => {
   it.each([[2, 2], [undefined, undefined]])("祝福巻物の指定先が塞がっているかキャンセルなら空き床へ飛ぶ (%s, %s)", (x, y) => {
@@ -18,6 +18,27 @@ describe("プレイヤーのテレポート先", () => {
     expect(playerFloorTeleportDest(dungeon)).toEqual(stairs);
     dungeon.monsters.push({ x: 1, y: 0 });
     expect(playerFloorTeleportDest(dungeon)).toBeNull();
+  });
+
+  it("落とし穴着地は水・壁・石像・敵・呪い聖域を避け、部屋なしフロアでも安全に着地する", () => {
+    const dungeon = {
+      map: [
+        [T.WATER, T.FLOOR, T.FLOOR],
+        [T.WALL, T.FLOOR, T.FLOOR],
+      ],
+      rooms: [{ x: 0, y: 0, w: 3, h: 2 }],
+      monsters: [{ x: 1, y: 0, bodySize: 1 }],
+      statues: [{ x: 2, y: 0 }],
+      pentacles: [{ kind: "sanctuary", cursed: true, x: 1, y: 1 }],
+    };
+    expect(pickPitfallLandingCell(dungeon)).toEqual({ x: 2, y: 1 });
+
+    const roomless = {
+      map: [[T.WALL, T.FLOOR]],
+      rooms: [],
+      monsters: [],
+    };
+    expect(pickPitfallLandingCell(roomless)).toEqual({ x: 1, y: 0 });
   });
 });
 

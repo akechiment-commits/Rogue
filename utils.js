@@ -512,7 +512,11 @@ export function randomTeleportDest(dg, cx, cy, filter = null) {
 }
 
 export function isPlayerTeleportCellUnoccupied(dungeon, x, y) {
-  return !dungeon.monsters?.some(monster => monsterOccupiesCell(monster, x, y));
+  if (dungeon.monsters?.some(monster => !monster.disguisedAsItem && (monster.hp ?? 1) > 0 && monsterOccupiesCell(monster, x, y))) return false;
+  if (dungeon.statues?.some(statue => statue.x === x && statue.y === y)) return false;
+  if (dungeon.dimensionalVaults?.some(vault => vault.x === x && vault.y === y)) return false;
+  if (dungeon.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === x && pc.y === y)) return false;
+  return true;
 }
 
 export function randomPlayerTeleportDest(dungeon, x, y) {
@@ -523,8 +527,27 @@ export function randomPlayerTeleportDest(dungeon, x, y) {
 export function playerFloorTeleportDest(dungeon) {
   const destination = randomPlayerTeleportDest(dungeon, -999, -999);
   if (destination) return destination;
-  const stairs = dungeon.stairUp;
+  const stairs = dungeon.stairUp || dungeon.stairDown;
   return stairs && isPlayerTeleportCellUnoccupied(dungeon, stairs.x, stairs.y) ? stairs : null;
+}
+
+export function pickPitfallLandingCell(dungeon) {
+  const roomCells = [];
+  const seen = new Set();
+  for (const room of (dungeon.rooms || [])) {
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        const key = `${x},${y}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (dungeon.map?.[y]?.[x] === T.FLOOR && isPlayerTeleportCellUnoccupied(dungeon, x, y)) {
+          roomCells.push({ x, y });
+        }
+      }
+    }
+  }
+  if (roomCells.length > 0) return pick(roomCells);
+  return playerFloorTeleportDest(dungeon) || dungeon.stairUp || dungeon.stairDown || null;
 }
 
 export function resolveBlessedTeleportSelection(dungeon, player, messages, x, y) {

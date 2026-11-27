@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { readPreference, writePreference, readDesktopViewportWidth } from "./browserPreferences.js";
 import { dungeonScoreLabel } from "./adventureScores.js";
 import { isCarryInRun } from "./rankingClient.js";
-import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, calcPlayerDefense, countEquippedRings, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, randomPlayerTeleportDest, pickPitfallLandingCell, isPlayerTeleportCellUnoccupied, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, flushPlayerGutsMessage, calcAtkDefDmg, calcPlayerDefense, countEquippedRings, isEvasionDisabledByStatus, checkMonsterEvasion, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier, pickSpawnPoolFloor, syncSpawnFloorMeta, advanceNextExp, playerTotalExp } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -2312,9 +2312,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       });
     }
     if (pitfall) {
-      const _pr = d.rooms[rng(0, d.rooms.length - 1)];
-      pl.x = rng(_pr.x, _pr.x + _pr.w - 1);
-      pl.y = rng(_pr.y, _pr.y + _pr.h - 1);
+      const _pfTarget = pickPitfallLandingCell(d);
+      if (_pfTarget) {
+        for (const _m of (d.monsters || [])) {
+          if (_m.disguisedAsItem || (_m.hp ?? 1) <= 0) continue;
+          if (!monsterOccupiesCell(_m, _pfTarget.x, _pfTarget.y)) continue;
+          const _dest = findStairArrivalRelocateCell(d, _m, _pfTarget);
+          if (_dest) { _m.x = _dest.x; _m.y = _dest.y; }
+        }
+        pl.x = _pfTarget.x;
+        pl.y = _pfTarget.y;
+      }
     } else {
       const _stTarget = dir > 0 ? d.stairUp : (d.stairDown || d.stairUp);
       /* 到着マスに敵がいるとプレイヤーと重なるので、その敵だけを近くの安全なマスへ移す */
