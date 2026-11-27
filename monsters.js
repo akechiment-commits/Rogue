@@ -630,6 +630,11 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
       continue;
     }
     if (crumbleFloorYabaiFood(it, "炎", dg, p, ml)) continue;
+    if (it.type === "food" && it.iceCream) {
+      _toRemove.add(it);
+      ml.push(`${m.name}が通った！「${resolveItemName(it)}」が炎で溶けて消滅した！`);
+      continue;
+    }
     if (it.type === "scroll" || it.type === "spellbook") {
       _toRemove.add(it);
       ml.push(`${m.name}が通った！「${resolveItemName(it)}」が燃えてなくなった！`);
@@ -663,14 +668,16 @@ function _fireDemonBurnItems(m, dg, ml, p = null) {
 /* ===== ゼラチンキューブ：移動後に床のアイテムを全て取り込む ===== */
 function _gelCubeAbsorbItems(m, dg, ml) {
   if (m.sealed) return;
-  const _onTile = dg.items.filter(it => it.x === m.x && it.y === m.y);
+  const _onTile = dg.items.filter(it => it.x === m.x && it.y === m.y &&
+    it.type !== "goal" && it.type !== "sign" && !it.wallEmbedded && !it.shopPrice && !it.itemMimicId);
   if (_onTile.length === 0) return;
   m.heldItems = m.heldItems || [];
   for (const it of _onTile) {
     const { boost, attack } = absorbGelCubeProjectile(m, it);
     ml.push(`${m.name}が「${resolveItemName(it)}」を取り込んだ！（攻撃力×${boost.toFixed(2)}→${attack}）`);
   }
-  dg.items = dg.items.filter(it => !(it.x === m.x && it.y === m.y));
+  const _absorbed = new Set(_onTile);
+  dg.items = dg.items.filter(it => !_absorbed.has(it));
 }
 
 /* ===== 境界・通行判定ヘルパー ===== */
